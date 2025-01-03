@@ -17,14 +17,12 @@ name = "oxigraph"
 doc = false
 
 [features]
-default = ["geosparql"]
-geosparql = ["dep:spargeo"]
+default = []
 
 [dependencies]
 console_error_panic_hook.workspace = true
 js-sys.workspace = true
 oxigraph = { workspace = true, features = ["js"] }
-spargeo = { workspace = true, optional = true }
 wasm-bindgen.workspace = true
 
 [lints]

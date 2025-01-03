@@ -11,11 +11,9 @@ use oxigraph::model::*;
 use oxigraph::sparql::results::QueryResultsFormat;
 use oxigraph::sparql::*;
 use oxigraph::store::Store;
-use spargeo::register_geosparql_functions;
-use sparopt::Optimizer;
 use std::collections::HashMap;
 use std::fmt::Write;
-use std::io::{self, Cursor};
+use std::io::Cursor;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -71,10 +69,6 @@ pub fn register_sparql_tests(evaluator: &mut TestEvaluator) {
     evaluator.register(
         "https://github.com/oxigraph/oxigraph/tests#NegativeTsvResultsSyntaxTest",
         |t| evaluate_negative_result_syntax_test(t, QueryResultsFormat::Tsv),
-    );
-    evaluator.register(
-        "https://github.com/oxigraph/oxigraph/tests#QueryOptimizationTest",
-        evaluate_query_optimization_test,
     );
 }
 
@@ -137,9 +131,7 @@ fn evaluate_evaluation_test(test: &Test) -> Result<()> {
         load_to_store(value, &store, name.clone())?;
     }
     let query_file = test.query.as_deref().context("No action found")?;
-    let options = QueryOptions::default()
-        .with_service_handler(StaticServiceHandler::new(&test.service_data)?);
-    let options = register_geosparql_functions(options);
+    let options = QueryOptions::default();
     let query = Query::parse(&read_file_to_string(query_file)?, Some(query_file))
         .context("Failure to parse query")?;
 
@@ -171,24 +163,19 @@ fn evaluate_evaluation_test(test: &Test) -> Result<()> {
         false
     };
 
-    for with_query_optimizer in [true, false] {
-        let mut options = options.clone();
-        if !with_query_optimizer {
-            options = options.without_optimizations();
-        }
-        let actual_results = store
-            .query_opt(query.clone(), options)
-            .context("Failure to execute query")?;
-        let actual_results = StaticQueryResults::from_query_results(actual_results, with_order)?;
+    let options = options.clone();
+    let actual_results = store
+        .query_opt(query.clone(), options)
+        .context("Failure to execute query")?;
+    let actual_results = StaticQueryResults::from_query_results(actual_results, with_order)?;
 
-        ensure!(
-            are_query_results_isomorphic(&expected_results, &actual_results),
-            "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{}\n",
-            results_diff(expected_results, actual_results),
-            Query::parse(&read_file_to_string(query_file)?, Some(query_file)).unwrap(),
-            store
-        );
-    }
+    ensure!(
+        are_query_results_isomorphic(&expected_results, &actual_results),
+        "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{}\n",
+        results_diff(expected_results, actual_results),
+        Query::parse(&read_file_to_string(query_file)?, Some(query_file)).unwrap(),
+        store
+    );
     Ok(())
 }
 
@@ -280,29 +267,6 @@ impl StaticServiceHandler {
                     .collect::<Result<_>>()?,
             ),
         })
-    }
-}
-
-impl ServiceHandler for StaticServiceHandler {
-    type Error = EvaluationError;
-
-    fn handle(
-        &self,
-        service_name: NamedNode,
-        query: Query,
-    ) -> std::result::Result<QueryResults, EvaluationError> {
-        self.services
-            .get(&service_name)
-            .ok_or_else(|| {
-                EvaluationError::Service(Box::new(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    format!("Service {service_name} not found"),
-                )))
-            })?
-            .query_opt(
-                query,
-                QueryOptions::default().with_service_handler(self.clone()),
-            )
     }
 }
 
@@ -653,47 +617,5 @@ fn load_to_store(url: &str, store: &Store, to_graph_name: impl Into<GraphName>) 
             .with_default_graph(to_graph_name),
         read_file(url)?,
     )?;
-    Ok(())
-}
-
-fn evaluate_query_optimization_test(test: &Test) -> Result<()> {
-    let action = test.action.as_deref().context("No action found")?;
-    let actual = (&Optimizer::optimize_graph_pattern(
-        (&if let spargebra::Query::Select { pattern, .. } =
-            spargebra::Query::parse(&read_file_to_string(action)?, Some(action))?
-        {
-            pattern
-        } else {
-            bail!("Only SELECT queries are supported in query sparql-optimization tests")
-        })
-            .into(),
-    ))
-        .into();
-    let result = test.result.as_ref().context("No tests result found")?;
-    let spargebra::Query::Select {
-        pattern: expected, ..
-    } = spargebra::Query::parse(&read_file_to_string(result)?, Some(result))?
-    else {
-        bail!("Only SELECT queries are supported in query sparql-optimization tests")
-    };
-    ensure!(
-        expected == actual,
-        "Not equal queries.\nDiff:\n{}\n",
-        format_diff(
-            &spargebra::Query::Select {
-                pattern: expected,
-                dataset: None,
-                base_iri: None
-            }
-            .to_sse(),
-            &spargebra::Query::Select {
-                pattern: actual,
-                dataset: None,
-                base_iri: None
-            }
-            .to_sse(),
-            "query"
-        )
-    );
     Ok(())
 }

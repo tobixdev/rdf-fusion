@@ -4,18 +4,18 @@ use libfuzzer_sys::fuzz_target;
 use oxigraph::model::dataset::{CanonicalizationAlgorithm, Dataset};
 use oxigraph::sparql::{QueryOptions, Update};
 use oxigraph::store::Store;
-#[cfg(feature = "rocksdb")]
+#[cfg(feature = "storage")]
 use std::env::temp_dir;
 use std::sync::OnceLock;
 
 fuzz_target!(|data: sparql_smith::Update| {
     static DISK_STORE: OnceLock<Store> = OnceLock::new();
     let disk_store = DISK_STORE.get_or_init(|| {
-        #[cfg(feature = "rocksdb")]
+        #[cfg(feature = "storage")]
         {
             Store::open(temp_dir().join("oxigraph-fuzz-update")).unwrap()
         }
-        #[cfg(not(feature = "rocksdb"))]
+        #[cfg(not(feature = "storage"))]
         {
             Store::new().unwrap()
         }

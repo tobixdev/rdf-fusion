@@ -3,9 +3,11 @@ use crate::model::*;
 use crate::sparql::error::EvaluationError;
 use crate::sparql::results::{
     QueryResultsFormat, QueryResultsParseError, QueryResultsParser, QueryResultsSerializer,
-    ReaderQueryResultsParserOutput, ReaderSolutionsParser,
+    ReaderQueryResultsParserOutput,
 };
+use crate::sparql::QueryEvaluationError;
 pub use sparesults::QuerySolution;
+use sparesults::ReaderSolutionsParser;
 use std::io::{Read, Write};
 use std::sync::Arc;
 
@@ -172,24 +174,16 @@ impl<R: Read + 'static> From<ReaderQueryResultsParserOutput<R>> for QueryResults
 /// }
 /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
 /// ```
-pub struct QuerySolutionIter {
-    variables: Arc<[Variable]>,
-    iter: Box<dyn Iterator<Item = Result<QuerySolution, EvaluationError>>>,
-}
+pub struct QuerySolutionIter {}
 
 impl QuerySolutionIter {
     /// Construct a new iterator of solution from an ordered list of solution variables and an iterator of solution tuples
     /// (each tuple using the same ordering as the variable list such that tuple element 0 is the value for the variable 0...)
     pub fn new(
         variables: Arc<[Variable]>,
-        iter: impl Iterator<Item = Result<Vec<Option<Term>>, EvaluationError>> + 'static,
+        iter: impl Iterator<Item = Result<QuerySolution, EvaluationError>> + 'static,
     ) -> Self {
-        Self {
-            variables: Arc::clone(&variables),
-            iter: Box::new(
-                iter.map(move |t| t.map(|values| (Arc::clone(&variables), values).into())),
-            ),
-        }
+        unimplemented!()
     }
 
     /// The variables used in the solutions.
@@ -209,16 +203,18 @@ impl QuerySolutionIter {
     /// ```
     #[inline]
     pub fn variables(&self) -> &[Variable] {
-        &self.variables
+        unimplemented!()
     }
 }
 
 impl<R: Read + 'static> From<ReaderSolutionsParser<R>> for QuerySolutionIter {
     fn from(reader: ReaderSolutionsParser<R>) -> Self {
-        Self {
-            variables: reader.variables().into(),
-            iter: Box::new(reader.map(|t| t.map_err(EvaluationError::from))),
-        }
+        Self::new(
+            reader.variables().into(),
+            Box::new(
+                reader.map(|t| t.map_err(|e| QueryEvaluationError::Service(Box::new(e)).into())),
+            ),
+        )
     }
 }
 
@@ -227,12 +223,12 @@ impl Iterator for QuerySolutionIter {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+        unimplemented!()
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
+        unimplemented!()
     }
 }
 
@@ -250,39 +246,19 @@ impl Iterator for QuerySolutionIter {
 /// }
 /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
 /// ```
-pub struct QueryTripleIter {
-    iter: Box<dyn Iterator<Item = Result<Triple, EvaluationError>>>,
-}
-
-impl QueryTripleIter {
-    pub(crate) fn new(
-        iter: impl Iterator<Item = Result<Triple, EvaluationError>> + 'static,
-    ) -> Self {
-        Self {
-            iter: Box::new(iter),
-        }
-    }
-}
+pub struct QueryTripleIter {}
 
 impl Iterator for QueryTripleIter {
     type Item = Result<Triple, EvaluationError>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+        unimplemented!()
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
-
-    #[inline]
-    fn fold<Acc, G>(self, init: Acc, f: G) -> Acc
-    where
-        G: FnMut(Acc, Self::Item) -> Acc,
-    {
-        self.iter.fold(init, f)
+        unimplemented!()
     }
 }
 
@@ -307,65 +283,65 @@ mod tests {
             QueryResultsFormat::Xml,
             QueryResultsFormat::Tsv,
         ] {
+            let variables: Arc<[Variable]> = Arc::new([
+                Variable::new_unchecked("foo"),
+                Variable::new_unchecked("bar"),
+            ]);
+
+            let terms: Vec<Vec<Option<Term>>> = vec![
+                vec![None, None],
+                vec![
+                    Some(NamedNode::new_unchecked("http://example.com").into()),
+                    None,
+                ],
+                vec![
+                    None,
+                    Some(NamedNode::new_unchecked("http://example.com").into()),
+                ],
+                vec![
+                    Some(BlankNode::new_unchecked("foo").into()),
+                    Some(BlankNode::new_unchecked("bar").into()),
+                ],
+                vec![Some(Literal::new_simple_literal("foo").into()), None],
+                vec![
+                    Some(Literal::new_language_tagged_literal_unchecked("foo", "fr").into()),
+                    None,
+                ],
+                vec![
+                    Some(Literal::from(1).into()),
+                    Some(Literal::from(true).into()),
+                ],
+                vec![
+                    Some(Literal::from(1.33).into()),
+                    Some(Literal::from(false).into()),
+                ],
+                vec![
+                    Some(
+                        Triple::new(
+                            NamedNode::new_unchecked("http://example.com/s"),
+                            NamedNode::new_unchecked("http://example.com/p"),
+                            Triple::new(
+                                NamedNode::new_unchecked("http://example.com/os"),
+                                NamedNode::new_unchecked("http://example.com/op"),
+                                NamedNode::new_unchecked("http://example.com/oo"),
+                            ),
+                        )
+                        .into(),
+                    ),
+                    None,
+                ],
+            ];
+            let solutions = terms
+                .into_iter()
+                .map(|terms| Ok((variables.clone(), terms).into()))
+                .collect::<Vec<Result<QuerySolution, EvaluationError>>>();
+
             let results = vec![
                 QueryResults::Boolean(true),
                 QueryResults::Boolean(false),
                 QueryResults::Solutions(QuerySolutionIter::new(
-                    [
-                        Variable::new_unchecked("foo"),
-                        Variable::new_unchecked("bar"),
-                    ]
-                    .as_ref()
-                    .into(),
-                    Box::new(
-                        vec![
-                            Ok(vec![None, None]),
-                            Ok(vec![
-                                Some(NamedNode::new_unchecked("http://example.com").into()),
-                                None,
-                            ]),
-                            Ok(vec![
-                                None,
-                                Some(NamedNode::new_unchecked("http://example.com").into()),
-                            ]),
-                            Ok(vec![
-                                Some(BlankNode::new_unchecked("foo").into()),
-                                Some(BlankNode::new_unchecked("bar").into()),
-                            ]),
-                            Ok(vec![Some(Literal::new_simple_literal("foo").into()), None]),
-                            Ok(vec![
-                                Some(
-                                    Literal::new_language_tagged_literal_unchecked("foo", "fr")
-                                        .into(),
-                                ),
-                                None,
-                            ]),
-                            Ok(vec![
-                                Some(Literal::from(1).into()),
-                                Some(Literal::from(true).into()),
-                            ]),
-                            Ok(vec![
-                                Some(Literal::from(1.33).into()),
-                                Some(Literal::from(false).into()),
-                            ]),
-                            Ok(vec![
-                                Some(
-                                    Triple::new(
-                                        NamedNode::new_unchecked("http://example.com/s"),
-                                        NamedNode::new_unchecked("http://example.com/p"),
-                                        Triple::new(
-                                            NamedNode::new_unchecked("http://example.com/os"),
-                                            NamedNode::new_unchecked("http://example.com/op"),
-                                            NamedNode::new_unchecked("http://example.com/oo"),
-                                        ),
-                                    )
-                                    .into(),
-                                ),
-                                None,
-                            ]),
-                        ]
-                        .into_iter(),
-                    ),
+                    variables.clone(),
+                    solutions.into_iter(),
                 )),
             ];
 

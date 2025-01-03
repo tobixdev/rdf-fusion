@@ -163,9 +163,6 @@ fn store_query_and_update(c: &mut Criterion) {
 
 fn run_operation(store: &Store, operations: &[Operation], with_opts: bool) {
     let mut options = QueryOptions::default();
-    if !with_opts {
-        options = options.without_optimizations();
-    }
     for operation in operations {
         match operation {
             Operation::Query(q) => match store.query_opt(q.clone(), options.clone()).unwrap() {

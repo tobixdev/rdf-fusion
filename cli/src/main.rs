@@ -11,13 +11,11 @@ use oxigraph::model::{
     GraphName, GraphNameRef, IriParseError, NamedNode, NamedNodeRef, NamedOrBlankNode,
 };
 use oxigraph::sparql::results::{QueryResultsFormat, QueryResultsSerializer};
-use oxigraph::sparql::{Query, QueryOptions, QueryResults, Update};
-use oxigraph::store::{BulkLoader, LoaderError, Store};
+use oxigraph::sparql::{LoaderError, Query, QueryOptions, QueryResults, Update};
+use oxigraph::store::{BulkLoader, Store};
 use oxiri::Iri;
 use rand::random;
 use rayon_core::ThreadPoolBuilder;
-#[cfg(feature = "geosparql")]
-use spargeo::register_geosparql_functions;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::{max, min};
@@ -177,7 +175,7 @@ pub fn main() -> anyhow::Result<()> {
                                     }
                                 };
                                 if let Err(error) = {
-                                    if file.extension().map_or(false, |e| e == OsStr::new("gz")) {
+                                    if file.extension().is_some_and(|e| e == OsStr::new("gz")) {
                                         bulk_load(
                                             &loader,
                                             MultiGzDecoder::new(fp),
@@ -1720,8 +1718,6 @@ mod tests {
             .arg("--bin")
             .arg("oxigraph")
             .arg("--no-default-features");
-        #[cfg(feature = "rocksdb-pkg-config")]
-        command.arg("--features").arg("rocksdb-pkg-config");
         #[cfg(feature = "geosparql")]
         command.arg("--features").arg("geosparql");
         command.arg("--");

@@ -126,10 +126,6 @@ pub fn generate_service_description(
         sd::DEFAULT_ENTAILMENT_REGIME,
         NamedNodeRef::new_unchecked("http://www.w3.org/ns/entailment/Simple"),
     ));
-    #[cfg(feature = "geosparql")]
-    for function_name in spargeo::GEOSPARQL_EXTENSION_FUNCTIONS {
-        graph.push(TripleRef::new(&root, sd::EXTENSION_FUNCTION, function_name));
-    }
 
     let mut serializer = RdfSerializer::from_format(format)
         .with_prefix("sd", "http://www.w3.org/ns/sparql-service-description#")

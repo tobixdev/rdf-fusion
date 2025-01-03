@@ -16,42 +16,30 @@ edition.workspace = true
 rust-version.workspace = true
 
 [features]
-default = ["rocksdb"]
-rocksdb = ["oxrocksdb-sys"]
+default = ["storage"]
+storage = []
 js = ["getrandom/js", "oxsdatatypes/js", "js-sys"]
 http-client = ["oxhttp"]
 http-client-native-tls = ["http-client", "oxhttp/native-tls"]
 http-client-rustls-webpki = ["http-client", "oxhttp/rustls-ring-webpki"]
 http-client-rustls-native = ["http-client", "oxhttp/rustls-ring-native"]
-rocksdb-pkg-config = ["oxrocksdb-sys/pkg-config"]
-rocksdb-debug = []
 
 [dependencies]
 dashmap.workspace = true
-digest.workspace = true
-hex.workspace = true
-json-event-parser.workspace = true
-md-5.workspace = true
-oxilangtag.workspace = true
 oxiri.workspace = true
 oxrdf = { workspace = true, features = ["rdf-star", "oxsdatatypes"] }
 oxrdfio = { workspace = true, features = ["rdf-star"] }
 oxsdatatypes.workspace = true
 rand.workspace = true
-regex.workspace = true
 rustc-hash.workspace = true
-sha1.workspace = true
-sha2.workspace = true
 siphasher.workspace = true
 sparesults = { workspace = true, features = ["rdf-star"] }
 spargebra = { workspace = true, features = ["rdf-star", "sep-0002", "sep-0006"] }
-sparopt = { workspace = true, features = ["rdf-star", "sep-0002", "sep-0006"] }
 thiserror.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 libc.workspace = true
 oxhttp = { workspace = true, optional = true }
-oxrocksdb-sys = { workspace = true, optional = true }
 
 [target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
 getrandom.workspace = true
@@ -71,4 +59,4 @@ rustdoc-args = ["--cfg", "docsrs"]
 [[bench]]
 name = "store"
 harness = false
-required-features = ["rocksdb"]
+required-features = ["storage"]

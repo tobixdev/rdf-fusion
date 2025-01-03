@@ -14,10 +14,7 @@ use oxigraph::sparql::{
 use pyo3::exceptions::{PyRuntimeError, PySyntaxError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::pybacked::PyBackedStr;
-use pyo3::types::PyTuple;
 use pyo3::IntoPyObjectExt;
-#[cfg(feature = "geosparql")]
-use spargeo::register_geosparql_functions;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io;
@@ -87,22 +84,7 @@ pub fn query_options_from_python(
 
     if let Some(custom_functions) = custom_functions {
         for (name, function) in custom_functions {
-            options = options.with_custom_function(name.into(), move |args| {
-                Python::with_gil(|py| {
-                    Some(
-                        function
-                            .call1(
-                                py,
-                                PyTuple::new(py, args.iter().map(|t| PyTerm::from(t.clone())))
-                                    .ok()?,
-                            )
-                            .ok()?
-                            .extract::<Option<PyTerm>>(py)
-                            .ok()??
-                            .into(),
-                    )
-                })
-            })
+            unimplemented!()
         }
     }
     options

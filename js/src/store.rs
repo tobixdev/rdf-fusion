@@ -6,8 +6,6 @@ use oxigraph::model::*;
 use oxigraph::sparql::results::QueryResultsFormat;
 use oxigraph::sparql::{Query, QueryOptions, QueryResults, Update};
 use oxigraph::store::Store;
-#[cfg(feature = "geosparql")]
-use spargeo::register_geosparql_functions;
 use wasm_bindgen::prelude::*;
 
 // We skip_typescript on specific wasm_bindgen macros and provide custom TypeScript types for parts of this module in order to have narrower types
