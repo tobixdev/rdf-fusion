@@ -25,14 +25,12 @@ http-client-rustls-webpki = ["http-client", "oxhttp/rustls-ring-webpki"]
 http-client-rustls-native = ["http-client", "oxhttp/rustls-ring-native"]
 
 [dependencies]
-dashmap.workspace = true
+datafusion.workspace = true
 oxiri.workspace = true
 oxrdf = { workspace = true, features = ["rdf-star", "oxsdatatypes"] }
 oxrdfio = { workspace = true, features = ["rdf-star"] }
 oxsdatatypes.workspace = true
 rand.workspace = true
-rustc-hash.workspace = true
-siphasher.workspace = true
 sparesults = { workspace = true, features = ["rdf-star"] }
 spargebra = { workspace = true, features = ["rdf-star", "sep-0002", "sep-0006"] }
 thiserror.workspace = true

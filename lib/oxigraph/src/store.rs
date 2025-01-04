@@ -31,11 +31,16 @@ use crate::sparql::{
     EvaluationError, LoaderError, Query, QueryExplanation, QueryOptions, QueryResults,
     SerializerError, StorageError, Update, UpdateOptions,
 };
+use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef, UnionFields, UnionMode};
+use datafusion::datasource::MemTable;
+use datafusion::prelude::SessionContext;
 use std::error::Error;
 use std::io::{Read, Write};
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use std::path::Path;
 use std::{fmt, str};
+use std::sync::Arc;
+use crate::model::triple_table_schema;
 
 /// An on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
 /// Allows to query and update it using SPARQL.
@@ -74,12 +79,21 @@ use std::{fmt, str};
 /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
 /// ```
 #[derive(Clone)]
-pub struct Store {}
+pub struct Store {
+    context: SessionContext,
+}
 
 impl Store {
-    /// New in-memory [`Store`] without RocksDB.
+    /// New in-memory [`Store`].
     pub fn new() -> Result<Self, StorageError> {
-        unimplemented!()
+        let context = SessionContext::new();
+        let triples_table = MemTable::try_new(
+            SchemaRef::new(triple_table_schema()),
+            Vec::new(),
+        ).map_err(|err| StorageError::from(err))?;
+        context.register_table("triples", Arc::new(triples_table))
+            .map_err(|err| StorageError::from(err))?;
+        Ok(Self { context })
     }
 
     /// Opens a read-write [`Store`] and creates it if it does not exist yet.
@@ -127,7 +141,7 @@ impl Store {
         &self,
         query: impl TryInto<Query, Error = impl Into<EvaluationError>>,
     ) -> Result<QueryResults, EvaluationError> {
-        unimplemented!()
+        self.query_opt(query, QueryOptions::default())
     }
 
     /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/) with some options.
@@ -158,7 +172,8 @@ impl Store {
         query: impl TryInto<Query, Error = impl Into<EvaluationError>>,
         options: QueryOptions,
     ) -> Result<QueryResults, EvaluationError> {
-        unimplemented!()
+        let (results, _) = self.explain_query_opt(query, options, false)?;
+        results
     }
 
     /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/) with some options and
@@ -190,7 +205,11 @@ impl Store {
         options: QueryOptions,
         with_stats: bool,
     ) -> Result<(Result<QueryResults, EvaluationError>, QueryExplanation), EvaluationError> {
-        unimplemented!()
+        let query = query.try_into().map_err(Into::into)?;
+        let mut evaluator = options.into_evaluator(self.context.state());
+        let (results, explanation) = evaluator.explain(&query);
+        let results = results.map_err(Into::into);
+        Ok((results, explanation))
     }
 
     /// Retrieves quads with a filter on each quad component

@@ -1,15 +1,15 @@
+use datafusion::execution::SessionState;
 use crate::sparql::error::QueryEvaluationError;
-use crate::sparql::{QueryExplanation, QueryResults};
-use spargebra::Query;
+use crate::sparql::{Query, QueryExplanation, QueryResults};
 
-#[derive(Clone, Default)]
-pub struct QueryEvaluator {}
+pub struct QueryEvaluator {
+    state: SessionState,
+}
 
 impl QueryEvaluator {
     #[must_use]
-    #[inline]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(state: SessionState) -> Self {
+        Self{ state }
     }
 
     pub fn execute(&self, query: &Query) -> Result<QueryResults, QueryEvaluationError> {

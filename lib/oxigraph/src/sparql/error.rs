@@ -8,6 +8,7 @@ use oxrdfio::RdfFormat;
 use std::convert::Infallible;
 use std::error::Error;
 use std::io;
+use datafusion::error::DataFusionError;
 
 /// A SPARQL evaluation error
 #[derive(Debug, thiserror::Error)]
@@ -151,6 +152,9 @@ pub enum StorageError {
     /// Error related to data corruption.
     #[error(transparent)]
     Corruption(#[from] CorruptionError),
+    /// Error related to data corruption.
+    #[error(transparent)]
+    DataFusion(#[from] DataFusionError),
     #[doc(hidden)]
     #[error("{0}")]
     Other(#[source] Box<dyn Error + Send + Sync + 'static>),
@@ -163,6 +167,7 @@ impl From<StorageError> for io::Error {
             StorageError::Io(error) => error,
             StorageError::Corruption(error) => error.into(),
             StorageError::Other(error) => Self::other(error),
+            StorageError::DataFusion(error) => error.into()
         }
     }
 }

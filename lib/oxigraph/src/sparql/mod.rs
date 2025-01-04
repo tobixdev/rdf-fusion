@@ -11,6 +11,7 @@ mod model;
 pub mod results;
 mod update;
 
+use datafusion::execution::SessionState;
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};
 pub use crate::sparql::error::{
     EvaluationError, LoaderError, QueryEvaluationError, SerializerError, StorageError,
@@ -20,18 +21,6 @@ pub use crate::sparql::explanation::QueryExplanation;
 pub use crate::sparql::model::{QueryResults, QuerySolution, QuerySolutionIter, QueryTripleIter};
 pub use oxrdf::{Variable, VariableNameParseError};
 pub use spargebra::SparqlSyntaxError;
-
-#[allow(clippy::needless_pass_by_value)]
-pub(crate) fn evaluate_query(
-    query: impl TryInto<Query, Error = impl Into<EvaluationError>>,
-    options: QueryOptions,
-) -> Result<(Result<QueryResults, EvaluationError>, QueryExplanation), EvaluationError> {
-    let query = query.try_into().map_err(Into::into)?;
-    let mut evaluator = options.into_evaluator();
-    let (results, explanation) = evaluator.explain(&query.inner);
-    let results = results.map_err(Into::into);
-    Ok((results, explanation))
-}
 
 /// Options for SPARQL query evaluation.
 ///
@@ -55,8 +44,8 @@ pub(crate) fn evaluate_query(
 pub struct QueryOptions {}
 
 impl QueryOptions {
-    fn into_evaluator(mut self) -> QueryEvaluator {
-        QueryEvaluator::new()
+    pub fn into_evaluator(mut self, state: SessionState) -> QueryEvaluator {
+        QueryEvaluator::new(state)
     }
 }
 
