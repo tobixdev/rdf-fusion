@@ -25,22 +25,22 @@
 //! };
 //! # Result::<_, Box<dyn std::error::Error>>::Ok(())
 //! ```
+use crate::datafusion::{load_from_reader, SINGLE_QUAD_TABLE_SCHEMA};
 use crate::io::{RdfFormat, RdfParseError, RdfParser, RdfSerializer};
 use crate::model::*;
 use crate::sparql::{
     EvaluationError, LoaderError, Query, QueryExplanation, QueryOptions, QueryResults,
     SerializerError, StorageError, Update, UpdateOptions,
 };
-use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef, UnionFields, UnionMode};
+use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::datasource::MemTable;
 use datafusion::prelude::SessionContext;
 use std::error::Error;
 use std::io::{Read, Write};
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use std::path::Path;
-use std::{fmt, str};
 use std::sync::Arc;
-use crate::model::single_quad_table_schema;
+use std::{fmt, str};
 
 /// An on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
 /// Allows to query and update it using SPARQL.
@@ -88,10 +88,12 @@ impl Store {
     pub fn new() -> Result<Self, StorageError> {
         let context = SessionContext::new();
         let triples_table = MemTable::try_new(
-            SchemaRef::new(single_quad_table_schema()),
-            Vec::new(),
-        ).map_err(|err| StorageError::from(err))?;
-        context.register_table("quads", Arc::new(triples_table))
+            SchemaRef::new(SINGLE_QUAD_TABLE_SCHEMA.clone()),
+            vec![Vec::new()],
+        )
+        .map_err(|err| StorageError::from(err))?;
+        context
+            .register_table("quads", Arc::new(triples_table))
             .map_err(|err| StorageError::from(err))?;
         Ok(Self { context })
     }
@@ -304,10 +306,7 @@ impl Store {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn len(&self) -> Result<usize, StorageError> {
-        Ok(self.context.table("quads")
-            .await?
-            .count()
-            .await?)
+        Ok(self.context.table("quads").await?.count().await?)
     }
 
     /// Returns if the store is empty.
@@ -325,8 +324,9 @@ impl Store {
     /// assert!(!store.is_empty()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn is_empty(&self) -> Result<bool, StorageError> {
-        unimplemented!()
+    pub async fn is_empty(&self) -> Result<bool, StorageError> {
+        let len = self.len().await?;
+        Ok(len == 0)
     }
 
     /// Executes a transaction.
@@ -444,12 +444,19 @@ impl Store {
     /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g2")?))?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn load_from_reader(
+    pub async fn load_from_reader(
         &self,
         parser: impl Into<RdfParser>,
         reader: impl Read,
     ) -> Result<(), LoaderError> {
-        unimplemented!()
+        let quads = parser
+            .into()
+            .rename_blank_nodes()
+            .for_reader(reader)
+            .collect::<Result<Vec<_>, _>>()?;
+        load_from_reader(&self.context, quads)
+            .await
+            .map_err(|err| LoaderError::from(StorageError::DataFusion(err)))
     }
 
     /// Loads a graph file (i.e. triples) into the store.

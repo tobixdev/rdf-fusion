@@ -5,6 +5,7 @@
 #![doc(html_favicon_url = "https://raw.githubusercontent.com/oxigraph/oxigraph/main/logo.svg")]
 #![doc(html_logo_url = "https://raw.githubusercontent.com/oxigraph/oxigraph/main/logo.svg")]
 
+mod datafusion;
 pub mod io;
 pub mod model;
 pub mod sparql;

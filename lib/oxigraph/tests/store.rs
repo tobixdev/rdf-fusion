@@ -108,10 +108,10 @@ fn quads(graph_name: impl Into<GraphNameRef<'static>>) -> Vec<QuadRef<'static>> 
     ]
 }
 
-#[test]
-fn test_load_graph() -> Result<(), Box<dyn Error>> {
+#[tokio::test]
+async fn test_load_graph() -> Result<(), Box<dyn Error>> {
     let store = Store::new()?;
-    store.load_from_reader(RdfFormat::Turtle, DATA.as_bytes())?;
+    store.load_from_reader(RdfFormat::Turtle, DATA.as_bytes()).await?;
     for q in quads(GraphNameRef::DefaultGraph) {
         assert!(store.contains(q)?);
     }
@@ -119,12 +119,12 @@ fn test_load_graph() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[test]
+#[tokio::test]
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-fn test_load_graph_on_disk() -> Result<(), Box<dyn Error>> {
+async fn test_load_graph_on_disk() -> Result<(), Box<dyn Error>> {
     let dir = TempDir::default();
     let store = Store::open(&dir.0)?;
-    store.load_from_reader(RdfFormat::Turtle, DATA.as_bytes())?;
+    store.load_from_reader(RdfFormat::Turtle, DATA.as_bytes()).await?;
     for q in quads(GraphNameRef::DefaultGraph) {
         assert!(store.contains(q)?);
     }
@@ -178,19 +178,19 @@ async fn test_bulk_load_graph_lenient() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[test]
-fn test_bulk_load_empty() -> Result<(), Box<dyn Error>> {
+#[tokio::test]
+async fn test_bulk_load_empty() -> Result<(), Box<dyn Error>> {
     let store = Store::new()?;
     store.bulk_loader().load_quads(empty::<Quad>())?;
-    assert!(store.is_empty()?);
+    assert!(store.is_empty().await?);
     store.validate()?;
     Ok(())
 }
 
-#[test]
-fn test_load_dataset() -> Result<(), Box<dyn Error>> {
+#[tokio::test]
+async fn test_load_dataset() -> Result<(), Box<dyn Error>> {
     let store = Store::new()?;
-    store.load_from_reader(RdfFormat::TriG, GRAPH_DATA.as_bytes())?;
+    store.load_from_reader(RdfFormat::TriG, GRAPH_DATA.as_bytes()).await?;
     for q in quads(NamedNodeRef::new_unchecked(
         "http://www.wikidata.org/wiki/Special:EntityData/Q90",
     )) {
@@ -223,7 +223,7 @@ async fn test_load_graph_generates_new_blank_nodes() -> Result<(), Box<dyn Error
         store.load_from_reader(
             RdfFormat::NTriples,
             "_:a <http://example.com/p> <http://example.com/p> .".as_bytes(),
-        )?;
+        ).await?;
     }
     assert_eq!(store.len().await?, 2);
     Ok(())

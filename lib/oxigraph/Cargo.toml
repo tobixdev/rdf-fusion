@@ -35,6 +35,7 @@ sparesults = { workspace = true, features = ["rdf-star"] }
 spargebra = { workspace = true, features = ["rdf-star", "sep-0002", "sep-0006"] }
 thiserror.workspace = true
 tokio.workspace = true
+once_cell = "1.20.2"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 libc.workspace = true

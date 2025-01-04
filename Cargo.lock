@@ -2416,6 +2416,7 @@ dependencies = [
  "getrandom",
  "js-sys",
  "libc",
+ "once_cell",
  "oxhttp",
  "oxiri",
  "oxrdf",
