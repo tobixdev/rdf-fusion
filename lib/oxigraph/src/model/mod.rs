@@ -20,7 +20,7 @@
 use datafusion::arrow::datatypes::{DataType, Field, Fields, Schema, UnionFields, UnionMode};
 pub use oxrdf::*;
 
-pub(crate) fn triple_table_schema() -> Schema {
+pub(crate) fn single_quad_table_schema() -> Schema {
     let iri_type = DataType::Dictionary(Box::new(DataType::UInt32), Box::new(DataType::Utf8));
     let bnode_type = DataType::UInt32;
     let literal_type = DataType::Struct(Fields::from(vec![
@@ -54,6 +54,7 @@ pub(crate) fn triple_table_schema() -> Schema {
     );
 
     Schema::new(vec![
+        Field::new("graph_name", iri_type.clone(), false),
         Field::new("subject", subject_type, false),
         Field::new("predicate", predicate_type, false),
         Field::new("object", object_type, false),

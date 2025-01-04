@@ -40,7 +40,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::{fmt, str};
 use std::sync::Arc;
-use crate::model::triple_table_schema;
+use crate::model::single_quad_table_schema;
 
 /// An on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
 /// Allows to query and update it using SPARQL.
@@ -88,10 +88,10 @@ impl Store {
     pub fn new() -> Result<Self, StorageError> {
         let context = SessionContext::new();
         let triples_table = MemTable::try_new(
-            SchemaRef::new(triple_table_schema()),
+            SchemaRef::new(single_quad_table_schema()),
             Vec::new(),
         ).map_err(|err| StorageError::from(err))?;
-        context.register_table("triples", Arc::new(triples_table))
+        context.register_table("quads", Arc::new(triples_table))
             .map_err(|err| StorageError::from(err))?;
         Ok(Self { context })
     }
@@ -303,8 +303,11 @@ impl Store {
     /// assert_eq!(2, store.len()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn len(&self) -> Result<usize, StorageError> {
-        unimplemented!()
+    pub async fn len(&self) -> Result<usize, StorageError> {
+        Ok(self.context.table("quads")
+            .await?
+            .count()
+            .await?)
     }
 
     /// Returns if the store is empty.

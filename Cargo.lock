@@ -2425,6 +2425,7 @@ dependencies = [
  "sparesults",
  "spargebra",
  "thiserror",
+ "tokio",
  "zstd",
 ]
 
