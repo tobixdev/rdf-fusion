@@ -25,17 +25,18 @@
 //! };
 //! # Result::<_, Box<dyn std::error::Error>>::Ok(())
 //! ```
-use crate::datafusion::{MemoryTripleStore, TripleStore};
+use crate::engine::{MemoryTripleStore, TripleStore};
+use crate::error::{LoaderError, SerializerError, StorageError};
 use crate::io::{RdfFormat, RdfParseError, RdfParser, RdfSerializer};
 use crate::model::*;
 use crate::sparql::{
-    EvaluationError, LoaderError, Query, QueryExplanation, QueryOptions, QueryResults,
-    SerializerError, StorageError, Update, UpdateOptions,
+    EvaluationError, Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
 use std::error::Error;
 use std::io::{Read, Write};
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use std::path::Path;
+use std::sync::Arc;
 use std::{fmt, str};
 use tokio::runtime::{Builder, Runtime};
 
@@ -75,19 +76,22 @@ use tokio::runtime::{Builder, Runtime};
 /// # remove_dir_all("example.db")?;
 /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
 /// ```
+#[derive(Clone)]
 pub struct Store {
-    inner: Box<dyn TripleStore>,
-    runtime: Runtime, // This is for now the easiest way of not breaking any APIs.
+    inner: Arc<dyn TripleStore + Send + Sync>,
+    runtime: Arc<Runtime>, // This is for now the easiest way of not breaking any APIs.
 }
 
 impl Store {
     /// New in-memory [`Store`].
     pub fn new() -> Result<Self, StorageError> {
-        let runtime = Builder::new_multi_thread()
-            .worker_threads(1)
-            .enable_all()
-            .build()?;
-        let inner = runtime.block_on(async { MemoryTripleStore::new().await })?;
+        let runtime = Arc::new(
+            Builder::new_multi_thread()
+                .worker_threads(1)
+                .enable_all()
+                .build()?,
+        );
+        let inner = Arc::new(runtime.block_on(async { MemoryTripleStore::new().await })?);
         Ok(Self { inner, runtime })
     }
 
@@ -280,8 +284,9 @@ impl Store {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub fn contains<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
+        let quad = quad.into();
         self.runtime
-            .block_on(async { self.inner.contains(&quad.into()).await })
+            .block_on(async { self.inner.contains(&quad).await })
             .map_err(StorageError::from)
     }
 
@@ -450,7 +455,7 @@ impl Store {
             .for_reader(reader)
             .collect::<Result<Vec<_>, _>>()?;
         self.runtime
-            .block_on(async { self.inner.load_from_reader(quads).await })
+            .block_on(async { self.inner.load_quads(quads).await.map(|_| ()) })
             .map_err(|err| LoaderError::from(StorageError::from(err)))
     }
 
@@ -543,7 +548,15 @@ impl Store {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub fn insert<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
-        unimplemented!()
+        let quad = vec![quad.into().into_owned()];
+        self.runtime
+            .block_on(async {
+                self.inner
+                    .load_quads(quad)
+                    .await
+                    .map(|inserted| inserted > 0)
+            })
+            .map_err(|err| StorageError::from(err))
     }
 
     /// Adds atomically a set of quads to this store.

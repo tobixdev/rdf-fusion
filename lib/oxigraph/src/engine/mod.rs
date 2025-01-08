@@ -17,8 +17,9 @@
 //! assert_eq!(vec![triple], results);
 //! ```
 
-mod memory_triple_store;
+pub(crate) mod arrow;
+mod oxigraph_memory;
 mod triple_store;
 
-pub use memory_triple_store::MemoryTripleStore;
+pub use oxigraph_memory::MemoryTripleStore;
 pub use triple_store::TripleStore;

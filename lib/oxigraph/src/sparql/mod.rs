@@ -11,14 +11,12 @@ mod model;
 pub mod results;
 mod update;
 
-use datafusion::execution::SessionState;
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};
-pub use crate::sparql::error::{
-    EvaluationError, LoaderError, QueryEvaluationError, SerializerError, StorageError,
-};
+pub use crate::sparql::error::{EvaluationError, QueryEvaluationError};
 pub use crate::sparql::eval::QueryEvaluator;
 pub use crate::sparql::explanation::QueryExplanation;
 pub use crate::sparql::model::{QueryResults, QuerySolution, QuerySolutionIter, QueryTripleIter};
+use datafusion::execution::SessionState;
 pub use oxrdf::{Variable, VariableNameParseError};
 pub use spargebra::SparqlSyntaxError;
 
