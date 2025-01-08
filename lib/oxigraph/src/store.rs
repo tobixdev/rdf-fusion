@@ -25,22 +25,19 @@
 //! };
 //! # Result::<_, Box<dyn std::error::Error>>::Ok(())
 //! ```
-use crate::datafusion::{load_from_reader, SINGLE_QUAD_TABLE_SCHEMA};
+use crate::datafusion::{MemoryTripleStore, TripleStore};
 use crate::io::{RdfFormat, RdfParseError, RdfParser, RdfSerializer};
 use crate::model::*;
 use crate::sparql::{
     EvaluationError, LoaderError, Query, QueryExplanation, QueryOptions, QueryResults,
     SerializerError, StorageError, Update, UpdateOptions,
 };
-use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::datasource::MemTable;
-use datafusion::prelude::SessionContext;
 use std::error::Error;
 use std::io::{Read, Write};
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use std::path::Path;
-use std::sync::Arc;
 use std::{fmt, str};
+use tokio::runtime::{Builder, Runtime};
 
 /// An on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
 /// Allows to query and update it using SPARQL.
@@ -78,24 +75,20 @@ use std::{fmt, str};
 /// # remove_dir_all("example.db")?;
 /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
 /// ```
-#[derive(Clone)]
 pub struct Store {
-    context: SessionContext,
+    inner: Box<dyn TripleStore>,
+    runtime: Runtime, // This is for now the easiest way of not breaking any APIs.
 }
 
 impl Store {
     /// New in-memory [`Store`].
     pub fn new() -> Result<Self, StorageError> {
-        let context = SessionContext::new();
-        let triples_table = MemTable::try_new(
-            SchemaRef::new(SINGLE_QUAD_TABLE_SCHEMA.clone()),
-            vec![Vec::new()],
-        )
-        .map_err(|err| StorageError::from(err))?;
-        context
-            .register_table("quads", Arc::new(triples_table))
-            .map_err(|err| StorageError::from(err))?;
-        Ok(Self { context })
+        let runtime = Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()?;
+        let inner = runtime.block_on(async { MemoryTripleStore::new().await })?;
+        Ok(Self { inner, runtime })
     }
 
     /// Opens a read-write [`Store`] and creates it if it does not exist yet.
@@ -207,11 +200,12 @@ impl Store {
         options: QueryOptions,
         with_stats: bool,
     ) -> Result<(Result<QueryResults, EvaluationError>, QueryExplanation), EvaluationError> {
-        let query = query.try_into().map_err(Into::into)?;
-        let mut evaluator = options.into_evaluator(self.context.state());
-        let (results, explanation) = evaluator.explain(&query);
-        let results = results.map_err(Into::into);
-        Ok((results, explanation))
+        unimplemented!();
+        // let query = query.try_into().map_err(Into::into)?;
+        // let mut evaluator = options.into_evaluator(self.context.state());
+        // let (results, explanation) = evaluator.explain(&query);
+        // let results = results.map_err(Into::into);
+        // Ok((results, explanation))
     }
 
     /// Retrieves quads with a filter on each quad component
@@ -286,7 +280,9 @@ impl Store {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub fn contains<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
-        unimplemented!()
+        self.runtime
+            .block_on(async { self.inner.contains(&quad.into()).await })
+            .map_err(StorageError::from)
     }
 
     /// Returns the number of quads in the store.
@@ -305,8 +301,8 @@ impl Store {
     /// assert_eq!(2, store.len()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub async fn len(&self) -> Result<usize, StorageError> {
-        Ok(self.context.table("quads").await?.count().await?)
+    pub fn len(&self) -> Result<usize, StorageError> {
+        unimplemented!()
     }
 
     /// Returns if the store is empty.
@@ -324,9 +320,8 @@ impl Store {
     /// assert!(!store.is_empty()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub async fn is_empty(&self) -> Result<bool, StorageError> {
-        let len = self.len().await?;
-        Ok(len == 0)
+    pub fn is_empty(&self) -> Result<bool, StorageError> {
+        unimplemented!()
     }
 
     /// Executes a transaction.
@@ -444,7 +439,7 @@ impl Store {
     /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g2")?))?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub async fn load_from_reader(
+    pub fn load_from_reader(
         &self,
         parser: impl Into<RdfParser>,
         reader: impl Read,
@@ -454,9 +449,9 @@ impl Store {
             .rename_blank_nodes()
             .for_reader(reader)
             .collect::<Result<Vec<_>, _>>()?;
-        load_from_reader(&self.context, quads)
-            .await
-            .map_err(|err| LoaderError::from(StorageError::DataFusion(err)))
+        self.runtime
+            .block_on(async { self.inner.load_from_reader(quads).await })
+            .map_err(|err| LoaderError::from(StorageError::from(err)))
     }
 
     /// Loads a graph file (i.e. triples) into the store.
@@ -588,7 +583,7 @@ impl Store {
     }
 
     /// Dumps the store into a file.
-    ///    
+    ///
     /// ```
     /// use oxigraph::io::RdfFormat;
     /// use oxigraph::store::Store;
@@ -613,7 +608,7 @@ impl Store {
     }
 
     /// Dumps a store graph into a file.
-    ///    
+    ///
     /// Usage example:
     /// ```
     /// use oxigraph::io::RdfFormat;
@@ -640,7 +635,7 @@ impl Store {
     }
 
     /// Dumps a store graph into a file.
-    ///    
+    ///
     /// Usage example:
     /// ```
     /// use oxigraph::io::RdfFormat;
@@ -668,7 +663,7 @@ impl Store {
     }
 
     /// Dumps the store into a file.
-    ///    
+    ///
     /// ```
     /// use oxigraph::io::RdfFormat;
     /// use oxigraph::store::Store;
@@ -903,7 +898,8 @@ impl Store {
     /// Validates that all the store invariants held in the data
     #[doc(hidden)]
     pub fn validate(&self) -> Result<(), StorageError> {
-        unimplemented!()
+        // TODO: Is there anything we should do here?
+        Ok(())
     }
 }
 
@@ -1592,7 +1588,7 @@ impl BulkLoader {
 
     /// Loads a graph file using the bulk loader.
     ///
-    /// This function is optimized for large graph loading speed. For small files, [`Store::load_graph`] might be more convenient.   
+    /// This function is optimized for large graph loading speed. For small files, [`Store::load_graph`] might be more convenient.
     ///
     /// <div class="warning">This method is not atomic.
     /// If the parsing fails in the middle of the file, only a part of it may be written to the store.

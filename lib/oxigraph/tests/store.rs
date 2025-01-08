@@ -108,10 +108,10 @@ fn quads(graph_name: impl Into<GraphNameRef<'static>>) -> Vec<QuadRef<'static>> 
     ]
 }
 
-#[tokio::test]
-async fn test_load_graph() -> Result<(), Box<dyn Error>> {
+#[test]
+fn test_load_graph() -> Result<(), Box<dyn Error>> {
     let store = Store::new()?;
-    store.load_from_reader(RdfFormat::Turtle, DATA.as_bytes()).await?;
+    store.load_from_reader(RdfFormat::Turtle, DATA.as_bytes())?;
     for q in quads(GraphNameRef::DefaultGraph) {
         assert!(store.contains(q)?);
     }
@@ -119,12 +119,12 @@ async fn test_load_graph() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[tokio::test]
+#[test]
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-async fn test_load_graph_on_disk() -> Result<(), Box<dyn Error>> {
+fn test_load_graph_on_disk() -> Result<(), Box<dyn Error>> {
     let dir = TempDir::default();
     let store = Store::open(&dir.0)?;
-    store.load_from_reader(RdfFormat::Turtle, DATA.as_bytes()).await?;
+    store.load_from_reader(RdfFormat::Turtle, DATA.as_bytes())?;
     for q in quads(GraphNameRef::DefaultGraph) {
         assert!(store.contains(q)?);
     }
@@ -160,14 +160,14 @@ fn test_bulk_load_graph_on_disk() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[tokio::test]
-async fn test_bulk_load_graph_lenient() -> Result<(), Box<dyn Error>> {
+#[test]
+fn test_bulk_load_graph_lenient() -> Result<(), Box<dyn Error>> {
     let store = Store::new()?;
     store.bulk_loader().on_parse_error(|_| Ok(())).load_from_reader(
         RdfFormat::NTriples,
         b"<http://example.com> <http://example.com> <http://example.com##> .\n<http://example.com> <http://example.com> <http://example.com> .".as_slice(),
     )?;
-    assert_eq!(store.len().await?, 1);
+    assert_eq!(store.len()?, 1);
     assert!(store.contains(QuadRef::new(
         NamedNodeRef::new_unchecked("http://example.com"),
         NamedNodeRef::new_unchecked("http://example.com"),
@@ -178,19 +178,19 @@ async fn test_bulk_load_graph_lenient() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[tokio::test]
-async fn test_bulk_load_empty() -> Result<(), Box<dyn Error>> {
+#[test]
+fn test_bulk_load_empty() -> Result<(), Box<dyn Error>> {
     let store = Store::new()?;
     store.bulk_loader().load_quads(empty::<Quad>())?;
-    assert!(store.is_empty().await?);
+    assert!(store.is_empty()?);
     store.validate()?;
     Ok(())
 }
 
-#[tokio::test]
-async fn test_load_dataset() -> Result<(), Box<dyn Error>> {
+#[test]
+fn test_load_dataset() -> Result<(), Box<dyn Error>> {
     let store = Store::new()?;
-    store.load_from_reader(RdfFormat::TriG, GRAPH_DATA.as_bytes()).await?;
+    store.load_from_reader(RdfFormat::TriG, GRAPH_DATA.as_bytes())?;
     for q in quads(NamedNodeRef::new_unchecked(
         "http://www.wikidata.org/wiki/Special:EntityData/Q90",
     )) {
@@ -216,16 +216,16 @@ fn test_bulk_load_dataset() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[tokio::test]
-async fn test_load_graph_generates_new_blank_nodes() -> Result<(), Box<dyn Error>> {
+#[test]
+fn test_load_graph_generates_new_blank_nodes() -> Result<(), Box<dyn Error>> {
     let store = Store::new()?;
     for _ in 0..2 {
         store.load_from_reader(
             RdfFormat::NTriples,
             "_:a <http://example.com/p> <http://example.com/p> .".as_bytes(),
-        ).await?;
+        )?;
     }
-    assert_eq!(store.len().await?, 2);
+    assert_eq!(store.len()?, 2);
     Ok(())
 }
 
@@ -302,8 +302,8 @@ fn test_snapshot_isolation_iterator_on_disk() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[tokio::test]
-async fn test_bulk_load_on_existing_delete_overrides_the_delete() -> Result<(), Box<dyn Error>> {
+#[test]
+fn test_bulk_load_on_existing_delete_overrides_the_delete() -> Result<(), Box<dyn Error>> {
     let quad = QuadRef::new(
         NamedNodeRef::new_unchecked("http://example.com/s"),
         NamedNodeRef::new_unchecked("http://example.com/p"),
@@ -313,13 +313,13 @@ async fn test_bulk_load_on_existing_delete_overrides_the_delete() -> Result<(), 
     let store = Store::new()?;
     store.remove(quad)?;
     store.bulk_loader().load_quads([quad.into_owned()])?;
-    assert_eq!(store.len().await?, 1);
+    assert_eq!(store.len()?, 1);
     Ok(())
 }
 
-#[tokio::test]
+#[test]
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-async fn test_bulk_load_on_existing_delete_overrides_the_delete_on_disk() -> Result<(), Box<dyn Error>> {
+fn test_bulk_load_on_existing_delete_overrides_the_delete_on_disk() -> Result<(), Box<dyn Error>> {
     let quad = QuadRef::new(
         NamedNodeRef::new_unchecked("http://example.com/s"),
         NamedNodeRef::new_unchecked("http://example.com/p"),
@@ -330,7 +330,7 @@ async fn test_bulk_load_on_existing_delete_overrides_the_delete_on_disk() -> Res
     let store = Store::open(&dir.0)?;
     store.remove(quad)?;
     store.bulk_loader().load_quads([quad.into_owned()])?;
-    assert_eq!(store.len().await?, 1);
+    assert_eq!(store.len()?, 1);
     Ok(())
 }
 

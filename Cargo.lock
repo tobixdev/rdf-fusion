@@ -2411,6 +2411,7 @@ dependencies = [
 name = "oxigraph"
 version = "0.4.5"
 dependencies = [
+ "async-trait",
  "codspeed-criterion-compat",
  "datafusion",
  "getrandom",

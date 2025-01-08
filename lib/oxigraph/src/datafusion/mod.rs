@@ -17,8 +17,8 @@
 //! assert_eq!(vec![triple], results);
 //! ```
 
-mod arrow;
-mod insert;
+mod memory_triple_store;
+mod triple_store;
 
-pub(crate) use arrow::SINGLE_QUAD_TABLE_SCHEMA;
-pub(crate) use insert::load_from_reader;
+pub use memory_triple_store::MemoryTripleStore;
+pub use triple_store::TripleStore;
