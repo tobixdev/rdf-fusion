@@ -2,6 +2,7 @@
 members = [
     "cli",
     "js",
+    "lib/querymodel",
     "lib/oxigraph",
     "lib/sparesults",
     "lib/spargebra",
@@ -64,6 +65,7 @@ oxttl = "0.1.4"
 oxrdfio = "0.1.4"
 
 # Internal dependencies
+querymodel = { version = "=0.4.5", path = "lib/querymodel" }
 oxigraph = { version = "=0.4.5", path = "lib/oxigraph" }
 spargebra = { version = "=0.3.3", path = "lib/spargebra" }
 sparesults = { version = "=0.2.3", path = "lib/sparesults" }

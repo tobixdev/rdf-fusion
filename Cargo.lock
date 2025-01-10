@@ -2419,12 +2419,12 @@ dependencies = [
  "getrandom",
  "js-sys",
  "libc",
- "once_cell",
  "oxhttp",
  "oxiri",
  "oxrdf",
  "oxrdfio",
  "oxsdatatypes",
+ "querymodel",
  "rand",
  "rustc-hash",
  "siphasher 1.0.1",
@@ -2894,6 +2894,15 @@ version = "0.4.5"
 dependencies = [
  "oxigraph",
  "pyo3",
+]
+
+[[package]]
+name = "querymodel"
+version = "0.4.5"
+dependencies = [
+ "datafusion",
+ "once_cell",
+ "oxrdf",
 ]
 
 [[package]]

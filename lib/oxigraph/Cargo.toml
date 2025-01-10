@@ -28,6 +28,7 @@ http-client-rustls-native = ["http-client", "oxhttp/rustls-ring-native"]
 async-trait.workspace = true
 dashmap.workspace = true
 datafusion.workspace = true
+querymodel.workspace = true
 futures.workspace = true
 oxiri.workspace = true
 oxrdf = { workspace = true, features = ["rdf-star", "oxsdatatypes"] }
@@ -38,7 +39,6 @@ sparesults = { workspace = true, features = ["rdf-star"] }
 spargebra = { workspace = true, features = ["rdf-star", "sep-0002", "sep-0006"] }
 thiserror.workspace = true
 tokio.workspace = true
-once_cell.workspace = true
 rustc-hash.workspace = true
 siphasher.workspace = true
 

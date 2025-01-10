@@ -14,7 +14,6 @@ use oxsdatatypes::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, GDay, GMonth,
     GMonthDay, GYear, GYearMonth, Integer, Time, YearMonthDuration,
 };
-use std::hash::Hash;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
