@@ -1,6 +1,5 @@
 mod model;
 mod quads_builder;
-pub(crate) mod rdf_dictionary_builder;
 pub mod scalars;
 mod udfs;
 

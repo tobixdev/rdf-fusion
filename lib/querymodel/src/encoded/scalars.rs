@@ -1,7 +1,4 @@
-use crate::encoded::{
-    ENC_SMALL_STRING_SIZE, ENC_TERM_BIG_STRING_TYPE_ID, ENC_TERM_FIELDS,
-    ENC_TERM_SMALL_STRING_TYPE_ID,
-};
+use crate::encoded::{FIELDS_TERM, TYPE_ID_STRING};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::ScalarValue;
 use oxrdf::{GraphNameRef, LiteralRef, NamedNodeRef, SubjectRef, TermRef};
@@ -37,20 +34,10 @@ pub fn scalar_literal(literal: &LiteralRef<'_>) -> ScalarValue {
 }
 
 pub fn encode_string(value: String) -> ScalarValue {
-    if value.as_bytes().len() > ENC_SMALL_STRING_SIZE {
-        let value =
-            ScalarValue::FixedSizeBinary(ENC_SMALL_STRING_SIZE as i32, Some(value.into_bytes()));
-        ScalarValue::Union(
-            Some((*ENC_TERM_SMALL_STRING_TYPE_ID, Box::new(value))),
-            ENC_TERM_FIELDS.clone(),
-            UnionMode::Dense,
-        )
-    } else {
-        let value = ScalarValue::Utf8(Some(value));
-        ScalarValue::Union(
-            Some((*ENC_TERM_BIG_STRING_TYPE_ID, Box::new(value))),
-            ENC_TERM_FIELDS.clone(),
-            UnionMode::Dense,
-        )
-    }
+    let value = ScalarValue::Utf8View(Some(value));
+    ScalarValue::Union(
+        Some((*TYPE_ID_STRING, Box::new(value))),
+        FIELDS_TERM.clone(),
+        UnionMode::Dense,
+    )
 }

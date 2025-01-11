@@ -1,111 +1,102 @@
-use crate::encoded::rdf_dictionary_builder::EncodedStringBuilder;
 use crate::encoded::{
-    EncDictKey, ENC_BIG_TYPED_LITERAL_FIELDS, ENC_NUMERICAL_BNODE_SIZE, ENC_SMALL_STRING_SIZE,
-    ENC_SMALL_TYPED_LITERAL_FIELDS, ENC_TERM_BIG_STRING_TYPE_ID,
-    ENC_TERM_BIG_TYPED_LITERAL_TYPE_ID, ENC_TERM_FIELDS, ENC_TERM_SMALL_STRING_TYPE_ID,
+    FIELDS_STRING, FIELDS_TERM, FIELDS_TYPED_LITERAL, TYPE_ID_INTEGER, TYPE_ID_NAMED_NODE,
+    TYPE_ID_STRING, TYPE_ID_TYPED_LITERAL,
 };
 use crate::{AResult, DFResult};
 use datafusion::arrow::array::{
-    ArrayRef, BooleanBuilder, FixedSizeBinaryBuilder, Float32Builder, Float64Builder, Int32Builder,
-    StructBuilder, UnionArray,
+    ArrayRef, BooleanBuilder, Float32Builder, Float64Builder, Int32Builder, Int64Builder,
+    StringBuilder, StringViewBuilder, StructBuilder, UnionArray,
 };
 use datafusion::arrow::buffer::ScalarBuffer;
-use datafusion::arrow::error::ArrowError;
 use std::sync::Arc;
 
 pub struct RdfTermBuilder {
     type_ids: Vec<i8>,
-    named_builder: EncodedStringBuilder,
-    numerical_blank_builder: FixedSizeBinaryBuilder,
-    small_blank_node_builder: FixedSizeBinaryBuilder,
-    big_blank_node_builder: EncodedStringBuilder,
-    small_string_builder: FixedSizeBinaryBuilder,
-    big_string_builder: EncodedStringBuilder,
+    named_node_builder: StringViewBuilder,
+    blank_node_builder: StringViewBuilder,
+    string_builder: StructBuilder,
     boolean_builder: BooleanBuilder,
     float32_builder: Float32Builder,
     float64_builder: Float64Builder,
     int32_builder: Int32Builder,
-    small_typed_literal: StructBuilder,
-    big_typed_literal: StructBuilder,
+    integer_builder: Int64Builder,
+    typed_literal_builder: StructBuilder,
 }
 
 impl RdfTermBuilder {
     pub fn new() -> Self {
         Self {
             type_ids: vec![],
-            named_builder: EncodedStringBuilder::new(),
-            numerical_blank_builder: FixedSizeBinaryBuilder::new(ENC_NUMERICAL_BNODE_SIZE as i32),
-            small_blank_node_builder: FixedSizeBinaryBuilder::new(ENC_SMALL_STRING_SIZE as i32),
-            big_blank_node_builder: EncodedStringBuilder::new(),
-            small_string_builder: FixedSizeBinaryBuilder::new(ENC_SMALL_STRING_SIZE as i32),
-            big_string_builder: EncodedStringBuilder::new(),
+            named_node_builder: StringViewBuilder::new(),
+            blank_node_builder: StringViewBuilder::new(),
+            string_builder: StructBuilder::from_fields(FIELDS_STRING.clone(), 0),
             boolean_builder: BooleanBuilder::new(),
             float32_builder: Float32Builder::new(),
             float64_builder: Float64Builder::new(),
             int32_builder: Int32Builder::new(),
-            small_typed_literal: StructBuilder::from_fields(
-                ENC_SMALL_TYPED_LITERAL_FIELDS.clone(),
-                0,
-            ),
-            big_typed_literal: StructBuilder::from_fields(ENC_BIG_TYPED_LITERAL_FIELDS.clone(), 0),
+            integer_builder: Int64Builder::new(),
+            typed_literal_builder: StructBuilder::from_fields(FIELDS_TYPED_LITERAL.clone(), 0),
         }
     }
 
-    pub fn append_small_string(&mut self, string: &str) -> AResult<()> {
-        let string_bytes = string.as_bytes();
-        if string_bytes.len() > ENC_SMALL_STRING_SIZE {
-            return Err(ArrowError::InvalidArgumentError(format!(
-                "Small string is too long ({})",
-                string_bytes.len()
-            )));
-        }
+    pub fn append_named_node(&mut self, value: &str) -> AResult<()> {
+        self.type_ids.push(*TYPE_ID_NAMED_NODE);
+        self.named_node_builder.append_value(value);
+        Ok(())
+    }
 
-        self.type_ids.push(*ENC_TERM_SMALL_STRING_TYPE_ID);
-        if string_bytes.len() < ENC_SMALL_STRING_SIZE {
-            let mut buffer = [0u8; ENC_SMALL_STRING_SIZE];
-            buffer[..string_bytes.len()].copy_from_slice(string_bytes);
-            self.small_string_builder.append_value(buffer)
+    pub fn append_string(&mut self, value: &str, language: Option<&str>) -> AResult<()> {
+        self.type_ids.push(*TYPE_ID_STRING);
+        self.typed_literal_builder
+            .field_builder::<StringBuilder>(0)
+            .unwrap()
+            .append_value(value);
+
+        let language_builder = self
+            .typed_literal_builder
+            .field_builder::<StringBuilder>(1)
+            .unwrap();
+        if let Some(language) = language {
+            language_builder.append_value(language);
         } else {
-            self.small_string_builder.append_value(string_bytes)
+            language_builder.append_null();
         }
+        Ok(())
     }
 
-    pub fn append_big_string(&mut self, id: &EncDictKey) -> AResult<()> {
-        self.type_ids.push(*ENC_TERM_BIG_STRING_TYPE_ID);
-        self.big_string_builder.append_value(id, "test") // TODO
+    pub fn append_integer(&mut self, integer: i64) -> AResult<()> {
+        self.type_ids.push(*TYPE_ID_INTEGER);
+        self.integer_builder.append_value(integer);
+        Ok(())
     }
 
-    pub fn append_big_typed_literal(
-        &mut self,
-        value_id: &EncDictKey,
-        type_id: &EncDictKey,
-    ) -> AResult<()> {
-        self.type_ids.push(*ENC_TERM_BIG_TYPED_LITERAL_TYPE_ID);
-        self.big_typed_literal
-            .field_builder::<FixedSizeBinaryBuilder>(0)
+    pub fn append_typed_literal(&mut self, value: &str, type_id: &str) -> AResult<()> {
+        self.type_ids.push(*TYPE_ID_TYPED_LITERAL);
+        self.typed_literal_builder
+            .field_builder::<StringBuilder>(0)
             .unwrap()
-            .append_value(value_id)?;
-        self.big_typed_literal
-            .field_builder::<FixedSizeBinaryBuilder>(1)
+            .append_value(value);
+        self.typed_literal_builder
+            .field_builder::<StringBuilder>(1)
             .unwrap()
-            .append_value(type_id)
+            .append_value(type_id);
+        Ok(())
     }
 
     pub fn finish(mut self) -> DFResult<ArrayRef> {
         Ok(Arc::new(UnionArray::try_new(
-            ENC_TERM_FIELDS.clone(),
+            FIELDS_TERM.clone(),
             ScalarBuffer::from(self.type_ids),
             None,
             vec![
-                Arc::new(self.named_builder.finish()),
-                Arc::new(self.numerical_blank_builder.finish()),
-                Arc::new(self.small_blank_node_builder.finish()),
-                Arc::new(self.big_blank_node_builder.finish()),
-                Arc::new(self.small_string_builder.finish()),
+                Arc::new(self.named_node_builder.finish()),
+                Arc::new(self.blank_node_builder.finish()),
+                Arc::new(self.string_builder.finish()),
                 Arc::new(self.boolean_builder.finish()),
                 Arc::new(self.float32_builder.finish()),
                 Arc::new(self.float64_builder.finish()),
                 Arc::new(self.int32_builder.finish()),
+                Arc::new(self.typed_literal_builder.finish()),
             ],
         )?))
     }

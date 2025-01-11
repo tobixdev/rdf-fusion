@@ -11,7 +11,7 @@ use datafusion::arrow::array::ArrayBuilder;
 use datafusion::physical_plan::ExecutionPlan;
 use futures::StreamExt;
 use oxrdf::Quad;
-use querymodel::encoded::ENC_QUAD_TABLE_SCHEMA;
+use querymodel::encoded::QUAD_TABLE_SCHEMA;
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -47,7 +47,7 @@ impl TableProvider for OxigraphMemTable {
     }
 
     fn schema(&self) -> SchemaRef {
-        ENC_QUAD_TABLE_SCHEMA.clone()
+        QUAD_TABLE_SCHEMA.clone()
     }
 
     fn table_type(&self) -> TableType {

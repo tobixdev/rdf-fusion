@@ -4,7 +4,8 @@ use crate::engine::oxigraph_memory::store::{
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
 
 use crate::engine::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::engine::oxigraph_memory::encoder::EncodedQuad;
+use crate::engine::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
+use crate::engine::oxigraph_memory::hash::StrHash;
 use crate::engine::{AResult, DFResult};
 use datafusion::arrow::array::{Array, ArrayBuilder, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
@@ -15,7 +16,7 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
 };
 use futures::Stream;
-use querymodel::encoded::{RdfTermBuilder, ENC_QUAD_TABLE_SCHEMA};
+use querymodel::encoded::{RdfTermBuilder, QUAD_TABLE_SCHEMA};
 use querymodel::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use std::any::Any;
 use std::fmt;
@@ -30,10 +31,10 @@ pub struct OxigraphMemExec {
 
 impl OxigraphMemExec {
     pub fn new(storage: Arc<OxigraphMemoryStorage>, projection: Option<Vec<usize>>) -> Self {
-        let projection = projection.unwrap_or((0..ENC_QUAD_TABLE_SCHEMA.fields.len()).collect());
+        let projection = projection.unwrap_or((0..QUAD_TABLE_SCHEMA.fields.len()).collect());
         let new_fields: Vec<_> = projection
             .iter()
-            .map(|i| ENC_QUAD_TABLE_SCHEMA.fields.get(*i).unwrap().clone())
+            .map(|i| QUAD_TABLE_SCHEMA.fields.get(*i).unwrap().clone())
             .collect();
         let schema = SchemaRef::new(Schema::new(new_fields));
 
@@ -52,13 +53,17 @@ impl OxigraphMemExec {
 
 impl Debug for OxigraphMemExec {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        todo!()
+        f.debug_struct("OxigraphMemExec").finish()
     }
 }
 
 impl DisplayAs for OxigraphMemExec {
     fn fmt_as(&self, t: DisplayFormatType, f: &mut Formatter) -> fmt::Result {
-        todo!()
+        match t {
+            DisplayFormatType::Default | DisplayFormatType::Verbose => {
+                write!(f, "OxigraphMemExec")
+            }
+        }
     }
 }
 
@@ -109,7 +114,7 @@ impl ExecutionPlan for OxigraphMemExec {
 
 /// Stream that generates record batches on demand
 pub struct OxigraphMemStream {
-    storage: MemoryStorageReader,
+    storage: Arc<MemoryStorageReader>,
     schema: SchemaRef,
     batch_size: usize,
     iterator: QuadIterator,
@@ -119,7 +124,7 @@ impl OxigraphMemStream {
     fn new(storage: MemoryStorageReader, schema: SchemaRef, batch_size: usize) -> Self {
         let iterator = storage.quads_for_pattern(None, None, None, None);
         Self {
-            storage,
+            storage: Arc::new(storage),
             schema,
             batch_size,
             iterator,
@@ -134,7 +139,8 @@ impl Stream for OxigraphMemStream {
         mut self: std::pin::Pin<&mut Self>,
         ctx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        let mut rb_builder = RdfQuadsRecordBatchBuilder::new(self.schema.clone());
+        let mut rb_builder =
+            RdfQuadsRecordBatchBuilder::new(self.storage.clone(), self.schema.clone());
 
         while let Some(quad) = self.iterator.next() {
             let result = rb_builder.encode_quad(quad);
@@ -163,6 +169,7 @@ impl RecordBatchStream for OxigraphMemStream {
 }
 
 struct RdfQuadsRecordBatchBuilder {
+    reader: Arc<MemoryStorageReader>,
     schema: SchemaRef,
     graph: RdfTermBuilder,
     subject: RdfTermBuilder,
@@ -176,12 +183,13 @@ struct RdfQuadsRecordBatchBuilder {
 }
 
 impl RdfQuadsRecordBatchBuilder {
-    fn new(schema: SchemaRef) -> Self {
+    fn new(reader: Arc<MemoryStorageReader>, schema: SchemaRef) -> Self {
         let project_graph = schema.column_with_name(COL_GRAPH).is_some();
         let project_subject = schema.column_with_name(COL_SUBJECT).is_some();
         let project_predicate = schema.column_with_name(COL_PREDICATE).is_some();
         let project_object = schema.column_with_name(COL_OBJECT).is_some();
         Self {
+            reader,
             schema,
             graph: RdfTermBuilder::new(),
             subject: RdfTermBuilder::new(),
@@ -201,16 +209,16 @@ impl RdfQuadsRecordBatchBuilder {
 
     fn encode_quad(&mut self, quad: EncodedQuad) -> AResult<()> {
         if self.project_graph {
-            encode_term(&mut self.graph, quad.graph_name)?;
+            encode_term(&self.reader, &mut self.graph, quad.graph_name)?;
         }
         if self.project_subject {
-            encode_term(&mut self.subject, quad.subject)?;
+            encode_term(&self.reader, &mut self.subject, quad.subject)?;
         }
         if self.project_predicate {
-            encode_term(&mut self.predicate, quad.predicate)?;
+            encode_term(&self.reader, &mut self.predicate, quad.predicate)?;
         }
         if self.project_object {
-            encode_term(&mut self.object, quad.object)?;
+            encode_term(&self.reader, &mut self.object, quad.object)?;
         }
         Ok(())
     }
@@ -241,15 +249,54 @@ impl RdfQuadsRecordBatchBuilder {
     }
 }
 
-fn encode_term(builder: &mut RdfTermBuilder, term: EncodedTerm) -> AResult<()> {
+fn encode_term(
+    reader: &MemoryStorageReader,
+    builder: &mut RdfTermBuilder,
+    term: EncodedTerm,
+) -> AResult<()> {
     match term {
-        EncodedTerm::DefaultGraph => builder.append_small_string("$default"),
-        EncodedTerm::NamedNode { iri_id } => builder.append_big_string(&iri_id.to_be_bytes()),
-        EncodedTerm::SmallStringLiteral(str) => builder.append_small_string(&str),
+        EncodedTerm::DefaultGraph => builder.append_named_node("$default"),
+        EncodedTerm::NamedNode { iri_id } => {
+            let string = reader
+                .get_str(&iri_id)
+                .map_err(|e| DataFusionError::External(Box::new(e)))?
+                .unwrap(); // TODO: error handling
+            builder.append_named_node(&string)
+        }
+        EncodedTerm::SmallStringLiteral(str) => builder.append_string(&str, None),
+        EncodedTerm::SmallSmallLangStringLiteral { value, language } => {
+            builder.append_string(value.as_str(), Some(language.as_str()))
+        }
+        EncodedTerm::BigSmallLangStringLiteral { value_id, language } => {
+            let value = load_string(reader, &value_id)?;
+            builder.append_string(&value, Some(language.as_str()))
+        }
+        EncodedTerm::SmallTypedLiteral { value, datatype_id } => {
+            let datatype = load_string(reader, &datatype_id)?;
+            builder.append_typed_literal(&value, &datatype)
+        }
+        EncodedTerm::IntegerLiteral(integer) => {
+            let value = i64::from_be_bytes(integer.to_be_bytes());
+            builder.append_integer(value)
+        }
         EncodedTerm::BigTypedLiteral {
             value_id,
             datatype_id,
-        } => builder.append_big_typed_literal(&value_id.to_be_bytes(), &datatype_id.to_be_bytes()),
+        } => {
+            let value = load_string(reader, &value_id)?;
+            let datatype = load_string(reader, &datatype_id)?;
+            builder.append_typed_literal(&value, &datatype)
+        }
         term => unimplemented!("{:?}", term),
     }
+}
+
+fn load_string(reader: &MemoryStorageReader, str_id: &StrHash) -> DFResult<String> {
+    // TODO: use different error
+    reader
+        .get_str(&str_id)
+        .map_err(|e| DataFusionError::External(Box::new(e)))?
+        .ok_or(DataFusionError::Internal(String::from(
+            "Could not find string in storage",
+        )))
 }

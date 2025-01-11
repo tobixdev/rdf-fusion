@@ -1,10 +1,9 @@
-use crate::encoded::ENC_TERM_TYPE;
+use crate::encoded::TYPE_TERM;
 use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::{create_udf, ColumnarValue, ScalarUDF, Signature, Volatility};
-use once_cell::sync::Lazy;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -12,12 +11,10 @@ struct RdfTermEq {
     signature: Signature,
 }
 
-pub static RDF_TERM_EQ: Lazy<ScalarUDF> = Lazy::new(|| create_rdf_term_eq_udf());
-
-fn create_rdf_term_eq_udf() -> ScalarUDF {
+pub fn create_rdf_term_eq_udf() -> ScalarUDF {
     create_udf(
         "rdf_term_eq",
-        vec![ENC_TERM_TYPE.clone(), ENC_TERM_TYPE.clone()],
+        vec![TYPE_TERM.clone(), TYPE_TERM.clone()],
         DataType::Boolean,
         Volatility::Immutable,
         Arc::new(batch_rdf_term_eq),
