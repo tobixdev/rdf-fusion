@@ -36,7 +36,7 @@ pub const TYPE_INTEGER: Lazy<DataType> = Lazy::new(|| DataType::Int64); // TODO:
 pub const FIELDS_TYPED_LITERAL: Lazy<Fields> = Lazy::new(|| {
     Fields::from(vec![
         Field::new("value", DataType::Utf8, false),
-        Field::new("datatype_id", DataType::Utf8, false),
+        Field::new("datatype", DataType::Utf8, false),
     ])
 });
 pub const TYPE_TYPED_LITERAL: Lazy<DataType> =
@@ -102,11 +102,23 @@ pub const TYPE_ID_TYPED_LITERAL: Lazy<i8> = Lazy::new(|| field_idx_enc_term(FIEL
 // Helper Functions
 //
 
-fn field_idx_enc_term(name: &str) -> i8 {
+pub fn field_idx_enc_term(name: &str) -> i8 {
     FIELDS_TERM
         .iter()
         .filter(|(_, f)| f.name() == name)
         .next()
         .unwrap()
         .0
+}
+
+pub fn idx_to_field_name(idx: i8) -> String {
+    FIELDS_TERM
+        .iter()
+        .nth(idx as usize)
+        .map(|f| f.1.name().clone())
+        .unwrap()
+}
+
+pub fn is_nested_rdf_term(idx: i8) -> bool {
+    idx == *TYPE_ID_STRING || idx == *TYPE_ID_TYPED_LITERAL
 }

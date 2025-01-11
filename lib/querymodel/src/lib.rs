@@ -1,4 +1,6 @@
+use datafusion::arrow::array::{Array, UnionArray};
 use datafusion::arrow::error::ArrowError;
+use datafusion::common::downcast_value;
 use datafusion::error::DataFusionError;
 
 pub mod encoded;
@@ -12,3 +14,8 @@ pub const COL_OBJECT: &str = "object";
 
 type DFResult<T> = Result<T, DataFusionError>;
 type AResult<T> = Result<T, ArrowError>;
+
+// Downcast ArrayRef to Int64Array
+pub fn as_rdf_term_array(array: &dyn Array) -> datafusion::common::Result<&UnionArray> {
+    Ok(downcast_value!(array, UnionArray))
+}

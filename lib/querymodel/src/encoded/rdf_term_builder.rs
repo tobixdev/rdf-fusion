@@ -4,16 +4,17 @@ use crate::encoded::{
 };
 use crate::{AResult, DFResult};
 use datafusion::arrow::array::{
-    ArrayRef, BooleanBuilder, Float32Builder, Float64Builder, Int32Builder, Int64Builder,
-    StringBuilder, StringViewBuilder, StructBuilder, UnionArray,
+    ArrayBuilder, ArrayRef, BooleanBuilder, Float32Builder, Float64Builder, Int32Builder,
+    Int64Builder, StringBuilder, StructBuilder, UnionArray,
 };
 use datafusion::arrow::buffer::ScalarBuffer;
 use std::sync::Arc;
 
 pub struct RdfTermBuilder {
     type_ids: Vec<i8>,
-    named_node_builder: StringViewBuilder,
-    blank_node_builder: StringViewBuilder,
+    offsets: Vec<i32>,
+    named_node_builder: StringBuilder,
+    blank_node_builder: StringBuilder,
     string_builder: StructBuilder,
     boolean_builder: BooleanBuilder,
     float32_builder: Float32Builder,
@@ -26,9 +27,10 @@ pub struct RdfTermBuilder {
 impl RdfTermBuilder {
     pub fn new() -> Self {
         Self {
-            type_ids: vec![],
-            named_node_builder: StringViewBuilder::new(),
-            blank_node_builder: StringViewBuilder::new(),
+            type_ids: Vec::new(),
+            offsets: Vec::new(),
+            named_node_builder: StringBuilder::new(),
+            blank_node_builder: StringBuilder::new(),
             string_builder: StructBuilder::from_fields(FIELDS_STRING.clone(), 0),
             boolean_builder: BooleanBuilder::new(),
             float32_builder: Float32Builder::new(),
@@ -41,19 +43,22 @@ impl RdfTermBuilder {
 
     pub fn append_named_node(&mut self, value: &str) -> AResult<()> {
         self.type_ids.push(*TYPE_ID_NAMED_NODE);
+        self.offsets.push(self.named_node_builder.len() as i32);
         self.named_node_builder.append_value(value);
         Ok(())
     }
 
     pub fn append_string(&mut self, value: &str, language: Option<&str>) -> AResult<()> {
         self.type_ids.push(*TYPE_ID_STRING);
-        self.typed_literal_builder
+        self.offsets.push(self.string_builder.len() as i32);
+
+        self.string_builder
             .field_builder::<StringBuilder>(0)
             .unwrap()
             .append_value(value);
 
         let language_builder = self
-            .typed_literal_builder
+            .string_builder
             .field_builder::<StringBuilder>(1)
             .unwrap();
         if let Some(language) = language {
@@ -61,17 +66,21 @@ impl RdfTermBuilder {
         } else {
             language_builder.append_null();
         }
+        self.string_builder.append(true);
+
         Ok(())
     }
 
     pub fn append_integer(&mut self, integer: i64) -> AResult<()> {
         self.type_ids.push(*TYPE_ID_INTEGER);
+        self.offsets.push(self.integer_builder.len() as i32);
         self.integer_builder.append_value(integer);
         Ok(())
     }
 
     pub fn append_typed_literal(&mut self, value: &str, type_id: &str) -> AResult<()> {
         self.type_ids.push(*TYPE_ID_TYPED_LITERAL);
+        self.offsets.push(self.typed_literal_builder.len() as i32);
         self.typed_literal_builder
             .field_builder::<StringBuilder>(0)
             .unwrap()
@@ -80,6 +89,7 @@ impl RdfTermBuilder {
             .field_builder::<StringBuilder>(1)
             .unwrap()
             .append_value(type_id);
+        self.typed_literal_builder.append(true);
         Ok(())
     }
 
@@ -87,7 +97,7 @@ impl RdfTermBuilder {
         Ok(Arc::new(UnionArray::try_new(
             FIELDS_TERM.clone(),
             ScalarBuffer::from(self.type_ids),
-            None,
+            Some(ScalarBuffer::from(self.offsets)),
             vec![
                 Arc::new(self.named_node_builder.finish()),
                 Arc::new(self.blank_node_builder.finish()),
@@ -96,6 +106,7 @@ impl RdfTermBuilder {
                 Arc::new(self.float32_builder.finish()),
                 Arc::new(self.float64_builder.finish()),
                 Arc::new(self.int32_builder.finish()),
+                Arc::new(self.integer_builder.finish()),
                 Arc::new(self.typed_literal_builder.finish()),
             ],
         )?))

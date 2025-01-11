@@ -9,7 +9,9 @@ use datafusion::logical_expr::{col, lit};
 use datafusion::prelude::SessionContext;
 use oxrdf::{Quad, QuadRef};
 use querymodel::encoded::register_rdf_term_udfs;
-use querymodel::encoded::scalars::{scalar_graph, scalar_object, scalar_predicate, scalar_subject};
+use querymodel::encoded::scalars::{
+    encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
+};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -34,14 +36,23 @@ impl TripleStore for MemoryTripleStore {
     async fn contains(&self, quad: &QuadRef<'_>) -> DFResult<bool> {
         let quads = self.ctx.table("quads").await?;
         let eq = self.ctx.udf("rdf_term_eq")?;
+        let as_boolean = self.ctx.udf("rdf_term_as_boolean")?;
         let count = quads
-            .filter(eq.call(vec![col("graph"), lit(scalar_graph(&quad.graph_name))]))?
-            .filter(eq.call(vec![col("subject"), lit(scalar_subject(&quad.subject))]))?
-            .filter(eq.call(vec![
+            .filter(as_boolean.call(vec![eq.call(vec![
+                col("graph"),
+                lit(encode_scalar_graph(quad.graph_name)),
+            ])]))?
+            .filter(as_boolean.call(vec![eq.call(vec![
+                col("subject"),
+                lit(encode_scalar_subject(quad.subject)),
+            ])]))?
+            .filter(as_boolean.call(vec![eq.call(vec![
                 col("predicate"),
-                lit(scalar_predicate(&quad.predicate)),
+                lit(encode_scalar_predicate(quad.predicate)),
+            ])]))?
+            .filter(as_boolean.call(vec![
+                eq.call(vec![col("object"), lit(encode_scalar_object(quad.object)?)]),
             ]))?
-            .filter(eq.call(vec![col("object"), lit(scalar_object(&quad.object))]))?
             .count()
             .await?;
         Ok(count > 0)

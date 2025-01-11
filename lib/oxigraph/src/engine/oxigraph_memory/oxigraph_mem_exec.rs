@@ -220,6 +220,7 @@ impl RdfQuadsRecordBatchBuilder {
         if self.project_object {
             encode_term(&self.reader, &mut self.object, quad.object)?;
         }
+        self.count += 1;
         Ok(())
     }
 
@@ -255,12 +256,9 @@ fn encode_term(
     term: EncodedTerm,
 ) -> AResult<()> {
     match term {
-        EncodedTerm::DefaultGraph => builder.append_named_node("$default"),
+        EncodedTerm::DefaultGraph => builder.append_named_node("DEFAULT"),
         EncodedTerm::NamedNode { iri_id } => {
-            let string = reader
-                .get_str(&iri_id)
-                .map_err(|e| DataFusionError::External(Box::new(e)))?
-                .unwrap(); // TODO: error handling
+            let string = load_string(reader, &iri_id)?;
             builder.append_named_node(&string)
         }
         EncodedTerm::SmallStringLiteral(str) => builder.append_string(&str, None),
