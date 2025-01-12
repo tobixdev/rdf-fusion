@@ -26,7 +26,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 pub struct OxigraphMemExec {
-    storage: Arc<OxigraphMemoryStorage>,
+    reader: Arc<MemoryStorageReader>,
     properties: PlanProperties,
 }
 
@@ -46,7 +46,7 @@ impl OxigraphMemExec {
             Boundedness::Bounded,
         );
         Self {
-            storage,
+            reader: Arc::new(storage.snapshot()),
             properties: plan_properties,
         }
     }
@@ -104,9 +104,8 @@ impl ExecutionPlan for OxigraphMemExec {
         if partition != 0 {
             return internal_err!("OxigraphMemExec partition must be 1");
         }
-        let reader = self.storage.snapshot();
         Ok(Box::pin(OxigraphMemStream::new(
-            reader,
+            self.reader.clone(),
             self.schema().clone(),
             context.session_config().batch_size(),
         )))
@@ -122,10 +121,10 @@ pub struct OxigraphMemStream {
 }
 
 impl OxigraphMemStream {
-    fn new(storage: MemoryStorageReader, schema: SchemaRef, batch_size: usize) -> Self {
+    fn new(storage: Arc<MemoryStorageReader>, schema: SchemaRef, batch_size: usize) -> Self {
         let iterator = storage.quads_for_pattern(None, None, None, None);
         Self {
-            storage: Arc::new(storage),
+            storage,
             schema,
             batch_size,
             iterator,
