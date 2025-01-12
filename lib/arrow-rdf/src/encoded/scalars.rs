@@ -1,7 +1,7 @@
 use crate::encoded::{
-    FIELDS_STRING, FIELDS_TERM, FIELDS_TYPED_LITERAL, TYPE_ID_BLANK_NODE, TYPE_ID_BOOLEAN,
-    TYPE_ID_FLOAT32, TYPE_ID_FLOAT64, TYPE_ID_INT, TYPE_ID_INTEGER, TYPE_ID_NAMED_NODE,
-    TYPE_ID_STRING, TYPE_ID_TYPED_LITERAL,
+    ENC_FIELDS_STRING, ENC_FIELDS_TERM, ENC_FIELDS_TYPED_LITERAL, ENC_TYPE_ID_BLANK_NODE,
+    ENC_TYPE_ID_BOOLEAN, ENC_TYPE_ID_FLOAT32, ENC_TYPE_ID_FLOAT64, ENC_TYPE_ID_INT,
+    ENC_TYPE_ID_INTEGER, ENC_TYPE_ID_NAMED_NODE, ENC_TYPE_ID_STRING, ENC_TYPE_ID_TYPED_LITERAL,
 };
 use crate::DFResult;
 use datafusion::arrow::array::{ArrayRef, StringArray, StructArray};
@@ -16,8 +16,8 @@ use std::sync::Arc;
 pub fn encode_scalar_graph(graph: GraphNameRef<'_>) -> ScalarValue {
     let value = ScalarValue::Utf8(Some(graph.to_string()));
     ScalarValue::Union(
-        Some((*TYPE_ID_NAMED_NODE, Box::new(value))),
-        FIELDS_TERM.clone(),
+        Some((ENC_TYPE_ID_NAMED_NODE, Box::new(value))),
+        ENC_FIELDS_TERM.clone(),
         UnionMode::Dense,
     )
 }
@@ -26,7 +26,7 @@ pub fn encode_scalar_subject(subject: SubjectRef<'_>) -> ScalarValue {
     match subject {
         SubjectRef::NamedNode(nn) => encode_scalar_named_node(nn),
         SubjectRef::BlankNode(bnode) => encode_blank_node(bnode),
-        SubjectRef::Triple(_) => unimplemented!(),
+        _ => unimplemented!(),
     }
 }
 
@@ -59,8 +59,8 @@ pub fn encode_scalar_literal(literal: LiteralRef<'_>) -> DFResult<ScalarValue> {
 pub fn encode_string(value: String) -> ScalarValue {
     let value = ScalarValue::Utf8(Some(value));
     ScalarValue::Union(
-        Some((*TYPE_ID_STRING, Box::new(value))),
-        FIELDS_TERM.clone(),
+        Some((ENC_TYPE_ID_STRING, Box::new(value))),
+        ENC_FIELDS_TERM.clone(),
         UnionMode::Dense,
     )
 }
@@ -68,8 +68,8 @@ pub fn encode_string(value: String) -> ScalarValue {
 fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
     let value = ScalarValue::Utf8(Some(node.to_string()));
     ScalarValue::Union(
-        Some((*TYPE_ID_NAMED_NODE, Box::new(value))),
-        FIELDS_TERM.clone(),
+        Some((ENC_TYPE_ID_NAMED_NODE, Box::new(value))),
+        ENC_FIELDS_TERM.clone(),
         UnionMode::Dense,
     )
 }
@@ -77,8 +77,8 @@ fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
 fn encode_blank_node(node: BlankNodeRef<'_>) -> ScalarValue {
     let value = ScalarValue::Utf8(Some(node.to_string()));
     ScalarValue::Union(
-        Some((*TYPE_ID_BLANK_NODE, Box::new(value))),
-        FIELDS_TERM.clone(),
+        Some((ENC_TYPE_ID_BLANK_NODE, Box::new(value))),
+        ENC_FIELDS_TERM.clone(),
         UnionMode::Dense,
     )
 }
@@ -103,41 +103,41 @@ fn specialize_string(literal: LiteralRef<'_>, value: &str) -> DFResult<ScalarVal
         Arc::new(StringArray::from(vec![value])),
         Arc::new(StringArray::from(vec![language])),
     ];
-    let structs = StructArray::new(FIELDS_STRING.clone(), arrays, None);
+    let structs = StructArray::new(ENC_FIELDS_STRING.clone(), arrays, None);
     let scalar_value = ScalarValue::Struct(Arc::new(structs));
     Ok(ScalarValue::Union(
-        Some((*TYPE_ID_STRING, Box::new(scalar_value))),
-        FIELDS_TERM.clone(),
+        Some((ENC_TYPE_ID_STRING, Box::new(scalar_value))),
+        ENC_FIELDS_TERM.clone(),
         UnionMode::Dense,
     ))
 }
 
 fn specialize_boolean(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, *TYPE_ID_BOOLEAN, |value: bool| {
+    specialize_primitive(value, ENC_TYPE_ID_BOOLEAN, |value: bool| {
         ScalarValue::Boolean(Some(value))
     })
 }
 
 fn specialize_float32(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, *TYPE_ID_FLOAT32, |value: f32| {
+    specialize_primitive(value, ENC_TYPE_ID_FLOAT32, |value: f32| {
         ScalarValue::Float32(Some(value))
     })
 }
 
 fn specialize_float64(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, *TYPE_ID_FLOAT64, |value: f64| {
+    specialize_primitive(value, ENC_TYPE_ID_FLOAT64, |value: f64| {
         ScalarValue::Float64(Some(value))
     })
 }
 
 fn specialize_int(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, *TYPE_ID_INT, |value: i32| {
+    specialize_primitive(value, ENC_TYPE_ID_INT, |value: i32| {
         ScalarValue::Int32(Some(value))
     })
 }
 
 fn specialize_integer(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, *TYPE_ID_INTEGER, |value: i64| {
+    specialize_primitive(value, ENC_TYPE_ID_INTEGER, |value: i64| {
         ScalarValue::Int64(Some(value))
     })
 }
@@ -153,7 +153,7 @@ where
         .map_err(|err| DataFusionError::Internal(String::from("TODO")))?;
     Ok(ScalarValue::Union(
         Some((type_id, Box::new(value))),
-        FIELDS_TERM.clone(),
+        ENC_FIELDS_TERM.clone(),
         UnionMode::Dense,
     ))
 }
@@ -165,11 +165,11 @@ fn handle_generic_literal(literal: LiteralRef<'_>) -> DFResult<ScalarValue> {
         Arc::new(StringArray::from(vec![value])),
         Arc::new(StringArray::from(vec![datatype.to_string()])),
     ];
-    let structs = StructArray::new(FIELDS_TYPED_LITERAL.clone(), arrays, None);
+    let structs = StructArray::new(ENC_FIELDS_TYPED_LITERAL.clone(), arrays, None);
     let scalar_value = ScalarValue::Struct(Arc::new(structs));
     Ok(ScalarValue::Union(
-        Some((*TYPE_ID_TYPED_LITERAL, Box::new(scalar_value))),
-        FIELDS_TERM.clone(),
+        Some((ENC_TYPE_ID_TYPED_LITERAL, Box::new(scalar_value))),
+        ENC_FIELDS_TERM.clone(),
         UnionMode::Dense,
     ))
 }

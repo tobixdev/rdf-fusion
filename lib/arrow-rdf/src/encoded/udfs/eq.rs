@@ -1,5 +1,5 @@
 use crate::encoded::cast::cast_to_rdf_term;
-use crate::encoded::{idx_to_field_name, is_nested_rdf_term, TYPE_TERM};
+use crate::encoded::{enc_idx_to_field_name, enc_is_nested_rdf_term, ENC_TYPE_TERM};
 use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow::array::{ArrayRef, Scalar};
 use datafusion::arrow::compute::union_extract;
@@ -16,8 +16,8 @@ struct RdfTermEq {
 pub fn create_rdf_term_eq_udf() -> ScalarUDF {
     create_udf(
         "rdf_term_eq",
-        vec![TYPE_TERM.clone(), TYPE_TERM.clone()],
-        TYPE_TERM.clone(),
+        vec![ENC_TYPE_TERM.clone(), ENC_TYPE_TERM.clone()],
+        ENC_TYPE_TERM.clone(),
         Volatility::Immutable,
         Arc::new(batch_rdf_term_eq),
     )
@@ -61,9 +61,9 @@ fn batch_rdf_term_eq_scalar_array(lhs: ScalarValue, rhs: ArrayRef) -> DFResult<C
             "batch_rdf_term_eq_scalar_array: None Case"
         )),
         Some((idx, element)) => {
-            let is_nested = is_nested_rdf_term(idx);
+            let is_nested = enc_is_nested_rdf_term(idx);
             let rdf_term = as_rdf_term_array(&rhs)?;
-            let rhs = union_extract(rdf_term, idx_to_field_name(idx).as_str())?;
+            let rhs = union_extract(rdf_term, enc_idx_to_field_name(idx).as_str())?;
 
             let booleans = compare_with_eq(&Scalar::new(element.to_array()?), &rhs, is_nested)?;
             Ok(ColumnarValue::Array(cast_to_rdf_term(booleans)?))

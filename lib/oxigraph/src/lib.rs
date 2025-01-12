@@ -9,5 +9,6 @@ mod engine;
 pub mod error;
 pub mod io;
 pub mod model;
+mod quad_stream;
 pub mod sparql;
 pub mod store;

@@ -7,7 +7,7 @@ use crate::engine::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::engine::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
 use crate::engine::oxigraph_memory::hash::StrHash;
 use crate::engine::{AResult, DFResult};
-use arrow_rdf::encoded::{RdfTermBuilder, QUAD_TABLE_SCHEMA};
+use arrow_rdf::encoded::{RdfTermBuilder, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, ArrayBuilder, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
@@ -31,10 +31,10 @@ pub struct OxigraphMemExec {
 
 impl OxigraphMemExec {
     pub fn new(storage: Arc<OxigraphMemoryStorage>, projection: Option<Vec<usize>>) -> Self {
-        let projection = projection.unwrap_or((0..QUAD_TABLE_SCHEMA.fields.len()).collect());
+        let projection = projection.unwrap_or((0..ENC_QUAD_SCHEMA.fields.len()).collect());
         let new_fields: Vec<_> = projection
             .iter()
-            .map(|i| QUAD_TABLE_SCHEMA.fields.get(*i).unwrap().clone())
+            .map(|i| ENC_QUAD_SCHEMA.fields.get(*i).unwrap().clone())
             .collect();
         let schema = SchemaRef::new(Schema::new(new_fields));
 

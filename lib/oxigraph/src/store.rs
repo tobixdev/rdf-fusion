@@ -29,9 +29,11 @@ use crate::engine::{MemoryTripleStore, TripleStore};
 use crate::error::{LoaderError, SerializerError, StorageError};
 use crate::io::{RdfFormat, RdfParseError, RdfParser, RdfSerializer};
 use crate::model::*;
+use crate::quad_stream::QuadStream;
 use crate::sparql::{
     EvaluationError, Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
+use futures::{Stream, StreamExt};
 use std::error::Error;
 use std::io::{Read, Write};
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
@@ -233,14 +235,19 @@ impl Store {
     /// assert_eq!(vec![quad], results);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn quads_for_pattern(
+    pub async fn quads_for_pattern(
         &self,
         subject: Option<SubjectRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
         graph_name: Option<GraphNameRef<'_>>,
-    ) -> QuadIter {
-        unimplemented!()
+    ) -> Result<QuadStream, StorageError> {
+        let record_batch_stream = self
+            .inner
+            .quads_for_pattern(graph_name, subject, predicate, object)
+            .await
+            .map_err(StorageError::from)?;
+        Ok(QuadStream::try_new(record_batch_stream).unwrap()) // Schema is guaranteed
     }
 
     /// Returns all the quads contained in the store.
@@ -262,8 +269,12 @@ impl Store {
     /// assert_eq!(vec![quad], results);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn iter(&self) -> QuadIter {
-        unimplemented!()
+    pub fn iter(&self) -> Result<QuadStream, StorageError> {
+        let arrow_result = self
+            .runtime
+            .block_on(async { self.inner.quads_for_pattern(None, None, None, None).await })
+            .map_err(StorageError::from)?;
+        Ok(QuadStream::try_new(arrow_result).unwrap())
     }
 
     /// Checks if this store contains a given quad.
@@ -925,16 +936,6 @@ impl fmt::Display for Store {
     }
 }
 
-impl IntoIterator for &Store {
-    type IntoIter = QuadIter;
-    type Item = Result<Quad, StorageError>;
-
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
 /// An object to do operations during a transaction.
 ///
 /// See [`Store::transaction`] for a more detailed description.
@@ -1046,12 +1047,12 @@ impl Transaction {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
         graph_name: Option<GraphNameRef<'_>>,
-    ) -> QuadIter {
+    ) -> QuadStream {
         unimplemented!()
     }
 
     /// Returns all the quads contained in the store.
-    pub fn iter(&self) -> QuadIter {
+    pub fn iter(&self) -> QuadStream {
         unimplemented!()
     }
 
@@ -1382,27 +1383,6 @@ impl Transaction {
     /// # Result::<_,oxigraph::store::StorageError>::Ok(())
     /// ```
     pub fn clear(&mut self) -> Result<(), StorageError> {
-        unimplemented!()
-    }
-}
-
-impl IntoIterator for &Transaction {
-    type IntoIter = QuadIter;
-    type Item = Result<Quad, StorageError>;
-
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-/// An iterator returning the quads contained in a [`Store`].
-pub struct QuadIter {}
-
-impl Iterator for QuadIter {
-    type Item = Result<Quad, StorageError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
         unimplemented!()
     }
 }

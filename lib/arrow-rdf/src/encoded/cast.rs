@@ -1,6 +1,6 @@
 use crate::encoded::{
-    FIELDS_TERM, TYPE_BLANK_NODE, TYPE_FLOAT32, TYPE_FLOAT64, TYPE_ID_BOOLEAN, TYPE_INT,
-    TYPE_INTEGER, TYPE_NAMED_NODE, TYPE_STRING, TYPE_TYPED_LITERAL,
+    ENC_FIELDS_TERM, ENC_TYPE_BLANK_NODE, ENC_TYPE_FLOAT32, ENC_TYPE_FLOAT64, ENC_TYPE_ID_BOOLEAN,
+    ENC_TYPE_INT, ENC_TYPE_INTEGER, ENC_TYPE_NAMED_NODE, ENC_TYPE_STRING, ENC_TYPE_TYPED_LITERAL,
 };
 use crate::DFResult;
 use datafusion::arrow::array::{new_empty_array, ArrayRef, BooleanArray, UnionArray};
@@ -9,21 +9,21 @@ use std::sync::Arc;
 
 pub fn cast_to_rdf_term(array: BooleanArray) -> DFResult<ArrayRef> {
     Ok(Arc::new(UnionArray::try_new(
-        FIELDS_TERM.clone(),
-        ScalarBuffer::from(vec![*TYPE_ID_BOOLEAN; array.len()]),
+        ENC_FIELDS_TERM.clone(),
+        ScalarBuffer::from(vec![ENC_TYPE_ID_BOOLEAN; array.len()]),
         Some(ScalarBuffer::from(
             (0..array.len() as i32).collect::<Vec<_>>(),
         )),
         vec![
-            Arc::new(new_empty_array(&TYPE_NAMED_NODE)),
-            Arc::new(new_empty_array(&TYPE_BLANK_NODE)),
-            Arc::new(new_empty_array(&TYPE_STRING)),
+            Arc::new(new_empty_array(&ENC_TYPE_NAMED_NODE)),
+            Arc::new(new_empty_array(&ENC_TYPE_BLANK_NODE)),
+            Arc::new(new_empty_array(&ENC_TYPE_STRING)),
             Arc::new(array),
-            Arc::new(new_empty_array(&TYPE_FLOAT32)),
-            Arc::new(new_empty_array(&TYPE_FLOAT64)),
-            Arc::new(new_empty_array(&TYPE_INT)),
-            Arc::new(new_empty_array(&TYPE_INTEGER)),
-            Arc::new(new_empty_array(&TYPE_TYPED_LITERAL)),
+            Arc::new(new_empty_array(&ENC_TYPE_FLOAT32)),
+            Arc::new(new_empty_array(&ENC_TYPE_FLOAT64)),
+            Arc::new(new_empty_array(&ENC_TYPE_INT)),
+            Arc::new(new_empty_array(&ENC_TYPE_INTEGER)),
+            Arc::new(new_empty_array(&ENC_TYPE_TYPED_LITERAL)),
         ],
     )?))
 }

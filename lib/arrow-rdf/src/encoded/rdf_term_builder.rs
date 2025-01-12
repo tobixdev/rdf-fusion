@@ -1,6 +1,6 @@
 use crate::encoded::{
-    FIELDS_STRING, FIELDS_TERM, FIELDS_TYPED_LITERAL, TYPE_ID_INTEGER, TYPE_ID_NAMED_NODE,
-    TYPE_ID_STRING, TYPE_ID_TYPED_LITERAL,
+    ENC_FIELDS_STRING, ENC_FIELDS_TERM, ENC_FIELDS_TYPED_LITERAL, ENC_TYPE_ID_INTEGER,
+    ENC_TYPE_ID_NAMED_NODE, ENC_TYPE_ID_STRING, ENC_TYPE_ID_TYPED_LITERAL,
 };
 use crate::{AResult, DFResult};
 use datafusion::arrow::array::{
@@ -31,25 +31,25 @@ impl RdfTermBuilder {
             offsets: Vec::new(),
             named_node_builder: StringBuilder::new(),
             blank_node_builder: StringBuilder::new(),
-            string_builder: StructBuilder::from_fields(FIELDS_STRING.clone(), 0),
+            string_builder: StructBuilder::from_fields(ENC_FIELDS_STRING.clone(), 0),
             boolean_builder: BooleanBuilder::new(),
             float32_builder: Float32Builder::new(),
             float64_builder: Float64Builder::new(),
             int32_builder: Int32Builder::new(),
             integer_builder: Int64Builder::new(),
-            typed_literal_builder: StructBuilder::from_fields(FIELDS_TYPED_LITERAL.clone(), 0),
+            typed_literal_builder: StructBuilder::from_fields(ENC_FIELDS_TYPED_LITERAL.clone(), 0),
         }
     }
 
     pub fn append_named_node(&mut self, value: &str) -> AResult<()> {
-        self.type_ids.push(*TYPE_ID_NAMED_NODE);
+        self.type_ids.push(ENC_TYPE_ID_NAMED_NODE);
         self.offsets.push(self.named_node_builder.len() as i32);
         self.named_node_builder.append_value(value);
         Ok(())
     }
 
     pub fn append_string(&mut self, value: &str, language: Option<&str>) -> AResult<()> {
-        self.type_ids.push(*TYPE_ID_STRING);
+        self.type_ids.push(ENC_TYPE_ID_STRING);
         self.offsets.push(self.string_builder.len() as i32);
 
         self.string_builder
@@ -72,14 +72,14 @@ impl RdfTermBuilder {
     }
 
     pub fn append_integer(&mut self, integer: i64) -> AResult<()> {
-        self.type_ids.push(*TYPE_ID_INTEGER);
+        self.type_ids.push(ENC_TYPE_ID_INTEGER);
         self.offsets.push(self.integer_builder.len() as i32);
         self.integer_builder.append_value(integer);
         Ok(())
     }
 
     pub fn append_typed_literal(&mut self, value: &str, type_id: &str) -> AResult<()> {
-        self.type_ids.push(*TYPE_ID_TYPED_LITERAL);
+        self.type_ids.push(ENC_TYPE_ID_TYPED_LITERAL);
         self.offsets.push(self.typed_literal_builder.len() as i32);
         self.typed_literal_builder
             .field_builder::<StringBuilder>(0)
@@ -95,7 +95,7 @@ impl RdfTermBuilder {
 
     pub fn finish(mut self) -> DFResult<ArrayRef> {
         Ok(Arc::new(UnionArray::try_new(
-            FIELDS_TERM.clone(),
+            ENC_FIELDS_TERM.clone(),
             ScalarBuffer::from(self.type_ids),
             Some(ScalarBuffer::from(self.offsets)),
             vec![

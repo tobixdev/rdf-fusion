@@ -1,4 +1,4 @@
-use crate::encoded::{TYPE_ID_BOOLEAN, TYPE_TERM};
+use crate::encoded::{ENC_TYPE_ID_BOOLEAN, ENC_TYPE_TERM};
 use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow::array::{Array, ArrayRef, BooleanArray};
 use datafusion::arrow::datatypes::DataType;
@@ -14,7 +14,7 @@ struct RdfTermAsBoolean {
 pub fn create_rdf_term_as_boolean_udf() -> ScalarUDF {
     create_udf(
         "rdf_term_as_boolean",
-        vec![TYPE_TERM.clone()],
+        vec![ENC_TYPE_TERM.clone()],
         DataType::Boolean,
         Volatility::Immutable,
         Arc::new(batch_rdf_term_as_boolean),
@@ -36,10 +36,12 @@ fn batch_rdf_term_as_boolean(args: &[ColumnarValue]) -> DFResult<ColumnarValue> 
 
 fn batch_rdf_term_as_boolean_array(arg: ArrayRef) -> DFResult<ColumnarValue> {
     // TODO: Handle other types
-    let boolean_type = *TYPE_ID_BOOLEAN;
     let arg = as_rdf_term_array(&arg)?;
 
-    let booleans_iter = arg.type_ids().iter().map(|t| Some(t == &boolean_type));
+    let booleans_iter = arg
+        .type_ids()
+        .iter()
+        .map(|t| Some(t == &ENC_TYPE_ID_BOOLEAN));
     let booleans = BooleanArray::from_iter(booleans_iter);
 
     // TODO: Check if true

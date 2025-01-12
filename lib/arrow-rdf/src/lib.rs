@@ -5,8 +5,8 @@ use datafusion::error::DataFusionError;
 
 // TODO: Make DataFusion integration optional and use regular Arrow Crate
 
+pub mod decoded;
 pub mod encoded;
-pub mod result;
 
 pub const TABLE_QUADS: &str = "quads";
 pub const COL_GRAPH: &str = "graph";

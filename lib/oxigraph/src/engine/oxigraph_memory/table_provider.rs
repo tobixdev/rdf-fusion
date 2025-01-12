@@ -7,7 +7,7 @@ use datafusion::logical_expr::Expr;
 
 use crate::engine::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
 use crate::error::StorageError;
-use arrow_rdf::encoded::QUAD_TABLE_SCHEMA;
+use arrow_rdf::encoded::ENC_QUAD_SCHEMA;
 use datafusion::arrow::array::ArrayBuilder;
 use datafusion::physical_plan::ExecutionPlan;
 use futures::StreamExt;
@@ -47,7 +47,7 @@ impl TableProvider for OxigraphMemTable {
     }
 
     fn schema(&self) -> SchemaRef {
-        QUAD_TABLE_SCHEMA.clone()
+        ENC_QUAD_SCHEMA.clone()
     }
 
     fn table_type(&self) -> TableType {
