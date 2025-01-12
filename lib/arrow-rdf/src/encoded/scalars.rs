@@ -14,18 +14,24 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 pub fn encode_scalar_graph(graph: GraphNameRef<'_>) -> ScalarValue {
-    let value = ScalarValue::Utf8(Some(graph.to_string()));
-    ScalarValue::Union(
-        Some((ENC_TYPE_ID_NAMED_NODE, Box::new(value))),
-        ENC_FIELDS_TERM.clone(),
-        UnionMode::Dense,
-    )
+    match graph {
+        GraphNameRef::NamedNode(nn) => encode_scalar_named_node(nn),
+        GraphNameRef::BlankNode(bnode) => encode_scalar_blank_node(bnode),
+        GraphNameRef::DefaultGraph => ScalarValue::Union(
+            Some((
+                ENC_TYPE_ID_NAMED_NODE,
+                Box::new(String::from("DEFAULT").into()),
+            )),
+            ENC_FIELDS_TERM.clone(),
+            UnionMode::Dense,
+        ),
+    }
 }
 
 pub fn encode_scalar_subject(subject: SubjectRef<'_>) -> ScalarValue {
     match subject {
         SubjectRef::NamedNode(nn) => encode_scalar_named_node(nn),
-        SubjectRef::BlankNode(bnode) => encode_blank_node(bnode),
+        SubjectRef::BlankNode(bnode) => encode_scalar_blank_node(bnode),
         _ => unimplemented!(),
     }
 }
@@ -37,7 +43,7 @@ pub fn encode_scalar_predicate(predicate: NamedNodeRef<'_>) -> ScalarValue {
 pub fn encode_scalar_object(object: TermRef<'_>) -> DFResult<ScalarValue> {
     match object {
         TermRef::NamedNode(nn) => Ok(encode_scalar_named_node(nn)),
-        TermRef::BlankNode(bnode) => Ok(encode_blank_node(bnode)),
+        TermRef::BlankNode(bnode) => Ok(encode_scalar_blank_node(bnode)),
         TermRef::Literal(lit) => encode_scalar_literal(lit),
         TermRef::Triple(_) => unimplemented!(),
     }
@@ -60,7 +66,7 @@ pub fn encode_string(value: String) -> ScalarValue {
 }
 
 fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
-    let value = ScalarValue::Utf8(Some(node.to_string()));
+    let value = ScalarValue::Utf8(Some(String::from(node.as_str())));
     ScalarValue::Union(
         Some((ENC_TYPE_ID_NAMED_NODE, Box::new(value))),
         ENC_FIELDS_TERM.clone(),
@@ -68,8 +74,8 @@ fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
     )
 }
 
-fn encode_blank_node(node: BlankNodeRef<'_>) -> ScalarValue {
-    let value = ScalarValue::Utf8(Some(node.to_string()));
+fn encode_scalar_blank_node(node: BlankNodeRef<'_>) -> ScalarValue {
+    let value = ScalarValue::Utf8(Some(String::from(&node.to_string()[2..])));
     ScalarValue::Union(
         Some((ENC_TYPE_ID_BLANK_NODE, Box::new(value))),
         ENC_FIELDS_TERM.clone(),
