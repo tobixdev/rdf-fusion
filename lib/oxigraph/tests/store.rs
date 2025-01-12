@@ -103,48 +103,54 @@ fn quads(graph_name: impl Into<GraphNameRef<'static>>) -> Vec<QuadRef<'static>> 
     ]
 }
 
-#[test]
-fn test_load_graph() -> Result<(), Box<dyn Error>> {
-    let store = Store::new()?;
-    store.load_from_reader(RdfFormat::Turtle, DATA.as_bytes())?;
+#[tokio::test]
+async fn test_load_graph() -> Result<(), Box<dyn Error>> {
+    let store = Store::new().await?;
+    store
+        .load_from_reader(RdfFormat::Turtle, DATA.as_bytes())
+        .await?;
     for q in quads(GraphNameRef::DefaultGraph) {
-        assert!(store.contains(q)?);
+        assert!(store.contains(q).await?);
     }
     store.validate()?;
     Ok(())
 }
 
-#[test]
-fn test_load_dataset() -> Result<(), Box<dyn Error>> {
-    let store = Store::new()?;
-    store.load_from_reader(RdfFormat::TriG, GRAPH_DATA.as_bytes())?;
+#[tokio::test]
+async fn test_load_dataset() -> Result<(), Box<dyn Error>> {
+    let store = Store::new().await?;
+    store
+        .load_from_reader(RdfFormat::TriG, GRAPH_DATA.as_bytes())
+        .await?;
     for q in quads(NamedNodeRef::new_unchecked(
         "http://www.wikidata.org/wiki/Special:EntityData/Q90",
     )) {
-        assert!(store.contains(q)?);
+        assert!(store.contains(q).await?);
     }
     store.validate()?;
     Ok(())
 }
 
-#[test]
-fn test_load_graph_generates_new_blank_nodes() -> Result<(), Box<dyn Error>> {
-    let store = Store::new()?;
+#[tokio::test]
+async fn test_load_graph_generates_new_blank_nodes() -> Result<(), Box<dyn Error>> {
+    let store = Store::new().await?;
     for _ in 0..2 {
-        store.load_from_reader(
-            RdfFormat::NTriples,
-            "_:a <http://example.com/p> <http://example.com/p> .".as_bytes(),
-        )?;
+        store
+            .load_from_reader(
+                RdfFormat::NTriples,
+                "_:a <http://example.com/p> <http://example.com/p> .".as_bytes(),
+            )
+            .await?;
     }
     assert_eq!(store.len()?, 2);
     Ok(())
 }
 
-#[test]
-fn test_dump_graph() -> Result<(), Box<dyn Error>> {
-    let store = Store::new()?;
+#[tokio::test]
+async fn test_dump_graph() -> Result<(), Box<dyn Error>> {
+    let store = Store::new().await?;
     for q in quads(GraphNameRef::DefaultGraph) {
-        store.insert(q)?;
+        store.insert(q).await?;
     }
 
     let mut buffer = Vec::new();
@@ -156,11 +162,11 @@ fn test_dump_graph() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[test]
-fn test_dump_dataset() -> Result<(), Box<dyn Error>> {
-    let store = Store::new()?;
+#[tokio::test]
+async fn test_dump_dataset() -> Result<(), Box<dyn Error>> {
+    let store = Store::new().await?;
     for q in quads(GraphNameRef::DefaultGraph) {
-        store.insert(q)?;
+        store.insert(q).await?;
     }
 
     let buffer = store.dump_to_writer(RdfFormat::NQuads, Vec::new())?;
@@ -179,9 +185,9 @@ async fn test_snapshot_isolation_iterator() -> Result<(), Box<dyn Error>> {
         NamedNodeRef::new("http://example.com/o")?,
         NamedNodeRef::new("http://www.wikidata.org/wiki/Special:EntityData/Q90")?,
     );
-    let store = Store::new()?;
-    store.insert(quad)?;
-    let iter = store.stream().unwrap();
+    let store = Store::new().await?;
+    store.insert(quad).await?;
+    let iter = store.stream().await.unwrap();
     store.remove(quad)?;
     assert_eq!(iter.try_read_all().await?, vec![quad.into_owned()]);
     store.validate()?;

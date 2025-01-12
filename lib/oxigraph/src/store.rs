@@ -39,7 +39,6 @@ use std::error::Error;
 use std::io::{Read, Write};
 use std::str;
 use std::sync::Arc;
-use tokio::runtime::{Builder, Runtime};
 
 /// An on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
 /// Allows to query and update it using SPARQL.
@@ -80,20 +79,13 @@ use tokio::runtime::{Builder, Runtime};
 #[derive(Clone)]
 pub struct Store {
     inner: Arc<dyn TripleStore + Send + Sync>,
-    runtime: Arc<Runtime>, // This is for now the easiest way of not breaking any APIs.
 }
 
 impl Store {
     /// New in-memory [`Store`].
-    pub fn new() -> Result<Self, StorageError> {
-        let runtime = Arc::new(
-            Builder::new_multi_thread()
-                .worker_threads(1)
-                .enable_all()
-                .build()?,
-        );
-        let inner = Arc::new(runtime.block_on(async { MemoryTripleStore::new().await })?);
-        Ok(Self { inner, runtime })
+    pub async fn new() -> Result<Self, StorageError> {
+        let inner = Arc::new(MemoryTripleStore::new().await?);
+        Ok(Self { inner })
     }
 
     /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/).
@@ -250,10 +242,11 @@ impl Store {
     /// assert_eq!(vec![quad], results);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn stream(&self) -> Result<QuadStream, StorageError> {
+    pub async fn stream(&self) -> Result<QuadStream, StorageError> {
         let arrow_result = self
-            .runtime
-            .block_on(async { self.inner.quads_for_pattern(None, None, None, None).await })
+            .inner
+            .quads_for_pattern(None, None, None, None)
+            .await
             .map_err(StorageError::from)?;
         Ok(QuadStream::try_new(arrow_result).unwrap())
     }
@@ -275,11 +268,9 @@ impl Store {
     /// assert!(store.contains(quad)?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn contains<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
+    pub async fn contains<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
         let quad = quad.into();
-        self.runtime
-            .block_on(async { self.inner.contains(&quad).await })
-            .map_err(StorageError::from)
+        self.inner.contains(&quad).await.map_err(StorageError::from)
     }
 
     /// Returns the number of quads in the store.
@@ -404,7 +395,7 @@ impl Store {
     /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g2")?))?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn load_from_reader(
+    pub async fn load_from_reader(
         &self,
         parser: impl Into<RdfParser>,
         reader: impl Read,
@@ -414,8 +405,10 @@ impl Store {
             .rename_blank_nodes()
             .for_reader(reader)
             .collect::<Result<Vec<_>, _>>()?;
-        self.runtime
-            .block_on(async { self.inner.load_quads(quads).await.map(|_| ()) })
+        self.inner
+            .load_quads(quads)
+            .await
+            .map(|_| ())
             .map_err(|err| LoaderError::from(StorageError::from(err)))
     }
 
@@ -507,15 +500,12 @@ impl Store {
     /// assert!(store.contains(quad)?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn insert<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
+    pub async fn insert<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
         let quad = vec![quad.into().into_owned()];
-        self.runtime
-            .block_on(async {
-                self.inner
-                    .load_quads(quad)
-                    .await
-                    .map(|inserted| inserted > 0)
-            })
+        self.inner
+            .load_quads(quad)
+            .await
+            .map(|inserted| inserted > 0)
             .map_err(|err| StorageError::from(err))
     }
 
@@ -873,22 +863,22 @@ mod tests {
             ),
         ];
 
-        let store = Store::new()?;
+        let store = Store::new().await?;
         for t in &default_quads {
-            assert!(store.insert(t)?);
+            assert!(store.insert(t).await?);
         }
-        assert!(!store.insert(&default_quad)?);
+        assert!(!store.insert(&default_quad).await?);
 
         assert!(store.remove(&default_quad)?);
         assert!(!store.remove(&default_quad)?);
-        assert!(store.insert(&named_quad)?);
-        assert!(!store.insert(&named_quad)?);
-        assert!(store.insert(&default_quad)?);
-        assert!(!store.insert(&default_quad)?);
+        assert!(store.insert(&named_quad).await?);
+        assert!(!store.insert(&named_quad).await?);
+        assert!(store.insert(&default_quad).await?);
+        assert!(!store.insert(&default_quad).await?);
         store.validate()?;
 
         assert_eq!(store.len()?, 4);
-        assert_eq!(store.stream()?.try_read_all().await?, all_quads);
+        assert_eq!(store.stream().await?.try_read_all().await?, all_quads);
         assert_eq!(
             store
                 .quads_for_pattern(Some(main_s.as_ref()), None, None, None)
