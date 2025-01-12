@@ -154,7 +154,9 @@ async fn test_dump_graph() -> Result<(), Box<dyn Error>> {
     }
 
     let mut buffer = Vec::new();
-    store.dump_graph_to_writer(GraphNameRef::DefaultGraph, RdfFormat::NTriples, &mut buffer)?;
+    store
+        .dump_graph_to_writer(GraphNameRef::DefaultGraph, RdfFormat::NTriples, &mut buffer)
+        .await?;
     assert_eq!(
         buffer.into_iter().filter(|c| *c == b'\n').count(),
         NUMBER_OF_TRIPLES
@@ -169,7 +171,7 @@ async fn test_dump_dataset() -> Result<(), Box<dyn Error>> {
         store.insert(q).await?;
     }
 
-    let buffer = store.dump_to_writer(RdfFormat::NQuads, Vec::new())?;
+    let buffer = store.dump_to_writer(RdfFormat::NQuads, Vec::new()).await?;
     assert_eq!(
         buffer.into_iter().filter(|c| *c == b'\n').count(),
         NUMBER_OF_TRIPLES

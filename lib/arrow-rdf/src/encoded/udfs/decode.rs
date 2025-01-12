@@ -62,7 +62,7 @@ fn batch_enc_decode_array(array: ArrayRef) -> DFResult<ColumnarValue> {
                     .unwrap()
                     .as_string::<i32>();
 
-                match languages.is_null(i) {
+                match languages.is_null(value_idx) {
                     true => rdf_term_builder.append_string(values.value(value_idx), None)?,
                     false => rdf_term_builder
                         .append_string(values.value(value_idx), Some(languages.value(value_idx)))?,
@@ -104,7 +104,7 @@ fn batch_enc_decode_array(array: ArrayRef) -> DFResult<ColumnarValue> {
                     .unwrap()
                     .as_string::<i32>();
                 let types = typed_literals
-                    .column_by_name("type")
+                    .column_by_name("datatype")
                     .unwrap()
                     .as_string::<i32>();
                 rdf_term_builder

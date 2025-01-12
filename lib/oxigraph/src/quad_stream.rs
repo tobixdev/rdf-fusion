@@ -5,7 +5,7 @@ use arrow_rdf::decoded::model::{
 };
 use arrow_rdf::decoded::DEC_QUAD_SCHEMA;
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
-use datafusion::arrow::array::{AsArray, RecordBatch, UnionArray};
+use datafusion::arrow::array::{Array, AsArray, RecordBatch, UnionArray};
 use datafusion::common::SchemaExt;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
@@ -155,7 +155,32 @@ fn to_object(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, Storag
             Term::BlankNode(BlankNode::new(value).unwrap())
         }
         DEC_TYPE_ID_STRING => {
-            unimplemented!("Nested Type")
+            let values = objects
+                .child(type_id)
+                .as_struct()
+                .column_by_name("value")
+                .unwrap()
+                .as_string::<i32>();
+            let language = objects
+                .child(type_id)
+                .as_struct()
+                .column_by_name("language")
+                .unwrap()
+                .as_string::<i32>();
+
+            if language.is_null(i) {
+                // TODO: error handling?
+                Term::Literal(Literal::new_simple_literal(String::from(values.value(i))))
+            } else {
+                // TODO: error handling?
+                Term::Literal(
+                    Literal::new_language_tagged_literal(
+                        String::from(values.value(i)),
+                        String::from(language.value(i)),
+                    )
+                    .unwrap(),
+                )
+            }
         }
         DEC_TYPE_ID_TYPED_LITERAL => {
             let values = objects

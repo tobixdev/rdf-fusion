@@ -28,7 +28,7 @@
 use crate::engine::{MemoryTripleStore, TripleStore};
 use crate::error::{LoaderError, SerializerError, StorageError};
 use crate::graph_name_iter::GraphNameIter;
-use crate::io::{RdfFormat, RdfParser, RdfSerializer};
+use crate::io::{RdfParser, RdfSerializer};
 use crate::model::*;
 use crate::quad_stream::QuadStream;
 use crate::sparql::{
@@ -37,7 +37,6 @@ use crate::sparql::{
 use futures::{Stream, StreamExt};
 use std::error::Error;
 use std::io::{Read, Write};
-use std::str;
 use std::sync::Arc;
 
 /// An on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
@@ -412,75 +411,6 @@ impl Store {
             .map_err(|err| LoaderError::from(StorageError::from(err)))
     }
 
-    /// Loads a graph file (i.e. triples) into the store.
-    ///
-    /// This function is atomic, quite slow and memory hungry. To get much better performances you might want to use the [`bulk_loader`](Store::bulk_loader).
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    ///
-    /// // insertion
-    /// let file = b"<http://example.com> <http://example.com> <http://example.com> .";
-    /// store.load_graph(
-    ///     file.as_ref(),
-    ///     RdfFormat::NTriples,
-    ///     GraphName::DefaultGraph,
-    ///     None,
-    /// )?;
-    ///
-    /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?);
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    #[deprecated(note = "use Store.load_from_reader instead", since = "0.4.0")]
-    pub fn load_graph(
-        &self,
-        reader: impl Read,
-        format: impl Into<RdfFormat>,
-        to_graph_name: impl Into<GraphName>,
-        base_iri: Option<&str>,
-    ) -> Result<(), LoaderError> {
-        unimplemented!()
-    }
-
-    /// Loads a dataset file (i.e. quads) into the store.
-    ///
-    /// This function is atomic, quite slow and memory hungry. To get much better performances you might want to use the [`bulk_loader`](Store::bulk_loader).
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    ///
-    /// // insertion
-    /// let file =
-    ///     b"<http://example.com> <http://example.com> <http://example.com> <http://example.com> .";
-    /// store.load_dataset(file.as_ref(), RdfFormat::NQuads, None)?;
-    ///
-    /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, ex))?);
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    #[deprecated(note = "use Store.load_from_reader instead", since = "0.4.0")]
-    pub fn load_dataset(
-        &self,
-        reader: impl Read,
-        format: impl Into<RdfFormat>,
-        base_iri: Option<&str>,
-    ) -> Result<(), LoaderError> {
-        unimplemented!()
-    }
-
     /// Adds a quad to this store.
     ///
     /// Returns `true` if the quad was not already in the store.
@@ -565,12 +495,21 @@ impl Store {
     /// assert_eq!(file, buffer.as_slice());
     /// # std::io::Result::Ok(())
     /// ```
-    pub fn dump_to_writer<W: Write>(
+    pub async fn dump_to_writer<W: Write>(
         &self,
         serializer: impl Into<RdfSerializer>,
         writer: W,
     ) -> Result<W, SerializerError> {
-        unimplemented!()
+        let serializer = serializer.into();
+        if !serializer.format().supports_datasets() {
+            return Err(SerializerError::DatasetFormatExpected(serializer.format()));
+        }
+        let mut serializer = serializer.for_writer(writer);
+        let mut stream = self.stream().await?;
+        while let Some(quad) = stream.next().await {
+            serializer.serialize_quad(&quad?)?;
+        }
+        Ok(serializer.finish()?)
     }
 
     /// Dumps a store graph into a file.
@@ -591,67 +530,20 @@ impl Store {
     /// assert_eq!(file, buffer.as_slice());
     /// # std::io::Result::Ok(())
     /// ```
-    pub fn dump_graph_to_writer<'a, W: Write>(
+    pub async fn dump_graph_to_writer<'a, W: Write>(
         &self,
         from_graph_name: impl Into<GraphNameRef<'a>>,
         serializer: impl Into<RdfSerializer>,
         writer: W,
     ) -> Result<W, SerializerError> {
-        unimplemented!()
-    }
-
-    /// Dumps a store graph into a file.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let file = "<http://example.com> <http://example.com> <http://example.com> .\n".as_bytes();
-    ///
-    /// let store = Store::new()?;
-    /// store.load_graph(file, RdfFormat::NTriples, GraphName::DefaultGraph, None)?;
-    ///
-    /// let mut buffer = Vec::new();
-    /// store.dump_graph(&mut buffer, RdfFormat::NTriples, GraphNameRef::DefaultGraph)?;
-    /// assert_eq!(file, buffer.as_slice());
-    /// # std::io::Result::Ok(())
-    /// ```
-    #[deprecated(note = "use Store.dump_graph_to_writer instead", since = "0.4.0")]
-    pub fn dump_graph<'a, W: Write>(
-        &self,
-        writer: W,
-        format: impl Into<RdfFormat>,
-        from_graph_name: impl Into<GraphNameRef<'a>>,
-    ) -> Result<W, SerializerError> {
-        unimplemented!()
-    }
-
-    /// Dumps the store into a file.
-    ///
-    /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::store::Store;
-    ///
-    /// let file =
-    ///     "<http://example.com> <http://example.com> <http://example.com> <http://example.com> .\n"
-    ///         .as_bytes();
-    ///
-    /// let store = Store::new()?;
-    /// store.load_from_reader(RdfFormat::NQuads, file)?;
-    ///
-    /// let buffer = store.dump_dataset(Vec::new(), RdfFormat::NQuads)?;
-    /// assert_eq!(file, buffer.as_slice());
-    /// # std::io::Result::Ok(())
-    /// ```
-    #[deprecated(note = "use Store.dump_to_writer instead", since = "0.4.0")]
-    pub fn dump_dataset<W: Write>(
-        &self,
-        writer: W,
-        format: impl Into<RdfFormat>,
-    ) -> Result<W, SerializerError> {
-        unimplemented!()
+        let mut serializer = serializer.into().for_writer(writer);
+        let mut stream = self
+            .quads_for_pattern(None, None, None, Some(from_graph_name.into()))
+            .await?;
+        while let Some(quad) = stream.next().await {
+            serializer.serialize_triple(quad?.as_ref())?;
+        }
+        Ok(serializer.finish()?)
     }
 
     /// Returns all the store named graphs.
