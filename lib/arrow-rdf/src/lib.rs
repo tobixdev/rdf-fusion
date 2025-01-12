@@ -3,6 +3,8 @@ use datafusion::arrow::error::ArrowError;
 use datafusion::common::downcast_value;
 use datafusion::error::DataFusionError;
 
+// TODO: Make DataFusion integration optional and use regular Arrow Crate
+
 pub mod encoded;
 pub mod result;
 

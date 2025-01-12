@@ -2,16 +2,16 @@ use crate::engine::oxigraph_memory::table_provider::OxigraphMemTable;
 use crate::engine::triple_store::TripleStore;
 use crate::engine::DFResult;
 use crate::error::StorageError;
+use arrow_rdf::encoded::register_rdf_term_udfs;
+use arrow_rdf::encoded::scalars::{
+    encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
+};
 use async_trait::async_trait;
 use datafusion::error::DataFusionError;
 use datafusion::execution::FunctionRegistry;
 use datafusion::logical_expr::{col, lit};
 use datafusion::prelude::SessionContext;
 use oxrdf::{Quad, QuadRef};
-use querymodel::encoded::register_rdf_term_udfs;
-use querymodel::encoded::scalars::{
-    encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
-};
 use std::sync::Arc;
 
 #[derive(Clone)]

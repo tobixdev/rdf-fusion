@@ -7,11 +7,11 @@ use datafusion::logical_expr::Expr;
 
 use crate::engine::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
 use crate::error::StorageError;
+use arrow_rdf::encoded::QUAD_TABLE_SCHEMA;
 use datafusion::arrow::array::ArrayBuilder;
 use datafusion::physical_plan::ExecutionPlan;
 use futures::StreamExt;
 use oxrdf::Quad;
-use querymodel::encoded::QUAD_TABLE_SCHEMA;
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};

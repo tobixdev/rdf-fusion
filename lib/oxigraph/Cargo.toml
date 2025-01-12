@@ -28,7 +28,7 @@ http-client-rustls-native = ["http-client", "oxhttp/rustls-ring-native"]
 async-trait.workspace = true
 dashmap.workspace = true
 datafusion.workspace = true
-querymodel.workspace = true
+arrow-rdf.workspace = true
 futures.workspace = true
 oxiri.workspace = true
 oxrdf = { workspace = true, features = ["rdf-star", "oxsdatatypes"] }

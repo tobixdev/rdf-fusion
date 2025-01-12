@@ -7,6 +7,8 @@ use crate::engine::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::engine::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
 use crate::engine::oxigraph_memory::hash::StrHash;
 use crate::engine::{AResult, DFResult};
+use arrow_rdf::encoded::{RdfTermBuilder, QUAD_TABLE_SCHEMA};
+use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, ArrayBuilder, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
@@ -16,8 +18,6 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
 };
 use futures::Stream;
-use querymodel::encoded::{RdfTermBuilder, QUAD_TABLE_SCHEMA};
-use querymodel::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};

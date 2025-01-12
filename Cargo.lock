@@ -316,6 +316,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrow-rdf"
+version = "0.4.5"
+dependencies = [
+ "datafusion",
+ "once_cell",
+ "oxrdf",
+]
+
+[[package]]
 name = "arrow-row"
 version = "53.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2411,6 +2420,7 @@ dependencies = [
 name = "oxigraph"
 version = "0.4.5"
 dependencies = [
+ "arrow-rdf",
  "async-trait",
  "codspeed-criterion-compat",
  "dashmap",
@@ -2424,7 +2434,6 @@ dependencies = [
  "oxrdf",
  "oxrdfio",
  "oxsdatatypes",
- "querymodel",
  "rand",
  "rustc-hash",
  "siphasher 1.0.1",
@@ -2894,15 +2903,6 @@ version = "0.4.5"
 dependencies = [
  "oxigraph",
  "pyo3",
-]
-
-[[package]]
-name = "querymodel"
-version = "0.4.5"
-dependencies = [
- "datafusion",
- "once_cell",
- "oxrdf",
 ]
 
 [[package]]
