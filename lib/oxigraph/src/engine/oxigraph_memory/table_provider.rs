@@ -11,7 +11,7 @@ use arrow_rdf::encoded::ENC_QUAD_SCHEMA;
 use datafusion::arrow::array::ArrayBuilder;
 use datafusion::physical_plan::ExecutionPlan;
 use futures::StreamExt;
-use oxrdf::Quad;
+use oxrdf::{Quad, QuadRef};
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -31,6 +31,10 @@ impl OxigraphMemTable {
         self.storage
             .bulk_loader()
             .load(quads.into_iter().map(Result::<Quad, StorageError>::Ok))
+    }
+
+    pub fn remove(&self, quad: QuadRef) -> Result<bool, StorageError> {
+        self.storage.transaction(|mut t| Ok(t.remove(quad)))
     }
 }
 

@@ -541,8 +541,11 @@ impl Store {
     /// assert!(!store.contains(quad)?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn remove<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
-        unimplemented!()
+    pub async fn remove<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
+        self.inner
+            .remove(quad.into())
+            .await
+            .map_err(|err| StorageError::from(err))
     }
 
     /// Dumps the store into a file.
@@ -869,8 +872,8 @@ mod tests {
         }
         assert!(!store.insert(&default_quad).await?);
 
-        assert!(store.remove(&default_quad)?);
-        assert!(!store.remove(&default_quad)?);
+        assert!(store.remove(&default_quad).await?);
+        assert!(!store.remove(&default_quad).await?);
         assert!(store.insert(&named_quad).await?);
         assert!(!store.insert(&named_quad).await?);
         assert!(store.insert(&default_quad).await?);

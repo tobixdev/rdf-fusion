@@ -70,6 +70,10 @@ impl MemoryTripleStore {
 
 #[async_trait]
 impl TripleStore for MemoryTripleStore {
+    //
+    // Querying
+    //
+
     async fn contains(&self, quad: &QuadRef<'_>) -> DFResult<bool> {
         let count = self
             .match_pattern(
@@ -88,18 +92,6 @@ impl TripleStore for MemoryTripleStore {
         self.ctx.table("quads").await?.count().await
     }
 
-    async fn load_quads(&self, quads: Vec<Quad>) -> DFResult<usize> {
-        let quads_table_provider = self.ctx.table_provider("quads").await?;
-        let oxigraph_mem = quads_table_provider
-            .as_any()
-            .downcast_ref::<OxigraphMemTable>()
-            .unwrap();
-        let len = oxigraph_mem
-            .load_quads(quads)
-            .map_err(|e| DataFusionError::External(Box::new(e)))?;
-        Ok(len)
-    }
-
     async fn quads_for_pattern(
         &self,
         graph_name: Option<GraphNameRef<'_>>,
@@ -111,5 +103,35 @@ impl TripleStore for MemoryTripleStore {
             .await?
             .execute_stream()
             .await
+    }
+
+    //
+    // Loading
+    //
+
+    async fn load_quads(&self, quads: Vec<Quad>) -> DFResult<usize> {
+        let quads_table_provider = self.ctx.table_provider("quads").await?;
+        let oxigraph_mem = quads_table_provider
+            .as_any()
+            .downcast_ref::<OxigraphMemTable>()
+            .unwrap();
+        oxigraph_mem
+            .load_quads(quads)
+            .map_err(|e| DataFusionError::External(Box::new(e)))
+    }
+
+    //
+    // Removing
+    //
+
+    async fn remove<'a>(&self, quad: QuadRef<'_>) -> DFResult<bool> {
+        let quads_table_provider = self.ctx.table_provider("quads").await?;
+        let oxigraph_mem = quads_table_provider
+            .as_any()
+            .downcast_ref::<OxigraphMemTable>()
+            .unwrap();
+        oxigraph_mem
+            .remove(quad)
+            .map_err(|e| DataFusionError::External(Box::new(e)))
     }
 }
