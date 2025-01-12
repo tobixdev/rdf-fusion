@@ -7,11 +7,12 @@ use crate::engine::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::engine::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
 use crate::engine::oxigraph_memory::hash::StrHash;
 use crate::engine::{AResult, DFResult};
-use arrow_rdf::encoded::{RdfTermBuilder, ENC_QUAD_SCHEMA};
+use arrow_rdf::encoded::{EncRdfTermBuilder, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, ArrayBuilder, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
+use datafusion::parquet::data_type::AsBytes;
 use datafusion::physical_expr::EquivalenceProperties;
 use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion::physical_plan::{
@@ -171,10 +172,10 @@ impl RecordBatchStream for OxigraphMemStream {
 struct RdfQuadsRecordBatchBuilder {
     reader: Arc<MemoryStorageReader>,
     schema: SchemaRef,
-    graph: RdfTermBuilder,
-    subject: RdfTermBuilder,
-    predicate: RdfTermBuilder,
-    object: RdfTermBuilder,
+    graph: EncRdfTermBuilder,
+    subject: EncRdfTermBuilder,
+    predicate: EncRdfTermBuilder,
+    object: EncRdfTermBuilder,
     project_graph: bool,
     project_subject: bool,
     project_predicate: bool,
@@ -191,10 +192,10 @@ impl RdfQuadsRecordBatchBuilder {
         Self {
             reader,
             schema,
-            graph: RdfTermBuilder::new(),
-            subject: RdfTermBuilder::new(),
-            predicate: RdfTermBuilder::new(),
-            object: RdfTermBuilder::new(),
+            graph: EncRdfTermBuilder::new(),
+            subject: EncRdfTermBuilder::new(),
+            predicate: EncRdfTermBuilder::new(),
+            object: EncRdfTermBuilder::new(),
             project_graph,
             project_subject,
             project_predicate,
@@ -252,7 +253,7 @@ impl RdfQuadsRecordBatchBuilder {
 
 fn encode_term(
     reader: &MemoryStorageReader,
-    builder: &mut RdfTermBuilder,
+    builder: &mut EncRdfTermBuilder,
     term: EncodedTerm,
 ) -> AResult<()> {
     match term {
@@ -260,6 +261,14 @@ fn encode_term(
         EncodedTerm::NamedNode { iri_id } => {
             let string = load_string(reader, &iri_id)?;
             builder.append_named_node(&string)
+        }
+        EncodedTerm::NumericalBlankNode { id } => {
+            // TODO: Must we distinguish between numerical and named bnodes?
+            let mut id_string = String::with_capacity(16);
+            id.as_bytes()
+                .iter()
+                .for_each(|c| id_string += &format!("{c:x}"));
+            builder.append_blank_node(&id_string)
         }
         EncodedTerm::SmallStringLiteral(str) => builder.append_string(&str, None),
         EncodedTerm::SmallSmallLangStringLiteral { value, language } => {

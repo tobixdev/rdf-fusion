@@ -4,10 +4,13 @@ use arrow_rdf::decoded::model::{
     DEC_TYPE_ID_BLANK_NODE, DEC_TYPE_ID_NAMED_NODE, DEC_TYPE_ID_STRING, DEC_TYPE_ID_TYPED_LITERAL,
 };
 use arrow_rdf::decoded::DEC_QUAD_SCHEMA;
+use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{AsArray, RecordBatch, UnionArray};
+use datafusion::common::SchemaExt;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
-use oxrdf::{BlankNode, GraphName, NamedNode, Quad, Subject, Term};
+use oxrdf::{BlankNode, GraphName, Literal, NamedNode, Quad, Subject, Term};
+use std::any::Any;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
@@ -72,20 +75,24 @@ fn to_quads(batch: &RecordBatch) -> Result<<Vec<Quad> as IntoIterator>::IntoIter
     // TODO: error handling
 
     // Schema is validated
-    let graphs = batch.column_by_name("graph").unwrap().as_union();
-    let subjects = batch.column_by_name("subject").unwrap().as_union();
-    let predicates = batch.column_by_name("graph").unwrap().as_union();
-    let objects = batch.column_by_name("object").unwrap().as_union();
+    let graphs = batch.column_by_name(COL_GRAPH).unwrap().as_union();
+    let subjects = batch.column_by_name(COL_SUBJECT).unwrap().as_union();
+    let predicates = batch.column_by_name(COL_PREDICATE).unwrap().as_union();
+    let objects = batch.column_by_name(COL_OBJECT).unwrap().as_union();
 
     let mut result = Vec::new();
     for i in 0..batch.num_rows() {
-        let type_id = graphs.type_id(i);
-        let graph_name = to_graph_name(graphs, i, type_id)?;
-        let subject = to_subject(subjects, i, type_id)?;
-        let predicate = to_predicate(predicates, i, type_id)?;
-        let object = to_object(objects, i, type_id)?;
+        let graph_name = to_graph_name(graphs, graphs.value_offset(i), graphs.type_id(i))?;
+        let subject = to_subject(subjects, subjects.value_offset(i), subjects.type_id(i))?;
+        let predicate = to_predicate(
+            predicates,
+            predicates.value_offset(i),
+            predicates.type_id(i),
+        )?;
+        let object = to_object(objects, objects.value_offset(i), objects.type_id(i))?;
         result.push(Quad::new(subject, predicate, object, graph_name))
     }
+
     Ok(result.into_iter())
 }
 
@@ -94,6 +101,10 @@ fn to_graph_name(graphs: &UnionArray, i: usize, type_id: i8) -> Result<GraphName
         DEC_TYPE_ID_NAMED_NODE => {
             let value = graphs.child(type_id).as_string::<i32>().value(i);
             GraphName::NamedNode(NamedNode::new(value).unwrap())
+        }
+        DEC_TYPE_ID_BLANK_NODE => {
+            let value = graphs.child(type_id).as_string::<i32>().value(i);
+            GraphName::BlankNode(BlankNode::new(value).unwrap())
         }
         _ => {
             unimplemented!("Proper error handling")
@@ -109,7 +120,7 @@ fn to_subject(subjects: &UnionArray, i: usize, type_id: i8) -> Result<Subject, S
         }
         DEC_TYPE_ID_BLANK_NODE => {
             let value = subjects.child(type_id).as_string::<i32>().value(i);
-            Subject::NamedNode(NamedNode::new(value).unwrap())
+            Subject::BlankNode(BlankNode::new(value).unwrap())
         }
         _ => {
             unimplemented!("Proper error handling")
@@ -124,7 +135,7 @@ fn to_predicate(predicates: &UnionArray, i: usize, type_id: i8) -> Result<NamedN
             NamedNode::new(value).unwrap()
         }
         _ => {
-            unimplemented!("Proper error handling")
+            unimplemented!("Proper error handling: {}", type_id)
         }
     })
 }
@@ -143,7 +154,22 @@ fn to_object(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, Storag
             unimplemented!("Nested Type")
         }
         DEC_TYPE_ID_TYPED_LITERAL => {
-            unimplemented!("Nested Type")
+            let values = objects
+                .child(type_id)
+                .as_struct()
+                .column_by_name("value")
+                .unwrap()
+                .as_string::<i32>();
+            let datatypes = objects
+                .child(type_id)
+                .as_struct()
+                .column_by_name("datatype")
+                .unwrap()
+                .as_string::<i32>();
+            Term::Literal(Literal::new_typed_literal(
+                String::from(values.value(i)),
+                NamedNode::new(String::from(datatypes.value(i))).unwrap(), // TODO: error handling?
+            ))
         }
         _ => {
             unimplemented!("Proper error handling")
@@ -153,7 +179,7 @@ fn to_object(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, Storag
 
 impl QuadStream {
     pub fn try_new(stream: SendableRecordBatchStream) -> Result<Self, String> {
-        if !stream.schema().eq(&DEC_QUAD_SCHEMA) {
+        if !stream.schema().equivalent_names_and_types(&DEC_QUAD_SCHEMA) {
             return Err(String::from("Unexpected schema of record stream"));
         }
 

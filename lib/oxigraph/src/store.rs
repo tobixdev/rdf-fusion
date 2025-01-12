@@ -248,7 +248,7 @@ impl Store {
             .quads_for_pattern(None, None, None, None)
             .await
             .map_err(StorageError::from)?;
-        Ok(QuadStream::try_new(arrow_result).unwrap())
+        Ok(QuadStream::try_new(arrow_result).expect("Schema guaranteed by TripleStore"))
     }
 
     /// Checks if this store contains a given quad.
@@ -289,8 +289,8 @@ impl Store {
     /// assert_eq!(2, store.len()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn len(&self) -> Result<usize, StorageError> {
-        unimplemented!()
+    pub async fn len(&self) -> Result<usize, StorageError> {
+        self.inner.len().await.map_err(StorageError::from)
     }
 
     /// Returns if the store is empty.
@@ -880,7 +880,7 @@ mod tests {
         assert!(!store.insert(&default_quad).await?);
         store.validate()?;
 
-        assert_eq!(store.len()?, 4);
+        assert_eq!(store.len().await?, 4);
         assert_eq!(store.stream().await?.try_read_all().await?, all_quads);
         assert_eq!(
             store

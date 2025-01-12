@@ -2,10 +2,11 @@ use crate::engine::oxigraph_memory::table_provider::OxigraphMemTable;
 use crate::engine::triple_store::TripleStore;
 use crate::engine::DFResult;
 use crate::error::StorageError;
-use arrow_rdf::encoded::register_rdf_term_udfs;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
 };
+use arrow_rdf::encoded::{register_rdf_term_udfs, ENC_AS_NATIVE_BOOLEAN, ENC_DECODE, ENC_EQ};
+use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use async_trait::async_trait;
 use datafusion::error::DataFusionError;
 use datafusion::execution::{FunctionRegistry, SendableRecordBatchStream};
@@ -37,30 +38,30 @@ impl MemoryTripleStore {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
     ) -> DFResult<DataFrame> {
-        let quads = self.ctx.table("quads").await?;
-        let eq = self.ctx.udf("rdf_term_eq")?;
-        let as_boolean = self.ctx.udf("rdf_term_as_boolean")?;
+        let quads = self.ctx.table(TABLE_QUADS).await?;
+        let eq = self.ctx.udf(ENC_EQ)?;
+        let as_boolean = self.ctx.udf(ENC_AS_NATIVE_BOOLEAN)?;
 
         let mut matching = quads;
         if let Some(graph_name) = graph_name {
             matching = matching.filter(as_boolean.call(vec![
-                eq.call(vec![col("graph"), lit(encode_scalar_graph(graph_name))]),
+                eq.call(vec![col(COL_GRAPH), lit(encode_scalar_graph(graph_name))]),
             ]))?
         }
         if let Some(subject) = subject {
             matching = matching.filter(as_boolean.call(vec![
-                eq.call(vec![col("subject"), lit(encode_scalar_subject(subject))]),
+                eq.call(vec![col(COL_SUBJECT), lit(encode_scalar_subject(subject))]),
             ]))?
         }
         if let Some(predicate) = predicate {
             matching = matching.filter(as_boolean.call(vec![eq.call(vec![
-                col("predicate"),
+                col(COL_PREDICATE),
                 lit(encode_scalar_predicate(predicate)),
             ])]))?
         }
         if let Some(object) = object {
             matching = matching.filter(as_boolean.call(vec![
-                eq.call(vec![col("object"), lit(encode_scalar_object(object)?)]),
+                eq.call(vec![col(COL_OBJECT), lit(encode_scalar_object(object)?)]),
             ]))?
         }
 
@@ -99,10 +100,19 @@ impl TripleStore for MemoryTripleStore {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
-        self.match_pattern(graph_name, subject, predicate, object)
+        let decode = self.ctx.udf(ENC_DECODE)?;
+        let result = self
+            .match_pattern(graph_name, subject, predicate, object)
             .await?
+            .select(vec![
+                decode.call(vec![col(COL_GRAPH)]).alias(COL_GRAPH),
+                decode.call(vec![col(COL_SUBJECT)]).alias(COL_SUBJECT),
+                decode.call(vec![col(COL_PREDICATE)]).alias(COL_PREDICATE),
+                decode.call(vec![col(COL_OBJECT)]).alias(COL_OBJECT),
+            ])?
             .execute_stream()
-            .await
+            .await?;
+        Ok(result)
     }
 
     //
@@ -110,7 +120,7 @@ impl TripleStore for MemoryTripleStore {
     //
 
     async fn load_quads(&self, quads: Vec<Quad>) -> DFResult<usize> {
-        let quads_table_provider = self.ctx.table_provider("quads").await?;
+        let quads_table_provider = self.ctx.table_provider(TABLE_QUADS).await?;
         let oxigraph_mem = quads_table_provider
             .as_any()
             .downcast_ref::<OxigraphMemTable>()
@@ -125,7 +135,7 @@ impl TripleStore for MemoryTripleStore {
     //
 
     async fn remove<'a>(&self, quad: QuadRef<'_>) -> DFResult<bool> {
-        let quads_table_provider = self.ctx.table_provider("quads").await?;
+        let quads_table_provider = self.ctx.table_provider(TABLE_QUADS).await?;
         let oxigraph_mem = quads_table_provider
             .as_any()
             .downcast_ref::<OxigraphMemTable>()

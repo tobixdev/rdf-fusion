@@ -4,6 +4,9 @@ use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use once_cell::unsync::Lazy;
 
 pub mod model;
+mod rdf_term_builder;
+
+pub use rdf_term_builder::DecRdfTermBuilder;
 
 pub const DEC_QUAD_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     SchemaRef::new(Schema::new(vec![

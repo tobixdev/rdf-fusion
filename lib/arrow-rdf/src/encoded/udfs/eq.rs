@@ -4,18 +4,15 @@ use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow::array::{ArrayRef, Scalar};
 use datafusion::arrow::compute::union_extract;
 use datafusion::common::{not_impl_datafusion_err, DataFusionError, ScalarValue};
-use datafusion::logical_expr::{create_udf, ColumnarValue, ScalarUDF, Signature, Volatility};
+use datafusion::logical_expr::{create_udf, ColumnarValue, ScalarUDF, Volatility};
 use datafusion::physical_expr_common::datum::compare_with_eq;
 use std::sync::Arc;
 
-#[derive(Debug)]
-struct RdfTermEq {
-    signature: Signature,
-}
+pub const ENC_EQ: &str = "enc_eq";
 
-pub fn create_rdf_term_eq_udf() -> ScalarUDF {
+pub fn create_enc_eq() -> ScalarUDF {
     create_udf(
-        "rdf_term_eq",
+        ENC_EQ,
         vec![ENC_TYPE_TERM.clone(), ENC_TYPE_TERM.clone()],
         ENC_TYPE_TERM.clone(),
         Volatility::Immutable,

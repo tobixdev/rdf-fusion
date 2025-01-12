@@ -142,7 +142,7 @@ async fn test_load_graph_generates_new_blank_nodes() -> Result<(), Box<dyn Error
             )
             .await?;
     }
-    assert_eq!(store.len()?, 2);
+    assert_eq!(store.len().await?, 2);
     Ok(())
 }
 
