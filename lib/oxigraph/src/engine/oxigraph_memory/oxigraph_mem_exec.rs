@@ -12,7 +12,6 @@ use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, ArrayBuilder, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
-use datafusion::parquet::data_type::AsBytes;
 use datafusion::physical_expr::EquivalenceProperties;
 use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion::physical_plan::{
@@ -22,6 +21,7 @@ use futures::Stream;
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
+use std::io::Write;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -263,13 +263,12 @@ fn encode_term(
             builder.append_named_node(&string)
         }
         EncodedTerm::NumericalBlankNode { id } => {
-            // TODO: Must we distinguish between numerical and named bnodes?
-            let mut id_string = String::with_capacity(16);
-            id.as_bytes()
-                .iter()
-                .for_each(|c| id_string += &format!("{c:x}"));
-            builder.append_blank_node(&id_string)
+            let id = u128::from_be_bytes(id);
+            let mut id_str = [0; 32];
+            write!(&mut id_str[..], "{id:x}")?;
+            builder.append_blank_node(std::str::from_utf8(id_str.as_ref()).expect("Always valid"))
         }
+        EncodedTerm::SmallBlankNode(value) => builder.append_blank_node(&value),
         EncodedTerm::SmallStringLiteral(str) => builder.append_string(&str, None),
         EncodedTerm::SmallSmallLangStringLiteral { value, language } => {
             builder.append_string(value.as_str(), Some(language.as_str()))

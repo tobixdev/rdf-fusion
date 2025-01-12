@@ -44,15 +44,9 @@ pub fn encode_scalar_object(object: TermRef<'_>) -> DFResult<ScalarValue> {
 }
 
 pub fn encode_scalar_literal(literal: LiteralRef<'_>) -> DFResult<ScalarValue> {
-    let value = literal.value().to_string();
-    let datatype = literal.datatype();
-
-    // Handle non-string data types
     if let Some(value) = try_specialize_literal(literal) {
         return value;
     }
-
-    // Handle default case
     handle_generic_literal(literal)
 }
 

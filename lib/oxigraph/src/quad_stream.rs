@@ -100,7 +100,11 @@ fn to_graph_name(graphs: &UnionArray, i: usize, type_id: i8) -> Result<GraphName
     Ok(match type_id {
         DEC_TYPE_ID_NAMED_NODE => {
             let value = graphs.child(type_id).as_string::<i32>().value(i);
-            GraphName::NamedNode(NamedNode::new(value).unwrap())
+            if value == "DEFAULT" {
+                GraphName::DefaultGraph
+            } else {
+                GraphName::NamedNode(NamedNode::new(value).unwrap())
+            }
         }
         DEC_TYPE_ID_BLANK_NODE => {
             let value = graphs.child(type_id).as_string::<i32>().value(i);

@@ -2,7 +2,7 @@ use crate::decoded::model::DEC_TYPE_TERM;
 use crate::decoded::DecRdfTermBuilder;
 use crate::encoded::ENC_TYPE_TERM;
 use crate::{encoded, DFResult};
-use datafusion::arrow::array::{Array, ArrayAccessor, ArrayRef, AsArray};
+use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::{Float32Type, Float64Type, Int32Type, Int64Type};
 use datafusion::common::DataFusionError;
 use datafusion::logical_expr::{create_udf, ColumnarValue, ScalarUDF, Volatility};
