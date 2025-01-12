@@ -17,41 +17,54 @@ pub struct QuadStream {
     current: Option<<Vec<Quad> as IntoIterator>::IntoIter>,
 }
 
-impl Stream for QuadStream {
-    type Item = Result<Quad, StorageError>;
+impl QuadStream {
+    pub async fn try_read_all(mut self) -> Result<Vec<Quad>, StorageError> {
+        let mut result = Vec::new();
+        while let Some(element) = self.next().await {
+            result.push(element?);
+        }
+        Ok(result)
+    }
 
-    fn poll_next(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match (&self.inner, &mut self.current) {
+    fn poll_inner(&mut self, ctx: &mut Context<'_>) -> Poll<Option<Result<Quad, StorageError>>> {
+        match (&mut self.inner, &mut self.current) {
             // Still entries from the current batch to return
             (_, Some(iter)) => {
                 let next = iter.next();
-
                 match next {
                     None => {
                         self.current = None;
-                        self.poll_next(ctx)
+                        self.poll_inner(ctx)
                     }
                     Some(quad) => Poll::Ready(Some(Ok(quad))),
                 }
             }
             // Load new batch
-            (Some(mut stream), None) => {
+            (Some(stream), None) => {
                 let next_batch = ready!(stream.poll_next_unpin(ctx));
                 match next_batch {
                     None => {
                         self.inner = None;
-                        self.poll_next(ctx)
+                        self.poll_inner(ctx)
                     }
                     Some(batch) => {
                         // TODO: error handling
                         self.current = Some(to_quads(&batch.unwrap()).unwrap());
-                        self.poll_next(ctx)
+                        self.poll_inner(ctx)
                     }
                 }
             }
             // Empty
             (None, None) => Poll::Ready(None),
         }
+    }
+}
+
+impl Stream for QuadStream {
+    type Item = Result<Quad, StorageError>;
+
+    fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.poll_inner(ctx)
     }
 }
 

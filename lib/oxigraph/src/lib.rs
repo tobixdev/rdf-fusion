@@ -7,6 +7,7 @@
 
 mod engine;
 pub mod error;
+mod graph_name_iter;
 pub mod io;
 pub mod model;
 mod quad_stream;

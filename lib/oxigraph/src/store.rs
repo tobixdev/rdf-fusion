@@ -27,7 +27,8 @@
 //! ```
 use crate::engine::{MemoryTripleStore, TripleStore};
 use crate::error::{LoaderError, SerializerError, StorageError};
-use crate::io::{RdfFormat, RdfParseError, RdfParser, RdfSerializer};
+use crate::graph_name_iter::GraphNameIter;
+use crate::io::{RdfFormat, RdfParser, RdfSerializer};
 use crate::model::*;
 use crate::quad_stream::QuadStream;
 use crate::sparql::{
@@ -36,10 +37,8 @@ use crate::sparql::{
 use futures::{Stream, StreamExt};
 use std::error::Error;
 use std::io::{Read, Write};
-#[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-use std::path::Path;
+use std::str;
 use std::sync::Arc;
-use std::{fmt, str};
 use tokio::runtime::{Builder, Runtime};
 
 /// An on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
@@ -95,24 +94,6 @@ impl Store {
         );
         let inner = Arc::new(runtime.block_on(async { MemoryTripleStore::new().await })?);
         Ok(Self { inner, runtime })
-    }
-
-    /// Opens a read-write [`Store`] and creates it if it does not exist yet.
-    ///
-    /// Only one read-write [`Store`] can exist at the same time.
-    /// If you want to have extra [`Store`] instance opened on the same data
-    /// use [`Store::open_read_only`].
-    #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-    pub fn open(path: impl AsRef<Path>) -> Result<Self, StorageError> {
-        unimplemented!()
-    }
-
-    /// Opens a read-only [`Store`] from disk.
-    ///
-    /// Opening as read-only while having an other process writing the database is undefined behavior.
-    #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-    pub fn open_read_only(path: impl AsRef<Path>) -> Result<Self, StorageError> {
-        unimplemented!()
     }
 
     /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/).
@@ -269,7 +250,7 @@ impl Store {
     /// assert_eq!(vec![quad], results);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn iter(&self) -> Result<QuadStream, StorageError> {
+    pub fn stream(&self) -> Result<QuadStream, StorageError> {
         let arrow_result = self
             .runtime
             .block_on(async { self.inner.quads_for_pattern(None, None, None, None).await })
@@ -337,38 +318,6 @@ impl Store {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub fn is_empty(&self) -> Result<bool, StorageError> {
-        unimplemented!()
-    }
-
-    /// Executes a transaction.
-    ///
-    /// Transactions ensure the "repeatable read" isolation level: the store only exposes changes that have
-    /// been "committed" (i.e. no partial writes) and the exposed state does not change for the complete duration
-    /// of a read operation (e.g. a SPARQL query) or a read/write operation (e.g. a SPARQL update).
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::{StorageError, Store};
-    ///
-    /// let store = Store::new()?;
-    /// let a = NamedNodeRef::new("http://example.com/a")?;
-    /// let b = NamedNodeRef::new("http://example.com/b")?;
-    ///
-    /// // Copy all triples about ex:a to triples about ex:b
-    /// store.transaction(|mut transaction| {
-    ///     for q in transaction.quads_for_pattern(Some(a.into()), None, None, None) {
-    ///         let q = q?;
-    ///         transaction.insert(QuadRef::new(b, &q.predicate, &q.object, &q.graph_name))?;
-    ///     }
-    ///     Result::<_, StorageError>::Ok(())
-    /// })?;
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    pub fn transaction<T, E: Error + 'static + From<StorageError>>(
-        &self,
-        f: impl for<'a> Fn(Transaction) -> Result<T, E>,
-    ) -> Result<T, E> {
         unimplemented!()
     }
 
@@ -852,802 +801,11 @@ impl Store {
         unimplemented!()
     }
 
-    /// Flushes all buffers and ensures that all writes are saved on disk.
-    ///
-    /// Flushes are automatically done using background threads but might lag a little bit.
-    #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-    pub fn flush(&self) -> Result<(), StorageError> {
-        unimplemented!()
-    }
-
-    /// Optimizes the database for future workload.
-    ///
-    /// Useful to call after a batch upload or another similar operation.
-    ///
-    /// <div class="warning">Can take hours on huge databases.</div>
-    #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-    pub fn optimize(&self) -> Result<(), StorageError> {
-        unimplemented!()
-    }
-
-    /// Creates database backup into the `target_directory`.
-    ///
-    /// After its creation, the backup is usable using [`Store::open`]
-    /// like a regular Oxigraph database and operates independently from the original database.
-    ///
-    /// <div class="warning">
-    ///
-    /// Backups are only possible for on-disk databases created using [`Store::open`].</div>
-    /// Temporary in-memory databases created using [`Store::new`] are not compatible with RocksDB backup system.
-    ///
-    /// <div class="warning">An error is raised if the `target_directory` already exists.</div>
-    ///
-    /// If the target directory is in the same file system as the current database,
-    /// the database content will not be fully copied
-    /// but hard links will be used to point to the original database immutable snapshots.
-    /// This allows cheap regular backups.
-    ///
-    /// If you want to move your data to another RDF storage system, you should have a look at the [`Store::dump_to_writer`] function instead.
-    #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-    pub fn backup(&self, target_directory: impl AsRef<Path>) -> Result<(), StorageError> {
-        unimplemented!()
-    }
-
-    /// Creates a bulk loader allowing to load at lot of data quickly into the store.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    ///
-    /// // quads file insertion
-    /// let file =
-    ///     b"<http://example.com> <http://example.com> <http://example.com> <http://example.com> .";
-    /// store
-    ///     .bulk_loader()
-    ///     .load_from_reader(RdfFormat::NQuads, file.as_ref())?;
-    ///
-    /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, ex))?);
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    pub fn bulk_loader(&self) -> BulkLoader {
-        unimplemented!()
-    }
-
     /// Validates that all the store invariants held in the data
     #[doc(hidden)]
     pub fn validate(&self) -> Result<(), StorageError> {
         // TODO: Is there anything we should do here?
         Ok(())
-    }
-}
-
-impl fmt::Display for Store {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for t in self {
-            writeln!(f, "{} .", t.map_err(|_| fmt::Error)?)?;
-        }
-        Ok(())
-    }
-}
-
-/// An object to do operations during a transaction.
-///
-/// See [`Store::transaction`] for a more detailed description.
-pub struct Transaction {}
-
-impl Transaction {
-    /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/).
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::sparql::{EvaluationError, QueryResults};
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    /// store.transaction(|mut transaction| {
-    ///     if let QueryResults::Solutions(solutions) =
-    ///         transaction.query("SELECT ?s WHERE { ?s ?p ?o }")?
-    ///     {
-    ///         for solution in solutions {
-    ///             if let Some(Term::NamedNode(s)) = solution?.get("s") {
-    ///                 transaction.insert(QuadRef::new(
-    ///                     s,
-    ///                     vocab::rdf::TYPE,
-    ///                     NamedNodeRef::new_unchecked("http://example.com"),
-    ///                     GraphNameRef::DefaultGraph,
-    ///                 ))?;
-    ///             }
-    ///         }
-    ///     }
-    ///     Result::<_, EvaluationError>::Ok(())
-    /// })?;
-    /// # Result::<_, EvaluationError>::Ok(())
-    /// ```
-    pub fn query(
-        &self,
-        query: impl TryInto<Query, Error = impl Into<EvaluationError>>,
-    ) -> Result<QueryResults, EvaluationError> {
-        unimplemented!()
-    }
-
-    /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/) with some options.
-    ///
-    /// Usage example with a custom function serializing terms to N-Triples:
-    /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::sparql::{EvaluationError, QueryOptions, QueryResults};
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    /// store.transaction(|mut transaction| {
-    ///     if let QueryResults::Solutions(solutions) = transaction.query_opt(
-    ///         "SELECT ?s (<http://www.w3.org/ns/formats/N-Triples>(?s) AS ?nt) WHERE { ?s ?p ?o }",
-    ///         QueryOptions::default().with_custom_function(
-    ///             NamedNode::new_unchecked("http://www.w3.org/ns/formats/N-Triples"),
-    ///             |args| args.get(0).map(|t| Literal::from(t.to_string()).into()),
-    ///         ),
-    ///     )? {
-    ///         for solution in solutions {
-    ///             let solution = solution?;
-    ///             if let (Some(Term::NamedNode(s)), Some(nt)) =
-    ///                 (solution.get("s"), solution.get("nt"))
-    ///             {
-    ///                 transaction.insert(QuadRef::new(
-    ///                     s,
-    ///                     NamedNodeRef::new_unchecked("http://example.com/n-triples-representation"),
-    ///                     nt,
-    ///                     GraphNameRef::DefaultGraph,
-    ///                 ))?;
-    ///             }
-    ///         }
-    ///     }
-    ///     Result::<_, EvaluationError>::Ok(())
-    /// })?;
-    /// # Result::<_, EvaluationError>::Ok(())
-    /// ```
-    pub fn query_opt(
-        &self,
-        query: impl TryInto<Query, Error = impl Into<EvaluationError>>,
-        options: QueryOptions,
-    ) -> Result<QueryResults, EvaluationError> {
-        unimplemented!()
-    }
-
-    /// Retrieves quads with a filter on each quad component.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::{StorageError, Store};
-    ///
-    /// let store = Store::new()?;
-    /// let a = NamedNodeRef::new("http://example.com/a")?;
-    /// let b = NamedNodeRef::new("http://example.com/b")?;
-    ///
-    /// // Copy all triples about ex:a to triples about ex:b
-    /// store.transaction(|mut transaction| {
-    ///     for q in transaction.quads_for_pattern(Some(a.into()), None, None, None) {
-    ///         let q = q?;
-    ///         transaction.insert(QuadRef::new(b, &q.predicate, &q.object, &q.graph_name))?;
-    ///     }
-    ///     Result::<_, StorageError>::Ok(())
-    /// })?;
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    pub fn quads_for_pattern(
-        &self,
-        subject: Option<SubjectRef<'_>>,
-        predicate: Option<NamedNodeRef<'_>>,
-        object: Option<TermRef<'_>>,
-        graph_name: Option<GraphNameRef<'_>>,
-    ) -> QuadStream {
-        unimplemented!()
-    }
-
-    /// Returns all the quads contained in the store.
-    pub fn iter(&self) -> QuadStream {
-        unimplemented!()
-    }
-
-    /// Checks if this store contains a given quad.
-    pub fn contains<'b>(&self, quad: impl Into<QuadRef<'b>>) -> Result<bool, StorageError> {
-        unimplemented!()
-    }
-
-    /// Returns the number of quads in the store.
-    ///
-    /// <div class="warning">this function executes a full scan.</div>
-    pub fn len(&self) -> Result<usize, StorageError> {
-        unimplemented!()
-    }
-
-    /// Returns if the store is empty.
-    pub fn is_empty(&self) -> Result<bool, StorageError> {
-        unimplemented!()
-    }
-
-    /// Executes a [SPARQL 1.1 update](https://www.w3.org/TR/sparql11-update/).
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::sparql::EvaluationError;
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    /// store.transaction(|mut transaction| {
-    ///     // insertion
-    ///     transaction.update(
-    ///         "INSERT DATA { <http://example.com> <http://example.com> <http://example.com> }",
-    ///     )?;
-    ///
-    ///     // we inspect the store contents
-    ///     let ex = NamedNodeRef::new_unchecked("http://example.com");
-    ///     assert!(transaction.contains(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?);
-    ///     Result::<_, EvaluationError>::Ok(())
-    /// })?;
-    /// # Result::<_, EvaluationError>::Ok(())
-    /// ```
-    pub fn update(
-        &mut self,
-        update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
-    ) -> Result<(), EvaluationError> {
-        unimplemented!()
-    }
-
-    /// Executes a [SPARQL 1.1 update](https://www.w3.org/TR/sparql11-update/) with some options.
-    pub fn update_opt(
-        &mut self,
-        update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
-        options: impl Into<UpdateOptions>,
-    ) -> Result<(), EvaluationError> {
-        unimplemented!()
-    }
-
-    /// Loads a RDF file into the store.
-    ///
-    /// This function is atomic, quite slow and memory hungry. To get much better performances you might want to use the [`bulk_loader`](Store::bulk_loader).
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::store::Store;
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxrdfio::RdfParser;
-    ///
-    /// let store = Store::new()?;
-    ///
-    /// // insert a dataset file (former load_dataset method)
-    /// let file = b"<http://example.com> <http://example.com> <http://example.com> <http://example.com/g> .";
-    /// store.transaction(|mut t| t.load_from_reader(RdfFormat::NQuads, file.as_ref()))?;
-    ///
-    /// // insert a graph file (former load_graph method)
-    /// let file = b"<> <> <> .";
-    /// store.transaction(|mut t|
-    ///     t.load_from_reader(
-    ///         RdfParser::from_format(RdfFormat::Turtle)
-    ///             .with_base_iri("http://example.com")
-    ///             .unwrap()
-    ///             .without_named_graphs() // No named graphs allowed in the input
-    ///             .with_default_graph(NamedNodeRef::new("http://example.com/g2").unwrap()), // we put the file default graph inside of a named graph
-    ///         file.as_ref()
-    ///     )
-    /// )?;
-    ///
-    /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g")?))?);
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g2")?))?);
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    pub fn load_from_reader(
-        &mut self,
-        parser: impl Into<RdfParser>,
-        reader: impl Read,
-    ) -> Result<(), LoaderError> {
-        unimplemented!()
-    }
-
-    /// Loads a graph file (i.e. triples) into the store.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    ///
-    /// // insertion
-    /// let file = b"<http://example.com> <http://example.com> <http://example.com> .";
-    /// store.transaction(|mut transaction| {
-    ///     transaction.load_graph(
-    ///         file.as_ref(),
-    ///         RdfFormat::NTriples,
-    ///         GraphName::DefaultGraph,
-    ///         None,
-    ///     )
-    /// })?;
-    ///
-    /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?);
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    #[deprecated(note = "use Transaction.load_from_reader instead", since = "0.4.0")]
-    pub fn load_graph(
-        &mut self,
-        reader: impl Read,
-        format: impl Into<RdfFormat>,
-        to_graph_name: impl Into<GraphName>,
-        base_iri: Option<&str>,
-    ) -> Result<(), LoaderError> {
-        unimplemented!()
-    }
-
-    /// Loads a dataset file (i.e. quads) into the store.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    ///
-    /// // insertion
-    /// let file =
-    ///     b"<http://example.com> <http://example.com> <http://example.com> <http://example.com> .";
-    /// store.transaction(|mut transaction| {
-    ///     transaction.load_dataset(file.as_ref(), RdfFormat::NQuads, None)
-    /// })?;
-    ///
-    /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new_unchecked("http://example.com");
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, ex))?);
-    /// # Result::<_,oxigraph::store::LoaderError>::Ok(())
-    /// ```
-    #[deprecated(note = "use Transaction.load_from_reader instead", since = "0.4.0")]
-    pub fn load_dataset(
-        &mut self,
-        reader: impl Read,
-        format: impl Into<RdfFormat>,
-        base_iri: Option<&str>,
-    ) -> Result<(), LoaderError> {
-        unimplemented!()
-    }
-
-    /// Adds a quad to this store.
-    ///
-    /// Returns `true` if the quad was not already in the store.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let ex = NamedNodeRef::new_unchecked("http://example.com");
-    /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
-    ///
-    /// let store = Store::new()?;
-    /// store.transaction(|mut transaction| transaction.insert(quad))?;
-    /// assert!(store.contains(quad)?);
-    /// # Result::<_,oxigraph::store::StorageError>::Ok(())
-    /// ```
-    pub fn insert<'b>(&mut self, quad: impl Into<QuadRef<'b>>) -> Result<bool, StorageError> {
-        unimplemented!()
-    }
-
-    /// Adds a set of quads to this store.
-    pub fn extend<'b>(
-        &mut self,
-        quads: impl IntoIterator<Item = impl Into<QuadRef<'b>>>,
-    ) -> Result<(), StorageError> {
-        unimplemented!()
-    }
-
-    /// Removes a quad from this store.
-    ///
-    /// Returns `true` if the quad was in the store and has been removed.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let ex = NamedNodeRef::new_unchecked("http://example.com");
-    /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
-    /// let store = Store::new()?;
-    /// store.transaction(|mut transaction| {
-    ///     transaction.insert(quad)?;
-    ///     transaction.remove(quad)
-    /// })?;
-    /// assert!(!store.contains(quad)?);
-    /// # Result::<_,oxigraph::store::StorageError>::Ok(())
-    /// ```
-    pub fn remove<'b>(&mut self, quad: impl Into<QuadRef<'b>>) -> Result<bool, StorageError> {
-        unimplemented!()
-    }
-
-    /// Returns all the store named graphs.
-    pub fn named_graphs(&self) -> GraphNameIter {
-        unimplemented!()
-    }
-
-    /// Checks if the store contains a given graph.
-    pub fn contains_named_graph<'b>(
-        &self,
-        graph_name: impl Into<NamedOrBlankNodeRef<'b>>,
-    ) -> Result<bool, StorageError> {
-        unimplemented!()
-    }
-
-    /// Inserts a graph into this store.
-    ///
-    /// Returns `true` if the graph was not already in the store.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::NamedNodeRef;
-    /// use oxigraph::store::Store;
-    ///
-    /// let ex = NamedNodeRef::new_unchecked("http://example.com");
-    /// let store = Store::new()?;
-    /// store.transaction(|mut transaction| transaction.insert_named_graph(ex))?;
-    /// assert_eq!(
-    ///     store.named_graphs().collect::<Result<Vec<_>, _>>()?,
-    ///     vec![ex.into_owned().into()]
-    /// );
-    /// # Result::<_,oxigraph::store::StorageError>::Ok(())
-    /// ```
-    pub fn insert_named_graph<'b>(
-        &mut self,
-        graph_name: impl Into<NamedOrBlankNodeRef<'b>>,
-    ) -> Result<bool, StorageError> {
-        unimplemented!()
-    }
-
-    /// Clears a graph from this store.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::{NamedNodeRef, QuadRef};
-    /// use oxigraph::store::Store;
-    ///
-    /// let ex = NamedNodeRef::new_unchecked("http://example.com");
-    /// let quad = QuadRef::new(ex, ex, ex, ex);
-    /// let store = Store::new()?;
-    /// store.transaction(|mut transaction| {
-    ///     transaction.insert(quad)?;
-    ///     transaction.clear_graph(ex)
-    /// })?;
-    /// assert!(store.is_empty()?);
-    /// assert_eq!(1, store.named_graphs().count());
-    /// # Result::<_,oxigraph::store::StorageError>::Ok(())
-    /// ```
-    pub fn clear_graph<'b>(
-        &mut self,
-        graph_name: impl Into<GraphNameRef<'b>>,
-    ) -> Result<(), StorageError> {
-        unimplemented!()
-    }
-
-    /// Removes a graph from this store.
-    ///
-    /// Returns `true` if the graph was in the store and has been removed.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::{NamedNodeRef, QuadRef};
-    /// use oxigraph::store::Store;
-    ///
-    /// let ex = NamedNodeRef::new_unchecked("http://example.com");
-    /// let quad = QuadRef::new(ex, ex, ex, ex);
-    /// let store = Store::new()?;
-    /// store.transaction(|mut transaction| {
-    ///     transaction.insert(quad)?;
-    ///     transaction.remove_named_graph(ex)
-    /// })?;
-    /// assert!(store.is_empty()?);
-    /// assert_eq!(0, store.named_graphs().count());
-    /// # Result::<_,oxigraph::store::StorageError>::Ok(())
-    /// ```
-    pub fn remove_named_graph<'b>(
-        &mut self,
-        graph_name: impl Into<NamedOrBlankNodeRef<'b>>,
-    ) -> Result<bool, StorageError> {
-        unimplemented!()
-    }
-
-    /// Clears the store.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let ex = NamedNodeRef::new_unchecked("http://example.com");
-    /// let store = Store::new()?;
-    /// store.transaction(|mut transaction| {
-    ///     transaction.insert(QuadRef::new(ex, ex, ex, ex))?;
-    ///     transaction.clear()
-    /// })?;
-    /// assert!(store.is_empty()?);
-    /// # Result::<_,oxigraph::store::StorageError>::Ok(())
-    /// ```
-    pub fn clear(&mut self) -> Result<(), StorageError> {
-        unimplemented!()
-    }
-}
-
-/// An iterator returning the graph names contained in a [`Store`].
-pub struct GraphNameIter {}
-
-impl Iterator for GraphNameIter {
-    type Item = Result<NamedOrBlankNode, StorageError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        unimplemented!()
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        unimplemented!()
-    }
-}
-
-/// A bulk loader allowing to load at lot of data quickly into the store.
-///
-/// <div class="warning">The operations provided here are not atomic.
-/// If the operation fails in the middle, only a part of the data may be written to the store.
-/// Results might get weird if you delete data during the loading process.</div>
-///
-/// Memory usage is configurable using [`with_max_memory_size_in_megabytes`](Self::with_max_memory_size_in_megabytes)
-/// and the number of used threads with [`with_num_threads`](Self::with_num_threads).
-/// By default the memory consumption target (excluding the system and RocksDB internal consumption)
-/// is around 2GB per thread and 2 threads.
-/// These targets are considered per loaded file.
-///
-/// Usage example with loading a dataset:
-/// ```
-/// use oxigraph::io::RdfFormat;
-/// use oxigraph::model::*;
-/// use oxigraph::store::Store;
-///
-/// let store = Store::new()?;
-///
-/// // quads file insertion
-/// let file =
-///     b"<http://example.com> <http://example.com> <http://example.com> <http://example.com> .";
-/// store
-///     .bulk_loader()
-///     .load_from_reader(RdfFormat::NQuads, file.as_ref())?;
-///
-/// // we inspect the store contents
-/// let ex = NamedNodeRef::new("http://example.com")?;
-/// assert!(store.contains(QuadRef::new(ex, ex, ex, ex))?);
-/// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-/// ```
-#[must_use]
-pub struct BulkLoader {}
-
-impl BulkLoader {
-    /// Sets the maximal number of threads to be used by the bulk loader per operation.
-    ///
-    /// This number must be at last 2 (one for parsing and one for loading).
-    ///
-    /// The default value is 2.
-    pub fn with_num_threads(mut self, num_threads: usize) -> Self {
-        unimplemented!()
-    }
-
-    #[doc(hidden)]
-    #[deprecated(note = "Use with_num_threads", since = "0.4.0")]
-    pub fn set_num_threads(self, num_threads: usize) -> Self {
-        unimplemented!()
-    }
-
-    /// Sets a rough idea of the maximal amount of memory to be used by this operation.
-    ///
-    /// This number must be at last a few megabytes per thread.
-    ///
-    /// Memory used by RocksDB and the system is not taken into account in this limit.
-    /// Note that depending on the system behavior this amount might never be reached or be blown up
-    /// (for example if the data contains very long IRIs or literals).
-    ///
-    /// By default, a target 2GB per used thread is used.
-    pub fn with_max_memory_size_in_megabytes(mut self, max_memory_size: usize) -> Self {
-        unimplemented!()
-    }
-
-    #[doc(hidden)]
-    #[deprecated(note = "Use with_max_memory_size_in_megabytes", since = "0.4.0")]
-    pub fn set_max_memory_size_in_megabytes(self, max_memory_size: usize) -> Self {
-        unimplemented!()
-    }
-
-    /// Adds a `callback` evaluated from time to time with the number of loaded triples.
-    pub fn on_progress(mut self, callback: impl Fn(u64) + 'static) -> Self {
-        unimplemented!()
-    }
-
-    /// Adds a `callback` catching all parse errors and choosing if the parsing should continue
-    /// by returning `Ok` or fail by returning `Err`.
-    ///
-    /// By default the parsing fails.
-    pub fn on_parse_error(
-        mut self,
-        callback: impl Fn(RdfParseError) -> Result<(), RdfParseError> + 'static,
-    ) -> Self {
-        unimplemented!()
-    }
-
-    /// Loads a file using the bulk loader.
-    ///
-    /// This function is optimized for large dataset loading speed. For small files, [`Store::load_from_reader`] might be more convenient.
-    ///
-    /// <div class="warning">This method is not atomic.
-    /// If the parsing fails in the middle of the file, only a part of it may be written to the store.
-    /// Results might get weird if you delete data during the loading process.</div>
-    ///
-    /// This method is optimized for speed. See [the struct](Self) documentation for more details.
-    ///
-    /// To get better speed on valid datasets, consider enabling [`RdfParser::unchecked`] option to skip some validations.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::store::Store;
-    /// use oxigraph::io::{RdfParser, RdfFormat};
-    /// use oxigraph::model::*;
-    ///
-    /// let store = Store::new()?;
-    ///
-    /// // insert a dataset file (former load_dataset method)
-    /// let file = b"<http://example.com> <http://example.com> <http://example.com> <http://example.com/g> .";
-    /// store.bulk_loader().load_from_reader(
-    ///     RdfParser::from_format(RdfFormat::NQuads).unchecked(), // we inject a custom parser with options
-    ///     file.as_ref()
-    /// )?;
-    ///
-    /// // insert a graph file (former load_graph method)
-    /// let file = b"<> <> <> .";
-    /// store.bulk_loader().load_from_reader(
-    ///     RdfParser::from_format(RdfFormat::Turtle)
-    ///         .with_base_iri("http://example.com")?
-    ///         .without_named_graphs() // No named graphs allowed in the input
-    ///         .with_default_graph(NamedNodeRef::new("http://example.com/g2")?), // we put the file default graph inside of a named graph
-    ///     file.as_ref()
-    /// )?;
-    ///
-    /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g")?))?);
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g2")?))?);
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    pub fn load_from_reader(
-        &self,
-        parser: impl Into<RdfParser>,
-        reader: impl Read,
-    ) -> Result<(), LoaderError> {
-        unimplemented!()
-    }
-
-    /// Loads a dataset file using the bulk loader.
-    ///
-    /// This function is optimized for large dataset loading speed. For small files, [`Store::load_dataset`] might be more convenient.
-    ///
-    /// <div class="warning">This method is not atomic.
-    /// If the parsing fails in the middle of the file, only a part of it may be written to the store.
-    /// Results might get weird if you delete data during the loading process.</div>
-    ///
-    /// This method is optimized for speed. See [the struct](Self) documentation for more details.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    ///
-    /// // insertion
-    /// let file =
-    ///     b"<http://example.com> <http://example.com> <http://example.com> <http://example.com> .";
-    /// store
-    ///     .bulk_loader()
-    ///     .load_dataset(file.as_ref(), RdfFormat::NQuads, None)?;
-    ///
-    /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, ex))?);
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    #[deprecated(note = "use BulkLoader.load_from_reader instead", since = "0.4.0")]
-    pub fn load_dataset(
-        &self,
-        reader: impl Read,
-        format: impl Into<RdfFormat>,
-        base_iri: Option<&str>,
-    ) -> Result<(), LoaderError> {
-        unimplemented!()
-    }
-
-    /// Loads a graph file using the bulk loader.
-    ///
-    /// This function is optimized for large graph loading speed. For small files, [`Store::load_graph`] might be more convenient.
-    ///
-    /// <div class="warning">This method is not atomic.
-    /// If the parsing fails in the middle of the file, only a part of it may be written to the store.
-    /// Results might get weird if you delete data during the loading process.</div>
-    ///
-    /// This method is optimized for speed. See [the struct](Self) documentation for more details.
-    ///
-    /// Usage example:
-    /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
-    ///
-    /// let store = Store::new()?;
-    ///
-    /// // insertion
-    /// let file = b"<http://example.com> <http://example.com> <http://example.com> .";
-    /// store.bulk_loader().load_graph(
-    ///     file.as_ref(),
-    ///     RdfFormat::NTriples,
-    ///     GraphName::DefaultGraph,
-    ///     None,
-    /// )?;
-    ///
-    /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?);
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
-    #[deprecated(note = "use BulkLoader.load_from_reader instead", since = "0.4.0")]
-    pub fn load_graph(
-        &self,
-        reader: impl Read,
-        format: impl Into<RdfFormat>,
-        to_graph_name: impl Into<GraphName>,
-        base_iri: Option<&str>,
-    ) -> Result<(), LoaderError> {
-        unimplemented!()
-    }
-
-    /// Adds a set of quads using the bulk loader.
-    ///
-    /// <div class="warning">This method is not atomic.
-    /// If the process fails in the middle of the file, only a part of the data may be written to the store.
-    /// Results might get weird if you delete data during the loading process.</div>
-    ///
-    /// This method is optimized for speed. See [the struct](Self) documentation for more details.
-    pub fn load_quads(
-        &self,
-        quads: impl IntoIterator<Item = impl Into<Quad>>,
-    ) -> Result<(), StorageError> {
-        self.load_ok_quads(quads.into_iter().map(Ok::<_, StorageError>))
-    }
-
-    /// Adds a set of quads using the bulk loader while breaking in the middle of the process in case of error.
-    ///
-    /// <div class="warning">This method is not atomic.
-    /// If the process fails in the middle of the file, only a part of the data may be written to the store.
-    /// Results might get weird if you delete data during the loading process.</div>
-    ///
-    /// This method is optimized for speed. See [the struct](Self) documentation for more details.
-    pub fn load_ok_quads<EI, EO: From<StorageError> + From<EI>>(
-        &self,
-        quads: impl IntoIterator<Item = Result<impl Into<Quad>, EI>>,
-    ) -> Result<(), EO> {
-        unimplemented!()
     }
 }
 
@@ -1662,8 +820,8 @@ mod tests {
         is_send_sync::<Store>();
     }
 
-    #[test]
-    fn store() -> Result<(), StorageError> {
+    #[tokio::test]
+    async fn store() -> Result<(), StorageError> {
         use crate::model::*;
 
         let main_s = Subject::from(BlankNode::default());
@@ -1730,17 +888,21 @@ mod tests {
         store.validate()?;
 
         assert_eq!(store.len()?, 4);
-        assert_eq!(store.iter().collect::<Result<Vec<_>, _>>()?, all_quads);
+        assert_eq!(store.stream()?.try_read_all().await?, all_quads);
         assert_eq!(
             store
                 .quads_for_pattern(Some(main_s.as_ref()), None, None, None)
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             all_quads
         );
         assert_eq!(
             store
                 .quads_for_pattern(Some(main_s.as_ref()), Some(main_p.as_ref()), None, None)
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             all_quads
         );
         assert_eq!(
@@ -1751,7 +913,9 @@ mod tests {
                     Some(main_o.as_ref()),
                     None
                 )
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
         assert_eq!(
@@ -1762,7 +926,9 @@ mod tests {
                     Some(main_o.as_ref()),
                     Some(GraphNameRef::DefaultGraph)
                 )
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![default_quad.clone()]
         );
         assert_eq!(
@@ -1773,7 +939,9 @@ mod tests {
                     Some(main_o.as_ref()),
                     Some(main_g.as_ref())
                 )
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![named_quad.clone()]
         );
         default_quads.reverse();
@@ -1785,13 +953,17 @@ mod tests {
                     None,
                     Some(GraphNameRef::DefaultGraph)
                 )
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             default_quads
         );
         assert_eq!(
             store
                 .quads_for_pattern(Some(main_s.as_ref()), None, Some(main_o.as_ref()), None)
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
         assert_eq!(
@@ -1802,7 +974,9 @@ mod tests {
                     Some(main_o.as_ref()),
                     Some(GraphNameRef::DefaultGraph)
                 )
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![default_quad.clone()]
         );
         assert_eq!(
@@ -1813,7 +987,9 @@ mod tests {
                     Some(main_o.as_ref()),
                     Some(main_g.as_ref())
                 )
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![named_quad.clone()]
         );
         assert_eq!(
@@ -1824,31 +1000,41 @@ mod tests {
                     None,
                     Some(GraphNameRef::DefaultGraph)
                 )
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             default_quads
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, Some(main_p.as_ref()), None, None)
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             all_quads
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, Some(main_p.as_ref()), Some(main_o.as_ref()), None)
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, None, Some(main_o.as_ref()), None)
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, None, None, Some(GraphNameRef::DefaultGraph))
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             default_quads
         );
         assert_eq!(
@@ -1859,7 +1045,9 @@ mod tests {
                     Some(main_o.as_ref()),
                     Some(GraphNameRef::DefaultGraph)
                 )
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![default_quad]
         );
         assert_eq!(
@@ -1870,7 +1058,9 @@ mod tests {
                     Some(main_o.as_ref()),
                     Some(main_g.as_ref())
                 )
-                .collect::<Result<Vec<_>, _>>()?,
+                .await?
+                .try_read_all()
+                .await?,
             vec![named_quad]
         );
 
