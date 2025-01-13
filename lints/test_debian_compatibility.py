@@ -5,7 +5,7 @@ from urllib.error import HTTPError
 from urllib.request import urlopen
 
 TARGET_DEBIAN_VERSIONS = ["sid"]
-IGNORE_PACKAGES = {"oxigraph-js", "oxigraph-testsuite", "pyoxigraph"}
+IGNORE_PACKAGES = {"oxigraph-testsuite"}
 ALLOWED_MISSING_PACKAGES = {
     "codspeed-criterion-compat",
     "json-event-parser",

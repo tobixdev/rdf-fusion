@@ -1,12 +1,10 @@
 [workspace]
 members = [
     "cli",
-    "js",
     "lib/arrow-rdf",
     "lib/oxigraph",
     "lib/sparesults",
     "lib/spargebra",
-    "python",
     "testsuite"
 ]
 resolver = "2"
@@ -27,7 +25,6 @@ clap = "4.0"
 clap_complete = "4.0"
 clap_mangen = "0.2.19"
 codspeed-criterion-compat = "2.3.3"
-console_error_panic_hook = "0.1.7"
 datafusion = "44.0.0"
 dashmap = "6.1.0"
 flate2 = "1.0"
@@ -43,7 +40,6 @@ oxilangtag = "0.1"
 oxiri = "0.2.8"
 peg = "0.8"
 predicates = ">=2.0, <4.0"
-pyo3 = "0.23.3"
 quick-xml = "0.37"
 rand = "0.8"
 rayon = "1.8.1"
@@ -55,7 +51,6 @@ thiserror = ">=1.0.50, <3.0"
 time = "0.3"
 tokio = { version = "1.42", features = ["rt", "rt-multi-thread"] }
 url = "2.4"
-wasm-bindgen = "0.2.83"
 zstd = ">=0.12, <0.14"
 
 # Upstream Oxigraph dependencies
@@ -277,6 +272,3 @@ lto = true
 codegen-units = 1
 strip = "debuginfo"
 panic = "abort"
-
-[profile.release.package.oxigraph-js]
-opt-level = "z"

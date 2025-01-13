@@ -122,8 +122,8 @@ fn evaluate_negative_result_syntax_test(test: &Test, format: QueryResultsFormat)
     Ok(())
 }
 
-fn evaluate_evaluation_test(test: &Test) -> Result<()> {
-    let store = Store::new()?;
+async fn evaluate_evaluation_test(test: &Test) -> Result<()> {
+    let store = Store::new().await?;
     if let Some(data) = &test.data {
         load_to_store(data, &store, GraphName::DefaultGraph)?;
     }
@@ -171,10 +171,10 @@ fn evaluate_evaluation_test(test: &Test) -> Result<()> {
 
     ensure!(
         are_query_results_isomorphic(&expected_results, &actual_results),
-        "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{}\n",
+        "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{:?}\n",
         results_diff(expected_results, actual_results),
         Query::parse(&read_file_to_string(query_file)?, Some(query_file)).unwrap(),
-        store
+        store.stream().await?.try_collect::<Vec<_>>().await?
     );
     Ok(())
 }
@@ -197,8 +197,8 @@ fn evaluate_negative_update_syntax_test(test: &Test) -> Result<()> {
     Ok(())
 }
 
-fn evaluate_update_evaluation_test(test: &Test) -> Result<()> {
-    let store = Store::new()?;
+async fn evaluate_update_evaluation_test(test: &Test) -> Result<()> {
+    let store = Store::new().await?;
     if let Some(data) = &test.data {
         load_to_store(data, &store, GraphName::DefaultGraph)?;
     }
@@ -206,7 +206,7 @@ fn evaluate_update_evaluation_test(test: &Test) -> Result<()> {
         load_to_store(value, &store, name.clone())?;
     }
 
-    let result_store = Store::new()?;
+    let result_store = Store::new().await?;
     if let Some(data) = &test.result {
         load_to_store(data, &result_store, GraphName::DefaultGraph)?;
     }

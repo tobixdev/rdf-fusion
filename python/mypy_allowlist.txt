@@ -1,2 +1,0 @@
-pyoxigraph.pyoxigraph
-pyoxigraph.DefaultGraph.__init__

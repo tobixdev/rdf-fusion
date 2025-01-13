@@ -18,7 +18,6 @@ rust-version.workspace = true
 [features]
 default = ["storage"]
 storage = []
-js = ["getrandom/js", "oxsdatatypes/js", "js-sys"]
 http-client = ["oxhttp"]
 http-client-native-tls = ["http-client", "oxhttp/native-tls"]
 http-client-rustls-webpki = ["http-client", "oxhttp/rustls-ring-webpki"]
