@@ -16,7 +16,7 @@ use anyhow::Result;
 
 #[allow(clippy::panic_in_result_fn)]
 pub fn check_testsuite(manifest_url: &str, ignored_tests: &[&str]) -> Result<()> {
-    let mut evaluator = TestEvaluator::default();
+    let mut evaluator = TestEvaluator::new();
     register_parser_tests(&mut evaluator);
     register_sparql_tests(&mut evaluator);
 

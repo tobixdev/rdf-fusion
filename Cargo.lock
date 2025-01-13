@@ -2446,9 +2446,9 @@ dependencies = [
  "codspeed-criterion-compat",
  "oxigraph",
  "oxttl",
- "spargebra",
  "text-diff",
  "time",
+ "tokio",
 ]
 
 [[package]]

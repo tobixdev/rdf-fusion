@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::io::Cursor;
 use std::str::FromStr;
-use std::sync::Arc;
+use tokio::runtime::Runtime;
 
 pub fn register_sparql_tests(evaluator: &mut TestEvaluator) {
     evaluator.register(
@@ -52,27 +52,27 @@ pub fn register_sparql_tests(evaluator: &mut TestEvaluator) {
     );
     evaluator.register(
         "https://github.com/oxigraph/oxigraph/tests#PositiveJsonResultsSyntaxTest",
-        |t| evaluate_positive_result_syntax_test(t, QueryResultsFormat::Json),
+        |r, t| evaluate_positive_result_syntax_test(r, t, QueryResultsFormat::Json),
     );
     evaluator.register(
         "https://github.com/oxigraph/oxigraph/tests#NegativeJsonResultsSyntaxTest",
-        |t| evaluate_negative_result_syntax_test(t, QueryResultsFormat::Json),
+        |r, t| evaluate_negative_result_syntax_test(r, t, QueryResultsFormat::Json),
     );
     evaluator.register(
         "https://github.com/oxigraph/oxigraph/tests#PositiveXmlResultsSyntaxTest",
-        |t| evaluate_positive_result_syntax_test(t, QueryResultsFormat::Xml),
+        |r, t| evaluate_positive_result_syntax_test(r, t, QueryResultsFormat::Xml),
     );
     evaluator.register(
         "https://github.com/oxigraph/oxigraph/tests#NegativeXmlResultsSyntaxTest",
-        |t| evaluate_negative_result_syntax_test(t, QueryResultsFormat::Xml),
+        |r, t| evaluate_negative_result_syntax_test(r, t, QueryResultsFormat::Xml),
     );
     evaluator.register(
         "https://github.com/oxigraph/oxigraph/tests#NegativeTsvResultsSyntaxTest",
-        |t| evaluate_negative_result_syntax_test(t, QueryResultsFormat::Tsv),
+        |r, t| evaluate_negative_result_syntax_test(r, t, QueryResultsFormat::Tsv),
     );
 }
 
-fn evaluate_positive_syntax_test(test: &Test) -> Result<()> {
+fn evaluate_positive_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
     let query_file = test.action.as_deref().context("No action found")?;
     let query = Query::parse(&read_file_to_string(query_file)?, Some(query_file))
         .context("Not able to parse")?;
@@ -81,7 +81,7 @@ fn evaluate_positive_syntax_test(test: &Test) -> Result<()> {
     Ok(())
 }
 
-fn evaluate_negative_syntax_test(test: &Test) -> Result<()> {
+fn evaluate_negative_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
     let query_file = test.action.as_deref().context("No action found")?;
     ensure!(
         Query::parse(&read_file_to_string(query_file)?, Some(query_file)).is_err(),
@@ -90,96 +90,115 @@ fn evaluate_negative_syntax_test(test: &Test) -> Result<()> {
     Ok(())
 }
 
-fn evaluate_positive_result_syntax_test(test: &Test, format: QueryResultsFormat) -> Result<()> {
-    let action_file = test.action.as_deref().context("No action found")?;
-    let actual_results = StaticQueryResults::from_query_results(
-        QueryResults::read(read_file(action_file)?, format)?,
-        true,
-    )?;
-    if let Some(result_file) = test.result.as_deref() {
-        let expected_results = StaticQueryResults::from_query_results(
-            QueryResults::read(read_file(result_file)?, format)?,
+fn evaluate_positive_result_syntax_test(
+    runtime: &Runtime,
+    test: &Test,
+    format: QueryResultsFormat,
+) -> Result<()> {
+    runtime.block_on(async {
+        let action_file = test.action.as_deref().context("No action found")?;
+        let actual_results = StaticQueryResults::from_query_results(
+            QueryResults::read(read_file(action_file)?, format)?,
             true,
-        )?;
+        )
+        .await?;
+        if let Some(result_file) = test.result.as_deref() {
+            let expected_results = StaticQueryResults::from_query_results(
+                QueryResults::read(read_file(result_file)?, format)?,
+                true,
+            )
+            .await?;
+            ensure!(
+                are_query_results_isomorphic(&expected_results, &actual_results),
+                "Not isomorphic results:\n{}\n",
+                results_diff(expected_results, actual_results),
+            );
+        }
+        Ok(())
+    })
+}
+
+fn evaluate_negative_result_syntax_test(
+    runtime: &Runtime,
+    test: &Test,
+    format: QueryResultsFormat,
+) -> Result<()> {
+    runtime.block_on(async {
+        let action_file = test.action.as_deref().context("No action found")?;
+        let query_results =
+            QueryResults::read(Cursor::new(read_file_to_string(action_file)?), format)
+                .map_err(Error::from)?;
+        let static_results = StaticQueryResults::from_query_results(query_results, true).await;
+        ensure!(
+            static_results.is_err(),
+            "Oxigraph parses even if it should not."
+        );
+        Ok(())
+    })
+}
+
+fn evaluate_evaluation_test(runtime: &Runtime, test: &Test) -> Result<()> {
+    runtime.block_on(async {
+        let store = Store::new().await?;
+        if let Some(data) = &test.data {
+            load_to_store(data, &store, GraphName::DefaultGraph).await?;
+        }
+        for (name, value) in &test.graph_data {
+            load_to_store(value, &store, name.clone()).await?;
+        }
+        let query_file = test.query.as_deref().context("No action found")?;
+        let options = QueryOptions::default();
+        let query = Query::parse(&read_file_to_string(query_file)?, Some(query_file))
+            .context("Failure to parse query")?;
+
+        // We check parsing roundtrip
+        Query::parse(&query.to_string(), None)
+            .with_context(|| format!("Failure to deserialize \"{query}\""))?;
+
+        // FROM and FROM NAMED support. We make sure the data is in the store
+        if !query.dataset().is_default_dataset() {
+            for graph_name in query.dataset().default_graph_graphs().unwrap_or(&[]) {
+                let GraphName::NamedNode(graph_name) = graph_name else {
+                    bail!("Invalid FROM in query {query}");
+                };
+                load_to_store(graph_name.as_str(), &store, graph_name.as_ref()).await?;
+            }
+            for graph_name in query.dataset().available_named_graphs().unwrap_or(&[]) {
+                let NamedOrBlankNode::NamedNode(graph_name) = graph_name else {
+                    bail!("Invalid FROM NAMED in query {query}");
+                };
+                load_to_store(graph_name.as_str(), &store, graph_name.as_ref()).await?;
+            }
+        }
+
+        let expected_results = load_sparql_query_result(test.result.as_ref().unwrap())
+            .await
+            .context("Error constructing expected graph")?;
+        let with_order = if let StaticQueryResults::Solutions { ordered, .. } = &expected_results {
+            *ordered
+        } else {
+            false
+        };
+
+        let options = options.clone();
+        let actual_results = store
+            .query_opt(query.clone(), options)
+            .context("Failure to execute query")?;
+        let actual_results =
+            StaticQueryResults::from_query_results(actual_results, with_order).await?;
+
         ensure!(
             are_query_results_isomorphic(&expected_results, &actual_results),
-            "Not isomorphic results:\n{}\n",
+            "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{:?}\n",
             results_diff(expected_results, actual_results),
+            Query::parse(&read_file_to_string(query_file)?, Some(query_file))?,
+            store.stream().await?.try_collect().await?
         );
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
-fn evaluate_negative_result_syntax_test(test: &Test, format: QueryResultsFormat) -> Result<()> {
-    let action_file = test.action.as_deref().context("No action found")?;
-    ensure!(
-        QueryResults::read(Cursor::new(read_file_to_string(action_file)?), format)
-            .map_err(Error::from)
-            .and_then(|r| { StaticQueryResults::from_query_results(r, true) })
-            .is_err(),
-        "Oxigraph parses even if it should not."
-    );
-    Ok(())
-}
-
-async fn evaluate_evaluation_test(test: &Test) -> Result<()> {
-    let store = Store::new().await?;
-    if let Some(data) = &test.data {
-        load_to_store(data, &store, GraphName::DefaultGraph)?;
-    }
-    for (name, value) in &test.graph_data {
-        load_to_store(value, &store, name.clone())?;
-    }
-    let query_file = test.query.as_deref().context("No action found")?;
-    let options = QueryOptions::default();
-    let query = Query::parse(&read_file_to_string(query_file)?, Some(query_file))
-        .context("Failure to parse query")?;
-
-    // We check parsing roundtrip
-    Query::parse(&query.to_string(), None)
-        .with_context(|| format!("Failure to deserialize \"{query}\""))?;
-
-    // FROM and FROM NAMED support. We make sure the data is in the store
-    if !query.dataset().is_default_dataset() {
-        for graph_name in query.dataset().default_graph_graphs().unwrap_or(&[]) {
-            let GraphName::NamedNode(graph_name) = graph_name else {
-                bail!("Invalid FROM in query {query}");
-            };
-            load_to_store(graph_name.as_str(), &store, graph_name.as_ref())?;
-        }
-        for graph_name in query.dataset().available_named_graphs().unwrap_or(&[]) {
-            let NamedOrBlankNode::NamedNode(graph_name) = graph_name else {
-                bail!("Invalid FROM NAMED in query {query}");
-            };
-            load_to_store(graph_name.as_str(), &store, graph_name.as_ref())?;
-        }
-    }
-
-    let expected_results = load_sparql_query_result(test.result.as_ref().unwrap())
-        .context("Error constructing expected graph")?;
-    let with_order = if let StaticQueryResults::Solutions { ordered, .. } = &expected_results {
-        *ordered
-    } else {
-        false
-    };
-
-    let options = options.clone();
-    let actual_results = store
-        .query_opt(query.clone(), options)
-        .context("Failure to execute query")?;
-    let actual_results = StaticQueryResults::from_query_results(actual_results, with_order)?;
-
-    ensure!(
-        are_query_results_isomorphic(&expected_results, &actual_results),
-        "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{:?}\n",
-        results_diff(expected_results, actual_results),
-        Query::parse(&read_file_to_string(query_file)?, Some(query_file)).unwrap(),
-        store.stream().await?.try_collect::<Vec<_>>().await?
-    );
-    Ok(())
-}
-
-fn evaluate_positive_update_syntax_test(test: &Test) -> Result<()> {
+fn evaluate_positive_update_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
     let update_file = test.action.as_deref().context("No action found")?;
     let update = Update::parse(&read_file_to_string(update_file)?, Some(update_file))
         .context("Not able to parse")?;
@@ -188,7 +207,7 @@ fn evaluate_positive_update_syntax_test(test: &Test) -> Result<()> {
     Ok(())
 }
 
-fn evaluate_negative_update_syntax_test(test: &Test) -> Result<()> {
+fn evaluate_negative_update_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
     let update_file = test.action.as_deref().context("No action found")?;
     ensure!(
         Update::parse(&read_file_to_string(update_file)?, Some(update_file)).is_err(),
@@ -197,76 +216,68 @@ fn evaluate_negative_update_syntax_test(test: &Test) -> Result<()> {
     Ok(())
 }
 
-async fn evaluate_update_evaluation_test(test: &Test) -> Result<()> {
-    let store = Store::new().await?;
-    if let Some(data) = &test.data {
-        load_to_store(data, &store, GraphName::DefaultGraph)?;
-    }
-    for (name, value) in &test.graph_data {
-        load_to_store(value, &store, name.clone())?;
-    }
+fn evaluate_update_evaluation_test(runtime: &Runtime, test: &Test) -> Result<()> {
+    runtime.block_on(async {
+        let store = Store::new().await?;
+        if let Some(data) = &test.data {
+            load_to_store(data, &store, GraphName::DefaultGraph).await?;
+        }
+        for (name, value) in &test.graph_data {
+            load_to_store(value, &store, name.clone()).await?;
+        }
 
-    let result_store = Store::new().await?;
-    if let Some(data) = &test.result {
-        load_to_store(data, &result_store, GraphName::DefaultGraph)?;
-    }
-    for (name, value) in &test.result_graph_data {
-        load_to_store(value, &result_store, name.clone())?;
-    }
+        let result_store = Store::new().await?;
+        if let Some(data) = &test.result {
+            load_to_store(data, &result_store, GraphName::DefaultGraph).await?;
+        }
+        for (name, value) in &test.result_graph_data {
+            load_to_store(value, &result_store, name.clone()).await?;
+        }
 
-    let update_file = test.update.as_deref().context("No action found")?;
-    let update = Update::parse(&read_file_to_string(update_file)?, Some(update_file))
-        .context("Failure to parse update")?;
+        let update_file = test.update.as_deref().context("No action found")?;
+        let update = Update::parse(&read_file_to_string(update_file)?, Some(update_file))
+            .context("Failure to parse update")?;
 
-    // We check parsing roundtrip
-    Update::parse(&update.to_string(), None)
-        .with_context(|| format!("Failure to deserialize \"{update}\""))?;
+        // We check parsing roundtrip
+        Update::parse(&update.to_string(), None)
+            .with_context(|| format!("Failure to deserialize \"{update}\""))?;
 
-    store.update(update).context("Failure to execute update")?;
-    let mut store_dataset: Dataset = store.iter().collect::<Result<_, _>>()?;
-    store_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
-    let mut result_store_dataset: Dataset = result_store.iter().collect::<Result<_, _>>()?;
-    result_store_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
-    ensure!(
-        store_dataset == result_store_dataset,
-        "Not isomorphic result dataset.\nDiff:\n{}\nParsed update:\n{}\n",
-        dataset_diff(&result_store_dataset, &store_dataset),
-        Update::parse(&read_file_to_string(update_file)?, Some(update_file)).unwrap(),
-    );
-    Ok(())
+        store.update(update).context("Failure to execute update")?;
+        let mut store_dataset: Dataset = store
+            .stream()
+            .await?
+            .try_collect()
+            .await?
+            .into_iter()
+            .collect();
+        store_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
+        let mut result_store_dataset: Dataset = result_store
+            .stream()
+            .await?
+            .try_collect()
+            .await?
+            .into_iter()
+            .collect();
+        result_store_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
+        ensure!(
+            store_dataset == result_store_dataset,
+            "Not isomorphic result dataset.\nDiff:\n{}\nParsed update:\n{}\n",
+            dataset_diff(&result_store_dataset, &store_dataset),
+            Update::parse(&read_file_to_string(update_file)?, Some(update_file)).unwrap(),
+        );
+        Ok(())
+    })
 }
 
-fn load_sparql_query_result(url: &str) -> Result<StaticQueryResults> {
+async fn load_sparql_query_result(url: &str) -> Result<StaticQueryResults> {
     if let Some(format) = url
         .rsplit_once('.')
         .and_then(|(_, extension)| QueryResultsFormat::from_extension(extension))
     {
         StaticQueryResults::from_query_results(QueryResults::read(read_file(url)?, format)?, false)
+            .await
     } else {
-        StaticQueryResults::from_graph(&load_graph(url, guess_rdf_format(url)?, false)?)
-    }
-}
-
-#[derive(Clone)]
-struct StaticServiceHandler {
-    services: Arc<HashMap<NamedNode, Store>>,
-}
-
-impl StaticServiceHandler {
-    fn new(services: &[(String, String)]) -> Result<Self> {
-        Ok(Self {
-            services: Arc::new(
-                services
-                    .iter()
-                    .map(|(name, data)| {
-                        let name = NamedNode::new(name)?;
-                        let store = Store::new()?;
-                        load_to_store(data, &store, GraphName::DefaultGraph)?;
-                        Ok((name, store))
-                    })
-                    .collect::<Result<_>>()?,
-            ),
-        })
+        StaticQueryResults::from_graph(&load_graph(url, guess_rdf_format(url)?, false)?).await
     }
 }
 
@@ -416,19 +427,23 @@ enum StaticQueryResults {
 }
 
 impl StaticQueryResults {
-    fn from_query_results(results: QueryResults, with_order: bool) -> Result<Self> {
-        Self::from_graph(&to_graph(results, with_order)?)
+    async fn from_query_results(results: QueryResults, with_order: bool) -> Result<Self> {
+        Self::from_graph(&to_graph(results, with_order)?).await
     }
 
-    fn from_graph(graph: &Graph) -> Result<Self> {
+    async fn from_graph(graph: &Graph) -> Result<Self> {
         // Hack to normalize literals
-        let store = Store::new()?;
+        let store = Store::new().await?;
         for t in graph {
-            store.insert(t.in_graph(GraphNameRef::DefaultGraph))?;
+            store.insert(t.in_graph(GraphNameRef::DefaultGraph)).await?;
         }
         let mut graph = store
-            .iter()
-            .map(|q| Ok(Triple::from(q?)))
+            .stream()
+            .await?
+            .try_collect()
+            .await?
+            .into_iter()
+            .map(|q| Ok(Triple::from(q)))
             .collect::<Result<Graph>>()?;
 
         if let Some(result_set) = graph.subject_for_predicate_object(rdf::TYPE, rs::RESULT_SET) {
@@ -610,12 +625,18 @@ fn solutions_to_string(solutions: Vec<Vec<(Variable, Term)>>, ordered: bool) -> 
     lines.join("\n")
 }
 
-fn load_to_store(url: &str, store: &Store, to_graph_name: impl Into<GraphName>) -> Result<()> {
-    store.load_from_reader(
-        RdfParser::from_format(guess_rdf_format(url)?)
-            .with_base_iri(url)?
-            .with_default_graph(to_graph_name),
-        read_file(url)?,
-    )?;
+async fn load_to_store(
+    url: &str,
+    store: &Store,
+    to_graph_name: impl Into<GraphName>,
+) -> Result<()> {
+    store
+        .load_from_reader(
+            RdfParser::from_format(guess_rdf_format(url)?)
+                .with_base_iri(url)?
+                .with_default_graph(to_graph_name),
+            read_file(url)?,
+        )
+        .await?;
     Ok(())
 }

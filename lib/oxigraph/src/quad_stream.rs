@@ -21,7 +21,7 @@ pub struct QuadStream {
 }
 
 impl QuadStream {
-    pub async fn try_read_all(mut self) -> Result<Vec<Quad>, StorageError> {
+    pub async fn try_collect(mut self) -> Result<Vec<Quad>, StorageError> {
         let mut result = Vec::new();
         while let Some(element) = self.next().await {
             result.push(element?);

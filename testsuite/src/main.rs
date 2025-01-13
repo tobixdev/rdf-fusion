@@ -17,7 +17,7 @@ struct Args {
 fn main() -> Result<()> {
     let matches = Args::parse();
 
-    let mut evaluator = TestEvaluator::default();
+    let mut evaluator = TestEvaluator::new();
     register_parser_tests(&mut evaluator);
     register_sparql_tests(&mut evaluator);
     let manifest = TestManifest::new(matches.manifest);

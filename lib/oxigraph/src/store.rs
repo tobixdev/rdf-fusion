@@ -773,12 +773,12 @@ mod tests {
         store.validate()?;
 
         assert_eq!(store.len().await?, 4);
-        assert_eq!(store.stream().await?.try_read_all().await?, all_quads);
+        assert_eq!(store.stream().await?.try_collect().await?, all_quads);
         assert_eq!(
             store
                 .quads_for_pattern(Some(main_s.as_ref()), None, None, None)
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             all_quads
         );
@@ -786,7 +786,7 @@ mod tests {
             store
                 .quads_for_pattern(Some(main_s.as_ref()), Some(main_p.as_ref()), None, None)
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             all_quads
         );
@@ -799,7 +799,7 @@ mod tests {
                     None
                 )
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
@@ -812,7 +812,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![default_quad.clone()]
         );
@@ -825,7 +825,7 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![named_quad.clone()]
         );
@@ -839,7 +839,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             default_quads
         );
@@ -847,7 +847,7 @@ mod tests {
             store
                 .quads_for_pattern(Some(main_s.as_ref()), None, Some(main_o.as_ref()), None)
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
@@ -860,7 +860,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![default_quad.clone()]
         );
@@ -873,7 +873,7 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![named_quad.clone()]
         );
@@ -886,7 +886,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             default_quads
         );
@@ -894,7 +894,7 @@ mod tests {
             store
                 .quads_for_pattern(None, Some(main_p.as_ref()), None, None)
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             all_quads
         );
@@ -902,7 +902,7 @@ mod tests {
             store
                 .quads_for_pattern(None, Some(main_p.as_ref()), Some(main_o.as_ref()), None)
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
@@ -910,7 +910,7 @@ mod tests {
             store
                 .quads_for_pattern(None, None, Some(main_o.as_ref()), None)
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
@@ -918,7 +918,7 @@ mod tests {
             store
                 .quads_for_pattern(None, None, None, Some(GraphNameRef::DefaultGraph))
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             default_quads
         );
@@ -931,7 +931,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![default_quad]
         );
@@ -944,7 +944,7 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_read_all()
+                .try_collect()
                 .await?,
             vec![named_quad]
         );

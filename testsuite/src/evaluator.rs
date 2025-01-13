@@ -3,17 +3,25 @@ use crate::report::TestResult;
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use time::OffsetDateTime;
+use tokio::runtime::Runtime;
 
-#[derive(Default)]
 pub struct TestEvaluator {
-    handlers: HashMap<String, Box<dyn Fn(&Test) -> Result<()>>>,
+    runtime: Runtime,
+    handlers: HashMap<String, Box<dyn Fn(&Runtime, &Test) -> Result<()>>>,
 }
 
 impl TestEvaluator {
+    pub fn new() -> Self {
+        Self {
+            runtime: Runtime::new().unwrap(),
+            handlers: HashMap::new(),
+        }
+    }
+
     pub fn register(
         &mut self,
         test_type: impl Into<String>,
-        handler: impl Fn(&Test) -> Result<()> + 'static,
+        handler: impl Fn(&Runtime, &Test) -> Result<()> + 'static,
     ) {
         self.handlers.insert(test_type.into(), Box::new(handler));
     }
@@ -26,7 +34,7 @@ impl TestEvaluator {
             .map(|test| {
                 let test = test?;
                 let outcome = if let Some(handler) = self.handlers.get(test.kind.as_str()) {
-                    handler(&test)
+                    handler(&self.runtime, &test)
                 } else {
                     Err(anyhow!("The test type {} is not supported", test.kind))
                 };

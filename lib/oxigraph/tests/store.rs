@@ -191,7 +191,7 @@ async fn test_snapshot_isolation_iterator() -> Result<(), Box<dyn Error>> {
     store.insert(quad).await?;
     let iter = store.stream().await.unwrap();
     store.remove(quad).await?;
-    assert_eq!(iter.try_read_all().await?, vec![quad.into_owned()]);
+    assert_eq!(iter.try_collect().await?, vec![quad.into_owned()]);
     store.validate()?;
     Ok(())
 }
