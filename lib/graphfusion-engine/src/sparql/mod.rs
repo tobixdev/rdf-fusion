@@ -3,18 +3,17 @@
 //! Stores execute SPARQL. See [`Store`](crate::store::Store::query()) for an example.
 
 mod algebra;
-mod error;
+pub mod error;
 mod eval;
 mod explanation;
 mod http;
 mod model;
 mod update;
 
+pub use crate::results::{QueryResults, QuerySolution, QuerySolutionStream, QueryTripleStream};
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};
-pub use crate::sparql::error::EvaluationError;
 pub use crate::sparql::eval::QueryEvaluator;
 pub use crate::sparql::explanation::QueryExplanation;
-pub use crate::sparql::model::{QueryResults, QuerySolution, QuerySolutionIter, QueryTripleIter};
 use datafusion::execution::SessionState;
 pub use oxrdf::{Variable, VariableNameParseError};
 pub use spargebra::SparqlSyntaxError;

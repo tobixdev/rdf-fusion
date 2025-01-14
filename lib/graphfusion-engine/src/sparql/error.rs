@@ -1,4 +1,5 @@
 use crate::sparql::SparqlSyntaxError;
+use datafusion::error::DataFusionError;
 use graphfusion_store::error::StorageError;
 use oxrdf::{NamedNode, Term};
 use oxrdfio::RdfParseError;
@@ -83,6 +84,8 @@ pub enum EvaluationError {
     /// The results are not a RDF graph
     #[error("The query results are not a RDF graph")]
     NotAGraph,
+    #[error("An error returned from the query engine")]
+    Engine(DataFusionError),
     #[doc(hidden)]
     #[error(transparent)]
     Unexpected(Box<dyn Error + Send + Sync>),
@@ -109,6 +112,12 @@ impl From<SparqlEvaluationError> for EvaluationError {
     }
 }
 
+impl From<DataFusionError> for EvaluationError {
+    fn from(error: DataFusionError) -> Self {
+        Self::Engine(error)
+    }
+}
+
 impl From<EvaluationError> for io::Error {
     #[inline]
     fn from(error: EvaluationError) -> Self {
@@ -118,6 +127,7 @@ impl From<EvaluationError> for io::Error {
             EvaluationError::ResultsParsing(error) => error.into(),
             EvaluationError::ResultsSerialization(error) => error,
             EvaluationError::Storage(error) => error.into(),
+            EvaluationError::Engine(error) => error.into(),
             EvaluationError::Service(error) | EvaluationError::Unexpected(error) => {
                 match error.downcast() {
                     Ok(error) => *error,

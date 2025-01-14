@@ -11,7 +11,7 @@ pub trait TripleStore {
     //
 
     async fn contains(&self, quad: &QuadRef<'_>) -> Result<bool, DataFusionError>;
-    async fn len(&self) -> Result<usize, DataFusionError>;
+    async fn len(&self) -> DFResult<usize>;
     async fn quads_for_pattern(
         &self,
         graph_name: Option<GraphNameRef<'_>>,

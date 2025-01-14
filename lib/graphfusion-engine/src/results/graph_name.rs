@@ -2,9 +2,9 @@ use graphfusion_store::error::StorageError;
 use oxrdf::NamedOrBlankNode;
 
 /// An iterator returning the graph names contained in a [`Store`].
-pub struct GraphNameIter {}
+pub struct GraphNameStream {}
 
-impl Iterator for GraphNameIter {
+impl Iterator for GraphNameStream {
     type Item = Result<NamedOrBlankNode, StorageError>;
 
     fn next(&mut self) -> Option<Self::Item> {

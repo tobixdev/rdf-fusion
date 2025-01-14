@@ -25,17 +25,33 @@
 //! };
 //! # Result::<_, Box<dyn std::error::Error>>::Ok(())
 //! ```
+
+use crate::error::{LoaderError, SerializerError};
 use crate::io::{RdfParser, RdfSerializer};
 use futures::{Stream, StreamExt};
-use graphfusion_engine::error::{LoaderError, SerializerError, StorageError};
+use graphfusion_engine::error::StorageError;
+use graphfusion_engine::results::{GraphNameStream, QuadStream, QuerySolutionStream};
+use graphfusion_engine::sparql::error::EvaluationError;
 use graphfusion_engine::sparql::{
-    EvaluationError, Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
+    Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use graphfusion_engine::{GraphNameIter, MemoryTripleStore, QuadStream, TripleStore};
-use oxrdf::{GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef};
+use graphfusion_engine::{MemoryTripleStore, TripleStore};
+use once_cell::sync::Lazy;
+use oxrdf::{
+    GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef, Variable,
+};
 use std::error::Error;
 use std::io::{Read, Write};
 use std::sync::Arc;
+
+static QUAD_VARIABLES: Lazy<Arc<[Variable]>> = Lazy::new(|| {
+    Arc::new([
+        Variable::new_unchecked("graph"),
+        Variable::new_unchecked("subject"),
+        Variable::new_unchecked("predicate"),
+        Variable::new_unchecked("object"),
+    ])
+});
 
 /// An on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
 /// Allows to query and update it using SPARQL.
@@ -212,13 +228,13 @@ impl Store {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
         graph_name: Option<GraphNameRef<'_>>,
-    ) -> Result<QuadStream, StorageError> {
+    ) -> Result<QuadStream, EvaluationError> {
         let record_batch_stream = self
             .inner
             .quads_for_pattern(graph_name, subject, predicate, object)
-            .await
-            .map_err(StorageError::from)?;
-        Ok(QuadStream::try_new(record_batch_stream).unwrap()) // Schema is guaranteed
+            .await?;
+        let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
+        Ok(QuadStream::try_new(solution_stream).expect("Schema is guaranteed"))
     }
 
     /// Returns all the quads contained in the store.
@@ -240,13 +256,14 @@ impl Store {
     /// assert_eq!(vec![quad], results);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub async fn stream(&self) -> Result<QuadStream, StorageError> {
-        let arrow_result = self
+    pub async fn stream(&self) -> Result<QuadStream, EvaluationError> {
+        let record_batch_stream = self
             .inner
             .quads_for_pattern(None, None, None, None)
             .await
-            .map_err(StorageError::from)?;
-        Ok(QuadStream::try_new(arrow_result).expect("Schema guaranteed by TripleStore"))
+            .map_err(EvaluationError::from)?;
+        let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
+        Ok(QuadStream::try_new(solution_stream).expect("Schema guaranteed by TripleStore"))
     }
 
     /// Checks if this store contains a given quad.
@@ -562,7 +579,7 @@ impl Store {
     /// );
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn named_graphs(&self) -> GraphNameIter {
+    pub fn named_graphs(&self) -> GraphNameStream {
         unimplemented!()
     }
 

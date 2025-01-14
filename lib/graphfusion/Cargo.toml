@@ -17,16 +17,17 @@ rust-version.workspace = true
 
 [features]
 default = ["storage"]
-storage = []
 http-client = ["oxhttp"]
 http-client-native-tls = ["http-client", "oxhttp/native-tls"]
 http-client-rustls-webpki = ["http-client", "oxhttp/rustls-ring-webpki"]
 http-client-rustls-native = ["http-client", "oxhttp/rustls-ring-native"]
+storage = []
 
 [dependencies]
 datafusion.workspace = true
 futures.workspace = true
 graphfusion-engine.workspace = true
+once_cell.workspace = true
 oxiri.workspace = true
 oxrdf = { workspace = true, features = ["rdf-star", "oxsdatatypes"] }
 oxrdfio = { workspace = true, features = ["rdf-star"] }

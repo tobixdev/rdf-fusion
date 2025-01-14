@@ -4,6 +4,7 @@ use crate::manifest::*;
 use crate::report::{dataset_diff, format_diff};
 use crate::vocab::*;
 use anyhow::{bail, ensure, Context, Error, Result};
+use futures::StreamExt;
 use graphfusion::io::RdfParser;
 use graphfusion::store::Store;
 use graphfusion::{Query, QueryOptions, QueryResults, Update};
@@ -281,7 +282,7 @@ async fn load_sparql_query_result(url: &str) -> Result<StaticQueryResults> {
     }
 }
 
-fn to_graph(result: QueryResults, with_order: bool) -> Result<Graph> {
+async fn to_graph(result: QueryResults, with_order: bool) -> Result<Graph> {
     Ok(match result {
         QueryResults::Graph(graph) => graph.collect::<Result<Graph, _>>()?,
         QueryResults::Boolean(value) => {
@@ -295,7 +296,7 @@ fn to_graph(result: QueryResults, with_order: bool) -> Result<Graph> {
             ));
             graph
         }
-        QueryResults::Solutions(solutions) => {
+        QueryResults::Solutions(mut solutions) => {
             let mut graph = Graph::new();
             let result_set = BlankNode::default();
             graph.insert(TripleRef::new(&result_set, rdf::TYPE, rs::RESULT_SET));
@@ -306,7 +307,8 @@ fn to_graph(result: QueryResults, with_order: bool) -> Result<Graph> {
                     LiteralRef::new_simple_literal(variable.as_str()),
                 ));
             }
-            for (i, solution) in solutions.enumerate() {
+            let mut i = 0;
+            while let Some(solution) = solutions.next().await {
                 let solution = solution?;
                 let solution_id = BlankNode::default();
                 graph.insert(TripleRef::new(&result_set, rs::SOLUTION, &solution_id));
@@ -328,6 +330,7 @@ fn to_graph(result: QueryResults, with_order: bool) -> Result<Graph> {
                     ));
                 }
             }
+            i += 1;
             graph
         }
     })
@@ -428,7 +431,7 @@ enum StaticQueryResults {
 
 impl StaticQueryResults {
     async fn from_query_results(results: QueryResults, with_order: bool) -> Result<Self> {
-        Self::from_graph(&to_graph(results, with_order)?).await
+        Self::from_graph(&to_graph(results, with_order).await?).await
     }
 
     async fn from_graph(graph: &Graph) -> Result<Self> {
