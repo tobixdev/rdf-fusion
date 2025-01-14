@@ -10,8 +10,8 @@ use std::str::FromStr;
 /// A parsed [SPARQL query](https://www.w3.org/TR/sparql11-query/).
 ///
 /// ```
-/// use oxigraph::model::NamedNode;
-/// use oxigraph::sparql::Query;
+/// use graphfusion::model::NamedNode;
+/// use graphfusion::sparql::Query;
 ///
 /// let query_str = "SELECT ?s ?p ?o WHERE { ?s ?p ?o . }";
 /// let mut query = Query::parse(query_str, None)?;
@@ -105,7 +105,7 @@ impl From<spargebra::Query> for Query {
 /// A parsed [SPARQL update](https://www.w3.org/TR/sparql11-update/).
 ///
 /// ```
-/// use oxigraph::sparql::Update;
+/// use graphfusion::sparql::Update;
 ///
 /// let update_str = "CLEAR ALL ;";
 /// let update = Update::parse(update_str, None)?;
@@ -225,7 +225,7 @@ impl QueryDataset {
     /// (i.e. the default graph is the store default graph and all the store named graphs are available)
     ///
     /// ```
-    /// use oxigraph::sparql::Query;
+    /// use graphfusion::sparql::Query;
     ///
     /// assert!(Query::parse("SELECT ?s ?p ?o WHERE { ?s ?p ?o . }", None)?
     ///     .dataset()
@@ -261,8 +261,8 @@ impl QueryDataset {
     ///
     /// By default only the store default graph is considered.
     /// ```
-    /// use oxigraph::model::NamedNode;
-    /// use oxigraph::sparql::Query;
+    /// use graphfusion::model::NamedNode;
+    /// use graphfusion::sparql::Query;
     ///
     /// let mut query = Query::parse("SELECT ?s ?p ?o WHERE { ?s ?p ?o . }", None)?;
     /// let default = vec![NamedNode::new("http://example.com")?.into()];
@@ -286,8 +286,8 @@ impl QueryDataset {
     /// Sets the list of allowed named graphs in the query.
     ///
     /// ```
-    /// use oxigraph::model::NamedNode;
-    /// use oxigraph::sparql::Query;
+    /// use graphfusion::model::NamedNode;
+    /// use graphfusion::sparql::Query;
     ///
     /// let mut query = Query::parse("SELECT ?s ?p ?o WHERE { ?s ?p ?o . }", None)?;
     /// let named = vec![NamedNode::new("http://example.com")?.into()];

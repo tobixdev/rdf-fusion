@@ -3,7 +3,7 @@ use crate::files::{guess_rdf_format, load_dataset, load_n3, read_file_to_string}
 use crate::manifest::Test;
 use crate::report::{dataset_diff, format_diff};
 use anyhow::{bail, ensure, Context, Result};
-use oxigraph::io::RdfFormat;
+use graphfusion::io::RdfFormat;
 use oxrdf::dataset::CanonicalizationAlgorithm;
 use oxrdf::{BlankNode, Dataset, Quad};
 use oxttl::n3::{N3Quad, N3Term};

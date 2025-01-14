@@ -1,15 +1,14 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
-use oxigraph::io::RdfFormat;
-use oxigraph::model::vocab::{rdf, xsd};
-use oxigraph::model::*;
-use oxigraph::store::Store;
+use graphfusion::io::RdfFormat;
+use graphfusion::model::vocab::{rdf, xsd};
+use graphfusion::model::*;
+use graphfusion::store::Store;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use rand::random;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use std::env::temp_dir;
-use std::error::Error;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use std::fs::remove_dir_all;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]

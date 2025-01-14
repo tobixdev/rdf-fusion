@@ -4,15 +4,15 @@ use crate::service_description::{generate_service_description, EndpointKind};
 use anyhow::{bail, ensure, Context};
 use clap::Parser;
 use flate2::read::MultiGzDecoder;
-use oxhttp::model::{Body, HeaderName, HeaderValue, Method, Request, Response, Status};
-use oxhttp::Server;
-use oxigraph::io::{RdfFormat, RdfParser, RdfSerializer};
-use oxigraph::model::{
+use graphfusion::io::{RdfFormat, RdfParser, RdfSerializer};
+use graphfusion::model::{
     GraphName, GraphNameRef, IriParseError, NamedNode, NamedNodeRef, NamedOrBlankNode,
 };
-use oxigraph::sparql::results::{QueryResultsFormat, QueryResultsSerializer};
-use oxigraph::sparql::{LoaderError, Query, QueryOptions, QueryResults, Update};
-use oxigraph::store::{BulkLoader, Store};
+use graphfusion::sparql::results::{QueryResultsFormat, QueryResultsSerializer};
+use graphfusion::sparql::{LoaderError, Query, QueryOptions, QueryResults, Update};
+use graphfusion::store::{BulkLoader, Store};
+use oxhttp::model::{Body, HeaderName, HeaderValue, Method, Request, Response, Status};
+use oxhttp::Server;
 use oxiri::Iri;
 use rand::random;
 use rayon_core::ThreadPoolBuilder;

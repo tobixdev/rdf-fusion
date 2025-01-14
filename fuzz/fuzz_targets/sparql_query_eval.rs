@@ -1,11 +1,11 @@
 #![no_main]
 
+use graphfusion::io::RdfFormat;
+use graphfusion::model::graph::CanonicalizationAlgorithm;
+use graphfusion::model::{Graph, NamedNode};
+use graphfusion::sparql::{EvaluationError, Query, QueryOptions, QueryResults, ServiceHandler};
+use graphfusion::store::Store;
 use libfuzzer_sys::fuzz_target;
-use oxigraph::io::RdfFormat;
-use oxigraph::model::graph::CanonicalizationAlgorithm;
-use oxigraph::model::{Graph, NamedNode};
-use oxigraph::sparql::{EvaluationError, Query, QueryOptions, QueryResults, ServiceHandler};
-use oxigraph::store::Store;
 use oxigraph_fuzz::count_triple_blank_nodes;
 use std::sync::OnceLock;
 

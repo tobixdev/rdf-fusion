@@ -11,7 +11,7 @@ cargo-fuzz = true
 anyhow = "1.0.72"
 libfuzzer-sys = "0.4"
 sparql-smith = "0.1.0-alpha.9"
-oxigraph = { path = "../lib/oxigraph", default-features = false }
+graphfusion = { path = "../lib/graphfusion", default-features = false }
 sparesults = { path = "../lib/sparesults", features = ["rdf-star"] }
 spargebra = { path = "../lib/spargebra", features = ["rdf-star", "sep-0006"] }
 

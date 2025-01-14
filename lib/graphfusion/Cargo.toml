@@ -1,5 +1,5 @@
 [package]
-name = "oxigraph"
+name = "graphfusion"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

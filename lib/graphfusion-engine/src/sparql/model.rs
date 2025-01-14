@@ -36,9 +36,9 @@ impl QueryResults {
     /// This method fails if it is called on the `Graph` results.
     ///
     /// ```
-    /// use oxigraph::store::Store;
-    /// use oxigraph::model::*;
-    /// use oxigraph::sparql::results::QueryResultsFormat;
+    /// use graphfusion::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::sparql::results::QueryResultsFormat;
     ///
     /// let store = Store::new()?;
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -101,9 +101,9 @@ impl QueryResults {
     /// This method fails if it is called on the `Solution` or `Boolean` results.
     ///
     /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::io::RdfFormat;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let graph = "<http://example.com> <http://example.com> <http://example.com> .\n";
     ///
@@ -162,8 +162,8 @@ impl<R: Read + 'static> From<ReaderQueryResultsParserOutput<R>> for QueryResults
 /// An iterator over [`QuerySolution`]s.
 ///
 /// ```
-/// use oxigraph::sparql::QueryResults;
-/// use oxigraph::store::Store;
+/// use graphfusion::sparql::QueryResults;
+/// use graphfusion::store::Store;
 ///
 /// let store = Store::new()?;
 /// if let QueryResults::Solutions(solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }")? {
@@ -188,8 +188,8 @@ impl QuerySolutionIter {
     /// The variables used in the solutions.
     ///
     /// ```
-    /// use oxigraph::sparql::{QueryResults, Variable};
-    /// use oxigraph::store::Store;
+    /// use graphfusion::sparql::{QueryResults, Variable};
+    /// use graphfusion::store::Store;
     ///
     /// let store = Store::new()?;
     /// if let QueryResults::Solutions(solutions) = store.query("SELECT ?s ?o WHERE { ?s ?p ?o }")? {
@@ -234,8 +234,8 @@ impl Iterator for QuerySolutionIter {
 /// An iterator over the triples that compose a graph solution.
 ///
 /// ```
-/// use oxigraph::sparql::QueryResults;
-/// use oxigraph::store::Store;
+/// use graphfusion::sparql::QueryResults;
+/// use graphfusion::store::Store;
 ///
 /// let store = Store::new()?;
 /// if let QueryResults::Graph(triples) = store.query("CONSTRUCT WHERE { ?s ?p ?o }")? {

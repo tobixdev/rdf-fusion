@@ -21,16 +21,16 @@ doc = false
 
 [features]
 default = ["native-tls"]
-native-tls = ["oxigraph/http-client-native-tls"]
-rustls-native = ["oxigraph/http-client-rustls-native"]
-rustls-webpki = ["oxigraph/http-client-rustls-webpki"]
+native-tls = ["graphfusion/http-client-native-tls"]
+rustls-native = ["graphfusion/http-client-rustls-native"]
+rustls-webpki = ["graphfusion/http-client-rustls-webpki"]
 
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
 flate2.workspace = true
 oxhttp = { workspace = true, features = ["flate2"] }
-oxigraph.workspace = true
+graphfusion.workspace = true
 oxiri.workspace = true
 rand.workspace = true
 rayon-core.workspace = true

@@ -1,10 +1,10 @@
 #![allow(clippy::panic)]
 
 use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion, Throughput};
+use graphfusion::io::{RdfFormat, RdfParser};
+use graphfusion::sparql::{Query, QueryOptions, QueryResults, Update};
+use graphfusion::store::Store;
 use oxhttp::model::{Method, Request, Status};
-use oxigraph::io::{RdfFormat, RdfParser};
-use oxigraph::sparql::{Query, QueryOptions, QueryResults, Update};
-use oxigraph::store::Store;
 use rand::random;
 use std::env::temp_dir;
 use std::fs::{remove_dir_all, File};

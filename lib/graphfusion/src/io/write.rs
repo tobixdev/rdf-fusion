@@ -15,8 +15,8 @@ use std::io::{self, Write};
 /// * [RDF/XML](https://www.w3.org/TR/rdf-syntax-grammar/) ([`GraphFormat::RdfXml`])
 ///
 /// ```
-/// use oxigraph::io::{GraphFormat, GraphSerializer};
-/// use oxigraph::model::*;
+/// use graphfusion::io::{GraphFormat, GraphSerializer};
+/// use graphfusion::model::*;
 ///
 /// let mut buffer = Vec::new();
 /// let mut serializer =
@@ -64,8 +64,8 @@ impl GraphSerializer {
 /// Do not forget to run the [`finish`](TripleWriter::finish()) method to properly write the last bytes of the file.</div>
 ///
 /// ```
-/// use oxigraph::io::{GraphFormat, GraphSerializer};
-/// use oxigraph::model::*;
+/// use graphfusion::io::{GraphFormat, GraphSerializer};
+/// use graphfusion::model::*;
 ///
 /// let mut buffer = Vec::new();
 /// let mut serializer =
@@ -107,8 +107,8 @@ impl<W: Write> TripleWriter<W> {
 /// * [TriG](https://www.w3.org/TR/trig/) ([`DatasetFormat::TriG`])
 ///
 /// ```
-/// use oxigraph::io::{DatasetFormat, DatasetSerializer};
-/// use oxigraph::model::*;
+/// use graphfusion::io::{DatasetFormat, DatasetSerializer};
+/// use graphfusion::model::*;
 ///
 /// let mut buffer = Vec::new();
 /// let mut serializer = DatasetSerializer::from_format(DatasetFormat::NQuads).quad_writer(&mut buffer);
@@ -153,8 +153,8 @@ impl DatasetSerializer {
 /// Do not forget to run the [`finish`](QuadWriter::finish()) method to properly write the last bytes of the file.</div>
 ///
 /// ```
-/// use oxigraph::io::{DatasetFormat, DatasetSerializer};
-/// use oxigraph::model::*;
+/// use graphfusion::io::{DatasetFormat, DatasetSerializer};
+/// use graphfusion::model::*;
 ///
 /// let mut buffer = Vec::new();
 /// let mut serializer = DatasetSerializer::from_format(DatasetFormat::NQuads).quad_writer(&mut buffer);

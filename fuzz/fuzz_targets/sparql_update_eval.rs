@@ -1,9 +1,9 @@
 #![no_main]
 
+use graphfusion::model::dataset::{CanonicalizationAlgorithm, Dataset};
+use graphfusion::sparql::{QueryOptions, Update};
+use graphfusion::store::Store;
 use libfuzzer_sys::fuzz_target;
-use oxigraph::model::dataset::{CanonicalizationAlgorithm, Dataset};
-use oxigraph::sparql::{QueryOptions, Update};
-use oxigraph::store::Store;
 #[cfg(feature = "storage")]
 use std::env::temp_dir;
 use std::sync::OnceLock;

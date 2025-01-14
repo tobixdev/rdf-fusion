@@ -1691,6 +1691,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphfusion"
+version = "0.4.5"
+dependencies = [
+ "codspeed-criterion-compat",
+ "datafusion",
+ "futures",
+ "getrandom",
+ "graphfusion-engine",
+ "js-sys",
+ "libc",
+ "oxhttp",
+ "oxiri",
+ "oxrdf",
+ "oxrdfio",
+ "rand",
+ "thiserror",
+ "tokio",
+ "zstd",
+]
+
+[[package]]
 name = "graphfusion-engine"
 version = "0.4.5"
 dependencies = [
@@ -2423,27 +2444,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "oxigraph"
-version = "0.4.5"
-dependencies = [
- "codspeed-criterion-compat",
- "datafusion",
- "futures",
- "getrandom",
- "graphfusion-engine",
- "js-sys",
- "libc",
- "oxhttp",
- "oxiri",
- "oxrdf",
- "oxrdfio",
- "rand",
- "thiserror",
- "tokio",
- "zstd",
-]
-
-[[package]]
 name = "oxigraph-cli"
 version = "0.4.5"
 dependencies = [
@@ -2454,8 +2454,8 @@ dependencies = [
  "clap_complete",
  "clap_mangen",
  "flate2",
+ "graphfusion",
  "oxhttp",
- "oxigraph",
  "oxiri",
  "predicates",
  "rand",
@@ -2470,7 +2470,7 @@ dependencies = [
  "anyhow",
  "clap",
  "codspeed-criterion-compat",
- "oxigraph",
+ "graphfusion",
  "oxrdf",
  "oxttl",
  "sparesults",

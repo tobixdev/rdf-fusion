@@ -4,7 +4,7 @@ members = [
     "lib/arrow-rdf",
     "lib/graphfusion-engine",
     "lib/graphfusion-store",
-    "lib/oxigraph",
+    "lib/graphfusion",
     "lib/sparesults",
     "lib/spargebra",
     "testsuite"
@@ -65,7 +65,7 @@ oxrdfio = "0.1.4"
 arrow-rdf = { version = "=0.4.5", path = "lib/arrow-rdf" }
 graphfusion-engine = { version = "=0.4.5", path = "lib/graphfusion-engine" }
 graphfusion-store = { version = "=0.4.5", path = "lib/graphfusion-store" }
-oxigraph = { version = "=0.4.5", path = "lib/oxigraph" }
+graphfusion = { version = "=0.4.5", path = "lib/graphfusion" }
 spargebra = { version = "=0.3.3", path = "lib/spargebra" }
 sparesults = { version = "=0.2.3", path = "lib/sparesults" }
 

@@ -13,7 +13,7 @@ publish = false
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
-oxigraph.workspace = true
+graphfusion.workspace = true
 oxrdf.workspace = true
 oxttl.workspace = true
 sparesults.workspace = true

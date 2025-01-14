@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use oxigraph::io::{RdfFormat, RdfParser};
+use graphfusion::io::{RdfFormat, RdfParser};
 use oxrdf::{Dataset, Graph};
 use oxttl::n3::N3Quad;
 use oxttl::N3Parser;

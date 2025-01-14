@@ -4,9 +4,9 @@
 //!
 //! Usage example:
 //! ```
-//! use oxigraph::model::*;
-//! use oxigraph::sparql::QueryResults;
-//! use oxigraph::store::Store;
+//! use graphfusion::model::*;
+//! use graphfusion::sparql::QueryResults;
+//! use graphfusion::store::Store;
 //!
 //! let store = Store::new()?;
 //!
@@ -47,9 +47,9 @@ use std::sync::Arc;
 ///
 /// Usage example:
 /// ```
-/// use oxigraph::model::*;
-/// use oxigraph::sparql::QueryResults;
-/// use oxigraph::store::Store;
+/// use graphfusion::model::*;
+/// use graphfusion::sparql::QueryResults;
+/// use graphfusion::store::Store;
 /// # use std::fs::remove_dir_all;
 ///
 /// # {
@@ -89,9 +89,9 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::sparql::QueryResults;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::sparql::QueryResults;
+    /// use graphfusion::store::Store;
     ///
     /// let store = Store::new()?;
     ///
@@ -119,9 +119,9 @@ impl Store {
     ///
     /// Usage example with a custom function serializing terms to N-Triples:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::sparql::{QueryOptions, QueryResults};
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::sparql::{QueryOptions, QueryResults};
+    /// use graphfusion::store::Store;
     ///
     /// let store = Store::new()?;
     /// if let QueryResults::Solutions(mut solutions) = store.query_opt(
@@ -154,8 +154,8 @@ impl Store {
     ///
     /// Usage example serialising the explanation with statistics in JSON:
     /// ```
-    /// use oxigraph::sparql::{QueryOptions, QueryResults};
-    /// use oxigraph::store::Store;
+    /// use graphfusion::sparql::{QueryOptions, QueryResults};
+    /// use graphfusion::store::Store;
     ///
     /// let store = Store::new()?;
     /// if let (Ok(QueryResults::Solutions(solutions)), explanation) = store.explain_query_opt(
@@ -189,8 +189,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let store = Store::new()?;
     ///
@@ -225,8 +225,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let store = Store::new()?;
     ///
@@ -253,8 +253,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
@@ -277,8 +277,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let store = Store::new()?;
@@ -295,8 +295,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let store = Store::new()?;
     /// assert!(store.is_empty()?);
@@ -314,8 +314,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let store = Store::new()?;
     ///
@@ -338,9 +338,9 @@ impl Store {
     /// Executes a [SPARQL 1.1 update](https://www.w3.org/TR/sparql11-update/) with some options.
     ///
     /// ```
-    /// use oxigraph::store::Store;
-    /// use oxigraph::model::*;
-    /// use oxigraph::sparql::QueryOptions;
+    /// use graphfusion::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::sparql::QueryOptions;
     ///
     /// let store = Store::new()?;
     /// store.update_opt(
@@ -366,9 +366,9 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::store::Store;
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
+    /// use graphfusion::store::Store;
+    /// use graphfusion::io::RdfFormat;
+    /// use graphfusion::model::*;
     /// use oxrdfio::RdfParser;
     ///
     /// let store = Store::new()?;
@@ -416,8 +416,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
@@ -456,8 +456,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
@@ -480,8 +480,8 @@ impl Store {
     /// Dumps the store into a file.
     ///
     /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::io::RdfFormat;
+    /// use graphfusion::store::Store;
     ///
     /// let file =
     ///     "<http://example.com> <http://example.com> <http://example.com> <http://example.com> .\n"
@@ -515,9 +515,9 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::io::RdfFormat;
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::io::RdfFormat;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let file = "<http://example.com> <http://example.com> <http://example.com> .\n".as_bytes();
     ///
@@ -549,8 +549,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNode::new("http://example.com")?;
     /// let store = Store::new()?;
@@ -570,8 +570,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::{NamedNode, QuadRef};
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::{NamedNode, QuadRef};
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNode::new("http://example.com")?;
     /// let store = Store::new()?;
@@ -592,8 +592,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::NamedNodeRef;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::NamedNodeRef;
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let store = Store::new()?;
@@ -616,8 +616,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::{NamedNodeRef, QuadRef};
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::{NamedNodeRef, QuadRef};
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
@@ -643,8 +643,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::{NamedNodeRef, QuadRef};
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::{NamedNodeRef, QuadRef};
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
@@ -668,8 +668,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxigraph::model::*;
-    /// use oxigraph::store::Store;
+    /// use graphfusion::model::*;
+    /// use graphfusion::store::Store;
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let store = Store::new()?;

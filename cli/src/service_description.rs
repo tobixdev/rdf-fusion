@@ -1,10 +1,10 @@
-use oxigraph::io::{RdfFormat, RdfSerializer};
-use oxigraph::model::vocab::rdf;
-use oxigraph::model::{BlankNode, NamedNodeRef, TripleRef};
-use oxigraph::sparql::results::QueryResultsFormat;
+use graphfusion::io::{RdfFormat, RdfSerializer};
+use graphfusion::model::vocab::rdf;
+use graphfusion::model::{BlankNode, NamedNodeRef, TripleRef};
+use graphfusion::sparql::results::QueryResultsFormat;
 
 mod sd {
-    use oxigraph::model::NamedNodeRef;
+    use graphfusion::model::NamedNodeRef;
 
     pub const SERVICE: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#Service");

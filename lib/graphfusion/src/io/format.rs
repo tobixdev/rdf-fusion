@@ -21,7 +21,7 @@ impl GraphFormat {
     /// The format canonical IRI according to the [Unique URIs for file formats registry](https://www.w3.org/ns/formats/).
     ///
     /// ```
-    /// use oxigraph::io::GraphFormat;
+    /// use graphfusion::io::GraphFormat;
     ///
     /// assert_eq!(
     ///     GraphFormat::NTriples.iri(),
@@ -40,7 +40,7 @@ impl GraphFormat {
     /// The format [IANA media type](https://tools.ietf.org/html/rfc2046).
     ///
     /// ```
-    /// use oxigraph::io::GraphFormat;
+    /// use graphfusion::io::GraphFormat;
     ///
     /// assert_eq!(GraphFormat::NTriples.media_type(), "application/n-triples")
     /// ```
@@ -56,7 +56,7 @@ impl GraphFormat {
     /// The format [IANA-registered](https://tools.ietf.org/html/rfc2046) file extension.
     ///
     /// ```
-    /// use oxigraph::io::GraphFormat;
+    /// use graphfusion::io::GraphFormat;
     ///
     /// assert_eq!(GraphFormat::NTriples.file_extension(), "nt")
     /// ```
@@ -76,7 +76,7 @@ impl GraphFormat {
     ///
     /// Example:
     /// ```
-    /// use oxigraph::io::GraphFormat;
+    /// use graphfusion::io::GraphFormat;
     ///
     /// assert_eq!(
     ///     GraphFormat::from_media_type("text/turtle; charset=utf-8"),
@@ -99,7 +99,7 @@ impl GraphFormat {
     ///
     /// Example:
     /// ```
-    /// use oxigraph::io::GraphFormat;
+    /// use graphfusion::io::GraphFormat;
     ///
     /// assert_eq!(
     ///     GraphFormat::from_extension("nt"),
@@ -159,7 +159,7 @@ impl DatasetFormat {
     /// The format canonical IRI according to the [Unique URIs for file formats registry](https://www.w3.org/ns/formats/).
     ///
     /// ```
-    /// use oxigraph::io::DatasetFormat;
+    /// use graphfusion::io::DatasetFormat;
     ///
     /// assert_eq!(
     ///     DatasetFormat::NQuads.iri(),
@@ -177,7 +177,7 @@ impl DatasetFormat {
     /// The format [IANA media type](https://tools.ietf.org/html/rfc2046).
     ///
     /// ```
-    /// use oxigraph::io::DatasetFormat;
+    /// use graphfusion::io::DatasetFormat;
     ///
     /// assert_eq!(DatasetFormat::NQuads.media_type(), "application/n-quads")
     /// ```
@@ -192,7 +192,7 @@ impl DatasetFormat {
     /// The format [IANA-registered](https://tools.ietf.org/html/rfc2046) file extension.
     ///
     /// ```
-    /// use oxigraph::io::DatasetFormat;
+    /// use graphfusion::io::DatasetFormat;
     ///
     /// assert_eq!(DatasetFormat::NQuads.file_extension(), "nq")
     /// ```
@@ -210,7 +210,7 @@ impl DatasetFormat {
     ///
     /// Example:
     /// ```
-    /// use oxigraph::io::DatasetFormat;
+    /// use graphfusion::io::DatasetFormat;
     ///
     /// assert_eq!(
     ///     DatasetFormat::from_media_type("application/n-quads; charset=utf-8"),
@@ -232,7 +232,7 @@ impl DatasetFormat {
     ///
     /// Example:
     /// ```
-    /// use oxigraph::io::DatasetFormat;
+    /// use graphfusion::io::DatasetFormat;
     ///
     /// assert_eq!(
     ///     DatasetFormat::from_extension("nq"),

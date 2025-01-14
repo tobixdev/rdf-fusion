@@ -27,8 +27,8 @@ pub use spargebra::SparqlSyntaxError;
 ///
 /// Usage example disabling the federated query support:
 /// ```
-/// use oxigraph::sparql::QueryOptions;
-/// use oxigraph::store::Store;
+/// use graphfusion::sparql::QueryOptions;
+/// use graphfusion::store::Store;
 ///
 /// let store = Store::new()?;
 /// store.query_opt(
