@@ -697,6 +697,7 @@ impl Store {
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
+    use oxrdf::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
 
     #[test]
     fn test_send_sync() {
@@ -706,8 +707,6 @@ mod tests {
 
     #[tokio::test]
     async fn store() -> Result<(), StorageError> {
-        use crate::model::*;
-
         let main_s = Subject::from(BlankNode::default());
         let main_p = NamedNode::new("http://example.com").unwrap();
         let main_o = Term::from(Literal::from(1));

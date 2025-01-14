@@ -265,6 +265,7 @@ impl Iterator for QueryTripleIter {
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
+    use oxrdf::{BlankNode, Literal, NamedNode, Term};
     use std::io::Cursor;
 
     #[test]

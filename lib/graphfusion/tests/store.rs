@@ -2,13 +2,14 @@
 #![allow(clippy::panic_in_result_fn)]
 
 use graphfusion::io::RdfFormat;
-use graphfusion::model::vocab::{rdf, xsd};
-use graphfusion::model::*;
 use graphfusion::store::Store;
+use oxrdf::vocab::{rdf, xsd};
+use oxrdf::{GraphNameRef, LiteralRef, NamedNodeRef, QuadRef};
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use rand::random;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use std::env::temp_dir;
+use std::error::Error;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use std::fs::remove_dir_all;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
