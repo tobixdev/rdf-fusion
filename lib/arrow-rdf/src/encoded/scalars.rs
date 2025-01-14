@@ -65,7 +65,7 @@ pub fn encode_string(value: String) -> ScalarValue {
     )
 }
 
-fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
+pub fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
     let value = ScalarValue::Utf8(Some(String::from(node.as_str())));
     ScalarValue::Union(
         Some((ENC_TYPE_ID_NAMED_NODE, Box::new(value))),
@@ -74,7 +74,7 @@ fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
     )
 }
 
-fn encode_scalar_blank_node(node: BlankNodeRef<'_>) -> ScalarValue {
+pub fn encode_scalar_blank_node(node: BlankNodeRef<'_>) -> ScalarValue {
     let value = ScalarValue::Utf8(Some(String::from(&node.to_string()[2..])));
     ScalarValue::Union(
         Some((ENC_TYPE_ID_BLANK_NODE, Box::new(value))),

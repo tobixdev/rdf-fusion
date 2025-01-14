@@ -93,7 +93,7 @@ impl TripleStore for MemoryTripleStore {
     }
 
     async fn len(&self) -> DFResult<usize> {
-        self.ctx.table("quads").await?.count().await
+        self.ctx.table(TABLE_QUADS).await?.count().await
     }
 
     async fn quads_for_pattern(

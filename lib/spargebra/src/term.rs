@@ -429,6 +429,13 @@ impl NamedNodePattern {
             Self::Variable(var) => write!(f, "{var}"),
         }
     }
+
+    pub fn into_term_pattern(self) -> TermPattern {
+        match self {
+            NamedNodePattern::NamedNode(nn) => TermPattern::NamedNode(nn),
+            NamedNodePattern::Variable(var) => TermPattern::Variable(var),
+        }
+    }
 }
 
 impl fmt::Display for NamedNodePattern {

@@ -150,7 +150,7 @@ fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, StorageE
         }
         DEC_TYPE_ID_BLANK_NODE => {
             let value = objects.child(type_id).as_string::<i32>().value(i);
-            Term::BlankNode(BlankNode::new(value).unwrap())
+            Term::BlankNode(BlankNode::new(value).expect("Is a blank node"))
         }
         DEC_TYPE_ID_STRING => {
             let values = objects
