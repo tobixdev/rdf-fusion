@@ -1,11 +1,19 @@
+use arrow_rdf::decoded::model::DEC_TYPE_TERM;
+use arrow_rdf::decoded::DecRdfTermBuilder;
+use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
+use datafusion::arrow::error::ArrowError;
+use datafusion::error::DataFusionError;
+use datafusion::physical_plan::memory::MemoryStream;
 use futures::StreamExt;
-use oxrdf::VariableRef;
+use oxrdf::{Variable, VariableRef};
 use oxrdfio::{RdfFormat, RdfSerializer};
 use sparesults::{
     QueryResultsFormat, QueryResultsParseError, QueryResultsParser, QueryResultsSerializer,
     ReaderQueryResultsParserOutput,
 };
 use std::io::{Read, Write};
+use std::sync::Arc;
 
 mod graph_name;
 mod quads;
@@ -34,10 +42,9 @@ impl QueryResults {
     pub fn read(
         reader: impl Read + 'static,
         format: QueryResultsFormat,
-    ) -> Result<Self, QueryResultsParseError> {
-        Ok(QueryResultsParser::from_format(format)
-            .for_reader(reader)?
-            .into())
+    ) -> Result<Self, QueryResultsParserToStreamError> {
+        let parser = QueryResultsParser::from_format(format).for_reader(reader)?;
+        query_result_for_parser(parser)
     }
 
     /// Writes the query results (solutions or boolean).
@@ -152,18 +159,59 @@ impl QueryResults {
     }
 }
 
+/// Indicates that there was a problem while turning a query result into a query solution stream.
+#[derive(Debug, thiserror::Error)]
+pub enum QueryResultsParserToStreamError {
+    #[error("There was an error while parsing the query result")]
+    Parsing(#[from] QueryResultsParseError),
+    #[error("Could not create a record batch from the result")]
+    RecordBatchCreation(#[from] ArrowError),
+    #[error("Could not create a stream from the resulting record batch")]
+    StreamCreation(#[from] DataFusionError),
+}
+
+fn query_result_for_parser(
+    parser: ReaderQueryResultsParserOutput<impl Read + Sized>,
+) -> Result<QueryResults, QueryResultsParserToStreamError> {
+    Ok(match parser {
+        ReaderQueryResultsParserOutput::Solutions(s) => {
+            let variables: Arc<[Variable]> = s.variables().into();
+            let mut builders = Vec::new();
+            for _ in 0..variables.len() {
+                builders.push(DecRdfTermBuilder::new())
+            }
+
+            for solution in s {
+                let solution = solution?;
+                for (idx, (_, term)) in solution.iter().enumerate() {
+                    builders
+                        .get_mut(idx)
+                        .expect("Initialized with enough builders")
+                        .append_term(term)?
+                }
+            }
+
+            let fields = variables
+                .iter()
+                .map(|v| Field::new(v.as_str(), DEC_TYPE_TERM.clone(), true))
+                .collect::<Vec<_>>();
+            let columns = builders
+                .into_iter()
+                .map(|builder| builder.finish())
+                .collect::<Result<Vec<_>, ArrowError>>()?;
+            let schema = SchemaRef::new(Schema::new(fields));
+            let record_batch = RecordBatch::try_new(schema.clone(), columns)?;
+            let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
+            let stream = QuerySolutionStream::new(variables, Box::pin(record_batch_stream));
+            QueryResults::Solutions(stream)
+        }
+        ReaderQueryResultsParserOutput::Boolean(v) => QueryResults::Boolean(v),
+    })
+}
+
 impl From<QuerySolutionStream> for QueryResults {
     #[inline]
     fn from(value: QuerySolutionStream) -> Self {
         Self::Solutions(value)
-    }
-}
-
-impl<R: Read + 'static> From<ReaderQueryResultsParserOutput<R>> for QueryResults {
-    fn from(reader: ReaderQueryResultsParserOutput<R>) -> Self {
-        match reader {
-            ReaderQueryResultsParserOutput::Solutions(s) => Self::Solutions(s.into()),
-            ReaderQueryResultsParserOutput::Boolean(v) => Self::Boolean(v),
-        }
     }
 }

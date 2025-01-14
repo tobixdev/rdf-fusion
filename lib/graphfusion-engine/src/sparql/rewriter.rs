@@ -8,7 +8,7 @@ impl SparqlToDataFusionRewriter {
         Self {}
     }
 
-    pub fn rewrite(&self, _query: &Query) -> LogicalPlan {
+    pub fn rewrite(&self, query: &Query) -> LogicalPlan {
         unimplemented!()
     }
 }

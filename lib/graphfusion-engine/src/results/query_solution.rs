@@ -8,8 +8,6 @@ use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use oxrdf::{BlankNode, Literal, NamedNode, Term, Variable};
 pub use sparesults::QuerySolution;
-use sparesults::ReaderSolutionsParser;
-use std::io::Read;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
@@ -104,23 +102,12 @@ impl QuerySolutionStream {
     }
 }
 
-impl<R: Read + 'static> From<ReaderSolutionsParser<R>> for QuerySolutionStream {
-    fn from(_reader: ReaderSolutionsParser<R>) -> Self {
-        unimplemented!()
-    }
-}
-
 impl Stream for QuerySolutionStream {
     type Item = Result<QuerySolution, EvaluationError>;
 
     #[inline]
     fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.poll_inner(ctx)
-    }
-
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        unimplemented!()
     }
 }
 

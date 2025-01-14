@@ -3,9 +3,11 @@ use crate::decoded::model::{
     DEC_TYPE_ID_TYPED_LITERAL,
 };
 use crate::encoded::{ENC_FIELDS_STRING, ENC_FIELDS_TYPED_LITERAL};
-use crate::{AResult, DFResult};
+use crate::AResult;
 use datafusion::arrow::array::{ArrayBuilder, ArrayRef, StringBuilder, StructBuilder, UnionArray};
 use datafusion::arrow::buffer::ScalarBuffer;
+use oxrdf::vocab::{rdf, xsd};
+use oxrdf::Term;
 use std::sync::Arc;
 
 pub struct DecRdfTermBuilder {
@@ -27,6 +29,19 @@ impl DecRdfTermBuilder {
             string_builder: StructBuilder::from_fields(ENC_FIELDS_STRING.clone(), 0),
             typed_literal_builder: StructBuilder::from_fields(ENC_FIELDS_TYPED_LITERAL.clone(), 0),
         }
+    }
+
+    pub fn append_term(&mut self, value: &Term) -> AResult<()> {
+        Ok(match value {
+            Term::NamedNode(nn) => self.append_named_node(nn.as_str())?,
+            Term::BlankNode(bnode) => self.append_blank_node(bnode.as_str())?,
+            Term::Literal(literal) => match literal.datatype() {
+                rdf::LANG_STRING => self.append_string(literal.value(), Some(literal.value()))?,
+                xsd::STRING => self.append_string(literal.value(), None)?,
+                _ => self.append_typed_literal(literal.value(), literal.datatype().as_str())?,
+            },
+            _ => unimplemented!(),
+        })
     }
 
     pub fn append_named_node(&mut self, value: &str) -> AResult<()> {
@@ -81,7 +96,7 @@ impl DecRdfTermBuilder {
         Ok(())
     }
 
-    pub fn finish(mut self) -> DFResult<ArrayRef> {
+    pub fn finish(mut self) -> AResult<ArrayRef> {
         Ok(Arc::new(UnionArray::try_new(
             DEC_FIELDS_TERM.clone(),
             ScalarBuffer::from(self.type_ids),

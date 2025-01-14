@@ -7,6 +7,7 @@ use datafusion::error::DataFusionError;
 
 pub mod decoded;
 pub mod encoded;
+mod error;
 
 pub const TABLE_QUADS: &str = "quads";
 pub const COL_GRAPH: &str = "graph";
