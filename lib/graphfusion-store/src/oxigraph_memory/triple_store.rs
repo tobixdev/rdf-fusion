@@ -1,6 +1,4 @@
-use crate::error::StorageError;
 use crate::oxigraph_memory::table_provider::OxigraphMemTable;
-use crate::triple_store::TripleStore;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
@@ -12,6 +10,11 @@ use datafusion::error::DataFusionError;
 use datafusion::execution::{FunctionRegistry, SendableRecordBatchStream};
 use datafusion::logical_expr::{col, lit};
 use datafusion::prelude::{DataFrame, SessionContext};
+use graphfusion_engine::error::StorageError;
+use graphfusion_engine::results::QueryResults;
+use graphfusion_engine::sparql::error::EvaluationError;
+use graphfusion_engine::sparql::{Query, QueryExplanation, QueryOptions};
+use graphfusion_engine::TripleStore;
 use oxrdf::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
 
@@ -113,6 +116,17 @@ impl TripleStore for MemoryTripleStore {
             .execute_stream()
             .await?;
         Ok(result)
+    }
+
+    async fn execute_query(
+        &self,
+        query: Query,
+        options: QueryOptions,
+    ) -> (
+        Result<QueryResults, EvaluationError>,
+        Option<QueryExplanation>,
+    ) {
+        todo!()
     }
 
     //

@@ -5,12 +5,12 @@ use datafusion::catalog::Session;
 use datafusion::datasource::{TableProvider, TableType};
 use datafusion::logical_expr::Expr;
 
-use crate::error::StorageError;
 use crate::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
 use arrow_rdf::encoded::ENC_QUAD_SCHEMA;
 use datafusion::arrow::array::ArrayBuilder;
 use datafusion::physical_plan::ExecutionPlan;
 use futures::StreamExt;
+use graphfusion_engine::error::StorageError;
 use oxrdf::{Quad, QuadRef};
 use std::any::Any;
 use std::fmt;

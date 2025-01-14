@@ -184,6 +184,7 @@ fn evaluate_evaluation_test(runtime: &Runtime, test: &Test) -> Result<()> {
         let options = options.clone();
         let actual_results = store
             .query_opt(query.clone(), options)
+            .await
             .context("Failure to execute query")?;
         let actual_results =
             StaticQueryResults::from_query_results(actual_results, with_order).await?;

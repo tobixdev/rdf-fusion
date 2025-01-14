@@ -1,8 +1,8 @@
+use crate::error::StorageError;
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::EvaluationError;
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use futures::{ready, Stream, StreamExt};
-use graphfusion_store::error::StorageError;
 use oxrdf::{GraphName, NamedNode, Quad, Subject, Term};
 use sparesults::QuerySolution;
 use std::pin::Pin;

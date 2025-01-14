@@ -1,10 +1,10 @@
-use crate::error::{CorruptionError, StorageError};
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::encoder::{insert_term, Decoder, EncodedQuad, StrLookup};
 use crate::oxigraph_memory::hash::{StrHash, StrHashHasher};
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
+use graphfusion_engine::error::{CorruptionError, StorageError};
 use oxrdf::Quad;
 use oxrdf::{GraphNameRef, NamedOrBlankNodeRef, QuadRef, TermRef};
 use rustc_hash::FxHasher;

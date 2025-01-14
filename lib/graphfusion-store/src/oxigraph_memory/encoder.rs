@@ -1,8 +1,8 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::error::{CorruptionError, StorageError};
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::hash::StrHash;
+use graphfusion_engine::error::{CorruptionError, StorageError};
 use oxrdf::TermRef;
 use oxrdf::TripleRef;
 use oxrdf::{

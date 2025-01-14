@@ -35,7 +35,8 @@ use graphfusion_engine::sparql::error::EvaluationError;
 use graphfusion_engine::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use graphfusion_engine::{MemoryTripleStore, TripleStore};
+use graphfusion_engine::TripleStore;
+use graphfusion_store::MemoryTripleStore;
 use once_cell::sync::Lazy;
 use oxrdf::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef, Variable,
@@ -124,11 +125,11 @@ impl Store {
     /// }
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn query(
+    pub async fn query(
         &self,
-        query: impl TryInto<Query, Error = impl Into<EvaluationError>>,
+        query: impl TryInto<Query, Error = impl Into<EvaluationError> + std::fmt::Debug>,
     ) -> Result<QueryResults, EvaluationError> {
-        self.query_opt(query, QueryOptions::default())
+        self.query_opt(query, QueryOptions::default()).await
     }
 
     /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/) with some options.
@@ -154,12 +155,12 @@ impl Store {
     /// }
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn query_opt(
+    pub async fn query_opt(
         &self,
-        query: impl TryInto<Query, Error = impl Into<EvaluationError>>,
+        query: impl TryInto<Query, Error = impl Into<EvaluationError> + std::fmt::Debug>,
         options: QueryOptions,
     ) -> Result<QueryResults, EvaluationError> {
-        let (results, _) = self.explain_query_opt(query, options, false)?;
+        let (results, _) = self.explain_query_opt(query, options).await;
         results
     }
 
@@ -186,19 +187,19 @@ impl Store {
     /// }
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn explain_query_opt(
+    pub async fn explain_query_opt(
         &self,
-        query: impl TryInto<Query, Error = impl Into<EvaluationError>>,
+        query: impl TryInto<Query, Error = impl Into<EvaluationError> + std::fmt::Debug>,
         options: QueryOptions,
-        with_stats: bool,
-    ) -> Result<(Result<QueryResults, EvaluationError>, QueryExplanation), EvaluationError> {
-        let query = query.try_into().map_err(Into::into)?;
-
-        unimplemented!()
-        // let mut evaluator = options.into_evaluator(self.context.state());
-        // let (results, explanation) = evaluator.explain(&query);
-        // let results = results.map_err(Into::into);
-        // Ok((results, explanation))
+    ) -> (
+        Result<QueryResults, EvaluationError>,
+        Option<QueryExplanation>,
+    ) {
+        let query = query.try_into();
+        if query.is_err() {
+            return (Err(query.unwrap_err().into()), None);
+        }
+        self.inner.execute_query(query.unwrap(), options).await
     }
 
     /// Retrieves quads with a filter on each quad component

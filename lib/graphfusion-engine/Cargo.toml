@@ -8,9 +8,9 @@ rust-version.workspace = true
 
 [dependencies]
 arrow-rdf.workspace = true
+async-trait.workspace = true
 datafusion.workspace = true
 futures.workspace = true
-graphfusion-store.workspace = true
 oxrdf.workspace = true
 oxrdfio.workspace = true
 spargebra = { workspace = true, features = ["rdf-star"] }

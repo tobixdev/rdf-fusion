@@ -1,6 +1,6 @@
+use crate::error::StorageError;
 use crate::sparql::SparqlSyntaxError;
 use datafusion::error::DataFusionError;
-use graphfusion_store::error::StorageError;
 use oxrdf::{NamedNode, Term};
 use oxrdfio::RdfParseError;
 use sparesults::QueryResultsParseError;

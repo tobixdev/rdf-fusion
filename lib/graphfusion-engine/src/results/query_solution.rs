@@ -1,3 +1,4 @@
+use crate::error::StorageError;
 use crate::sparql::error::EvaluationError;
 use arrow_rdf::decoded::model::{
     DEC_TYPE_ID_BLANK_NODE, DEC_TYPE_ID_NAMED_NODE, DEC_TYPE_ID_STRING, DEC_TYPE_ID_TYPED_LITERAL,
@@ -6,7 +7,6 @@ use datafusion::arrow::array::{Array, AsArray, RecordBatch, UnionArray};
 use datafusion::common::SchemaExt;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
-use graphfusion_store::error::StorageError;
 use oxrdf::{BlankNode, Literal, NamedNode, Term, Triple, Variable};
 use sparesults::QueryResultsFormat;
 pub use sparesults::QuerySolution;

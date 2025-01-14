@@ -1,3 +1,6 @@
+use crate::results::QueryResults;
+use crate::sparql::error::EvaluationError;
+use crate::sparql::{Query, QueryExplanation, QueryOptions};
 use crate::DFResult;
 use async_trait::async_trait;
 use datafusion::common::DataFusionError;
@@ -19,6 +22,14 @@ pub trait TripleStore {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream>;
+    async fn execute_query(
+        &self,
+        query: Query,
+        options: QueryOptions,
+    ) -> (
+        Result<QueryResults, EvaluationError>,
+        Option<QueryExplanation>,
+    );
 
     //
     // Loading

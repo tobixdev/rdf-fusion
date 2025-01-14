@@ -27,6 +27,7 @@ storage = []
 datafusion.workspace = true
 futures.workspace = true
 graphfusion-engine.workspace = true
+graphfusion-store.workspace = true
 once_cell.workspace = true
 oxiri.workspace = true
 oxrdf = { workspace = true, features = ["rdf-star", "oxsdatatypes"] }
