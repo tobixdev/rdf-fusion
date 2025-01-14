@@ -28,7 +28,7 @@
 
 use crate::error::{LoaderError, SerializerError};
 use crate::io::{RdfParser, RdfSerializer};
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::{GraphNameStream, QuadStream, QuerySolutionStream};
 use graphfusion_engine::sparql::error::EvaluationError;
@@ -41,7 +41,6 @@ use once_cell::sync::Lazy;
 use oxrdf::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef, Variable,
 };
-use std::error::Error;
 use std::io::{Read, Write};
 use std::sync::Arc;
 
@@ -344,7 +343,7 @@ impl Store {
     /// ```
     pub fn update(
         &self,
-        update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
+        _update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
     ) -> Result<(), EvaluationError> {
         unimplemented!()
     }
@@ -368,8 +367,8 @@ impl Store {
     /// ```
     pub fn update_opt(
         &self,
-        update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
-        options: impl Into<UpdateOptions>,
+        _update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
+        _options: impl Into<UpdateOptions>,
     ) -> Result<(), EvaluationError> {
         unimplemented!()
     }
@@ -459,7 +458,7 @@ impl Store {
     /// This operation uses a memory heavy transaction internally, use the [`bulk_loader`](Store::bulk_loader) if you plan to add ten of millions of triples.</div>
     pub fn extend(
         &self,
-        quads: impl IntoIterator<Item = impl Into<Quad>>,
+        _quads: impl IntoIterator<Item = impl Into<Quad>>,
     ) -> Result<(), StorageError> {
         unimplemented!()
     }
@@ -595,7 +594,7 @@ impl Store {
     /// ```
     pub fn contains_named_graph<'a>(
         &self,
-        graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
+        _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
     ) -> Result<bool, StorageError> {
         unimplemented!()
     }
@@ -621,7 +620,7 @@ impl Store {
     /// ```
     pub fn insert_named_graph<'a>(
         &self,
-        graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
+        _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
     ) -> Result<bool, StorageError> {
         unimplemented!()
     }
@@ -646,7 +645,7 @@ impl Store {
     /// ```
     pub fn clear_graph<'a>(
         &self,
-        graph_name: impl Into<GraphNameRef<'a>>,
+        _graph_name: impl Into<GraphNameRef<'a>>,
     ) -> Result<(), StorageError> {
         unimplemented!()
     }
@@ -673,7 +672,7 @@ impl Store {
     /// ```
     pub fn remove_named_graph<'a>(
         &self,
-        graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
+        _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
     ) -> Result<bool, StorageError> {
         unimplemented!()
     }

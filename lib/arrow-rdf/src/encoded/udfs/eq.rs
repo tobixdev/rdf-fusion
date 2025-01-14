@@ -40,7 +40,7 @@ fn batch_rdf_term_eq(args: &[ColumnarValue]) -> DFResult<ColumnarValue> {
     }
 }
 
-fn batch_rdf_term_eq_array_array(lhs: ArrayRef, rhs: ArrayRef) -> DFResult<ColumnarValue> {
+fn batch_rdf_term_eq_array_array(_lhs: ArrayRef, _rhs: ArrayRef) -> DFResult<ColumnarValue> {
     Err(DataFusionError::NotImplemented(
         "batch_rdf_term_eq_array_array".to_string(),
     ))
@@ -68,6 +68,9 @@ fn batch_rdf_term_eq_scalar_array(lhs: ScalarValue, rhs: ArrayRef) -> DFResult<C
     }
 }
 
-fn batch_rdf_term_eq_scalar_scalar(lhs: ScalarValue, rhs: ScalarValue) -> DFResult<ColumnarValue> {
+fn batch_rdf_term_eq_scalar_scalar(
+    _lhs: ScalarValue,
+    _rhs: ScalarValue,
+) -> DFResult<ColumnarValue> {
     Err(not_impl_datafusion_err!("batch_rdf_term_eq_scalar_scalar"))
 }

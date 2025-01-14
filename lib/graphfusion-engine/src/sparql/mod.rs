@@ -6,10 +6,8 @@ mod algebra;
 pub mod error;
 mod eval;
 mod explanation;
-mod http;
 mod model;
 mod rewriter;
-mod update;
 
 pub use crate::results::{QueryResults, QuerySolution, QuerySolutionStream, QueryTripleStream};
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};
@@ -47,13 +45,11 @@ impl Default for QueryOptions {
 
 /// Options for SPARQL update evaluation.
 #[derive(Clone, Default)]
-pub struct UpdateOptions {
-    query_options: QueryOptions,
-}
+pub struct UpdateOptions {}
 
 impl From<QueryOptions> for UpdateOptions {
     #[inline]
-    fn from(query_options: QueryOptions) -> Self {
-        Self { query_options }
+    fn from(_query_options: QueryOptions) -> Self {
+        Self {}
     }
 }

@@ -8,10 +8,8 @@ use graphfusion_engine::error::{CorruptionError, StorageError};
 use oxrdf::Quad;
 use oxrdf::{GraphNameRef, NamedOrBlankNodeRef, QuadRef, TermRef};
 use rustc_hash::FxHasher;
-use siphasher::sip128::Hasher128;
 use std::borrow::Borrow;
 use std::error::Error;
-use std::fmt::{Debug, Write};
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::mem::transmute;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -141,32 +139,6 @@ pub struct MemoryStorageReader {
 }
 
 impl MemoryStorageReader {
-    pub fn len(&self) -> usize {
-        self.storage
-            .content
-            .quad_set
-            .iter()
-            .filter(|e| self.is_node_in_range(e))
-            .count()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        !self
-            .storage
-            .content
-            .quad_set
-            .iter()
-            .any(|e| self.is_node_in_range(&e))
-    }
-
-    pub fn contains(&self, quad: &EncodedQuad) -> bool {
-        self.storage
-            .content
-            .quad_set
-            .get(quad)
-            .is_some_and(|node| self.is_node_in_range(&node))
-    }
-
     pub fn quads_for_pattern(
         &self,
         subject: Option<&EncodedTerm>,
@@ -251,18 +223,6 @@ impl MemoryStorageReader {
                 transmute::<Iter<'_, _, _>, Iter<'static, _, _>>(self.storage.content.graphs.iter())
             },
         }
-    }
-
-    pub fn contains_named_graph(&self, graph_name: &EncodedTerm) -> bool {
-        self.storage
-            .content
-            .graphs
-            .get(graph_name)
-            .is_some_and(|range| self.is_in_range(&range))
-    }
-
-    pub fn contains_str(&self, key: &StrHash) -> bool {
-        self.storage.id2str.contains_key(key)
     }
 
     /// Validates that all the storage invariants held in the data

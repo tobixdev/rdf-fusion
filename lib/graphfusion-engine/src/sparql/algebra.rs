@@ -197,13 +197,6 @@ pub struct QueryDataset {
 }
 
 impl QueryDataset {
-    pub(crate) fn new() -> Self {
-        Self {
-            default: None,
-            named: None,
-        }
-    }
-
     fn from_algebra(inner: &Option<spargebra::algebra::QueryDataset>) -> Self {
         if let Some(inner) = inner {
             Self {

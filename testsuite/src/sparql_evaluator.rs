@@ -330,8 +330,8 @@ async fn to_graph(result: QueryResults, with_order: bool) -> Result<Graph> {
                         &Literal::from((i + 1) as i128),
                     ));
                 }
+                i += 1;
             }
-            i += 1;
             graph
         }
     })

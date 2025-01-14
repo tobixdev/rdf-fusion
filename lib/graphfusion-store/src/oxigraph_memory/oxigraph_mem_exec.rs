@@ -7,7 +7,7 @@ use crate::oxigraph_memory::hash::StrHash;
 use crate::{AResult, DFResult};
 use arrow_rdf::encoded::{EncRdfTermBuilder, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
-use datafusion::arrow::array::{Array, ArrayBuilder, RecordBatch, RecordBatchOptions};
+use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::EquivalenceProperties;
@@ -57,7 +57,7 @@ impl Debug for OxigraphMemExec {
 }
 
 impl DisplayAs for OxigraphMemExec {
-    fn fmt_as(&self, t: DisplayFormatType, f: &mut Formatter) -> fmt::Result {
+    fn fmt_as(&self, t: DisplayFormatType, f: &mut Formatter<'_>) -> fmt::Result {
         match t {
             DisplayFormatType::Default | DisplayFormatType::Verbose => {
                 write!(f, "OxigraphMemExec")
@@ -135,7 +135,7 @@ impl Stream for OxigraphMemStream {
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
-        ctx: &mut Context<'_>,
+        _ctx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         let mut rb_builder =
             RdfQuadsRecordBatchBuilder::new(self.storage.clone(), self.schema.clone());

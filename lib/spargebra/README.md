@@ -9,13 +9,16 @@ Spargebra
 
 Spargebra is a [SPARQL](https://www.w3.org/TR/sparql11-overview/) parser.
 
-It supports both [SPARQL 1.1 Query](https://www.w3.org/TR/sparql11-query/) and [SPARQL 1.1 Update](https://www.w3.org/TR/sparql11-update/).
+It supports both [SPARQL 1.1 Query](https://www.w3.org/TR/sparql11-query/)
+and [SPARQL 1.1 Update](https://www.w3.org/TR/sparql11-update/).
 
 The emitted tree is based on [SPARQL 1.1 Query Algebra](https://www.w3.org/TR/sparql11-query/#sparqlQuery) objects.
 
-The API entry point for SPARQL queries is the [`Query`] struct and the API entry point for SPARQL updates is the [`Update`] struct.
+The API entry point for SPARQL queries is the [`Query`] struct and the API entry point for SPARQL updates is the [
+`Update`] struct.
 
-Support for [SPARQL-star](https://w3c.github.io/rdf-star/cg-spec/2021-12-17.html#sparql-star) is also available behind the `rdf-star` feature.
+Support for [SPARQL-star](https://w3c.github.io/rdf-star/cg-spec/2021-12-17.html#sparql-star) is also available behind
+the `rdf-star` feature.
 
 This crate is intended to be a building piece for SPARQL implementations in Rust like [Oxigraph](https://oxigraph.org).
 
@@ -40,7 +43,7 @@ This project is licensed under either of
 
 at your option.
 
-
 ### Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Oxigraph by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Oxigraph by you, as
+defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

@@ -109,7 +109,7 @@ impl From<SparqlEvaluationError> for EvaluationError {
             },
             SparqlEvaluationError::Service(error) => Self::Service(error),
             SparqlEvaluationError::UnexpectedDefaultGraph => todo!("Integrate error"),
-            e => todo!("Integrate error"),
+            _ => todo!("Integrate error"),
         }
     }
 }

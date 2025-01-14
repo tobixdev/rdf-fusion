@@ -4,15 +4,12 @@ use arrow_rdf::decoded::model::{
     DEC_TYPE_ID_BLANK_NODE, DEC_TYPE_ID_NAMED_NODE, DEC_TYPE_ID_STRING, DEC_TYPE_ID_TYPED_LITERAL,
 };
 use datafusion::arrow::array::{Array, AsArray, RecordBatch, UnionArray};
-use datafusion::common::SchemaExt;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
-use oxrdf::{BlankNode, Literal, NamedNode, Term, Triple, Variable};
-use sparesults::QueryResultsFormat;
+use oxrdf::{BlankNode, Literal, NamedNode, Term, Variable};
 pub use sparesults::QuerySolution;
 use sparesults::ReaderSolutionsParser;
-use std::any::Any;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
@@ -108,7 +105,7 @@ impl QuerySolutionStream {
 }
 
 impl<R: Read + 'static> From<ReaderSolutionsParser<R>> for QuerySolutionStream {
-    fn from(reader: ReaderSolutionsParser<R>) -> Self {
+    fn from(_reader: ReaderSolutionsParser<R>) -> Self {
         unimplemented!()
     }
 }
@@ -224,7 +221,9 @@ fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, StorageE
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
+    use crate::sparql::QueryResults;
     use oxrdf::{BlankNode, Literal, NamedNode, Term};
+    use sparesults::QueryResultsFormat;
     use std::io::Cursor;
 
     #[test]

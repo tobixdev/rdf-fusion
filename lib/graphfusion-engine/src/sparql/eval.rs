@@ -10,14 +10,10 @@ use std::sync::Arc;
 pub async fn evaluate_query(
     state: SessionState,
     query: &Query,
-    options: QueryOptions,
+    _options: QueryOptions,
 ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
     match &query.inner {
-        spargebra::Query::Select {
-            dataset,
-            pattern,
-            base_iri,
-        } => {
+        spargebra::Query::Select { pattern, .. } => {
             let rewriter = SparqlToDataFusionRewriter::new();
             let logical_plan = rewriter.rewrite(&query.inner);
             let dataframe = DataFrame::new(state, logical_plan);

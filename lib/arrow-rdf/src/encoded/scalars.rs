@@ -150,7 +150,7 @@ where
     let value = value
         .parse::<T>()
         .map(map)
-        .map_err(|err| DataFusionError::Internal(String::from("TODO")))?;
+        .map_err(|_| DataFusionError::Internal(String::from("TODO")))?;
     Ok(ScalarValue::Union(
         Some((type_id, Box::new(value))),
         ENC_FIELDS_TERM.clone(),

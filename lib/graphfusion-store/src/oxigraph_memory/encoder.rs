@@ -5,13 +5,9 @@ use crate::oxigraph_memory::hash::StrHash;
 use graphfusion_engine::error::{CorruptionError, StorageError};
 use oxrdf::TermRef;
 use oxrdf::TripleRef;
-use oxrdf::{
-    BlankNode, GraphName, Literal, NamedNode, NamedOrBlankNode, Quad, QuadRef, Subject, Term,
-    Triple,
-};
-use siphasher::sip128::Hasher128;
+use oxrdf::{BlankNode, GraphName, Literal, NamedNode, Quad, QuadRef, Subject, Term, Triple};
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::str;
 
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
@@ -246,24 +242,6 @@ pub trait Decoder: StrLookup {
             )
             .into()),
             Term::Triple(triple) => Ok(Subject::Triple(triple)),
-        }
-    }
-
-    fn decode_named_or_blank_node(
-        &self,
-        encoded: &EncodedTerm,
-    ) -> Result<NamedOrBlankNode, StorageError> {
-        match self.decode_term(encoded)? {
-            Term::NamedNode(named_node) => Ok(named_node.into()),
-            Term::BlankNode(blank_node) => Ok(blank_node.into()),
-            Term::Literal(_) => Err(CorruptionError::msg(
-                "A literal has been found instead of a named or blank node",
-            )
-            .into()),
-            Term::Triple(_) => Err(CorruptionError::msg(
-                "A triple has been found instead of a named or blank node",
-            )
-            .into()),
         }
     }
 

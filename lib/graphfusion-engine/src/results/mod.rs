@@ -1,4 +1,4 @@
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use oxrdf::VariableRef;
 use oxrdfio::{RdfFormat, RdfSerializer};
 use sparesults::{

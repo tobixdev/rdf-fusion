@@ -7,9 +7,7 @@ use datafusion::logical_expr::Expr;
 
 use crate::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
 use arrow_rdf::encoded::ENC_QUAD_SCHEMA;
-use datafusion::arrow::array::ArrayBuilder;
 use datafusion::physical_plan::ExecutionPlan;
-use futures::StreamExt;
 use graphfusion_engine::error::StorageError;
 use oxrdf::{Quad, QuadRef};
 use std::any::Any;
@@ -33,7 +31,7 @@ impl OxigraphMemTable {
             .load(quads.into_iter().map(Result::<Quad, StorageError>::Ok))
     }
 
-    pub fn remove(&self, quad: QuadRef) -> Result<bool, StorageError> {
+    pub fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
         self.storage.transaction(|mut t| Ok(t.remove(quad)))
     }
 }
@@ -60,7 +58,7 @@ impl TableProvider for OxigraphMemTable {
 
     async fn scan(
         &self,
-        state: &dyn Session,
+        _state: &dyn Session,
         projection: Option<&Vec<usize>>,
         _filters: &[Expr],
         _limit: Option<usize>,
