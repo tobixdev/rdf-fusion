@@ -8,7 +8,7 @@ use datafusion::common::{JoinType, ScalarValue};
 use datafusion::execution::{FunctionRegistry, SessionState};
 use datafusion::logical_expr::{lit, LogicalPlan, LogicalPlanBuilder, LogicalTableSource};
 use datafusion::prelude::col;
-use oxrdf::VariableRef;
+use oxrdf::{Variable, VariableRef};
 use spargebra::algebra::GraphPattern;
 use spargebra::term::{TermPattern, TriplePattern};
 use std::collections::HashSet;
@@ -24,13 +24,15 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
     }
 
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
-        self.rewrite_graph_pattern(pattern)?.build()
+        let plan = self.rewrite_graph_pattern(pattern)?;
+        todo!("decoding")
     }
 
     fn rewrite_graph_pattern(&self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
         match pattern {
             GraphPattern::Bgp { patterns } => self.rewrite_bgp(patterns),
-            _ => todo!(),
+            GraphPattern::Project { inner, variables } => self.rewrite_project(inner, variables),
+            pattern => todo!("{:?}", pattern),
         }
     }
 
@@ -40,6 +42,15 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
             .map(|p| self.rewrite_triple_pattern(p))
             .reduce(|lhs, rhs| self.join_solutions(lhs?, rhs?))
             .expect("At least one pattern")
+    }
+
+    fn rewrite_project(
+        &self,
+        inner: &GraphPattern,
+        variables: &Vec<Variable>,
+    ) -> DFResult<LogicalPlanBuilder> {
+        self.rewrite_graph_pattern(inner)?
+            .project(variables.iter().map(|v| col(v.as_str())))
     }
 
     fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {

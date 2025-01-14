@@ -1,4 +1,3 @@
-use crate::error::StorageError;
 use crate::sparql::error::EvaluationError;
 use arrow_rdf::decoded::model::{
     DEC_TYPE_ID_BLANK_NODE, DEC_TYPE_ID_NAMED_NODE, DEC_TYPE_ID_STRING, DEC_TYPE_ID_TYPED_LITERAL,
@@ -114,7 +113,7 @@ impl Stream for QuerySolutionStream {
 fn to_query_solution(
     variables: Arc<[Variable]>,
     batch: &RecordBatch,
-) -> Result<<Vec<QuerySolution> as IntoIterator>::IntoIter, StorageError> {
+) -> Result<<Vec<QuerySolution> as IntoIterator>::IntoIter, EvaluationError> {
     // TODO: error handling
 
     let schema = batch.schema();
@@ -138,7 +137,7 @@ fn to_query_solution(
     Ok(result.into_iter())
 }
 
-fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, StorageError> {
+fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, EvaluationError> {
     Ok(match type_id {
         DEC_TYPE_ID_NAMED_NODE => {
             let value = objects.child(type_id).as_string::<i32>().value(i);
@@ -150,7 +149,9 @@ fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, StorageE
         }
         DEC_TYPE_ID_BLANK_NODE => {
             let value = objects.child(type_id).as_string::<i32>().value(i);
-            Term::BlankNode(BlankNode::new(value).expect("Is a blank node"))
+            Term::BlankNode(
+                BlankNode::new(value).map_err(|err| EvaluationError::Unexpected(Box::new(err)))?,
+            )
         }
         DEC_TYPE_ID_STRING => {
             let values = objects
