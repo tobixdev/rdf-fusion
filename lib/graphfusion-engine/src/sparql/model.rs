@@ -1,13 +1,12 @@
-use crate::io::{RdfFormat, RdfSerializer};
-use crate::model::*;
-use crate::sparql::error::EvaluationError;
-use crate::sparql::results::{
+use crate::sparql::error::{EvaluationError, SparqlEvaluationError};
+use oxrdf::{Triple, Variable, VariableRef};
+use oxrdfio::{RdfFormat, RdfSerializer};
+pub use sparesults::QuerySolution;
+use sparesults::ReaderSolutionsParser;
+use sparesults::{
     QueryResultsFormat, QueryResultsParseError, QueryResultsParser, QueryResultsSerializer,
     ReaderQueryResultsParserOutput,
 };
-use crate::sparql::QueryEvaluationError;
-pub use sparesults::QuerySolution;
-use sparesults::ReaderSolutionsParser;
 use std::io::{Read, Write};
 use std::sync::Arc;
 
@@ -212,7 +211,7 @@ impl<R: Read + 'static> From<ReaderSolutionsParser<R>> for QuerySolutionIter {
         Self::new(
             reader.variables().into(),
             Box::new(
-                reader.map(|t| t.map_err(|e| QueryEvaluationError::Service(Box::new(e)).into())),
+                reader.map(|t| t.map_err(|e| SparqlEvaluationError::Service(Box::new(e)).into())),
             ),
         )
     }

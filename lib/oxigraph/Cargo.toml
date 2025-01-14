@@ -24,22 +24,15 @@ http-client-rustls-webpki = ["http-client", "oxhttp/rustls-ring-webpki"]
 http-client-rustls-native = ["http-client", "oxhttp/rustls-ring-native"]
 
 [dependencies]
-async-trait.workspace = true
-dashmap.workspace = true
 datafusion.workspace = true
-arrow-rdf.workspace = true
 futures.workspace = true
+graphfusion-engine.workspace = true
 oxiri.workspace = true
 oxrdf = { workspace = true, features = ["rdf-star", "oxsdatatypes"] }
 oxrdfio = { workspace = true, features = ["rdf-star"] }
-oxsdatatypes.workspace = true
 rand.workspace = true
-sparesults = { workspace = true, features = ["rdf-star"] }
-spargebra = { workspace = true, features = ["rdf-star", "sep-0002", "sep-0006"] }
 thiserror.workspace = true
 tokio.workspace = true
-rustc-hash.workspace = true
-siphasher.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 libc.workspace = true

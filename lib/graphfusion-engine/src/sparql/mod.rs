@@ -8,11 +8,10 @@ mod eval;
 mod explanation;
 mod http;
 mod model;
-pub mod results;
 mod update;
 
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};
-pub use crate::sparql::error::{EvaluationError, QueryEvaluationError};
+pub use crate::sparql::error::EvaluationError;
 pub use crate::sparql::eval::QueryEvaluator;
 pub use crate::sparql::explanation::QueryExplanation;
 pub use crate::sparql::model::{QueryResults, QuerySolution, QuerySolutionIter, QueryTripleIter};

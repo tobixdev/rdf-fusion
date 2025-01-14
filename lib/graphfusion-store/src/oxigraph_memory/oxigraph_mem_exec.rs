@@ -1,12 +1,10 @@
-use crate::engine::oxigraph_memory::store::{
-    MemoryStorageReader, OxigraphMemoryStorage, QuadIterator,
-};
+use crate::oxigraph_memory::store::{MemoryStorageReader, OxigraphMemoryStorage, QuadIterator};
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
 
-use crate::engine::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::engine::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
-use crate::engine::oxigraph_memory::hash::StrHash;
-use crate::engine::{AResult, DFResult};
+use crate::oxigraph_memory::encoded_term::EncodedTerm;
+use crate::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
+use crate::oxigraph_memory::hash::StrHash;
+use crate::{AResult, DFResult};
 use arrow_rdf::encoded::{EncRdfTermBuilder, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, ArrayBuilder, RecordBatch, RecordBatchOptions};

@@ -4,8 +4,8 @@ use crate::manifest::Test;
 use crate::report::{dataset_diff, format_diff};
 use anyhow::{bail, ensure, Context, Result};
 use oxigraph::io::RdfFormat;
-use oxigraph::model::graph::CanonicalizationAlgorithm;
-use oxigraph::model::{BlankNode, Dataset, Quad};
+use oxrdf::dataset::CanonicalizationAlgorithm;
+use oxrdf::{BlankNode, Dataset, Quad};
 use oxttl::n3::{N3Quad, N3Term};
 use tokio::runtime::Runtime;
 

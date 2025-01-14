@@ -1,9 +1,14 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::engine::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::engine::oxigraph_memory::hash::StrHash;
 use crate::error::{CorruptionError, StorageError};
-use crate::model::*;
+use crate::oxigraph_memory::encoded_term::EncodedTerm;
+use crate::oxigraph_memory::hash::StrHash;
+use oxrdf::TermRef;
+use oxrdf::TripleRef;
+use oxrdf::{
+    BlankNode, GraphName, Literal, NamedNode, NamedOrBlankNode, Quad, QuadRef, Subject, Term,
+    Triple,
+};
 use siphasher::sip128::Hasher128;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};

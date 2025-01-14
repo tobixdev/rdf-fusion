@@ -1,5 +1,3 @@
-use crate::error::StorageError;
-use crate::store::Store;
 use arrow_rdf::decoded::model::{
     DEC_TYPE_ID_BLANK_NODE, DEC_TYPE_ID_NAMED_NODE, DEC_TYPE_ID_STRING, DEC_TYPE_ID_TYPED_LITERAL,
 };
@@ -9,12 +7,13 @@ use datafusion::arrow::array::{Array, AsArray, RecordBatch, UnionArray};
 use datafusion::common::SchemaExt;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
+use graphfusion_store::error::StorageError;
 use oxrdf::{BlankNode, GraphName, Literal, NamedNode, Quad, Subject, Term};
 use std::any::Any;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
-/// An iterator returning the quads contained in a [`Store`].
+/// A stream returning quads.
 pub struct QuadStream {
     inner: Option<SendableRecordBatchStream>,
     current: Option<<Vec<Quad> as IntoIterator>::IntoIter>,

@@ -2,6 +2,8 @@
 members = [
     "cli",
     "lib/arrow-rdf",
+    "lib/graphfusion-engine",
+    "lib/graphfusion-store",
     "lib/oxigraph",
     "lib/sparesults",
     "lib/spargebra",
@@ -61,6 +63,8 @@ oxrdfio = "0.1.4"
 
 # Internal dependencies
 arrow-rdf = { version = "=0.4.5", path = "lib/arrow-rdf" }
+graphfusion-engine = { version = "=0.4.5", path = "lib/graphfusion-engine" }
+graphfusion-store = { version = "=0.4.5", path = "lib/graphfusion-store" }
 oxigraph = { version = "=0.4.5", path = "lib/oxigraph" }
 spargebra = { version = "=0.3.3", path = "lib/spargebra" }
 sparesults = { version = "=0.2.3", path = "lib/sparesults" }

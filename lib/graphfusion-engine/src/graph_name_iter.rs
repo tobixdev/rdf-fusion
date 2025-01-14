@@ -1,4 +1,4 @@
-use crate::error::StorageError;
+use graphfusion_store::error::StorageError;
 use oxrdf::NamedOrBlankNode;
 
 /// An iterator returning the graph names contained in a [`Store`].

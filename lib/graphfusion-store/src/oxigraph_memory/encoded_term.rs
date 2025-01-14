@@ -1,11 +1,11 @@
-use crate::engine::oxigraph_memory::encoder::{
+use crate::oxigraph_memory::encoder::{
     parse_boolean_str, parse_date_str, parse_date_time_str, parse_day_time_duration_str,
     parse_decimal_str, parse_double_str, parse_duration_str, parse_float_str, parse_g_day_str,
     parse_g_month_day_str, parse_g_month_str, parse_g_year_month_str, parse_g_year_str,
     parse_integer_str, parse_time_str, parse_year_month_duration_str, EncodedTriple,
 };
-use crate::engine::oxigraph_memory::hash::StrHash;
-use crate::engine::oxigraph_memory::small_string::SmallString;
+use crate::oxigraph_memory::hash::StrHash;
+use crate::oxigraph_memory::small_string::SmallString;
 use oxrdf::{
     BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef, SubjectRef, TermRef,
     TripleRef,

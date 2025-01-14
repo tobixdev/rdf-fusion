@@ -5,11 +5,7 @@
 #![doc(html_favicon_url = "https://raw.githubusercontent.com/oxigraph/oxigraph/main/logo.svg")]
 #![doc(html_logo_url = "https://raw.githubusercontent.com/oxigraph/oxigraph/main/logo.svg")]
 
-mod engine;
-pub mod error;
-mod graph_name_iter;
 pub mod io;
-pub mod model;
-mod quad_stream;
-pub mod sparql;
 pub mod store;
+
+pub use graphfusion_engine::sparql::*;

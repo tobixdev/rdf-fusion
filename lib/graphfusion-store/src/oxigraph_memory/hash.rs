@@ -1,4 +1,4 @@
-use crate::engine::oxigraph_memory::encoded_term::EncodedTerm;
+use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use siphasher::sip128::{Hasher128, SipHasher24};
 use std::hash::{Hash, Hasher};
 

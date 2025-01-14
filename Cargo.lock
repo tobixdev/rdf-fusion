@@ -1691,6 +1691,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphfusion-engine"
+version = "0.4.5"
+dependencies = [
+ "arrow-rdf",
+ "datafusion",
+ "futures",
+ "graphfusion-store",
+ "oxrdf",
+ "oxrdfio",
+ "sparesults",
+ "spargebra",
+ "thiserror",
+]
+
+[[package]]
+name = "graphfusion-store"
+version = "0.4.5"
+dependencies = [
+ "arrow-rdf",
+ "async-trait",
+ "dashmap",
+ "datafusion",
+ "futures",
+ "oxiri",
+ "oxrdf",
+ "oxrdfio",
+ "oxsdatatypes",
+ "rustc-hash",
+ "siphasher 1.0.1",
+ "thiserror",
+]
+
+[[package]]
 name = "half"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2393,25 +2426,18 @@ dependencies = [
 name = "oxigraph"
 version = "0.4.5"
 dependencies = [
- "arrow-rdf",
- "async-trait",
  "codspeed-criterion-compat",
- "dashmap",
  "datafusion",
  "futures",
  "getrandom",
+ "graphfusion-engine",
  "js-sys",
  "libc",
  "oxhttp",
  "oxiri",
  "oxrdf",
  "oxrdfio",
- "oxsdatatypes",
  "rand",
- "rustc-hash",
- "siphasher 1.0.1",
- "sparesults",
- "spargebra",
  "thiserror",
  "tokio",
  "zstd",
@@ -2445,7 +2471,9 @@ dependencies = [
  "clap",
  "codspeed-criterion-compat",
  "oxigraph",
+ "oxrdf",
  "oxttl",
+ "sparesults",
  "text-diff",
  "time",
  "tokio",

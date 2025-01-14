@@ -1,12 +1,12 @@
-use crate::engine::oxigraph_memory::store::OxigraphMemoryStorage;
+use crate::oxigraph_memory::store::OxigraphMemoryStorage;
 use async_trait::async_trait;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::catalog::Session;
 use datafusion::datasource::{TableProvider, TableType};
 use datafusion::logical_expr::Expr;
 
-use crate::engine::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
 use crate::error::StorageError;
+use crate::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
 use arrow_rdf::encoded::ENC_QUAD_SCHEMA;
 use datafusion::arrow::array::ArrayBuilder;
 use datafusion::physical_plan::ExecutionPlan;

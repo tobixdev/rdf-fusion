@@ -14,7 +14,9 @@ publish = false
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
 oxigraph.workspace = true
+oxrdf.workspace = true
 oxttl.workspace = true
+sparesults.workspace = true
 text-diff.workspace = true
 time = { workspace = true, features = ["formatting"] }
 tokio.workspace = true

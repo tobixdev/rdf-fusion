@@ -25,16 +25,14 @@
 //! };
 //! # Result::<_, Box<dyn std::error::Error>>::Ok(())
 //! ```
-use crate::engine::{MemoryTripleStore, TripleStore};
-use crate::error::{LoaderError, SerializerError, StorageError};
-use crate::graph_name_iter::GraphNameIter;
 use crate::io::{RdfParser, RdfSerializer};
-use crate::model::*;
-use crate::quad_stream::QuadStream;
-use crate::sparql::{
+use futures::{Stream, StreamExt};
+use graphfusion_engine::error::{LoaderError, SerializerError, StorageError};
+use graphfusion_engine::sparql::{
     EvaluationError, Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use futures::{Stream, StreamExt};
+use graphfusion_engine::{GraphNameIter, MemoryTripleStore, QuadStream, TripleStore};
+use oxrdf::{GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::error::Error;
 use std::io::{Read, Write};
 use std::sync::Arc;
@@ -178,8 +176,9 @@ impl Store {
         options: QueryOptions,
         with_stats: bool,
     ) -> Result<(Result<QueryResults, EvaluationError>, QueryExplanation), EvaluationError> {
-        unimplemented!();
-        // let query = query.try_into().map_err(Into::into)?;
+        let query = query.try_into().map_err(Into::into)?;
+
+        unimplemented!()
         // let mut evaluator = options.into_evaluator(self.context.state());
         // let (results, explanation) = evaluator.explain(&query);
         // let results = results.map_err(Into::into);

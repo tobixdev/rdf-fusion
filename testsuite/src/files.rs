@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use oxigraph::io::{RdfFormat, RdfParser};
-use oxigraph::model::{Dataset, Graph};
+use oxrdf::{Dataset, Graph};
 use oxttl::n3::N3Quad;
 use oxttl::N3Parser;
 use std::fs::File;

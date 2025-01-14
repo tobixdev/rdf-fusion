@@ -1,9 +1,8 @@
-use crate::error::{CorruptionError, StorageError};
-use crate::io::RdfParseError;
-use crate::model::NamedNode;
-use crate::sparql::results::QueryResultsParseError as ResultsParseError;
 use crate::sparql::SparqlSyntaxError;
-use oxrdf::Term;
+use graphfusion_store::error::StorageError;
+use oxrdf::{NamedNode, Term};
+use oxrdfio::RdfParseError;
+use sparesults::QueryResultsParseError;
 use std::convert::Infallible;
 use std::error::Error;
 use std::io;
@@ -11,7 +10,7 @@ use std::io;
 /// A SPARQL evaluation error
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-pub enum QueryEvaluationError {
+pub enum SparqlEvaluationError {
     /// Error from the underlying RDF dataset
     #[error(transparent)]
     Dataset(Box<dyn Error + Send + Sync>),
@@ -34,7 +33,7 @@ pub enum QueryEvaluationError {
     InvalidStorageTripleTerm,
 }
 
-impl From<Infallible> for QueryEvaluationError {
+impl From<Infallible> for SparqlEvaluationError {
     #[inline]
     fn from(error: Infallible) -> Self {
         match error {}
@@ -56,7 +55,7 @@ pub enum EvaluationError {
     GraphParsing(#[from] RdfParseError),
     /// An error while parsing an external result file (likely from a federated query).
     #[error(transparent)]
-    ResultsParsing(#[from] ResultsParseError),
+    ResultsParsing(#[from] QueryResultsParseError),
     /// An error returned during results serialization.
     #[error(transparent)]
     ResultsSerialization(io::Error),
@@ -96,20 +95,16 @@ impl From<Infallible> for EvaluationError {
     }
 }
 
-impl From<QueryEvaluationError> for EvaluationError {
-    fn from(error: QueryEvaluationError) -> Self {
+impl From<SparqlEvaluationError> for EvaluationError {
+    fn from(error: SparqlEvaluationError) -> Self {
         match error {
-            QueryEvaluationError::Dataset(error) => match error.downcast() {
+            SparqlEvaluationError::Dataset(error) => match error.downcast() {
                 Ok(error) => Self::Storage(*error),
                 Err(error) => Self::Unexpected(error),
             },
-            QueryEvaluationError::Service(error) => Self::Service(error),
-            QueryEvaluationError::UnexpectedDefaultGraph => Self::Storage(
-                CorruptionError::new("Unexpected default graph in SPARQL results").into(),
-            ),
-            e => Self::Storage(
-                CorruptionError::new(format!("Unsupported SPARQL evaluation error: {e}")).into(),
-            ),
+            SparqlEvaluationError::Service(error) => Self::Service(error),
+            SparqlEvaluationError::UnexpectedDefaultGraph => todo!("Integrate error"),
+            e => todo!("Integrate error"),
         }
     }
 }

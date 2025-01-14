@@ -1,5 +1,5 @@
 pub mod rs {
-    use oxigraph::model::NamedNodeRef;
+    use oxrdf::NamedNodeRef;
 
     pub const RESULT_SET: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/2001/sw/DataAccess/tests/result-set#ResultSet",
@@ -26,7 +26,7 @@ pub mod rs {
 }
 
 pub mod mf {
-    use oxigraph::model::NamedNodeRef;
+    use oxrdf::NamedNodeRef;
 
     pub const INCLUDE: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#include",
@@ -52,7 +52,7 @@ pub mod mf {
 }
 
 pub mod rdft {
-    use oxigraph::model::NamedNodeRef;
+    use oxrdf::NamedNodeRef;
 
     pub const APPROVAL: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/ns/rdftest#approval");
@@ -61,7 +61,7 @@ pub mod rdft {
 }
 
 pub mod qt {
-    use oxigraph::model::NamedNodeRef;
+    use oxrdf::NamedNodeRef;
 
     pub const QUERY: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/2001/sw/DataAccess/tests/test-query#query");
@@ -79,7 +79,8 @@ pub mod qt {
 }
 
 pub mod ut {
-    use oxigraph::model::NamedNodeRef;
+    use oxrdf::NamedNodeRef;
+
     pub const DATA: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/2009/sparql/tests/test-update#data");
     pub const GRAPH_DATA: NamedNodeRef<'_> =
