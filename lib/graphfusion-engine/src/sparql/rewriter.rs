@@ -2,14 +2,14 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{ENC_EQ, ENC_QUAD_SCHEMA};
+use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EQ, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
-use datafusion::common::{JoinType, ScalarValue};
+use datafusion::common::{not_impl_err, JoinType, ScalarValue};
 use datafusion::execution::{FunctionRegistry, SessionState};
-use datafusion::logical_expr::{lit, LogicalPlan, LogicalPlanBuilder, LogicalTableSource};
-use datafusion::prelude::col;
+use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, LogicalTableSource};
+use datafusion::prelude::{col, exists};
 use oxrdf::{Variable, VariableRef};
-use spargebra::algebra::GraphPattern;
+use spargebra::algebra::{Expression, GraphPattern};
 use spargebra::term::{TermPattern, TriplePattern};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -25,14 +25,15 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
 
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
         let plan = self.rewrite_graph_pattern(pattern)?;
-        todo!("decoding")
+        not_impl_err!("Decoding not yet implemented")
     }
 
     fn rewrite_graph_pattern(&self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
         match pattern {
             GraphPattern::Bgp { patterns } => self.rewrite_bgp(patterns),
             GraphPattern::Project { inner, variables } => self.rewrite_project(inner, variables),
-            pattern => todo!("{:?}", pattern),
+            GraphPattern::Filter { inner, expr } => self.rewrite_filter(inner, expr),
+            pattern => not_impl_err!("{:?}", pattern),
         }
     }
 
@@ -51,6 +52,16 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
     ) -> DFResult<LogicalPlanBuilder> {
         self.rewrite_graph_pattern(inner)?
             .project(variables.iter().map(|v| col(v.as_str())))
+    }
+
+    fn rewrite_filter(
+        &self,
+        inner: &GraphPattern,
+        expr: &Expression,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let as_boolean = self.state.udf(ENC_AS_NATIVE_BOOLEAN)?;
+        self.rewrite_graph_pattern(inner)?
+            .filter(as_boolean.call(vec![self.rewrite_expr(expr)?]))
     }
 
     fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
@@ -118,6 +129,20 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
             ])])
         });
         lhs.join_on(rhs.build()?, JoinType::Inner, join_on_exprs)
+    }
+
+    //
+    // Expressions
+    //
+
+    fn rewrite_expr(&self, expression: &Expression) -> DFResult<Expr> {
+        match expression {
+            Expression::Exists(other) => {
+                let other_plan = self.rewrite_graph_pattern(other)?.build()?;
+                Ok(exists(Arc::new(other_plan)))
+            }
+            expr => not_impl_err!("{:?}", expr),
+        }
     }
 }
 

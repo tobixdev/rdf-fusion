@@ -87,10 +87,7 @@ impl QuerySolutionStream {
                         self.poll_inner(ctx)
                     }
                     Some(batch) => {
-                        // TODO: error handling
-                        self.current = Some(
-                            to_query_solution(self.variables.clone(), &batch.unwrap()).unwrap(),
-                        );
+                        self.current = Some(to_query_solution(self.variables.clone(), &batch?)?);
                         self.poll_inner(ctx)
                     }
                 }
@@ -144,7 +141,7 @@ fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, Evaluati
             if value == "DEFAULT" {
                 Term::Literal(Literal::new_simple_literal(value))
             } else {
-                Term::NamedNode(NamedNode::new(value).unwrap())
+                Term::NamedNode(NamedNode::new(value).map_err(EvaluationError::unexpected)?)
             }
         }
         DEC_TYPE_ID_BLANK_NODE => {
@@ -158,26 +155,24 @@ fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, Evaluati
                 .child(type_id)
                 .as_struct()
                 .column_by_name("value")
-                .unwrap()
+                .expect("Schema is fixed")
                 .as_string::<i32>();
             let language = objects
                 .child(type_id)
                 .as_struct()
                 .column_by_name("language")
-                .unwrap()
+                .expect("Schema is fixed")
                 .as_string::<i32>();
 
             if language.is_null(i) {
-                // TODO: error handling?
                 Term::Literal(Literal::new_simple_literal(String::from(values.value(i))))
             } else {
-                // TODO: error handling?
                 Term::Literal(
                     Literal::new_language_tagged_literal(
                         String::from(values.value(i)),
                         String::from(language.value(i)),
                     )
-                    .unwrap(),
+                    .map_err(EvaluationError::unexpected)?,
                 )
             }
         }
@@ -186,21 +181,25 @@ fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, Evaluati
                 .child(type_id)
                 .as_struct()
                 .column_by_name("value")
-                .unwrap()
+                .expect("Schema is fixed")
                 .as_string::<i32>();
             let datatypes = objects
                 .child(type_id)
                 .as_struct()
                 .column_by_name("datatype")
-                .unwrap()
+                .expect("Schema is fixed")
                 .as_string::<i32>();
             Term::Literal(Literal::new_typed_literal(
                 String::from(values.value(i)),
-                NamedNode::new(String::from(datatypes.value(i))).unwrap(), // TODO: error handling?
+                NamedNode::new(String::from(datatypes.value(i)))
+                    .map_err(EvaluationError::unexpected)?,
             ))
         }
-        _ => {
-            unimplemented!("Proper error handling")
+        type_id => {
+            return Err(EvaluationError::NotImplemented(format!(
+                "to_term: {}",
+                type_id
+            )))
         }
     })
 }

@@ -93,6 +93,12 @@ pub enum EvaluationError {
     Unexpected(Box<dyn Error + Send + Sync>),
 }
 
+impl EvaluationError {
+    pub fn unexpected(e: impl Error + Send + Sync + 'static) -> Self {
+        EvaluationError::Unexpected(Box::new(e))
+    }
+}
+
 impl From<Infallible> for EvaluationError {
     #[inline]
     fn from(error: Infallible) -> Self {

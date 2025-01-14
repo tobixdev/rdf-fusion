@@ -8,6 +8,7 @@ use crate::{AResult, DFResult};
 use arrow_rdf::encoded::{EncRdfTermBuilder, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
+use datafusion::arrow::error::ArrowError;
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::EquivalenceProperties;
@@ -290,7 +291,7 @@ fn encode_term(
             let datatype = load_string(reader, &datatype_id)?;
             builder.append_typed_literal(&value, &datatype)
         }
-        term => unimplemented!("{:?}", term),
+        term => Err(ArrowError::NotYetImplemented(format!("{:?}", term))),
     }
 }
 

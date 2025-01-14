@@ -22,6 +22,7 @@ pub fn check_testsuite(manifest_url: &str, ignored_tests: &[&str]) -> Result<()>
 
     let manifest = TestManifest::new([manifest_url]);
     let results = evaluator.evaluate(manifest)?;
+    let test_count = results.len();
 
     let mut errors = Vec::default();
     for result in results {
@@ -34,8 +35,9 @@ pub fn check_testsuite(manifest_url: &str, ignored_tests: &[&str]) -> Result<()>
 
     assert!(
         errors.is_empty(),
-        "{} failing tests:\n{}\n",
+        "{} tests failing from {} tests:\n{}\n",
         errors.len(),
+        test_count,
         errors.join("\n")
     );
     Ok(())
