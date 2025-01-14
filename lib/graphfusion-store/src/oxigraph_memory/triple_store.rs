@@ -13,7 +13,7 @@ use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::QueryResults;
 use graphfusion_engine::sparql::error::EvaluationError;
-use graphfusion_engine::sparql::{Query, QueryExplanation, QueryOptions};
+use graphfusion_engine::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions};
 use graphfusion_engine::TripleStore;
 use oxrdf::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
@@ -120,13 +120,10 @@ impl TripleStore for MemoryTripleStore {
 
     async fn execute_query(
         &self,
-        query: Query,
+        query: &Query,
         options: QueryOptions,
-    ) -> (
-        Result<QueryResults, EvaluationError>,
-        Option<QueryExplanation>,
-    ) {
-        todo!()
+    ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
+        evaluate_query(self.ctx.state(), query, options).await
     }
 
     //

@@ -86,6 +86,8 @@ pub enum EvaluationError {
     NotAGraph,
     #[error("An error returned from the query engine")]
     Engine(DataFusionError),
+    #[error("A feature has not yet been implemented")]
+    NotImplemented(String),
     #[doc(hidden)]
     #[error(transparent)]
     Unexpected(Box<dyn Error + Send + Sync>),
@@ -115,32 +117,5 @@ impl From<SparqlEvaluationError> for EvaluationError {
 impl From<DataFusionError> for EvaluationError {
     fn from(error: DataFusionError) -> Self {
         Self::Engine(error)
-    }
-}
-
-impl From<EvaluationError> for io::Error {
-    #[inline]
-    fn from(error: EvaluationError) -> Self {
-        match error {
-            EvaluationError::Parsing(error) => Self::new(io::ErrorKind::InvalidData, error),
-            EvaluationError::GraphParsing(error) => error.into(),
-            EvaluationError::ResultsParsing(error) => error.into(),
-            EvaluationError::ResultsSerialization(error) => error,
-            EvaluationError::Storage(error) => error.into(),
-            EvaluationError::Engine(error) => error.into(),
-            EvaluationError::Service(error) | EvaluationError::Unexpected(error) => {
-                match error.downcast() {
-                    Ok(error) => *error,
-                    Err(error) => Self::other(error),
-                }
-            }
-            EvaluationError::GraphAlreadyExists(_)
-            | EvaluationError::GraphDoesNotExist(_)
-            | EvaluationError::UnboundService
-            | EvaluationError::UnsupportedService(_)
-            | EvaluationError::UnsupportedContentType(_)
-            | EvaluationError::ServiceDoesNotReturnSolutions
-            | EvaluationError::NotAGraph => Self::new(io::ErrorKind::InvalidInput, error),
-        }
     }
 }

@@ -24,12 +24,9 @@ pub trait TripleStore {
     ) -> DFResult<SendableRecordBatchStream>;
     async fn execute_query(
         &self,
-        query: Query,
+        query: &Query,
         options: QueryOptions,
-    ) -> (
-        Result<QueryResults, EvaluationError>,
-        Option<QueryExplanation>,
-    );
+    ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError>;
 
     //
     // Loading

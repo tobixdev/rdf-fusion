@@ -160,8 +160,7 @@ impl Store {
         query: impl TryInto<Query, Error = impl Into<EvaluationError> + std::fmt::Debug>,
         options: QueryOptions,
     ) -> Result<QueryResults, EvaluationError> {
-        let (results, _) = self.explain_query_opt(query, options).await;
-        results
+        self.explain_query_opt(query, options).await.map(|(r, _)| r)
     }
 
     /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/) with some options and
@@ -191,15 +190,12 @@ impl Store {
         &self,
         query: impl TryInto<Query, Error = impl Into<EvaluationError> + std::fmt::Debug>,
         options: QueryOptions,
-    ) -> (
-        Result<QueryResults, EvaluationError>,
-        Option<QueryExplanation>,
-    ) {
+    ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
         let query = query.try_into();
         if query.is_err() {
-            return (Err(query.unwrap_err().into()), None);
+            return Err(query.unwrap_err().into());
         }
-        self.inner.execute_query(query.unwrap(), options).await
+        self.inner.execute_query(&query.unwrap(), options).await
     }
 
     /// Retrieves quads with a filter on each quad component

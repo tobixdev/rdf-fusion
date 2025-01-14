@@ -8,13 +8,13 @@ mod eval;
 mod explanation;
 mod http;
 mod model;
+mod rewriter;
 mod update;
 
 pub use crate::results::{QueryResults, QuerySolution, QuerySolutionStream, QueryTripleStream};
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};
-pub use crate::sparql::eval::QueryEvaluator;
 pub use crate::sparql::explanation::QueryExplanation;
-use datafusion::execution::SessionState;
+pub use eval::evaluate_query;
 pub use oxrdf::{Variable, VariableNameParseError};
 pub use spargebra::SparqlSyntaxError;
 
@@ -38,12 +38,6 @@ pub use spargebra::SparqlSyntaxError;
 /// ```
 #[derive(Clone)]
 pub struct QueryOptions {}
-
-impl QueryOptions {
-    pub fn into_evaluator(mut self, state: SessionState) -> QueryEvaluator {
-        QueryEvaluator::new(state)
-    }
-}
 
 impl Default for QueryOptions {
     fn default() -> Self {

@@ -50,16 +50,3 @@ pub enum SerializerError {
     #[error("A RDF format supporting datasets was expected, {0} found")]
     DatasetFormatExpected(RdfFormat),
 }
-
-impl From<SerializerError> for io::Error {
-    #[inline]
-    fn from(error: SerializerError) -> Self {
-        match error {
-            SerializerError::Evaluation(error) => error.into(),
-            SerializerError::Io(error) => error,
-            SerializerError::DatasetFormatExpected(_) => {
-                Self::new(io::ErrorKind::InvalidInput, error.to_string())
-            }
-        }
-    }
-}
