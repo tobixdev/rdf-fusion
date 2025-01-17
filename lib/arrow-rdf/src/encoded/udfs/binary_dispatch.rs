@@ -1,12 +1,12 @@
 use crate::encoded::udfs::result_collector::ResultCollector;
-use crate::encoded::EncRdfTermBuilder;
 use crate::{as_rdf_term_array, encoded, DFResult};
-use datafusion::arrow::array::{Array, AsArray, UnionArray};
+use datafusion::arrow::array::{Array, ArrayAccessor, AsArray, UnionArray};
 use datafusion::arrow::datatypes::{Float32Type, Float64Type, Int32Type, Int64Type};
 use datafusion::common::{
     exec_err, not_impl_datafusion_err, not_impl_err, DataFusionError, ScalarValue,
 };
 use datafusion::logical_expr::ColumnarValue;
+use oxrdf::vocab::xsd;
 use std::sync::Arc;
 
 pub enum UdfResult {
@@ -152,8 +152,6 @@ where
     }
 
     let (lhs_type, lhs_value) = extract_scalar_value(lhs)?;
-    let mut result_builder = EncRdfTermBuilder::new();
-
     let rhs = as_rdf_term_array(&rhs).expect("RDF term");
     let type_offset_paris = rhs
         .type_ids()
@@ -163,36 +161,52 @@ where
     let mut collector = TUdf::Collector::new();
     for (rhs_type, rhs_offset) in type_offset_paris {
         match decide_type::<TUdf>(lhs_type, *rhs_type) {
-            // UdfTarget::NamedNode => {
-            //     let lhs = cast_str(lhs_value.clone());
-            //     let rhs = cast_str_arr(rhs, *rhs_type, *rhs_offset as usize);
-            //     TUdf::eval_named_node(&mut collector, lhs, rhs)?;
-            // }
+            UdfTarget::NamedNode => {
+                let lhs = cast_str(&lhs_value);
+                let rhs = cast_str_arr(rhs, *rhs_type, *rhs_offset as usize);
+                TUdf::eval_named_node(&mut collector, lhs, rhs)?;
+            }
+            UdfTarget::BlankNode => {
+                let lhs = cast_str(&lhs_value);
+                let rhs = cast_str_arr(rhs, *rhs_type, *rhs_offset as usize);
+                TUdf::eval_blank_node(&mut collector, lhs, rhs)?;
+            }
             UdfTarget::NumericI32 => {
-                let lhs = cast_i32(lhs_value.clone());
+                let lhs = cast_i32(&lhs_value);
                 let rhs = cast_i32_arr(rhs, *rhs_type, *rhs_offset as usize);
                 TUdf::eval_numeric_i32(&mut collector, lhs, rhs)?;
             }
             UdfTarget::NumericI64 => {
-                let lhs = cast_i64(lhs_value.clone());
+                let lhs = cast_i64(&lhs_value);
                 let rhs = cast_i64_arr(rhs, *rhs_type, *rhs_offset as usize);
                 TUdf::eval_numeric_i64(&mut collector, lhs, rhs)?;
             }
             UdfTarget::NumericF32 => {
-                let lhs = cast_f32(lhs_value.clone());
+                let lhs = cast_f32(&lhs_value);
                 let rhs = cast_f32_arr(rhs, *rhs_type, *rhs_offset as usize);
                 TUdf::eval_numeric_f32(&mut collector, lhs, rhs)?;
             }
             UdfTarget::NumericF64 => {
-                let lhs = cast_f64(lhs_value.clone());
+                let lhs = cast_f64(&lhs_value);
                 let rhs = cast_f64_arr(rhs, *rhs_type, *rhs_offset as usize);
                 TUdf::eval_numeric_f64(&mut collector, lhs, rhs)?;
             }
-            _ => return not_impl_err!("dispatch_binary_array_scalar"),
+            UdfTarget::TypedLiteral => {
+                let (lhs_value, lhs_type) = cast_typed_literal(lhs_type, &lhs_value)?;
+                let (rhs_value, rhs_type) =
+                    cast_typed_literal_array(rhs, *rhs_type, *rhs_offset as usize);
+                TUdf::eval_typed_literal(
+                    &mut collector,
+                    &lhs_value,
+                    &lhs_type,
+                    &rhs_value,
+                    &rhs_type,
+                )?;
+            }
+            t => return not_impl_err!("dispatch_binary_array_scalar for {t:?}"),
         }
     }
-
-    result_builder.finish_columnar_value()
+    collector.finish_columnar_value()
 }
 
 fn dispatch_binary_scalar_scalar<TUdf>(
@@ -227,23 +241,23 @@ where
         //     TUdf::eval_blank_node(&mut collector, lhs, rhs)
         // }
         UdfTarget::NumericI32 => {
-            let lhs = cast_i32(lhs_value);
-            let rhs = cast_i32(rhs_value);
+            let lhs = cast_i32(&lhs_value);
+            let rhs = cast_i32(&rhs_value);
             TUdf::eval_numeric_i32(&mut collector, lhs, rhs)
         }
         UdfTarget::NumericI64 => {
-            let lhs = cast_i64(lhs_value);
-            let rhs = cast_i64(rhs_value);
+            let lhs = cast_i64(&lhs_value);
+            let rhs = cast_i64(&rhs_value);
             TUdf::eval_numeric_i64(&mut collector, lhs, rhs)
         }
         UdfTarget::NumericF32 => {
-            let lhs = cast_f32(lhs_value);
-            let rhs = cast_f32(rhs_value);
+            let lhs = cast_f32(&lhs_value);
+            let rhs = cast_f32(&rhs_value);
             TUdf::eval_numeric_f32(&mut collector, lhs, rhs)
         }
         UdfTarget::NumericF64 => {
-            let lhs = cast_f64(lhs_value);
-            let rhs = cast_f64(rhs_value);
+            let lhs = cast_f64(&lhs_value);
+            let rhs = cast_f64(&rhs_value);
             TUdf::eval_numeric_f64(&mut collector, lhs, rhs)
         }
         _ => not_impl_err!("dispatch_binary_scalar_scalar"),
@@ -252,8 +266,112 @@ where
     collector.finish_columnar_value()
 }
 
-fn cast_i32(scalar: Box<ScalarValue>) -> i32 {
-    match *scalar {
+fn cast_typed_literal(type_id: i8, scalar: &ScalarValue) -> DFResult<(String, &str)> {
+    let value = cast_string(scalar);
+    let datatype = match type_id {
+        encoded::ENC_TYPE_ID_INTEGER => xsd::INTEGER.as_str(),
+        encoded::ENC_TYPE_ID_TYPED_LITERAL => {
+            if let ScalarValue::Struct(scalar) = scalar {
+                let datatype = scalar
+                    .column_by_name("datatype")
+                    .unwrap()
+                    .as_string::<i32>()
+                    .value(0);
+                datatype
+            } else {
+                return exec_err!("Unexpected scalar for typed literal")
+            }
+        }
+        _ => return not_impl_err!("cast_typed_literal datatype for {type_id}")
+    };
+
+    Ok((value, datatype))
+}
+
+fn cast_string(value: &ScalarValue) -> String {
+    // TODO @tobixdev with type id?
+    value.to_string()
+}
+
+fn cast_typed_literal_array(rdf_terms: &UnionArray, type_id: i8, offset: usize) -> (String, &str) {
+    match type_id {
+        encoded::ENC_TYPE_ID_INT => {
+            let value = rdf_terms
+                .child(type_id)
+                .as_primitive::<Int32Type>()
+                .value(offset);
+            (value.to_string(), xsd::INT.as_str())
+        }
+        encoded::ENC_TYPE_ID_INTEGER => {
+            let value = rdf_terms
+                .child(type_id)
+                .as_primitive::<Int64Type>()
+                .value(offset);
+            (value.to_string(), xsd::INTEGER.as_str())
+        }
+        encoded::ENC_TYPE_ID_FLOAT32 => {
+            let value = rdf_terms
+                .child(type_id)
+                .as_primitive::<Float32Type>()
+                .value(offset);
+            (value.to_string(), xsd::FLOAT.as_str())
+        }
+        encoded::ENC_TYPE_ID_FLOAT64 => {
+            let value = rdf_terms
+                .child(type_id)
+                .as_primitive::<Float64Type>()
+                .value(offset);
+            (value.to_string(), xsd::DOUBLE.as_str())
+        }
+        encoded::ENC_TYPE_ID_BOOLEAN => {
+            let value = rdf_terms.child(type_id).as_boolean().value(offset);
+            (value.to_string(), xsd::BOOLEAN.as_str())
+        }
+        encoded::ENC_TYPE_ID_STRING => {
+            let value = rdf_terms.child(type_id).as_string::<i32>().value(offset);
+            (value.to_string(), xsd::STRING.as_str())
+        }
+        encoded::ENC_TYPE_ID_TYPED_LITERAL => {
+            let inner = rdf_terms.child(type_id).as_struct();
+            let value = inner
+                .column_by_name("value")
+                .unwrap()
+                .as_string::<i32>()
+                .value(offset);
+            let datatype = inner
+                .column_by_name("datatype")
+                .unwrap()
+                .as_string::<i32>()
+                .value(offset);
+            (value.to_string(), datatype)
+        }
+        _ => panic!("Expected castable to str"),
+    }
+}
+
+fn cast_str(scalar: &ScalarValue) -> &str {
+    match scalar {
+        ScalarValue::Utf8(value) => value.as_ref().unwrap(),
+        ScalarValue::Utf8View(value) => value.as_ref().unwrap(),
+        ScalarValue::LargeUtf8(value) => value.as_ref().unwrap(),
+        _ => panic!("epxected castable to i32"),
+    }
+}
+
+fn cast_str_arr(rdf_terms: &UnionArray, type_id: i8, offset: usize) -> &str {
+    match type_id {
+        encoded::ENC_TYPE_ID_NAMED_NODE => {
+            rdf_terms.child(type_id).as_string::<i32>().value(offset)
+        }
+        encoded::ENC_TYPE_ID_BLANK_NODE => {
+            rdf_terms.child(type_id).as_string::<i32>().value(offset)
+        }
+        _ => panic!("Expected castable to str"),
+    }
+}
+
+fn cast_i32(scalar: &ScalarValue) -> i32 {
+    match scalar {
         ScalarValue::Int8(value) => value.unwrap() as i32,
         ScalarValue::Int16(value) => value.unwrap() as i32,
         ScalarValue::Int32(value) => value.unwrap(),
@@ -273,7 +391,7 @@ fn cast_i32_arr(rdf_terms: &UnionArray, type_id: i8, offset: usize) -> i32 {
     }
 }
 
-fn cast_i64(scalar: Box<ScalarValue>) -> i64 {
+fn cast_i64(scalar: &ScalarValue) -> i64 {
     match *scalar {
         ScalarValue::Int8(value) => value.unwrap() as i64,
         ScalarValue::Int16(value) => value.unwrap() as i64,
@@ -300,7 +418,7 @@ fn cast_i64_arr(rdf_terms: &UnionArray, type_id: i8, offset: usize) -> i64 {
     }
 }
 
-fn cast_f32(scalar: Box<ScalarValue>) -> f32 {
+fn cast_f32(scalar: &ScalarValue) -> f32 {
     match *scalar {
         ScalarValue::Int8(value) => value.unwrap() as f32,
         ScalarValue::Int16(value) => value.unwrap() as f32,
@@ -309,7 +427,7 @@ fn cast_f32(scalar: Box<ScalarValue>) -> f32 {
         ScalarValue::UInt16(value) => value.unwrap() as f32,
         ScalarValue::UInt32(value) => value.unwrap() as f32,
         ScalarValue::Float32(value) => value.unwrap(),
-        _ => panic!("epxected castable to i64"),
+        _ => panic!("epxected castable to f32"),
     }
 }
 
@@ -327,7 +445,7 @@ fn cast_f32_arr(rdf_terms: &UnionArray, type_id: i8, offset: usize) -> f32 {
     }
 }
 
-fn cast_f64(scalar: Box<ScalarValue>) -> f64 {
+fn cast_f64(scalar: &ScalarValue) -> f64 {
     match *scalar {
         ScalarValue::Int8(value) => value.unwrap() as f64,
         ScalarValue::Int16(value) => value.unwrap() as f64,
@@ -339,7 +457,7 @@ fn cast_f64(scalar: Box<ScalarValue>) -> f64 {
         ScalarValue::UInt64(value) => value.unwrap() as f64,
         ScalarValue::Float32(value) => value.unwrap() as f64,
         ScalarValue::Float64(value) => value.unwrap(),
-        _ => panic!("epxected castable to i64"),
+        _ => panic!("epxected castable to f64"),
     }
 }
 
@@ -483,6 +601,7 @@ fn try_find_simple_literal_type(_: i8, _: i8) -> Option<UdfTarget> {
     None
 }
 
+#[derive(Debug)]
 enum UdfTarget {
     NamedNode,
     BlankNode,
