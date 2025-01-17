@@ -30,8 +30,8 @@ graphfusion-engine.workspace = true
 graphfusion-store.workspace = true
 once_cell.workspace = true
 oxiri.workspace = true
-oxrdf = { workspace = true, features = ["rdf-star", "oxsdatatypes"] }
-oxrdfio = { workspace = true, features = ["rdf-star"] }
+oxrdf.workspace = true
+oxrdfio.workspace = true
 rand.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

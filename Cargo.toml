@@ -57,9 +57,9 @@ zstd = ">=0.12, <0.14"
 
 # Upstream Oxigraph dependencies
 oxsdatatypes = "0.2.1"
-oxrdf = "0.2.3"
-oxttl = "0.1.4"
-oxrdfio = "0.1.4"
+oxrdf = { version = "0.2.3", features = ["rdf-star", "oxsdatatypes"] }
+oxttl = { version = "0.1.4", features = ["rdf-star"] }
+oxrdfio = { version = "0.1.4", features = ["rdf-star"] }
 
 # Internal dependencies
 arrow-rdf = { version = "=0.4.5", path = "lib/arrow-rdf" }

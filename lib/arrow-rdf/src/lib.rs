@@ -19,6 +19,6 @@ type DFResult<T> = Result<T, DataFusionError>;
 type AResult<T> = Result<T, ArrowError>;
 
 // Downcast ArrayRef to Int64Array
-pub fn as_rdf_term_array(array: &dyn Array) -> datafusion::common::Result<&UnionArray> {
+pub fn as_rdf_term_array(array: &dyn Array) -> DFResult<&UnionArray> {
     Ok(downcast_value!(array, UnionArray))
 }

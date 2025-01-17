@@ -139,6 +139,32 @@ pub struct MemoryStorageReader {
 }
 
 impl MemoryStorageReader {
+    pub fn len(&self) -> usize {
+        self.storage
+            .content
+            .quad_set
+            .iter()
+            .filter(|e| self.is_node_in_range(e))
+            .count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        !self
+            .storage
+            .content
+            .quad_set
+            .iter()
+            .any(|e| self.is_node_in_range(&e))
+    }
+
+    pub fn contains(&self, quad: &EncodedQuad) -> bool {
+        self.storage
+            .content
+            .quad_set
+            .get(quad)
+            .map_or(false, |node| self.is_node_in_range(&node))
+    }
+
     pub fn quads_for_pattern(
         &self,
         subject: Option<&EncodedTerm>,
@@ -225,6 +251,18 @@ impl MemoryStorageReader {
         }
     }
 
+    pub fn contains_named_graph(&self, graph_name: &EncodedTerm) -> bool {
+        self.storage
+            .content
+            .graphs
+            .get(graph_name)
+            .map_or(false, |range| self.is_in_range(&range))
+    }
+
+    pub fn contains_str(&self, key: &StrHash) -> bool {
+        self.storage.id2str.contains_key(key)
+    }
+
     /// Validates that all the storage invariants held in the data
     #[allow(clippy::unwrap_in_result)]
     pub fn validate(&self) -> Result<(), StorageError> {
@@ -241,7 +279,7 @@ impl MemoryStorageReader {
                 .content
                 .quad_set
                 .get(&current.quad)
-                .is_some_and(|e| Arc::ptr_eq(&e, &current))
+                .map_or(false, |e| Arc::ptr_eq(&e, &current))
             {
                 return Err(
                     CorruptionError::new("Quad in previous chain but not in quad set").into(),
@@ -280,7 +318,7 @@ impl MemoryStorageReader {
                     .content
                     .quad_set
                     .get(&current.quad)
-                    .is_some_and(|e| Arc::ptr_eq(&e, &current))
+                    .map_or(false, |e| Arc::ptr_eq(&e, &current))
                 {
                     return Err(
                         CorruptionError::new("Quad in previous chain but not in quad set").into(),
@@ -312,7 +350,7 @@ impl MemoryStorageReader {
                     .content
                     .quad_set
                     .get(&current.quad)
-                    .is_some_and(|e| Arc::ptr_eq(&e, &current))
+                    .map_or(false, |e| Arc::ptr_eq(&e, &current))
                 {
                     return Err(
                         CorruptionError::new("Quad in previous chain but not in quad set").into(),
@@ -344,7 +382,7 @@ impl MemoryStorageReader {
                     .content
                     .quad_set
                     .get(&current.quad)
-                    .is_some_and(|e| Arc::ptr_eq(&e, &current))
+                    .map_or(false, |e| Arc::ptr_eq(&e, &current))
                 {
                     return Err(
                         CorruptionError::new("Quad in previous chain but not in quad set").into(),
@@ -376,7 +414,7 @@ impl MemoryStorageReader {
                     .content
                     .quad_set
                     .get(&current.quad)
-                    .is_some_and(|e| Arc::ptr_eq(&e, &current))
+                    .map_or(false, |e| Arc::ptr_eq(&e, &current))
                 {
                     return Err(
                         CorruptionError::new("Quad in previous chain but not in quad set").into(),
@@ -643,7 +681,9 @@ impl MemoryStorageWriter<'_> {
             .content
             .graphs
             .get_mut(graph_name)
-            .is_some_and(|mut entry| entry.value_mut().remove(self.transaction_id));
+            .map_or(false, |mut entry| {
+                entry.value_mut().remove(self.transaction_id)
+            });
         if removed {
             self.log.push(LogEntry::Graph(graph_name.clone()));
         }

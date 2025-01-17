@@ -719,7 +719,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn store() -> Result<(), StorageError> {
+    async fn store() -> Result<(), EvaluationError> {
         let main_s = Subject::from(BlankNode::default());
         let main_p = NamedNode::new("http://example.com").unwrap();
         let main_o = Term::from(Literal::from(1));

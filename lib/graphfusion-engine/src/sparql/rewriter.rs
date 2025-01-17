@@ -137,10 +137,6 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
 
     fn rewrite_expr(&self, expression: &Expression) -> DFResult<Expr> {
         match expression {
-            Expression::Exists(other) => {
-                let other_plan = self.rewrite_graph_pattern(other)?.build()?;
-                Ok(exists(Arc::new(other_plan)))
-            }
             expr => not_impl_err!("{:?}", expr),
         }
     }
