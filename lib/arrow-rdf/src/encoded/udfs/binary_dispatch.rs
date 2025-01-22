@@ -62,6 +62,7 @@ pub trait EncScalarBinaryUdf {
     fn supports_string() -> bool;
     fn supports_date_time() -> bool;
     fn supports_simple_literal() -> bool;
+    fn supports_typed_literal() -> bool;
 
     fn eval_named_node(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()>;
 
@@ -85,6 +86,8 @@ pub trait EncScalarBinaryUdf {
         rhs: &str,
         rhs_type: &str,
     ) -> DFResult<()>;
+
+    fn eval_incompatible(collector: &mut Self::Collector) -> DFResult<()>;
 }
 
 pub fn dispatch_binary<TUdf>(
@@ -203,6 +206,9 @@ where
                     &rhs_type,
                 )?;
             }
+            UdfTarget::Incompatible => {
+                TUdf::eval_incompatible(&mut collector)?;
+            }
             t => return not_impl_err!("dispatch_binary_array_scalar for {t:?}"),
         }
     }
@@ -279,10 +285,10 @@ fn cast_typed_literal(type_id: i8, scalar: &ScalarValue) -> DFResult<(String, &s
                     .value(0);
                 datatype
             } else {
-                return exec_err!("Unexpected scalar for typed literal")
+                return exec_err!("Unexpected scalar for typed literal");
             }
         }
-        _ => return not_impl_err!("cast_typed_literal datatype for {type_id}")
+        _ => return not_impl_err!("cast_typed_literal datatype for {type_id}"),
     };
 
     Ok((value, datatype))
@@ -503,8 +509,14 @@ where
         }
     }
 
-    if TUdf::supports_numeric() {
+    if TUdf::supports_blank_node() {
         if let Some(value) = try_find_blank_node_type(lhs_type_id, rhs_type_id) {
+            return value;
+        }
+    }
+
+    if TUdf::supports_numeric() {
+        if let Some(value) = try_find_numeric_type(lhs_type_id, rhs_type_id) {
             return value;
         }
     }
@@ -533,7 +545,13 @@ where
         }
     }
 
-    UdfTarget::TypedLiteral
+    if TUdf::supports_typed_literal() {
+        if let Some(value) = try_find_typed_literal_type(lhs_type_id, rhs_type_id) {
+            return value;
+        }
+    }
+
+    UdfTarget::Incompatible
 }
 
 fn try_find_named_node_type(lhs_type_id: i8, rhs_type_id: i8) -> Option<UdfTarget> {
@@ -601,6 +619,10 @@ fn try_find_simple_literal_type(_: i8, _: i8) -> Option<UdfTarget> {
     None
 }
 
+fn try_find_typed_literal_type(_: i8, _: i8) -> Option<UdfTarget> {
+    None
+}
+
 #[derive(Debug)]
 enum UdfTarget {
     NamedNode,
@@ -614,4 +636,5 @@ enum UdfTarget {
     DateTime,
     SimpleLiteral,
     TypedLiteral,
+    Incompatible,
 }

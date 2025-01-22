@@ -150,6 +150,21 @@ impl EncRdfTermBuilder {
         Ok(())
     }
 
+    pub fn append_null(&mut self) -> AResult<()> {
+        self.type_ids.push(ENC_TYPE_ID_TYPED_LITERAL);
+        self.offsets.push(self.typed_literal_builder.len() as i32);
+        self.typed_literal_builder
+            .field_builder::<StringBuilder>(0)
+            .unwrap()
+            .append_null();
+        self.typed_literal_builder
+            .field_builder::<StringBuilder>(1)
+            .unwrap()
+            .append_null();
+        self.typed_literal_builder.append_null();
+        Ok(())
+    }
+
     pub fn finish(mut self) -> DFResult<ArrayRef> {
         Ok(Arc::new(UnionArray::try_new(
             ENC_FIELDS_TERM.clone(),
