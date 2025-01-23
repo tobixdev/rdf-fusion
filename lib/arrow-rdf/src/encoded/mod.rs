@@ -13,9 +13,9 @@ pub use udfs::*;
 
 pub const ENC_QUAD_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     SchemaRef::new(Schema::new(vec![
-        Field::new(COL_GRAPH, ENC_TYPE_TERM.clone(), false),
-        Field::new(COL_SUBJECT, ENC_TYPE_TERM.clone(), false),
-        Field::new(COL_PREDICATE, ENC_TYPE_TERM.clone(), false),
-        Field::new(COL_OBJECT, ENC_TYPE_TERM.clone(), false),
+        Field::new(COL_GRAPH, EncTerm::term_type(), false),
+        Field::new(COL_SUBJECT, EncTerm::term_type(), false),
+        Field::new(COL_PREDICATE, EncTerm::term_type(), false),
+        Field::new(COL_OBJECT, EncTerm::term_type(), false),
     ]))
 });

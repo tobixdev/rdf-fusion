@@ -1,8 +1,4 @@
-use crate::encoded::{
-    ENC_FIELDS_STRING, ENC_FIELDS_TERM, ENC_FIELDS_TYPED_LITERAL, ENC_TYPE_ID_BLANK_NODE,
-    ENC_TYPE_ID_BOOLEAN, ENC_TYPE_ID_FLOAT32, ENC_TYPE_ID_FLOAT64, ENC_TYPE_ID_INT,
-    ENC_TYPE_ID_INTEGER, ENC_TYPE_ID_NAMED_NODE, ENC_TYPE_ID_STRING, ENC_TYPE_ID_TYPED_LITERAL,
-};
+use crate::encoded::{EncTerm, EncTermField};
 use crate::error::TermEncodingError;
 use crate::{AResult, DFResult};
 use datafusion::arrow::array::{
@@ -35,13 +31,13 @@ impl EncRdfTermBuilder {
             offsets: Vec::new(),
             named_node_builder: StringBuilder::new(),
             blank_node_builder: StringBuilder::new(),
-            string_builder: StructBuilder::from_fields(ENC_FIELDS_STRING.clone(), 0),
+            string_builder: StructBuilder::from_fields(EncTerm::string_fields(), 0),
             boolean_builder: BooleanBuilder::new(),
             float32_builder: Float32Builder::new(),
             float64_builder: Float64Builder::new(),
             int32_builder: Int32Builder::new(),
             integer_builder: Int64Builder::new(),
-            typed_literal_builder: StructBuilder::from_fields(ENC_FIELDS_TYPED_LITERAL.clone(), 0),
+            typed_literal_builder: StructBuilder::from_fields(EncTerm::typed_literal_fields(), 0),
         }
     }
 
@@ -64,28 +60,28 @@ impl EncRdfTermBuilder {
     }
 
     pub fn append_boolean(&mut self, value: bool) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_BOOLEAN);
+        self.type_ids.push(EncTermField::Boolean.type_id());
         self.offsets.push(self.boolean_builder.len() as i32);
         self.boolean_builder.append_value(value);
         Ok(())
     }
 
     pub fn append_named_node(&mut self, value: &str) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_NAMED_NODE);
+        self.type_ids.push(EncTermField::NamedNode.type_id());
         self.offsets.push(self.named_node_builder.len() as i32);
         self.named_node_builder.append_value(value);
         Ok(())
     }
 
     pub fn append_blank_node(&mut self, value: &str) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_BLANK_NODE);
+        self.type_ids.push(EncTermField::BlankNode.type_id());
         self.offsets.push(self.blank_node_builder.len() as i32);
         self.blank_node_builder.append_value(value);
         Ok(())
     }
 
     pub fn append_string(&mut self, value: &str, language: Option<&str>) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_STRING);
+        self.type_ids.push(EncTermField::String.type_id());
         self.offsets.push(self.string_builder.len() as i32);
 
         self.string_builder
@@ -108,35 +104,35 @@ impl EncRdfTermBuilder {
     }
 
     pub fn append_int(&mut self, int: i32) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_INT);
+        self.type_ids.push(EncTermField::Int.type_id());
         self.offsets.push(self.int32_builder.len() as i32);
         self.int32_builder.append_value(int);
         Ok(())
     }
 
     pub fn append_float32(&mut self, value: f32) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_FLOAT32);
+        self.type_ids.push(EncTermField::Float32.type_id());
         self.offsets.push(self.float32_builder.len() as i32);
         self.float32_builder.append_value(value);
         Ok(())
     }
 
     pub fn append_float64(&mut self, value: f64) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_FLOAT64);
+        self.type_ids.push(EncTermField::Float64.type_id());
         self.offsets.push(self.float64_builder.len() as i32);
         self.float64_builder.append_value(value);
         Ok(())
     }
 
     pub fn append_integer(&mut self, integer: i64) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_INTEGER);
+        self.type_ids.push(EncTermField::Integer.type_id());
         self.offsets.push(self.integer_builder.len() as i32);
         self.integer_builder.append_value(integer);
         Ok(())
     }
 
     pub fn append_typed_literal(&mut self, value: &str, datatype: &str) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_TYPED_LITERAL);
+        self.type_ids.push(EncTermField::TypedLiteral.type_id());
         self.offsets.push(self.typed_literal_builder.len() as i32);
         self.typed_literal_builder
             .field_builder::<StringBuilder>(0)
@@ -151,7 +147,7 @@ impl EncRdfTermBuilder {
     }
 
     pub fn append_null(&mut self) -> AResult<()> {
-        self.type_ids.push(ENC_TYPE_ID_TYPED_LITERAL);
+        self.type_ids.push(EncTermField::TypedLiteral.type_id());
         self.offsets.push(self.typed_literal_builder.len() as i32);
         self.typed_literal_builder
             .field_builder::<StringBuilder>(0)
@@ -167,7 +163,7 @@ impl EncRdfTermBuilder {
 
     pub fn finish(mut self) -> DFResult<ArrayRef> {
         Ok(Arc::new(UnionArray::try_new(
-            ENC_FIELDS_TERM.clone(),
+            EncTerm::term_fields(),
             ScalarBuffer::from(self.type_ids),
             Some(ScalarBuffer::from(self.offsets)),
             vec![

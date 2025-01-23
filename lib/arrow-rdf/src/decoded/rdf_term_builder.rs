@@ -1,8 +1,4 @@
-use crate::decoded::model::{
-    DEC_FIELDS_TERM, DEC_TYPE_ID_BLANK_NODE, DEC_TYPE_ID_NAMED_NODE, DEC_TYPE_ID_STRING,
-    DEC_TYPE_ID_TYPED_LITERAL,
-};
-use crate::encoded::{ENC_FIELDS_STRING, ENC_FIELDS_TYPED_LITERAL};
+use crate::decoded::model::{DecTerm, DecTermField};
 use crate::AResult;
 use datafusion::arrow::array::{ArrayBuilder, ArrayRef, StringBuilder, StructBuilder, UnionArray};
 use datafusion::arrow::buffer::ScalarBuffer;
@@ -26,8 +22,8 @@ impl DecRdfTermBuilder {
             offsets: Vec::new(),
             named_node_builder: StringBuilder::new(),
             blank_node_builder: StringBuilder::new(),
-            string_builder: StructBuilder::from_fields(ENC_FIELDS_STRING.clone(), 0),
-            typed_literal_builder: StructBuilder::from_fields(ENC_FIELDS_TYPED_LITERAL.clone(), 0),
+            string_builder: StructBuilder::from_fields(DecTerm::string_fields(), 0),
+            typed_literal_builder: StructBuilder::from_fields(DecTerm::typed_literal_fields(), 0),
         }
     }
 
@@ -45,21 +41,21 @@ impl DecRdfTermBuilder {
     }
 
     pub fn append_named_node(&mut self, value: &str) -> AResult<()> {
-        self.type_ids.push(DEC_TYPE_ID_NAMED_NODE);
+        self.type_ids.push(DecTermField::NamedNode.type_id());
         self.offsets.push(self.named_node_builder.len() as i32);
         self.named_node_builder.append_value(value);
         Ok(())
     }
 
     pub fn append_blank_node(&mut self, value: &str) -> AResult<()> {
-        self.type_ids.push(DEC_TYPE_ID_BLANK_NODE);
+        self.type_ids.push(DecTermField::BlankNode.type_id());
         self.offsets.push(self.blank_node_builder.len() as i32);
         self.blank_node_builder.append_value(value);
         Ok(())
     }
 
     pub fn append_string(&mut self, value: &str, language: Option<&str>) -> AResult<()> {
-        self.type_ids.push(DEC_TYPE_ID_STRING);
+        self.type_ids.push(DecTermField::String.type_id());
         self.offsets.push(self.string_builder.len() as i32);
 
         self.string_builder
@@ -81,7 +77,7 @@ impl DecRdfTermBuilder {
     }
 
     pub fn append_typed_literal(&mut self, value: &str, type_id: &str) -> AResult<()> {
-        self.type_ids.push(DEC_TYPE_ID_TYPED_LITERAL);
+        self.type_ids.push(DecTermField::TypedLiteral.type_id());
         self.offsets.push(self.typed_literal_builder.len() as i32);
 
         self.typed_literal_builder
@@ -98,7 +94,7 @@ impl DecRdfTermBuilder {
 
     pub fn finish(mut self) -> AResult<ArrayRef> {
         Ok(Arc::new(UnionArray::try_new(
-            DEC_FIELDS_TERM.clone(),
+            DecTerm::term_type_fields(),
             ScalarBuffer::from(self.type_ids),
             Some(ScalarBuffer::from(self.offsets)),
             vec![

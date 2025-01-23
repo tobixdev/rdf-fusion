@@ -1,6 +1,6 @@
 use crate::results::decoding::logical::DecodeRdfTermsNode;
 use crate::DFResult;
-use arrow_rdf::encoded::{ENC_DECODE, ENC_TYPE_TERM};
+use arrow_rdf::encoded::{EncTerm, ENC_DECODE};
 use datafusion::arrow::datatypes::Field;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::Column;
@@ -55,7 +55,7 @@ impl DecodeRdfTermsToProjectionRule {
 }
 
 fn field_to_expr(field: &Field) -> Expr {
-    if *field.data_type() == *ENC_TYPE_TERM {
+    if *field.data_type() == EncTerm::term_type() {
         Expr::ScalarFunction(ScalarFunction::new_udf(
             Arc::new(ENC_DECODE.clone()),
             vec![Expr::Column(Column::from(field.name().clone()))],

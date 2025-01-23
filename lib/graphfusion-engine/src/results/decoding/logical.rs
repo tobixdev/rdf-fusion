@@ -1,10 +1,7 @@
 use crate::results::decoding::compute_decoded_schema;
 use crate::DFResult;
 use datafusion::common::{DFSchema, DFSchemaRef};
-use datafusion::logical_expr::{
-    Expr, LogicalPlan, UserDefinedLogicalNode, UserDefinedLogicalNodeCore,
-};
-use datafusion::physical_plan::ExecutionPlan;
+use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -25,7 +22,7 @@ impl DecodeRdfTermsNode {
 }
 
 impl fmt::Debug for DecodeRdfTermsNode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         UserDefinedLogicalNodeCore::fmt_for_explain(self, f)
     }
 }
@@ -53,7 +50,7 @@ impl UserDefinedLogicalNodeCore for DecodeRdfTermsNode {
         vec![]
     }
 
-    fn fmt_for_explain(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt_for_explain(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "DecodeRdfTerms")
     }
 

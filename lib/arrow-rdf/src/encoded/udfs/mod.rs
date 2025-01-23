@@ -9,6 +9,8 @@ mod binary_dispatch;
 mod cmp;
 mod decode;
 mod result_collector;
+mod unary;
+mod unary_dispatch;
 
 use crate::encoded::udfs::cmp::{
     EncEq, EncGreaterOrEqual, EncGreaterThan, EncLessOrEqual, EncLessThan,
@@ -19,15 +21,11 @@ pub const ENC_GREATER_THAN: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncGr
 pub const ENC_GREATER_OR_EQUAL: Lazy<ScalarUDF> =
     Lazy::new(|| ScalarUDF::from(EncGreaterOrEqual::new()));
 pub const ENC_LESS_THAN: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncLessThan::new()));
-pub const ENC_LESS_OR_EQUAL: Lazy<ScalarUDF> =
-    Lazy::new(|| ScalarUDF::from(EncLessOrEqual::new()));
+pub const ENC_LESS_OR_EQUAL: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncLessOrEqual::new()));
 
+pub const ENC_AS_NATIVE_BOOLEAN: Lazy<ScalarUDF> = Lazy::new(|| create_enc_as_native_boolean());
 
-pub const ENC_AS_NATIVE_BOOLEAN: Lazy<ScalarUDF> =
-    Lazy::new(|| create_enc_as_native_boolean());
-
-pub const ENC_DECODE: Lazy<ScalarUDF> =
-    Lazy::new(|| create_enc_decode());
+pub const ENC_DECODE: Lazy<ScalarUDF> = Lazy::new(|| create_enc_decode());
 
 pub fn register_rdf_term_udfs(session_context: &SessionContext) {
     // Binary Comparisons

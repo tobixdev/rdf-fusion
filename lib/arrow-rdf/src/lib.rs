@@ -20,5 +20,6 @@ type AResult<T> = Result<T, ArrowError>;
 
 // Downcast ArrayRef to Int64Array
 pub fn as_rdf_term_array(array: &dyn Array) -> DFResult<&UnionArray> {
+    // TODO: Check type
     Ok(downcast_value!(array, UnionArray))
 }

@@ -1,7 +1,6 @@
 use crate::results::decoding::logical::DecodeRdfTermsNode;
 use crate::DFResult;
-use arrow_rdf::decoded::model::DEC_TYPE_TERM;
-use arrow_rdf::encoded::ENC_TYPE_TERM;
+use arrow_rdf::encoded::EncTerm;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::logical_expr::{Extension, LogicalPlan};
 use std::sync::Arc;
@@ -27,8 +26,8 @@ fn compute_decoded_schema(input_schema: &Schema) -> SchemaRef {
 }
 
 fn transform_field(field: &Field) -> Field {
-    if field.data_type() == &*ENC_TYPE_TERM {
-        Field::new(field.name(), DEC_TYPE_TERM.clone(), field.is_nullable())
+    if *field.data_type() == EncTerm::term_type() {
+        Field::new(field.name(), EncTerm::term_type(), field.is_nullable())
     } else {
         field.clone()
     }

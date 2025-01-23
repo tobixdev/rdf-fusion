@@ -1,4 +1,4 @@
-use arrow_rdf::decoded::model::DEC_TYPE_TERM;
+use arrow_rdf::decoded::model::DecTerm;
 use arrow_rdf::decoded::DecRdfTermBuilder;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
@@ -12,6 +12,7 @@ use sparesults::{
     QueryResultsFormat, QueryResultsParseError, QueryResultsParser, QueryResultsSerializer,
     ReaderQueryResultsParserOutput,
 };
+use std::error::Error;
 use std::io::{Read, Write};
 use std::sync::Arc;
 
@@ -45,7 +46,7 @@ impl QueryResults {
     pub fn read(
         reader: impl Read + 'static,
         format: QueryResultsFormat,
-    ) -> Result<Self, QueryResultsParserToStreamError> {
+    ) -> Result<Self, QuerySolutionsToStreamError> {
         let parser = QueryResultsParser::from_format(format).for_reader(reader)?;
         query_result_for_parser(parser)
     }
@@ -164,52 +165,70 @@ impl QueryResults {
 
 /// Indicates that there was a problem while turning a query result into a query solution stream.
 #[derive(Debug, thiserror::Error)]
-pub enum QueryResultsParserToStreamError {
-    #[error("There was an error while parsing the query result")]
-    Parsing(#[from] QueryResultsParseError),
+pub enum QuerySolutionsToStreamError {
+    #[error("There was an error while obtaining the query solutions")]
+    QuerySolutionSource(#[from] Box<dyn Error + Send + Sync>),
     #[error("Could not create a record batch from the result")]
     RecordBatchCreation(#[from] ArrowError),
     #[error("Could not create a stream from the resulting record batch")]
     StreamCreation(#[from] DataFusionError),
 }
 
+impl From<QueryResultsParseError> for QuerySolutionsToStreamError {
+    fn from(value: QueryResultsParseError) -> Self {
+        Self::QuerySolutionSource(Box::new(value))
+    }
+}
+
 fn query_result_for_parser(
     parser: ReaderQueryResultsParserOutput<impl Read + Sized>,
-) -> Result<QueryResults, QueryResultsParserToStreamError> {
+) -> Result<QueryResults, QuerySolutionsToStreamError> {
     Ok(match parser {
         ReaderQueryResultsParserOutput::Solutions(s) => {
             let variables: Arc<[Variable]> = s.variables().into();
-            let mut builders = Vec::new();
-            for _ in 0..variables.len() {
-                builders.push(DecRdfTermBuilder::new())
-            }
-
-            for solution in s {
-                let solution = solution?;
-                for (idx, (_, term)) in solution.iter().enumerate() {
-                    builders
-                        .get_mut(idx)
-                        .expect("Initialized with enough builders")
-                        .append_term(term)?
-                }
-            }
-
-            let fields = variables
-                .iter()
-                .map(|v| Field::new(v.as_str(), DEC_TYPE_TERM.clone(), true))
-                .collect::<Vec<_>>();
-            let columns = builders
+            let parser_iter = s
                 .into_iter()
-                .map(|builder| builder.finish())
-                .collect::<Result<Vec<_>, ArrowError>>()?;
-            let schema = SchemaRef::new(Schema::new(fields));
-            let record_batch = RecordBatch::try_new(schema.clone(), columns)?;
-            let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
-            let stream = QuerySolutionStream::new(variables, Box::pin(record_batch_stream));
-            QueryResults::Solutions(stream)
+                .map(|r| r.map_err(|error| Box::new(error) as Box<dyn Error + Send + Sync>));
+            query_result_for_iterator(variables, parser_iter)?
         }
         ReaderQueryResultsParserOutput::Boolean(v) => QueryResults::Boolean(v),
     })
+}
+
+pub fn query_result_for_iterator(
+    variables: Arc<[Variable]>,
+    solutions: impl Iterator<Item = Result<QuerySolution, Box<dyn Error + Send + Sync>>>,
+) -> Result<QueryResults, QuerySolutionsToStreamError> {
+    let mut builders = Vec::new();
+    for _ in 0..variables.len() {
+        builders.push(DecRdfTermBuilder::new())
+    }
+
+    for solution in solutions {
+        let solution =
+            solution.map_err(|err| QuerySolutionsToStreamError::QuerySolutionSource(err))?;
+        for (idx, (_, term)) in solution.iter().enumerate() {
+            builders
+                .get_mut(idx)
+                .expect("Initialized with enough builders")
+                .append_term(term)?
+        }
+    }
+
+    let fields = variables
+        .iter()
+        .map(|v| Field::new(v.as_str(), DecTerm::term_type(), true))
+        .collect::<Vec<_>>();
+    let columns = builders
+        .into_iter()
+        .map(|builder| builder.finish())
+        .collect::<Result<Vec<_>, ArrowError>>()?;
+
+    let schema = SchemaRef::new(Schema::new(fields));
+    let record_batch = RecordBatch::try_new(schema.clone(), columns)?;
+    let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
+    let stream = QuerySolutionStream::new(variables, Box::pin(record_batch_stream));
+    Ok(QueryResults::Solutions(stream))
 }
 
 impl From<QuerySolutionStream> for QueryResults {

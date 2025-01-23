@@ -1,5 +1,5 @@
 use crate::encoded::udfs::binary_dispatch::{dispatch_binary, EncScalarBinaryUdf};
-use crate::encoded::{EncRdfTermBuilder, ENC_TYPE_TERM};
+use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
@@ -24,7 +24,7 @@ macro_rules! create_binary_cmp_udf {
             pub fn new() -> Self {
                 Self {
                     signature: Signature::new(
-                        TypeSignature::Exact(vec![ENC_TYPE_TERM.clone(), ENC_TYPE_TERM.clone()]),
+                        TypeSignature::Exact(vec![EncTerm::term_type(), EncTerm::term_type()]),
                         Volatility::Immutable,
                     ),
                 }
@@ -133,7 +133,7 @@ macro_rules! create_binary_cmp_udf {
             }
 
             fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-                Ok(ENC_TYPE_TERM.clone())
+                Ok(EncTerm::term_type())
             }
 
             fn invoke_batch(
@@ -162,7 +162,7 @@ impl EncSameTerm {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
-                TypeSignature::Exact(vec![ENC_TYPE_TERM.clone(), ENC_TYPE_TERM.clone()]),
+                TypeSignature::Exact(vec![EncTerm::term_type(), EncTerm::term_type()]),
                 Volatility::Immutable,
             ),
         }
@@ -273,7 +273,7 @@ impl ScalarUDFImpl for EncSameTerm {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(ENC_TYPE_TERM.clone())
+        Ok(EncTerm::term_type())
     }
 
     fn invoke_batch(

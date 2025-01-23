@@ -3,14 +3,12 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EQ, ENC_QUAD_SCHEMA, ENC_TYPE_TERM};
+use arrow_rdf::encoded::{EncTerm, ENC_AS_NATIVE_BOOLEAN, ENC_EQ, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{not_impl_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue};
 use datafusion::execution::{FunctionRegistry, SessionState};
-use datafusion::logical_expr::{
-    lit, Expr, LogicalPlan, LogicalPlanBuilder, LogicalTableSource, UserDefinedLogicalNode,
-};
+use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, LogicalTableSource};
 use datafusion::prelude::col;
 use oxrdf::{Variable, VariableRef};
 use spargebra::algebra::{Expression, GraphPattern};
@@ -113,7 +111,7 @@ impl<'a> GraphPatternRewriter<'a> {
 
         let fields: Vec<_> = variables
             .iter()
-            .map(|v| Field::new(v.as_str(), ENC_TYPE_TERM.clone(), true))
+            .map(|v| Field::new(v.as_str(), EncTerm::term_type(), true))
             .collect();
         let schema = DFSchemaRef::new(DFSchema::try_from(Schema::new(fields))?);
 

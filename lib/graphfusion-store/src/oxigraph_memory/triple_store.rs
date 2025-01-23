@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use datafusion::error::DataFusionError;
 use datafusion::execution::{FunctionRegistry, SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::logical_expr::{col, lit, LogicalPlan};
-use datafusion::prelude::{DataFrame, SessionConfig, SessionContext};
+use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::{decode_rdf_terms, DecodeRdfTermsToProjectionRule, QueryResults};
 use graphfusion_engine::sparql::error::EvaluationError;

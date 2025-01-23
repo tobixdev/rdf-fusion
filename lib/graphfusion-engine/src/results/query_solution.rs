@@ -1,7 +1,5 @@
 use crate::sparql::error::EvaluationError;
-use arrow_rdf::decoded::model::{
-    DEC_TYPE_ID_BLANK_NODE, DEC_TYPE_ID_NAMED_NODE, DEC_TYPE_ID_STRING, DEC_TYPE_ID_TYPED_LITERAL,
-};
+use arrow_rdf::decoded::model::DecTermField;
 use datafusion::arrow::array::{Array, AsArray, RecordBatch, UnionArray};
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
@@ -122,9 +120,10 @@ fn to_query_solution(
                 .column_by_name(field.name())
                 .expect("Schema must match")
                 .as_union();
+            let term_field = DecTermField::try_from(column.type_id(i))?;
             let term = match column.is_null(i) {
                 true => None,
-                false => Some(to_term(column, column.value_offset(i), column.type_id(i))?),
+                false => Some(to_term(column, column.value_offset(i), term_field)?),
             };
             terms.push(term);
         }
@@ -134,31 +133,41 @@ fn to_query_solution(
     Ok(result.into_iter())
 }
 
-fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, EvaluationError> {
-    Ok(match type_id {
-        DEC_TYPE_ID_NAMED_NODE => {
-            let value = objects.child(type_id).as_string::<i32>().value(i);
+fn to_term(
+    objects: &UnionArray,
+    i: usize,
+    term_field: DecTermField,
+) -> Result<Term, EvaluationError> {
+    Ok(match term_field {
+        DecTermField::NamedNode => {
+            let value = objects
+                .child(term_field.type_id())
+                .as_string::<i32>()
+                .value(i);
             if value == "DEFAULT" {
                 Term::Literal(Literal::new_simple_literal(value))
             } else {
                 Term::NamedNode(NamedNode::new(value).map_err(EvaluationError::unexpected)?)
             }
         }
-        DEC_TYPE_ID_BLANK_NODE => {
-            let value = objects.child(type_id).as_string::<i32>().value(i);
+        DecTermField::BlankNode => {
+            let value = objects
+                .child(term_field.type_id())
+                .as_string::<i32>()
+                .value(i);
             Term::BlankNode(
                 BlankNode::new(value).map_err(|err| EvaluationError::Unexpected(Box::new(err)))?,
             )
         }
-        DEC_TYPE_ID_STRING => {
+        DecTermField::String => {
             let values = objects
-                .child(type_id)
+                .child(term_field.type_id())
                 .as_struct()
                 .column_by_name("value")
                 .expect("Schema is fixed")
                 .as_string::<i32>();
             let language = objects
-                .child(type_id)
+                .child(term_field.type_id())
                 .as_struct()
                 .column_by_name("language")
                 .expect("Schema is fixed")
@@ -176,15 +185,15 @@ fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, Evaluati
                 )
             }
         }
-        DEC_TYPE_ID_TYPED_LITERAL => {
+        DecTermField::TypedLiteral => {
             let values = objects
-                .child(type_id)
+                .child(term_field.type_id())
                 .as_struct()
                 .column_by_name("value")
                 .expect("Schema is fixed")
                 .as_string::<i32>();
             let datatypes = objects
-                .child(type_id)
+                .child(term_field.type_id())
                 .as_struct()
                 .column_by_name("datatype")
                 .expect("Schema is fixed")
@@ -195,12 +204,6 @@ fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, Evaluati
                     .map_err(EvaluationError::unexpected)?,
             ))
         }
-        type_id => {
-            return Err(EvaluationError::NotImplemented(format!(
-                "to_term: {}",
-                type_id
-            )))
-        }
     })
 }
 
@@ -209,7 +212,8 @@ fn to_term(objects: &UnionArray, i: usize, type_id: i8) -> Result<Term, Evaluati
 mod tests {
     use super::*;
     use crate::sparql::QueryResults;
-    use oxrdf::{BlankNode, Literal, NamedNode, Term};
+    use datafusion::physical_plan::memory::MemoryStream;
+    use oxrdf::{BlankNode, Literal, NamedNode, Term, Triple};
     use sparesults::QueryResultsFormat;
     use std::io::Cursor;
 
@@ -281,6 +285,8 @@ mod tests {
                 .map(|terms| Ok((variables.clone(), terms).into()))
                 .collect::<Vec<Result<QuerySolution, EvaluationError>>>();
 
+            let record_batch = RecordBatch::try_new(schema.clone(), columns)?;
+            let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
             let results = vec![
                 QueryResults::Boolean(true),
                 QueryResults::Boolean(false),

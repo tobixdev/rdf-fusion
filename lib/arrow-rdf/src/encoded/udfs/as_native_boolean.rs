@@ -1,4 +1,4 @@
-use crate::encoded::{ENC_TYPE_ID_BOOLEAN, ENC_TYPE_TERM};
+use crate::encoded::{EncTerm, EncTermField};
 use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow::array::{ArrayRef, AsArray, BooleanArray};
 use datafusion::arrow::datatypes::DataType;
@@ -11,7 +11,7 @@ pub const ENC_AS_NATIVE_BOOLEAN: &str = "enc_as_native_boolean";
 pub fn create_enc_as_native_boolean() -> ScalarUDF {
     create_udf(
         ENC_AS_NATIVE_BOOLEAN,
-        vec![ENC_TYPE_TERM.clone()],
+        vec![EncTerm::term_type()],
         DataType::Boolean,
         Volatility::Immutable,
         Arc::new(batch_enc_as_native_boolean),
@@ -36,15 +36,21 @@ fn batch_enc_as_native_boolean_array(arg: ArrayRef) -> DFResult<ColumnarValue> {
     let booleans_iter = arg
         .type_ids()
         .iter()
+        .map(|tid| EncTermField::try_from(*tid))
         .zip(arg.offsets().expect("Dense Union").iter())
-        .map(|(tid, offset)| {
-            let result = match tid {
-                &ENC_TYPE_ID_BOOLEAN => arg.child(*tid).as_boolean().value(*offset as usize),
+        .map(|(term_field, offset)| {
+            let term_field = term_field?;
+            let result = match term_field {
+                EncTermField::Boolean => arg
+                    .child(term_field.type_id())
+                    .as_boolean()
+                    .value(*offset as usize),
                 _ => false,
             };
-            Some(result)
-        });
-    let booleans = BooleanArray::from_iter(booleans_iter);
+            Ok(Some(result))
+        })
+        .collect::<Result<Vec<_>, DataFusionError>>()?;
+    let booleans = BooleanArray::from(booleans_iter);
 
     Ok(ColumnarValue::Array(Arc::new(booleans)))
 }

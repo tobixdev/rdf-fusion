@@ -1,115 +1,181 @@
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
+use datafusion::common::{exec_err, DataFusionError};
 use once_cell::unsync::Lazy;
 use std::clone::Clone;
-//
-// NamedNodes
-//
+use std::fmt::{Display, Formatter};
 
-pub const ENC_TYPE_NAMED_NODE: Lazy<DataType> = Lazy::new(|| DataType::Utf8);
-
-//
-// Blank Nodes
-//
-
-pub const ENC_TYPE_BLANK_NODE: Lazy<DataType> = Lazy::new(|| DataType::Utf8);
-
-//
-// Literals
-//
-
-pub const ENC_FIELDS_STRING: Lazy<Fields> = Lazy::new(|| {
+const FIELDS_STRING: Lazy<Fields> = Lazy::new(|| {
     Fields::from(vec![
         Field::new("value", DataType::Utf8, false),
         Field::new("language", DataType::Utf8, true),
     ])
 });
-pub const ENC_TYPE_STRING: Lazy<DataType> =
-    Lazy::new(|| DataType::Struct(ENC_FIELDS_STRING.clone()));
-pub const ENC_TYPE_BOOLEAN: Lazy<DataType> = Lazy::new(|| DataType::Boolean);
-pub const ENC_TYPE_FLOAT32: Lazy<DataType> = Lazy::new(|| DataType::Float32);
-pub const ENC_TYPE_FLOAT64: Lazy<DataType> = Lazy::new(|| DataType::Float64);
-pub const ENC_TYPE_INT: Lazy<DataType> = Lazy::new(|| DataType::Int32);
-pub const ENC_TYPE_INTEGER: Lazy<DataType> = Lazy::new(|| DataType::Int64); // TODO: Big Int
 
-pub const ENC_FIELDS_TYPED_LITERAL: Lazy<Fields> = Lazy::new(|| {
+const FIELDS_TYPED_LITERAL: Lazy<Fields> = Lazy::new(|| {
     Fields::from(vec![
         Field::new("value", DataType::Utf8, false),
         Field::new("datatype", DataType::Utf8, false),
     ])
 });
-pub const ENC_TYPE_TYPED_LITERAL: Lazy<DataType> =
-    Lazy::new(|| DataType::Struct(ENC_FIELDS_TYPED_LITERAL.clone()));
 
-// TODO: Other types
-
-pub const ENC_FIELD_NAMED_NODE: &str = "named_node";
-pub const ENC_FIELD_BLANK_NODE: &str = "blank_node";
-pub const ENC_FIELD_STRING: &str = "string";
-pub const ENC_FIELD_BOOLEAN: &str = "boolean";
-pub const ENC_FIELD_FLOAT32: &str = "float32";
-pub const ENC_FIELD_FLOAT64: &str = "float64";
-pub const ENC_FIELD_INT: &str = "int";
-pub const ENC_FIELD_INTEGER: &str = "integer";
-pub const ENC_FIELD_TYPED_LITERAL: &str = "typed_literal";
-
-pub const ENC_FIELDS_TERM: Lazy<UnionFields> = Lazy::new(|| {
+const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
     let fields = vec![
-        Field::new(ENC_FIELD_NAMED_NODE, ENC_TYPE_NAMED_NODE.clone(), true),
-        Field::new(ENC_FIELD_BLANK_NODE, ENC_TYPE_BLANK_NODE.clone(), true),
-        Field::new(ENC_FIELD_STRING, ENC_TYPE_STRING.clone(), true),
-        Field::new(ENC_FIELD_BOOLEAN, ENC_TYPE_BOOLEAN.clone(), true),
-        Field::new(ENC_FIELD_FLOAT32, ENC_TYPE_FLOAT32.clone(), true),
-        Field::new(ENC_FIELD_FLOAT64, ENC_TYPE_FLOAT64.clone(), true),
-        Field::new(ENC_FIELD_INT, ENC_TYPE_INT.clone(), true),
-        Field::new(ENC_FIELD_INTEGER, ENC_TYPE_INTEGER.clone(), true),
         Field::new(
-            ENC_FIELD_TYPED_LITERAL,
-            ENC_TYPE_TYPED_LITERAL.clone(),
+            EncTermField::NamedNode.name(),
+            EncTermField::NamedNode.data_type(),
+            true,
+        ),
+        Field::new(
+            EncTermField::BlankNode.name(),
+            EncTermField::BlankNode.data_type(),
+            true,
+        ),
+        Field::new(
+            EncTermField::String.name(),
+            EncTermField::String.data_type(),
+            true,
+        ),
+        Field::new(
+            EncTermField::Boolean.name(),
+            EncTermField::Boolean.data_type(),
+            true,
+        ),
+        Field::new(
+            EncTermField::Float32.name(),
+            EncTermField::Float32.data_type(),
+            true,
+        ),
+        Field::new(
+            EncTermField::Float64.name(),
+            EncTermField::Float64.data_type(),
+            true,
+        ),
+        Field::new(
+            EncTermField::Int.name(),
+            EncTermField::Int.data_type(),
+            true,
+        ),
+        Field::new(
+            EncTermField::Integer.name(),
+            EncTermField::Integer.data_type(),
+            true,
+        ),
+        Field::new(
+            EncTermField::TypedLiteral.name(),
+            EncTermField::TypedLiteral.data_type(),
             true,
         ),
     ];
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
 });
-pub const ENC_TYPE_TERM: Lazy<DataType> =
-    Lazy::new(|| DataType::Union(ENC_FIELDS_TERM.clone(), UnionMode::Dense));
 
-//
-// TypeIds
-//
+pub struct EncTerm {}
 
-pub const ENC_TYPE_ID_NAMED_NODE: i8 = 0;
-pub const ENC_TYPE_ID_BLANK_NODE: i8 = 1;
-pub const ENC_TYPE_ID_STRING: i8 = 2;
-pub const ENC_TYPE_ID_BOOLEAN: i8 = 3;
-pub const ENC_TYPE_ID_FLOAT32: i8 = 4;
-pub const ENC_TYPE_ID_FLOAT64: i8 = 5;
-pub const ENC_TYPE_ID_INT: i8 = 6;
-pub const ENC_TYPE_ID_INTEGER: i8 = 7;
-pub const ENC_TYPE_ID_TYPED_LITERAL: i8 = 8;
+impl EncTerm {
+    pub fn term_fields() -> UnionFields {
+        FIELDS_TYPE.clone()
+    }
 
-//
-// Helper Functions
-//
+    pub fn string_fields() -> Fields {
+        FIELDS_STRING.clone()
+    }
 
-pub fn enc_field_idx_term(name: &str) -> i8 {
-    ENC_FIELDS_TERM
-        .iter()
-        .filter(|(_, f)| f.name() == name)
-        .next()
-        .unwrap()
-        .0
+    pub fn typed_literal_fields() -> Fields {
+        FIELDS_TYPED_LITERAL.clone()
+    }
+
+    pub fn term_type() -> DataType {
+        DataType::Union(Self::term_fields().clone(), UnionMode::Dense)
+    }
 }
 
-pub fn enc_idx_to_field_name(idx: i8) -> String {
-    ENC_FIELDS_TERM
-        .iter()
-        .nth(idx as usize)
-        .map(|f| f.1.name().clone())
-        .unwrap()
+#[repr(i8)]
+#[derive(Ord, PartialOrd, PartialEq, Eq, Debug, Clone, Copy)]
+pub enum EncTermField {
+    NamedNode,
+    BlankNode,
+    String,
+    Boolean,
+    Float32,
+    Float64,
+    Int,
+    Integer,
+    TypedLiteral,
 }
 
-pub fn enc_is_nested_rdf_term(idx: i8) -> bool {
-    idx == ENC_TYPE_ID_STRING || idx == ENC_TYPE_ID_TYPED_LITERAL
+impl EncTermField {
+    pub fn type_id(&self) -> i8 {
+        self.into()
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            EncTermField::NamedNode => "named_node",
+            EncTermField::BlankNode => "blank_node",
+            EncTermField::String => "string",
+            EncTermField::Boolean => "boolean",
+            EncTermField::Float32 => "float32",
+            EncTermField::Float64 => "float64",
+            EncTermField::Int => "int",
+            EncTermField::Integer => "integer",
+            EncTermField::TypedLiteral => "typed_literal",
+        }
+    }
+
+    pub fn data_type(&self) -> DataType {
+        match self {
+            EncTermField::NamedNode => DataType::Utf8,
+            EncTermField::BlankNode => DataType::Utf8,
+            EncTermField::String => DataType::Struct(FIELDS_STRING.clone()),
+            EncTermField::Boolean => DataType::Boolean,
+            EncTermField::Float32 => DataType::Float32,
+            EncTermField::Float64 => DataType::Float64,
+            EncTermField::Int => DataType::Int32,
+            EncTermField::Integer => DataType::Int64,
+            EncTermField::TypedLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
+        }
+    }
+}
+
+impl Display for EncTermField {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+impl TryFrom<i8> for EncTermField {
+    type Error = DataFusionError;
+
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => EncTermField::NamedNode,
+            1 => EncTermField::BlankNode,
+            2 => EncTermField::String,
+            3 => EncTermField::Boolean,
+            4 => EncTermField::Float32,
+            5 => EncTermField::Float64,
+            6 => EncTermField::Int,
+            7 => EncTermField::Integer,
+            8 => EncTermField::TypedLiteral,
+            _ => return exec_err!("Unexpected type_id for encoded RDF Term"),
+        })
+    }
+}
+
+impl From<&EncTermField> for i8 {
+    fn from(value: &EncTermField) -> Self {
+        match value {
+            EncTermField::NamedNode => 0,
+            EncTermField::BlankNode => 1,
+            EncTermField::String => 2,
+            EncTermField::Boolean => 3,
+            EncTermField::Float32 => 4,
+            EncTermField::Float64 => 5,
+            EncTermField::Int => 6,
+            EncTermField::Integer => 7,
+            EncTermField::TypedLiteral => 8,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -118,23 +184,18 @@ mod tests {
 
     #[test]
     fn test_type_ids() {
-        assert_eq!(
-            ENC_TYPE_ID_NAMED_NODE,
-            enc_field_idx_term(ENC_FIELD_NAMED_NODE)
-        );
-        assert_eq!(
-            ENC_TYPE_ID_BLANK_NODE,
-            enc_field_idx_term(ENC_FIELD_BLANK_NODE)
-        );
-        assert_eq!(ENC_TYPE_ID_STRING, enc_field_idx_term(ENC_FIELD_STRING));
-        assert_eq!(ENC_TYPE_ID_BOOLEAN, enc_field_idx_term(ENC_FIELD_BOOLEAN));
-        assert_eq!(ENC_TYPE_ID_FLOAT32, enc_field_idx_term(ENC_FIELD_FLOAT32));
-        assert_eq!(ENC_TYPE_ID_FLOAT64, enc_field_idx_term(ENC_FIELD_FLOAT64));
-        assert_eq!(ENC_TYPE_ID_INT, enc_field_idx_term(ENC_FIELD_INT));
-        assert_eq!(ENC_TYPE_ID_INTEGER, enc_field_idx_term(ENC_FIELD_INTEGER));
-        assert_eq!(
-            ENC_TYPE_ID_TYPED_LITERAL,
-            enc_field_idx_term(ENC_FIELD_TYPED_LITERAL)
-        );
+        test_type_id(EncTermField::NamedNode);
+        test_type_id(EncTermField::BlankNode);
+        test_type_id(EncTermField::String);
+        test_type_id(EncTermField::Boolean);
+        test_type_id(EncTermField::Float32);
+        test_type_id(EncTermField::Float64);
+        test_type_id(EncTermField::Int);
+        test_type_id(EncTermField::Integer);
+        test_type_id(EncTermField::TypedLiteral);
+    }
+
+    fn test_type_id(term_field: EncTermField) {
+        assert_eq!(term_field, term_field.type_id().try_into().unwrap());
     }
 }
