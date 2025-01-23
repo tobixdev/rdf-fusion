@@ -7,7 +7,7 @@ pub mod error;
 mod eval;
 mod explanation;
 mod model;
-mod rewriter;
+mod rewriting;
 
 pub use crate::results::{QueryResults, QuerySolution, QuerySolutionStream, QueryTripleStream};
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};

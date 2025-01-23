@@ -1,25 +1,28 @@
+use crate::results::decode_rdf_terms;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EQ, ENC_QUAD_SCHEMA};
+use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EQ, ENC_QUAD_SCHEMA, ENC_TYPE_TERM};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
-use datafusion::common::{not_impl_err, JoinType, ScalarValue};
+use datafusion::arrow::datatypes::{Field, Schema};
+use datafusion::common::{not_impl_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue};
 use datafusion::execution::{FunctionRegistry, SessionState};
-use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, LogicalTableSource};
-use datafusion::prelude::{col, exists};
+use datafusion::logical_expr::{
+    lit, Expr, LogicalPlan, LogicalPlanBuilder, LogicalTableSource, UserDefinedLogicalNode,
+};
+use datafusion::prelude::col;
 use oxrdf::{Variable, VariableRef};
 use spargebra::algebra::{Expression, GraphPattern};
-use spargebra::term::{TermPattern, TriplePattern};
+use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
 use std::collections::HashSet;
 use std::sync::Arc;
-use crate::results::decode_rdf_terms;
 
-pub struct SparqlToDataFusionRewriter<'a> {
+pub struct GraphPatternRewriter<'a> {
     state: &'a SessionState,
 }
 
-impl<'a> SparqlToDataFusionRewriter<'a> {
+impl<'a> GraphPatternRewriter<'a> {
     pub fn new(state: &'a SessionState) -> Self {
         Self { state }
     }
@@ -34,6 +37,15 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
             GraphPattern::Bgp { patterns } => self.rewrite_bgp(patterns),
             GraphPattern::Project { inner, variables } => self.rewrite_project(inner, variables),
             GraphPattern::Filter { inner, expr } => self.rewrite_filter(inner, expr),
+            GraphPattern::Extend {
+                inner,
+                expression,
+                variable,
+            } => self.rewrite_extend(inner, expression, variable),
+            GraphPattern::Values {
+                variables,
+                bindings,
+            } => self.rewrite_values(variables, bindings),
             pattern => not_impl_err!("{:?}", pattern),
         }
     }
@@ -43,7 +55,13 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
             .iter()
             .map(|p| self.rewrite_triple_pattern(p))
             .reduce(|lhs, rhs| self.join_solutions(lhs?, rhs?))
-            .expect("At least one pattern")
+            .unwrap_or_else(|| {
+                Ok(LogicalPlanBuilder::scan(
+                    TABLE_QUADS,
+                    Arc::new(LogicalTableSource::new(ENC_QUAD_SCHEMA.clone())),
+                    None,
+                )?)
+            })
     }
 
     fn rewrite_project(
@@ -63,6 +81,48 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
         let as_boolean = self.state.udf(ENC_AS_NATIVE_BOOLEAN.name())?;
         self.rewrite_graph_pattern(inner)?
             .filter(as_boolean.call(vec![self.rewrite_expr(expr)?]))
+    }
+
+    fn rewrite_extend(
+        &self,
+        inner: &GraphPattern,
+        expression: &Expression,
+        variable: &Variable,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let inner = self.rewrite_graph_pattern(inner)?;
+
+        let mut new_exprs: Vec<_> = inner
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| Expr::Column(Column::from(f.name())))
+            .collect();
+        new_exprs.push(self.rewrite_expr(expression)?.alias(variable.as_str()));
+
+        inner.project(new_exprs)
+    }
+
+    fn rewrite_values(
+        &self,
+        variables: &Vec<Variable>,
+        bindings: &Vec<Vec<Option<GroundTerm>>>,
+    ) -> DFResult<LogicalPlanBuilder> {
+        if bindings.is_empty() {
+            return Ok(LogicalPlanBuilder::empty(false));
+        }
+
+        let fields: Vec<_> = variables
+            .iter()
+            .map(|v| Field::new(v.as_str(), ENC_TYPE_TERM.clone(), true))
+            .collect();
+        let schema = DFSchemaRef::new(DFSchema::try_from(Schema::new(fields))?);
+
+        let values = bindings
+            .iter()
+            .map(|solution| encode_solution(solution))
+            .collect::<DFResult<Vec<_>>>()?;
+
+        LogicalPlanBuilder::values_with_schema(values, &schema)
     }
 
     fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
@@ -153,4 +213,22 @@ fn pattern_to_filter_and_projections(
         TermPattern::Variable(var) => (None, Some(var.as_ref())),
         TermPattern::Triple(_) => unimplemented!(),
     })
+}
+
+fn encode_solution(terms: &Vec<Option<GroundTerm>>) -> DFResult<Vec<Expr>> {
+    terms
+        .iter()
+        .map(|t| {
+            Ok(match t {
+                Some(GroundTerm::NamedNode(nn)) => {
+                    Expr::Literal(encode_scalar_named_node(nn.as_ref()))
+                }
+                Some(GroundTerm::Literal(lit)) => {
+                    Expr::Literal(encode_scalar_literal(lit.as_ref())?)
+                }
+                None => Expr::Literal(ScalarValue::Null),
+                _ => unimplemented!("encoding values"),
+            })
+        })
+        .collect()
 }

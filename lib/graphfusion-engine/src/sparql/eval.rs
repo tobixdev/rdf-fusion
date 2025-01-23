@@ -1,11 +1,11 @@
 use crate::sparql::error::EvaluationError;
-use crate::sparql::rewriter::SparqlToDataFusionRewriter;
 use crate::sparql::{Query, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream};
 use datafusion::execution::SessionState;
 use datafusion::prelude::DataFrame;
 use oxrdf::Variable;
 use spargebra::algebra::GraphPattern;
 use std::sync::Arc;
+use crate::sparql::rewriting::GraphPatternRewriter;
 
 pub async fn evaluate_query(
     state: SessionState,
@@ -14,7 +14,7 @@ pub async fn evaluate_query(
 ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
     match &query.inner {
         spargebra::Query::Select { pattern, .. } => {
-            let rewriter = SparqlToDataFusionRewriter::new(&state);
+            let rewriter = GraphPatternRewriter::new(&state);
             let logical_plan = rewriter.rewrite(pattern).map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
             let dataframe = DataFrame::new(state, logical_plan);
             let batch_record_stream = dataframe.execute_stream().await?;
