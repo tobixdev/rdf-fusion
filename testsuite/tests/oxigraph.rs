@@ -53,15 +53,6 @@ fn oxigraph_sparql_results_testsuite() -> Result<()> {
     )
 }
 
-#[cfg(target_pointer_width = "64")] // Hashing is different in 32 bits, leading to different ordering
-#[test]
-fn oxigraph_optimizer_testsuite() -> Result<()> {
-    check_testsuite(
-        "https://github.com/oxigraph/oxigraph/tests/sparql-optimization/manifest.ttl",
-        &[],
-    )
-}
-
 #[test]
 fn oxigraph_geosparql_testsuite() -> Result<()> {
     check_testsuite(

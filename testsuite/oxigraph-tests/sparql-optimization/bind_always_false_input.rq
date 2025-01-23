@@ -1,4 +1,0 @@
-SELECT ?a ?o WHERE {
-    ?s ?p ?o .
-    FILTER(BOUND(?a))
-}

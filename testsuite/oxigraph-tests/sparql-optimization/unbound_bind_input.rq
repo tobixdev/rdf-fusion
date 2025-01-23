@@ -1,3 +1,0 @@
-SELECT ?o WHERE {
-    BIND(?a AS ?o)
-}

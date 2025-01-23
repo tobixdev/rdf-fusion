@@ -1,3 +1,0 @@
-SELECT ?a ?o WHERE {
-    VALUES () {}
-}

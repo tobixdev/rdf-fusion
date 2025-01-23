@@ -13,6 +13,7 @@ use spargebra::algebra::{Expression, GraphPattern};
 use spargebra::term::{TermPattern, TriplePattern};
 use std::collections::HashSet;
 use std::sync::Arc;
+use crate::results::decode_rdf_terms;
 
 pub struct SparqlToDataFusionRewriter<'a> {
     state: &'a SessionState,
@@ -25,7 +26,7 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
 
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
         let plan = self.rewrite_graph_pattern(pattern)?;
-        not_impl_err!("Decoding not yet implemented")
+        Ok(decode_rdf_terms(plan.build()?)?)
     }
 
     fn rewrite_graph_pattern(&self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
