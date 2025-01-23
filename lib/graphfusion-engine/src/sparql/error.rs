@@ -84,9 +84,9 @@ pub enum EvaluationError {
     /// The results are not a RDF graph
     #[error("The query results are not a RDF graph")]
     NotAGraph,
-    #[error("An error returned from the query engine")]
+    #[error("An error returned from the query engine: {0}")]
     Engine(DataFusionError),
-    #[error("A feature has not yet been implemented")]
+    #[error("A feature has not yet been implemented: {0}")]
     NotImplemented(String),
     #[doc(hidden)]
     #[error(transparent)]

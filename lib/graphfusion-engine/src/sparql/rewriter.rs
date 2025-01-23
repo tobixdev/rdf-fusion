@@ -59,7 +59,7 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
         inner: &GraphPattern,
         expr: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
-        let as_boolean = self.state.udf(ENC_AS_NATIVE_BOOLEAN)?;
+        let as_boolean = self.state.udf(ENC_AS_NATIVE_BOOLEAN.name())?;
         self.rewrite_graph_pattern(inner)?
             .filter(as_boolean.call(vec![self.rewrite_expr(expr)?]))
     }
@@ -106,8 +106,8 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
             return Ok(plan);
         }
 
-        let rdf_eq = self.state.udf(ENC_EQ)?;
-        let as_boolean = self.state.udf(ENC_EQ)?;
+        let rdf_eq = self.state.udf(ENC_EQ.name())?;
+        let as_boolean = self.state.udf(ENC_EQ.name())?;
         plan.filter(as_boolean.call(vec![rdf_eq.call(vec![col(col_name), lit(filter.unwrap())])]))
     }
 
@@ -116,8 +116,8 @@ impl<'a> SparqlToDataFusionRewriter<'a> {
         lhs: LogicalPlanBuilder,
         rhs: LogicalPlanBuilder,
     ) -> DFResult<LogicalPlanBuilder> {
-        let rdf_eq = self.state.udf(ENC_EQ)?;
-        let as_boolean = self.state.udf(ENC_EQ)?;
+        let rdf_eq = self.state.udf(ENC_EQ.name())?;
+        let as_boolean = self.state.udf(ENC_EQ.name())?;
         let lhs = lhs.alias("lhs")?;
         let rhs = rhs.alias("rhs")?;
         let lhs_keys: HashSet<_> = lhs.schema().field_names().iter().cloned().collect();

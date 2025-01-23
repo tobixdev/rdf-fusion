@@ -15,12 +15,15 @@ use sparesults::{
 use std::io::{Read, Write};
 use std::sync::Arc;
 
+mod decoding;
 mod graph_name;
 mod quads;
 mod query_solution;
 mod triples;
 
 use crate::sparql::error::EvaluationError;
+pub use decoding::decode_rdf_terms;
+pub use decoding::DecodeRdfTermsToProjectionRule;
 pub use graph_name::GraphNameStream;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;

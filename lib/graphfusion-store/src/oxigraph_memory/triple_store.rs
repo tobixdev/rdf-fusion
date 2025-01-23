@@ -3,15 +3,15 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
 };
-use arrow_rdf::encoded::{register_rdf_term_udfs, ENC_AS_NATIVE_BOOLEAN, ENC_DECODE, ENC_EQ};
+use arrow_rdf::encoded::{register_rdf_term_udfs, ENC_AS_NATIVE_BOOLEAN, ENC_EQ};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use async_trait::async_trait;
 use datafusion::error::DataFusionError;
-use datafusion::execution::{FunctionRegistry, SendableRecordBatchStream};
-use datafusion::logical_expr::{col, lit};
-use datafusion::prelude::{DataFrame, SessionContext};
+use datafusion::execution::{FunctionRegistry, SendableRecordBatchStream, SessionStateBuilder};
+use datafusion::logical_expr::{col, lit, LogicalPlan};
+use datafusion::prelude::{DataFrame, SessionConfig, SessionContext};
 use graphfusion_engine::error::StorageError;
-use graphfusion_engine::results::QueryResults;
+use graphfusion_engine::results::{decode_rdf_terms, DecodeRdfTermsToProjectionRule, QueryResults};
 use graphfusion_engine::sparql::error::EvaluationError;
 use graphfusion_engine::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions};
 use graphfusion_engine::TripleStore;
@@ -25,7 +25,10 @@ pub struct MemoryTripleStore {
 
 impl MemoryTripleStore {
     pub async fn new() -> Result<Self, StorageError> {
-        let ctx = SessionContext::new();
+        let state = SessionStateBuilder::new()
+            .with_analyzer_rule(Arc::new(DecodeRdfTermsToProjectionRule::default()))
+            .build();
+        let ctx = SessionContext::from(state);
         register_rdf_term_udfs(&ctx);
 
         let triples_table = OxigraphMemTable::new();
@@ -40,10 +43,10 @@ impl MemoryTripleStore {
         subject: Option<SubjectRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
-    ) -> DFResult<DataFrame> {
+    ) -> DFResult<LogicalPlan> {
         let quads = self.ctx.table(TABLE_QUADS).await?;
-        let eq = self.ctx.udf(ENC_EQ)?;
-        let as_boolean = self.ctx.udf(ENC_AS_NATIVE_BOOLEAN)?;
+        let eq = self.ctx.udf(ENC_EQ.name())?;
+        let as_boolean = self.ctx.udf(ENC_AS_NATIVE_BOOLEAN.name())?;
 
         let mut matching = quads;
         if let Some(graph_name) = graph_name {
@@ -68,7 +71,7 @@ impl MemoryTripleStore {
             ]))?
         }
 
-        Ok(matching)
+        Ok(matching.into_unoptimized_plan())
     }
 }
 
@@ -79,14 +82,15 @@ impl TripleStore for MemoryTripleStore {
     //
 
     async fn contains(&self, quad: &QuadRef<'_>) -> DFResult<bool> {
-        let count = self
+        let pattern_plan = self
             .match_pattern(
                 Some(quad.graph_name),
                 Some(quad.subject),
                 Some(quad.predicate),
                 Some(quad.object),
             )
-            .await?
+            .await?;
+        let count = DataFrame::new(self.ctx.state(), pattern_plan)
             .count()
             .await?;
         Ok(count > 0)
@@ -103,16 +107,10 @@ impl TripleStore for MemoryTripleStore {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
-        let decode = self.ctx.udf(ENC_DECODE)?;
-        let result = self
+        let pattern_plan = self
             .match_pattern(graph_name, subject, predicate, object)
-            .await?
-            .select(vec![
-                decode.call(vec![col(COL_GRAPH)]).alias(COL_GRAPH),
-                decode.call(vec![col(COL_SUBJECT)]).alias(COL_SUBJECT),
-                decode.call(vec![col(COL_PREDICATE)]).alias(COL_PREDICATE),
-                decode.call(vec![col(COL_OBJECT)]).alias(COL_OBJECT),
-            ])?
+            .await?;
+        let result = DataFrame::new(self.ctx.state(), decode_rdf_terms(pattern_plan)?)
             .execute_stream()
             .await?;
         Ok(result)
