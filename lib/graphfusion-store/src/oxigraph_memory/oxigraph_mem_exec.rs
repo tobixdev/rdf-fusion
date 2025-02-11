@@ -268,12 +268,29 @@ fn encode_term(
             builder.append_blank_node(value)
         }
         EncodedTerm::SmallBlankNode(value) => builder.append_blank_node(&value),
+        EncodedTerm::BigBlankNode { id_id } => {
+            let string = load_string(reader, &id_id)?;
+            builder.append_blank_node(&string)
+        }
         EncodedTerm::SmallStringLiteral(str) => builder.append_string(&str, None),
+        EncodedTerm::BigStringLiteral { value_id } => {
+            let string = load_string(reader, &value_id)?;
+            builder.append_blank_node(&string)
+        }
         EncodedTerm::SmallSmallLangStringLiteral { value, language } => {
             builder.append_string(value.as_str(), Some(language.as_str()))
         }
+        EncodedTerm::SmallBigLangStringLiteral { value, language_id } => {
+            let language = load_string(reader, &language_id)?;
+            builder.append_string(&value, Some(language.as_str()))
+        }
         EncodedTerm::BigSmallLangStringLiteral { value_id, language } => {
             let value = load_string(reader, &value_id)?;
+            builder.append_string(&value, Some(language.as_str()))
+        }
+        EncodedTerm::BigBigLangStringLiteral { value_id, language_id } => {
+            let value = load_string(reader, &value_id)?;
+            let language = load_string(reader, &language_id)?;
             builder.append_string(&value, Some(language.as_str()))
         }
         EncodedTerm::SmallTypedLiteral { value, datatype_id } => {
@@ -292,7 +309,28 @@ fn encode_term(
             let datatype = load_string(reader, &datatype_id)?;
             builder.append_typed_literal(&value, &datatype)
         }
-        term => Err(ArrowError::NotYetImplemented(format!("{:?}", term))),
+        EncodedTerm::BooleanLiteral(v) => {
+            builder.append_boolean(v.into())
+        }
+        EncodedTerm::FloatLiteral(v) => {
+            builder.append_float32(v.into())
+        }
+        EncodedTerm::DoubleLiteral(v) => {
+            builder.append_float64(v.into())
+        }
+        EncodedTerm::DecimalLiteral(_) => todo!("Encode DecimalLiteral"),
+        EncodedTerm::DateTimeLiteral(_) => todo!("Encode DateTimeLiteral"),
+        EncodedTerm::TimeLiteral(_) => todo!("Encode TimeLiteral"),
+        EncodedTerm::DateLiteral(_) => todo!("Encode DateLiteral"),
+        EncodedTerm::GYearMonthLiteral(_) => todo!("Encode GYearMonthLiteral"),
+        EncodedTerm::GYearLiteral(_) => todo!("Encode GYearLiteral"),
+        EncodedTerm::GMonthDayLiteral(_) => todo!("Encode GMonthDayLiteral"),
+        EncodedTerm::GDayLiteral(_) => todo!("Encode GDayLiteral"),
+        EncodedTerm::GMonthLiteral(_) => todo!("Encode GMonthLiteral"),
+        EncodedTerm::DurationLiteral(_) => todo!("Encode DurationLiteral"),
+        EncodedTerm::YearMonthDurationLiteral(_) => todo!("Encode YearMonthDurationLiteral"),
+        EncodedTerm::DayTimeDurationLiteral(_) => todo!("Encode DayTimeDurationLiteral"),
+        EncodedTerm::Triple(_) => todo!("Encode Triple"),
     }
 }
 

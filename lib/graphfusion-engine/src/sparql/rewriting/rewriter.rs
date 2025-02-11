@@ -244,6 +244,7 @@ impl GraphPatternRewriter {
             Expression::Literal(literal) => {
                 Ok(Expr::Literal(encode_scalar_literal(literal.as_ref())?))
             }
+            Expression::Variable(var) => Ok(Expr::Column(Column::from(var.as_str()))),
             expr => not_impl_err!("{:?}", expr),
         }
     }
