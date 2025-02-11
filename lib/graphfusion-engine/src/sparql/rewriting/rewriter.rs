@@ -53,6 +53,7 @@ impl<'a> GraphPatternRewriter<'a> {
                 start,
                 length,
             } => self.rewrite_slice(inner, *start, *length),
+            GraphPattern::Distinct { inner } => self.rewrite_distinct(inner),
             pattern => not_impl_err!("{:?}", pattern),
         }
     }
@@ -158,6 +159,15 @@ impl<'a> GraphPatternRewriter<'a> {
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_graph_pattern(inner)?;
         LogicalPlanBuilder::limit(inner, start, length)
+    }
+
+    /// Creates a distinct node over all variables.
+    fn rewrite_distinct(
+        &self,
+        inner: &GraphPattern
+    ) -> DFResult<LogicalPlanBuilder> {
+        // TODO: Does this use SAME Term?
+        self.rewrite_graph_pattern(inner)?.distinct()
     }
 
     fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
