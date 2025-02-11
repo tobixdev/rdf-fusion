@@ -93,6 +93,8 @@ pub trait EncScalarUnaryUdf {
     }
 
     fn eval_null(collector: &mut Self::Collector) -> DFResult<()>;
+
+    fn eval_incompatible(collector: &mut Self::Collector) -> DFResult<()>;
 }
 
 pub fn dispatch_unary<TUdf>(

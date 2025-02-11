@@ -7,15 +7,15 @@ use datafusion::common::DataFusionError;
 use datafusion::logical_expr::{create_udf, ColumnarValue, ScalarUDF, Volatility};
 use oxrdf::vocab::xsd;
 use std::sync::Arc;
+use crate::decoded::model::DecTerm;
 
-// TODO: Maybe this should be a logical operator that decodes all outputs at the end
 pub const ENC_DECODE: &str = "enc_decode";
 
 pub fn create_enc_decode() -> ScalarUDF {
     create_udf(
         ENC_DECODE,
         vec![EncTerm::term_type()],
-        EncTerm::term_type(),
+        DecTerm::term_type(),
         Volatility::Immutable,
         Arc::new(batch_enc_decode),
     )

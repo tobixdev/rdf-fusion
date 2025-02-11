@@ -3,11 +3,11 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{EncTerm, ENC_AS_NATIVE_BOOLEAN, ENC_EQ, ENC_QUAD_SCHEMA};
+use arrow_rdf::encoded::{EncTerm, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_NOT, ENC_QUAD_SCHEMA, ENC_SAME_TERM};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{not_impl_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue};
-use datafusion::execution::{FunctionRegistry, SessionState};
+use datafusion::execution::SessionState;
 use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, LogicalTableSource};
 use datafusion::prelude::col;
 use oxrdf::{Variable, VariableRef};
@@ -44,15 +44,18 @@ impl<'a> GraphPatternRewriter<'a> {
                 variables,
                 bindings,
             } => self.rewrite_values(variables, bindings),
+            GraphPattern::Join { left, right } => self.rewrite_join(left, right),
             pattern => not_impl_err!("{:?}", pattern),
         }
     }
 
+    /// Rewrites a basic graph pattern into multiple scans of the quads table and joins them
+    /// together.
     fn rewrite_bgp(&self, patterns: &Vec<TriplePattern>) -> DFResult<LogicalPlanBuilder> {
         patterns
             .iter()
             .map(|p| self.rewrite_triple_pattern(p))
-            .reduce(|lhs, rhs| self.join_solutions(lhs?, rhs?))
+            .reduce(|lhs, rhs| self.create_join(lhs?, rhs?, JoinType::Inner))
             .unwrap_or_else(|| {
                 Ok(LogicalPlanBuilder::scan(
                     TABLE_QUADS,
@@ -76,9 +79,8 @@ impl<'a> GraphPatternRewriter<'a> {
         inner: &GraphPattern,
         expr: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
-        let as_boolean = self.state.udf(ENC_AS_NATIVE_BOOLEAN.name())?;
         self.rewrite_graph_pattern(inner)?
-            .filter(as_boolean.call(vec![self.rewrite_expr(expr)?]))
+            .filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(expr)?]))
     }
 
     fn rewrite_extend(
@@ -100,6 +102,7 @@ impl<'a> GraphPatternRewriter<'a> {
         inner.project(new_exprs)
     }
 
+    /// Creates a logical node that holds the given VALUES as encoded RDF terms
     fn rewrite_values(
         &self,
         variables: &Vec<Variable>,
@@ -121,6 +124,17 @@ impl<'a> GraphPatternRewriter<'a> {
             .collect::<DFResult<Vec<_>>>()?;
 
         LogicalPlanBuilder::values_with_schema(values, &schema)
+    }
+
+    /// Creates a logical join node for the two graph patterns.
+    fn rewrite_join(
+        &self,
+        left: &GraphPattern,
+        right: &GraphPattern,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let left = self.rewrite_graph_pattern(left)?;
+        let right = self.rewrite_graph_pattern(right)?;
+        self.create_join(left, right, JoinType::Inner)
     }
 
     fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
@@ -165,29 +179,33 @@ impl<'a> GraphPatternRewriter<'a> {
             return Ok(plan);
         }
 
-        let rdf_eq = self.state.udf(ENC_EQ.name())?;
-        let as_boolean = self.state.udf(ENC_EQ.name())?;
-        plan.filter(as_boolean.call(vec![rdf_eq.call(vec![col(col_name), lit(filter.unwrap())])]))
+        plan.filter(
+            ENC_EFFECTIVE_BOOLEAN_VALUE
+                .call(vec![ENC_EQ.call(vec![col(col_name), lit(filter.unwrap())])]),
+        )
     }
 
-    fn join_solutions(
+    /// Creates a join node of two logical plans that contain encoded RDF Terms.
+    ///
+    /// See https://www.w3.org/TR/sparql11-query/#defn_algCompatibleMapping for a definition for
+    /// compatible mappings.
+    fn create_join(
         &self,
         lhs: LogicalPlanBuilder,
         rhs: LogicalPlanBuilder,
+        join_type: JoinType,
     ) -> DFResult<LogicalPlanBuilder> {
-        let rdf_eq = self.state.udf(ENC_EQ.name())?;
-        let as_boolean = self.state.udf(ENC_EQ.name())?;
         let lhs = lhs.alias("lhs")?;
         let rhs = rhs.alias("rhs")?;
         let lhs_keys: HashSet<_> = lhs.schema().field_names().iter().cloned().collect();
         let rhs_keys: HashSet<_> = rhs.schema().field_names().iter().cloned().collect();
         let join_on_exprs = lhs_keys.intersection(&rhs_keys).map(|k| {
-            as_boolean.call(vec![rdf_eq.call(vec![
+            ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM.call(vec![
                 col(String::from("lhs.") + k),
                 col(String::from("rhs.") + k),
             ])])
         });
-        lhs.join_on(rhs.build()?, JoinType::Inner, join_on_exprs)
+        lhs.join_on(rhs.build()?, join_type, join_on_exprs)
     }
 
     //
@@ -196,6 +214,9 @@ impl<'a> GraphPatternRewriter<'a> {
 
     fn rewrite_expr(&self, expression: &Expression) -> DFResult<Expr> {
         match expression {
+            Expression::Not(inner) => {
+                Ok(ENC_NOT.call(vec![ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?])]))
+            }
             expr => not_impl_err!("{:?}", expr),
         }
     }

@@ -7,12 +7,6 @@ use datafusion::logical_expr::{
 };
 use std::any::Any;
 
-pub const ENC_EQ: &str = "enc_same_term";
-pub const ENC_GREATER_THAN: &str = "enc_greater_than";
-pub const ENC_GREATER_OR_EQUAL: &str = "enc_greater_or_equal";
-pub const ENC_LESS_THAN: &str = "enc_less_than";
-pub const ENC_LESS_OR_EQUAL: &str = "enc_less_or_equal";
-
 macro_rules! create_binary_cmp_udf {
     ($STRUCT: ident, $NAME: expr, $OP: tt) => {
         #[derive(Debug)]
@@ -147,11 +141,11 @@ macro_rules! create_binary_cmp_udf {
     };
 }
 
-create_binary_cmp_udf!(EncEq, ENC_EQ, ==);
-create_binary_cmp_udf!(EncGreaterThan, ENC_GREATER_THAN, >);
-create_binary_cmp_udf!(EncGreaterOrEqual, ENC_GREATER_OR_EQUAL, >=);
-create_binary_cmp_udf!(EncLessThan, ENC_LESS_THAN, <);
-create_binary_cmp_udf!(EncLessOrEqual, ENC_LESS_OR_EQUAL, <=);
+create_binary_cmp_udf!(EncEq, "enc_same_term", ==);
+create_binary_cmp_udf!(EncGreaterThan, "enc_greater_than", >);
+create_binary_cmp_udf!(EncGreaterOrEqual, "enc_greater_or_equal", >=);
+create_binary_cmp_udf!(EncLessThan, "enc_less_than", <);
+create_binary_cmp_udf!(EncLessOrEqual, "enc_less_or_equal", <=);
 
 #[derive(Debug)]
 pub struct EncSameTerm {

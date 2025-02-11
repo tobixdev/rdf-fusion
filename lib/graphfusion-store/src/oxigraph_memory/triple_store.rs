@@ -3,11 +3,11 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
 };
-use arrow_rdf::encoded::{register_rdf_term_udfs, ENC_AS_NATIVE_BOOLEAN, ENC_EQ};
+use arrow_rdf::encoded::{ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use async_trait::async_trait;
 use datafusion::error::DataFusionError;
-use datafusion::execution::{FunctionRegistry, SendableRecordBatchStream, SessionStateBuilder};
+use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::logical_expr::{col, lit, LogicalPlan};
 use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
@@ -29,7 +29,6 @@ impl MemoryTripleStore {
             .with_analyzer_rule(Arc::new(DecodeRdfTermsToProjectionRule::default()))
             .build();
         let ctx = SessionContext::from(state);
-        register_rdf_term_udfs(&ctx);
 
         let triples_table = OxigraphMemTable::new();
         ctx.register_table("quads", Arc::new(triples_table))
@@ -45,29 +44,27 @@ impl MemoryTripleStore {
         object: Option<TermRef<'_>>,
     ) -> DFResult<LogicalPlan> {
         let quads = self.ctx.table(TABLE_QUADS).await?;
-        let eq = self.ctx.udf(ENC_EQ.name())?;
-        let as_boolean = self.ctx.udf(ENC_AS_NATIVE_BOOLEAN.name())?;
 
         let mut matching = quads;
         if let Some(graph_name) = graph_name {
-            matching = matching.filter(as_boolean.call(vec![
-                eq.call(vec![col(COL_GRAPH), lit(encode_scalar_graph(graph_name))]),
+            matching = matching.filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![
+                ENC_EQ.call(vec![col(COL_GRAPH), lit(encode_scalar_graph(graph_name))]),
             ]))?
         }
         if let Some(subject) = subject {
-            matching = matching.filter(as_boolean.call(vec![
-                eq.call(vec![col(COL_SUBJECT), lit(encode_scalar_subject(subject))]),
+            matching = matching.filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![
+                ENC_EQ.call(vec![col(COL_SUBJECT), lit(encode_scalar_subject(subject))]),
             ]))?
         }
         if let Some(predicate) = predicate {
-            matching = matching.filter(as_boolean.call(vec![eq.call(vec![
+            matching = matching.filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_EQ.call(vec![
                 col(COL_PREDICATE),
                 lit(encode_scalar_predicate(predicate)),
             ])]))?
         }
         if let Some(object) = object {
-            matching = matching.filter(as_boolean.call(vec![
-                eq.call(vec![col(COL_OBJECT), lit(encode_scalar_object(object)?)]),
+            matching = matching.filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![
+                ENC_EQ.call(vec![col(COL_OBJECT), lit(encode_scalar_object(object)?)]),
             ]))?
         }
 
