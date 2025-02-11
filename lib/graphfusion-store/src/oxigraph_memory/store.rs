@@ -798,11 +798,6 @@ pub struct MemoryStorageBulkLoader {
 }
 
 impl MemoryStorageBulkLoader {
-    pub fn on_progress(mut self, callback: impl Fn(u64) + 'static) -> Self {
-        self.hooks.push(Box::new(callback));
-        self
-    }
-
     #[allow(clippy::unwrap_in_result)]
     pub fn load<EI, EO: From<StorageError> + From<EI>>(
         &self,

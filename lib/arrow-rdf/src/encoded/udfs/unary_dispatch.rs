@@ -1,6 +1,6 @@
 use crate::encoded::cast::{
-    cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32, cast_i32_arr, cast_i64, cast_i64_arr,
-    cast_str, cast_str_arr, cast_typed_literal, cast_typed_literal_array,
+    cast_bool, cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32, cast_i32_arr, cast_i64,
+    cast_i64_arr, cast_str, cast_str_arr, cast_typed_literal, cast_typed_literal_array,
 };
 use crate::encoded::udfs::result_collector::ResultCollector;
 use crate::encoded::EncTermField;
@@ -130,35 +130,42 @@ where
     }
 
     match term_field {
-        EncTermField::NamedNode => {
+        EncTermField::NamedNode if TUdf::supports_named_node() => {
             let value = cast_str(&value);
             TUdf::eval_named_node(&mut collector, value)?;
         }
-        EncTermField::BlankNode => {
+        EncTermField::BlankNode if TUdf::supports_blank_node() => {
             let value = cast_str(&value);
             TUdf::eval_blank_node(&mut collector, value)?;
         }
-        EncTermField::Int => {
+        EncTermField::Boolean if TUdf::supports_boolean() => {
+            let value = cast_bool(&value);
+            TUdf::eval_boolean(&mut collector, value)?;
+        }
+        EncTermField::Int if TUdf::supports_numeric() => {
             let value = cast_i32(&value);
             TUdf::eval_numeric_i32(&mut collector, value)?;
         }
-        EncTermField::Integer => {
+        EncTermField::Integer if TUdf::supports_numeric() => {
             let value = cast_i64(&value);
             TUdf::eval_numeric_i64(&mut collector, value)?;
         }
-        EncTermField::Float32 => {
+        EncTermField::Float32 if TUdf::supports_numeric() => {
             let value = cast_f32(&value);
             TUdf::eval_numeric_f32(&mut collector, value)?;
         }
-        EncTermField::Float64 => {
+        EncTermField::Float64 if TUdf::supports_numeric() => {
             let value = cast_f64(&value);
             TUdf::eval_numeric_f64(&mut collector, value)?;
         }
-        EncTermField::TypedLiteral => {
+        EncTermField::String if TUdf::supports_string() => {
+            todo!()
+        }
+        EncTermField::TypedLiteral if TUdf::supports_typed_literal() => {
             let (value, value_type) = cast_typed_literal(term_field, &value)?;
             TUdf::eval_typed_literal(&mut collector, &value, &value_type)?;
         }
-        t => return not_impl_err!("dispatch_unary_array for {t:?}"),
+        _ => TUdf::eval_incompatible(&mut collector)?,
     }
 
     collector.finish_columnar_value()

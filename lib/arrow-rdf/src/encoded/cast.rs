@@ -124,6 +124,13 @@ pub fn cast_typed_literal_array(
     }
 }
 
+pub fn cast_bool(scalar: &ScalarValue) -> bool {
+    match scalar {
+        ScalarValue::Boolean(Some(value)) => *value,
+        _ => panic!("epxected castable to boolean"),
+    }
+}
+
 pub fn cast_str(scalar: &ScalarValue) -> &str {
     match scalar {
         ScalarValue::Utf8(value) => value.as_ref().unwrap(),

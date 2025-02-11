@@ -3,7 +3,10 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{EncTerm, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_NOT, ENC_QUAD_SCHEMA, ENC_SAME_TERM};
+use arrow_rdf::encoded::{
+    EncTerm, ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL,
+    ENC_GREATER_THAN, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_QUAD_SCHEMA, ENC_SAME_TERM,
+};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{not_impl_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue};
@@ -45,6 +48,11 @@ impl<'a> GraphPatternRewriter<'a> {
                 bindings,
             } => self.rewrite_values(variables, bindings),
             GraphPattern::Join { left, right } => self.rewrite_join(left, right),
+            GraphPattern::Slice {
+                inner,
+                start,
+                length,
+            } => self.rewrite_slice(inner, *start, *length),
             pattern => not_impl_err!("{:?}", pattern),
         }
     }
@@ -74,15 +82,19 @@ impl<'a> GraphPatternRewriter<'a> {
             .project(variables.iter().map(|v| col(v.as_str())))
     }
 
+    /// Creates a filter node using `expression`.
     fn rewrite_filter(
         &self,
         inner: &GraphPattern,
-        expr: &Expression,
+        expression: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
         self.rewrite_graph_pattern(inner)?
-            .filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(expr)?]))
+            .filter(ENC_AS_NATIVE_BOOLEAN.call(vec![self.rewrite_expr(expression)?]))
     }
 
+    /// Creates a projection that adds another column with the name `variable`.
+    ///
+    /// The column is computed by evaluating `expression`.
     fn rewrite_extend(
         &self,
         inner: &GraphPattern,
@@ -137,6 +149,17 @@ impl<'a> GraphPatternRewriter<'a> {
         self.create_join(left, right, JoinType::Inner)
     }
 
+    /// Creates a limit node that applies skip (`start`) and fetch (`length`) to `inner`.
+    fn rewrite_slice(
+        &self,
+        inner: &GraphPattern,
+        start: usize,
+        length: Option<usize>,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let inner = self.rewrite_graph_pattern(inner)?;
+        LogicalPlanBuilder::limit(inner, start, length)
+    }
+
     fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
         let plan = LogicalPlanBuilder::scan(
             TABLE_QUADS,
@@ -152,9 +175,9 @@ impl<'a> GraphPatternRewriter<'a> {
         let (object_filter, object_projection) =
             pattern_to_filter_and_projections(&pattern.object)?;
 
-        let plan = self.apply_filter(plan, COL_SUBJECT, subject_filter)?;
-        let plan = self.apply_filter(plan, COL_PREDICATE, predicate_filter)?;
-        let plan = self.apply_filter(plan, COL_OBJECT, object_filter)?;
+        let plan = self.filter_equal_to_scalar(plan, COL_SUBJECT, subject_filter)?;
+        let plan = self.filter_equal_to_scalar(plan, COL_PREDICATE, predicate_filter)?;
+        let plan = self.filter_equal_to_scalar(plan, COL_OBJECT, object_filter)?;
 
         let projections = [
             (COL_SUBJECT, subject_projection),
@@ -169,7 +192,8 @@ impl<'a> GraphPatternRewriter<'a> {
         plan.project(projections)
     }
 
-    fn apply_filter(
+    /// Creates a filter node that applies the predicate
+    fn filter_equal_to_scalar(
         &self,
         plan: LogicalPlanBuilder,
         col_name: &str,
@@ -214,8 +238,30 @@ impl<'a> GraphPatternRewriter<'a> {
 
     fn rewrite_expr(&self, expression: &Expression) -> DFResult<Expr> {
         match expression {
-            Expression::Not(inner) => {
-                Ok(ENC_NOT.call(vec![ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?])]))
+            Expression::Not(inner) => Ok(ENC_NOT.call(vec![
+                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?])
+            ])),
+            Expression::Equal(lhs, rhs) => {
+                Ok(ENC_EQ.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
+            }
+            Expression::SameTerm(lhs, rhs) => {
+                Ok(ENC_SAME_TERM.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
+            }
+            Expression::Greater(lhs, rhs) => {
+                Ok(ENC_GREATER_THAN.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
+            }
+            Expression::GreaterOrEqual(lhs, rhs) => {
+                Ok(ENC_GREATER_OR_EQUAL
+                    .call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
+            }
+            Expression::Less(lhs, rhs) => {
+                Ok(ENC_LESS_THAN.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
+            }
+            Expression::LessOrEqual(lhs, rhs) => {
+                Ok(ENC_LESS_OR_EQUAL.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
+            }
+            Expression::Literal(literal) => {
+                Ok(Expr::Literal(encode_scalar_literal(literal.as_ref())?))
             }
             expr => not_impl_err!("{:?}", expr),
         }
