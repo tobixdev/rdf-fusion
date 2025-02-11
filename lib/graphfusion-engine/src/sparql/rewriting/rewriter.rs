@@ -47,6 +47,11 @@ impl GraphPatternRewriter {
                 bindings,
             } => self.rewrite_values(variables, bindings),
             GraphPattern::Join { left, right } => self.rewrite_join(left, right),
+            GraphPattern::LeftJoin {
+                left,
+                right,
+                expression,
+            } => self.rewrite_left_join(left, right, expression.as_ref()),
             GraphPattern::Slice {
                 inner,
                 start,
@@ -179,6 +184,25 @@ impl GraphPatternRewriter {
         let left = self.rewrite_graph_pattern(left)?;
         let right = self.rewrite_graph_pattern(right)?;
         create_join(left, right, JoinType::Inner)
+    }
+
+    /// Creates a logical left join node for the two graph patterns. Optionally, a filter node is
+    /// applied.
+    fn rewrite_left_join(
+        &self,
+        left: &GraphPattern,
+        right: &GraphPattern,
+        filter: Option<&Expression>,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let left = self.rewrite_graph_pattern(left)?;
+        let right = self.rewrite_graph_pattern(right)?;
+
+        if let Some(filter) = filter {
+            create_join(left, right, JoinType::Left)?
+                .filter(ENC_AS_NATIVE_BOOLEAN.call(vec![self.rewrite_expr(filter)?]))
+        } else {
+            create_join(left, right, JoinType::Left)
+        }
     }
 
     /// Creates a limit node that applies skip (`start`) and fetch (`length`) to `inner`.
