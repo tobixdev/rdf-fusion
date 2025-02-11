@@ -1721,12 +1721,12 @@ dependencies = [
  "async-trait",
  "datafusion",
  "futures",
- "oxhttp",
  "oxrdf",
  "oxrdfio",
  "sparesults",
  "spargebra",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

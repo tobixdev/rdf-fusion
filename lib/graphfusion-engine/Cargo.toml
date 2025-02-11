@@ -11,12 +11,12 @@ arrow-rdf.workspace = true
 async-trait.workspace = true
 datafusion.workspace = true
 futures.workspace = true
-oxhttp.workspace = true
 oxrdf.workspace = true
 oxrdfio.workspace = true
 spargebra = { workspace = true, features = ["rdf-star"] }
 sparesults = { workspace = true, features = ["rdf-star"] }
 thiserror.workspace = true
+tokio.workspace = true
 
 [lints]
 workspace = true

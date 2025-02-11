@@ -211,10 +211,11 @@ fn to_term(
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
+    use crate::results::query_result_for_iterator;
     use crate::sparql::QueryResults;
-    use datafusion::physical_plan::memory::MemoryStream;
-    use oxrdf::{BlankNode, Literal, NamedNode, Term, Triple};
+    use oxrdf::{BlankNode, Literal, NamedNode, Triple};
     use sparesults::QueryResultsFormat;
+    use std::error::Error;
     use std::io::Cursor;
 
     #[test]
@@ -223,8 +224,8 @@ mod tests {
         is_send_sync::<QuerySolution>();
     }
 
-    #[test]
-    fn test_serialization_roundtrip() -> Result<(), EvaluationError> {
+    #[tokio::test]
+    async fn test_serialization_roundtrip() -> Result<(), Box<dyn Error>> {
         use std::str;
 
         for format in [
@@ -237,7 +238,7 @@ mod tests {
                 Variable::new_unchecked("bar"),
             ]);
 
-            let terms: Vec<Vec<Option<Term>>> = vec![
+            let terms = vec![
                 vec![None, None],
                 vec![
                     Some(NamedNode::new_unchecked("http://example.com").into()),
@@ -279,29 +280,19 @@ mod tests {
                     ),
                     None,
                 ],
-            ];
-            let solutions = terms
-                .into_iter()
-                .map(|terms| Ok((variables.clone(), terms).into()))
-                .collect::<Vec<Result<QuerySolution, EvaluationError>>>();
-
-            let record_batch = RecordBatch::try_new(schema.clone(), columns)?;
-            let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
+            ].into_iter().map(|ts| Ok(QuerySolution::from((variables.clone(), ts))));
             let results = vec![
                 QueryResults::Boolean(true),
                 QueryResults::Boolean(false),
-                QueryResults::Solutions(QuerySolutionStream::new(
-                    variables.clone(),
-                    solutions.into_iter(),
-                )),
+                query_result_for_iterator(variables.clone(), terms)?,
             ];
 
             for ex in results {
                 let mut buffer = Vec::new();
-                ex.write(&mut buffer, format)?;
+                ex.write(&mut buffer, format).await?;
                 let ex2 = QueryResults::read(Cursor::new(buffer.clone()), format)?;
                 let mut buffer2 = Vec::new();
-                ex2.write(&mut buffer2, format)?;
+                ex2.write(&mut buffer2, format).await?;
                 assert_eq!(
                     str::from_utf8(&buffer).unwrap(),
                     str::from_utf8(&buffer2).unwrap()
