@@ -14,7 +14,7 @@ pub async fn evaluate_query(
 ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
     match &query.inner {
         spargebra::Query::Select { pattern, .. } => {
-            let rewriter = GraphPatternRewriter::new(&state);
+            let rewriter = GraphPatternRewriter::new();
             let logical_plan = rewriter.rewrite(pattern).map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
             let dataframe = DataFrame::new(state, logical_plan);
             let batch_record_stream = dataframe.execute_stream().await?;

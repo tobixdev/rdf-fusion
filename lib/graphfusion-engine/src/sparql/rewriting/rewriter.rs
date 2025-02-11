@@ -10,22 +10,21 @@ use arrow_rdf::encoded::{
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{not_impl_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue};
-use datafusion::execution::SessionState;
-use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, LogicalTableSource};
+use datafusion::logical_expr::{
+    lit, Expr, LogicalPlan, LogicalPlanBuilder, LogicalTableSource, SortExpr,
+};
 use datafusion::prelude::col;
 use oxrdf::{Variable, VariableRef};
-use spargebra::algebra::{Expression, GraphPattern};
+use spargebra::algebra::{Expression, GraphPattern, OrderExpression};
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
 use std::collections::HashSet;
 use std::sync::Arc;
 
-pub struct GraphPatternRewriter<'a> {
-    state: &'a SessionState,
-}
+pub struct GraphPatternRewriter {}
 
-impl<'a> GraphPatternRewriter<'a> {
-    pub fn new(state: &'a SessionState) -> Self {
-        Self { state }
+impl GraphPatternRewriter {
+    pub fn new() -> Self {
+        Self {}
     }
 
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
@@ -54,6 +53,7 @@ impl<'a> GraphPatternRewriter<'a> {
                 length,
             } => self.rewrite_slice(inner, *start, *length),
             GraphPattern::Distinct { inner } => self.rewrite_distinct(inner),
+            GraphPattern::OrderBy { inner, expression } => self.rewrite_order_by(inner, expression),
             pattern => not_impl_err!("{:?}", pattern),
         }
     }
@@ -64,7 +64,7 @@ impl<'a> GraphPatternRewriter<'a> {
         patterns
             .iter()
             .map(|p| self.rewrite_triple_pattern(p))
-            .reduce(|lhs, rhs| self.create_join(lhs?, rhs?, JoinType::Inner))
+            .reduce(|lhs, rhs| create_join(lhs?, rhs?, JoinType::Inner))
             .unwrap_or_else(|| {
                 Ok(LogicalPlanBuilder::scan(
                     TABLE_QUADS,
@@ -72,6 +72,37 @@ impl<'a> GraphPatternRewriter<'a> {
                     None,
                 )?)
             })
+    }
+    fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
+        let plan = LogicalPlanBuilder::scan(
+            TABLE_QUADS,
+            Arc::new(LogicalTableSource::new(ENC_QUAD_SCHEMA.clone())),
+            None,
+        )?;
+
+        let (subject_filter, subject_projection) =
+            pattern_to_filter_and_projections(&pattern.subject)?;
+        let predicate_term_pattern = pattern.predicate.clone().into_term_pattern();
+        let (predicate_filter, predicate_projection) =
+            pattern_to_filter_and_projections(&predicate_term_pattern)?;
+        let (object_filter, object_projection) =
+            pattern_to_filter_and_projections(&pattern.object)?;
+
+        let plan = filter_equal_to_scalar(plan, COL_SUBJECT, subject_filter)?;
+        let plan = filter_equal_to_scalar(plan, COL_PREDICATE, predicate_filter)?;
+        let plan = filter_equal_to_scalar(plan, COL_OBJECT, object_filter)?;
+
+        let projections = [
+            (COL_SUBJECT, subject_projection),
+            (COL_PREDICATE, predicate_projection),
+            (COL_OBJECT, object_projection),
+        ]
+        .into_iter()
+        .filter_map(|(col_name, var)| {
+            var.map(|new_col_name| col(col_name).alias(new_col_name.as_str()))
+        });
+
+        plan.project(projections)
     }
 
     fn rewrite_project(
@@ -147,7 +178,7 @@ impl<'a> GraphPatternRewriter<'a> {
     ) -> DFResult<LogicalPlanBuilder> {
         let left = self.rewrite_graph_pattern(left)?;
         let right = self.rewrite_graph_pattern(right)?;
-        self.create_join(left, right, JoinType::Inner)
+        create_join(left, right, JoinType::Inner)
     }
 
     /// Creates a limit node that applies skip (`start`) and fetch (`length`) to `inner`.
@@ -162,90 +193,30 @@ impl<'a> GraphPatternRewriter<'a> {
     }
 
     /// Creates a distinct node over all variables.
-    fn rewrite_distinct(
-        &self,
-        inner: &GraphPattern
-    ) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_distinct(&self, inner: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
         // TODO: Does this use SAME Term?
         self.rewrite_graph_pattern(inner)?.distinct()
     }
 
-    fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
-        let plan = LogicalPlanBuilder::scan(
-            TABLE_QUADS,
-            Arc::new(LogicalTableSource::new(ENC_QUAD_SCHEMA.clone())),
-            None,
-        )?;
-
-        let (subject_filter, subject_projection) =
-            pattern_to_filter_and_projections(&pattern.subject)?;
-        let predicate_term_pattern = pattern.predicate.clone().into_term_pattern();
-        let (predicate_filter, predicate_projection) =
-            pattern_to_filter_and_projections(&predicate_term_pattern)?;
-        let (object_filter, object_projection) =
-            pattern_to_filter_and_projections(&pattern.object)?;
-
-        let plan = self.filter_equal_to_scalar(plan, COL_SUBJECT, subject_filter)?;
-        let plan = self.filter_equal_to_scalar(plan, COL_PREDICATE, predicate_filter)?;
-        let plan = self.filter_equal_to_scalar(plan, COL_OBJECT, object_filter)?;
-
-        let projections = [
-            (COL_SUBJECT, subject_projection),
-            (COL_PREDICATE, predicate_projection),
-            (COL_OBJECT, object_projection),
-        ]
-        .into_iter()
-        .filter_map(|(col_name, var)| {
-            var.map(|new_col_name| col(col_name).alias(new_col_name.as_str()))
-        });
-
-        plan.project(projections)
-    }
-
-    /// Creates a filter node that applies the predicate
-    fn filter_equal_to_scalar(
+    /// Creates a distinct node over all variables.
+    fn rewrite_order_by(
         &self,
-        plan: LogicalPlanBuilder,
-        col_name: &str,
-        filter: Option<ScalarValue>,
+        inner: &GraphPattern,
+        expression: &Vec<OrderExpression>,
     ) -> DFResult<LogicalPlanBuilder> {
-        if filter.is_none() {
-            return Ok(plan);
-        }
-
-        plan.filter(
-            ENC_EFFECTIVE_BOOLEAN_VALUE
-                .call(vec![ENC_EQ.call(vec![col(col_name), lit(filter.unwrap())])]),
-        )
-    }
-
-    /// Creates a join node of two logical plans that contain encoded RDF Terms.
-    ///
-    /// See https://www.w3.org/TR/sparql11-query/#defn_algCompatibleMapping for a definition for
-    /// compatible mappings.
-    fn create_join(
-        &self,
-        lhs: LogicalPlanBuilder,
-        rhs: LogicalPlanBuilder,
-        join_type: JoinType,
-    ) -> DFResult<LogicalPlanBuilder> {
-        let lhs = lhs.alias("lhs")?;
-        let rhs = rhs.alias("rhs")?;
-        let lhs_keys: HashSet<_> = lhs.schema().field_names().iter().cloned().collect();
-        let rhs_keys: HashSet<_> = rhs.schema().field_names().iter().cloned().collect();
-        let join_on_exprs = lhs_keys.intersection(&rhs_keys).map(|k| {
-            ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM.call(vec![
-                col(String::from("lhs.") + k),
-                col(String::from("rhs.") + k),
-            ])])
-        });
-        lhs.join_on(rhs.build()?, join_type, join_on_exprs)
+        let inner = self.rewrite_graph_pattern(inner)?;
+        let sort_exprs = expression
+            .iter()
+            .map(|e| self.rewrite_order_expr(e))
+            .collect::<Result<Vec<_>, _>>()?;
+        LogicalPlanBuilder::sort(inner, sort_exprs)
     }
 
     //
     // Expressions
     //
 
+    /// Rewrites an [Expression].
     fn rewrite_expr(&self, expression: &Expression) -> DFResult<Expr> {
         match expression {
             Expression::Not(inner) => Ok(ENC_NOT.call(vec![
@@ -275,6 +246,14 @@ impl<'a> GraphPatternRewriter<'a> {
             }
             expr => not_impl_err!("{:?}", expr),
         }
+    }
+
+    /// Rewrites an [OrderExpression].
+    fn rewrite_order_expr(&self, expression: &OrderExpression) -> DFResult<SortExpr> {
+        Ok(match expression {
+            OrderExpression::Asc(inner) => self.rewrite_expr(inner)?.sort(true, true),
+            OrderExpression::Desc(inner) => self.rewrite_expr(inner)?.sort(false, true),
+        })
     }
 }
 
@@ -306,4 +285,41 @@ fn encode_solution(terms: &Vec<Option<GroundTerm>>) -> DFResult<Vec<Expr>> {
             })
         })
         .collect()
+}
+
+/// Creates a join node of two logical plans that contain encoded RDF Terms.
+///
+/// See https://www.w3.org/TR/sparql11-query/#defn_algCompatibleMapping for a definition for
+/// compatible mappings.
+fn create_join(
+    lhs: LogicalPlanBuilder,
+    rhs: LogicalPlanBuilder,
+    join_type: JoinType,
+) -> DFResult<LogicalPlanBuilder> {
+    let lhs = lhs.alias("lhs")?;
+    let rhs = rhs.alias("rhs")?;
+    let lhs_keys: HashSet<_> = lhs.schema().field_names().iter().cloned().collect();
+    let rhs_keys: HashSet<_> = rhs.schema().field_names().iter().cloned().collect();
+    let join_on_exprs = lhs_keys.intersection(&rhs_keys).map(|k| {
+        ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM.call(vec![
+            col(String::from("lhs.") + k),
+            col(String::from("rhs.") + k),
+        ])])
+    });
+    lhs.join_on(rhs.build()?, join_type, join_on_exprs)
+}
+
+/// Creates a filter node that applies the predicate
+fn filter_equal_to_scalar(
+    plan: LogicalPlanBuilder,
+    col_name: &str,
+    filter: Option<ScalarValue>,
+) -> DFResult<LogicalPlanBuilder> {
+    if filter.is_none() {
+        return Ok(plan);
+    }
+    plan.filter(
+        ENC_EFFECTIVE_BOOLEAN_VALUE
+            .call(vec![ENC_EQ.call(vec![col(col_name), lit(filter.unwrap())])]),
+    )
 }
