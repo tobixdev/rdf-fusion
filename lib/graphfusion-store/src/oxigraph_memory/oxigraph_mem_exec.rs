@@ -263,8 +263,9 @@ fn encode_term(
         EncodedTerm::NumericalBlankNode { id } => {
             let id = u128::from_be_bytes(id);
             let mut id_str = [0; 32];
-            write!(&mut id_str[..], "{id:32x}")?;
-            builder.append_blank_node(std::str::from_utf8(id_str.as_ref()).expect("Always valid"))
+            write!(&mut id_str[..], "{id:032x}")?;
+            let value = std::str::from_utf8(id_str.as_ref()).expect("Always valid");
+            builder.append_blank_node(value)
         }
         EncodedTerm::SmallBlankNode(value) => builder.append_blank_node(&value),
         EncodedTerm::SmallStringLiteral(str) => builder.append_string(&str, None),
