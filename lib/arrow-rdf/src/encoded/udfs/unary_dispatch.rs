@@ -2,7 +2,7 @@ use crate::encoded::cast::{
     cast_bool, cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32, cast_i32_arr, cast_i64,
     cast_i64_arr, cast_str, cast_str_arr, cast_typed_literal, cast_typed_literal_array,
 };
-use crate::encoded::udfs::result_collector::ResultCollector;
+use crate::result_collector::ResultCollector;
 use crate::encoded::EncTermField;
 use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow::array::Array;
@@ -40,47 +40,47 @@ pub trait EncScalarUnaryUdf {
 
     #[allow(unused_variables)]
     fn eval_named_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        panic!("eval_named_node")
+        not_impl_err!("eval_named_node")
     }
 
     #[allow(unused_variables)]
     fn eval_blank_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        panic!("eval_blank_node")
+        not_impl_err!("eval_blank_node")
     }
 
     #[allow(unused_variables)]
     fn eval_numeric_i32(collector: &mut Self::Collector, value: i32) -> DFResult<()> {
-        panic!("eval_numeric_i32")
+        not_impl_err!("eval_numeric_i32")
     }
 
     #[allow(unused_variables)]
     fn eval_numeric_i64(collector: &mut Self::Collector, value: i64) -> DFResult<()> {
-        panic!("eval_numeric_i64")
+        not_impl_err!("eval_numeric_i64")
     }
 
     #[allow(unused_variables)]
     fn eval_numeric_f32(collector: &mut Self::Collector, value: f32) -> DFResult<()> {
-        panic!("eval_numeric_f32")
+        not_impl_err!("eval_numeric_f32")
     }
 
     #[allow(unused_variables)]
     fn eval_numeric_f64(collector: &mut Self::Collector, value: f64) -> DFResult<()> {
-        panic!("eval_numeric_f64")
+        not_impl_err!("eval_numeric_f64")
     }
 
     #[allow(unused_variables)]
     fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()> {
-        panic!("eval_boolean")
+        not_impl_err!("eval_boolean")
     }
 
     #[allow(unused_variables)]
     fn eval_string(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        panic!("eval_string")
+        not_impl_err!("eval_string")
     }
 
     #[allow(unused_variables)]
     fn eval_simple_literal(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        panic!("eval_simple_literal")
+        not_impl_err!("eval_simple_literal")
     }
 
     #[allow(unused_variables)]
@@ -89,7 +89,7 @@ pub trait EncScalarUnaryUdf {
         value: &str,
         value_type: &str,
     ) -> DFResult<()> {
-        panic!("eval_typed_literal")
+        not_impl_err!("eval_typed_literal")
     }
 
     fn eval_null(collector: &mut Self::Collector) -> DFResult<()>;

@@ -2,7 +2,7 @@ use crate::encoded::EncRdfTermBuilder;
 use crate::DFResult;
 use datafusion::logical_expr::ColumnarValue;
 
-pub trait ResultCollector {
+pub(crate) trait ResultCollector {
     fn new() -> Self;
     fn finish_columnar_value(self) -> DFResult<ColumnarValue>;
 }

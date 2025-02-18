@@ -3,28 +3,28 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{
-    EncTerm, ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL,
-    ENC_GREATER_THAN, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_QUAD_SCHEMA, ENC_SAME_TERM,
-};
+use arrow_rdf::encoded::{EncTerm, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{not_impl_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue};
-use datafusion::logical_expr::{
-    lit, Expr, LogicalPlan, LogicalPlanBuilder, LogicalTableSource, SortExpr,
-};
+use datafusion::datasource::{DefaultTableSource, TableProvider};
+use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, SortExpr};
 use datafusion::prelude::col;
 use oxrdf::{Variable, VariableRef};
 use spargebra::algebra::{Expression, GraphPattern, OrderExpression};
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
 use std::collections::HashSet;
 use std::sync::Arc;
+use datafusion::logical_expr::expr::ScalarFunction;
 
-pub struct GraphPatternRewriter {}
+pub struct GraphPatternRewriter {
+    // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
+    quads_table: Arc<dyn TableProvider>,
+}
 
 impl GraphPatternRewriter {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(quads_table: Arc<dyn TableProvider>) -> Self {
+        Self { quads_table }
     }
 
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
@@ -73,7 +73,7 @@ impl GraphPatternRewriter {
             .unwrap_or_else(|| {
                 Ok(LogicalPlanBuilder::scan(
                     TABLE_QUADS,
-                    Arc::new(LogicalTableSource::new(ENC_QUAD_SCHEMA.clone())),
+                    Arc::new(DefaultTableSource::new(Arc::clone(&self.quads_table))),
                     None,
                 )?)
             })
@@ -81,7 +81,7 @@ impl GraphPatternRewriter {
     fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
         let plan = LogicalPlanBuilder::scan(
             TABLE_QUADS,
-            Arc::new(LogicalTableSource::new(ENC_QUAD_SCHEMA.clone())),
+            Arc::new(DefaultTableSource::new(Arc::clone(&self.quads_table))),
             None,
         )?;
 
@@ -275,10 +275,11 @@ impl GraphPatternRewriter {
 
     /// Rewrites an [OrderExpression].
     fn rewrite_order_expr(&self, expression: &OrderExpression) -> DFResult<SortExpr> {
-        Ok(match expression {
-            OrderExpression::Asc(inner) => self.rewrite_expr(inner)?.sort(true, true),
-            OrderExpression::Desc(inner) => self.rewrite_expr(inner)?.sort(false, true),
-        })
+        let (asc, expression) = match expression {
+            OrderExpression::Asc(inner) => (true, self.rewrite_expr(inner)?),
+            OrderExpression::Desc(inner) => (false, self.rewrite_expr(inner)?),
+        };
+        Ok(ENC_AS_RDF_TERM_SORT.call(vec![expression]).sort(asc, true))
     }
 }
 

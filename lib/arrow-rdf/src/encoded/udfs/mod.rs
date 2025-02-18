@@ -2,6 +2,7 @@ use crate::encoded::udfs::as_native_boolean::EncAsNativeBoolean;
 use crate::encoded::udfs::decode::create_enc_decode;
 use datafusion::logical_expr::ScalarUDF;
 use once_cell::unsync::Lazy;
+use crate::encoded::udfs::as_rdf_term_sort::EncAsRdfTermSort;
 
 mod as_native_boolean;
 mod binary_dispatch;
@@ -9,8 +10,8 @@ mod cmp;
 mod decode;
 mod effective_boolean_value;
 mod not;
-mod result_collector;
 mod unary_dispatch;
+mod as_rdf_term_sort;
 
 use crate::encoded::udfs::cmp::{
     EncEq, EncGreaterOrEqual, EncGreaterThan, EncLessOrEqual, EncLessThan, EncSameTerm,
@@ -25,6 +26,8 @@ pub const ENC_EFFECTIVE_BOOLEAN_VALUE: Lazy<ScalarUDF> =
     Lazy::new(|| ScalarUDF::from(EncEffectiveBooleanValue::new()));
 pub const ENC_NOT: Lazy<ScalarUDF> =
     Lazy::new(|| ScalarUDF::from(EncNot::new()));
+pub const ENC_AS_RDF_TERM_SORT: Lazy<ScalarUDF> =
+    Lazy::new(|| ScalarUDF::from(EncAsRdfTermSort::new()));
 
 // Binary Comparisons
 pub const ENC_EQ: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncEq::new()));

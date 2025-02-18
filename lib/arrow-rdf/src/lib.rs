@@ -8,6 +8,8 @@ use datafusion::error::DataFusionError;
 pub mod decoded;
 pub mod encoded;
 mod error;
+mod sorting;
+mod result_collector;
 
 pub const TABLE_QUADS: &str = "quads";
 pub const COL_GRAPH: &str = "graph";

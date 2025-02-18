@@ -1,5 +1,6 @@
 use crate::encoded::udfs::unary_dispatch::{dispatch_unary, EncScalarUnaryUdf};
-use crate::encoded::{EncRdfTermBuilder, EncTerm};
+use crate::encoded::EncTerm;
+use crate::sorting::{RdfTermSort, RdfTermSortBuilder};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
@@ -8,11 +9,11 @@ use datafusion::logical_expr::{
 use std::any::Any;
 
 #[derive(Debug)]
-pub struct EncNot {
+pub struct EncAsRdfTermSort {
     signature: Signature,
 }
 
-impl EncNot {
+impl EncAsRdfTermSort {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -23,26 +24,28 @@ impl EncNot {
     }
 }
 
-impl EncScalarUnaryUdf for EncNot {
-    type Collector = EncRdfTermBuilder;
+impl EncScalarUnaryUdf for EncAsRdfTermSort {
+    type Collector = RdfTermSortBuilder;
+
+    // TODO implement this
 
     fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()> {
-        collector.append_boolean(!value)?;
+        collector.append_numeric(value.into());
         Ok(())
     }
 
     fn eval_null(collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_null()?;
+        collector.append_null();
         Ok(())
     }
 
     fn eval_incompatible(collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_null()?;
+        collector.append_null();
         Ok(())
     }
 }
 
-impl ScalarUDFImpl for EncNot {
+impl ScalarUDFImpl for EncAsRdfTermSort {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -56,7 +59,7 @@ impl ScalarUDFImpl for EncNot {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(EncTerm::term_type())
+        Ok(RdfTermSort::data_type())
     }
 
     fn invoke_batch(
@@ -64,6 +67,6 @@ impl ScalarUDFImpl for EncNot {
         args: &[ColumnarValue],
         number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        dispatch_unary::<EncNot>(args, number_rows)
+        dispatch_unary::<EncAsRdfTermSort>(args, number_rows)
     }
 }

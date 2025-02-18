@@ -118,7 +118,7 @@ impl TripleStore for MemoryTripleStore {
         query: &Query,
         options: QueryOptions,
     ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
-        evaluate_query(self.ctx.state(), query, options).await
+        evaluate_query(&self.ctx, query, options).await
     }
 
     //

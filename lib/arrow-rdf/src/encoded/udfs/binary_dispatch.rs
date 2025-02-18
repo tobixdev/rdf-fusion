@@ -2,7 +2,7 @@ use crate::encoded::cast::{
     cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32, cast_i32_arr, cast_i64, cast_i64_arr,
     cast_str, cast_str_arr, cast_typed_literal, cast_typed_literal_array,
 };
-use crate::encoded::udfs::result_collector::ResultCollector;
+use crate::result_collector::ResultCollector;
 use crate::encoded::EncTermField;
 use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow::array::Array;
@@ -11,6 +11,7 @@ use datafusion::common::{
 };
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
+use datafusion::common::cse::FoundCommonNodes::No;
 
 pub trait EncScalarBinaryUdf {
     type Collector: ResultCollector;
@@ -382,15 +383,18 @@ fn try_find_string_type(lhs_field: EncTermField, rhs_field: EncTermField) -> Opt
 }
 
 fn try_find_date_time_type(_: EncTermField, _: EncTermField) -> Option<UdfTarget> {
-    todo!("try_find_date_time_type")
+    // TODO
+    None
 }
 
 fn try_find_simple_literal_type(_: EncTermField, _: EncTermField) -> Option<UdfTarget> {
-    todo!("try_find_simple_literal_type")
+    // TODO
+    None
 }
 
 fn try_find_typed_literal_type(_: EncTermField, _: EncTermField) -> Option<UdfTarget> {
-    todo!("try_find_typed_literal_type")
+    // TODO
+    None
 }
 
 #[derive(Debug)]
