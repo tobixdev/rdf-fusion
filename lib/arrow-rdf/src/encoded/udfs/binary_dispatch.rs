@@ -17,27 +17,57 @@ pub trait EncScalarBinaryUdf {
 
     fn supports_named_node() -> bool;
     fn supports_blank_node() -> bool;
-    fn supports_numeric() -> bool;
-    fn supports_boolean() -> bool;
-    fn supports_string() -> bool;
-    fn supports_date_time() -> bool;
-    fn supports_simple_literal() -> bool;
-    fn supports_typed_literal() -> bool;
+    fn supports_numeric() -> bool {
+        false
+    }
+    fn supports_boolean() -> bool {
+        false
+    }
+    fn supports_string() -> bool {
+        false
+    }
+    fn supports_date_time() -> bool {
+        false
+    }
+    fn supports_simple_literal() -> bool {
+        false
+    }
 
-    fn eval_named_node(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()>;
+    fn eval_named_node(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()> {
+        panic!("eval_named_node not supported!")
+    }
 
-    fn eval_blank_node(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()>;
+    fn eval_blank_node(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()> {
+        panic!("eval_blank_node not supported!")
+    }
 
-    fn eval_numeric_i32(collector: &mut Self::Collector, lhs: i32, rhs: i32) -> DFResult<()>;
-    fn eval_numeric_i64(collector: &mut Self::Collector, lhs: i64, rhs: i64) -> DFResult<()>;
-    fn eval_numeric_f32(collector: &mut Self::Collector, lhs: f32, rhs: f32) -> DFResult<()>;
-    fn eval_numeric_f64(collector: &mut Self::Collector, lhs: f64, rhs: f64) -> DFResult<()>;
+    fn eval_numeric_i32(collector: &mut Self::Collector, lhs: i32, rhs: i32) -> DFResult<()> {
+        panic!("eval_numeric_i32 not supported!")
+    }
+    fn eval_numeric_i64(collector: &mut Self::Collector, lhs: i64, rhs: i64) -> DFResult<()> {
+        panic!("eval_numeric_i64 not supported!")
+    }
+    fn eval_numeric_f32(collector: &mut Self::Collector, lhs: f32, rhs: f32) -> DFResult<()> {
+        panic!("eval_numeric_f32 not supported!")
+    }
+    fn eval_numeric_f64(collector: &mut Self::Collector, lhs: f64, rhs: f64) -> DFResult<()> {
+        panic!("eval_numeric_f64 not supported!")
+    }
+    fn eval_numeric_decimal(collector: &mut Self::Collector, lhs: i128, rhs: i128) -> DFResult<()> {
+        panic!("eval_numeric_decimal not supported!")
+    }
 
-    fn eval_boolean(collector: &mut Self::Collector, lhs: bool, rhs: bool) -> DFResult<()>;
+    fn eval_boolean(collector: &mut Self::Collector, lhs: bool, rhs: bool) -> DFResult<()> {
+        panic!("eval_boolean not supported!")
+    }
 
-    fn eval_string(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()>;
+    fn eval_string(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()> {
+        panic!("eval_string not supported!")
+    }
 
-    fn eval_simple_literal(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()>;
+    fn eval_simple_literal(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()> {
+        panic!("eval_simple_literal not supported!")
+    }
 
     fn eval_typed_literal(
         collector: &mut Self::Collector,
@@ -47,7 +77,9 @@ pub trait EncScalarBinaryUdf {
         rhs_type: &str,
     ) -> DFResult<()>;
 
-    fn eval_incompatible(collector: &mut Self::Collector) -> DFResult<()>;
+    fn eval_rdf_terms(collector: &mut Self::Collector) -> DFResult<()> {
+        todo!("Implement")
+    }
 }
 
 pub fn dispatch_binary<TUdf>(
@@ -169,8 +201,8 @@ where
                     &rhs_type,
                 )?;
             }
-            UdfTarget::Incompatible => {
-                TUdf::eval_incompatible(&mut collector)?;
+            UdfTarget::RdfTerm => {
+                TUdf::eval_rdf_terms(&mut collector)?;
             }
             t => return not_impl_err!("dispatch_binary_array_scalar for {t:?}"),
         }
@@ -289,13 +321,11 @@ where
         }
     }
 
-    if TUdf::supports_typed_literal() {
-        if let Some(value) = try_find_typed_literal_type(lhs_field, rhs_field) {
-            return value;
-        }
+    if let Some(value) = try_find_typed_literal_type(lhs_field, rhs_field) {
+        return value;
     }
 
-    UdfTarget::Incompatible
+    UdfTarget::RdfTerm
 }
 
 fn try_find_named_node_type(lhs_field: EncTermField, rhs_field: EncTermField) -> Option<UdfTarget> {
@@ -352,15 +382,15 @@ fn try_find_string_type(lhs_field: EncTermField, rhs_field: EncTermField) -> Opt
 }
 
 fn try_find_date_time_type(_: EncTermField, _: EncTermField) -> Option<UdfTarget> {
-    todo!()
+    todo!("try_find_date_time_type")
 }
 
 fn try_find_simple_literal_type(_: EncTermField, _: EncTermField) -> Option<UdfTarget> {
-    todo!()
+    todo!("try_find_simple_literal_type")
 }
 
 fn try_find_typed_literal_type(_: EncTermField, _: EncTermField) -> Option<UdfTarget> {
-    todo!()
+    todo!("try_find_typed_literal_type")
 }
 
 #[derive(Debug)]
@@ -371,10 +401,11 @@ enum UdfTarget {
     NumericI64,
     NumericF32,
     NumericF64,
+    NumericDecimal,
     Boolean,
     String,
     DateTime,
     SimpleLiteral,
     TypedLiteral,
-    Incompatible,
+    RdfTerm,
 }

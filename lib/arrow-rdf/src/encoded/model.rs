@@ -51,6 +51,11 @@ const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
             true,
         ),
         Field::new(
+            EncTermField::Decimal.name(),
+            EncTermField::Decimal.data_type(),
+            true,
+        ),
+        Field::new(
             EncTermField::Int.name(),
             EncTermField::Int.data_type(),
             true,
@@ -98,6 +103,7 @@ pub enum EncTermField {
     Boolean,
     Float32,
     Float64,
+    Decimal,
     Int,
     Integer,
     TypedLiteral,
@@ -116,6 +122,7 @@ impl EncTermField {
             EncTermField::Boolean => "boolean",
             EncTermField::Float32 => "float32",
             EncTermField::Float64 => "float64",
+            EncTermField::Decimal => "decimal",
             EncTermField::Int => "int",
             EncTermField::Integer => "integer",
             EncTermField::TypedLiteral => "typed_literal",
@@ -130,6 +137,7 @@ impl EncTermField {
             EncTermField::Boolean => DataType::Boolean,
             EncTermField::Float32 => DataType::Float32,
             EncTermField::Float64 => DataType::Float64,
+            EncTermField::Decimal => DataType::Decimal128(36, 18),
             EncTermField::Int => DataType::Int32,
             EncTermField::Integer => DataType::Int64,
             EncTermField::TypedLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
@@ -154,9 +162,10 @@ impl TryFrom<i8> for EncTermField {
             3 => EncTermField::Boolean,
             4 => EncTermField::Float32,
             5 => EncTermField::Float64,
-            6 => EncTermField::Int,
-            7 => EncTermField::Integer,
-            8 => EncTermField::TypedLiteral,
+            6 => EncTermField::Decimal,
+            7 => EncTermField::Int,
+            8 => EncTermField::Integer,
+            9 => EncTermField::TypedLiteral,
             _ => return exec_err!("Unexpected type_id for encoded RDF Term"),
         })
     }
@@ -171,9 +180,10 @@ impl From<&EncTermField> for i8 {
             EncTermField::Boolean => 3,
             EncTermField::Float32 => 4,
             EncTermField::Float64 => 5,
-            EncTermField::Int => 6,
-            EncTermField::Integer => 7,
-            EncTermField::TypedLiteral => 8,
+            EncTermField::Decimal => 6,
+            EncTermField::Int => 7,
+            EncTermField::Integer => 8,
+            EncTermField::TypedLiteral => 9,
         }
     }
 }
@@ -190,6 +200,7 @@ mod tests {
         test_type_id(EncTermField::Boolean);
         test_type_id(EncTermField::Float32);
         test_type_id(EncTermField::Float64);
+        test_type_id(EncTermField::Decimal);
         test_type_id(EncTermField::Int);
         test_type_id(EncTermField::Integer);
         test_type_id(EncTermField::TypedLiteral);

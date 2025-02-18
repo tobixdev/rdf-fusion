@@ -2,7 +2,7 @@ use crate::decoded::DecRdfTermBuilder;
 use crate::encoded::{EncTerm, EncTermField};
 use crate::DFResult;
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
-use datafusion::arrow::datatypes::{Float32Type, Float64Type, Int32Type, Int64Type};
+use datafusion::arrow::datatypes::{Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type};
 use datafusion::common::DataFusionError;
 use datafusion::logical_expr::{create_udf, ColumnarValue, ScalarUDF, Volatility};
 use oxrdf::vocab::xsd;
@@ -84,6 +84,13 @@ fn batch_enc_decode_array(array: ArrayRef) -> DFResult<ColumnarValue> {
                     .as_primitive::<Float64Type>();
                 let formatted = doubles.value(value_idx).to_string();
                 rdf_term_builder.append_typed_literal(&formatted, xsd::DOUBLE.as_str())?;
+            }
+            EncTermField::Decimal => {
+                let decimals = enc_array
+                    .child(type_id.type_id())
+                    .as_primitive::<Decimal128Type>();
+                let formatted = decimals.value(value_idx).to_string();
+                rdf_term_builder.append_typed_literal(&formatted, xsd::DECIMAL.as_str())?;
             }
             EncTermField::Int => {
                 let ints = enc_array

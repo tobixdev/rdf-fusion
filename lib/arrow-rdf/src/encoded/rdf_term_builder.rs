@@ -2,8 +2,8 @@ use crate::encoded::{EncTerm, EncTermField};
 use crate::error::TermEncodingError;
 use crate::{AResult, DFResult};
 use datafusion::arrow::array::{
-    ArrayBuilder, ArrayRef, BooleanBuilder, Float32Builder, Float64Builder, Int32Builder,
-    Int64Builder, StringBuilder, StructBuilder, UnionArray,
+    ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
+    Int32Builder, Int64Builder, StringBuilder, StructBuilder, UnionArray,
 };
 use datafusion::arrow::buffer::ScalarBuffer;
 use oxrdf::vocab::{rdf, xsd};
@@ -19,6 +19,7 @@ pub struct EncRdfTermBuilder {
     boolean_builder: BooleanBuilder,
     float32_builder: Float32Builder,
     float64_builder: Float64Builder,
+    decimal_builder: Decimal128Builder,
     int32_builder: Int32Builder,
     integer_builder: Int64Builder,
     typed_literal_builder: StructBuilder,
@@ -35,6 +36,9 @@ impl EncRdfTermBuilder {
             boolean_builder: BooleanBuilder::new(),
             float32_builder: Float32Builder::new(),
             float64_builder: Float64Builder::new(),
+            decimal_builder: Decimal128Builder::new()
+                .with_precision_and_scale(36, 18)
+                .expect("Precision and scale fixed"),
             int32_builder: Int32Builder::new(),
             integer_builder: Int64Builder::new(),
             typed_literal_builder: StructBuilder::from_fields(EncTerm::typed_literal_fields(), 0),
@@ -124,6 +128,13 @@ impl EncRdfTermBuilder {
         Ok(())
     }
 
+    pub fn append_decimal(&mut self, value: i128) -> AResult<()> {
+        self.type_ids.push(EncTermField::Decimal.type_id());
+        self.offsets.push(self.decimal_builder.len() as i32);
+        self.decimal_builder.append_value(value);
+        Ok(())
+    }
+
     pub fn append_integer(&mut self, integer: i64) -> AResult<()> {
         self.type_ids.push(EncTermField::Integer.type_id());
         self.offsets.push(self.integer_builder.len() as i32);
@@ -173,6 +184,7 @@ impl EncRdfTermBuilder {
                 Arc::new(self.boolean_builder.finish()),
                 Arc::new(self.float32_builder.finish()),
                 Arc::new(self.float64_builder.finish()),
+                Arc::new(self.decimal_builder.finish()),
                 Arc::new(self.int32_builder.finish()),
                 Arc::new(self.integer_builder.finish()),
                 Arc::new(self.typed_literal_builder.finish()),

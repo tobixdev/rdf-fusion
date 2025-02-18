@@ -318,7 +318,9 @@ fn encode_term(
         EncodedTerm::DoubleLiteral(v) => {
             builder.append_float64(v.into())
         }
-        EncodedTerm::DecimalLiteral(_) => todo!("Encode DecimalLiteral"),
+        EncodedTerm::DecimalLiteral(v) => {
+            builder.append_decimal(i128::from_be_bytes(v.to_be_bytes()))
+        },
         EncodedTerm::DateTimeLiteral(_) => todo!("Encode DateTimeLiteral"),
         EncodedTerm::TimeLiteral(_) => todo!("Encode TimeLiteral"),
         EncodedTerm::DateLiteral(_) => todo!("Encode DateLiteral"),

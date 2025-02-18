@@ -56,10 +56,6 @@ macro_rules! create_binary_cmp_udf {
                 true
             }
 
-            fn supports_typed_literal() -> bool {
-                true
-            }
-
             fn eval_named_node(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
                 Ok(collector.append_boolean(lhs $OP rhs)?)
             }
@@ -84,6 +80,10 @@ macro_rules! create_binary_cmp_udf {
                 Ok(collector.append_boolean(lhs $OP rhs)?)
             }
 
+            fn eval_numeric_decimal(collector: &mut EncRdfTermBuilder, lhs: i128, rhs: i128) -> DFResult<()> {
+                Ok(collector.append_boolean(lhs $OP rhs)?) // This should work as precision and scale are equal
+            }
+
             fn eval_boolean(collector: &mut EncRdfTermBuilder, lhs: bool, rhs: bool) -> DFResult<()> {
                 Ok(collector.append_boolean(lhs $OP rhs)?)
             }
@@ -106,7 +106,7 @@ macro_rules! create_binary_cmp_udf {
                 Ok(collector.append_boolean(lhs $OP rhs && lhs_type $OP rhs_type)?)
             }
 
-            fn eval_incompatible(
+            fn eval_rdf_terms(
                 collector: &mut EncRdfTermBuilder
             ) -> DFResult<()> {
                 Ok(collector.append_null()?)
@@ -194,10 +194,6 @@ impl EncScalarBinaryUdf for EncSameTerm {
         false
     }
 
-    fn supports_typed_literal() -> bool {
-        true
-    }
-
     fn eval_named_node(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
         Ok(collector.append_boolean(lhs == rhs)?)
     }
@@ -220,6 +216,10 @@ impl EncScalarBinaryUdf for EncSameTerm {
 
     fn eval_numeric_f64(_collector: &mut EncRdfTermBuilder, _lhs: f64, _rhs: f64) -> DFResult<()> {
         panic!("eval_numeric_f64 not supported!")
+    }
+
+    fn eval_numeric_decimal(_collector: &mut EncRdfTermBuilder, _lhs: i128, _rhs: i128) -> DFResult<()> {
+        panic!("eval_numeric_decimal not supported!")
     }
 
     fn eval_boolean(_collector: &mut EncRdfTermBuilder, _lhs: bool, _rhs: bool) -> DFResult<()> {
@@ -248,7 +248,7 @@ impl EncScalarBinaryUdf for EncSameTerm {
         Ok(collector.append_boolean(lhs == rhs && lhs_type == rhs_type)?)
     }
 
-    fn eval_incompatible(collector: &mut EncRdfTermBuilder) -> DFResult<()> {
+    fn eval_rdf_terms(collector: &mut EncRdfTermBuilder) -> DFResult<()> {
         Ok(collector.append_null()?)
     }
 }
