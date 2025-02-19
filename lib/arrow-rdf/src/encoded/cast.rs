@@ -3,32 +3,11 @@ use crate::{DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
 use datafusion::arrow::array::{new_empty_array, ArrayRef, AsArray, BooleanArray, UnionArray};
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::datatypes::{
-    Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type,
+    Float32Type, Float64Type, Int32Type, Int64Type,
 };
 use datafusion::common::{exec_err, not_impl_err, ScalarValue};
 use oxrdf::vocab::xsd;
 use std::sync::Arc;
-
-pub fn cast_to_rdf_term(array: BooleanArray) -> DFResult<ArrayRef> {
-    Ok(Arc::new(UnionArray::try_new(
-        EncTerm::term_fields(),
-        ScalarBuffer::from(vec![EncTermField::Boolean.type_id(); array.len()]),
-        Some(ScalarBuffer::from(
-            (0..array.len() as i32).collect::<Vec<_>>(),
-        )),
-        vec![
-            Arc::new(new_empty_array(&EncTermField::NamedNode.data_type())),
-            Arc::new(new_empty_array(&EncTermField::BlankNode.data_type())),
-            Arc::new(new_empty_array(&EncTermField::String.data_type())),
-            Arc::new(array),
-            Arc::new(new_empty_array(&EncTermField::Float32.data_type())),
-            Arc::new(new_empty_array(&EncTermField::Float64.data_type())),
-            Arc::new(new_empty_array(&EncTermField::Int.data_type())),
-            Arc::new(new_empty_array(&EncTermField::Integer.data_type())),
-            Arc::new(new_empty_array(&EncTermField::TypedLiteral.data_type())),
-        ],
-    )?))
-}
 
 pub fn cast_typed_literal(
     term_field: EncTermField,
@@ -122,7 +101,7 @@ pub fn cast_typed_literal_array(
                 .value(offset);
             (value.to_string(), datatype)
         }
-        _ => panic!("Expected castable to str"),
+        _ => panic!("Expected castable to typed literal"),
     }
 }
 
@@ -150,6 +129,13 @@ pub fn cast_str_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: us
             .value(offset),
         EncTermField::BlankNode => rdf_terms
             .child(term_field.type_id())
+            .as_string::<i32>()
+            .value(offset),
+        EncTermField::String => rdf_terms
+            .child(term_field.type_id())
+            .as_struct()
+            .column_by_name("value")
+            .expect("Structure of string fixed")
             .as_string::<i32>()
             .value(offset),
         _ => panic!("Expected castable to str"),

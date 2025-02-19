@@ -1,14 +1,16 @@
-use std::fmt::Formatter;
 use crate::sparql::error::EvaluationError;
-use crate::sparql::{Query, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream};
+use crate::sparql::rewriting::GraphPatternRewriter;
+use crate::sparql::{
+    Query, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream, QueryTripleStream,
+};
+use arrow_rdf::TABLE_QUADS;
+use datafusion::common::internal_err;
 use datafusion::execution::SessionState;
 use datafusion::prelude::{DataFrame, SessionContext};
 use oxrdf::Variable;
 use spargebra::algebra::GraphPattern;
+use std::fmt::Formatter;
 use std::sync::Arc;
-use datafusion::common::internal_err;
-use arrow_rdf::TABLE_QUADS;
-use crate::sparql::rewriting::GraphPatternRewriter;
 
 pub async fn evaluate_query(
     ctx: &SessionContext,
@@ -17,25 +19,50 @@ pub async fn evaluate_query(
 ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
     match &query.inner {
         spargebra::Query::Select { pattern, .. } => {
-            let quads = ctx.table_provider(TABLE_QUADS).await?;
-            
-            let rewriter = GraphPatternRewriter::new(quads);
-            let logical_plan = rewriter.rewrite(pattern).map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
-
-            let dataframe = DataFrame::new(ctx.state(), logical_plan.clone());
-            let physical_plan = dataframe.clone().create_physical_plan().await?;
-
-            //internal_err!("Logical:\n{} \n\n -> \n\n Physical:\n{:?}", logical_plan, physical_plan)?;
-            // todo!()
-
+            // TODO consider other parts
+            let dataframe = create_dataframe(ctx, pattern).await?;
             let batch_record_stream = dataframe.execute_stream().await?;
             let stream = QuerySolutionStream::new(create_variables(pattern), batch_record_stream);
+
             Ok((QueryResults::Solutions(stream), None))
+        }
+        spargebra::Query::Construct {
+            template, pattern, ..
+        } => {
+            // TODO consider other parts
+            let dataframe = create_dataframe(ctx, pattern).await?;
+            let batch_record_stream = dataframe.execute_stream().await?;
+            let stream = QuerySolutionStream::new(create_variables(pattern), batch_record_stream);
+
+            Ok((
+                QueryResults::Graph(QueryTripleStream::new(template.clone(), stream)),
+                None,
+            ))
+        }
+        spargebra::Query::Ask { pattern, .. } => {
+            // TODO consider other parts
+            let dataframe = create_dataframe(ctx, pattern).await?;
+            let count = dataframe.limit(0, Some(1))?.count().await?;
+            Ok((QueryResults::Boolean(count > 0), None))
         }
         _ => Err(EvaluationError::NotImplemented(String::from(
             "Query form not implemented",
         ))),
     }
+}
+
+async fn create_dataframe(
+    ctx: &SessionContext,
+    pattern: &GraphPattern,
+) -> Result<DataFrame, EvaluationError> {
+    let quads = ctx.table_provider(TABLE_QUADS).await?;
+
+    let rewriter = GraphPatternRewriter::new(quads);
+    let logical_plan = rewriter
+        .rewrite(pattern)
+        .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
+
+    Ok(DataFrame::new(ctx.state(), logical_plan.clone()))
 }
 
 fn create_variables(graph_pattern: &GraphPattern) -> Arc<[Variable]> {

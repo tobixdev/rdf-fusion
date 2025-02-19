@@ -109,9 +109,7 @@ impl GraphPatternRewriter {
             (COL_OBJECT, object_projection),
         ]
         .into_iter()
-        .filter_map(|(col_name, var)| {
-            var.map(|new_col_name| col(col_name).alias(new_col_name))
-        });
+        .filter_map(|(col_name, var)| var.map(|new_col_name| col(col_name).alias(new_col_name)));
 
         plan.project(projections)
     }

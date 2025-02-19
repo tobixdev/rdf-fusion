@@ -285,7 +285,7 @@ async fn load_sparql_query_result(url: &str) -> Result<StaticQueryResults> {
 
 async fn to_graph(result: QueryResults, with_order: bool) -> Result<Graph> {
     Ok(match result {
-        QueryResults::Graph(graph) => graph.collect::<Result<Graph, _>>()?,
+        QueryResults::Graph(mut graph) => graph.collect_as_graph().await?,
         QueryResults::Boolean(value) => {
             let mut graph = Graph::new();
             let result_set = BlankNode::default();

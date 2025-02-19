@@ -2,8 +2,8 @@ use crate::encoded::cast::{
     cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32, cast_i32_arr, cast_i64, cast_i64_arr,
     cast_str, cast_str_arr, cast_typed_literal, cast_typed_literal_array,
 };
-use crate::result_collector::ResultCollector;
 use crate::encoded::EncTermField;
+use crate::result_collector::ResultCollector;
 use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow::array::Array;
 use datafusion::common::{
@@ -11,7 +11,6 @@ use datafusion::common::{
 };
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
-use datafusion::common::cse::FoundCommonNodes::No;
 
 pub trait EncScalarBinaryUdf {
     type Collector: ResultCollector;
@@ -34,39 +33,47 @@ pub trait EncScalarBinaryUdf {
         false
     }
 
-    fn eval_named_node(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()> {
+    fn eval_named_node(_collector: &mut Self::Collector, _lhs: &str, _rhs: &str) -> DFResult<()> {
         panic!("eval_named_node not supported!")
     }
 
-    fn eval_blank_node(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()> {
+    fn eval_blank_node(_collector: &mut Self::Collector, _lhs: &str, _rhs: &str) -> DFResult<()> {
         panic!("eval_blank_node not supported!")
     }
 
-    fn eval_numeric_i32(collector: &mut Self::Collector, lhs: i32, rhs: i32) -> DFResult<()> {
+    fn eval_numeric_i32(_collector: &mut Self::Collector, _lhs: i32, _rhs: i32) -> DFResult<()> {
         panic!("eval_numeric_i32 not supported!")
     }
-    fn eval_numeric_i64(collector: &mut Self::Collector, lhs: i64, rhs: i64) -> DFResult<()> {
+    fn eval_numeric_i64(_collector: &mut Self::Collector, _lhs: i64, _rhs: i64) -> DFResult<()> {
         panic!("eval_numeric_i64 not supported!")
     }
-    fn eval_numeric_f32(collector: &mut Self::Collector, lhs: f32, rhs: f32) -> DFResult<()> {
+    fn eval_numeric_f32(_collector: &mut Self::Collector, _lhs: f32, _rhs: f32) -> DFResult<()> {
         panic!("eval_numeric_f32 not supported!")
     }
-    fn eval_numeric_f64(collector: &mut Self::Collector, lhs: f64, rhs: f64) -> DFResult<()> {
+    fn eval_numeric_f64(_collector: &mut Self::Collector, _lhs: f64, _rhs: f64) -> DFResult<()> {
         panic!("eval_numeric_f64 not supported!")
     }
-    fn eval_numeric_decimal(collector: &mut Self::Collector, lhs: i128, rhs: i128) -> DFResult<()> {
+    fn eval_numeric_decimal(
+        _collector: &mut Self::Collector,
+        _lhs: i128,
+        _rhs: i128,
+    ) -> DFResult<()> {
         panic!("eval_numeric_decimal not supported!")
     }
 
-    fn eval_boolean(collector: &mut Self::Collector, lhs: bool, rhs: bool) -> DFResult<()> {
+    fn eval_boolean(_collector: &mut Self::Collector, _lhs: bool, _rhs: bool) -> DFResult<()> {
         panic!("eval_boolean not supported!")
     }
 
-    fn eval_string(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()> {
+    fn eval_string(_collector: &mut Self::Collector, _lhs: &str, _rhs: &str) -> DFResult<()> {
         panic!("eval_string not supported!")
     }
 
-    fn eval_simple_literal(collector: &mut Self::Collector, lhs: &str, rhs: &str) -> DFResult<()> {
+    fn eval_simple_literal(
+        _collector: &mut Self::Collector,
+        _lhs: &str,
+        _rhs: &str,
+    ) -> DFResult<()> {
         panic!("eval_simple_literal not supported!")
     }
 
@@ -78,7 +85,7 @@ pub trait EncScalarBinaryUdf {
         rhs_type: &str,
     ) -> DFResult<()>;
 
-    fn eval_rdf_terms(collector: &mut Self::Collector) -> DFResult<()> {
+    fn eval_rdf_terms(_collector: &mut Self::Collector) -> DFResult<()> {
         todo!("Implement")
     }
 }

@@ -5,7 +5,7 @@ use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 use datafusion::physical_plan::memory::MemoryStream;
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
 use oxrdf::{Variable, VariableRef};
 use oxrdfio::{RdfFormat, RdfSerializer};
 use sparesults::{
@@ -90,7 +90,7 @@ impl QueryResults {
                 }
                 serializer.finish()
             }
-            Self::Graph(triples) => {
+            Self::Graph(mut triples) => {
                 let s = VariableRef::new_unchecked("subject");
                 let p = VariableRef::new_unchecked("predicate");
                 let o = VariableRef::new_unchecked("object");
@@ -100,7 +100,8 @@ impl QueryResults {
                         vec![s.into_owned(), p.into_owned(), o.into_owned()],
                     )
                     .map_err(EvaluationError::ResultsSerialization)?;
-                for triple in triples {
+
+                while let Some(triple) = triples.next().await {
                     let triple = triple?;
                     serializer
                         .serialize([
@@ -110,6 +111,7 @@ impl QueryResults {
                         ])
                         .map_err(EvaluationError::ResultsSerialization)?;
                 }
+
                 serializer.finish()
             }
         }
@@ -142,18 +144,20 @@ impl QueryResults {
     /// );
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub fn write_graph<W: Write>(
+    pub async fn write_graph<W: Write>(
         self,
         writer: W,
         format: impl Into<RdfFormat>,
     ) -> Result<W, EvaluationError> {
-        if let Self::Graph(triples) = self {
+        if let Self::Graph(mut triples) = self {
             let mut serializer = RdfSerializer::from_format(format.into()).for_writer(writer);
-            for triple in triples {
+
+            while let Some(triple) = triples.next().await {
                 serializer
                     .serialize_triple(&triple?)
                     .map_err(EvaluationError::ResultsSerialization)?;
             }
+
             serializer
                 .finish()
                 .map_err(EvaluationError::ResultsSerialization)
