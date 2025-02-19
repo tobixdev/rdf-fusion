@@ -315,7 +315,7 @@ fn encode_term(
         EncodedTerm::FloatLiteral(v) => builder.append_float32(v.into()),
         EncodedTerm::DoubleLiteral(v) => builder.append_float64(v.into()),
         EncodedTerm::DecimalLiteral(v) => {
-            builder.append_decimal(i128::from_be_bytes(v.to_be_bytes()) / 1_000_000_000_000_000_000)
+            builder.append_decimal(i128::from_be_bytes(v.to_be_bytes()))
         }
         EncodedTerm::DateTimeLiteral(_) => todo!("Encode DateTimeLiteral"),
         EncodedTerm::TimeLiteral(_) => todo!("Encode TimeLiteral"),
