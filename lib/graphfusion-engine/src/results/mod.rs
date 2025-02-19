@@ -5,7 +5,7 @@ use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 use datafusion::physical_plan::memory::MemoryStream;
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use oxrdf::{Variable, VariableRef};
 use oxrdfio::{RdfFormat, RdfSerializer};
 use sparesults::{

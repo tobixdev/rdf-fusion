@@ -1,13 +1,9 @@
 use crate::encoded::{EncTerm, EncTermField};
 use crate::{DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
-use datafusion::arrow::array::{new_empty_array, ArrayRef, AsArray, BooleanArray, UnionArray};
-use datafusion::arrow::buffer::ScalarBuffer;
-use datafusion::arrow::datatypes::{
-    Float32Type, Float64Type, Int32Type, Int64Type,
-};
+use datafusion::arrow::array::{Array, AsArray, UnionArray};
+use datafusion::arrow::datatypes::{Decimal128Type, DecimalType};
 use datafusion::common::{exec_err, not_impl_err, ScalarValue};
 use oxrdf::vocab::xsd;
-use std::sync::Arc;
 
 pub fn cast_typed_literal(
     term_field: EncTermField,
@@ -46,45 +42,33 @@ pub fn cast_typed_literal_array(
 ) -> (String, &str) {
     match term_field {
         EncTermField::Int => {
-            let value = rdf_terms
-                .child(term_field.type_id())
-                .as_primitive::<Int32Type>()
-                .value(offset);
+            let value = cast_i32_arr(rdf_terms, term_field, offset);
             (value.to_string(), xsd::INT.as_str())
         }
         EncTermField::Integer => {
-            let value = rdf_terms
-                .child(term_field.type_id())
-                .as_primitive::<Int64Type>()
-                .value(offset);
+            let value = cast_i64_arr(rdf_terms, term_field, offset);
             (value.to_string(), xsd::INTEGER.as_str())
         }
         EncTermField::Float32 => {
-            let value = rdf_terms
-                .child(term_field.type_id())
-                .as_primitive::<Float32Type>()
-                .value(offset);
+            let value = cast_f32_arr(rdf_terms, term_field, offset);
             (value.to_string(), xsd::FLOAT.as_str())
         }
         EncTermField::Float64 => {
-            let value = rdf_terms
-                .child(term_field.type_id())
-                .as_primitive::<Float64Type>()
-                .value(offset);
+            let value = cast_f64_arr(rdf_terms, term_field, offset);
             (value.to_string(), xsd::DOUBLE.as_str())
         }
+        EncTermField::Decimal => {
+            let value = cast_decimal_arr(rdf_terms, term_field, offset);
+            let formatted =
+                Decimal128Type::format_decimal(value, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE);
+            (formatted, xsd::DECIMAL.as_str())
+        }
         EncTermField::Boolean => {
-            let value = rdf_terms
-                .child(term_field.type_id())
-                .as_boolean()
-                .value(offset);
+            let value = cast_bool_arr(rdf_terms, term_field, offset);
             (value.to_string(), xsd::BOOLEAN.as_str())
         }
         EncTermField::String => {
-            let value = rdf_terms
-                .child(term_field.type_id())
-                .as_string::<i32>()
-                .value(offset);
+            let value = cast_str_arr(rdf_terms, term_field, offset);
             (value.to_string(), xsd::STRING.as_str())
         }
         EncTermField::TypedLiteral => {
@@ -112,12 +96,27 @@ pub fn cast_bool(scalar: &ScalarValue) -> bool {
     }
 }
 
+pub fn cast_bool_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> bool {
+    match term_field {
+        EncTermField::Boolean => rdf_terms
+            .child(term_field.type_id())
+            .as_boolean()
+            .value(offset),
+        _ => panic!("Expected castable to typed literal"),
+    }
+}
+
 pub fn cast_str(scalar: &ScalarValue) -> &str {
     match scalar {
         ScalarValue::Utf8(value) => value.as_ref().unwrap(),
         ScalarValue::Utf8View(value) => value.as_ref().unwrap(),
         ScalarValue::LargeUtf8(value) => value.as_ref().unwrap(),
-        _ => panic!("epxected castable to i32"),
+        ScalarValue::Struct(array) if array.data_type() == &EncTerm::string_type() => array
+            .column_by_name("value")
+            .expect("Schema fixed")
+            .as_string::<i32>()
+            .value(0),
+        _ => panic!("epxected castable to str {:?}", scalar),
     }
 }
 
@@ -148,7 +147,7 @@ pub fn cast_decimal(scalar: &ScalarValue) -> i128 {
             assert_eq!(*p, RDF_DECIMAL_PRECISION);
             assert_eq!(*s, RDF_DECIMAL_SCALE);
             *v
-        },
+        }
         _ => panic!("epxected casting to decimal"),
     }
 }
@@ -157,12 +156,6 @@ pub fn cast_decimal_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset
     let scalar = ScalarValue::try_from_array(rdf_terms.child(term_field.type_id()), offset)
         .expect("No unsupported type used");
     cast_decimal(&scalar)
-}
-
-pub fn cast_bool_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> bool {
-    let scalar = ScalarValue::try_from_array(rdf_terms.child(term_field.type_id()), offset)
-        .expect("No unsupported type used");
-    cast_bool(&scalar)
 }
 
 pub fn cast_i32(scalar: &ScalarValue) -> i32 {

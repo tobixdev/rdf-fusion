@@ -1,8 +1,7 @@
 use crate::encoded::{EncRdfTermBuilder, EncTerm, EncTermField};
 use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow;
-use datafusion::arrow::array::{AsArray, StringArray, UnionArray};
-use datafusion::arrow::buffer::ScalarBuffer;
+use datafusion::arrow::array::AsArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::internal_err;
 use datafusion::logical_expr::{
@@ -10,7 +9,6 @@ use datafusion::logical_expr::{
 };
 use std::any::Any;
 use std::sync::Arc;
-use datafusion::functions::strings::StringArrayBuilder;
 
 #[derive(Debug)]
 pub struct EncNot {

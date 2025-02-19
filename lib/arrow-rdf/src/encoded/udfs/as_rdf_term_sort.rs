@@ -78,16 +78,10 @@ impl EncScalarUnaryUdf for EncAsRdfTermSort {
         Ok(())
     }
 
-    fn eval_simple_literal(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        // TODO
-        collector.append_string(value);
-        Ok(())
-    }
-
     fn eval_typed_literal(
         collector: &mut Self::Collector,
         value: &str,
-        value_type: &str,
+        _value_type: &str,
     ) -> DFResult<()> {
         // TODO
         collector.append_string(value);

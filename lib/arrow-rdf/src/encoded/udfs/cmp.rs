@@ -48,14 +48,6 @@ macro_rules! create_binary_cmp_udf {
                 true
             }
 
-            fn supports_date_time() -> bool {
-                true
-            }
-
-            fn supports_simple_literal() -> bool {
-                true
-            }
-
             fn eval_named_node(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
                 Ok(collector.append_boolean(lhs $OP rhs)?)
             }
@@ -90,10 +82,6 @@ macro_rules! create_binary_cmp_udf {
             }
 
             fn eval_string(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_simple_literal(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
                 Ok(collector.append_boolean(lhs $OP rhs)?)
             }
 
@@ -188,14 +176,6 @@ impl EncScalarBinaryUdf for EncSameTerm {
         false
     }
 
-    fn supports_date_time() -> bool {
-        false
-    }
-
-    fn supports_simple_literal() -> bool {
-        false
-    }
-
     fn eval_named_node(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
         Ok(collector.append_boolean(lhs == rhs)?)
     }
@@ -230,14 +210,6 @@ impl EncScalarBinaryUdf for EncSameTerm {
 
     fn eval_string(_collector: &mut EncRdfTermBuilder, _lhs: &str, _rhs: &str) -> DFResult<()> {
         panic!("eval_string not supported!")
-    }
-
-    fn eval_simple_literal(
-        _collector: &mut EncRdfTermBuilder,
-        _lhs: &str,
-        _rhs: &str,
-    ) -> DFResult<()> {
-        panic!("eval_simple_literal not supported!")
     }
 
     fn eval_typed_literal(

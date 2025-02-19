@@ -1,6 +1,7 @@
 use crate::encoded::cast::{
-    cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32, cast_i32_arr, cast_i64, cast_i64_arr,
-    cast_str, cast_str_arr, cast_typed_literal, cast_typed_literal_array,
+    cast_bool, cast_bool_arr, cast_decimal, cast_decimal_arr, cast_f32, cast_f32_arr, cast_f64,
+    cast_f64_arr, cast_i32, cast_i32_arr, cast_i64, cast_i64_arr, cast_str, cast_str_arr,
+    cast_typed_literal, cast_typed_literal_array,
 };
 use crate::encoded::EncTermField;
 use crate::result_collector::ResultCollector;
@@ -24,12 +25,6 @@ pub trait EncScalarBinaryUdf {
         false
     }
     fn supports_string() -> bool {
-        false
-    }
-    fn supports_date_time() -> bool {
-        false
-    }
-    fn supports_simple_literal() -> bool {
         false
     }
 
@@ -67,14 +62,6 @@ pub trait EncScalarBinaryUdf {
 
     fn eval_string(_collector: &mut Self::Collector, _lhs: &str, _rhs: &str) -> DFResult<()> {
         panic!("eval_string not supported!")
-    }
-
-    fn eval_simple_literal(
-        _collector: &mut Self::Collector,
-        _lhs: &str,
-        _rhs: &str,
-    ) -> DFResult<()> {
-        panic!("eval_simple_literal not supported!")
     }
 
     fn eval_typed_literal(
@@ -177,6 +164,11 @@ where
                 let rhs = cast_str_arr(rhs, rhs_term_field, *rhs_offset as usize);
                 TUdf::eval_blank_node(&mut collector, lhs, rhs)?;
             }
+            UdfTarget::Boolean => {
+                let lhs = cast_bool(&lhs_value);
+                let rhs = cast_bool_arr(rhs, rhs_term_field, *rhs_offset as usize);
+                TUdf::eval_boolean(&mut collector, lhs, rhs)?;
+            }
             UdfTarget::NumericI32 => {
                 let lhs = cast_i32(&lhs_value);
                 let rhs = cast_i32_arr(rhs, rhs_term_field, *rhs_offset as usize);
@@ -197,6 +189,16 @@ where
                 let rhs = cast_f64_arr(rhs, rhs_term_field, *rhs_offset as usize);
                 TUdf::eval_numeric_f64(&mut collector, lhs, rhs)?;
             }
+            UdfTarget::NumericDecimal => {
+                let lhs = cast_decimal(&lhs_value);
+                let rhs = cast_decimal_arr(rhs, rhs_term_field, *rhs_offset as usize);
+                TUdf::eval_numeric_decimal(&mut collector, lhs, rhs)?;
+            }
+            UdfTarget::String => {
+                let lhs = cast_str(&lhs_value);
+                let rhs = cast_str_arr(rhs, rhs_term_field, *rhs_offset as usize);
+                TUdf::eval_string(&mut collector, lhs, rhs)?;
+            }
             UdfTarget::TypedLiteral => {
                 let (lhs_value, lhs_type) = cast_typed_literal(lhs_type, &lhs_value)?;
                 let (rhs_value, rhs_type) =
@@ -212,7 +214,6 @@ where
             UdfTarget::RdfTerm => {
                 TUdf::eval_rdf_terms(&mut collector)?;
             }
-            t => return not_impl_err!("dispatch_binary_array_scalar for {t:?}"),
         }
     }
     collector.finish_columnar_value()
@@ -317,18 +318,6 @@ where
         }
     }
 
-    if TUdf::supports_date_time() {
-        if let Some(value) = try_find_date_time_type(lhs_field, rhs_field) {
-            return value;
-        }
-    }
-
-    if TUdf::supports_simple_literal() {
-        if let Some(value) = try_find_simple_literal_type(lhs_field, rhs_field) {
-            return value;
-        }
-    }
-
     if let Some(value) = try_find_typed_literal_type(lhs_field, rhs_field) {
         return value;
     }
@@ -371,6 +360,8 @@ fn try_find_numeric_type(lhs_field: EncTermField, rhs_field: EncTermField) -> Op
         (EncTermField::Float64, EncTermField::Integer) => Some(UdfTarget::NumericF64), // TODO @tobixdev: Check this
         (EncTermField::Float64, EncTermField::Float32) => Some(UdfTarget::NumericF64),
         (EncTermField::Float64, EncTermField::Float64) => Some(UdfTarget::NumericF64),
+
+        (EncTermField::Decimal, EncTermField::Decimal) => Some(UdfTarget::NumericDecimal),
         _ => None,
     }
 }
@@ -389,19 +380,15 @@ fn try_find_string_type(lhs_field: EncTermField, rhs_field: EncTermField) -> Opt
     }
 }
 
-fn try_find_date_time_type(_: EncTermField, _: EncTermField) -> Option<UdfTarget> {
-    // TODO
-    None
-}
-
-fn try_find_simple_literal_type(_: EncTermField, _: EncTermField) -> Option<UdfTarget> {
-    // TODO
-    None
-}
-
-fn try_find_typed_literal_type(_: EncTermField, _: EncTermField) -> Option<UdfTarget> {
-    // TODO
-    None
+fn try_find_typed_literal_type(
+    lhs_field: EncTermField,
+    rhs_field: EncTermField,
+) -> Option<UdfTarget> {
+    if lhs_field.is_literal() && rhs_field.is_literal() {
+        Some(UdfTarget::TypedLiteral)
+    } else {
+        None
+    }
 }
 
 #[derive(Debug)]
@@ -415,8 +402,6 @@ enum UdfTarget {
     NumericDecimal,
     Boolean,
     String,
-    DateTime,
-    SimpleLiteral,
     TypedLiteral,
     RdfTerm,
 }

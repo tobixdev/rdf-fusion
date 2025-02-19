@@ -3,7 +3,7 @@ use crate::encoded::EncTermField;
 use crate::result_collector::ResultCollector;
 use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow::array::Array;
-use datafusion::common::{exec_err, not_impl_err, DataFusionError, ScalarValue};
+use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
 
@@ -27,8 +27,6 @@ pub trait EncScalarUnaryUdf {
     fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()>;
 
     fn eval_string(collector: &mut Self::Collector, value: &str) -> DFResult<()>;
-
-    fn eval_simple_literal(collector: &mut Self::Collector, value: &str) -> DFResult<()>;
 
     fn eval_typed_literal(
         collector: &mut Self::Collector,

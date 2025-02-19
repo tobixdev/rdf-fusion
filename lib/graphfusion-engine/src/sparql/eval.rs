@@ -4,12 +4,9 @@ use crate::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream, QueryTripleStream,
 };
 use arrow_rdf::TABLE_QUADS;
-use datafusion::common::internal_err;
-use datafusion::execution::SessionState;
 use datafusion::prelude::{DataFrame, SessionContext};
 use oxrdf::Variable;
 use spargebra::algebra::GraphPattern;
-use std::fmt::Formatter;
 use std::sync::Arc;
 
 pub async fn evaluate_query(

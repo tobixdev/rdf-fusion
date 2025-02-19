@@ -2,7 +2,7 @@ use crate::result_collector::ResultCollector;
 use crate::sorting::{RdfTermSortField, FIELDS_RDF_TERM_SORT};
 use crate::DFResult;
 use datafusion::arrow::array::{
-    ArrayBuilder, Float64Builder, StringBuilder, StructBuilder, UInt8Builder,
+    Float64Builder, StringBuilder, StructBuilder, UInt8Builder,
 };
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;

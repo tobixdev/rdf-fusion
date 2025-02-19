@@ -71,15 +71,10 @@ impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
         Ok(())
     }
 
-    fn eval_simple_literal(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        collector.append_boolean(!value.is_empty())?;
-        Ok(())
-    }
-
     fn eval_typed_literal(
         collector: &mut Self::Collector,
         value: &str,
-        value_type: &str,
+        _value_type: &str,
     ) -> DFResult<()> {
         collector.append_boolean(!value.is_empty())?;
         Ok(())

@@ -86,6 +86,10 @@ impl EncTerm {
         FIELDS_STRING.clone()
     }
 
+    pub fn string_type() -> DataType {
+        DataType::Struct(Self::string_fields())
+    }
+
     pub fn typed_literal_fields() -> Fields {
         FIELDS_TYPED_LITERAL.clone()
     }
@@ -142,6 +146,13 @@ impl EncTermField {
             EncTermField::Int => DataType::Int32,
             EncTermField::Integer => DataType::Int64,
             EncTermField::TypedLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
+        }
+    }
+
+    pub fn is_literal(&self) -> bool {
+        match self {
+            EncTermField::NamedNode | EncTermField::BlankNode => false,
+            _ => true,
         }
     }
 }

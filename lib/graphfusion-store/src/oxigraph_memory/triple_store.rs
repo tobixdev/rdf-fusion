@@ -3,7 +3,7 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
 };
-use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ};
+use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EQ};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use async_trait::async_trait;
 use datafusion::error::DataFusionError;
