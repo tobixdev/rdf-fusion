@@ -64,7 +64,8 @@ impl GraphPatternRewriter {
             } => self.rewrite_slice(inner, *start, *length),
             GraphPattern::Distinct { inner } => self.rewrite_distinct(inner),
             GraphPattern::OrderBy { inner, expression } => self.rewrite_order_by(inner, expression),
-            pattern => not_impl_err!("{:?}", pattern),
+            GraphPattern::Union { left, right } => self.rewrite_union(left, right),
+            pattern => not_impl_err!("rewrite_graph_pattern: {:?}", pattern),
         }
     }
 
@@ -241,6 +242,17 @@ impl GraphPatternRewriter {
             .map(|e| self.rewrite_order_expr(e))
             .collect::<Result<Vec<_>, _>>()?;
         LogicalPlanBuilder::sort(inner, sort_exprs)
+    }
+
+    /// Creates a union node
+    fn rewrite_union(
+        &self,
+        left: &GraphPattern,
+        right: &GraphPattern,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let left = self.rewrite_graph_pattern(left)?;
+        let right = self.rewrite_graph_pattern(right)?;
+        left.union(right.build()?)
     }
 
     //
