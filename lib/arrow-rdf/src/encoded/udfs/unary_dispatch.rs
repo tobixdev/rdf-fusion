@@ -1,9 +1,10 @@
 use crate::encoded::cast::{
-    cast_bool, cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32, cast_i32_arr, cast_i64,
-    cast_i64_arr, cast_str, cast_str_arr, cast_typed_literal, cast_typed_literal_array,
+    cast_bool, cast_bool_arr, cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32,
+    cast_i32_arr, cast_i64, cast_i64_arr, cast_str, cast_str_arr, cast_typed_literal,
+    cast_typed_literal_array,
 };
-use crate::result_collector::ResultCollector;
 use crate::encoded::EncTermField;
+use crate::result_collector::ResultCollector;
 use crate::{as_rdf_term_array, DFResult};
 use datafusion::arrow::array::Array;
 use datafusion::common::{exec_err, not_impl_err, DataFusionError, ScalarValue};
@@ -13,88 +14,31 @@ use std::sync::Arc;
 pub trait EncScalarUnaryUdf {
     type Collector: ResultCollector;
 
-    fn supports_named_node() -> bool {
-        false
-    }
-    fn supports_blank_node() -> bool {
-        false
-    }
-    fn supports_numeric() -> bool {
-        false
-    }
-    fn supports_boolean() -> bool {
-        false
-    }
-    fn supports_string() -> bool {
-        false
-    }
-    fn supports_date_time() -> bool {
-        false
-    }
-    fn supports_simple_literal() -> bool {
-        false
-    }
-    fn supports_typed_literal() -> bool {
-        false
-    }
+    fn eval_named_node(collector: &mut Self::Collector, value: &str) -> DFResult<()>;
 
-    #[allow(unused_variables)]
-    fn eval_named_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        not_impl_err!("eval_named_node")
-    }
+    fn eval_blank_node(collector: &mut Self::Collector, value: &str) -> DFResult<()>;
 
-    #[allow(unused_variables)]
-    fn eval_blank_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        not_impl_err!("eval_blank_node")
-    }
+    fn eval_numeric_i32(collector: &mut Self::Collector, value: i32) -> DFResult<()>;
 
-    #[allow(unused_variables)]
-    fn eval_numeric_i32(collector: &mut Self::Collector, value: i32) -> DFResult<()> {
-        not_impl_err!("eval_numeric_i32")
-    }
+    fn eval_numeric_i64(collector: &mut Self::Collector, value: i64) -> DFResult<()>;
 
-    #[allow(unused_variables)]
-    fn eval_numeric_i64(collector: &mut Self::Collector, value: i64) -> DFResult<()> {
-        not_impl_err!("eval_numeric_i64")
-    }
+    fn eval_numeric_f32(collector: &mut Self::Collector, value: f32) -> DFResult<()>;
 
-    #[allow(unused_variables)]
-    fn eval_numeric_f32(collector: &mut Self::Collector, value: f32) -> DFResult<()> {
-        not_impl_err!("eval_numeric_f32")
-    }
+    fn eval_numeric_f64(collector: &mut Self::Collector, value: f64) -> DFResult<()>;
 
-    #[allow(unused_variables)]
-    fn eval_numeric_f64(collector: &mut Self::Collector, value: f64) -> DFResult<()> {
-        not_impl_err!("eval_numeric_f64")
-    }
+    fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()>;
 
-    #[allow(unused_variables)]
-    fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()> {
-        not_impl_err!("eval_boolean")
-    }
+    fn eval_string(collector: &mut Self::Collector, value: &str) -> DFResult<()>;
 
-    #[allow(unused_variables)]
-    fn eval_string(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        not_impl_err!("eval_string")
-    }
+    fn eval_simple_literal(collector: &mut Self::Collector, value: &str) -> DFResult<()>;
 
-    #[allow(unused_variables)]
-    fn eval_simple_literal(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        not_impl_err!("eval_simple_literal")
-    }
-
-    #[allow(unused_variables)]
     fn eval_typed_literal(
         collector: &mut Self::Collector,
         value: &str,
         value_type: &str,
-    ) -> DFResult<()> {
-        not_impl_err!("eval_typed_literal")
-    }
+    ) -> DFResult<()>;
 
     fn eval_null(collector: &mut Self::Collector) -> DFResult<()>;
-
-    fn eval_incompatible(collector: &mut Self::Collector) -> DFResult<()>;
 }
 
 pub fn dispatch_unary<TUdf>(
@@ -130,42 +74,44 @@ where
     }
 
     match term_field {
-        EncTermField::NamedNode if TUdf::supports_named_node() => {
+        EncTermField::NamedNode => {
             let value = cast_str(&value);
             TUdf::eval_named_node(&mut collector, value)?;
         }
-        EncTermField::BlankNode if TUdf::supports_blank_node() => {
+        EncTermField::BlankNode => {
             let value = cast_str(&value);
             TUdf::eval_blank_node(&mut collector, value)?;
         }
-        EncTermField::Boolean if TUdf::supports_boolean() => {
+        EncTermField::Boolean => {
             let value = cast_bool(&value);
             TUdf::eval_boolean(&mut collector, value)?;
         }
-        EncTermField::Int if TUdf::supports_numeric() => {
+        EncTermField::Int => {
             let value = cast_i32(&value);
             TUdf::eval_numeric_i32(&mut collector, value)?;
         }
-        EncTermField::Integer if TUdf::supports_numeric() => {
+        EncTermField::Integer => {
             let value = cast_i64(&value);
             TUdf::eval_numeric_i64(&mut collector, value)?;
         }
-        EncTermField::Float32 if TUdf::supports_numeric() => {
+        EncTermField::Float32 => {
             let value = cast_f32(&value);
             TUdf::eval_numeric_f32(&mut collector, value)?;
         }
-        EncTermField::Float64 if TUdf::supports_numeric() => {
+        EncTermField::Float64 => {
             let value = cast_f64(&value);
             TUdf::eval_numeric_f64(&mut collector, value)?;
         }
-        EncTermField::String if TUdf::supports_string() => {
+        EncTermField::String => {
             todo!()
         }
-        EncTermField::TypedLiteral if TUdf::supports_typed_literal() => {
+        EncTermField::TypedLiteral => {
             let (value, value_type) = cast_typed_literal(term_field, &value)?;
             TUdf::eval_typed_literal(&mut collector, &value, &value_type)?;
         }
-        _ => TUdf::eval_incompatible(&mut collector)?,
+        EncTermField::Decimal => {
+            todo!()
+        }
     }
 
     collector.finish_columnar_value()
@@ -193,6 +139,10 @@ where
             EncTermField::BlankNode => {
                 let value = cast_str_arr(values, value_type, *offset as usize);
                 TUdf::eval_blank_node(&mut collector, value)?;
+            }
+            EncTermField::Boolean => {
+                let value = cast_bool_arr(values, value_type, *offset as usize);
+                TUdf::eval_boolean(&mut collector, value)?;
             }
             EncTermField::Int => {
                 let value = cast_i32_arr(values, value_type, *offset as usize);

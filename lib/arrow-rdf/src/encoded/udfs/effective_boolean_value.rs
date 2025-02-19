@@ -2,7 +2,9 @@ use crate::encoded::udfs::unary_dispatch::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use std::any::Any;
 
 #[derive(Debug)]
@@ -24,20 +26,14 @@ impl EncEffectiveBooleanValue {
 impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
     type Collector = EncRdfTermBuilder;
 
-    fn supports_boolean() -> bool {
-        true
+    fn eval_named_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
+        collector.append_boolean(!value.is_empty())?;
+        Ok(())
     }
 
-    fn supports_numeric() -> bool {
-        true
-    }
-
-    fn supports_string() -> bool {
-        true
-    }
-
-    fn supports_simple_literal() -> bool {
-        true
+    fn eval_blank_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
+        collector.append_boolean(!value.is_empty())?;
+        Ok(())
     }
 
     fn eval_numeric_i32(collector: &mut Self::Collector, value: i32) -> DFResult<()> {
@@ -75,12 +71,16 @@ impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
         Ok(())
     }
 
-    fn eval_null(collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_boolean(false)?;
+    fn eval_typed_literal(
+        collector: &mut Self::Collector,
+        value: &str,
+        value_type: &str,
+    ) -> DFResult<()> {
+        collector.append_boolean(!value.is_empty())?;
         Ok(())
     }
 
-    fn eval_incompatible(collector: &mut Self::Collector) -> DFResult<()> {
+    fn eval_null(collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_boolean(false)?;
         Ok(())
     }

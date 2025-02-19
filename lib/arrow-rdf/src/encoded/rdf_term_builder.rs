@@ -30,17 +30,17 @@ impl EncRdfTermBuilder {
         Self {
             type_ids: Vec::new(),
             offsets: Vec::new(),
-            named_node_builder: StringBuilder::new(),
-            blank_node_builder: StringBuilder::new(),
+            named_node_builder: StringBuilder::with_capacity(0, 0),
+            blank_node_builder: StringBuilder::with_capacity(0, 0),
             string_builder: StructBuilder::from_fields(EncTerm::string_fields(), 0),
-            boolean_builder: BooleanBuilder::new(),
-            float32_builder: Float32Builder::new(),
-            float64_builder: Float64Builder::new(),
-            decimal_builder: Decimal128Builder::new()
+            boolean_builder: BooleanBuilder::with_capacity(0),
+            float32_builder: Float32Builder::with_capacity(0),
+            float64_builder: Float64Builder::with_capacity(0),
+            decimal_builder: Decimal128Builder::with_capacity(0)
                 .with_precision_and_scale(36, 18)
                 .expect("Precision and scale fixed"),
-            int32_builder: Int32Builder::new(),
-            integer_builder: Int64Builder::new(),
+            int32_builder: Int32Builder::with_capacity(0),
+            integer_builder: Int64Builder::with_capacity(0),
             typed_literal_builder: StructBuilder::from_fields(EncTerm::typed_literal_fields(), 0),
         }
     }

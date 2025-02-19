@@ -1,9 +1,13 @@
-use crate::encoded::udfs::unary_dispatch::{dispatch_unary, EncScalarUnaryUdf};
-use crate::encoded::{EncRdfTermBuilder, EncTerm};
-use crate::DFResult;
+use crate::encoded::{EncTerm, EncTermField};
+use crate::{as_rdf_term_array, DFResult};
+use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::common::internal_err;
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use std::any::Any;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct EncAsNativeBoolean {
@@ -18,29 +22,6 @@ impl EncAsNativeBoolean {
                 Volatility::Immutable,
             ),
         }
-    }
-}
-
-impl EncScalarUnaryUdf for EncAsNativeBoolean {
-    type Collector = EncRdfTermBuilder;
-
-    fn supports_boolean() -> bool {
-        true
-    }
-
-    fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()> {
-        collector.append_boolean(value)?;
-        Ok(())
-    }
-
-    fn eval_null(collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_boolean(false)?;
-        Ok(())
-    }
-
-    fn eval_incompatible(collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_boolean(false)?;
-        Ok(())
     }
 }
 
@@ -61,11 +42,25 @@ impl ScalarUDFImpl for EncAsNativeBoolean {
         Ok(DataType::Boolean)
     }
 
-    fn invoke_batch(
-        &self,
-        args: &[ColumnarValue],
-        number_rows: usize,
-    ) -> datafusion::common::Result<ColumnarValue> {
-        dispatch_unary::<EncAsNativeBoolean>(args, number_rows)
+    fn invoke_batch(&self, args: &[ColumnarValue], number_rows: usize) -> DFResult<ColumnarValue> {
+        if args.len() != 1 {
+            return internal_err!("Unexpected numer of arguments in enc_as_native_boolean.");
+        }
+
+        let input = args[0].to_array(number_rows)?;
+        let terms = as_rdf_term_array(&input)?;
+        let boolean_array = terms.child(EncTermField::Boolean.type_id());
+
+        if boolean_array.len() != number_rows {
+            return internal_err!(
+                "Unexpected number of boolean elements in enc_as_native_boolean. expected: {}, actual: {}", number_rows, boolean_array.len()
+            );
+        }
+
+        if boolean_array.null_count() > 0 {
+            return internal_err!("Unexpected nulls in enc_as_native_boolean.");
+        }
+
+        Ok(ColumnarValue::Array(Arc::clone(boolean_array)))
     }
 }

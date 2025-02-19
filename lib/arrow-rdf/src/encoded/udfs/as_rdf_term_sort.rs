@@ -27,19 +27,64 @@ impl EncAsRdfTermSort {
 impl EncScalarUnaryUdf for EncAsRdfTermSort {
     type Collector = RdfTermSortBuilder;
 
-    // TODO implement this
+    fn eval_named_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
+        collector.append_iri(value);
+        Ok(())
+    }
+
+    fn eval_blank_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
+        collector.append_blank_node(value);
+        Ok(())
+    }
+
+    fn eval_numeric_i32(collector: &mut Self::Collector, value: i32) -> DFResult<()> {
+        collector.append_numeric(value as f64);
+        Ok(())
+    }
+
+    fn eval_numeric_i64(collector: &mut Self::Collector, value: i64) -> DFResult<()> {
+        collector.append_numeric(value as f64);
+        Ok(())
+    }
+
+    fn eval_numeric_f32(collector: &mut Self::Collector, value: f32) -> DFResult<()> {
+        collector.append_numeric(value as f64);
+        Ok(())
+    }
+
+    fn eval_numeric_f64(collector: &mut Self::Collector, value: f64) -> DFResult<()> {
+        collector.append_numeric(value);
+        Ok(())
+    }
 
     fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()> {
         collector.append_numeric(value.into());
         Ok(())
     }
 
-    fn eval_null(collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_null();
+    fn eval_string(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
+        // TODO language
+        collector.append_string(value);
         Ok(())
     }
 
-    fn eval_incompatible(collector: &mut Self::Collector) -> DFResult<()> {
+    fn eval_simple_literal(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
+        // TODO
+        collector.append_string(value);
+        Ok(())
+    }
+
+    fn eval_typed_literal(
+        collector: &mut Self::Collector,
+        value: &str,
+        value_type: &str,
+    ) -> DFResult<()> {
+        // TODO
+        collector.append_string(value);
+        Ok(())
+    }
+
+    fn eval_null(collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_null();
         Ok(())
     }
@@ -51,7 +96,7 @@ impl ScalarUDFImpl for EncAsRdfTermSort {
     }
 
     fn name(&self) -> &str {
-        "enc_not"
+        "enc_as_rdf_term_sort"
     }
 
     fn signature(&self) -> &Signature {

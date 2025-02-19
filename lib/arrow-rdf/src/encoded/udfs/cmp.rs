@@ -81,7 +81,8 @@ macro_rules! create_binary_cmp_udf {
             }
 
             fn eval_numeric_decimal(collector: &mut EncRdfTermBuilder, lhs: i128, rhs: i128) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs)?) // This should work as precision and scale are equal
+                 // This should work as precision and scale are equal
+                Ok(collector.append_boolean(lhs $OP rhs)?)
             }
 
             fn eval_boolean(collector: &mut EncRdfTermBuilder, lhs: bool, rhs: bool) -> DFResult<()> {
@@ -109,7 +110,8 @@ macro_rules! create_binary_cmp_udf {
             fn eval_rdf_terms(
                 collector: &mut EncRdfTermBuilder
             ) -> DFResult<()> {
-                Ok(collector.append_null()?)
+                // TODO
+                Ok(collector.append_boolean(false)?)
             }
         }
 
@@ -141,7 +143,7 @@ macro_rules! create_binary_cmp_udf {
     };
 }
 
-create_binary_cmp_udf!(EncEq, "enc_same_term", ==);
+create_binary_cmp_udf!(EncEq, "enc_eq", ==); // TODO
 create_binary_cmp_udf!(EncGreaterThan, "enc_greater_than", >);
 create_binary_cmp_udf!(EncGreaterOrEqual, "enc_greater_or_equal", >=);
 create_binary_cmp_udf!(EncLessThan, "enc_less_than", <);
@@ -249,7 +251,7 @@ impl EncScalarBinaryUdf for EncSameTerm {
     }
 
     fn eval_rdf_terms(collector: &mut EncRdfTermBuilder) -> DFResult<()> {
-        Ok(collector.append_null()?)
+        Ok(collector.append_boolean(false)?)
     }
 }
 

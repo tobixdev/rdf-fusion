@@ -31,7 +31,7 @@ impl RdfTermSortField {
     pub fn data_type(&self) -> DataType {
         match self {
             RdfTermSortField::Type => DataType::UInt8,
-            RdfTermSortField::Numeric => DataType::Int64,
+            RdfTermSortField::Numeric => DataType::Float64,
             RdfTermSortField::String => DataType::Utf8,
         }
     }

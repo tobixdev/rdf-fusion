@@ -154,6 +154,16 @@ pub fn cast_str_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: us
     }
 }
 
+pub fn cast_bool_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> bool {
+    match term_field {
+        EncTermField::Boolean => rdf_terms
+            .child(term_field.type_id())
+            .as_boolean()
+            .value(offset),
+        _ => panic!("Expected castable to str"),
+    }
+}
+
 pub fn cast_i32(scalar: &ScalarValue) -> i32 {
     match scalar {
         ScalarValue::Int8(value) => value.unwrap() as i32,

@@ -3,10 +3,16 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{EncTerm, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM};
+use arrow_rdf::encoded::{
+    EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT,
+    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_LESS_OR_EQUAL,
+    ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM,
+};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
-use datafusion::common::{not_impl_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue};
+use datafusion::common::{
+    not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
+};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, SortExpr};
 use datafusion::prelude::col;
@@ -15,7 +21,6 @@ use spargebra::algebra::{Expression, GraphPattern, OrderExpression};
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
 use std::collections::HashSet;
 use std::sync::Arc;
-use datafusion::logical_expr::expr::ScalarFunction;
 
 pub struct GraphPatternRewriter {
     // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
@@ -78,6 +83,7 @@ impl GraphPatternRewriter {
                 )?)
             })
     }
+
     fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
         let plan = LogicalPlanBuilder::scan(
             TABLE_QUADS,
@@ -126,7 +132,9 @@ impl GraphPatternRewriter {
         expression: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
         self.rewrite_graph_pattern(inner)?
-            .filter(ENC_AS_NATIVE_BOOLEAN.call(vec![self.rewrite_expr(expression)?]))
+            .filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
+                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(expression)?]),
+            ]))
     }
 
     /// Creates a projection that adds another column with the name `variable`.
@@ -198,8 +206,9 @@ impl GraphPatternRewriter {
         let right = self.rewrite_graph_pattern(right)?;
 
         if let Some(filter) = filter {
-            create_join(left, right, JoinType::Left)?
-                .filter(ENC_AS_NATIVE_BOOLEAN.call(vec![self.rewrite_expr(filter)?]))
+            create_join(left, right, JoinType::Left)?.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
+                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(filter)?]),
+            ]))
         } else {
             create_join(left, right, JoinType::Left)
         }
@@ -341,11 +350,21 @@ fn filter_equal_to_scalar(
     col_name: &str,
     filter: Option<ScalarValue>,
 ) -> DFResult<LogicalPlanBuilder> {
-    if filter.is_none() {
+    let Some(filter) = filter else {
+        return Ok(plan);
+    };
+
+    if filter.data_type() != EncTerm::term_type() {
+        return plan_err!("Unexpected type of scalar in filter_equal_to_scalar");
+    };
+
+    let ScalarValue::Union(Some((type_id, _)), _, _) = &filter else {
+        return plan_err!("Unexpected value of scalar in filter_equal_to_scalar");
+    };
+
+    if *type_id == EncTermField::BlankNode.type_id() {
         return Ok(plan);
     }
-    plan.filter(
-        ENC_EFFECTIVE_BOOLEAN_VALUE
-            .call(vec![ENC_EQ.call(vec![col(col_name), lit(filter.unwrap())])]),
-    )
+
+    plan.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![col(col_name), lit(filter)])]))
 }
