@@ -1,6 +1,6 @@
 use crate::encoded::{EncTerm, EncTermField};
 use crate::error::TermEncodingError;
-use crate::{AResult, DFResult};
+use crate::{AResult, DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
 use datafusion::arrow::array::{
     ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
     Int32Builder, Int64Builder, StringBuilder, StructBuilder, UnionArray,
@@ -37,7 +37,7 @@ impl EncRdfTermBuilder {
             float32_builder: Float32Builder::with_capacity(0),
             float64_builder: Float64Builder::with_capacity(0),
             decimal_builder: Decimal128Builder::with_capacity(0)
-                .with_precision_and_scale(36, 18)
+                .with_precision_and_scale(RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE)
                 .expect("Precision and scale fixed"),
             int32_builder: Int32Builder::with_capacity(0),
             integer_builder: Int64Builder::with_capacity(0),

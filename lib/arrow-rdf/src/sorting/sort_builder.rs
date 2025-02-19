@@ -76,6 +76,8 @@ impl RdfTermSortBuilder {
             None => string_builder.append_null(),
             Some(string) => string_builder.append_value(string),
         }
+
+        self.sort_builder.append(true)
     }
 }
 

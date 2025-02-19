@@ -56,6 +56,11 @@ impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
         Ok(())
     }
 
+    fn eval_numeric_decimal(collector: &mut Self::Collector, value: i128) -> DFResult<()> {
+        collector.append_boolean(value != 0)?;
+        Ok(())
+    }
+
     fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()> {
         collector.append_boolean(value)?;
         Ok(())

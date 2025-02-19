@@ -8,7 +8,6 @@ use crate::{AResult, DFResult};
 use arrow_rdf::encoded::{EncRdfTermBuilder, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
-use datafusion::arrow::error::ArrowError;
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::EquivalenceProperties;
@@ -288,7 +287,10 @@ fn encode_term(
             let value = load_string(reader, &value_id)?;
             builder.append_string(&value, Some(language.as_str()))
         }
-        EncodedTerm::BigBigLangStringLiteral { value_id, language_id } => {
+        EncodedTerm::BigBigLangStringLiteral {
+            value_id,
+            language_id,
+        } => {
             let value = load_string(reader, &value_id)?;
             let language = load_string(reader, &language_id)?;
             builder.append_string(&value, Some(language.as_str()))
@@ -309,18 +311,12 @@ fn encode_term(
             let datatype = load_string(reader, &datatype_id)?;
             builder.append_typed_literal(&value, &datatype)
         }
-        EncodedTerm::BooleanLiteral(v) => {
-            builder.append_boolean(v.into())
-        }
-        EncodedTerm::FloatLiteral(v) => {
-            builder.append_float32(v.into())
-        }
-        EncodedTerm::DoubleLiteral(v) => {
-            builder.append_float64(v.into())
-        }
+        EncodedTerm::BooleanLiteral(v) => builder.append_boolean(v.into()),
+        EncodedTerm::FloatLiteral(v) => builder.append_float32(v.into()),
+        EncodedTerm::DoubleLiteral(v) => builder.append_float64(v.into()),
         EncodedTerm::DecimalLiteral(v) => {
-            builder.append_decimal(i128::from_be_bytes(v.to_be_bytes()))
-        },
+            builder.append_decimal(i128::from_be_bytes(v.to_be_bytes()) / 1_000_000_000_000_000_000)
+        }
         EncodedTerm::DateTimeLiteral(_) => todo!("Encode DateTimeLiteral"),
         EncodedTerm::TimeLiteral(_) => todo!("Encode TimeLiteral"),
         EncodedTerm::DateLiteral(_) => todo!("Encode DateLiteral"),

@@ -1,8 +1,4 @@
-use crate::encoded::cast::{
-    cast_bool, cast_bool_arr, cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32,
-    cast_i32_arr, cast_i64, cast_i64_arr, cast_str, cast_str_arr, cast_typed_literal,
-    cast_typed_literal_array,
-};
+use crate::encoded::cast::{cast_bool, cast_bool_arr, cast_decimal_arr, cast_f32, cast_f32_arr, cast_f64, cast_f64_arr, cast_i32, cast_i32_arr, cast_i64, cast_i64_arr, cast_str, cast_str_arr, cast_typed_literal, cast_typed_literal_array};
 use crate::encoded::EncTermField;
 use crate::result_collector::ResultCollector;
 use crate::{as_rdf_term_array, DFResult};
@@ -25,6 +21,8 @@ pub trait EncScalarUnaryUdf {
     fn eval_numeric_f32(collector: &mut Self::Collector, value: f32) -> DFResult<()>;
 
     fn eval_numeric_f64(collector: &mut Self::Collector, value: f64) -> DFResult<()>;
+
+    fn eval_numeric_decimal(collector: &mut Self::Collector, value: i128) -> DFResult<()>;
 
     fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()>;
 
@@ -165,7 +163,14 @@ where
                     cast_typed_literal_array(values, value_type, *offset as usize);
                 TUdf::eval_typed_literal(&mut collector, &value, &value_type)?;
             }
-            t => return not_impl_err!("dispatch_unary_array for {t:?}"),
+            EncTermField::String => {
+                let value = cast_str_arr(values, value_type, *offset as usize);
+                TUdf::eval_string(&mut collector, value)?;
+            }
+            EncTermField::Decimal => {
+                let value = cast_decimal_arr(values, value_type, *offset as usize);
+                TUdf::eval_numeric_decimal(&mut collector, value)?;
+            }
         }
     }
     collector.finish_columnar_value()

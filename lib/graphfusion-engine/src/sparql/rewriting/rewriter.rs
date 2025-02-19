@@ -16,7 +16,7 @@ use datafusion::common::{
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, SortExpr};
 use datafusion::prelude::col;
-use oxrdf::{Variable, VariableRef};
+use oxrdf::Variable;
 use spargebra::algebra::{Expression, GraphPattern, OrderExpression};
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
 use std::collections::HashSet;
@@ -110,7 +110,7 @@ impl GraphPatternRewriter {
         ]
         .into_iter()
         .filter_map(|(col_name, var)| {
-            var.map(|new_col_name| col(col_name).alias(new_col_name.as_str()))
+            var.map(|new_col_name| col(col_name).alias(new_col_name))
         });
 
         plan.project(projections)
@@ -294,12 +294,15 @@ impl GraphPatternRewriter {
 
 fn pattern_to_filter_and_projections(
     pattern: &TermPattern,
-) -> DFResult<(Option<ScalarValue>, Option<VariableRef<'_>>)> {
+) -> DFResult<(Option<ScalarValue>, Option<&str>)> {
     Ok(match pattern {
         TermPattern::NamedNode(nn) => (Some(encode_scalar_named_node(nn.as_ref())), None),
-        TermPattern::BlankNode(bnode) => (Some(encode_scalar_blank_node(bnode.as_ref())), None),
+        TermPattern::BlankNode(bnode) => (
+            Some(encode_scalar_blank_node(bnode.as_ref())),
+            Some(bnode.as_str()),
+        ),
         TermPattern::Literal(lit) => (Some(encode_scalar_literal(lit.as_ref())?), None),
-        TermPattern::Variable(var) => (None, Some(var.as_ref())),
+        TermPattern::Variable(var) => (None, Some(var.as_str())),
         TermPattern::Triple(_) => unimplemented!(),
     })
 }

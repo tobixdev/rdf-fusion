@@ -1,12 +1,13 @@
 use crate::encoded::udfs::unary_dispatch::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::EncTerm;
 use crate::sorting::{RdfTermSort, RdfTermSortBuilder};
-use crate::DFResult;
-use datafusion::arrow::datatypes::DataType;
+use crate::{DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
+use datafusion::arrow::datatypes::{DataType, Decimal128Type, DecimalType};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct EncAsRdfTermSort {
@@ -54,6 +55,15 @@ impl EncScalarUnaryUdf for EncAsRdfTermSort {
 
     fn eval_numeric_f64(collector: &mut Self::Collector, value: f64) -> DFResult<()> {
         collector.append_numeric(value);
+        Ok(())
+    }
+
+    fn eval_numeric_decimal(collector: &mut Self::Collector, value: i128) -> DFResult<()> {
+        // TODO #1
+        let formatted =
+            Decimal128Type::format_decimal(value, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE);
+        let f64 = f64::from_str(&formatted).expect("TODO decimal to f64 conversion");
+        collector.append_numeric(f64);
         Ok(())
     }
 

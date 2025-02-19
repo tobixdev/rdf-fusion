@@ -1,8 +1,10 @@
 use crate::encoded::{EncTerm, EncTermField};
-use crate::DFResult;
+use crate::{DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
 use datafusion::arrow::array::{new_empty_array, ArrayRef, AsArray, BooleanArray, UnionArray};
 use datafusion::arrow::buffer::ScalarBuffer;
-use datafusion::arrow::datatypes::{Float32Type, Float64Type, Int32Type, Int64Type};
+use datafusion::arrow::datatypes::{
+    Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type,
+};
 use datafusion::common::{exec_err, not_impl_err, ScalarValue};
 use oxrdf::vocab::xsd;
 use std::sync::Arc;
@@ -154,14 +156,27 @@ pub fn cast_str_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: us
     }
 }
 
-pub fn cast_bool_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> bool {
-    match term_field {
-        EncTermField::Boolean => rdf_terms
-            .child(term_field.type_id())
-            .as_boolean()
-            .value(offset),
-        _ => panic!("Expected castable to str"),
+pub fn cast_decimal(scalar: &ScalarValue) -> i128 {
+    match scalar {
+        ScalarValue::Decimal128(Some(v), p, s) => {
+            assert_eq!(*p, RDF_DECIMAL_PRECISION);
+            assert_eq!(*s, RDF_DECIMAL_SCALE);
+            *v
+        },
+        _ => panic!("epxected casting to decimal"),
     }
+}
+
+pub fn cast_decimal_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> i128 {
+    let scalar = ScalarValue::try_from_array(rdf_terms.child(term_field.type_id()), offset)
+        .expect("No unsupported type used");
+    cast_decimal(&scalar)
+}
+
+pub fn cast_bool_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> bool {
+    let scalar = ScalarValue::try_from_array(rdf_terms.child(term_field.type_id()), offset)
+        .expect("No unsupported type used");
+    cast_bool(&scalar)
 }
 
 pub fn cast_i32(scalar: &ScalarValue) -> i32 {
@@ -176,13 +191,9 @@ pub fn cast_i32(scalar: &ScalarValue) -> i32 {
 }
 
 pub fn cast_i32_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> i32 {
-    match term_field {
-        EncTermField::Int => rdf_terms
-            .child(term_field.type_id())
-            .as_primitive::<Int32Type>()
-            .value(offset),
-        _ => panic!("Expected castable to i32"),
-    }
+    let scalar = ScalarValue::try_from_array(rdf_terms.child(term_field.type_id()), offset)
+        .expect("No unsupported type used");
+    cast_i32(&scalar)
 }
 
 pub fn cast_i64(scalar: &ScalarValue) -> i64 {
@@ -199,17 +210,9 @@ pub fn cast_i64(scalar: &ScalarValue) -> i64 {
 }
 
 pub fn cast_i64_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> i64 {
-    match term_field {
-        EncTermField::Int => rdf_terms
-            .child(term_field.type_id())
-            .as_primitive::<Int32Type>()
-            .value(offset) as i64,
-        EncTermField::Integer => rdf_terms
-            .child(term_field.type_id())
-            .as_primitive::<Int64Type>()
-            .value(offset),
-        _ => panic!("Expected castable to i64"),
-    }
+    let scalar = ScalarValue::try_from_array(rdf_terms.child(term_field.type_id()), offset)
+        .expect("No unsupported type used");
+    cast_i64(&scalar)
 }
 
 pub fn cast_f32(scalar: &ScalarValue) -> f32 {
@@ -226,17 +229,9 @@ pub fn cast_f32(scalar: &ScalarValue) -> f32 {
 }
 
 pub fn cast_f32_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> f32 {
-    match term_field {
-        EncTermField::Int => rdf_terms
-            .child(term_field.type_id())
-            .as_primitive::<Int32Type>()
-            .value(offset) as f32,
-        EncTermField::Float32 => rdf_terms
-            .child(term_field.type_id())
-            .as_primitive::<Float32Type>()
-            .value(offset),
-        _ => panic!("Expected castable to f32"),
-    }
+    let scalar = ScalarValue::try_from_array(rdf_terms.child(term_field.type_id()), offset)
+        .expect("No unsupported type used");
+    cast_f32(&scalar)
 }
 
 pub fn cast_f64(scalar: &ScalarValue) -> f64 {
@@ -256,23 +251,7 @@ pub fn cast_f64(scalar: &ScalarValue) -> f64 {
 }
 
 pub fn cast_f64_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> f64 {
-    match term_field {
-        EncTermField::Int => rdf_terms
-            .child(term_field.type_id())
-            .as_primitive::<Int32Type>()
-            .value(offset) as f64,
-        EncTermField::Integer => rdf_terms
-            .child(term_field.type_id())
-            .as_primitive::<Int64Type>()
-            .value(offset) as f64,
-        EncTermField::Float32 => rdf_terms
-            .child(term_field.type_id())
-            .as_primitive::<Float32Type>()
-            .value(offset) as f64,
-        EncTermField::Float64 => rdf_terms
-            .child(term_field.type_id())
-            .as_primitive::<Float64Type>()
-            .value(offset),
-        _ => panic!("Expected castable to f64"),
-    }
+    let scalar = ScalarValue::try_from_array(rdf_terms.child(term_field.type_id()), offset)
+        .expect("No unsupported type used");
+    cast_f64(&scalar)
 }

@@ -1,3 +1,4 @@
+use crate::{RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::{exec_err, DataFusionError};
 use once_cell::unsync::Lazy;
@@ -137,7 +138,7 @@ impl EncTermField {
             EncTermField::Boolean => DataType::Boolean,
             EncTermField::Float32 => DataType::Float32,
             EncTermField::Float64 => DataType::Float64,
-            EncTermField::Decimal => DataType::Decimal128(36, 18),
+            EncTermField::Decimal => DataType::Decimal128(RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE),
             EncTermField::Int => DataType::Int32,
             EncTermField::Integer => DataType::Int64,
             EncTermField::TypedLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
