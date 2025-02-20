@@ -6,7 +6,7 @@ use arrow_rdf::encoded::scalars::{
 use arrow_rdf::encoded::{
     EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT,
     ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_LESS_OR_EQUAL,
-    ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM,
+    ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM, ENC_STR,
 };
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
@@ -17,7 +17,7 @@ use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, SortExpr};
 use datafusion::prelude::col;
 use oxrdf::Variable;
-use spargebra::algebra::{Expression, GraphPattern, OrderExpression};
+use spargebra::algebra::{Expression, Function, GraphPattern, OrderExpression};
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -288,7 +288,20 @@ impl GraphPatternRewriter {
                 Ok(Expr::Literal(encode_scalar_literal(literal.as_ref())?))
             }
             Expression::Variable(var) => Ok(Expr::Column(Column::from(var.as_str()))),
+            Expression::FunctionCall(function, args) => self.rewrite_function_call(function, args),
             expr => not_impl_err!("{:?}", expr),
+        }
+    }
+
+    /// Rewrites a SPARQL function call to a Scalar UDF call
+    fn rewrite_function_call(&self, function: &Function, args: &Vec<Expression>) -> DFResult<Expr> {
+        match function {
+            // Strings
+            Function::Str => {
+                assert_eq!(args.len(), 1);
+                Ok(ENC_STR.call(vec![self.rewrite_expr(&args[0])?]))
+            }
+            _ => not_impl_err!("rewrite_function_call: {:?}", function),
         }
     }
 

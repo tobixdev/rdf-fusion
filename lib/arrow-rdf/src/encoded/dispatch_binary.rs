@@ -13,7 +13,7 @@ use datafusion::common::{
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
 
-pub trait EncScalarBinaryUdf {
+pub(crate) trait EncScalarBinaryUdf {
     type Collector: ResultCollector;
 
     fn supports_named_node() -> bool;

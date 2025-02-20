@@ -1,4 +1,4 @@
-use crate::encoded::udfs::unary_dispatch::{dispatch_unary, EncScalarUnaryUdf};
+use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;

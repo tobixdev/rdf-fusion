@@ -5,12 +5,10 @@ use once_cell::unsync::Lazy;
 use crate::encoded::udfs::as_rdf_term_sort::EncAsRdfTermSort;
 
 mod as_native_boolean;
-mod binary_dispatch;
 mod cmp;
 mod decode;
 mod effective_boolean_value;
 mod not;
-mod unary_dispatch;
 mod as_rdf_term_sort;
 
 use crate::encoded::udfs::cmp::{

@@ -7,7 +7,7 @@ use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
 
-pub trait EncScalarUnaryUdf {
+pub(crate) trait EncScalarUnaryUdf {
     type Collector: ResultCollector;
 
     fn eval_named_node(collector: &mut Self::Collector, value: &str) -> DFResult<()>;

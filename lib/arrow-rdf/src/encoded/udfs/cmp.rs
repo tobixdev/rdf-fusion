@@ -1,4 +1,4 @@
-use crate::encoded::udfs::binary_dispatch::{dispatch_binary, EncScalarBinaryUdf};
+use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
@@ -200,7 +200,11 @@ impl EncScalarBinaryUdf for EncSameTerm {
         panic!("eval_numeric_f64 not supported!")
     }
 
-    fn eval_numeric_decimal(_collector: &mut EncRdfTermBuilder, _lhs: i128, _rhs: i128) -> DFResult<()> {
+    fn eval_numeric_decimal(
+        _collector: &mut EncRdfTermBuilder,
+        _lhs: i128,
+        _rhs: i128,
+    ) -> DFResult<()> {
         panic!("eval_numeric_decimal not supported!")
     }
 
