@@ -3,12 +3,7 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{
-    enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_DATATYPE,
-    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK,
-    ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LESS_OR_EQUAL, ENC_LESS_THAN,
-    ENC_NOT, ENC_SAME_TERM, ENC_STR,
-};
+use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE, ENC_DATATYPE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM, ENC_STR};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{
@@ -301,40 +296,21 @@ impl GraphPatternRewriter {
 
     /// Rewrites a SPARQL function call to a Scalar UDF call
     fn rewrite_function_call(&self, function: &Function, args: &Vec<Expression>) -> DFResult<Expr> {
+        let args = args
+            .iter()
+            .map(|e| self.rewrite_expr(e))
+            .collect::<DFResult<Vec<_>>>()?;
         match function {
             // Functions on RDF Terms
-            Function::IsIri => {
-                assert_eq!(args.len(), 1);
-                Ok(ENC_IS_IRI.call(vec![self.rewrite_expr(&args[0])?]))
-            }
-            Function::IsBlank => {
-                assert_eq!(args.len(), 1);
-                Ok(ENC_IS_BLANK.call(vec![self.rewrite_expr(&args[0])?]))
-            }
-            Function::IsLiteral => {
-                assert_eq!(args.len(), 1);
-                Ok(ENC_IS_LITERAL.call(vec![self.rewrite_expr(&args[0])?]))
-            }
-            Function::IsNumeric => {
-                assert_eq!(args.len(), 1);
-                Ok(ENC_IS_NUMERIC.call(vec![self.rewrite_expr(&args[0])?]))
-            }
-            Function::Str => {
-                assert_eq!(args.len(), 1);
-                Ok(ENC_STR.call(vec![self.rewrite_expr(&args[0])?]))
-            }
-            Function::Lang => {
-                assert_eq!(args.len(), 1);
-                Ok(ENC_LANG.call(vec![self.rewrite_expr(&args[0])?]))
-            }
-            Function::Datatype => {
-                assert_eq!(args.len(), 1);
-                Ok(ENC_DATATYPE.call(vec![self.rewrite_expr(&args[0])?]))
-            }
-            Function::Iri => {
-                assert_eq!(args.len(), 1);
-                Ok(enc_iri(self.base_iri.clone()).call(vec![self.rewrite_expr(&args[0])?]))
-            }
+            Function::IsIri => Ok(ENC_IS_IRI.call(args)),
+            Function::IsBlank => Ok(ENC_IS_BLANK.call(args)),
+            Function::IsLiteral => Ok(ENC_IS_LITERAL.call(args)),
+            Function::IsNumeric => Ok(ENC_IS_NUMERIC.call(args)),
+            Function::Str => Ok(ENC_STR.call(args)),
+            Function::Lang => Ok(ENC_LANG.call(args)),
+            Function::Datatype => Ok(ENC_DATATYPE.call(args)),
+            Function::Iri => Ok(enc_iri(self.base_iri.clone()).call(args)),
+            Function::BNode => Ok(ENC_BNODE.call(args)),
             _ => not_impl_err!("rewrite_function_call: {:?}", function),
         }
     }
