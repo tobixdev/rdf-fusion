@@ -39,7 +39,6 @@ memchr = "2.5"
 once_cell = "1.20.2"
 oxhttp = "0.2.0"
 oxilangtag = "0.1"
-oxiri = "0.2.8"
 peg = "0.8"
 predicates = ">=2.0, <4.0"
 quick-xml = "0.37"
@@ -57,6 +56,7 @@ zstd = ">=0.12, <0.14"
 
 # Upstream Oxigraph dependencies
 oxsdatatypes = "0.2.1"
+oxiri = { version = "0.2.8" }
 oxrdf = { version = "0.2.3", features = ["rdf-star", "oxsdatatypes"] }
 oxttl = { version = "0.1.4", features = ["rdf-star"] }
 oxrdfio = { version = "0.1.4", features = ["rdf-star"] }

@@ -68,7 +68,7 @@ pub fn cast_typed_literal_array(
             (value.to_string(), xsd::BOOLEAN.as_str())
         }
         EncTermField::String => {
-            let value = cast_str_arr(rdf_terms, term_field, offset);
+            let (value, _) = cast_str_arr(rdf_terms, term_field, offset);
             (value.to_string(), xsd::STRING.as_str())
         }
         EncTermField::TypedLiteral => {
@@ -106,37 +106,62 @@ pub fn cast_bool_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: u
     }
 }
 
-pub fn cast_str(scalar: &ScalarValue) -> &str {
+pub fn cast_str(scalar: &ScalarValue) -> (&str, Option<&str>) {
     match scalar {
-        ScalarValue::Utf8(value) => value.as_ref().unwrap(),
-        ScalarValue::Utf8View(value) => value.as_ref().unwrap(),
-        ScalarValue::LargeUtf8(value) => value.as_ref().unwrap(),
-        ScalarValue::Struct(array) if array.data_type() == &EncTerm::string_type() => array
-            .column_by_name("value")
-            .expect("Schema fixed")
-            .as_string::<i32>()
-            .value(0),
+        ScalarValue::Utf8(value) => (value.as_ref().unwrap(), None),
+        ScalarValue::Utf8View(value) => (value.as_ref().unwrap(), None),
+        ScalarValue::LargeUtf8(value) => (value.as_ref().unwrap(), None),
+        ScalarValue::Struct(strings) if strings.data_type() == &EncTerm::string_type() => {
+            let value = strings
+                .column_by_name("value")
+                .expect("Structure of string fixed")
+                .as_string::<i32>()
+                .value(0);
+            let language = strings
+                .column_by_name("language")
+                .expect("Structure of string fixed")
+                .as_string::<i32>()
+                .value(0);
+            (value, Some(language))
+        }
         _ => panic!("epxected castable to str {:?}", scalar),
     }
 }
 
-pub fn cast_str_arr(rdf_terms: &UnionArray, term_field: EncTermField, offset: usize) -> &str {
+pub fn cast_str_arr(
+    rdf_terms: &UnionArray,
+    term_field: EncTermField,
+    offset: usize,
+) -> (&str, Option<&str>) {
     match term_field {
-        EncTermField::NamedNode => rdf_terms
-            .child(term_field.type_id())
-            .as_string::<i32>()
-            .value(offset),
-        EncTermField::BlankNode => rdf_terms
-            .child(term_field.type_id())
-            .as_string::<i32>()
-            .value(offset),
-        EncTermField::String => rdf_terms
-            .child(term_field.type_id())
-            .as_struct()
-            .column_by_name("value")
-            .expect("Structure of string fixed")
-            .as_string::<i32>()
-            .value(offset),
+        EncTermField::NamedNode => (
+            rdf_terms
+                .child(term_field.type_id())
+                .as_string::<i32>()
+                .value(offset),
+            None,
+        ),
+        EncTermField::BlankNode => (
+            rdf_terms
+                .child(term_field.type_id())
+                .as_string::<i32>()
+                .value(offset),
+            None,
+        ),
+        EncTermField::String => {
+            let strings = rdf_terms.child(term_field.type_id()).as_struct();
+            let value = strings
+                .column_by_name("value")
+                .expect("Structure of string fixed")
+                .as_string::<i32>()
+                .value(offset);
+            let language = strings
+                .column_by_name("language")
+                .expect("Structure of string fixed")
+                .as_string::<i32>()
+                .value(offset);
+            (value, Some(language))
+        }
         _ => panic!("Expected castable to str"),
     }
 }

@@ -314,6 +314,7 @@ version = "0.4.5"
 dependencies = [
  "datafusion",
  "once_cell",
+ "oxiri",
  "oxrdf",
 ]
 
@@ -1731,6 +1732,7 @@ dependencies = [
  "async-trait",
  "datafusion",
  "futures",
+ "oxiri",
  "oxrdf",
  "oxrdfio",
  "sparesults",

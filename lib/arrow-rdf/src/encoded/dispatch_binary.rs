@@ -155,13 +155,13 @@ where
 
         match decide_type::<TUdf>(lhs_type, rhs_term_field) {
             UdfTarget::NamedNode => {
-                let lhs = cast_str(&lhs_value);
-                let rhs = cast_str_arr(rhs, rhs_term_field, *rhs_offset as usize);
+                let (lhs, _) = cast_str(&lhs_value);
+                let (rhs, _) = cast_str_arr(rhs, rhs_term_field, *rhs_offset as usize);
                 TUdf::eval_named_node(&mut collector, lhs, rhs)?;
             }
             UdfTarget::BlankNode => {
-                let lhs = cast_str(&lhs_value);
-                let rhs = cast_str_arr(rhs, rhs_term_field, *rhs_offset as usize);
+                let (lhs, _) = cast_str(&lhs_value);
+                let (rhs, _) = cast_str_arr(rhs, rhs_term_field, *rhs_offset as usize);
                 TUdf::eval_blank_node(&mut collector, lhs, rhs)?;
             }
             UdfTarget::Boolean => {
@@ -195,9 +195,9 @@ where
                 TUdf::eval_numeric_decimal(&mut collector, lhs, rhs)?;
             }
             UdfTarget::String => {
-                let lhs = cast_str(&lhs_value);
-                let rhs = cast_str_arr(rhs, rhs_term_field, *rhs_offset as usize);
-                TUdf::eval_string(&mut collector, lhs, rhs)?;
+                let (lhs_value, _) = cast_str(&lhs_value);
+                let (rhs_value, _) = cast_str_arr(rhs, rhs_term_field, *rhs_offset as usize);
+                TUdf::eval_string(&mut collector, lhs_value, rhs_value)?;
             }
             UdfTarget::TypedLiteral => {
                 let (lhs_value, lhs_type) = cast_typed_literal(lhs_type, &lhs_value)?;

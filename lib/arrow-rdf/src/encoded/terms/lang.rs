@@ -6,14 +6,13 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
-use datafusion::common::exec_err;
 
 #[derive(Debug)]
-pub struct EncIsIri {
+pub struct EncLang {
     signature: Signature,
 }
 
-impl EncIsIri {
+impl EncLang {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -24,51 +23,56 @@ impl EncIsIri {
     }
 }
 
-impl EncScalarUnaryUdf for EncIsIri {
+impl EncScalarUnaryUdf for EncLang {
     type Collector = EncRdfTermBuilder;
 
     fn eval_named_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_boolean(true)?;
+        collector.append_string("", None)?;
         Ok(())
     }
 
     fn eval_blank_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_string("", None)?;
         Ok(())
     }
 
     fn eval_numeric_i32(&self, collector: &mut Self::Collector, _value: i32) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_string("", None)?;
         Ok(())
     }
 
     fn eval_numeric_i64(&self, collector: &mut Self::Collector, _value: i64) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_string("", None)?;
         Ok(())
     }
 
     fn eval_numeric_f32(&self, collector: &mut Self::Collector, _value: f32) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_string("", None)?;
         Ok(())
     }
 
     fn eval_numeric_f64(&self, collector: &mut Self::Collector, _value: f64) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_string("", None)?;
         Ok(())
     }
 
     fn eval_numeric_decimal(&self, collector: &mut Self::Collector, _value: i128) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_string("", None)?;
         Ok(())
     }
 
     fn eval_boolean(&self, collector: &mut Self::Collector, _value: bool) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_string("", None)?;
         Ok(())
     }
 
-    fn eval_string(&self, collector: &mut Self::Collector, _value: &str, _lang: Option<&str>) -> DFResult<()> {
-        collector.append_boolean(false)?;
+    fn eval_string(
+        &self,
+        collector: &mut Self::Collector,
+        _value: &str,
+        lang: Option<&str>,
+    ) -> DFResult<()> {
+        collector.append_string(lang.unwrap_or(""), None)?;
         Ok(())
     }
 
@@ -78,7 +82,7 @@ impl EncScalarUnaryUdf for EncIsIri {
         _value: &str,
         _value_type: &str,
     ) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_string("", None)?;
         Ok(())
     }
 
@@ -88,13 +92,13 @@ impl EncScalarUnaryUdf for EncIsIri {
     }
 }
 
-impl ScalarUDFImpl for EncIsIri {
+impl ScalarUDFImpl for EncLang {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_is_iri"
+        "enc_lang"
     }
 
     fn signature(&self) -> &Signature {

@@ -5,15 +5,16 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
+use oxrdf::vocab::xsd;
 use std::any::Any;
-use datafusion::common::exec_err;
+use std::collections::HashSet;
 
 #[derive(Debug)]
-pub struct EncIsIri {
+pub struct EncIsNumeric {
     signature: Signature,
 }
 
-impl EncIsIri {
+impl EncIsNumeric {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -24,11 +25,11 @@ impl EncIsIri {
     }
 }
 
-impl EncScalarUnaryUdf for EncIsIri {
+impl EncScalarUnaryUdf for EncIsNumeric {
     type Collector = EncRdfTermBuilder;
 
     fn eval_named_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_boolean(true)?;
+        collector.append_boolean(false)?;
         Ok(())
     }
 
@@ -38,27 +39,27 @@ impl EncScalarUnaryUdf for EncIsIri {
     }
 
     fn eval_numeric_i32(&self, collector: &mut Self::Collector, _value: i32) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_numeric_i64(&self, collector: &mut Self::Collector, _value: i64) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_numeric_f32(&self, collector: &mut Self::Collector, _value: f32) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_numeric_f64(&self, collector: &mut Self::Collector, _value: f64) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_numeric_decimal(&self, collector: &mut Self::Collector, _value: i128) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
@@ -76,9 +77,33 @@ impl EncScalarUnaryUdf for EncIsIri {
         &self,
         collector: &mut Self::Collector,
         _value: &str,
-        _value_type: &str,
+        value_type: &str,
     ) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        let numeric_types = HashSet::from([
+          xsd::INTEGER.as_str(),
+          xsd::DECIMAL.as_str(),
+          xsd::FLOAT.as_str(),
+          xsd::DOUBLE.as_str(),
+          xsd::STRING.as_str(),
+          xsd::BOOLEAN.as_str(),
+          xsd::DATE_TIME.as_str(),
+          xsd::NON_POSITIVE_INTEGER.as_str(),
+          xsd::NEGATIVE_INTEGER.as_str(),
+          xsd::LONG.as_str(),
+          xsd::INT.as_str(),
+          xsd::SHORT.as_str(),
+          xsd::BYTE.as_str(),
+          xsd::NON_NEGATIVE_INTEGER.as_str(),
+          xsd::UNSIGNED_LONG.as_str(),
+          xsd::UNSIGNED_INT.as_str(),
+          xsd::UNSIGNED_SHORT.as_str(),
+          xsd::UNSIGNED_BYTE.as_str(),
+          xsd::POSITIVE_INTEGER.as_str()
+        ]);
+
+        // TODO: We must check whether the literal is valid or encode all numeric types in the union
+
+        collector.append_boolean(numeric_types.contains(value_type))?;
         Ok(())
     }
 
@@ -88,13 +113,13 @@ impl EncScalarUnaryUdf for EncIsIri {
     }
 }
 
-impl ScalarUDFImpl for EncIsIri {
+impl ScalarUDFImpl for EncIsNumeric {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_is_iri"
+        "enc_is_numeric"
     }
 
     fn signature(&self) -> &Signature {

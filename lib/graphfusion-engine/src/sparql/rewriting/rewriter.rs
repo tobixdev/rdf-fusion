@@ -3,7 +3,12 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_IRI, ENC_IS_LITERAL, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM, ENC_STR};
+use arrow_rdf::encoded::{
+    enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_DATATYPE,
+    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK,
+    ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LESS_OR_EQUAL, ENC_LESS_THAN,
+    ENC_NOT, ENC_SAME_TERM, ENC_STR,
+};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{
@@ -12,6 +17,7 @@ use datafusion::common::{
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, SortExpr};
 use datafusion::prelude::col;
+use oxiri::Iri;
 use oxrdf::Variable;
 use spargebra::algebra::{Expression, Function, GraphPattern, OrderExpression};
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
@@ -19,13 +25,17 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 pub struct GraphPatternRewriter {
+    base_iri: Option<Iri<String>>,
     // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
     quads_table: Arc<dyn TableProvider>,
 }
 
 impl GraphPatternRewriter {
-    pub fn new(quads_table: Arc<dyn TableProvider>) -> Self {
-        Self { quads_table }
+    pub fn new(base_iri: Option<Iri<String>>, quads_table: Arc<dyn TableProvider>) -> Self {
+        Self {
+            base_iri,
+            quads_table,
+        }
     }
 
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
@@ -305,9 +315,25 @@ impl GraphPatternRewriter {
                 assert_eq!(args.len(), 1);
                 Ok(ENC_IS_LITERAL.call(vec![self.rewrite_expr(&args[0])?]))
             }
+            Function::IsNumeric => {
+                assert_eq!(args.len(), 1);
+                Ok(ENC_IS_NUMERIC.call(vec![self.rewrite_expr(&args[0])?]))
+            }
             Function::Str => {
                 assert_eq!(args.len(), 1);
                 Ok(ENC_STR.call(vec![self.rewrite_expr(&args[0])?]))
+            }
+            Function::Lang => {
+                assert_eq!(args.len(), 1);
+                Ok(ENC_LANG.call(vec![self.rewrite_expr(&args[0])?]))
+            }
+            Function::Datatype => {
+                assert_eq!(args.len(), 1);
+                Ok(ENC_DATATYPE.call(vec![self.rewrite_expr(&args[0])?]))
+            }
+            Function::Iri => {
+                assert_eq!(args.len(), 1);
+                Ok(enc_iri(self.base_iri.clone()).call(vec![self.rewrite_expr(&args[0])?]))
             }
             _ => not_impl_err!("rewrite_function_call: {:?}", function),
         }

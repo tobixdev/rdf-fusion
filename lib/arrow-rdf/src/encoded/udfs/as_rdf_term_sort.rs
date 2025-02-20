@@ -28,37 +28,37 @@ impl EncAsRdfTermSort {
 impl EncScalarUnaryUdf for EncAsRdfTermSort {
     type Collector = RdfTermSortBuilder;
 
-    fn eval_named_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
+    fn eval_named_node(&self, collector: &mut Self::Collector, value: &str) -> DFResult<()> {
         collector.append_iri(value);
         Ok(())
     }
 
-    fn eval_blank_node(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
+    fn eval_blank_node(&self, collector: &mut Self::Collector, value: &str) -> DFResult<()> {
         collector.append_blank_node(value);
         Ok(())
     }
 
-    fn eval_numeric_i32(collector: &mut Self::Collector, value: i32) -> DFResult<()> {
+    fn eval_numeric_i32(&self, collector: &mut Self::Collector, value: i32) -> DFResult<()> {
         collector.append_numeric(value as f64);
         Ok(())
     }
 
-    fn eval_numeric_i64(collector: &mut Self::Collector, value: i64) -> DFResult<()> {
+    fn eval_numeric_i64(&self, collector: &mut Self::Collector, value: i64) -> DFResult<()> {
         collector.append_numeric(value as f64);
         Ok(())
     }
 
-    fn eval_numeric_f32(collector: &mut Self::Collector, value: f32) -> DFResult<()> {
+    fn eval_numeric_f32(&self, collector: &mut Self::Collector, value: f32) -> DFResult<()> {
         collector.append_numeric(value as f64);
         Ok(())
     }
 
-    fn eval_numeric_f64(collector: &mut Self::Collector, value: f64) -> DFResult<()> {
+    fn eval_numeric_f64(&self, collector: &mut Self::Collector, value: f64) -> DFResult<()> {
         collector.append_numeric(value);
         Ok(())
     }
 
-    fn eval_numeric_decimal(collector: &mut Self::Collector, value: i128) -> DFResult<()> {
+    fn eval_numeric_decimal(&self, collector: &mut Self::Collector, value: i128) -> DFResult<()> {
         // TODO #1
         let formatted =
             Decimal128Type::format_decimal(value, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE);
@@ -67,18 +67,19 @@ impl EncScalarUnaryUdf for EncAsRdfTermSort {
         Ok(())
     }
 
-    fn eval_boolean(collector: &mut Self::Collector, value: bool) -> DFResult<()> {
+    fn eval_boolean(&self, collector: &mut Self::Collector, value: bool) -> DFResult<()> {
         collector.append_numeric(value.into());
         Ok(())
     }
 
-    fn eval_string(collector: &mut Self::Collector, value: &str) -> DFResult<()> {
+    fn eval_string(&self, collector: &mut Self::Collector, value: &str, _lang: Option<&str>) -> DFResult<()> {
         // TODO language
         collector.append_string(value);
         Ok(())
     }
 
     fn eval_typed_literal(
+        &self,
         collector: &mut Self::Collector,
         value: &str,
         _value_type: &str,
@@ -88,7 +89,7 @@ impl EncScalarUnaryUdf for EncAsRdfTermSort {
         Ok(())
     }
 
-    fn eval_null(collector: &mut Self::Collector) -> DFResult<()> {
+    fn eval_null(&self, collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_null();
         Ok(())
     }
@@ -116,6 +117,6 @@ impl ScalarUDFImpl for EncAsRdfTermSort {
         args: &[ColumnarValue],
         number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        dispatch_unary::<EncAsRdfTermSort>(args, number_rows)
+        dispatch_unary(self, args, number_rows)
     }
 }
