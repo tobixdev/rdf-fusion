@@ -8,11 +8,11 @@ use datafusion::logical_expr::{
 use std::any::Any;
 
 #[derive(Debug)]
-pub struct EncIsIri {
+pub struct EncIsLiteral {
     signature: Signature,
 }
 
-impl EncIsIri {
+impl EncIsLiteral {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -23,11 +23,11 @@ impl EncIsIri {
     }
 }
 
-impl EncScalarUnaryUdf for EncIsIri {
+impl EncScalarUnaryUdf for EncIsLiteral {
     type Collector = EncRdfTermBuilder;
 
     fn eval_named_node(collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_boolean(true)?;
+        collector.append_boolean(false)?;
         Ok(())
     }
 
@@ -37,37 +37,37 @@ impl EncScalarUnaryUdf for EncIsIri {
     }
 
     fn eval_numeric_i32(collector: &mut Self::Collector, _value: i32) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_numeric_i64(collector: &mut Self::Collector, _value: i64) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_numeric_f32(collector: &mut Self::Collector, _value: f32) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_numeric_f64(collector: &mut Self::Collector, _value: f64) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_numeric_decimal(collector: &mut Self::Collector, _value: i128) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_boolean(collector: &mut Self::Collector, _value: bool) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
     fn eval_string(collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
@@ -76,7 +76,7 @@ impl EncScalarUnaryUdf for EncIsIri {
         _value: &str,
         _value_type: &str,
     ) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
@@ -86,7 +86,7 @@ impl EncScalarUnaryUdf for EncIsIri {
     }
 }
 
-impl ScalarUDFImpl for EncIsIri {
+impl ScalarUDFImpl for EncIsLiteral {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -108,6 +108,6 @@ impl ScalarUDFImpl for EncIsIri {
         args: &[ColumnarValue],
         number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        dispatch_unary::<EncIsIri>(args, number_rows)
+        dispatch_unary::<EncIsLiteral>(args, number_rows)
     }
 }

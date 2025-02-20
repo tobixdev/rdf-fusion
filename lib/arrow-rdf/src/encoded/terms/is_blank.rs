@@ -8,11 +8,11 @@ use datafusion::logical_expr::{
 use std::any::Any;
 
 #[derive(Debug)]
-pub struct EncIsIri {
+pub struct EncIsBlank {
     signature: Signature,
 }
 
-impl EncIsIri {
+impl EncIsBlank {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -23,16 +23,16 @@ impl EncIsIri {
     }
 }
 
-impl EncScalarUnaryUdf for EncIsIri {
+impl EncScalarUnaryUdf for EncIsBlank {
     type Collector = EncRdfTermBuilder;
 
     fn eval_named_node(collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_boolean(true)?;
+        collector.append_boolean(false)?;
         Ok(())
     }
 
     fn eval_blank_node(collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_boolean(true)?;
         Ok(())
     }
 
@@ -86,7 +86,7 @@ impl EncScalarUnaryUdf for EncIsIri {
     }
 }
 
-impl ScalarUDFImpl for EncIsIri {
+impl ScalarUDFImpl for EncIsBlank {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -108,6 +108,6 @@ impl ScalarUDFImpl for EncIsIri {
         args: &[ColumnarValue],
         number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        dispatch_unary::<EncIsIri>(args, number_rows)
+        dispatch_unary::<EncIsBlank>(args, number_rows)
     }
 }
