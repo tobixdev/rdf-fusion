@@ -1,7 +1,8 @@
+use crate::encoded::dispatch::EncRdfTerm;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
-use crate::{DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
-use datafusion::arrow::datatypes::{DataType, Decimal128Type, DecimalType};
+use crate::DFResult;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
@@ -24,67 +25,23 @@ impl EncStr {
 }
 
 impl EncScalarUnaryUdf for EncStr {
+    type Arg<'data> = EncRdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
-    fn eval_named_node(&self, collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        collector.append_string(value, None)?;
+    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
+        match value {
+            EncRdfTerm::NamedNode(value) => collector.append_string(value.0, None),
+            EncRdfTerm::BlankNode(value) => collector.append_string(value.0, None),
+            EncRdfTerm::Boolean(value) => collector.append_string(&value.0.to_string(), None),
+            EncRdfTerm::Numeric(value) => collector.append_string(&value.format_value(), None),
+            EncRdfTerm::SimpleLiteral(value) => collector.append_string(value.0, None),
+            EncRdfTerm::LanguageString(value) => collector.append_string(value.0, None),
+            EncRdfTerm::TypedLiteral(value) => collector.append_string(value.0, None),
+        }?;
         Ok(())
     }
 
-    fn eval_blank_node(&self, collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        collector.append_string(value, None)?;
-        Ok(())
-    }
-
-    fn eval_numeric_i32(&self, collector: &mut Self::Collector, value: i32) -> DFResult<()> {
-        collector.append_string(&value.to_string(), None)?;
-        Ok(())
-    }
-
-    fn eval_numeric_i64(&self, collector: &mut Self::Collector, value: i64) -> DFResult<()> {
-        collector.append_string(&value.to_string(), None)?;
-        Ok(())
-    }
-
-    fn eval_numeric_f32(&self, collector: &mut Self::Collector, value: f32) -> DFResult<()> {
-        collector.append_string(&value.to_string(), None)?;
-        Ok(())
-    }
-
-    fn eval_numeric_f64(&self, collector: &mut Self::Collector, value: f64) -> DFResult<()> {
-        collector.append_string(&value.to_string(), None)?;
-        Ok(())
-    }
-
-    fn eval_numeric_decimal(&self, collector: &mut Self::Collector, value: i128) -> DFResult<()> {
-        collector.append_string(
-            &Decimal128Type::format_decimal(value, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE),
-            None,
-        )?;
-        Ok(())
-    }
-
-    fn eval_boolean(&self, collector: &mut Self::Collector, value: bool) -> DFResult<()> {
-        collector.append_string(&value.to_string(), None)?;
-        Ok(())
-    }
-
-    fn eval_string(&self, collector: &mut Self::Collector, value: &str, _lang: Option<&str>) -> DFResult<()> {
-        collector.append_string(value, None)?;
-        Ok(())
-    }
-
-    fn eval_typed_literal(
-        &self,
-        collector: &mut Self::Collector,
-        value: &str,
-        _value_type: &str,
-    ) -> DFResult<()> {
-        collector.append_string(value, None)?;
-        Ok(())
-    }
-
-    fn eval_null(&self, collector: &mut Self::Collector) -> DFResult<()> {
+    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_null()?;
         Ok(())
     }

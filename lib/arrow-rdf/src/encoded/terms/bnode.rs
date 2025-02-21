@@ -1,7 +1,9 @@
+use crate::encoded::dispatch::EncSimpleLiteral;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::internal_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
@@ -10,104 +12,19 @@ use std::any::Any;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct EncBNode {
+pub struct EncBNodeNullary {
     signature: Signature,
 }
 
-impl EncBNode {
+impl EncBNodeNullary {
     pub fn new() -> Self {
         Self {
-            signature: Signature::new(
-                TypeSignature::OneOf(vec![
-                    TypeSignature::Nullary,
-                    TypeSignature::Exact(vec![EncTerm::term_type()]),
-                ]),
-                Volatility::Volatile,
-            ),
+            signature: Signature::new(TypeSignature::Nullary, Volatility::Volatile),
         }
     }
 }
 
-impl EncScalarUnaryUdf for EncBNode {
-    type Collector = EncRdfTermBuilder;
-
-    fn eval_named_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_blank_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_i32(&self, collector: &mut Self::Collector, _value: i32) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_i64(&self, collector: &mut Self::Collector, _value: i64) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_f32(&self, collector: &mut Self::Collector, _value: f32) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_f64(&self, collector: &mut Self::Collector, _value: f64) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_decimal(&self, collector: &mut Self::Collector, _value: i128) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_boolean(&self, collector: &mut Self::Collector, _value: bool) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_string(
-        &self,
-        collector: &mut Self::Collector,
-        value: &str,
-        lang: Option<&str>,
-    ) -> DFResult<()> {
-        if lang.is_some() {
-            // https://www.w3.org/TR/sparql11-query/#func-bnode
-            collector.append_null()?;
-            return Ok(());
-        }
-
-        let Ok(result) = BlankNode::new(value) else {
-            collector.append_null()?;
-            return Ok(());
-        };
-        collector.append_blank_node(result.as_str())?;
-        Ok(())
-    }
-
-    fn eval_typed_literal(
-        &self,
-        collector: &mut Self::Collector,
-        _value: &str,
-        _value_type: &str,
-    ) -> DFResult<()> {
-        collector.append_string("", None)?;
-        Ok(())
-    }
-
-    fn eval_null(&self, collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-}
-
-impl ScalarUDFImpl for EncBNode {
+impl ScalarUDFImpl for EncBNodeNullary {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -129,14 +46,78 @@ impl ScalarUDFImpl for EncBNode {
         args: &[ColumnarValue],
         number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        if args.is_empty() {
-            let mut builder = EncRdfTermBuilder::new();
-            for _ in 0..number_rows {
-                builder.append_blank_node(BlankNode::default().as_str())?;
-            }
-            return Ok(ColumnarValue::Array(Arc::new(builder.finish()?)));
+        if args.len() != 0 {
+            return internal_err!("Unexpected number of arguments");
         }
 
+        let mut builder = EncRdfTermBuilder::new();
+        for _ in 0..number_rows {
+            builder.append_blank_node(BlankNode::default().as_str())?;
+        }
+        Ok(ColumnarValue::Array(Arc::new(builder.finish()?)))
+    }
+}
+
+#[derive(Debug)]
+pub struct EncBNodeUnary {
+    signature: Signature,
+}
+
+impl EncBNodeUnary {
+    pub fn new() -> Self {
+        Self {
+            signature: Signature::new(
+                TypeSignature::Exact(vec![EncTerm::term_type()]),
+                Volatility::Immutable,
+            ),
+        }
+    }
+}
+
+impl EncScalarUnaryUdf for EncBNodeUnary {
+    type Arg<'data> = EncSimpleLiteral<'data>;
+    type Collector = EncRdfTermBuilder;
+
+    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
+        let Ok(result) = BlankNode::new(value.0) else {
+            collector.append_null()?;
+            return Ok(());
+        };
+        collector.append_blank_node(result.as_str())?;
+        Ok(())
+    }
+
+    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
+        collector.append_null()?;
+        Ok(())
+    }
+}
+
+impl ScalarUDFImpl for EncBNodeUnary {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn name(&self) -> &str {
+        "enc_bnode"
+    }
+
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
+        Ok(EncTerm::term_type())
+    }
+
+    fn invoke_batch(
+        &self,
+        args: &[ColumnarValue],
+        number_rows: usize,
+    ) -> datafusion::common::Result<ColumnarValue> {
+        if args.len() != 1 {
+            return internal_err!("Unexpected number of arguments");
+        }
         dispatch_unary(self, args, number_rows)
     }
 }

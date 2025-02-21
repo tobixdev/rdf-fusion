@@ -1,5 +1,5 @@
 use crate::encoded::{EncRdfTermBuilder, EncTerm, EncTermField};
-use crate::{as_rdf_term_array, DFResult};
+use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow;
 use datafusion::arrow::array::AsArray;
 use datafusion::arrow::datatypes::DataType;
@@ -53,7 +53,7 @@ impl ScalarUDFImpl for EncNot {
         }
 
         let input = args[0].to_array(number_rows)?;
-        let terms = as_rdf_term_array(&input)?;
+        let terms = as_enc_term_array(&input)?;
         let boolean_array = terms.child(EncTermField::Boolean.type_id()).as_boolean();
 
         if boolean_array.len() != number_rows {

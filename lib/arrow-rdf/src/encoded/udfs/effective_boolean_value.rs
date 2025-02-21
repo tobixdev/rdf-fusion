@@ -1,3 +1,4 @@
+use crate::encoded::dispatch::{EncNumeric, EncRdfTerm};
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -24,69 +25,31 @@ impl EncEffectiveBooleanValue {
 }
 
 impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
+    type Arg<'data> = EncRdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
-    fn eval_named_node(&self, collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        collector.append_boolean(!value.is_empty())?;
+    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
+        // TODO implement all rules
+        let result = match value {
+            EncRdfTerm::NamedNode(value) => !value.0.is_empty(),
+            EncRdfTerm::BlankNode(value) => !value.0.is_empty(),
+            EncRdfTerm::Boolean(value) => value.0,
+            EncRdfTerm::Numeric(value) => match value {
+                EncNumeric::I32(value) => value != 0,
+                EncNumeric::I64(value) => value != 0,
+                EncNumeric::F32(value) => value != 0f32,
+                EncNumeric::F64(value) => value != 0f64,
+                EncNumeric::Decimal(value) => value != 0,
+            },
+            EncRdfTerm::SimpleLiteral(value) => !value.is_empty(),
+            EncRdfTerm::LanguageString(value) => !value.is_empty(),
+            EncRdfTerm::TypedLiteral(value) => !value.is_empty(),
+        };
+        collector.append_boolean(result)?;
         Ok(())
     }
 
-    fn eval_blank_node(&self, collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        collector.append_boolean(!value.is_empty())?;
-        Ok(())
-    }
-
-    fn eval_numeric_i32(&self, collector: &mut Self::Collector, value: i32) -> DFResult<()> {
-        collector.append_boolean(value != 0)?;
-        Ok(())
-    }
-
-    fn eval_numeric_i64(&self, collector: &mut Self::Collector, value: i64) -> DFResult<()> {
-        collector.append_boolean(value != 0)?;
-        Ok(())
-    }
-
-    fn eval_numeric_f32(&self, collector: &mut Self::Collector, value: f32) -> DFResult<()> {
-        collector.append_boolean(!value.is_nan() && value != 0.0_f32)?;
-        Ok(())
-    }
-
-    fn eval_numeric_f64(&self, collector: &mut Self::Collector, value: f64) -> DFResult<()> {
-        collector.append_boolean(value.is_nan() && value != 0.0_f64)?;
-        Ok(())
-    }
-
-    fn eval_numeric_decimal(&self, collector: &mut Self::Collector, value: i128) -> DFResult<()> {
-        collector.append_boolean(value != 0)?;
-        Ok(())
-    }
-
-    fn eval_boolean(&self, collector: &mut Self::Collector, value: bool) -> DFResult<()> {
-        collector.append_boolean(value)?;
-        Ok(())
-    }
-
-    fn eval_string(
-        &self,
-        collector: &mut Self::Collector,
-        value: &str,
-        _lang: Option<&str>,
-    ) -> DFResult<()> {
-        collector.append_boolean(!value.is_empty())?;
-        Ok(())
-    }
-
-    fn eval_typed_literal(
-        &self,
-        collector: &mut Self::Collector,
-        value: &str,
-        _value_type: &str,
-    ) -> DFResult<()> {
-        collector.append_boolean(!value.is_empty())?;
-        Ok(())
-    }
-
-    fn eval_null(&self, collector: &mut Self::Collector) -> DFResult<()> {
+    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_boolean(false)?;
         Ok(())
     }

@@ -1,3 +1,4 @@
+use crate::encoded::dispatch::{EncNumeric, EncRdfTerm};
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -25,72 +26,35 @@ impl EncDatatype {
 }
 
 impl EncScalarUnaryUdf for EncDatatype {
+    type Arg<'data> = EncRdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
-    fn eval_named_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_null()?;
+    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
+        let datatype = match value {
+            EncRdfTerm::NamedNode(_) => None,
+            EncRdfTerm::BlankNode(_) => None,
+            EncRdfTerm::SimpleLiteral(_) => Some(xsd::STRING.as_str()),
+            EncRdfTerm::Numeric(value) => Some(match value {
+                EncNumeric::I32(_) => xsd::INT.as_str(),
+                EncNumeric::I64(_) => xsd::INTEGER.as_str(),
+                EncNumeric::F32(_) => xsd::FLOAT.as_str(),
+                EncNumeric::F64(_) => xsd::DOUBLE.as_str(),
+                EncNumeric::Decimal(_) => xsd::DECIMAL.as_str(),
+            }),
+            EncRdfTerm::Boolean(_) => Some(xsd::BOOLEAN.as_str()),
+            EncRdfTerm::LanguageString(_) => Some(rdf::LANG_STRING.as_str()),
+            EncRdfTerm::TypedLiteral(value) => Some(value.1),
+        };
+
+        match datatype {
+            None => collector.append_null(),
+            Some(datatype) => collector.append_string(datatype, None),
+        }?;
+
         Ok(())
     }
 
-    fn eval_blank_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_i32(&self, collector: &mut Self::Collector, _value: i32) -> DFResult<()> {
-        collector.append_string(xsd::INT.as_str(), None)?;
-        Ok(())
-    }
-
-    fn eval_numeric_i64(&self, collector: &mut Self::Collector, _value: i64) -> DFResult<()> {
-        collector.append_string(xsd::INTEGER.as_str(), None)?;
-        Ok(())
-    }
-
-    fn eval_numeric_f32(&self, collector: &mut Self::Collector, _value: f32) -> DFResult<()> {
-        collector.append_string(xsd::FLOAT.as_str(), None)?;
-        Ok(())
-    }
-
-    fn eval_numeric_f64(&self, collector: &mut Self::Collector, _value: f64) -> DFResult<()> {
-        collector.append_string(xsd::DOUBLE.as_str(), None)?;
-        Ok(())
-    }
-
-    fn eval_numeric_decimal(&self, collector: &mut Self::Collector, _value: i128) -> DFResult<()> {
-        collector.append_string(xsd::DECIMAL.as_str(), None)?;
-        Ok(())
-    }
-
-    fn eval_boolean(&self, collector: &mut Self::Collector, _value: bool) -> DFResult<()> {
-        collector.append_string(xsd::BOOLEAN.as_str(), None)?;
-        Ok(())
-    }
-
-    fn eval_string(
-        &self,
-        collector: &mut Self::Collector,
-        _value: &str,
-        lang: Option<&str>,
-    ) -> DFResult<()> {
-        match lang {
-            None => collector.append_string(xsd::STRING.as_str(), None)?,
-            Some(_) => collector.append_string(rdf::LANG_STRING.as_str(), None)?,
-        }
-        Ok(())
-    }
-
-    fn eval_typed_literal(
-        &self,
-        collector: &mut Self::Collector,
-        _value: &str,
-        value_type: &str,
-    ) -> DFResult<()> {
-        collector.append_string(value_type, None)?;
-        Ok(())
-    }
-
-    fn eval_null(&self, collector: &mut Self::Collector) -> DFResult<()> {
+    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_null()?;
         Ok(())
     }

@@ -1,3 +1,4 @@
+use crate::encoded::dispatch::EncRdfTerm;
 use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -26,80 +27,32 @@ macro_rules! create_binary_cmp_udf {
         }
 
         impl EncScalarBinaryUdf for $STRUCT {
+            type ArgLhs<'lhs> = EncRdfTerm<'lhs>;
+            type ArgRhs<'rhs> = EncRdfTerm<'rhs>;
             type Collector = EncRdfTermBuilder;
 
-            fn supports_named_node() -> bool {
-                true
-            }
-
-            fn supports_blank_node() -> bool {
-                true
-            }
-
-            fn supports_numeric() -> bool {
-                true
-            }
-
-            fn supports_boolean() -> bool {
-                true
-            }
-
-            fn supports_string() -> bool {
-                true
-            }
-
-            fn eval_named_node(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_blank_node(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_numeric_i32(collector: &mut EncRdfTermBuilder, lhs: i32, rhs: i32) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_numeric_i64(collector: &mut EncRdfTermBuilder, lhs: i64, rhs: i64) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_numeric_f32(collector: &mut EncRdfTermBuilder, lhs: f32, rhs: f32) -> DFResult<()>  {
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_numeric_f64(collector: &mut EncRdfTermBuilder, lhs: f64, rhs: f64) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_numeric_decimal(collector: &mut EncRdfTermBuilder, lhs: i128, rhs: i128) -> DFResult<()> {
-                 // This should work as precision and scale are equal
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_boolean(collector: &mut EncRdfTermBuilder, lhs: bool, rhs: bool) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_string(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs)?)
-            }
-
-            fn eval_typed_literal(
-                collector: &mut EncRdfTermBuilder,
-                lhs: &str,
-                lhs_type: &str,
-                rhs: &str,
-                rhs_type: &str
+            fn evaluate(
+                collector: &mut Self::Collector,
+                lhs: &Self::ArgLhs<'_>,
+                rhs: &Self::ArgRhs<'_>,
             ) -> DFResult<()> {
-                Ok(collector.append_boolean(lhs $OP rhs && lhs_type $OP rhs_type)?)
+                let result = match (lhs, rhs) {
+                    (EncRdfTerm::NamedNode(l), EncRdfTerm::NamedNode(r)) => l $OP r,
+                    (EncRdfTerm::BlankNode(l), EncRdfTerm::BlankNode(r)) => l $OP r,
+                    (EncRdfTerm::Boolean(l), EncRdfTerm::Boolean(r)) => l $OP r,
+                    (EncRdfTerm::Numeric(l), EncRdfTerm::Numeric(r)) => l $OP r,
+                    (EncRdfTerm::SimpleLiteral(l), EncRdfTerm::SimpleLiteral(r)) => l $OP r,
+                    (EncRdfTerm::LanguageString(l), EncRdfTerm::LanguageString(r)) => l $OP r,
+                    (EncRdfTerm::TypedLiteral(l), EncRdfTerm::TypedLiteral(r)) => l $OP r,
+                    _ => false,
+                };
+                collector.append_boolean(result)?;
+                Ok(())
             }
 
-            fn eval_rdf_terms(
-                collector: &mut EncRdfTermBuilder
-            ) -> DFResult<()> {
-                // TODO
-                Ok(collector.append_boolean(false)?)
+            fn evaluate_error(collector: &mut Self::Collector) -> DFResult<()> {
+                collector.append_null()?;
+                Ok(())
             }
         }
 
@@ -154,80 +107,32 @@ impl EncSameTerm {
 }
 
 impl EncScalarBinaryUdf for EncSameTerm {
+    type ArgLhs<'lhs> = EncRdfTerm<'lhs>;
+    type ArgRhs<'rhs> = EncRdfTerm<'rhs>;
     type Collector = EncRdfTermBuilder;
 
-    fn supports_named_node() -> bool {
-        true
-    }
-
-    fn supports_blank_node() -> bool {
-        true
-    }
-
-    fn supports_numeric() -> bool {
-        false
-    }
-
-    fn supports_boolean() -> bool {
-        false
-    }
-
-    fn supports_string() -> bool {
-        false
-    }
-
-    fn eval_named_node(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
-        Ok(collector.append_boolean(lhs == rhs)?)
-    }
-
-    fn eval_blank_node(collector: &mut EncRdfTermBuilder, lhs: &str, rhs: &str) -> DFResult<()> {
-        Ok(collector.append_boolean(lhs == rhs)?)
-    }
-
-    fn eval_numeric_i32(_collector: &mut EncRdfTermBuilder, _lhs: i32, _rhs: i32) -> DFResult<()> {
-        panic!("eval_numeric_i32 not supported!")
-    }
-
-    fn eval_numeric_i64(_collector: &mut EncRdfTermBuilder, _lhs: i64, _rhs: i64) -> DFResult<()> {
-        panic!("eval_numeric_i64 not supported!")
-    }
-
-    fn eval_numeric_f32(_collector: &mut EncRdfTermBuilder, _lhs: f32, _rhs: f32) -> DFResult<()> {
-        panic!("eval_numeric_f32 not supported!")
-    }
-
-    fn eval_numeric_f64(_collector: &mut EncRdfTermBuilder, _lhs: f64, _rhs: f64) -> DFResult<()> {
-        panic!("eval_numeric_f64 not supported!")
-    }
-
-    fn eval_numeric_decimal(
-        _collector: &mut EncRdfTermBuilder,
-        _lhs: i128,
-        _rhs: i128,
+    fn evaluate(
+        collector: &mut Self::Collector,
+        lhs: &Self::ArgLhs<'_>,
+        rhs: &Self::ArgRhs<'_>,
     ) -> DFResult<()> {
-        panic!("eval_numeric_decimal not supported!")
+        let result = match (lhs, rhs) {
+            (EncRdfTerm::NamedNode(l), EncRdfTerm::NamedNode(r)) => l == r,
+            (EncRdfTerm::BlankNode(l), EncRdfTerm::BlankNode(r)) => l == r,
+            (EncRdfTerm::Boolean(l), EncRdfTerm::Boolean(r)) => l == r,
+            (EncRdfTerm::Numeric(l), EncRdfTerm::Numeric(r)) => l == r,
+            (EncRdfTerm::SimpleLiteral(l), EncRdfTerm::SimpleLiteral(r)) => l == r,
+            (EncRdfTerm::LanguageString(l), EncRdfTerm::LanguageString(r)) => l == r,
+            (EncRdfTerm::TypedLiteral(l), EncRdfTerm::TypedLiteral(r)) => l == r,
+            _ => false,
+        };
+        collector.append_boolean(result)?;
+        Ok(())
     }
 
-    fn eval_boolean(_collector: &mut EncRdfTermBuilder, _lhs: bool, _rhs: bool) -> DFResult<()> {
-        panic!("eval_boolean not supported!")
-    }
-
-    fn eval_string(_collector: &mut EncRdfTermBuilder, _lhs: &str, _rhs: &str) -> DFResult<()> {
-        panic!("eval_string not supported!")
-    }
-
-    fn eval_typed_literal(
-        collector: &mut EncRdfTermBuilder,
-        lhs: &str,
-        lhs_type: &str,
-        rhs: &str,
-        rhs_type: &str,
-    ) -> DFResult<()> {
-        Ok(collector.append_boolean(lhs == rhs && lhs_type == rhs_type)?)
-    }
-
-    fn eval_rdf_terms(collector: &mut EncRdfTermBuilder) -> DFResult<()> {
-        Ok(collector.append_boolean(false)?)
+    fn evaluate_error(collector: &mut Self::Collector) -> DFResult<()> {
+        collector.append_null()?;
+        Ok(())
     }
 }
 

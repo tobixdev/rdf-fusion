@@ -1,3 +1,4 @@
+use crate::encoded::dispatch::EncRdfTerm;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -24,69 +25,24 @@ impl EncIsLiteral {
 }
 
 impl EncScalarUnaryUdf for EncIsLiteral {
+    type Arg<'data> = EncRdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
-    fn eval_named_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_boolean(false)?;
+    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
+        let result = match value {
+            EncRdfTerm::NamedNode(_) => false,
+            EncRdfTerm::BlankNode(_) => false,
+            EncRdfTerm::Boolean(_) => true,
+            EncRdfTerm::Numeric(_) => true,
+            EncRdfTerm::SimpleLiteral(_) => true,
+            EncRdfTerm::LanguageString(_) => true,
+            EncRdfTerm::TypedLiteral(_) => true,
+        };
+        collector.append_boolean(result)?;
         Ok(())
     }
 
-    fn eval_blank_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_boolean(false)?;
-        Ok(())
-    }
-
-    fn eval_numeric_i32(&self, collector: &mut Self::Collector, _value: i32) -> DFResult<()> {
-        collector.append_boolean(true)?;
-        Ok(())
-    }
-
-    fn eval_numeric_i64(&self, collector: &mut Self::Collector, _value: i64) -> DFResult<()> {
-        collector.append_boolean(true)?;
-        Ok(())
-    }
-
-    fn eval_numeric_f32(&self, collector: &mut Self::Collector, _value: f32) -> DFResult<()> {
-        collector.append_boolean(true)?;
-        Ok(())
-    }
-
-    fn eval_numeric_f64(&self, collector: &mut Self::Collector, _value: f64) -> DFResult<()> {
-        collector.append_boolean(true)?;
-        Ok(())
-    }
-
-    fn eval_numeric_decimal(&self, collector: &mut Self::Collector, _value: i128) -> DFResult<()> {
-        collector.append_boolean(true)?;
-        Ok(())
-    }
-
-    fn eval_boolean(&self, collector: &mut Self::Collector, _value: bool) -> DFResult<()> {
-        collector.append_boolean(true)?;
-        Ok(())
-    }
-
-    fn eval_string(
-        &self,
-        collector: &mut Self::Collector,
-        _value: &str,
-        _lang: Option<&str>,
-    ) -> DFResult<()> {
-        collector.append_boolean(true)?;
-        Ok(())
-    }
-
-    fn eval_typed_literal(
-        &self,
-        collector: &mut Self::Collector,
-        _value: &str,
-        _value_type: &str,
-    ) -> DFResult<()> {
-        collector.append_boolean(true)?;
-        Ok(())
-    }
-
-    fn eval_null(&self, collector: &mut Self::Collector) -> DFResult<()> {
+    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_null()?;
         Ok(())
     }

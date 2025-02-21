@@ -3,11 +3,16 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE, ENC_DATATYPE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM, ENC_STR};
+use arrow_rdf::encoded::{
+    enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY,
+    ENC_BNODE_UNARY, ENC_DATATYPE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL,
+    ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG,
+    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM, ENC_STR, ENC_STRDT,
+};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{
-    not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
+    internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
 };
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, SortExpr};
@@ -310,7 +315,12 @@ impl GraphPatternRewriter {
             Function::Lang => Ok(ENC_LANG.call(args)),
             Function::Datatype => Ok(ENC_DATATYPE.call(args)),
             Function::Iri => Ok(enc_iri(self.base_iri.clone()).call(args)),
-            Function::BNode => Ok(ENC_BNODE.call(args)),
+            Function::BNode => match args.len() {
+                0 => Ok(ENC_BNODE_NULLARY.call(args)),
+                1 => Ok(ENC_BNODE_UNARY.call(args)),
+                _ => internal_err!("Unexpected arity for BNode"),
+            },
+            Function::StrDt => Ok(ENC_STRDT.call(args)),
             _ => not_impl_err!("rewrite_function_call: {:?}", function),
         }
     }

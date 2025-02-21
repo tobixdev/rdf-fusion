@@ -1,3 +1,4 @@
+use crate::encoded::dispatch::EncRdfTerm;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -27,85 +28,29 @@ impl EncIri {
 }
 
 impl EncScalarUnaryUdf for EncIri {
+    type Arg<'data> = EncRdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
-    fn eval_named_node(&self, collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        collector.append_named_node(value)?;
+    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
+        match value {
+            EncRdfTerm::NamedNode(value) => collector.append_named_node(value.0),
+            EncRdfTerm::SimpleLiteral(value) => {
+                let resolving_result = if let Some(base_iri) = &self.base_iri {
+                    base_iri.resolve(value.0)
+                } else {
+                    Iri::parse(value.0.to_string())
+                };
+                match resolving_result {
+                    Ok(resolving_result) => collector.append_named_node(resolving_result.as_str()),
+                    Err(_) => collector.append_null(),
+                }
+            }
+            _ => collector.append_null(),
+        }?;
         Ok(())
     }
 
-    fn eval_blank_node(&self, collector: &mut Self::Collector, _value: &str) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_i32(&self, collector: &mut Self::Collector, _value: i32) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_i64(&self, collector: &mut Self::Collector, _value: i64) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_f32(&self, collector: &mut Self::Collector, _value: f32) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_f64(&self, collector: &mut Self::Collector, _value: f64) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_numeric_decimal(&self, collector: &mut Self::Collector, _value: i128) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_boolean(&self, collector: &mut Self::Collector, _value: bool) -> DFResult<()> {
-        collector.append_null()?;
-        Ok(())
-    }
-
-    fn eval_string(
-        &self,
-        collector: &mut Self::Collector,
-        value: &str,
-        lang: Option<&str>,
-    ) -> DFResult<()> {
-        if lang.is_some() {
-            // https://www.w3.org/TR/sparql11-query/#func-iri
-            // Passing any RDF term other than a simple literal, xsd:string or an IRI is an error.
-            collector.append_null()?;
-            return Ok(());
-        }
-
-        let resolving_result = if let Some(base_iri) = &self.base_iri {
-            base_iri.resolve(value)
-        } else {
-            Iri::parse(value.to_string())
-        };
-        match resolving_result {
-            Ok(resolving_result) => collector.append_named_node(resolving_result.as_str())?,
-            Err(_) => collector.append_null()?,
-        }
-
-        Ok(())
-    }
-
-    fn eval_typed_literal(
-        &self,
-        collector: &mut Self::Collector,
-        _value: &str,
-        _value_type: &str,
-    ) -> DFResult<()> {
-        collector.append_string("", None)?;
-        Ok(())
-    }
-
-    fn eval_null(&self, collector: &mut Self::Collector) -> DFResult<()> {
+    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_null()?;
         Ok(())
     }

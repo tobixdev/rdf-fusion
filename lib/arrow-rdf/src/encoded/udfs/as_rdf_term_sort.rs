@@ -1,3 +1,4 @@
+use crate::encoded::dispatch::{EncNumeric, EncRdfTerm};
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::EncTerm;
 use crate::sorting::{RdfTermSort, RdfTermSortBuilder};
@@ -27,69 +28,36 @@ impl EncAsRdfTermSort {
 
 impl EncScalarUnaryUdf for EncAsRdfTermSort {
     type Collector = RdfTermSortBuilder;
+    type Arg<'data> = EncRdfTerm<'data>;
 
-    fn eval_named_node(&self, collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        collector.append_iri(value);
+    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
+        match value {
+            EncRdfTerm::NamedNode(value) => collector.append_iri(value.0),
+            EncRdfTerm::BlankNode(value) => collector.append_blank_node(value.0),
+            EncRdfTerm::Boolean(value) => collector.append_boolean(value.0),
+            EncRdfTerm::Numeric(value) => collector.append_numeric(match value {
+                EncNumeric::I32(value) => value as f64,
+                EncNumeric::I64(value) => value as f64,
+                EncNumeric::F32(value) => value as f64,
+                EncNumeric::F64(value) => value,
+                EncNumeric::Decimal(value) => {
+                    // TODO #1
+                    let formatted = Decimal128Type::format_decimal(
+                        value,
+                        RDF_DECIMAL_PRECISION,
+                        RDF_DECIMAL_SCALE,
+                    );
+                    f64::from_str(&formatted).expect("TODO decimal to f64 conversion")
+                }
+            }),
+            EncRdfTerm::SimpleLiteral(value) => collector.append_string(value.0),
+            EncRdfTerm::LanguageString(value) => collector.append_string(value.0),
+            EncRdfTerm::TypedLiteral(value) => collector.append_string(value.0),
+        };
         Ok(())
     }
 
-    fn eval_blank_node(&self, collector: &mut Self::Collector, value: &str) -> DFResult<()> {
-        collector.append_blank_node(value);
-        Ok(())
-    }
-
-    fn eval_numeric_i32(&self, collector: &mut Self::Collector, value: i32) -> DFResult<()> {
-        collector.append_numeric(value as f64);
-        Ok(())
-    }
-
-    fn eval_numeric_i64(&self, collector: &mut Self::Collector, value: i64) -> DFResult<()> {
-        collector.append_numeric(value as f64);
-        Ok(())
-    }
-
-    fn eval_numeric_f32(&self, collector: &mut Self::Collector, value: f32) -> DFResult<()> {
-        collector.append_numeric(value as f64);
-        Ok(())
-    }
-
-    fn eval_numeric_f64(&self, collector: &mut Self::Collector, value: f64) -> DFResult<()> {
-        collector.append_numeric(value);
-        Ok(())
-    }
-
-    fn eval_numeric_decimal(&self, collector: &mut Self::Collector, value: i128) -> DFResult<()> {
-        // TODO #1
-        let formatted =
-            Decimal128Type::format_decimal(value, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE);
-        let f64 = f64::from_str(&formatted).expect("TODO decimal to f64 conversion");
-        collector.append_numeric(f64);
-        Ok(())
-    }
-
-    fn eval_boolean(&self, collector: &mut Self::Collector, value: bool) -> DFResult<()> {
-        collector.append_numeric(value.into());
-        Ok(())
-    }
-
-    fn eval_string(&self, collector: &mut Self::Collector, value: &str, _lang: Option<&str>) -> DFResult<()> {
-        // TODO language
-        collector.append_string(value);
-        Ok(())
-    }
-
-    fn eval_typed_literal(
-        &self,
-        collector: &mut Self::Collector,
-        value: &str,
-        _value_type: &str,
-    ) -> DFResult<()> {
-        // TODO
-        collector.append_string(value);
-        Ok(())
-    }
-
-    fn eval_null(&self, collector: &mut Self::Collector) -> DFResult<()> {
+    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_null();
         Ok(())
     }

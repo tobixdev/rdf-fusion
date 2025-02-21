@@ -1,54 +1,55 @@
-use crate::encoded::dispatch::EncRdfTerm;
-use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
+use crate::encoded::dispatch::{EncNamedNode, EncSimpleLiteral};
+use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
-};
+use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility};
 use std::any::Any;
 
 #[derive(Debug)]
-pub struct EncLang {
+pub struct EncStrDt {
     signature: Signature,
 }
 
-impl EncLang {
+impl EncStrDt {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
-                TypeSignature::Exact(vec![EncTerm::term_type()]),
+                TypeSignature::Exact(vec![EncTerm::term_type(), EncTerm::term_type()]),
                 Volatility::Immutable,
             ),
         }
     }
 }
 
-impl EncScalarUnaryUdf for EncLang {
-    type Arg<'data> = EncRdfTerm<'data>;
+impl EncScalarBinaryUdf for EncStrDt {
+    type ArgLhs<'lhs> = EncSimpleLiteral<'lhs>;
+    type ArgRhs<'rhs> = EncNamedNode<'rhs>;
     type Collector = EncRdfTermBuilder;
 
-    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
-        match value {
-            EncRdfTerm::LanguageString(value) => collector.append_string(value.1, None),
-            _ => collector.append_string("", None),
-        }?;
+    fn evaluate(
+        collector: &mut Self::Collector,
+        lhs: &Self::ArgLhs<'_>,
+        rhs: &Self::ArgRhs<'_>,
+    ) -> DFResult<()> {
+        collector.append_typed_literal(lhs.0, rhs.0)?;
         Ok(())
     }
 
-    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
+    fn evaluate_error(collector: &mut Self::Collector) -> DFResult<()> {
         collector.append_null()?;
         Ok(())
     }
 }
 
-impl ScalarUDFImpl for EncLang {
+
+impl ScalarUDFImpl for EncStrDt {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_lang"
+        "enc_strdt"
     }
 
     fn signature(&self) -> &Signature {
@@ -64,6 +65,6 @@ impl ScalarUDFImpl for EncLang {
         args: &[ColumnarValue],
         number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        dispatch_unary(self, args, number_rows)
+        dispatch_binary::<EncStrDt>(args, number_rows)
     }
 }

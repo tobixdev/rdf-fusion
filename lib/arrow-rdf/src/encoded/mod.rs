@@ -1,4 +1,3 @@
-mod cast;
 mod model;
 mod rdf_term_builder;
 pub mod scalars;
@@ -7,6 +6,7 @@ mod strings;
 mod terms;
 mod dispatch_binary;
 mod dispatch_unary;
+mod dispatch;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};

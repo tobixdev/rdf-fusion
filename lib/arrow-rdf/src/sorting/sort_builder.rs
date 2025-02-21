@@ -1,9 +1,7 @@
 use crate::result_collector::ResultCollector;
 use crate::sorting::{RdfTermSortField, FIELDS_RDF_TERM_SORT};
 use crate::DFResult;
-use datafusion::arrow::array::{
-    Float64Builder, StringBuilder, StructBuilder, UInt8Builder,
-};
+use datafusion::arrow::array::{Float64Builder, StringBuilder, StructBuilder, UInt8Builder};
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
 
@@ -11,6 +9,7 @@ enum RdfSortType {
     Null,
     BlankNodes,
     Iri,
+    Boolean,
     Numeric,
     String,
 }
@@ -21,8 +20,9 @@ impl RdfSortType {
             RdfSortType::Null => 0,
             RdfSortType::BlankNodes => 1,
             RdfSortType::Iri => 2,
-            RdfSortType::Numeric => 3,
-            RdfSortType::String => 4,
+            RdfSortType::Boolean => 3,
+            RdfSortType::Numeric => 4,
+            RdfSortType::String => 5,
         }
     }
 }
@@ -34,6 +34,14 @@ pub struct RdfTermSortBuilder {
 impl RdfTermSortBuilder {
     pub fn append_null(&mut self) {
         self.append(RdfSortType::Null, None, None)
+    }
+
+    pub fn append_boolean(&mut self, value: bool) {
+        self.append(
+            RdfSortType::Boolean,
+            Some(if value { 1f64 } else { 0f64 }),
+            None,
+        )
     }
 
     pub fn append_numeric(&mut self, value: f64) {

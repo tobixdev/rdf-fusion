@@ -1,16 +1,18 @@
+use crate::encoded::terms::bnode::{EncBNodeNullary, EncBNodeUnary};
 use crate::encoded::terms::datatype::EncDatatype;
 use crate::encoded::terms::iri::EncIri;
 use crate::encoded::terms::is_blank::EncIsBlank;
 use crate::encoded::terms::is_iri::EncIsIri;
 use crate::encoded::terms::is_literal::EncIsLiteral;
 use crate::encoded::terms::is_numeric::EncIsNumeric;
+use crate::encoded::terms::lang::EncLang;
 use crate::encoded::terms::str::EncStr;
 use datafusion::logical_expr::ScalarUDF;
 use once_cell::unsync::Lazy;
 use oxiri::Iri;
-use crate::encoded::terms::bnode::EncBNode;
-use crate::encoded::terms::lang::EncLang;
+use crate::encoded::terms::strdt::EncStrDt;
 
+mod bnode;
 mod datatype;
 mod iri;
 mod is_blank;
@@ -19,7 +21,7 @@ mod is_literal;
 mod is_numeric;
 mod lang;
 mod str;
-mod bnode;
+mod strdt;
 
 pub const ENC_DATATYPE: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncDatatype::new()));
 pub fn enc_iri(base_iri: Option<Iri<String>>) -> ScalarUDF {
@@ -31,4 +33,7 @@ pub const ENC_IS_LITERAL: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncIsLi
 pub const ENC_IS_NUMERIC: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncIsNumeric::new()));
 pub const ENC_STR: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStr::new()));
 pub const ENC_LANG: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncLang::new()));
-pub const ENC_BNODE: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncBNode::new()));
+pub const ENC_BNODE_NULLARY: Lazy<ScalarUDF> =
+    Lazy::new(|| ScalarUDF::from(EncBNodeNullary::new()));
+pub const ENC_BNODE_UNARY: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncBNodeUnary::new()));
+pub const ENC_STRDT: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrDt::new()));

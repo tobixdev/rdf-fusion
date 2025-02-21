@@ -1,5 +1,5 @@
 use crate::encoded::{EncTerm, EncTermField};
-use crate::{as_rdf_term_array, DFResult};
+use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::internal_err;
@@ -48,7 +48,7 @@ impl ScalarUDFImpl for EncAsNativeBoolean {
         }
 
         let input = args[0].to_array(number_rows)?;
-        let terms = as_rdf_term_array(&input)?;
+        let terms = as_enc_term_array(&input)?;
         let boolean_array = terms.child(EncTermField::Boolean.type_id());
 
         if boolean_array.len() != number_rows {
