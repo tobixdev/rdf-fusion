@@ -162,3 +162,31 @@ impl ScalarUDFImpl for EncSameTerm {
         dispatch_binary::<Self>(args, number_rows)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::encoded::dispatch::{EncBoolean, EncRdfValue};
+    use crate::encoded::scalars::encode_scalar_object;
+    use crate::encoded::{EncTermField, ENC_LESS_THAN};
+    use crate::{as_enc_term_array, DFResult};
+    use datafusion::logical_expr::ColumnarValue;
+    use oxrdf::{Literal, Term};
+
+    #[test]
+    fn test_lth_int_with_float() -> DFResult<()> {
+        let lhs = encode_scalar_object(Term::from(Literal::from(5)).as_ref())?;
+        let rhs = encode_scalar_object(Term::from(Literal::from(10f32)).as_ref())?;
+        let result =
+            ENC_LESS_THAN.invoke_batch(&[ColumnarValue::from(lhs), ColumnarValue::from(rhs)], 1)?;
+
+        // TODO: Improve test infrastructure
+        let result = match result {
+            ColumnarValue::Array(arr) => {
+                EncBoolean::from_array(as_enc_term_array(arr.as_ref())?, EncTermField::Boolean, 0)
+            }
+            ColumnarValue::Scalar(scalar) => EncBoolean::from_scalar(&scalar),
+        }?;
+        assert_eq!(result.0, true);
+        Ok(())
+    }
+}

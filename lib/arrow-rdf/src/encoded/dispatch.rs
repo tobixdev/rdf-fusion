@@ -222,7 +222,7 @@ pub(crate) enum EncNumeric {
     Decimal(i128),
 }
 
-pub(crate) enum EncNumericPair {
+enum EncNumericPair {
     I32(i32, i32),
     I64(i64, i64),
     F32(f32, f32),
@@ -243,7 +243,7 @@ impl EncNumeric {
         }
     }
 
-    pub fn cast_to_compatible(&self, other: &EncNumeric) -> EncNumericPair {
+    fn cast_to_compatible(&self, other: &EncNumeric) -> EncNumericPair {
         match (self, other) {
             (EncNumeric::I32(lhs), EncNumeric::I32(rhs)) => EncNumericPair::I32(*lhs, *rhs),
             (EncNumeric::I32(lhs), EncNumeric::I64(rhs)) => EncNumericPair::I64(*lhs as i64, *rhs),
