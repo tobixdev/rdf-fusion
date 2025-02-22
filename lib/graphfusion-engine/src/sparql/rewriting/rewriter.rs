@@ -3,12 +3,7 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{
-    enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY,
-    ENC_BNODE_UNARY, ENC_DATATYPE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL,
-    ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG,
-    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM, ENC_STR, ENC_STRDT,
-};
+use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOUND, ENC_DATATYPE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM, ENC_STR, ENC_STRDT, ENC_STRLANG, ENC_STRLEN, ENC_STRUUID, ENC_SUBSTR, ENC_UCASE, ENC_UUID};
 use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{
@@ -268,6 +263,9 @@ impl GraphPatternRewriter {
     /// Rewrites an [Expression].
     fn rewrite_expr(&self, expression: &Expression) -> DFResult<Expr> {
         match expression {
+            Expression::Bound(var) => {
+                Ok(ENC_BOUND.call(vec![Expr::from(Column::from(var.as_str()))]))
+            }
             Expression::Not(inner) => Ok(ENC_NOT.call(vec![
                 ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?])
             ])),
@@ -321,6 +319,14 @@ impl GraphPatternRewriter {
                 _ => internal_err!("Unexpected arity for BNode"),
             },
             Function::StrDt => Ok(ENC_STRDT.call(args)),
+            Function::StrLang => Ok(ENC_STRLANG.call(args)),
+            Function::Uuid => Ok(ENC_UUID.call(args)),
+            Function::StrUuid => Ok(ENC_STRUUID.call(args)),
+            // Strings
+            Function::StrLen => Ok(ENC_STRLEN.call(args)),
+            Function::SubStr => Ok(ENC_SUBSTR.call(args)),
+            Function::UCase => Ok(ENC_UCASE.call(args)),
+            Function::LCase => Ok(ENC_LCASE.call(args)),
             _ => not_impl_err!("rewrite_function_call: {:?}", function),
         }
     }

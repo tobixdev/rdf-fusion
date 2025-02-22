@@ -5,7 +5,6 @@ use datafusion::arrow::array::Array;
 use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
-use crate::encoded::EncTermField;
 
 pub(crate) trait EncScalarUnaryUdf {
     type Arg<'data>: EncRdfValue<'data>;
@@ -54,13 +53,8 @@ where
     let values = as_enc_term_array(&values).expect("RDF term array expected");
     let mut collector = TUdf::Collector::new();
 
-    let type_offset_paris = values
-        .type_ids()
-        .iter()
-        .map(|tid| EncTermField::try_from(*tid).unwrap())
-        .zip(values.offsets().expect("Always Dense"));
-    for (field, offset) in type_offset_paris {
-        match TUdf::Arg::from_array(values, field, *offset as usize) {
+    for i in 0..values.len() {
+        match TUdf::Arg::from_array(values, i) {
             Ok(value) => TUdf::evaluate(udf, &mut collector, value)?,
             Err(_) => TUdf::evaluate_error(udf, &mut collector)?,
         }

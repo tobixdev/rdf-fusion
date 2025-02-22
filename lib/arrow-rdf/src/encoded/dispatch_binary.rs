@@ -1,5 +1,4 @@
 use crate::encoded::dispatch::EncRdfValue;
-use crate::encoded::EncTermField;
 use crate::result_collector::ResultCollector;
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::Array;
@@ -79,7 +78,7 @@ where
 fn dispatch_binary_array_scalar<TUdf>(
     lhs: &ScalarValue,
     rhs: &dyn Array,
-    _number_of_rows: usize,
+    number_of_rows: usize,
 ) -> DFResult<ColumnarValue>
 where
     TUdf: EncScalarBinaryUdf,
@@ -90,7 +89,7 @@ where
     let lhs_value = match lhs_value {
         Ok(value) => value,
         Err(_) => {
-            for _ in 0.._number_of_rows {
+            for _ in 0..number_of_rows {
                 TUdf::evaluate_error(&mut collector)?;
             }
             return collector.finish_columnar_value();
@@ -98,13 +97,8 @@ where
     };
 
     let rhs = as_enc_term_array(rhs).expect("RDF term");
-    let type_offset_paris = rhs
-        .type_ids()
-        .iter()
-        .map(|tid| EncTermField::try_from(*tid).unwrap())
-        .zip(rhs.offsets().expect("Always Dense"));
-    for (field, offset) in type_offset_paris {
-        match TUdf::ArgRhs::from_array(rhs, field, *offset as usize) {
+    for i in 0..number_of_rows {
+        match TUdf::ArgRhs::from_array(rhs, i) {
             Ok(rhs_value) => TUdf::evaluate(&mut collector, &lhs_value, &rhs_value)?,
             Err(_) => TUdf::evaluate_error(&mut collector)?,
         }

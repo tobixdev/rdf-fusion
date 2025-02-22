@@ -14,7 +14,7 @@ pub trait EncRdfValue<'data> {
     where
         Self: Sized;
 
-    fn from_array(array: &'data UnionArray, field: EncTermField, offset: usize) -> DFResult<Self>
+    fn from_array(array: &'data UnionArray, index: usize) -> DFResult<Self>
     where
         Self: Sized;
 }
@@ -48,9 +48,9 @@ impl<'data> EncRdfValue<'data> for EncRdfTerm<'data> {
                     EncTermField::String => match inner_value.as_ref() {
                         ScalarValue::Struct(struct_array) => {
                             match struct_array.column(1).is_null(0) {
-                                true => {
-                                    EncRdfTerm::SimpleLiteral(EncSimpleLiteral::from_scalar(scalar)?)
-                                }
+                                true => EncRdfTerm::SimpleLiteral(EncSimpleLiteral::from_scalar(
+                                    scalar,
+                                )?),
                                 false => EncRdfTerm::LanguageString(
                                     EncLanguageString::from_scalar(scalar)?,
                                 ),
@@ -63,7 +63,9 @@ impl<'data> EncRdfValue<'data> for EncRdfTerm<'data> {
                     | EncTermField::Float64
                     | EncTermField::Decimal
                     | EncTermField::Int
-                    | EncTermField::Integer => EncRdfTerm::Numeric(EncNumeric::from_scalar(scalar)?),
+                    | EncTermField::Integer => {
+                        EncRdfTerm::Numeric(EncNumeric::from_scalar(scalar)?)
+                    }
                     EncTermField::TypedLiteral => {
                         EncRdfTerm::TypedLiteral(EncTypedLiteral::from_scalar(scalar)?)
                     }
@@ -74,37 +76,32 @@ impl<'data> EncRdfValue<'data> for EncRdfTerm<'data> {
         }
     }
 
-    fn from_array(array: &'data UnionArray, field: EncTermField, offset: usize) -> DFResult<Self>
+    fn from_array(array: &'data UnionArray, index: usize) -> DFResult<Self>
     where
         Self: Sized,
     {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
         Ok(match field {
             EncTermField::NamedNode => {
-                EncRdfTerm::NamedNode(EncNamedNode::from_array(array, field, offset)?)
+                EncRdfTerm::NamedNode(EncNamedNode::from_array(array, index)?)
             }
             EncTermField::BlankNode => {
-                EncRdfTerm::BlankNode(EncBlankNode::from_array(array, field, offset)?)
+                EncRdfTerm::BlankNode(EncBlankNode::from_array(array, index)?)
             }
             EncTermField::String => match array.child(1).is_null(offset) {
-                true => {
-                    EncRdfTerm::SimpleLiteral(EncSimpleLiteral::from_array(array, field, offset)?)
-                }
-                false => {
-                    EncRdfTerm::LanguageString(EncLanguageString::from_array(array, field, offset)?)
-                }
+                true => EncRdfTerm::SimpleLiteral(EncSimpleLiteral::from_array(array, index)?),
+                false => EncRdfTerm::LanguageString(EncLanguageString::from_array(array, index)?),
             },
-            EncTermField::Boolean => {
-                EncRdfTerm::Boolean(EncBoolean::from_array(array, field, offset)?)
-            }
+            EncTermField::Boolean => EncRdfTerm::Boolean(EncBoolean::from_array(array, index)?),
             EncTermField::Float32
             | EncTermField::Float64
             | EncTermField::Decimal
             | EncTermField::Int
-            | EncTermField::Integer => {
-                EncRdfTerm::Numeric(EncNumeric::from_array(array, field, offset)?)
-            }
+            | EncTermField::Integer => EncRdfTerm::Numeric(EncNumeric::from_array(array, index)?),
             EncTermField::TypedLiteral => {
-                EncRdfTerm::TypedLiteral(EncTypedLiteral::from_array(array, field, offset)?)
+                EncRdfTerm::TypedLiteral(EncTypedLiteral::from_array(array, index)?)
             }
             EncTermField::Null => internal_err!("Array value was null")?,
         })
@@ -135,7 +132,10 @@ impl<'data> EncRdfValue<'data> for EncNamedNode<'data> {
         }
     }
 
-    fn from_array(array: &'data UnionArray, field: EncTermField, offset: usize) -> DFResult<Self> {
+    fn from_array(array: &'data UnionArray, index: usize) -> DFResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
         match field {
             EncTermField::NamedNode => Ok(EncNamedNode(
                 array
@@ -170,7 +170,10 @@ impl<'data> EncRdfValue<'data> for EncBlankNode<'data> {
         }
     }
 
-    fn from_array(array: &'data UnionArray, field: EncTermField, offset: usize) -> DFResult<Self> {
+    fn from_array(array: &'data UnionArray, index: usize) -> DFResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
         match field {
             EncTermField::BlankNode => Ok(EncBlankNode(
                 array
@@ -205,7 +208,10 @@ impl EncRdfValue<'_> for EncBoolean {
         }
     }
 
-    fn from_array(array: &UnionArray, field: EncTermField, offset: usize) -> DFResult<Self> {
+    fn from_array(array: &UnionArray, index: usize) -> DFResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
         match field {
             EncTermField::Boolean => Ok(Self(
                 array.child(field.type_id()).as_boolean().value(offset),
@@ -341,7 +347,10 @@ impl EncRdfValue<'_> for EncNumeric {
         }
     }
 
-    fn from_array(array: &UnionArray, field: EncTermField, offset: usize) -> DFResult<Self> {
+    fn from_array(array: &UnionArray, index: usize) -> DFResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
         match field {
             EncTermField::Int => Ok(Self::I32(
                 array
@@ -378,24 +387,12 @@ impl EncRdfValue<'_> for EncNumeric {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, PartialOrd, Ord)]
 pub struct EncSimpleLiteral<'value>(pub &'value str);
 
 impl EncSimpleLiteral<'_> {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
-    }
-}
-
-impl PartialOrd for EncSimpleLiteral<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.0.partial_cmp(other.0)
-    }
-}
-
-impl Ord for EncSimpleLiteral<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("Ordering is total")
     }
 }
 
@@ -421,7 +418,10 @@ impl<'data> EncRdfValue<'data> for EncSimpleLiteral<'data> {
         }
     }
 
-    fn from_array(array: &'data UnionArray, field: EncTermField, offset: usize) -> DFResult<Self> {
+    fn from_array(array: &'data UnionArray, index: usize) -> DFResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
         match field {
             EncTermField::String => {
                 let array = array.child(field.type_id()).as_struct();
@@ -484,7 +484,10 @@ impl<'data> EncRdfValue<'data> for EncLanguageString<'data> {
         }
     }
 
-    fn from_array(array: &'data UnionArray, field: EncTermField, offset: usize) -> DFResult<Self> {
+    fn from_array(array: &'data UnionArray, index: usize) -> DFResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
         match field {
             EncTermField::String => {
                 let array = array.child(field.type_id()).as_struct();
@@ -575,7 +578,10 @@ impl<'data> EncRdfValue<'data> for EncTypedLiteral<'data> {
         }
     }
 
-    fn from_array(array: &'data UnionArray, field: EncTermField, offset: usize) -> DFResult<Self> {
+    fn from_array(array: &'data UnionArray, index: usize) -> DFResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
         match field {
             EncTermField::TypedLiteral => {
                 let array = array.child(field.type_id()).as_struct();
@@ -584,6 +590,123 @@ impl<'data> EncRdfValue<'data> for EncTypedLiteral<'data> {
                 Ok(Self(values.value(offset), datatypes.value(offset)))
             }
             _ => internal_err!("Cannot create EncTypedLiteral from {}.", field),
+        }
+    }
+}
+
+/// https://www.w3.org/TR/sparql11-query/#func-string
+#[derive(PartialEq, Eq, Debug)]
+pub struct EncStringLiteral<'value>(pub &'value str, pub Option<&'value str>);
+
+impl EncStringLiteral<'_> {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.chars().count()
+    }
+}
+
+impl PartialOrd for EncStringLiteral<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.0.partial_cmp(other.0)
+    }
+}
+
+impl Ord for EncStringLiteral<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).expect("Ordering is total")
+    }
+}
+
+impl<'data> EncRdfValue<'data> for EncStringLiteral<'data> {
+    fn from_scalar(scalar: &'data ScalarValue) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
+            return internal_err!("Unexpected scalar");
+        };
+
+        if *type_id != EncTermField::String.type_id() {
+            return internal_err!("Unexpected scalar type_id");
+        }
+
+        match scalar.as_ref() {
+            ScalarValue::Struct(array) => {
+                let value_arr = array.column(0).as_string::<i32>();
+                let language_arr = array.column(1).as_string::<i32>();
+                if language_arr.is_null(0) {
+                    Ok(Self(value_arr.value(0), None))
+                } else {
+                    Ok(Self(value_arr.value(0), Some(language_arr.value(0))))
+                }
+            }
+            _ => internal_err!("Unexpected scalar value"),
+        }
+    }
+
+    fn from_array(array: &'data UnionArray, index: usize) -> DFResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
+        match field {
+            EncTermField::String => {
+                let array = array.child(field.type_id()).as_struct();
+                let value_arr = array.column(0).as_string::<i32>();
+                let language_arr = array.column(1).as_string::<i32>();
+                if language_arr.is_null(offset) {
+                    Ok(Self(value_arr.value(offset), None))
+                } else {
+                    Ok(Self(
+                        value_arr.value(offset),
+                        Some(language_arr.value(offset)),
+                    ))
+                }
+            }
+            _ => internal_err!("Cannot create EncStringLiteral from {}.", field),
+        }
+    }
+}
+
+/// https://www.w3.org/TR/sparql11-query/#func-string
+#[derive(PartialEq, Eq, Debug, PartialOrd, Ord)]
+pub struct EncInteger(pub i64);
+
+impl EncInteger {}
+
+impl EncRdfValue<'_> for EncInteger {
+    fn from_scalar(scalar: &ScalarValue) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
+            return internal_err!("Unexpected scalar");
+        };
+
+        // TODO: Subtypes
+        if *type_id != EncTermField::Integer.type_id() {
+            return internal_err!("Unexpected scalar type_id");
+        }
+
+        match scalar.as_ref() {
+            ScalarValue::Int64(Some(value)) => Ok(Self(*value)),
+            _ => internal_err!("Unexpected scalar value"),
+        }
+    }
+
+    fn from_array(array: &UnionArray, index: usize) -> DFResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let offset = array.value_offset(index);
+
+        // TODO: Subtypes
+        match field {
+            EncTermField::Integer => {
+                let array = array.child(field.type_id()).as_primitive::<Int64Type>();
+                Ok(Self(array.value(offset)))
+            }
+            _ => internal_err!("Cannot create EncStringLiteral from {}.", field),
         }
     }
 }

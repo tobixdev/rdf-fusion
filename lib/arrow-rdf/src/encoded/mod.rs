@@ -7,6 +7,8 @@ mod terms;
 mod dispatch_binary;
 mod dispatch_unary;
 mod dispatch;
+mod functional_forms;
+mod dispatch_ternary;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
@@ -15,9 +17,10 @@ use once_cell::unsync::Lazy;
 pub use rdf_term_builder::EncRdfTermBuilder;
 
 // Functions
-pub use udfs::*;
+pub use functional_forms::*;
 pub use terms::*;
 pub use strings::*;
+pub use udfs::*;
 
 pub const ENC_QUAD_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     SchemaRef::new(Schema::new(vec![

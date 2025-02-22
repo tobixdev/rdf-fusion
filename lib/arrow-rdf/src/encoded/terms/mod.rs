@@ -11,6 +11,9 @@ use datafusion::logical_expr::ScalarUDF;
 use once_cell::unsync::Lazy;
 use oxiri::Iri;
 use crate::encoded::terms::strdt::EncStrDt;
+use crate::encoded::terms::strlang::EncStrLang;
+use crate::encoded::terms::struuid::EncStrUuid;
+use crate::encoded::terms::uuid::EncUuid;
 
 mod bnode;
 mod datatype;
@@ -22,6 +25,9 @@ mod is_numeric;
 mod lang;
 mod str;
 mod strdt;
+mod strlang;
+mod uuid;
+mod struuid;
 
 pub const ENC_DATATYPE: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncDatatype::new()));
 pub fn enc_iri(base_iri: Option<Iri<String>>) -> ScalarUDF {
@@ -37,3 +43,6 @@ pub const ENC_BNODE_NULLARY: Lazy<ScalarUDF> =
     Lazy::new(|| ScalarUDF::from(EncBNodeNullary::new()));
 pub const ENC_BNODE_UNARY: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncBNodeUnary::new()));
 pub const ENC_STRDT: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrDt::new()));
+pub const ENC_STRLANG: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrLang::new()));
+pub const ENC_UUID: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncUuid::new()));
+pub const ENC_STRUUID: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrUuid::new()));
