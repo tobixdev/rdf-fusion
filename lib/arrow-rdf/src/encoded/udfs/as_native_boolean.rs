@@ -1,6 +1,6 @@
 use crate::encoded::{EncTerm, EncTermField};
 use crate::{as_enc_term_array, DFResult};
-use datafusion::arrow::array::Array;
+use datafusion::arrow::array::{as_boolean_array, Array, BooleanArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::internal_err;
 use datafusion::logical_expr::{
@@ -49,18 +49,29 @@ impl ScalarUDFImpl for EncAsNativeBoolean {
 
         let input = args[0].to_array(number_rows)?;
         let terms = as_enc_term_array(&input)?;
-        let boolean_array = terms.child(EncTermField::Boolean.type_id());
+        let boolean_array = as_boolean_array(terms.child(EncTermField::Boolean.type_id()));
+        let null_array = terms.child(EncTermField::Null.type_id());
 
-        if boolean_array.len() != number_rows {
+        if boolean_array.len() + null_array.len() != number_rows {
             return internal_err!(
-                "Unexpected number of boolean elements in enc_as_native_boolean. expected: {}, actual: {}", number_rows, boolean_array.len()
+                "Unexpected all elements to either be a boolean or null. expected: {}, actual: {}",
+                number_rows,
+                boolean_array.len() + null_array.len()
             );
         }
 
-        if boolean_array.null_count() > 0 {
-            return internal_err!("Unexpected nulls in enc_as_native_boolean.");
-        }
-
-        Ok(ColumnarValue::Array(Arc::clone(boolean_array)))
+        let result = terms
+            .type_ids()
+            .iter()
+            .enumerate()
+            .map(|(idx, tid)| {
+                Some(if *tid == EncTermField::Boolean.type_id() {
+                    boolean_array.value(terms.value_offset(idx))
+                } else {
+                    false
+                })
+            })
+            .collect::<BooleanArray>();
+        Ok(ColumnarValue::Array(Arc::new(result)))
     }
 }
