@@ -36,7 +36,7 @@ impl EncScalarUnaryUdf for EncIsBlank {
             EncRdfTerm::Numeric(_) => false,
             EncRdfTerm::SimpleLiteral(_) => false,
             EncRdfTerm::LanguageString(_) => false,
-            EncRdfTerm::TypedLiteral(_) => false
+            EncRdfTerm::TypedLiteral(_) => false,
         };
         collector.append_boolean(result)?;
         Ok(())

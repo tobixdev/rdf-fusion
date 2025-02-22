@@ -165,7 +165,7 @@ impl ScalarUDFImpl for EncSameTerm {
 
 #[cfg(test)]
 mod tests {
-    use crate::encoded::dispatch::{EncBoolean, EncRdfValue};
+    use crate::encoded::dispatch::{EncBoolean, EncRdfTerm, EncRdfValue};
     use crate::encoded::scalars::encode_scalar_object;
     use crate::encoded::{EncTermField, ENC_LESS_THAN};
     use crate::{as_enc_term_array, DFResult};
@@ -179,14 +179,19 @@ mod tests {
         let result =
             ENC_LESS_THAN.invoke_batch(&[ColumnarValue::from(lhs), ColumnarValue::from(rhs)], 1)?;
 
-        // TODO: Improve test infrastructure
-        let result = match result {
+        match result {
             ColumnarValue::Array(arr) => {
-                EncBoolean::from_array(as_enc_term_array(arr.as_ref())?, EncTermField::Boolean, 0)
+                let term_array = as_enc_term_array(arr.as_ref())?;
+                let field = EncTermField::try_from(term_array.type_id(0))?;
+                let term = EncRdfTerm::from_array(term_array, field, 0)?;
+                assert!(matches!(term, EncRdfTerm::Boolean(EncBoolean(true))));
             }
-            ColumnarValue::Scalar(scalar) => EncBoolean::from_scalar(&scalar),
-        }?;
-        assert_eq!(result.0, true);
+            ColumnarValue::Scalar(scalar) => {
+                let boolean = EncBoolean::from_scalar(&scalar)?;
+                assert!(matches!(boolean, EncBoolean(true)));
+            },
+        };
+
         Ok(())
     }
 }

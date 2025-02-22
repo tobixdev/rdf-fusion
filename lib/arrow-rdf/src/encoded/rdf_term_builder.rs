@@ -1,10 +1,7 @@
 use crate::encoded::{EncTerm, EncTermField};
 use crate::error::TermEncodingError;
 use crate::{AResult, DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
-use datafusion::arrow::array::{
-    ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
-    Int32Builder, Int64Builder, StringBuilder, StructBuilder, UnionArray,
-};
+use datafusion::arrow::array::{ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder, UnionArray};
 use datafusion::arrow::buffer::ScalarBuffer;
 use oxrdf::vocab::{rdf, xsd};
 use oxrdf::Term;
@@ -23,6 +20,7 @@ pub struct EncRdfTermBuilder {
     int32_builder: Int32Builder,
     integer_builder: Int64Builder,
     typed_literal_builder: StructBuilder,
+    null_builder: NullBuilder,
 }
 
 impl EncRdfTermBuilder {
@@ -42,6 +40,7 @@ impl EncRdfTermBuilder {
             int32_builder: Int32Builder::with_capacity(0),
             integer_builder: Int64Builder::with_capacity(0),
             typed_literal_builder: StructBuilder::from_fields(EncTerm::typed_literal_fields(), 0),
+            null_builder: NullBuilder::new(),
         }
     }
 
@@ -158,17 +157,9 @@ impl EncRdfTermBuilder {
     }
 
     pub fn append_null(&mut self) -> AResult<()> {
-        self.type_ids.push(EncTermField::TypedLiteral.type_id());
-        self.offsets.push(self.typed_literal_builder.len() as i32);
-        self.typed_literal_builder
-            .field_builder::<StringBuilder>(0)
-            .unwrap()
-            .append_null();
-        self.typed_literal_builder
-            .field_builder::<StringBuilder>(1)
-            .unwrap()
-            .append_null();
-        self.typed_literal_builder.append_null();
+        self.type_ids.push(EncTermField::Null.type_id());
+        self.offsets.push(self.null_builder.len() as i32);
+        self.null_builder.append_null();
         Ok(())
     }
 
@@ -188,6 +179,7 @@ impl EncRdfTermBuilder {
                 Arc::new(self.int32_builder.finish()),
                 Arc::new(self.integer_builder.finish()),
                 Arc::new(self.typed_literal_builder.finish()),
+                Arc::new(self.null_builder.finish()),
             ],
         )?))
     }

@@ -125,6 +125,9 @@ fn batch_enc_decode_array(array: ArrayRef) -> DFResult<ColumnarValue> {
                 rdf_term_builder
                     .append_typed_literal(values.value(value_idx), types.value(value_idx))?
             }
+            EncTermField::Null => {
+                rdf_term_builder.append_null()?;
+            }
         }
     }
 

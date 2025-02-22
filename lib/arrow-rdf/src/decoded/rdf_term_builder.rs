@@ -1,6 +1,6 @@
 use crate::decoded::model::{DecTerm, DecTermField};
 use crate::AResult;
-use datafusion::arrow::array::{ArrayBuilder, ArrayRef, StringBuilder, StructBuilder, UnionArray};
+use datafusion::arrow::array::{ArrayBuilder, ArrayRef, NullBuilder, StringBuilder, StructBuilder, UnionArray};
 use datafusion::arrow::buffer::ScalarBuffer;
 use oxrdf::vocab::{rdf, xsd};
 use oxrdf::Term;
@@ -13,6 +13,7 @@ pub struct DecRdfTermBuilder {
     blank_node_builder: StringBuilder,
     string_builder: StructBuilder,
     typed_literal_builder: StructBuilder,
+    null_builder: NullBuilder,
 }
 
 impl DecRdfTermBuilder {
@@ -24,6 +25,7 @@ impl DecRdfTermBuilder {
             blank_node_builder: StringBuilder::new(),
             string_builder: StructBuilder::from_fields(DecTerm::string_fields(), 0),
             typed_literal_builder: StructBuilder::from_fields(DecTerm::typed_literal_fields(), 0),
+            null_builder: NullBuilder::new()
         }
     }
 
@@ -89,6 +91,13 @@ impl DecRdfTermBuilder {
             .unwrap()
             .append_value(type_id);
         self.typed_literal_builder.append(true);
+        Ok(())
+    }
+
+    pub fn append_null(&mut self) -> AResult<()> {
+        self.type_ids.push(DecTermField::Null.type_id());
+        self.offsets.push(self.null_builder.len() as i32);
+        self.null_builder.append_null();
         Ok(())
     }
 

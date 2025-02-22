@@ -24,51 +24,56 @@ const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
         Field::new(
             EncTermField::NamedNode.name(),
             EncTermField::NamedNode.data_type(),
-            true,
+            false,
         ),
         Field::new(
             EncTermField::BlankNode.name(),
             EncTermField::BlankNode.data_type(),
-            true,
+            false,
         ),
         Field::new(
             EncTermField::String.name(),
             EncTermField::String.data_type(),
-            true,
+            false,
         ),
         Field::new(
             EncTermField::Boolean.name(),
             EncTermField::Boolean.data_type(),
-            true,
+            false,
         ),
         Field::new(
             EncTermField::Float32.name(),
             EncTermField::Float32.data_type(),
-            true,
+            false,
         ),
         Field::new(
             EncTermField::Float64.name(),
             EncTermField::Float64.data_type(),
-            true,
+            false,
         ),
         Field::new(
             EncTermField::Decimal.name(),
             EncTermField::Decimal.data_type(),
-            true,
+            false,
         ),
         Field::new(
             EncTermField::Int.name(),
             EncTermField::Int.data_type(),
-            true,
+            false,
         ),
         Field::new(
             EncTermField::Integer.name(),
             EncTermField::Integer.data_type(),
-            true,
+            false,
         ),
         Field::new(
             EncTermField::TypedLiteral.name(),
             EncTermField::TypedLiteral.data_type(),
+            false,
+        ),
+        Field::new(
+            EncTermField::Null.name(),
+            EncTermField::Null.data_type(),
             true,
         ),
     ];
@@ -112,6 +117,7 @@ pub enum EncTermField {
     Int,
     Integer,
     TypedLiteral,
+    Null,
 }
 
 impl EncTermField {
@@ -131,6 +137,7 @@ impl EncTermField {
             EncTermField::Int => "int",
             EncTermField::Integer => "integer",
             EncTermField::TypedLiteral => "typed_literal",
+            EncTermField::Null => "null",
         }
     }
 
@@ -146,6 +153,7 @@ impl EncTermField {
             EncTermField::Int => DataType::Int32,
             EncTermField::Integer => DataType::Int64,
             EncTermField::TypedLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
+            EncTermField::Null => DataType::Null
         }
     }
 
@@ -178,6 +186,7 @@ impl TryFrom<i8> for EncTermField {
             7 => EncTermField::Int,
             8 => EncTermField::Integer,
             9 => EncTermField::TypedLiteral,
+            10 => EncTermField::Null,
             _ => return exec_err!("Unexpected type_id for encoded RDF Term"),
         })
     }
@@ -196,6 +205,7 @@ impl From<&EncTermField> for i8 {
             EncTermField::Int => 7,
             EncTermField::Integer => 8,
             EncTermField::TypedLiteral => 9,
+            EncTermField::Null => 10,
         }
     }
 }
@@ -216,6 +226,7 @@ mod tests {
         test_type_id(EncTermField::Int);
         test_type_id(EncTermField::Integer);
         test_type_id(EncTermField::TypedLiteral);
+        test_type_id(EncTermField::Null);
     }
 
     fn test_type_id(term_field: EncTermField) {

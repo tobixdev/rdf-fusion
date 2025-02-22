@@ -36,7 +36,7 @@ impl<'data> EncRdfValue<'data> for EncRdfTerm<'data> {
         Self: Sized,
     {
         match scalar {
-            ScalarValue::Union(Some((type_id, value)), _, _) => {
+            ScalarValue::Union(Some((type_id, inner_value)), _, _) => {
                 let type_id = EncTermField::try_from(*type_id)?;
                 Ok(match type_id {
                     EncTermField::NamedNode => {
@@ -45,28 +45,29 @@ impl<'data> EncRdfValue<'data> for EncRdfTerm<'data> {
                     EncTermField::BlankNode => {
                         EncRdfTerm::BlankNode(EncBlankNode::from_scalar(scalar)?)
                     }
-                    EncTermField::String => match value.as_ref() {
+                    EncTermField::String => match inner_value.as_ref() {
                         ScalarValue::Struct(struct_array) => {
                             match struct_array.column(1).is_null(0) {
                                 true => {
-                                    EncRdfTerm::SimpleLiteral(EncSimpleLiteral::from_scalar(value)?)
+                                    EncRdfTerm::SimpleLiteral(EncSimpleLiteral::from_scalar(scalar)?)
                                 }
                                 false => EncRdfTerm::LanguageString(
-                                    EncLanguageString::from_scalar(value)?,
+                                    EncLanguageString::from_scalar(scalar)?,
                                 ),
                             }
                         }
                         _ => internal_err!("Unexpected Scalar for String")?,
                     },
-                    EncTermField::Boolean => EncRdfTerm::Boolean(EncBoolean::from_scalar(value)?),
+                    EncTermField::Boolean => EncRdfTerm::Boolean(EncBoolean::from_scalar(scalar)?),
                     EncTermField::Float32
                     | EncTermField::Float64
                     | EncTermField::Decimal
                     | EncTermField::Int
-                    | EncTermField::Integer => EncRdfTerm::Numeric(EncNumeric::from_scalar(value)?),
+                    | EncTermField::Integer => EncRdfTerm::Numeric(EncNumeric::from_scalar(scalar)?),
                     EncTermField::TypedLiteral => {
-                        EncRdfTerm::TypedLiteral(EncTypedLiteral::from_scalar(value)?)
+                        EncRdfTerm::TypedLiteral(EncTypedLiteral::from_scalar(scalar)?)
                     }
+                    EncTermField::Null => internal_err!("Scalar was null")?,
                 })
             }
             _ => internal_err!("Unexpected Scalar"),
@@ -105,6 +106,7 @@ impl<'data> EncRdfValue<'data> for EncRdfTerm<'data> {
             EncTermField::TypedLiteral => {
                 EncRdfTerm::TypedLiteral(EncTypedLiteral::from_array(array, field, offset)?)
             }
+            EncTermField::Null => internal_err!("Array value was null")?,
         })
     }
 }

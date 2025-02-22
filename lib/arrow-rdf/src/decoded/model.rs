@@ -76,6 +76,7 @@ pub enum DecTermField {
     BlankNode,
     String,
     TypedLiteral,
+    Null,
 }
 
 impl DecTermField {
@@ -85,6 +86,7 @@ impl DecTermField {
             DecTermField::BlankNode => "blank_node",
             DecTermField::String => "string",
             DecTermField::TypedLiteral => "typed_literal",
+            DecTermField::Null => "null",
         }
     }
 
@@ -94,6 +96,7 @@ impl DecTermField {
             DecTermField::BlankNode => DataType::Utf8,
             DecTermField::String => DataType::Struct(DecTerm::string_fields()),
             DecTermField::TypedLiteral => DataType::Struct(DecTerm::typed_literal_fields()),
+            DecTermField::Null => DataType::Null,
         }
     }
 
@@ -111,6 +114,7 @@ impl TryFrom<i8> for DecTermField {
             1 => DecTermField::BlankNode,
             2 => DecTermField::String,
             3 => DecTermField::TypedLiteral,
+            4 => DecTermField::Null,
             _ => return exec_err!("Unexpected type_id for decoded RDF Term"),
         })
     }
@@ -123,6 +127,7 @@ impl From<&DecTermField> for i8 {
             DecTermField::BlankNode => 1,
             DecTermField::String => 2,
             DecTermField::TypedLiteral => 3,
+            DecTermField::Null => 4,
         }
     }
 }
@@ -143,6 +148,7 @@ mod tests {
         test_type_id(DecTermField::BlankNode);
         test_type_id(DecTermField::String);
         test_type_id(DecTermField::TypedLiteral);
+        test_type_id(DecTermField::Null);
     }
 
     fn test_type_id(term_field: DecTermField) {

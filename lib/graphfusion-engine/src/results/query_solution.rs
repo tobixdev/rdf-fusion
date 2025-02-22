@@ -123,7 +123,7 @@ fn to_query_solution(
             let term_field = DecTermField::try_from(column.type_id(i))?;
             let term = match column.is_null(i) {
                 true => None,
-                false => Some(to_term(column, column.value_offset(i), term_field)?),
+                false => to_term(column, column.value_offset(i), term_field)?,
             };
             terms.push(term);
         }
@@ -137,7 +137,7 @@ fn to_term(
     objects: &UnionArray,
     i: usize,
     term_field: DecTermField,
-) -> Result<Term, EvaluationError> {
+) -> Result<Option<Term>, EvaluationError> {
     Ok(match term_field {
         DecTermField::NamedNode => {
             let value = objects
@@ -145,9 +145,11 @@ fn to_term(
                 .as_string::<i32>()
                 .value(i);
             if value == "DEFAULT" {
-                Term::Literal(Literal::new_simple_literal(value))
+                Some(Term::Literal(Literal::new_simple_literal(value)))
             } else {
-                Term::NamedNode(NamedNode::new(value).map_err(EvaluationError::unexpected)?)
+                Some(Term::NamedNode(
+                    NamedNode::new(value).map_err(EvaluationError::unexpected)?,
+                ))
             }
         }
         DecTermField::BlankNode => {
@@ -155,9 +157,9 @@ fn to_term(
                 .child(term_field.type_id())
                 .as_string::<i32>()
                 .value(i);
-            Term::BlankNode(
+            Some(Term::BlankNode(
                 BlankNode::new(value).map_err(|err| EvaluationError::Unexpected(Box::new(err)))?,
-            )
+            ))
         }
         DecTermField::String => {
             let values = objects
@@ -174,15 +176,17 @@ fn to_term(
                 .as_string::<i32>();
 
             if language.is_null(i) {
-                Term::Literal(Literal::new_simple_literal(String::from(values.value(i))))
+                Some(Term::Literal(Literal::new_simple_literal(String::from(
+                    values.value(i),
+                ))))
             } else {
-                Term::Literal(
+                Some(Term::Literal(
                     Literal::new_language_tagged_literal(
                         String::from(values.value(i)),
                         String::from(language.value(i)),
                     )
                     .map_err(EvaluationError::unexpected)?,
-                )
+                ))
             }
         }
         DecTermField::TypedLiteral => {
@@ -198,12 +202,13 @@ fn to_term(
                 .column_by_name("datatype")
                 .expect("Schema is fixed")
                 .as_string::<i32>();
-            Term::Literal(Literal::new_typed_literal(
+            Some(Term::Literal(Literal::new_typed_literal(
                 String::from(values.value(i)),
                 NamedNode::new(String::from(datatypes.value(i)))
                     .map_err(EvaluationError::unexpected)?,
-            ))
+            )))
         }
+        DecTermField::Null => None,
     })
 }
 
@@ -280,7 +285,9 @@ mod tests {
                     ),
                     None,
                 ],
-            ].into_iter().map(|ts| Ok(QuerySolution::from((variables.clone(), ts))));
+            ]
+            .into_iter()
+            .map(|ts| Ok(QuerySolution::from((variables.clone(), ts))));
             let results = vec![
                 QueryResults::Boolean(true),
                 QueryResults::Boolean(false),
