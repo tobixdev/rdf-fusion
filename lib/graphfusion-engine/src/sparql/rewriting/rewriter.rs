@@ -1,4 +1,5 @@
 use crate::results::decode_rdf_terms;
+use crate::sparql::paths::PathNode;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
@@ -16,11 +17,13 @@ use datafusion::common::{
     internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
 };
 use datafusion::datasource::{DefaultTableSource, TableProvider};
-use datafusion::logical_expr::{lit, Expr, LogicalPlan, LogicalPlanBuilder, SortExpr};
+use datafusion::logical_expr::{lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr};
 use datafusion::prelude::col;
 use oxiri::Iri;
 use oxrdf::Variable;
-use spargebra::algebra::{Expression, Function, GraphPattern, OrderExpression};
+use spargebra::algebra::{
+    Expression, Function, GraphPattern, OrderExpression, PropertyPathExpression,
+};
 use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -81,6 +84,11 @@ impl GraphPatternRewriter {
                 self.state = old;
                 result
             }
+            GraphPattern::Path {
+                path,
+                subject,
+                object,
+            } => self.rewrite_path(path, subject, object),
             pattern => not_impl_err!("rewrite_graph_pattern: {:?}", pattern),
         }
     }
@@ -101,6 +109,9 @@ impl GraphPatternRewriter {
             })
     }
 
+    /// Rewrites a single triple pattern to a SELECT on the QUADS table.
+    ///
+    /// This considers whether `pattern` is within a [GraphPattern::Graph] pattern.
     fn rewrite_triple_pattern(&mut self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
         let plan = LogicalPlanBuilder::scan(
             TABLE_QUADS,
@@ -277,6 +288,24 @@ impl GraphPatternRewriter {
         let left = self.rewrite_graph_pattern(left)?;
         let right = self.rewrite_graph_pattern(right)?;
         left.union(right.build()?)
+    }
+
+    /// Rewrites a path to a [PathNode].
+    fn rewrite_path(
+        &mut self,
+        path: &PropertyPathExpression,
+        subject: &TermPattern,
+        object: &TermPattern,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let node = PathNode::new(
+            self.state.graph.clone(),
+            subject.clone(),
+            path.clone(),
+            object.clone(),
+        )?;
+        Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
+            node: Arc::new(node),
+        })))
     }
 
     //
