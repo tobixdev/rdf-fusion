@@ -63,8 +63,7 @@ async fn create_dataframe(
 ) -> Result<DataFrame, EvaluationError> {
     let quads = ctx.table_provider(TABLE_QUADS).await?;
 
-    let rewriter = GraphPatternRewriter::new(base_iri.clone(), quads);
-    let logical_plan = rewriter
+    let logical_plan = GraphPatternRewriter::new(base_iri.clone(), quads)
         .rewrite(pattern)
         .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
 

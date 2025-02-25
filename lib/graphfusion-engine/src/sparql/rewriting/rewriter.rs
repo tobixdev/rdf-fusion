@@ -3,8 +3,14 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOUND, ENC_DATATYPE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM, ENC_STR, ENC_STRDT, ENC_STRLANG, ENC_STRLEN, ENC_STRUUID, ENC_SUBSTR, ENC_UCASE, ENC_UUID};
-use arrow_rdf::{COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
+use arrow_rdf::encoded::{
+    enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY,
+    ENC_BNODE_UNARY, ENC_BOUND, ENC_DATATYPE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ,
+    ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_IRI, ENC_IS_LITERAL,
+    ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM,
+    ENC_STR, ENC_STRDT, ENC_STRLANG, ENC_STRLEN, ENC_STRUUID, ENC_SUBSTR, ENC_UCASE, ENC_UUID,
+};
+use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{
     internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
@@ -15,7 +21,7 @@ use datafusion::prelude::col;
 use oxiri::Iri;
 use oxrdf::Variable;
 use spargebra::algebra::{Expression, Function, GraphPattern, OrderExpression};
-use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
+use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -23,6 +29,7 @@ pub struct GraphPatternRewriter {
     base_iri: Option<Iri<String>>,
     // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
     quads_table: Arc<dyn TableProvider>,
+    state: RewritingState,
 }
 
 impl GraphPatternRewriter {
@@ -30,15 +37,16 @@ impl GraphPatternRewriter {
         Self {
             base_iri,
             quads_table,
+            state: RewritingState::default(),
         }
     }
 
-    pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
+    pub fn rewrite(&mut self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
         let plan = self.rewrite_graph_pattern(pattern)?;
         Ok(decode_rdf_terms(plan.build()?)?)
     }
 
-    fn rewrite_graph_pattern(&self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_graph_pattern(&mut self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
         match pattern {
             GraphPattern::Bgp { patterns } => self.rewrite_bgp(patterns),
             GraphPattern::Project { inner, variables } => self.rewrite_project(inner, variables),
@@ -66,13 +74,20 @@ impl GraphPatternRewriter {
             GraphPattern::Distinct { inner } => self.rewrite_distinct(inner),
             GraphPattern::OrderBy { inner, expression } => self.rewrite_order_by(inner, expression),
             GraphPattern::Union { left, right } => self.rewrite_union(left, right),
+            GraphPattern::Graph { name, inner } => {
+                let old = self.state.clone();
+                self.state = old.with_graph(name.clone());
+                let result = self.rewrite_graph_pattern(inner.as_ref());
+                self.state = old;
+                result
+            }
             pattern => not_impl_err!("rewrite_graph_pattern: {:?}", pattern),
         }
     }
 
     /// Rewrites a basic graph pattern into multiple scans of the quads table and joins them
     /// together.
-    fn rewrite_bgp(&self, patterns: &Vec<TriplePattern>) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_bgp(&mut self, patterns: &Vec<TriplePattern>) -> DFResult<LogicalPlanBuilder> {
         patterns
             .iter()
             .map(|p| self.rewrite_triple_pattern(p))
@@ -80,19 +95,24 @@ impl GraphPatternRewriter {
             .unwrap_or_else(|| {
                 Ok(LogicalPlanBuilder::scan(
                     TABLE_QUADS,
-                    Arc::new(DefaultTableSource::new(Arc::clone(&self.quads_table))),
+                    Arc::new(DefaultTableSource::new(Arc::clone(&mut self.quads_table))),
                     None,
                 )?)
             })
     }
 
-    fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_triple_pattern(&mut self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
         let plan = LogicalPlanBuilder::scan(
             TABLE_QUADS,
-            Arc::new(DefaultTableSource::new(Arc::clone(&self.quads_table))),
+            Arc::new(DefaultTableSource::new(Arc::clone(&mut self.quads_table))),
             None,
         )?;
 
+        let graph_name_pattern = self.state.graph.clone().map(|p| p.into_term_pattern());
+        let (graph_filter, graph_projection) = match &graph_name_pattern {
+            None => (None, None),
+            Some(pattern) => pattern_to_filter_and_projections(pattern)?,
+        };
         let (subject_filter, subject_projection) =
             pattern_to_filter_and_projections(&pattern.subject)?;
         let predicate_term_pattern = pattern.predicate.clone().into_term_pattern();
@@ -101,11 +121,13 @@ impl GraphPatternRewriter {
         let (object_filter, object_projection) =
             pattern_to_filter_and_projections(&pattern.object)?;
 
+        let plan = filter_equal_to_scalar(plan, COL_GRAPH, graph_filter)?;
         let plan = filter_equal_to_scalar(plan, COL_SUBJECT, subject_filter)?;
         let plan = filter_equal_to_scalar(plan, COL_PREDICATE, predicate_filter)?;
         let plan = filter_equal_to_scalar(plan, COL_OBJECT, object_filter)?;
 
         let projections = [
+            (COL_GRAPH, graph_projection),
             (COL_SUBJECT, subject_projection),
             (COL_PREDICATE, predicate_projection),
             (COL_OBJECT, object_projection),
@@ -116,8 +138,9 @@ impl GraphPatternRewriter {
         plan.project(projections)
     }
 
+    /// Rewrites a projection
     fn rewrite_project(
-        &self,
+        &mut self,
         inner: &GraphPattern,
         variables: &Vec<Variable>,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -127,7 +150,7 @@ impl GraphPatternRewriter {
 
     /// Creates a filter node using `expression`.
     fn rewrite_filter(
-        &self,
+        &mut self,
         inner: &GraphPattern,
         expression: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -141,7 +164,7 @@ impl GraphPatternRewriter {
     ///
     /// The column is computed by evaluating `expression`.
     fn rewrite_extend(
-        &self,
+        &mut self,
         inner: &GraphPattern,
         expression: &Expression,
         variable: &Variable,
@@ -161,7 +184,7 @@ impl GraphPatternRewriter {
 
     /// Creates a logical node that holds the given VALUES as encoded RDF terms
     fn rewrite_values(
-        &self,
+        &mut self,
         variables: &Vec<Variable>,
         bindings: &Vec<Vec<Option<GroundTerm>>>,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -185,7 +208,7 @@ impl GraphPatternRewriter {
 
     /// Creates a logical join node for the two graph patterns.
     fn rewrite_join(
-        &self,
+        &mut self,
         left: &GraphPattern,
         right: &GraphPattern,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -197,7 +220,7 @@ impl GraphPatternRewriter {
     /// Creates a logical left join node for the two graph patterns. Optionally, a filter node is
     /// applied.
     fn rewrite_left_join(
-        &self,
+        &mut self,
         left: &GraphPattern,
         right: &GraphPattern,
         filter: Option<&Expression>,
@@ -216,7 +239,7 @@ impl GraphPatternRewriter {
 
     /// Creates a limit node that applies skip (`start`) and fetch (`length`) to `inner`.
     fn rewrite_slice(
-        &self,
+        &mut self,
         inner: &GraphPattern,
         start: usize,
         length: Option<usize>,
@@ -226,14 +249,14 @@ impl GraphPatternRewriter {
     }
 
     /// Creates a distinct node over all variables.
-    fn rewrite_distinct(&self, inner: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_distinct(&mut self, inner: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
         // TODO: Does this use SAME Term?
         self.rewrite_graph_pattern(inner)?.distinct()
     }
 
     /// Creates a distinct node over all variables.
     fn rewrite_order_by(
-        &self,
+        &mut self,
         inner: &GraphPattern,
         expression: &Vec<OrderExpression>,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -247,7 +270,7 @@ impl GraphPatternRewriter {
 
     /// Creates a union node
     fn rewrite_union(
-        &self,
+        &mut self,
         left: &GraphPattern,
         right: &GraphPattern,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -261,7 +284,7 @@ impl GraphPatternRewriter {
     //
 
     /// Rewrites an [Expression].
-    fn rewrite_expr(&self, expression: &Expression) -> DFResult<Expr> {
+    fn rewrite_expr(&mut self, expression: &Expression) -> DFResult<Expr> {
         match expression {
             Expression::Bound(var) => {
                 Ok(ENC_BOUND.call(vec![Expr::from(Column::from(var.as_str()))]))
@@ -298,7 +321,11 @@ impl GraphPatternRewriter {
     }
 
     /// Rewrites a SPARQL function call to a Scalar UDF call
-    fn rewrite_function_call(&self, function: &Function, args: &Vec<Expression>) -> DFResult<Expr> {
+    fn rewrite_function_call(
+        &mut self,
+        function: &Function,
+        args: &Vec<Expression>,
+    ) -> DFResult<Expr> {
         let args = args
             .iter()
             .map(|e| self.rewrite_expr(e))
@@ -332,12 +359,26 @@ impl GraphPatternRewriter {
     }
 
     /// Rewrites an [OrderExpression].
-    fn rewrite_order_expr(&self, expression: &OrderExpression) -> DFResult<SortExpr> {
+    fn rewrite_order_expr(&mut self, expression: &OrderExpression) -> DFResult<SortExpr> {
         let (asc, expression) = match expression {
             OrderExpression::Asc(inner) => (true, self.rewrite_expr(inner)?),
             OrderExpression::Desc(inner) => (false, self.rewrite_expr(inner)?),
         };
         Ok(ENC_AS_RDF_TERM_SORT.call(vec![expression]).sort(asc, true))
+    }
+}
+
+#[derive(Clone, Default)]
+struct RewritingState {
+    graph: Option<NamedNodePattern>,
+}
+
+impl RewritingState {
+    fn with_graph(&self, graph: NamedNodePattern) -> RewritingState {
+        RewritingState {
+            graph: Some(graph),
+            ..*self
+        }
     }
 }
 
