@@ -455,15 +455,49 @@ fn create_join(
 ) -> DFResult<LogicalPlanBuilder> {
     let lhs = lhs.alias("lhs")?;
     let rhs = rhs.alias("rhs")?;
-    let lhs_keys: HashSet<_> = lhs.schema().field_names().iter().cloned().collect();
-    let rhs_keys: HashSet<_> = rhs.schema().field_names().iter().cloned().collect();
+    let lhs_keys: HashSet<_> = lhs
+        .schema()
+        .columns()
+        .into_iter()
+        .map(|c| c.name().to_string())
+        .collect();
+    let rhs_keys: HashSet<_> = rhs
+        .schema()
+        .columns()
+        .into_iter()
+        .map(|c| c.name().to_string())
+        .collect();
+
     let join_on_exprs = lhs_keys.intersection(&rhs_keys).map(|k| {
-        ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM.call(vec![
-            col(String::from("lhs.") + k),
-            col(String::from("rhs.") + k),
-        ])])
+        ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM
+            .call(vec![
+                Expr::from(Column {
+                    relation: Some("lhs".into()),
+                    name: k.clone(),
+                }),
+                Expr::from(Column {
+                    relation: Some("rhs".into()),
+                    name: k.clone(),
+                }),
+            ])])])
     });
-    lhs.join_on(rhs.build()?, join_type, join_on_exprs)
+
+    let projections = lhs_keys.union(&rhs_keys).map(|k| {
+        if lhs_keys.contains(k) {
+            Expr::from(Column {
+                relation: Some("lhs".into()),
+                name: k.clone(),
+            })
+        } else {
+            Expr::from(Column {
+                relation: Some("rhs".into()),
+                name: k.clone(),
+            })
+        }
+        .alias(k.as_str())
+    }).collect::<Vec<_>>();
+    lhs.join_on(rhs.build()?, join_type, join_on_exprs)?
+        .project(projections)
 }
 
 /// Creates a filter node that applies the predicate
