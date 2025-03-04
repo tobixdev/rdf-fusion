@@ -10,6 +10,10 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 
 pub trait EncRdfValue<'data> {
+    fn from_term(term: EncRdfTerm<'data>) -> DFResult<Self>
+    where
+        Self: Sized;
+
     fn from_scalar(scalar: &'data ScalarValue) -> DFResult<Self>
     where
         Self: Sized;
@@ -31,6 +35,13 @@ pub enum EncRdfTerm<'value> {
 }
 
 impl<'data> EncRdfValue<'data> for EncRdfTerm<'data> {
+    fn from_term(term: EncRdfTerm<'data>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        Ok(term)
+    }
+
     fn from_scalar(scalar: &'data ScalarValue) -> DFResult<Self>
     where
         Self: Sized,
@@ -84,25 +95,40 @@ impl<'data> EncRdfValue<'data> for EncRdfTerm<'data> {
         let offset = array.value_offset(index);
 
         Ok(match field {
-            EncTermField::NamedNode => {
-                EncRdfTerm::NamedNode(EncNamedNode::from_array(array, index)?)
-            }
-            EncTermField::BlankNode => {
-                EncRdfTerm::BlankNode(EncBlankNode::from_array(array, index)?)
-            }
-            EncTermField::String => match array.child(1).is_null(offset) {
-                true => EncRdfTerm::SimpleLiteral(EncSimpleLiteral::from_array(array, index)?),
-                false => EncRdfTerm::LanguageString(EncLanguageString::from_array(array, index)?),
+            EncTermField::NamedNode => EncRdfTerm::NamedNode(
+                EncNamedNode::from_array(array, index).expect("EncTermField checked"),
+            ),
+            EncTermField::BlankNode => EncRdfTerm::BlankNode(
+                EncBlankNode::from_array(array, index).expect("EncTermField checked"),
+            ),
+            EncTermField::String => match array
+                .child(field.type_id())
+                .as_struct()
+                .column(1)
+                .is_null(offset)
+            {
+                true => EncRdfTerm::SimpleLiteral(
+                    EncSimpleLiteral::from_array(array, index)
+                        .expect("EncTermField and null checked"),
+                ),
+                false => EncRdfTerm::LanguageString(
+                    EncLanguageString::from_array(array, index)
+                        .expect("EncTermField and null checked"),
+                ),
             },
-            EncTermField::Boolean => EncRdfTerm::Boolean(EncBoolean::from_array(array, index)?),
+            EncTermField::Boolean => EncRdfTerm::Boolean(
+                EncBoolean::from_array(array, index).expect("EncTermField checked"),
+            ),
             EncTermField::Float32
             | EncTermField::Float64
             | EncTermField::Decimal
             | EncTermField::Int
-            | EncTermField::Integer => EncRdfTerm::Numeric(EncNumeric::from_array(array, index)?),
-            EncTermField::TypedLiteral => {
-                EncRdfTerm::TypedLiteral(EncTypedLiteral::from_array(array, index)?)
-            }
+            | EncTermField::Integer => EncRdfTerm::Numeric(
+                EncNumeric::from_array(array, index).expect("EncTermField checked"),
+            ),
+            EncTermField::TypedLiteral => EncRdfTerm::TypedLiteral(
+                EncTypedLiteral::from_array(array, index).expect("EncTermField checked"),
+            ),
             EncTermField::Null => internal_err!("Array value was null")?,
         })
     }
@@ -114,6 +140,16 @@ pub struct EncNamedNode<'value>(pub &'value str);
 impl EncNamedNode<'_> {}
 
 impl<'data> EncRdfValue<'data> for EncNamedNode<'data> {
+    fn from_term(term: EncRdfTerm<'data>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        match term {
+            EncRdfTerm::NamedNode(inner) => Ok(inner),
+            _ => internal_err!("Unexpected EncRdfTerm"),
+        }
+    }
+
     fn from_scalar(scalar: &'data ScalarValue) -> DFResult<Self>
     where
         Self: Sized,
@@ -152,6 +188,16 @@ impl<'data> EncRdfValue<'data> for EncNamedNode<'data> {
 pub struct EncBlankNode<'value>(pub &'value str);
 
 impl<'data> EncRdfValue<'data> for EncBlankNode<'data> {
+    fn from_term(term: EncRdfTerm<'data>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        match term {
+            EncRdfTerm::BlankNode(inner) => Ok(inner),
+            _ => internal_err!("Unexpected EncRdfTerm"),
+        }
+    }
+
     fn from_scalar(scalar: &'data ScalarValue) -> DFResult<Self>
     where
         Self: Sized,
@@ -190,6 +236,16 @@ impl<'data> EncRdfValue<'data> for EncBlankNode<'data> {
 pub struct EncBoolean(pub bool);
 
 impl EncRdfValue<'_> for EncBoolean {
+    fn from_term(term: EncRdfTerm<'_>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        match term {
+            EncRdfTerm::Boolean(inner) => Ok(inner),
+            _ => internal_err!("Unexpected EncRdfTerm"),
+        }
+    }
+
     fn from_scalar(scalar: &'_ ScalarValue) -> DFResult<Self>
     where
         Self: Sized,
@@ -326,6 +382,16 @@ impl Ord for EncNumeric {
 }
 
 impl EncRdfValue<'_> for EncNumeric {
+    fn from_term(term: EncRdfTerm<'_>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        match term {
+            EncRdfTerm::Numeric(inner) => Ok(inner),
+            _ => internal_err!("Unexpected EncRdfTerm"),
+        }
+    }
+
     fn from_scalar(scalar: &'_ ScalarValue) -> DFResult<Self>
     where
         Self: Sized,
@@ -397,6 +463,16 @@ impl EncSimpleLiteral<'_> {
 }
 
 impl<'data> EncRdfValue<'data> for EncSimpleLiteral<'data> {
+    fn from_term(term: EncRdfTerm<'data>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        match term {
+            EncRdfTerm::SimpleLiteral(inner) => Ok(inner),
+            _ => internal_err!("Unexpected EncRdfTerm"),
+        }
+    }
+
     fn from_scalar(scalar: &'data ScalarValue) -> DFResult<Self>
     where
         Self: Sized,
@@ -460,6 +536,16 @@ impl Ord for EncLanguageString<'_> {
 }
 
 impl<'data> EncRdfValue<'data> for EncLanguageString<'data> {
+    fn from_term(term: EncRdfTerm<'data>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        match term {
+            EncRdfTerm::LanguageString(inner) => Ok(inner),
+            _ => internal_err!("Unexpected EncRdfTerm"),
+        }
+    }
+
     fn from_scalar(scalar: &'data ScalarValue) -> DFResult<Self>
     where
         Self: Sized,
@@ -494,7 +580,7 @@ impl<'data> EncRdfValue<'data> for EncLanguageString<'data> {
                 let values = array.column(0).as_string::<i32>();
                 let language = array.column(1).as_string::<i32>();
                 if language.is_null(offset) {
-                    return internal_err!("Language was not null.");
+                    return internal_err!("Language was null.");
                 }
 
                 Ok(Self(values.value(offset), language.value(offset)))
@@ -554,6 +640,16 @@ impl Ord for EncTypedLiteral<'_> {
 }
 
 impl<'data> EncRdfValue<'data> for EncTypedLiteral<'data> {
+    fn from_term(term: EncRdfTerm<'data>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        match term {
+            EncRdfTerm::TypedLiteral(inner) => Ok(inner),
+            _ => internal_err!("Unexpected EncRdfTerm"),
+        }
+    }
+
     fn from_scalar(scalar: &'data ScalarValue) -> DFResult<Self>
     where
         Self: Sized,
@@ -621,6 +717,17 @@ impl Ord for EncStringLiteral<'_> {
 }
 
 impl<'data> EncRdfValue<'data> for EncStringLiteral<'data> {
+    fn from_term(term: EncRdfTerm<'data>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        match term {
+            EncRdfTerm::SimpleLiteral(inner) => Ok(EncStringLiteral(inner.0, None)),
+            EncRdfTerm::LanguageString(inner) => Ok(EncStringLiteral(inner.0, Some(inner.1))),
+            _ => internal_err!("Unexpected EncRdfTerm"),
+        }
+    }
+
     fn from_scalar(scalar: &'data ScalarValue) -> DFResult<Self>
     where
         Self: Sized,
@@ -677,6 +784,17 @@ pub struct EncInteger(pub i64);
 impl EncInteger {}
 
 impl EncRdfValue<'_> for EncInteger {
+    fn from_term(term: EncRdfTerm<'_>) -> DFResult<Self>
+    where
+        Self: Sized
+    {
+        match term {
+            EncRdfTerm::Numeric(EncNumeric::I32(inner)) => Ok(EncInteger(inner as i64)),
+            EncRdfTerm::Numeric(EncNumeric::I64(inner)) => Ok(EncInteger(inner)),
+            _ => internal_err!("Unexpected EncRdfTerm"),
+        }
+    }
+
     fn from_scalar(scalar: &ScalarValue) -> DFResult<Self>
     where
         Self: Sized,

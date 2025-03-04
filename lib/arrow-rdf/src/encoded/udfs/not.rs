@@ -1,14 +1,12 @@
-use crate::encoded::{EncRdfTermBuilder, EncTerm, EncTermField};
-use crate::{as_enc_term_array, DFResult};
-use datafusion::arrow;
-use datafusion::arrow::array::AsArray;
+use crate::encoded::dispatch::{EncBoolean, EncRdfTerm, EncStringLiteral};
+use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
+use crate::encoded::{EncRdfTermBuilder, EncTerm};
+use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::internal_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct EncNot {
@@ -23,6 +21,21 @@ impl EncNot {
                 Volatility::Immutable,
             ),
         }
+    }
+}
+
+impl EncScalarUnaryUdf for EncNot {
+    type Arg<'data> = EncBoolean;
+    type Collector = EncRdfTermBuilder;
+
+    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
+        collector.append_boolean(value.0)?;
+        Ok(())
+    }
+
+    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
+        collector.append_null()?;
+        Ok(())
     }
 }
 
@@ -48,26 +61,6 @@ impl ScalarUDFImpl for EncNot {
         args: &[ColumnarValue],
         number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        if args.len() != 1 {
-            return internal_err!("Unexpected numer of arguments in enc_not.");
-        }
-
-        let input = args[0].to_array(number_rows)?;
-        let terms = as_enc_term_array(&input)?;
-        let boolean_array = terms.child(EncTermField::Boolean.type_id()).as_boolean();
-
-        if boolean_array.len() != number_rows {
-            return internal_err!("Unexpected number of boolean elements in enc_not.");
-        }
-
-        // TODO optimize
-        let mut builder = EncRdfTermBuilder::new();
-        let results = arrow::compute::not(boolean_array)?;
-
-        for result in results.iter() {
-            builder.append_boolean(result.expect("Result cannot be null"))?
-        }
-
-        Ok(ColumnarValue::Array(Arc::new(builder.finish()?)))
+        dispatch_unary(self, args, number_rows)
     }
 }

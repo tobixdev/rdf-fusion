@@ -1,7 +1,8 @@
-use crate::encoded::dispatch::EncRdfValue;
+use crate::encoded::dispatch::{EncBoolean, EncRdfTerm, EncRdfValue};
+use crate::encoded::EncTermField;
 use crate::result_collector::ResultCollector;
 use crate::{as_enc_term_array, DFResult};
-use datafusion::arrow::array::Array;
+use datafusion::arrow::array::{Array, AsArray, BooleanArray};
 use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
@@ -51,13 +52,35 @@ where
     TUdf: EncScalarUnaryUdf,
 {
     let values = as_enc_term_array(&values).expect("RDF term array expected");
-    let mut collector = TUdf::Collector::new();
 
+    let booleans = values.child(EncTermField::Boolean.type_id()).as_boolean();
+    if values.len() == booleans.len() {
+        return dispatch_unary_array_boolean(udf, booleans);
+    }
+
+    let mut collector = TUdf::Collector::new();
     for i in 0..values.len() {
         match TUdf::Arg::from_array(values, i) {
             Ok(value) => TUdf::evaluate(udf, &mut collector, value)?,
             Err(_) => TUdf::evaluate_error(udf, &mut collector)?,
         }
+    }
+
+    collector.finish_columnar_value()
+}
+
+#[inline(never)]
+fn dispatch_unary_array_boolean<TUdf>(udf: &TUdf, values: &BooleanArray) -> DFResult<ColumnarValue>
+where
+    TUdf: EncScalarUnaryUdf,
+{
+    let mut collector = TUdf::Collector::new();
+    for i in values.values() {
+        TUdf::evaluate(
+            udf,
+            &mut collector,
+            TUdf::Arg::from_term(EncRdfTerm::Boolean(EncBoolean(i)))?,
+        )?
     }
 
     collector.finish_columnar_value()
