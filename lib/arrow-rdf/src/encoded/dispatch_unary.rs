@@ -6,6 +6,7 @@ use datafusion::arrow::array::{Array, AsArray, BooleanArray};
 use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
+use datafusion::arrow::buffer::ScalarBuffer;
 
 pub(crate) trait EncScalarUnaryUdf {
     type Arg<'data>: EncRdfValue<'data>;
@@ -55,7 +56,8 @@ where
 
     let booleans = values.child(EncTermField::Boolean.type_id()).as_boolean();
     if values.len() == booleans.len() {
-        return dispatch_unary_array_boolean(udf, booleans);
+        let offsets = values.offsets().expect("Always dense");
+        return dispatch_unary_array_boolean(udf, offsets, booleans);
     }
 
     let mut collector = TUdf::Collector::new();
@@ -70,16 +72,17 @@ where
 }
 
 #[inline(never)]
-fn dispatch_unary_array_boolean<TUdf>(udf: &TUdf, values: &BooleanArray) -> DFResult<ColumnarValue>
+fn dispatch_unary_array_boolean<TUdf>(udf: &TUdf, offsets: &ScalarBuffer<i32>, values: &BooleanArray) -> DFResult<ColumnarValue>
 where
     TUdf: EncScalarUnaryUdf,
 {
     let mut collector = TUdf::Collector::new();
-    for i in values.values() {
+    for offset in offsets {
+        let value = values.value(*offset as usize);
         TUdf::evaluate(
             udf,
             &mut collector,
-            TUdf::Arg::from_term(EncRdfTerm::Boolean(EncBoolean(i)))?,
+            TUdf::Arg::from_term(EncRdfTerm::Boolean(EncBoolean(value)))?,
         )?
     }
 
