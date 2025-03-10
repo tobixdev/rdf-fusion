@@ -286,14 +286,6 @@ pub(crate) enum EncNumeric {
     Decimal(i128),
 }
 
-enum EncNumericPair {
-    I32(i32, i32),
-    I64(i64, i64),
-    F32(f32, f32),
-    F64(f64, f64),
-    Decimal(i128, i128),
-}
-
 impl EncNumeric {
     pub fn format_value(&self) -> String {
         match self {
@@ -306,9 +298,52 @@ impl EncNumeric {
             }
         }
     }
+}
 
-    fn cast_to_compatible(&self, other: &EncNumeric) -> EncNumericPair {
+impl PartialEq for EncNumeric {
+    fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (Self::I32(lhs), Self::I32(rhs)) => lhs == rhs,
+            (Self::I64(lhs), Self::I64(rhs)) => lhs == rhs,
+            (Self::F32(lhs), Self::F32(rhs)) => lhs.total_cmp(rhs) == Ordering::Equal,
+            (Self::F64(lhs), Self::F64(rhs)) => lhs.total_cmp(rhs) == Ordering::Equal,
+            (Self::Decimal(lhs), Self::Decimal(rhs)) => lhs == rhs,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for EncNumeric {}
+
+impl PartialOrd for EncNumeric {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(match EncNumericPair::with_casts_from(self, other) {
+            EncNumericPair::I32(lhs, rhs) => lhs.cmp(&rhs),
+            EncNumericPair::I64(lhs, rhs) => lhs.cmp(&rhs),
+            EncNumericPair::F32(lhs, rhs) => lhs.total_cmp(&rhs),
+            EncNumericPair::F64(lhs, rhs) => lhs.total_cmp(&rhs),
+            EncNumericPair::Decimal(lhs, rhs) => lhs.cmp(&rhs),
+        })
+    }
+}
+
+impl Ord for EncNumeric {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).expect("Ordering is total")
+    }
+}
+
+pub enum EncNumericPair {
+    I32(i32, i32),
+    I64(i64, i64),
+    F32(f32, f32),
+    F64(f64, f64),
+    Decimal(i128, i128),
+}
+
+impl EncNumericPair {
+    pub fn with_casts_from(lhs: &EncNumeric, rhs: &EncNumeric) -> EncNumericPair {
+        match (lhs, rhs) {
             (EncNumeric::I32(lhs), EncNumeric::I32(rhs)) => EncNumericPair::I32(*lhs, *rhs),
             (EncNumeric::I32(lhs), EncNumeric::I64(rhs)) => EncNumericPair::I64(*lhs as i64, *rhs),
             (EncNumeric::I32(lhs), EncNumeric::F32(rhs)) => EncNumericPair::F32(*lhs as f32, *rhs),
@@ -345,39 +380,6 @@ impl EncNumeric {
                 EncNumericPair::Decimal(*lhs, *rhs)
             }
         }
-    }
-}
-
-impl PartialEq for EncNumeric {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::I32(lhs), Self::I32(rhs)) => lhs == rhs,
-            (Self::I64(lhs), Self::I64(rhs)) => lhs == rhs,
-            (Self::F32(lhs), Self::F32(rhs)) => lhs.total_cmp(rhs) == Ordering::Equal,
-            (Self::F64(lhs), Self::F64(rhs)) => lhs.total_cmp(rhs) == Ordering::Equal,
-            (Self::Decimal(lhs), Self::Decimal(rhs)) => lhs == rhs,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for EncNumeric {}
-
-impl PartialOrd for EncNumeric {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(match self.cast_to_compatible(other) {
-            EncNumericPair::I32(lhs, rhs) => lhs.cmp(&rhs),
-            EncNumericPair::I64(lhs, rhs) => lhs.cmp(&rhs),
-            EncNumericPair::F32(lhs, rhs) => lhs.total_cmp(&rhs),
-            EncNumericPair::F64(lhs, rhs) => lhs.total_cmp(&rhs),
-            EncNumericPair::Decimal(lhs, rhs) => lhs.cmp(&rhs),
-        })
-    }
-}
-
-impl Ord for EncNumeric {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("Ordering is total")
     }
 }
 

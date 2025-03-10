@@ -7,6 +7,7 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
+use datafusion::arrow::array::BooleanBuilder;
 
 #[derive(Debug)]
 pub struct EncEffectiveBooleanValue {
@@ -26,7 +27,7 @@ impl EncEffectiveBooleanValue {
 
 impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
     type Arg<'data> = EncRdfTerm<'data>;
-    type Collector = EncRdfTermBuilder;
+    type Collector = BooleanBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         // TODO implement all rules
@@ -45,12 +46,12 @@ impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
             EncRdfTerm::LanguageString(value) => !value.is_empty(),
             EncRdfTerm::TypedLiteral(value) => !value.is_empty(),
         };
-        collector.append_boolean(result)?;
+        collector.append_value(result);
         Ok(())
     }
 
     fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_boolean(false)?;
+        collector.append_value(false);
         Ok(())
     }
 }
@@ -69,7 +70,7 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(EncTerm::term_type())
+        Ok(DataType::Boolean)
     }
 
     fn invoke_batch(

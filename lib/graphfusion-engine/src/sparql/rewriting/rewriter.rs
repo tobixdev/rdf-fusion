@@ -5,11 +5,12 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
 use arrow_rdf::encoded::{
-    enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY,
-    ENC_BNODE_UNARY, ENC_BOUND, ENC_DATATYPE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ,
-    ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI,
-    ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT,
-    ENC_SAME_TERM, ENC_STR, ENC_STRDT, ENC_STRLANG, ENC_STRLEN, ENC_STRUUID, ENC_SUBSTR, ENC_UCASE,
+    enc_iri, EncTerm, EncTermField, ENC_ADD, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT,
+    ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_DATATYPE, ENC_DIV,
+    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK,
+    ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE,
+    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_SAME_TERM, ENC_STR, ENC_STRDT, ENC_STRLANG,
+    ENC_STRLEN, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS,
     ENC_UUID,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
@@ -18,7 +19,10 @@ use datafusion::common::{
     internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
 };
 use datafusion::datasource::{DefaultTableSource, TableProvider};
-use datafusion::logical_expr::{lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr};
+use datafusion::logical_expr::{
+    lit, BinaryExpr, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF,
+    SortExpr,
+};
 use datafusion::prelude::col;
 use oxiri::Iri;
 use oxrdf::Variable;
@@ -167,9 +171,7 @@ impl GraphPatternRewriter {
         expression: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
         self.rewrite_graph_pattern(inner)?
-            .filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
-                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(expression)?]),
-            ]))
+            .filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(expression)?]))
     }
 
     /// Creates a projection that adds another column with the name `variable`.
@@ -241,9 +243,8 @@ impl GraphPatternRewriter {
         let right = self.rewrite_graph_pattern(right)?;
 
         if let Some(filter) = filter {
-            create_join(left, right, JoinType::Left)?.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
-                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(filter)?]),
-            ]))
+            create_join(left, right, JoinType::Left)?
+                .filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(filter)?]))
         } else {
             create_join(left, right, JoinType::Left)
         }
@@ -319,9 +320,9 @@ impl GraphPatternRewriter {
             Expression::Bound(var) => {
                 Ok(ENC_BOUND.call(vec![Expr::from(Column::from(var.as_str()))]))
             }
-            Expression::Not(inner) => Ok(ENC_NOT.call(vec![
-                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?])
-            ])),
+            Expression::Not(inner) => Ok(Expr::Not(Box::new(
+                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?]),
+            ))),
             Expression::Equal(lhs, rhs) => {
                 Ok(ENC_EQ.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
             }
@@ -346,7 +347,19 @@ impl GraphPatternRewriter {
             }
             Expression::Variable(var) => Ok(Expr::Column(Column::from(var.as_str()))),
             Expression::FunctionCall(function, args) => self.rewrite_function_call(function, args),
-            expr => not_impl_err!("{:?}", expr),
+            Expression::NamedNode(nn) => Ok(Expr::Literal(encode_scalar_named_node(nn.as_ref()))),
+            Expression::Or(lhs, rhs) => logical_expression(self, Operator::Or, lhs, rhs),
+            Expression::And(lhs, rhs) => logical_expression(self, Operator::And, lhs, rhs),
+            Expression::In(_, _) => unimplemented!("Expression::In"),
+            Expression::Add(lhs, rhs) => binary_udf(self, &ENC_ADD, lhs, rhs),
+            Expression::Subtract(lhs, rhs) => binary_udf(self, &ENC_SUB, lhs, rhs),
+            Expression::Multiply(lhs, rhs) => binary_udf(self, &ENC_MUL, lhs, rhs),
+            Expression::Divide(lhs, rhs) => binary_udf(self, &ENC_DIV, lhs, rhs),
+            Expression::UnaryPlus(value) => unary_udf(self, &ENC_UNARY_PLUS, value),
+            Expression::UnaryMinus(value) => unary_udf(self, &ENC_UNARY_MINUS, value),
+            Expression::Exists(_) => unimplemented!("Expression::Exists"),
+            Expression::If(_, _, _) => unimplemented!("Expression::If"),
+            Expression::Coalesce(_) => unimplemented!("Expression::Coalesce"),
         }
     }
 
@@ -410,6 +423,38 @@ impl RewritingState {
             ..*self
         }
     }
+}
+
+fn logical_expression(
+    rewriter: &mut GraphPatternRewriter,
+    operator: Operator,
+    lhs: &Box<Expression>,
+    rhs: &Box<Expression>,
+) -> DFResult<Expr> {
+    let lhs = rewriter.rewrite_expr(lhs)?;
+    let rhs = rewriter.rewrite_expr(rhs)?;
+    let booleans = Expr::BinaryExpr(BinaryExpr::new(Box::new(lhs), operator, Box::new(rhs)));
+    Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![booleans]))
+}
+
+fn unary_udf(
+    rewriter: &mut GraphPatternRewriter,
+    udf: &ScalarUDF,
+    value: &Box<Expression>,
+) -> DFResult<Expr> {
+    let value = rewriter.rewrite_expr(value)?;
+    Ok(udf.call(vec![value]))
+}
+
+fn binary_udf(
+    rewriter: &mut GraphPatternRewriter,
+    udf: &ScalarUDF,
+    lhs: &Box<Expression>,
+    rhs: &Box<Expression>,
+) -> DFResult<Expr> {
+    let lhs = rewriter.rewrite_expr(lhs)?;
+    let rhs = rewriter.rewrite_expr(rhs)?;
+    Ok(udf.call(vec![lhs, rhs]))
 }
 
 fn pattern_to_filter_and_projections(

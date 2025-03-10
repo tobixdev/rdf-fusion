@@ -35,7 +35,7 @@ where
             dispatch_binary_scalar_array::<TUdf>(lhs, rhs, number_of_rows)
         }
         [ColumnarValue::Array(lhs), ColumnarValue::Scalar(rhs)] => {
-            dispatch_binary_array_scalar::<TUdf>(rhs, lhs, number_of_rows)
+            dispatch_binary_array_scalar::<TUdf>(lhs, rhs, number_of_rows)
         }
         [ColumnarValue::Scalar(lhs), ColumnarValue::Scalar(rhs)] => {
             dispatch_binary_scalar_scalar::<TUdf>(lhs, rhs, number_of_rows)
@@ -91,8 +91,8 @@ where
 }
 
 fn dispatch_binary_array_scalar<TUdf>(
-    lhs: &ScalarValue,
-    rhs: &dyn Array,
+    lhs: &dyn Array,
+    rhs: &ScalarValue,
     number_of_rows: usize,
 ) -> DFResult<ColumnarValue>
 where
@@ -100,8 +100,8 @@ where
 {
     let mut collector = TUdf::Collector::new();
 
-    let lhs_value = TUdf::ArgLhs::from_scalar(lhs);
-    let lhs_value = match lhs_value {
+    let rhs_value = TUdf::ArgRhs::from_scalar(rhs);
+    let rhs_value = match rhs_value {
         Ok(value) => value,
         Err(_) => {
             for _ in 0..number_of_rows {
@@ -111,10 +111,10 @@ where
         }
     };
 
-    let rhs = as_enc_term_array(rhs).expect("RDF term");
+    let lhs = as_enc_term_array(lhs).expect("RDF term");
     for i in 0..number_of_rows {
-        match TUdf::ArgRhs::from_array(rhs, i) {
-            Ok(rhs_value) => TUdf::evaluate(&mut collector, &lhs_value, &rhs_value)?,
+        match TUdf::ArgLhs::from_array(lhs, i) {
+            Ok(lhs_value) => TUdf::evaluate(&mut collector, &lhs_value, &rhs_value)?,
             Err(_) => TUdf::evaluate_error(&mut collector)?,
         }
     }

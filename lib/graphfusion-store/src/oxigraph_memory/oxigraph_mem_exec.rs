@@ -16,6 +16,7 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
 };
 use futures::Stream;
+use oxrdf::vocab::xsd;
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -317,18 +318,40 @@ fn encode_term(
         EncodedTerm::DecimalLiteral(v) => {
             builder.append_decimal(i128::from_be_bytes(v.to_be_bytes()))
         }
-        EncodedTerm::DateTimeLiteral(_) => todo!("Encode DateTimeLiteral"),
-        EncodedTerm::TimeLiteral(_) => todo!("Encode TimeLiteral"),
-        EncodedTerm::DateLiteral(_) => todo!("Encode DateLiteral"),
-        EncodedTerm::GYearMonthLiteral(_) => todo!("Encode GYearMonthLiteral"),
-        EncodedTerm::GYearLiteral(_) => todo!("Encode GYearLiteral"),
-        EncodedTerm::GMonthDayLiteral(_) => todo!("Encode GMonthDayLiteral"),
-        EncodedTerm::GDayLiteral(_) => todo!("Encode GDayLiteral"),
-        EncodedTerm::GMonthLiteral(_) => todo!("Encode GMonthLiteral"),
-        EncodedTerm::DurationLiteral(_) => todo!("Encode DurationLiteral"),
-        EncodedTerm::YearMonthDurationLiteral(_) => todo!("Encode YearMonthDurationLiteral"),
-        EncodedTerm::DayTimeDurationLiteral(_) => todo!("Encode DayTimeDurationLiteral"),
-        EncodedTerm::Triple(_) => todo!("Encode Triple"),
+        EncodedTerm::DateTimeLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::DATE_TIME.as_str())
+        }
+        EncodedTerm::TimeLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::TIME.as_str())
+        }
+        EncodedTerm::DateLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::DATE.as_str())
+        }
+        EncodedTerm::GYearMonthLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::G_YEAR_MONTH.as_str())
+        }
+        EncodedTerm::GYearLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::G_YEAR.as_str())
+        }
+        EncodedTerm::GMonthDayLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::G_MONTH_DAY.as_str())
+        }
+        EncodedTerm::GDayLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::G_DAY.as_str())
+        }
+        EncodedTerm::GMonthLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::G_MONTH.as_str())
+        }
+        EncodedTerm::DurationLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::DURATION.as_str())
+        }
+        EncodedTerm::YearMonthDurationLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::YEAR_MONTH_DURATION.as_str())
+        }
+        EncodedTerm::DayTimeDurationLiteral(v) => {
+            builder.append_typed_literal(&v.to_string(), xsd::DAY_TIME_DURATION.as_str())
+        }
+        EncodedTerm::Triple(_) => unimplemented!("Encode Triple"),
     }
 }
 
