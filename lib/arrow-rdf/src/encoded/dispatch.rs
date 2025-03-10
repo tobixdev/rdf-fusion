@@ -786,7 +786,7 @@ impl EncInteger {}
 impl EncRdfValue<'_> for EncInteger {
     fn from_term(term: EncRdfTerm<'_>) -> DFResult<Self>
     where
-        Self: Sized
+        Self: Sized,
     {
         match term {
             EncRdfTerm::Numeric(EncNumeric::I32(inner)) => Ok(EncInteger(inner as i64)),

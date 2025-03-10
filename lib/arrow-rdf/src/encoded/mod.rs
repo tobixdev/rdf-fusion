@@ -9,6 +9,7 @@ mod dispatch_unary;
 mod dispatch;
 mod functional_forms;
 mod dispatch_ternary;
+mod query_evaluation;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
@@ -18,6 +19,7 @@ pub use rdf_term_builder::EncRdfTermBuilder;
 
 // Functions
 pub use functional_forms::*;
+pub use query_evaluation::*;
 pub use terms::*;
 pub use strings::*;
 pub use udfs::*;

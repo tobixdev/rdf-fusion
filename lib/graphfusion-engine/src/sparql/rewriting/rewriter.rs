@@ -7,9 +7,10 @@ use arrow_rdf::encoded::scalars::{
 use arrow_rdf::encoded::{
     enc_iri, EncTerm, EncTermField, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY,
     ENC_BNODE_UNARY, ENC_BOUND, ENC_DATATYPE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ,
-    ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_IRI, ENC_IS_LITERAL,
-    ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT, ENC_SAME_TERM,
-    ENC_STR, ENC_STRDT, ENC_STRLANG, ENC_STRLEN, ENC_STRUUID, ENC_SUBSTR, ENC_UCASE, ENC_UUID,
+    ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI,
+    ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_NOT,
+    ENC_SAME_TERM, ENC_STR, ENC_STRDT, ENC_STRLANG, ENC_STRLEN, ENC_STRUUID, ENC_SUBSTR, ENC_UCASE,
+    ENC_UUID,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
@@ -469,33 +470,35 @@ fn create_join(
         .collect();
 
     let join_on_exprs = lhs_keys.intersection(&rhs_keys).map(|k| {
-        ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM
-            .call(vec![
-                Expr::from(Column {
-                    relation: Some("lhs".into()),
-                    name: k.clone(),
-                }),
-                Expr::from(Column {
-                    relation: Some("rhs".into()),
-                    name: k.clone(),
-                }),
-            ])])])
-    });
-
-    let projections = lhs_keys.union(&rhs_keys).map(|k| {
-        if lhs_keys.contains(k) {
+        ENC_IS_COMPATIBLE.call(vec![
             Expr::from(Column {
                 relation: Some("lhs".into()),
                 name: k.clone(),
-            })
-        } else {
+            }),
             Expr::from(Column {
                 relation: Some("rhs".into()),
                 name: k.clone(),
-            })
-        }
-        .alias(k.as_str())
-    }).collect::<Vec<_>>();
+            }),
+        ])
+    });
+
+    let projections = lhs_keys
+        .union(&rhs_keys)
+        .map(|k| {
+            if lhs_keys.contains(k) {
+                Expr::from(Column {
+                    relation: Some("lhs".into()),
+                    name: k.clone(),
+                })
+            } else {
+                Expr::from(Column {
+                    relation: Some("rhs".into()),
+                    name: k.clone(),
+                })
+            }
+            .alias(k.as_str())
+        })
+        .collect::<Vec<_>>();
     lhs.join_on(rhs.build()?, join_type, join_on_exprs)?
         .project(projections)
 }

@@ -3,7 +3,7 @@ use crate::result_collector::ResultCollector;
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::Array;
 use datafusion::common::{
-    exec_err, not_impl_datafusion_err, not_impl_err, DataFusionError, ScalarValue,
+    exec_err, not_impl_err, DataFusionError, ScalarValue,
 };
 use datafusion::logical_expr::ColumnarValue;
 
@@ -47,14 +47,29 @@ where
 }
 
 fn dispatch_binary_array_array<TUdf>(
-    _lhs: &dyn Array,
-    _rhs: &dyn Array,
-    _number_of_rows: usize,
+    lhs: &dyn Array,
+    rhs: &dyn Array,
+    number_of_rows: usize,
 ) -> DFResult<ColumnarValue>
 where
     TUdf: EncScalarBinaryUdf,
 {
-    Err(not_impl_datafusion_err!("dispatch_binary_array_array"))
+    let lhs = as_enc_term_array(lhs).expect("RDF term");
+    let rhs = as_enc_term_array(rhs).expect("RDF term");
+
+    let mut collector = TUdf::Collector::new();
+    for i in 0..number_of_rows {
+        let lhs_value = TUdf::ArgLhs::from_array(lhs, i);
+        let rhs_value = TUdf::ArgRhs::from_array(rhs, i);
+        match (lhs_value, rhs_value) {
+            (Ok(lhs_value), Ok(rhs_value)) => {
+                TUdf::evaluate(&mut collector, &lhs_value, &rhs_value)?
+            }
+            _ => TUdf::evaluate_error(&mut collector)?,
+        }
+    }
+
+    collector.finish_columnar_value()
 }
 
 fn dispatch_binary_scalar_array<TUdf>(
