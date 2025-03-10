@@ -2,17 +2,17 @@ use crate::encoded::arithmetic::add::EncAdd;
 use crate::encoded::arithmetic::div::EncDiv;
 use crate::encoded::arithmetic::mul::EncMul;
 use crate::encoded::arithmetic::sub::EncSub;
-use datafusion::logical_expr::ScalarUDF;
-use once_cell::sync::Lazy;
 use crate::encoded::arithmetic::unary_minus::EncUnaryMinus;
 use crate::encoded::arithmetic::unary_plus::EncUnaryPlus;
+use datafusion::logical_expr::ScalarUDF;
+use once_cell::sync::Lazy;
 
 mod add;
 mod div;
 mod mul;
 mod sub;
-mod unary_plus;
 mod unary_minus;
+mod unary_plus;
 
 pub const ENC_ADD: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncAdd::new()));
 pub const ENC_DIV: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncDiv::new()));

@@ -7,13 +7,13 @@ use crate::encoded::terms::is_literal::EncIsLiteral;
 use crate::encoded::terms::is_numeric::EncIsNumeric;
 use crate::encoded::terms::lang::EncLang;
 use crate::encoded::terms::str::EncStr;
-use datafusion::logical_expr::ScalarUDF;
-use once_cell::unsync::Lazy;
-use oxiri::Iri;
 use crate::encoded::terms::strdt::EncStrDt;
 use crate::encoded::terms::strlang::EncStrLang;
 use crate::encoded::terms::struuid::EncStrUuid;
 use crate::encoded::terms::uuid::EncUuid;
+use datafusion::logical_expr::ScalarUDF;
+use once_cell::unsync::Lazy;
+use oxiri::Iri;
 
 mod bnode;
 mod datatype;
@@ -26,8 +26,8 @@ mod lang;
 mod str;
 mod strdt;
 mod strlang;
-mod uuid;
 mod struuid;
+mod uuid;
 
 pub const ENC_DATATYPE: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncDatatype::new()));
 pub fn enc_iri(base_iri: Option<Iri<String>>) -> ScalarUDF {

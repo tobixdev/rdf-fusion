@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::{EncInteger, EncStringLiteral};
+use crate::datatypes::{RdfStringLiteral, XsdInteger};
 use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
 use crate::encoded::dispatch_unary::EncScalarUnaryUdf;
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
@@ -30,8 +30,8 @@ impl EncSubStr {
 }
 
 impl EncScalarBinaryUdf for EncSubStr {
-    type ArgLhs<'lhs> = EncStringLiteral<'lhs>;
-    type ArgRhs<'lhs> = EncInteger;
+    type ArgLhs<'lhs> = RdfStringLiteral<'lhs>;
+    type ArgRhs<'lhs> = XsdInteger;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(
@@ -39,7 +39,7 @@ impl EncScalarBinaryUdf for EncSubStr {
         arg_lhs: &Self::ArgLhs<'_>,
         arg_rhs: &Self::ArgRhs<'_>,
     ) -> DFResult<()> {
-        match usize::try_from(arg_rhs.0) {
+        match usize::try_from(arg_rhs.as_i64()) {
             Ok(index) => collector.append_string(&arg_lhs.0[index..], arg_lhs.1)?,
             Err(_) => exec_err!("Invalid index argument")?,
         };

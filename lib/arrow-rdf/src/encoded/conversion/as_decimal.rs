@@ -1,4 +1,5 @@
-use crate::encoded::dispatch::{EncBoolean, EncRdfTerm, EncStringLiteral};
+use crate::datatypes::{RdfTerm, XsdDecimal, XsdNumeric};
+use crate::encoded::dispatch_binary::EncScalarBinaryUdf;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -9,11 +10,11 @@ use datafusion::logical_expr::{
 use std::any::Any;
 
 #[derive(Debug)]
-pub struct EncNot {
+pub struct EncAsDecimal {
     signature: Signature,
 }
 
-impl EncNot {
+impl EncAsDecimal {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -24,12 +25,35 @@ impl EncNot {
     }
 }
 
-impl EncScalarUnaryUdf for EncNot {
-    type Arg<'data> = EncBoolean;
+impl EncScalarUnaryUdf for EncAsDecimal {
+    type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
-        collector.append_boolean(value.0)?;
+        let converted = match value {
+            RdfTerm::Boolean(v) => Ok(XsdDecimal::from(v)),
+            RdfTerm::Numeric(numeric) => match numeric {
+                XsdNumeric::Int(v) => Ok(XsdDecimal::from(v)),
+                XsdNumeric::Integer(v) => Ok(XsdDecimal::from(v)),
+                XsdNumeric::Float(v) => XsdDecimal::try_from(v),
+                XsdNumeric::Double(v) => XsdDecimal::try_from(v),
+                XsdNumeric::Decimal(v) => Ok(v),
+            },
+            _ => {
+                collector.append_null()?;
+                return Ok(());
+            }
+        };
+
+        match converted {
+            Ok(converted) => {
+                collector.append_decimal(converted)?;
+            }
+            Err(_) => {
+                collector.append_null()?;
+            }
+        }
+
         Ok(())
     }
 
@@ -39,13 +63,13 @@ impl EncScalarUnaryUdf for EncNot {
     }
 }
 
-impl ScalarUDFImpl for EncNot {
+impl ScalarUDFImpl for EncAsDecimal {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_not"
+        "enc_as_decimal"
     }
 
     fn signature(&self) -> &Signature {

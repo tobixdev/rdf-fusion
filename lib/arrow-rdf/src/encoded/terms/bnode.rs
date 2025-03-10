@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::EncSimpleLiteral;
+use crate::datatypes::RdfSimpleLiteral;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -75,11 +75,11 @@ impl EncBNodeUnary {
 }
 
 impl EncScalarUnaryUdf for EncBNodeUnary {
-    type Arg<'data> = EncSimpleLiteral<'data>;
+    type Arg<'data> = RdfSimpleLiteral<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
-        let Ok(result) = BlankNode::new(value.0) else {
+        let Ok(result) = BlankNode::new(value.value) else {
             collector.append_null()?;
             return Ok(());
         };

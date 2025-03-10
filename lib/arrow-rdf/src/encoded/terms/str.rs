@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::EncRdfTerm;
+use crate::datatypes::RdfTerm;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -25,18 +25,18 @@ impl EncStr {
 }
 
 impl EncScalarUnaryUdf for EncStr {
-    type Arg<'data> = EncRdfTerm<'data>;
+    type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         match value {
-            EncRdfTerm::NamedNode(value) => collector.append_string(value.0, None),
-            EncRdfTerm::BlankNode(value) => collector.append_string(value.0, None),
-            EncRdfTerm::Boolean(value) => collector.append_string(&value.0.to_string(), None),
-            EncRdfTerm::Numeric(value) => collector.append_string(&value.format_value(), None),
-            EncRdfTerm::SimpleLiteral(value) => collector.append_string(value.0, None),
-            EncRdfTerm::LanguageString(value) => collector.append_string(value.0, None),
-            EncRdfTerm::TypedLiteral(value) => collector.append_string(value.0, None),
+            RdfTerm::NamedNode(value) => collector.append_string(value.name, None),
+            RdfTerm::BlankNode(value) => collector.append_string(value.id, None),
+            RdfTerm::Boolean(value) => collector.append_string(&value.to_string(), None),
+            RdfTerm::Numeric(value) => collector.append_string(&value.format_value(), None),
+            RdfTerm::SimpleLiteral(value) => collector.append_string(value.value, None),
+            RdfTerm::LanguageString(value) => collector.append_string(value.value, None),
+            RdfTerm::TypedLiteral(value) => collector.append_string(value.value, None),
         }?;
         Ok(())
     }

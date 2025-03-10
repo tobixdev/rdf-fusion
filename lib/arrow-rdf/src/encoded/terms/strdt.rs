@@ -1,9 +1,11 @@
-use crate::encoded::dispatch::{EncNamedNode, EncSimpleLiteral};
+use crate::datatypes::{RdfNamedNode, RdfSimpleLiteral};
 use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use std::any::Any;
 
 #[derive(Debug)]
@@ -23,8 +25,8 @@ impl EncStrDt {
 }
 
 impl EncScalarBinaryUdf for EncStrDt {
-    type ArgLhs<'lhs> = EncSimpleLiteral<'lhs>;
-    type ArgRhs<'rhs> = EncNamedNode<'rhs>;
+    type ArgLhs<'lhs> = RdfSimpleLiteral<'lhs>;
+    type ArgRhs<'rhs> = RdfNamedNode<'rhs>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(
@@ -32,7 +34,7 @@ impl EncScalarBinaryUdf for EncStrDt {
         lhs: &Self::ArgLhs<'_>,
         rhs: &Self::ArgRhs<'_>,
     ) -> DFResult<()> {
-        collector.append_typed_literal(lhs.0, rhs.0)?;
+        collector.append_typed_literal(lhs.value, rhs.name)?;
         Ok(())
     }
 
@@ -41,7 +43,6 @@ impl EncScalarBinaryUdf for EncStrDt {
         Ok(())
     }
 }
-
 
 impl ScalarUDFImpl for EncStrDt {
     fn as_any(&self) -> &dyn Any {

@@ -1,5 +1,6 @@
-use crate::encoded::dispatch::{EncNumeric, EncNumericPair};
-use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
+use crate::datatypes::XsdNumeric;
+use crate::encoded::dispatch_binary::EncScalarBinaryUdf;
+use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
@@ -7,7 +8,6 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
-use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 
 #[derive(Debug)]
 pub struct EncUnaryMinus {
@@ -26,16 +26,25 @@ impl EncUnaryMinus {
 }
 
 impl EncScalarUnaryUdf for EncUnaryMinus {
-    type Arg<'data> = EncNumeric;
+    type Arg<'data> = XsdNumeric;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         match value {
-            EncNumeric::I32(value) => collector.append_int(-value)?,
-            EncNumeric::I64(value) => collector.append_integer(-value)?,
-            EncNumeric::F32(value) => collector.append_float32(-value)?,
-            EncNumeric::F64(value) => collector.append_float64(-value)?,
-            EncNumeric::Decimal(value) => todo!("UnaryMinus decimal"),
+            XsdNumeric::Int(value) => match value.checked_neg() {
+                Some(value) => collector.append_int(value)?,
+                None => collector.append_null()?,
+            },
+            XsdNumeric::Integer(value) => match value.checked_neg() {
+                Some(value) => collector.append_integer(value)?,
+                None => collector.append_null()?,
+            },
+            XsdNumeric::Float(value) => collector.append_float32(value)?,
+            XsdNumeric::Double(value) => collector.append_float64(-value)?,
+            XsdNumeric::Decimal(value) => match value.checked_neg() {
+                Some(value) => collector.append_decimal(value)?,
+                None => collector.append_null()?,
+            },
         }
         Ok(())
     }

@@ -1,15 +1,14 @@
-use crate::encoded::dispatch::EncRdfValue;
-use crate::encoded::EncTermField;
+use crate::datatypes::RdfValue;
 use crate::result_collector::ResultCollector;
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::Array;
-use datafusion::common::{exec_err, not_impl_datafusion_err, not_impl_err, ScalarValue};
+use datafusion::common::exec_err;
 use datafusion::logical_expr::ColumnarValue;
 
 pub(crate) trait EncScalarTernaryUdf {
-    type Arg0<'data1>: EncRdfValue<'data1>;
-    type Arg1<'data2>: EncRdfValue<'data2>;
-    type Arg2<'data3>: EncRdfValue<'data3>;
+    type Arg0<'data1>: RdfValue<'data1>;
+    type Arg1<'data2>: RdfValue<'data2>;
+    type Arg2<'data3>: RdfValue<'data3>;
     type Collector: ResultCollector;
 
     fn evaluate(
@@ -44,9 +43,9 @@ where
 
     let mut collector = TUdf::Collector::new();
     for i in 0..number_of_rows {
-        let arg0 = TUdf::Arg0::from_array(arg0_arr, i);
-        let arg1 = TUdf::Arg1::from_array(arg1_arr, i);
-        let arg2 = TUdf::Arg2::from_array(arg2_arr, i);
+        let arg0 = TUdf::Arg0::from_enc_array(arg0_arr, i);
+        let arg1 = TUdf::Arg1::from_enc_array(arg1_arr, i);
+        let arg2 = TUdf::Arg2::from_enc_array(arg2_arr, i);
 
         match (arg0, arg1, arg2) {
             (Ok(arg0), Ok(arg1), Ok(arg2)) => TUdf::evaluate(&mut collector, &arg0, &arg1, &arg2)?,

@@ -5,6 +5,7 @@ use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
 use crate::oxigraph_memory::hash::StrHash;
 use crate::{AResult, DFResult};
+use arrow_rdf::datatypes::XsdDecimal;
 use arrow_rdf::encoded::{EncRdfTermBuilder, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
@@ -302,7 +303,7 @@ fn encode_term(
         }
         EncodedTerm::IntegerLiteral(integer) => {
             let value = i64::from_be_bytes(integer.to_be_bytes());
-            builder.append_integer(value)
+            builder.append_integer(value.into())
         }
         EncodedTerm::BigTypedLiteral {
             value_id,
@@ -313,10 +314,10 @@ fn encode_term(
             builder.append_typed_literal(&value, &datatype)
         }
         EncodedTerm::BooleanLiteral(v) => builder.append_boolean(v.into()),
-        EncodedTerm::FloatLiteral(v) => builder.append_float32(v.into()),
-        EncodedTerm::DoubleLiteral(v) => builder.append_float64(v.into()),
+        EncodedTerm::FloatLiteral(v) => builder.append_float32(f32::from(v).into()),
+        EncodedTerm::DoubleLiteral(v) => builder.append_float64(f64::from(v).into()),
         EncodedTerm::DecimalLiteral(v) => {
-            builder.append_decimal(i128::from_be_bytes(v.to_be_bytes()))
+            builder.append_decimal(XsdDecimal::from_be_bytes(v.to_be_bytes()))
         }
         EncodedTerm::DateTimeLiteral(v) => {
             builder.append_typed_literal(&v.to_string(), xsd::DATE_TIME.as_str())

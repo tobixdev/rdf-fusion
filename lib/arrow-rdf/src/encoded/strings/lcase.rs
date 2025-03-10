@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::EncStringLiteral;
+use crate::datatypes::RdfStringLiteral;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -25,7 +25,7 @@ impl EncLCase {
 }
 
 impl EncScalarUnaryUdf for EncLCase {
-    type Arg<'data> = EncStringLiteral<'data>;
+    type Arg<'data> = RdfStringLiteral<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {

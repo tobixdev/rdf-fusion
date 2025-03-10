@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::{EncNumeric, EncRdfTerm};
+use crate::datatypes::{RdfTerm, XsdNumeric};
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -26,24 +26,24 @@ impl EncDatatype {
 }
 
 impl EncScalarUnaryUdf for EncDatatype {
-    type Arg<'data> = EncRdfTerm<'data>;
+    type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         let datatype = match value {
-            EncRdfTerm::NamedNode(_) => None,
-            EncRdfTerm::BlankNode(_) => None,
-            EncRdfTerm::SimpleLiteral(_) => Some(xsd::STRING.as_str()),
-            EncRdfTerm::Numeric(value) => Some(match value {
-                EncNumeric::I32(_) => xsd::INT.as_str(),
-                EncNumeric::I64(_) => xsd::INTEGER.as_str(),
-                EncNumeric::F32(_) => xsd::FLOAT.as_str(),
-                EncNumeric::F64(_) => xsd::DOUBLE.as_str(),
-                EncNumeric::Decimal(_) => xsd::DECIMAL.as_str(),
+            RdfTerm::NamedNode(_) => None,
+            RdfTerm::BlankNode(_) => None,
+            RdfTerm::SimpleLiteral(_) => Some(xsd::STRING.as_str()),
+            RdfTerm::Numeric(value) => Some(match value {
+                XsdNumeric::Int(_) => xsd::INT.as_str(),
+                XsdNumeric::Integer(_) => xsd::INTEGER.as_str(),
+                XsdNumeric::Float(_) => xsd::FLOAT.as_str(),
+                XsdNumeric::Double(_) => xsd::DOUBLE.as_str(),
+                XsdNumeric::Decimal(_) => xsd::DECIMAL.as_str(),
             }),
-            EncRdfTerm::Boolean(_) => Some(xsd::BOOLEAN.as_str()),
-            EncRdfTerm::LanguageString(_) => Some(rdf::LANG_STRING.as_str()),
-            EncRdfTerm::TypedLiteral(value) => Some(value.1),
+            RdfTerm::Boolean(_) => Some(xsd::BOOLEAN.as_str()),
+            RdfTerm::LanguageString(_) => Some(rdf::LANG_STRING.as_str()),
+            RdfTerm::TypedLiteral(value) => Some(value.literal_type),
         };
 
         match datatype {

@@ -1,18 +1,18 @@
+mod arithmetic;
+mod comparison;
+mod conversion;
+mod dispatch_binary;
+mod dispatch_ternary;
+mod dispatch_unary;
+mod encoding;
+mod functional_forms;
 mod model;
+mod query_evaluation;
 mod rdf_term_builder;
 pub mod scalars;
-mod udfs;
 mod strings;
 mod terms;
-mod dispatch_binary;
-mod dispatch_unary;
-mod dispatch;
-mod functional_forms;
-mod dispatch_ternary;
-mod query_evaluation;
-mod encoding;
-mod arithmetic;
-mod conversion;
+mod udfs;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
@@ -22,12 +22,13 @@ pub use rdf_term_builder::EncRdfTermBuilder;
 
 // Functions
 pub use arithmetic::*;
+pub use comparison::*;
 pub use conversion::*;
 pub use encoding::*;
 pub use functional_forms::*;
 pub use query_evaluation::*;
-pub use terms::*;
 pub use strings::*;
+pub use terms::*;
 pub use udfs::*;
 
 pub const ENC_QUAD_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {

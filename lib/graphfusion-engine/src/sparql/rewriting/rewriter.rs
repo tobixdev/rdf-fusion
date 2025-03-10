@@ -5,8 +5,8 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
 use arrow_rdf::encoded::{
-    enc_iri, EncTerm, EncTermField, ENC_ADD, ENC_AS_FLOAT32, ENC_AS_FLOAT64, ENC_AS_INT,
-    ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY,
+    enc_iri, EncTerm, EncTermField, ENC_ADD, ENC_AS_DECIMAL, ENC_AS_FLOAT32, ENC_AS_FLOAT64,
+    ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY,
     ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_DATATYPE, ENC_DIV,
     ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK,
     ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE,
@@ -417,6 +417,7 @@ impl GraphPatternRewriter {
             (xsd::INTEGER.as_str(), ENC_AS_INTEGER),
             (xsd::FLOAT.as_str(), ENC_AS_FLOAT32),
             (xsd::DOUBLE.as_str(), ENC_AS_FLOAT64),
+            (xsd::DECIMAL.as_str(), ENC_AS_DECIMAL),
         ]);
 
         let supported_conversion = supported_conversion_functions.get(function.as_str());

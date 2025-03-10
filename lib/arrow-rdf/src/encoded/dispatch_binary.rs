@@ -1,15 +1,13 @@
-use crate::encoded::dispatch::EncRdfValue;
+use crate::datatypes::RdfValue;
 use crate::result_collector::ResultCollector;
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::Array;
-use datafusion::common::{
-    exec_err, not_impl_err, DataFusionError, ScalarValue,
-};
+use datafusion::common::{exec_err, not_impl_err, DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 
 pub(crate) trait EncScalarBinaryUdf {
-    type ArgLhs<'lhs>: EncRdfValue<'lhs>;
-    type ArgRhs<'rhs>: EncRdfValue<'rhs>;
+    type ArgLhs<'lhs>: RdfValue<'lhs>;
+    type ArgRhs<'rhs>: RdfValue<'rhs>;
     type Collector: ResultCollector;
 
     fn evaluate(
@@ -59,8 +57,8 @@ where
 
     let mut collector = TUdf::Collector::new();
     for i in 0..number_of_rows {
-        let lhs_value = TUdf::ArgLhs::from_array(lhs, i);
-        let rhs_value = TUdf::ArgRhs::from_array(rhs, i);
+        let lhs_value = TUdf::ArgLhs::from_enc_array(lhs, i);
+        let rhs_value = TUdf::ArgRhs::from_enc_array(rhs, i);
         match (lhs_value, rhs_value) {
             (Ok(lhs_value), Ok(rhs_value)) => {
                 TUdf::evaluate(&mut collector, &lhs_value, &rhs_value)?
@@ -100,7 +98,7 @@ where
 {
     let mut collector = TUdf::Collector::new();
 
-    let rhs_value = TUdf::ArgRhs::from_scalar(rhs);
+    let rhs_value = TUdf::ArgRhs::from_enc_scalar(rhs);
     let rhs_value = match rhs_value {
         Ok(value) => value,
         Err(_) => {
@@ -113,7 +111,7 @@ where
 
     let lhs = as_enc_term_array(lhs).expect("RDF term");
     for i in 0..number_of_rows {
-        match TUdf::ArgLhs::from_array(lhs, i) {
+        match TUdf::ArgLhs::from_enc_array(lhs, i) {
             Ok(lhs_value) => TUdf::evaluate(&mut collector, &lhs_value, &rhs_value)?,
             Err(_) => TUdf::evaluate_error(&mut collector)?,
         }
@@ -130,8 +128,8 @@ fn dispatch_binary_scalar_scalar<TUdf>(
 where
     TUdf: EncScalarBinaryUdf,
 {
-    let lhs = TUdf::ArgLhs::from_scalar(lhs);
-    let rhs = TUdf::ArgRhs::from_scalar(rhs);
+    let lhs = TUdf::ArgLhs::from_enc_scalar(lhs);
+    let rhs = TUdf::ArgRhs::from_enc_scalar(rhs);
 
     let mut collector = TUdf::Collector::new();
 

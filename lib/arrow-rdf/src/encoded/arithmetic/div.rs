@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::{EncNumeric, EncNumericPair};
+use crate::datatypes::{XsdNumeric, XsdNumericPair};
 use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -25,8 +25,8 @@ impl EncDiv {
 }
 
 impl EncScalarBinaryUdf for EncDiv {
-    type ArgLhs<'lhs> = EncNumeric;
-    type ArgRhs<'rhs> = EncNumeric;
+    type ArgLhs<'lhs> = XsdNumeric;
+    type ArgRhs<'rhs> = XsdNumeric;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(
@@ -34,18 +34,21 @@ impl EncScalarBinaryUdf for EncDiv {
         lhs: &Self::ArgLhs<'_>,
         rhs: &Self::ArgRhs<'_>,
     ) -> DFResult<()> {
-        match EncNumericPair::with_casts_from(lhs, rhs) {
-            EncNumericPair::I32(lhs, rhs) => match lhs.checked_div(rhs) {
+        match XsdNumericPair::with_casts_from(lhs, rhs) {
+            XsdNumericPair::Int(lhs, rhs) => match lhs.checked_div(rhs) {
                 None => collector.append_null()?,
                 Some(value) => collector.append_int(value)?,
             },
-            EncNumericPair::I64(lhs, rhs) => match lhs.checked_div(rhs) {
+            XsdNumericPair::Integer(lhs, rhs) => match lhs.checked_div(rhs) {
                 None => collector.append_null()?,
                 Some(value) => collector.append_integer(value)?,
             },
-            EncNumericPair::F32(lhs, rhs) => collector.append_float32(lhs / rhs)?,
-            EncNumericPair::F64(lhs, rhs) => collector.append_float64(lhs / rhs)?,
-            EncNumericPair::Decimal(lhs, rhs) => todo!("Decimal"),
+            XsdNumericPair::Float(lhs, rhs) => collector.append_float32(lhs / rhs)?,
+            XsdNumericPair::Double(lhs, rhs) => collector.append_float64(lhs / rhs)?,
+            XsdNumericPair::Decimal(lhs, rhs) => match lhs.checked_div(rhs) {
+                None => collector.append_null()?,
+                Some(value) => collector.append_decimal(value)?,
+            },
         };
         Ok(())
     }

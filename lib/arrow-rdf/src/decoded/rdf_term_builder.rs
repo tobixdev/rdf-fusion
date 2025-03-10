@@ -1,6 +1,8 @@
 use crate::decoded::model::{DecTerm, DecTermField};
 use crate::AResult;
-use datafusion::arrow::array::{ArrayBuilder, ArrayRef, NullBuilder, StringBuilder, StructBuilder, UnionArray};
+use datafusion::arrow::array::{
+    ArrayBuilder, ArrayRef, NullBuilder, StringBuilder, StructBuilder, UnionArray,
+};
 use datafusion::arrow::buffer::ScalarBuffer;
 use oxrdf::vocab::{rdf, xsd};
 use oxrdf::Term;
@@ -25,7 +27,7 @@ impl DecRdfTermBuilder {
             blank_node_builder: StringBuilder::new(),
             string_builder: StructBuilder::from_fields(DecTerm::string_fields(), 0),
             typed_literal_builder: StructBuilder::from_fields(DecTerm::typed_literal_fields(), 0),
-            null_builder: NullBuilder::new()
+            null_builder: NullBuilder::new(),
         }
     }
 

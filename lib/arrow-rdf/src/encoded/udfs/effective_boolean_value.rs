@@ -1,13 +1,13 @@
-use crate::encoded::dispatch::{EncNumeric, EncRdfTerm};
+use crate::datatypes::{RdfTerm, XsdDecimal, XsdDouble, XsdFloat, XsdInt, XsdInteger, XsdNumeric};
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
-use crate::encoded::{EncRdfTermBuilder, EncTerm};
+use crate::encoded::EncTerm;
 use crate::DFResult;
+use datafusion::arrow::array::BooleanBuilder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
-use datafusion::arrow::array::BooleanBuilder;
 
 #[derive(Debug)]
 pub struct EncEffectiveBooleanValue {
@@ -26,25 +26,25 @@ impl EncEffectiveBooleanValue {
 }
 
 impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
-    type Arg<'data> = EncRdfTerm<'data>;
+    type Arg<'data> = RdfTerm<'data>;
     type Collector = BooleanBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         // TODO implement all rules
         let result = match value {
-            EncRdfTerm::NamedNode(value) => !value.0.is_empty(),
-            EncRdfTerm::BlankNode(value) => !value.0.is_empty(),
-            EncRdfTerm::Boolean(value) => value.0,
-            EncRdfTerm::Numeric(value) => match value {
-                EncNumeric::I32(value) => value != 0,
-                EncNumeric::I64(value) => value != 0,
-                EncNumeric::F32(value) => value != 0f32,
-                EncNumeric::F64(value) => value != 0f64,
-                EncNumeric::Decimal(value) => value != 0,
+            RdfTerm::NamedNode(value) => !value.name.is_empty(),
+            RdfTerm::BlankNode(value) => !value.id.is_empty(),
+            RdfTerm::Boolean(value) => value.as_bool(),
+            RdfTerm::Numeric(value) => match value {
+                XsdNumeric::Int(value) => value != XsdInt::from(0),
+                XsdNumeric::Integer(value) => value != XsdInteger::from(0),
+                XsdNumeric::Float(value) => value != XsdFloat::from(0f32),
+                XsdNumeric::Double(value) => value != XsdDouble::from(0f64),
+                XsdNumeric::Decimal(value) => value != XsdDecimal::from(0),
             },
-            EncRdfTerm::SimpleLiteral(value) => !value.is_empty(),
-            EncRdfTerm::LanguageString(value) => !value.is_empty(),
-            EncRdfTerm::TypedLiteral(value) => !value.is_empty(),
+            RdfTerm::SimpleLiteral(value) => !value.is_empty(),
+            RdfTerm::LanguageString(value) => !value.is_empty(),
+            RdfTerm::TypedLiteral(value) => !value.is_empty(),
         };
         collector.append_value(result);
         Ok(())

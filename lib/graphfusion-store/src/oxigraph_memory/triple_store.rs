@@ -13,7 +13,9 @@ use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::{decode_rdf_terms, DecodeRdfTermsToProjectionRule, QueryResults};
 use graphfusion_engine::sparql::error::EvaluationError;
-use graphfusion_engine::sparql::{evaluate_query, PathToJoinsRule, Query, QueryExplanation, QueryOptions};
+use graphfusion_engine::sparql::{
+    evaluate_query, PathToJoinsRule, Query, QueryExplanation, QueryOptions,
+};
 use graphfusion_engine::TripleStore;
 use oxrdf::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;

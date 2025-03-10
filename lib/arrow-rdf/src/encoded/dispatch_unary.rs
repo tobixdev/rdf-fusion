@@ -1,15 +1,15 @@
-use crate::encoded::dispatch::{EncBoolean, EncRdfTerm, EncRdfValue};
+use crate::datatypes::{RdfTerm, RdfValue, XsdBoolean};
 use crate::encoded::EncTermField;
 use crate::result_collector::ResultCollector;
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{Array, AsArray, BooleanArray};
+use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use std::sync::Arc;
-use datafusion::arrow::buffer::ScalarBuffer;
 
 pub(crate) trait EncScalarUnaryUdf {
-    type Arg<'data>: EncRdfValue<'data>;
+    type Arg<'data>: RdfValue<'data>;
     type Collector: ResultCollector;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()>;
@@ -40,7 +40,7 @@ where
 {
     let mut collector = TUdf::Collector::new();
 
-    match TUdf::Arg::from_scalar(&value) {
+    match TUdf::Arg::from_enc_scalar(&value) {
         Ok(value) => TUdf::evaluate(udf, &mut collector, value)?,
         Err(_) => TUdf::evaluate_error(udf, &mut collector)?,
     }
@@ -62,7 +62,7 @@ where
 
     let mut collector = TUdf::Collector::new();
     for i in 0..values.len() {
-        match TUdf::Arg::from_array(values, i) {
+        match TUdf::Arg::from_enc_array(values, i) {
             Ok(value) => TUdf::evaluate(udf, &mut collector, value)?,
             Err(_) => TUdf::evaluate_error(udf, &mut collector)?,
         }
@@ -72,7 +72,11 @@ where
 }
 
 #[inline(never)]
-fn dispatch_unary_array_boolean<TUdf>(udf: &TUdf, offsets: &ScalarBuffer<i32>, values: &BooleanArray) -> DFResult<ColumnarValue>
+fn dispatch_unary_array_boolean<TUdf>(
+    udf: &TUdf,
+    offsets: &ScalarBuffer<i32>,
+    values: &BooleanArray,
+) -> DFResult<ColumnarValue>
 where
     TUdf: EncScalarUnaryUdf,
 {
@@ -82,7 +86,7 @@ where
         TUdf::evaluate(
             udf,
             &mut collector,
-            TUdf::Arg::from_term(EncRdfTerm::Boolean(EncBoolean(value)))?,
+            TUdf::Arg::from_term(RdfTerm::Boolean(XsdBoolean::from(value)))?,
         )?
     }
 

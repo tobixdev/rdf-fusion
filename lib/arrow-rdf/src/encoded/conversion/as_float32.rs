@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::{EncNumeric, EncRdfTerm};
+use crate::datatypes::{RdfTerm, XsdFloat, XsdNumeric};
 use crate::encoded::dispatch_binary::EncScalarBinaryUdf;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
@@ -26,18 +26,18 @@ impl EncAsFloat32 {
 }
 
 impl EncScalarUnaryUdf for EncAsFloat32 {
-    type Arg<'data> = EncRdfTerm<'data>;
+    type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         let converted = match value {
-            EncRdfTerm::Boolean(v) => v.0 as i32 as f32,
-            EncRdfTerm::Numeric(numeric) => match numeric {
-                EncNumeric::I32(v) => v as f32,
-                EncNumeric::I64(v) => v as f32,
-                EncNumeric::F32(v) => v,
-                EncNumeric::F64(v) => v as f32,
-                EncNumeric::Decimal(_) => todo!(),
+            RdfTerm::Boolean(v) => XsdFloat::from(v),
+            RdfTerm::Numeric(numeric) => match numeric {
+                XsdNumeric::Int(v) => XsdFloat::from(v),
+                XsdNumeric::Integer(v) => XsdFloat::from(v),
+                XsdNumeric::Float(v) => v,
+                XsdNumeric::Double(v) => XsdFloat::from(v),
+                XsdNumeric::Decimal(v) => XsdFloat::from(v),
             },
             _ => {
                 collector.append_null()?;

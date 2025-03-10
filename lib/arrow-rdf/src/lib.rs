@@ -1,10 +1,11 @@
+use crate::encoded::EncTerm;
 use datafusion::arrow::array::{Array, UnionArray};
 use datafusion::arrow::error::ArrowError;
 use datafusion::common::{downcast_value, internal_err};
 use datafusion::error::DataFusionError;
-use crate::encoded::EncTerm;
 // TODO: Make DataFusion integration optional and use regular Arrow Crate
 
+pub mod datatypes;
 pub mod decoded;
 pub mod encoded;
 mod error;

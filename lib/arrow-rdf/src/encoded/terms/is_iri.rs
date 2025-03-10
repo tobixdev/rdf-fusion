@@ -1,3 +1,4 @@
+use crate::datatypes::RdfTerm;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -6,7 +7,6 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
-use crate::encoded::dispatch::EncRdfTerm;
 
 #[derive(Debug)]
 pub struct EncIsIri {
@@ -25,18 +25,18 @@ impl EncIsIri {
 }
 
 impl EncScalarUnaryUdf for EncIsIri {
-    type Arg<'data> = EncRdfTerm<'data>;
+    type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         let result = match value {
-            EncRdfTerm::NamedNode(_) => true,
-            EncRdfTerm::BlankNode(_) => false,
-            EncRdfTerm::Boolean(_) => false,
-            EncRdfTerm::Numeric(_) => false,
-            EncRdfTerm::SimpleLiteral(_) => false,
-            EncRdfTerm::LanguageString(_) => false,
-            EncRdfTerm::TypedLiteral(_) => false
+            RdfTerm::NamedNode(_) => true,
+            RdfTerm::BlankNode(_) => false,
+            RdfTerm::Boolean(_) => false,
+            RdfTerm::Numeric(_) => false,
+            RdfTerm::SimpleLiteral(_) => false,
+            RdfTerm::LanguageString(_) => false,
+            RdfTerm::TypedLiteral(_) => false,
         };
         collector.append_boolean(result)?;
         Ok(())

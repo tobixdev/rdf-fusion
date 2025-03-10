@@ -1,14 +1,13 @@
-use crate::encoded::dispatch::{EncNumeric, EncRdfTerm};
+use crate::datatypes::{RdfTerm, XsdDouble, XsdNumeric};
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::EncTerm;
 use crate::sorting::{RdfTermSort, RdfTermSortBuilder};
-use crate::{DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
-use datafusion::arrow::datatypes::{DataType, Decimal128Type, DecimalType};
+use crate::DFResult;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
-use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct EncAsRdfTermSort {
@@ -28,31 +27,23 @@ impl EncAsRdfTermSort {
 
 impl EncScalarUnaryUdf for EncAsRdfTermSort {
     type Collector = RdfTermSortBuilder;
-    type Arg<'data> = EncRdfTerm<'data>;
+    type Arg<'data> = RdfTerm<'data>;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         match value {
-            EncRdfTerm::NamedNode(value) => collector.append_iri(value.0),
-            EncRdfTerm::BlankNode(value) => collector.append_blank_node(value.0),
-            EncRdfTerm::Boolean(value) => collector.append_boolean(value.0),
-            EncRdfTerm::Numeric(value) => collector.append_numeric(match value {
-                EncNumeric::I32(value) => value as f64,
-                EncNumeric::I64(value) => value as f64,
-                EncNumeric::F32(value) => value as f64,
-                EncNumeric::F64(value) => value,
-                EncNumeric::Decimal(value) => {
-                    // TODO #1
-                    let formatted = Decimal128Type::format_decimal(
-                        value,
-                        RDF_DECIMAL_PRECISION,
-                        RDF_DECIMAL_SCALE,
-                    );
-                    f64::from_str(&formatted).expect("TODO decimal to f64 conversion")
-                }
+            RdfTerm::NamedNode(value) => collector.append_iri(value.name),
+            RdfTerm::BlankNode(value) => collector.append_blank_node(value.id),
+            RdfTerm::Boolean(value) => collector.append_boolean(value.as_bool()),
+            RdfTerm::Numeric(value) => collector.append_numeric(match value {
+                XsdNumeric::Int(value) => XsdDouble::from(value).as_f64(),
+                XsdNumeric::Integer(value) => XsdDouble::from(value).as_f64(),
+                XsdNumeric::Float(value) => XsdDouble::from(value).as_f64(),
+                XsdNumeric::Double(value) => value.as_f64(),
+                XsdNumeric::Decimal(value) => XsdDouble::from(value).as_f64(),
             }),
-            EncRdfTerm::SimpleLiteral(value) => collector.append_string(value.0),
-            EncRdfTerm::LanguageString(value) => collector.append_string(value.0),
-            EncRdfTerm::TypedLiteral(value) => collector.append_string(value.0),
+            RdfTerm::SimpleLiteral(value) => collector.append_string(value.value),
+            RdfTerm::LanguageString(value) => collector.append_string(value.value),
+            RdfTerm::TypedLiteral(value) => collector.append_string(value.value),
         };
         Ok(())
     }

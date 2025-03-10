@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::EncRdfTerm;
+use crate::datatypes::RdfTerm;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -25,7 +25,7 @@ impl EncBound {
 }
 
 impl EncScalarUnaryUdf for EncBound {
-    type Arg<'data> = EncRdfTerm<'data>;
+    type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, _: Self::Arg<'_>) -> DFResult<()> {

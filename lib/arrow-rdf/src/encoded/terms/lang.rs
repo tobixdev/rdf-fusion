@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::EncRdfTerm;
+use crate::datatypes::RdfTerm;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -25,12 +25,12 @@ impl EncLang {
 }
 
 impl EncScalarUnaryUdf for EncLang {
-    type Arg<'data> = EncRdfTerm<'data>;
+    type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         match value {
-            EncRdfTerm::LanguageString(value) => collector.append_string(value.1, None),
+            RdfTerm::LanguageString(value) => collector.append_string(value.language, None),
             _ => collector.append_string("", None),
         }?;
         Ok(())

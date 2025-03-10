@@ -153,7 +153,7 @@ impl EncTermField {
             EncTermField::Int => DataType::Int32,
             EncTermField::Integer => DataType::Int64,
             EncTermField::TypedLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
-            EncTermField::Null => DataType::Null
+            EncTermField::Null => DataType::Null,
         }
     }
 

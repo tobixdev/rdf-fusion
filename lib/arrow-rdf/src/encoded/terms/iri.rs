@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::EncRdfTerm;
+use crate::datatypes::RdfTerm;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -28,17 +28,17 @@ impl EncIri {
 }
 
 impl EncScalarUnaryUdf for EncIri {
-    type Arg<'data> = EncRdfTerm<'data>;
+    type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         match value {
-            EncRdfTerm::NamedNode(value) => collector.append_named_node(value.0),
-            EncRdfTerm::SimpleLiteral(value) => {
+            RdfTerm::NamedNode(named_node) => collector.append_named_node(named_node.name),
+            RdfTerm::SimpleLiteral(simple_literal) => {
                 let resolving_result = if let Some(base_iri) = &self.base_iri {
-                    base_iri.resolve(value.0)
+                    base_iri.resolve(simple_literal.value)
                 } else {
-                    Iri::parse(value.0.to_string())
+                    Iri::parse(simple_literal.value.to_string())
                 };
                 match resolving_result {
                     Ok(resolving_result) => collector.append_named_node(resolving_result.as_str()),

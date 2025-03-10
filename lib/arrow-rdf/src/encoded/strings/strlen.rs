@@ -1,4 +1,4 @@
-use crate::encoded::dispatch::EncStringLiteral;
+use crate::datatypes::RdfStringLiteral;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -26,16 +26,15 @@ impl EncStrLen {
 }
 
 impl EncScalarUnaryUdf for EncStrLen {
-    type Arg<'data> = EncStringLiteral<'data>;
+    type Arg<'data> = RdfStringLiteral<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
-        collector.append_integer(
-            value
-                .len()
-                .try_into()
-                .map_err(|_| exec_datafusion_err!("Number of characters too large"))?,
-        )?;
+        let value: i64 = value
+            .len()
+            .try_into()
+            .map_err(|_| exec_datafusion_err!("Number of characters too large"))?;
+        collector.append_integer(value.into())?;
         Ok(())
     }
 

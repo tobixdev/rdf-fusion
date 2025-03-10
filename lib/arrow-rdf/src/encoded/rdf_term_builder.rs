@@ -1,7 +1,11 @@
+use crate::datatypes::{XsdDecimal, XsdDouble, XsdFloat, XsdInt, XsdInteger};
 use crate::encoded::{EncTerm, EncTermField};
 use crate::error::TermEncodingError;
 use crate::{AResult, DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
-use datafusion::arrow::array::{ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder, UnionArray};
+use datafusion::arrow::array::{
+    ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
+    Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder, UnionArray,
+};
 use datafusion::arrow::buffer::ScalarBuffer;
 use oxrdf::vocab::{rdf, xsd};
 use oxrdf::Term;
@@ -106,38 +110,39 @@ impl EncRdfTermBuilder {
         Ok(())
     }
 
-    pub fn append_int(&mut self, int: i32) -> AResult<()> {
+    pub fn append_int(&mut self, int: XsdInt) -> AResult<()> {
         self.type_ids.push(EncTermField::Int.type_id());
         self.offsets.push(self.int32_builder.len() as i32);
-        self.int32_builder.append_value(int);
+        self.int32_builder.append_value(int.as_i32());
         Ok(())
     }
 
-    pub fn append_float32(&mut self, value: f32) -> AResult<()> {
-        self.type_ids.push(EncTermField::Float32.type_id());
-        self.offsets.push(self.float32_builder.len() as i32);
-        self.float32_builder.append_value(value);
-        Ok(())
-    }
-
-    pub fn append_float64(&mut self, value: f64) -> AResult<()> {
-        self.type_ids.push(EncTermField::Float64.type_id());
-        self.offsets.push(self.float64_builder.len() as i32);
-        self.float64_builder.append_value(value);
-        Ok(())
-    }
-
-    pub fn append_decimal(&mut self, value: i128) -> AResult<()> {
-        self.type_ids.push(EncTermField::Decimal.type_id());
-        self.offsets.push(self.decimal_builder.len() as i32);
-        self.decimal_builder.append_value(value);
-        Ok(())
-    }
-
-    pub fn append_integer(&mut self, integer: i64) -> AResult<()> {
+    pub fn append_integer(&mut self, integer: XsdInteger) -> AResult<()> {
         self.type_ids.push(EncTermField::Integer.type_id());
         self.offsets.push(self.integer_builder.len() as i32);
-        self.integer_builder.append_value(integer);
+        self.integer_builder.append_value(integer.as_i64());
+        Ok(())
+    }
+
+    pub fn append_float32(&mut self, value: XsdFloat) -> AResult<()> {
+        self.type_ids.push(EncTermField::Float32.type_id());
+        self.offsets.push(self.float32_builder.len() as i32);
+        self.float32_builder.append_value(value.as_f32());
+        Ok(())
+    }
+
+    pub fn append_float64(&mut self, value: XsdDouble) -> AResult<()> {
+        self.type_ids.push(EncTermField::Float64.type_id());
+        self.offsets.push(self.float64_builder.len() as i32);
+        self.float64_builder.append_value(value.as_f64());
+        Ok(())
+    }
+
+    pub fn append_decimal(&mut self, value: XsdDecimal) -> AResult<()> {
+        self.type_ids.push(EncTermField::Decimal.type_id());
+        self.offsets.push(self.decimal_builder.len() as i32);
+        self.decimal_builder
+            .append_value(i128::from_be_bytes(value.to_be_bytes()));
         Ok(())
     }
 
