@@ -5,8 +5,9 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
 use arrow_rdf::encoded::{
-    enc_iri, EncTerm, EncTermField, ENC_ADD, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT,
-    ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_DATATYPE, ENC_DIV,
+    enc_iri, EncTerm, EncTermField, ENC_ADD, ENC_AS_FLOAT32, ENC_AS_FLOAT64, ENC_AS_INT,
+    ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY,
+    ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_DATATYPE, ENC_DIV,
     ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK,
     ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE,
     ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_SAME_TERM, ENC_STR, ENC_STRDT, ENC_STRLANG,
@@ -25,12 +26,13 @@ use datafusion::logical_expr::{
 };
 use datafusion::prelude::col;
 use oxiri::Iri;
-use oxrdf::Variable;
+use oxrdf::vocab::xsd;
+use oxrdf::{NamedNode, Variable};
 use spargebra::algebra::{
     Expression, Function, GraphPattern, OrderExpression, PropertyPathExpression,
 };
 use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 pub struct GraphPatternRewriter {
@@ -320,9 +322,9 @@ impl GraphPatternRewriter {
             Expression::Bound(var) => {
                 Ok(ENC_BOUND.call(vec![Expr::from(Column::from(var.as_str()))]))
             }
-            Expression::Not(inner) => Ok(Expr::Not(Box::new(
+            Expression::Not(inner) => Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![Expr::Not(Box::new(
                 ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?]),
-            ))),
+            ))])),
             Expression::Equal(lhs, rhs) => {
                 Ok(ENC_EQ.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
             }
@@ -363,7 +365,7 @@ impl GraphPatternRewriter {
         }
     }
 
-    /// Rewrites a SPARQL function call to a Scalar UDF call
+    /// Rewrites a SPARQL function call
     fn rewrite_function_call(
         &mut self,
         function: &Function,
@@ -397,8 +399,38 @@ impl GraphPatternRewriter {
             Function::SubStr => Ok(ENC_SUBSTR.call(args)),
             Function::UCase => Ok(ENC_UCASE.call(args)),
             Function::LCase => Ok(ENC_LCASE.call(args)),
+
+            // Custom
+            Function::Custom(nn) => self.rewrite_custom_function_call(nn, args),
             _ => not_impl_err!("rewrite_function_call: {:?}", function),
         }
+    }
+
+    /// Rewrites a custom SPARQL function call
+    fn rewrite_custom_function_call(
+        &mut self,
+        function: &NamedNode,
+        args: Vec<Expr>,
+    ) -> DFResult<Expr> {
+        let supported_conversion_functions = HashMap::from([
+            (xsd::INT.as_str(), ENC_AS_INT),
+            (xsd::INTEGER.as_str(), ENC_AS_INTEGER),
+            (xsd::FLOAT.as_str(), ENC_AS_FLOAT32),
+            (xsd::DOUBLE.as_str(), ENC_AS_FLOAT64),
+        ]);
+
+        let supported_conversion = supported_conversion_functions.get(function.as_str());
+        if let Some(supported_conversion) = supported_conversion {
+            if args.len() != 1 {
+                return plan_err!(
+                    "Unsupported argument count for conversion function {}.",
+                    function.as_str()
+                );
+            }
+            return Ok(supported_conversion.call(args));
+        }
+
+        plan_err!("Custom Function {} is not supported.", function.as_str())
     }
 
     /// Rewrites an [OrderExpression].
@@ -431,8 +463,8 @@ fn logical_expression(
     lhs: &Box<Expression>,
     rhs: &Box<Expression>,
 ) -> DFResult<Expr> {
-    let lhs = rewriter.rewrite_expr(lhs)?;
-    let rhs = rewriter.rewrite_expr(rhs)?;
+    let lhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite_expr(lhs)?]);
+    let rhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite_expr(rhs)?]);
     let booleans = Expr::BinaryExpr(BinaryExpr::new(Box::new(lhs), operator, Box::new(rhs)));
     Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![booleans]))
 }
