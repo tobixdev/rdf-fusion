@@ -2,7 +2,7 @@ use crate::datatypes::{RdfTerm, RdfValue};
 use crate::encoded::EncTermField;
 use crate::DFResult;
 use datafusion::arrow::array::{Array, AsArray, UnionArray};
-use datafusion::common::{internal_err, ScalarValue};
+use datafusion::common::{exec_err, internal_err, ScalarValue};
 use std::cmp::Ordering;
 
 /// https://www.w3.org/TR/sparql11-query/#func-string
@@ -16,14 +16,6 @@ impl RdfStringLiteral<'_> {
 
     pub fn len(&self) -> usize {
         self.0.chars().count()
-    }
-
-    pub fn value(&self) -> &str {
-        self.0
-    }
-
-    pub fn language(&self) -> Option<&str> {
-        self.1
     }
 }
 
@@ -99,5 +91,38 @@ impl<'data> RdfValue<'data> for RdfStringLiteral<'data> {
             }
             _ => internal_err!("Cannot create EncStringLiteral from {}.", field),
         }
+    }
+}
+
+pub struct CompatibleStringArgs<'data> {
+    pub lhs: &'data str,
+    pub rhs: &'data str,
+    pub language: Option<&'data str>,
+}
+
+impl<'data> CompatibleStringArgs<'data> {
+    /// Checks whether two [RdfStringLiteral] are compatible and if they are return a new
+    /// [CompatibleStringArgs].
+    ///
+    /// https://www.w3.org/TR/2013/REC-sparql11-query-20130321/#func-arg-compatibility
+    pub fn try_from(
+        lhs: &RdfStringLiteral<'data>,
+        rhs: &RdfStringLiteral<'data>,
+    ) -> DFResult<CompatibleStringArgs<'data>> {
+        let is_compatible = match (lhs.1, rhs.1) {
+            (None, Some(_)) => false,
+            (Some(lhs_lang), Some(rhs_lang)) if lhs_lang != rhs_lang => false,
+            _ => true,
+        };
+
+        if !is_compatible {
+            return exec_err!("String args not compatible.");
+        }
+
+        Ok(CompatibleStringArgs {
+            lhs: lhs.0,
+            rhs: rhs.0,
+            language: None,
+        })
     }
 }

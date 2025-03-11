@@ -27,6 +27,7 @@ pub use rdf_blank_node::RdfBlankNode;
 pub use rdf_language_string::RdfLanguageString;
 pub use rdf_named_node::RdfNamedNode;
 pub use rdf_simple_literal::RdfSimpleLiteral;
+pub use rdf_string_literal::CompatibleStringArgs;
 pub use rdf_string_literal::RdfStringLiteral;
 pub use rdf_term::RdfTerm;
 pub use rdf_typed_literal::RdfTypedLiteral;

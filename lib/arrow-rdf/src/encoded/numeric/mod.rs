@@ -1,9 +1,9 @@
-use crate::encoded::arithmetic::add::EncAdd;
-use crate::encoded::arithmetic::div::EncDiv;
-use crate::encoded::arithmetic::mul::EncMul;
-use crate::encoded::arithmetic::sub::EncSub;
-use crate::encoded::arithmetic::unary_minus::EncUnaryMinus;
-use crate::encoded::arithmetic::unary_plus::EncUnaryPlus;
+use crate::encoded::numeric::add::EncAdd;
+use crate::encoded::numeric::div::EncDiv;
+use crate::encoded::numeric::mul::EncMul;
+use crate::encoded::numeric::sub::EncSub;
+use crate::encoded::numeric::unary_minus::EncUnaryMinus;
+use crate::encoded::numeric::unary_plus::EncUnaryPlus;
 use datafusion::logical_expr::ScalarUDF;
 use once_cell::sync::Lazy;
 

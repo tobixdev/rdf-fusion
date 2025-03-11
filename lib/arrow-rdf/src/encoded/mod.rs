@@ -1,4 +1,3 @@
-mod arithmetic;
 mod comparison;
 mod conversion;
 mod dispatch_binary;
@@ -7,6 +6,7 @@ mod dispatch_unary;
 mod encoding;
 mod functional_forms;
 mod model;
+mod numeric;
 mod query_evaluation;
 mod rdf_term_builder;
 pub mod scalars;
@@ -21,11 +21,11 @@ use once_cell::unsync::Lazy;
 pub use rdf_term_builder::EncRdfTermBuilder;
 
 // Functions
-pub use arithmetic::*;
 pub use comparison::*;
 pub use conversion::*;
 pub use encoding::*;
 pub use functional_forms::*;
+pub use numeric::*;
 pub use query_evaluation::*;
 pub use strings::*;
 pub use terms::*;

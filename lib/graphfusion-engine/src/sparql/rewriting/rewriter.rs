@@ -4,16 +4,7 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
 };
-use arrow_rdf::encoded::{
-    enc_iri, EncTerm, EncTermField, ENC_ADD, ENC_AS_DECIMAL, ENC_AS_FLOAT32, ENC_AS_FLOAT64,
-    ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY,
-    ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_DATATYPE, ENC_DIV,
-    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK,
-    ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE,
-    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_SAME_TERM, ENC_STR, ENC_STRDT, ENC_STRLANG,
-    ENC_STRLEN, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS,
-    ENC_UUID,
-};
+use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_ADD, ENC_AS_DECIMAL, ENC_AS_FLOAT32, ENC_AS_FLOAT64, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_EQ, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_SAME_TERM, ENC_STR, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::{
@@ -399,6 +390,10 @@ impl GraphPatternRewriter {
             Function::SubStr => Ok(ENC_SUBSTR.call(args)),
             Function::UCase => Ok(ENC_UCASE.call(args)),
             Function::LCase => Ok(ENC_LCASE.call(args)),
+            Function::StrStarts => Ok(ENC_STRSTARTS.call(args)),
+            Function::StrEnds => Ok(ENC_STRENDS.call(args)),
+            Function::Contains => Ok(ENC_CONTAINS.call(args)),
+            Function::StrBefore => Ok(ENC_STRBEFORE.call(args)),
 
             // Custom
             Function::Custom(nn) => self.rewrite_custom_function_call(nn, args),

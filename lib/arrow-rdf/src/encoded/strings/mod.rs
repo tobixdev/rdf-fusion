@@ -4,13 +4,28 @@ use crate::encoded::strings::substr::EncSubStr;
 use crate::encoded::strings::ucase::EncUCase;
 use datafusion::logical_expr::ScalarUDF;
 use once_cell::unsync::Lazy;
+use crate::encoded::strings::contains::EncContains;
+use crate::encoded::strings::strafter::EncStrAfter;
+use crate::encoded::strings::strbefore::EncStrBefore;
+use crate::encoded::strings::strends::EncStrEnds;
+use crate::encoded::strings::strstarts::EncStrStarts;
 
 mod lcase;
 mod strlen;
 mod substr;
 mod ucase;
+mod strstarts;
+mod strends;
+mod contains;
+mod strbefore;
+mod strafter;
 
 pub const ENC_STRLEN: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrLen::new()));
 pub const ENC_SUBSTR: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncSubStr::new()));
 pub const ENC_UCASE: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncUCase::new()));
 pub const ENC_LCASE: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncLCase::new()));
+pub const ENC_STRSTARTS: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrStarts::new()));
+pub const ENC_STRENDS: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrEnds::new()));
+pub const ENC_CONTAINS: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncContains::new()));
+pub const ENC_STRBEFORE: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrBefore::new()));
+pub const ENC_STRAFTER: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrAfter::new()));
