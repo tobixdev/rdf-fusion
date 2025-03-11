@@ -6,6 +6,11 @@ use crate::encoded::numeric::unary_minus::EncUnaryMinus;
 use crate::encoded::numeric::unary_plus::EncUnaryPlus;
 use datafusion::logical_expr::ScalarUDF;
 use once_cell::sync::Lazy;
+use crate::encoded::numeric::abs::EncAbs;
+use crate::encoded::numeric::ceil::EncCeil;
+use crate::encoded::numeric::floor::EncFloor;
+use crate::encoded::numeric::rand::EncRand;
+use crate::encoded::numeric::round::EncRound;
 
 mod add;
 mod div;
@@ -13,6 +18,11 @@ mod mul;
 mod sub;
 mod unary_minus;
 mod unary_plus;
+mod abs;
+mod round;
+mod ceil;
+mod floor;
+mod rand;
 
 pub const ENC_ADD: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncAdd::new()));
 pub const ENC_DIV: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncDiv::new()));
@@ -20,3 +30,8 @@ pub const ENC_MUL: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncMul::new())
 pub const ENC_SUB: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncSub::new()));
 pub const ENC_UNARY_MINUS: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncUnaryMinus::new()));
 pub const ENC_UNARY_PLUS: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncUnaryPlus::new()));
+pub const ENC_ABS: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncAbs::new()));
+pub const ENC_ROUND: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncRound::new()));
+pub const ENC_CEIL: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncCeil::new()));
+pub const ENC_FLOOR: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncFloor::new()));
+pub const ENC_RAND: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncRand::new()));

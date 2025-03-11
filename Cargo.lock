@@ -316,6 +316,7 @@ dependencies = [
  "once_cell",
  "oxiri",
  "oxrdf",
+ "rand",
  "thiserror",
  "uuid",
 ]

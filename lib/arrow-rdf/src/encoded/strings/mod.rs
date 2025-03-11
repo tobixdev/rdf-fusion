@@ -5,6 +5,8 @@ use crate::encoded::strings::ucase::EncUCase;
 use datafusion::logical_expr::ScalarUDF;
 use once_cell::unsync::Lazy;
 use crate::encoded::strings::contains::EncContains;
+use crate::encoded::strings::encode_for_uri::EncEncodeForUri;
+use crate::encoded::strings::lang_matches::EncLangMatches;
 use crate::encoded::strings::strafter::EncStrAfter;
 use crate::encoded::strings::strbefore::EncStrBefore;
 use crate::encoded::strings::strends::EncStrEnds;
@@ -19,6 +21,8 @@ mod strends;
 mod contains;
 mod strbefore;
 mod strafter;
+mod encode_for_uri;
+mod lang_matches;
 
 pub const ENC_STRLEN: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrLen::new()));
 pub const ENC_SUBSTR: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncSubStr::new()));
@@ -29,3 +33,5 @@ pub const ENC_STRENDS: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrEnds
 pub const ENC_CONTAINS: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncContains::new()));
 pub const ENC_STRBEFORE: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrBefore::new()));
 pub const ENC_STRAFTER: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncStrAfter::new()));
+pub const ENC_ENCODEFORURI: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncEncodeForUri::new()));
+pub const ENC_LANGMATCHES: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncLangMatches::new()));
