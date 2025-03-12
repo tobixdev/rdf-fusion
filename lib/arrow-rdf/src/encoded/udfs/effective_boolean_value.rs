@@ -32,26 +32,28 @@ impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         // TODO implement all rules
         let result = match value {
-            RdfTerm::NamedNode(value) => !value.name.is_empty(),
-            RdfTerm::BlankNode(value) => !value.id.is_empty(),
-            RdfTerm::Boolean(value) => value.as_bool(),
-            RdfTerm::Numeric(value) => match value {
+            RdfTerm::Boolean(value) => Some(value.as_bool()),
+            RdfTerm::Numeric(value) => Some(match value {
                 XsdNumeric::Int(value) => value != XsdInt::from(0),
                 XsdNumeric::Integer(value) => value != XsdInteger::from(0),
                 XsdNumeric::Float(value) => value != XsdFloat::from(0f32),
                 XsdNumeric::Double(value) => value != XsdDouble::from(0f64),
                 XsdNumeric::Decimal(value) => value != XsdDecimal::from(0),
-            },
-            RdfTerm::SimpleLiteral(value) => !value.is_empty(),
-            RdfTerm::LanguageString(value) => !value.is_empty(),
-            RdfTerm::TypedLiteral(value) => !value.is_empty(),
+            }),
+            RdfTerm::SimpleLiteral(value) => Some(!value.is_empty()),
+            _ => None
         };
-        collector.append_value(result);
+
+        match result {
+            None => collector.append_null(),
+            Some(result) => collector.append_value(result)
+        }
+
         Ok(())
     }
 
     fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_value(false);
+        collector.append_null();
         Ok(())
     }
 }
