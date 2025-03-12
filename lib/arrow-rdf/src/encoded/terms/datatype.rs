@@ -48,7 +48,7 @@ impl EncScalarUnaryUdf for EncDatatype {
 
         match datatype {
             None => collector.append_null(),
-            Some(datatype) => collector.append_string(datatype, None),
+            Some(datatype) => collector.append_named_node(datatype),
         }?;
 
         Ok(())
