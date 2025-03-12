@@ -12,6 +12,7 @@ oxiri.workspace = true
 oxrdf.workspace = true
 once_cell.workspace = true
 rand.workspace = true
+regex.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 

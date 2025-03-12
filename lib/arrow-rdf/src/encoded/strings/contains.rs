@@ -17,7 +17,7 @@ impl EncContains {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
-                TypeSignature::OneOf(vec![TypeSignature::Exact(vec![EncTerm::term_type(); 2])]),
+                TypeSignature::Exact(vec![EncTerm::term_type(); 2]),
                 Volatility::Immutable,
             ),
         }

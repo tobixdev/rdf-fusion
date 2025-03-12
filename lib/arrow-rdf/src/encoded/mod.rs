@@ -13,6 +13,7 @@ pub mod scalars;
 mod strings;
 mod terms;
 mod udfs;
+mod dispatch_quaternary;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
