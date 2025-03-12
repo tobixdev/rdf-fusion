@@ -30,6 +30,7 @@ impl EncScalarUnaryUdf for EncLang {
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         match value {
+            RdfTerm::NamedNode(_) | RdfTerm::BlankNode(_) => collector.append_null(),
             RdfTerm::LanguageString(value) => collector.append_string(value.language, None),
             _ => collector.append_string("", None),
         }?;
