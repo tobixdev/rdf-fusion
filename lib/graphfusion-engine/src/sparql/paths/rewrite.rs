@@ -118,7 +118,7 @@ fn build_path_query(
         PropertyPathExpression::ZeroOrOne(_) => {
             todo!("Recusive CTE - include path length and filter")
         }
-        PropertyPathExpression::NegatedPropertySet(names) => {
+        PropertyPathExpression::NegatedPropertySet(_) => {
             todo!("Use not in")
         }
     }

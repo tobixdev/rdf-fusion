@@ -1,10 +1,8 @@
-use crate::datatypes::{CompatibleStringArgs, RdfStringLiteral, XsdInteger};
+use crate::datatypes::{CompatibleStringArgs, RdfStringLiteral};
 use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
-use crate::encoded::dispatch_unary::EncScalarUnaryUdf;
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };

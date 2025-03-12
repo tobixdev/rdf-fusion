@@ -87,7 +87,7 @@ impl UserDefinedLogicalNodeCore for PathNode {
     fn with_exprs_and_inputs(
         &self,
         exprs: Vec<Expr>,
-        mut inputs: Vec<LogicalPlan>,
+        inputs: Vec<LogicalPlan>,
     ) -> DFResult<Self> {
         assert_eq!(inputs.len(), 0, "input size inconsistent");
         assert_eq!(exprs.len(), 0, "expression size inconsistent");

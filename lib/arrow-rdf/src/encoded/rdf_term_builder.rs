@@ -93,6 +93,10 @@ impl EncRdfTermBuilder {
     }
 
     pub fn append_string(&mut self, value: &str, language: Option<&str>) -> AResult<()> {
+        if language == Some("") {
+            return Err(ArrowError::InvalidArgumentError(String::from("Empty language.")));
+        }
+
         self.type_ids.push(EncTermField::String.type_id());
         self.offsets.push(self.string_builder.len() as i32);
 

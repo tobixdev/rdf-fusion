@@ -37,7 +37,7 @@ impl DecRdfTermBuilder {
             Term::NamedNode(nn) => self.append_named_node(nn.as_str())?,
             Term::BlankNode(bnode) => self.append_blank_node(bnode.as_str())?,
             Term::Literal(literal) => match literal.datatype() {
-                rdf::LANG_STRING => self.append_string(literal.value(), Some(literal.value()))?,
+                rdf::LANG_STRING => self.append_string(literal.value(), Some(literal.language().unwrap()))?,
                 xsd::STRING => self.append_string(literal.value(), None)?,
                 _ => self.append_typed_literal(literal.value(), literal.datatype().as_str())?,
             },
@@ -64,6 +64,10 @@ impl DecRdfTermBuilder {
     }
 
     pub fn append_string(&mut self, value: &str, language: Option<&str>) -> AResult<()> {
+        if language == Some("") {
+            return Err(ArrowError::InvalidArgumentError(String::from("Empty language.")));
+        }
+
         self.type_ids.push(DecTermField::String.type_id());
         self.offsets.push(self.string_builder.len() as i32);
 

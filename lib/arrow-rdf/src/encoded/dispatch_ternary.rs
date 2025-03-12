@@ -1,7 +1,6 @@
 use crate::datatypes::RdfValue;
 use crate::result_collector::ResultCollector;
 use crate::{as_enc_term_array, DFResult};
-use datafusion::arrow::array::Array;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::ColumnarValue;
 

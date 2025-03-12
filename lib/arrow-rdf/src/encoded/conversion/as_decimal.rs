@@ -1,5 +1,4 @@
 use crate::datatypes::{RdfTerm, XsdDecimal, XsdNumeric};
-use crate::encoded::dispatch_binary::EncScalarBinaryUdf;
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;

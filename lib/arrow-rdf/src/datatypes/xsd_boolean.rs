@@ -4,7 +4,6 @@ use crate::encoded::EncTermField;
 use crate::DFResult;
 use datafusion::arrow::array::{AsArray, UnionArray};
 use datafusion::common::{internal_err, ScalarValue};
-use std::any::Any;
 use std::fmt;
 use std::str::{FromStr, ParseBoolError};
 

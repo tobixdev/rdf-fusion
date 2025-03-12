@@ -1,6 +1,5 @@
-use crate::datatypes::{CompatibleStringArgs, RdfSimpleLiteral, RdfStringLiteral};
+use crate::datatypes::RdfSimpleLiteral;
 use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
-use crate::encoded::dispatch_unary::EncScalarUnaryUdf;
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
@@ -8,9 +7,6 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
-use std::ascii::AsciiExt;
-use std::cmp::max;
-use std::io::BufRead;
 
 #[derive(Debug)]
 pub struct EncLangMatches {
