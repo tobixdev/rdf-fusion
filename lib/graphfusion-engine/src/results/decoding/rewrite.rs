@@ -58,9 +58,9 @@ fn field_to_expr(field: &Field) -> Expr {
     if *field.data_type() == EncTerm::term_type() {
         Expr::ScalarFunction(ScalarFunction::new_udf(
             Arc::new(ENC_DECODE.clone()),
-            vec![Expr::Column(Column::from(field.name().clone()))],
+            vec![Expr::Column(Column::new_unqualified(field.name()))],
         ))
     } else {
-        Expr::Column(Column::from_name(field.name()))
+        Expr::Column(Column::new_unqualified(field.name()))
     }
 }

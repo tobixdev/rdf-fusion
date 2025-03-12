@@ -150,19 +150,19 @@ fn filter_and_project_term(
     match term {
         TermPattern::NamedNode(nn) => {
             inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
-                col(column),
+                col(Column::new_unqualified(column)),
                 lit(encode_scalar_named_node(nn.as_ref())),
             ])]))
         }
         TermPattern::BlankNode(bnode) => {
             inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
-                col(column),
+                col(Column::new_unqualified(column)),
                 lit(encode_scalar_blank_node(bnode.as_ref())),
             ])]))
         }
         TermPattern::Literal(literal) => {
             inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
-                col(column),
+                col(Column::new_unqualified(column)),
                 lit(encode_scalar_literal(literal.as_ref())?),
             ])]))
         }
@@ -172,7 +172,7 @@ fn filter_and_project_term(
                 .fields()
                 .iter()
                 .map(|f| {
-                    let expr = col(f.name());
+                    let expr = col(Column::new_unqualified(f.name()));
                     if f.name() == column {
                         expr.alias(var.as_str())
                     } else {
@@ -200,7 +200,7 @@ fn project_graph(
                 .fields()
                 .iter()
                 .map(|f| {
-                    let expr = col(f.name());
+                    let expr = col(Column::new_unqualified(f.name()));
                     if f.name() == "graph" {
                         expr.alias(var.as_str())
                     } else {

@@ -8,8 +8,9 @@ use datafusion::arrow::array::{
 };
 use datafusion::arrow::buffer::ScalarBuffer;
 use oxrdf::vocab::{rdf, xsd};
-use oxrdf::Term;
+use oxrdf::{BlankNode, Term};
 use std::sync::Arc;
+use datafusion::arrow::error::ArrowError;
 
 pub struct EncRdfTermBuilder {
     type_ids: Vec<i8>,
@@ -81,6 +82,10 @@ impl EncRdfTermBuilder {
     }
 
     pub fn append_blank_node(&mut self, value: &str) -> AResult<()> {
+        if BlankNode::new(value).is_err() {
+            return Err(ArrowError::InvalidArgumentError(String::from("Invalid BlankNode id")));
+        }
+
         self.type_ids.push(EncTermField::BlankNode.type_id());
         self.offsets.push(self.blank_node_builder.len() as i32);
         self.blank_node_builder.append_value(value);

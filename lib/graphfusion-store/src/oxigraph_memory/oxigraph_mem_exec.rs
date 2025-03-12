@@ -276,7 +276,7 @@ fn encode_term(
         EncodedTerm::SmallStringLiteral(str) => builder.append_string(&str, None),
         EncodedTerm::BigStringLiteral { value_id } => {
             let string = load_string(reader, &value_id)?;
-            builder.append_blank_node(&string)
+            builder.append_string(&string, None)
         }
         EncodedTerm::SmallSmallLangStringLiteral { value, language } => {
             builder.append_string(value.as_str(), Some(language.as_str()))
