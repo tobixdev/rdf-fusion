@@ -24,22 +24,27 @@ const FIELDS_TERM: Lazy<UnionFields> = Lazy::new(|| {
         Field::new(
             DecTermField::NamedNode.name(),
             DecTermField::NamedNode.data_type(),
-            true,
+            false,
         ),
         Field::new(
             DecTermField::BlankNode.name(),
             DecTermField::BlankNode.data_type(),
-            true,
+            false,
         ),
         Field::new(
             DecTermField::String.name(),
             DecTermField::String.data_type(),
-            true,
+            false,
         ),
         Field::new(
             DecTermField::TypedLiteral.name(),
             DecTermField::TypedLiteral.data_type(),
-            true,
+            false,
+        ),
+        Field::new(
+            DecTermField::Null.name(),
+            DecTermField::Null.data_type(),
+            false,
         ),
     ];
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)

@@ -89,7 +89,7 @@ impl DecRdfTermBuilder {
         Ok(())
     }
 
-    pub fn append_typed_literal(&mut self, value: &str, type_id: &str) -> AResult<()> {
+    pub fn append_typed_literal(&mut self, value: &str, datatype: &str) -> AResult<()> {
         self.type_ids.push(DecTermField::TypedLiteral.type_id());
         self.offsets.push(self.typed_literal_builder.len() as i32);
 
@@ -100,7 +100,7 @@ impl DecRdfTermBuilder {
         self.typed_literal_builder
             .field_builder::<StringBuilder>(1)
             .unwrap()
-            .append_value(type_id);
+            .append_value(datatype);
         self.typed_literal_builder.append(true);
         Ok(())
     }
@@ -122,6 +122,7 @@ impl DecRdfTermBuilder {
                 Arc::new(self.blank_node_builder.finish()),
                 Arc::new(self.string_builder.finish()),
                 Arc::new(self.typed_literal_builder.finish()),
+                Arc::new(self.null_builder.finish()),
             ],
         )?))
     }

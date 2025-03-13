@@ -74,7 +74,7 @@ const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
         Field::new(
             EncTermField::Null.name(),
             EncTermField::Null.data_type(),
-            true,
+            false,
         ),
     ];
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
