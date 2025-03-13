@@ -9,11 +9,11 @@ use datafusion::logical_expr::{
 use std::any::Any;
 
 #[derive(Debug)]
-pub struct EncAsFloat64 {
+pub struct EncAsDouble {
     signature: Signature,
 }
 
-impl EncAsFloat64 {
+impl EncAsDouble {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -24,27 +24,34 @@ impl EncAsFloat64 {
     }
 }
 
-impl EncScalarUnaryUdf for EncAsFloat64 {
+impl EncScalarUnaryUdf for EncAsDouble {
     type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         let converted = match value {
-            RdfTerm::Boolean(v) => XsdDouble::from(v),
-            RdfTerm::Numeric(numeric) => match numeric {
+            RdfTerm::Boolean(v) => Some(XsdDouble::from(v)),
+            RdfTerm::SimpleLiteral(v) => v
+                .value
+                .parse()
+                .ok(),
+            RdfTerm::Numeric(numeric) => Some(match numeric {
                 XsdNumeric::Int(v) => XsdDouble::from(v),
                 XsdNumeric::Integer(v) => XsdDouble::from(v),
                 XsdNumeric::Float(v) => XsdDouble::from(v),
                 XsdNumeric::Double(v) => v,
                 XsdNumeric::Decimal(v) => XsdDouble::from(v),
-            },
+            }),
             _ => {
                 collector.append_null()?;
                 return Ok(());
             }
         };
 
-        collector.append_float64(converted)?;
+        match converted {
+            None => collector.append_null()?,
+            Some(converted) => collector.append_float64(converted)?,
+        }
         Ok(())
     }
 
@@ -54,7 +61,7 @@ impl EncScalarUnaryUdf for EncAsFloat64 {
     }
 }
 
-impl ScalarUDFImpl for EncAsFloat64 {
+impl ScalarUDFImpl for EncAsDouble {
     fn as_any(&self) -> &dyn Any {
         self
     }

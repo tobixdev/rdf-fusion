@@ -61,7 +61,7 @@ impl ScalarUDFImpl for EncEq {
     }
 
     fn name(&self) -> &str {
-        "enc_same_term"
+        "enc_eq"
     }
 
     fn signature(&self) -> &Signature {

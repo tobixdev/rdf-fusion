@@ -30,13 +30,17 @@ impl EncScalarUnaryUdf for EncAsInt {
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         let converted = match value {
-            RdfTerm::Boolean(v) => Ok(XsdInt::from(v)),
+            RdfTerm::Boolean(v) => Some(XsdInt::from(v)),
+            RdfTerm::SimpleLiteral(v) => v
+                .value
+                .parse()
+                .ok(),
             RdfTerm::Numeric(numeric) => match numeric {
-                XsdNumeric::Int(v) => Ok(v),
-                XsdNumeric::Integer(v) => XsdInt::try_from(v),
-                XsdNumeric::Float(v) => XsdInt::try_from(v),
-                XsdNumeric::Double(v) => XsdInt::try_from(v),
-                XsdNumeric::Decimal(v) => XsdInt::try_from(v),
+                XsdNumeric::Int(v) => Some(v),
+                XsdNumeric::Integer(v) => XsdInt::try_from(v).ok(),
+                XsdNumeric::Float(v) => XsdInt::try_from(v).ok(),
+                XsdNumeric::Double(v) => XsdInt::try_from(v).ok(),
+                XsdNumeric::Decimal(v) => XsdInt::try_from(v).ok(),
             },
             _ => {
                 collector.append_null()?;
@@ -45,8 +49,8 @@ impl EncScalarUnaryUdf for EncAsInt {
         };
 
         match converted {
-            Ok(converted) => collector.append_int(converted)?,
-            Err(_) => collector.append_null()?,
+            Some(converted) => collector.append_int(converted)?,
+            None => collector.append_null()?,
         };
         Ok(())
     }

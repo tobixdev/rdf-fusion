@@ -121,10 +121,7 @@ fn to_query_solution(
                 .expect("Schema must match")
                 .as_union();
             let term_field = DecTermField::try_from(column.type_id(i))?;
-            let term = match column.is_null(i) {
-                true => None,
-                false => to_term(column, column.value_offset(i), term_field)?,
-            };
+            let term = to_term(column, column.value_offset(i), term_field)?;
             terms.push(term);
         }
         result.push((variables.clone(), terms).into())
