@@ -1,5 +1,3 @@
-use arrow_rdf::decoded::model::DecTerm;
-use arrow_rdf::decoded::DecRdfTermBuilder;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
@@ -15,16 +13,15 @@ use sparesults::{
 use std::error::Error;
 use std::io::{Read, Write};
 use std::sync::Arc;
+use arrow_rdf::encoded::{EncRdfTermBuilder, EncTerm};
+use arrow_rdf::error::LiteralEncodingError;
 
-mod decoding;
 mod graph_name;
 mod quads;
 mod query_solution;
 mod triples;
 
 use crate::sparql::error::EvaluationError;
-pub use decoding::decode_rdf_terms;
-pub use decoding::DecodeRdfTermsToProjectionRule;
 pub use graph_name::GraphNameStream;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
@@ -205,7 +202,7 @@ pub fn query_result_for_iterator(
 ) -> Result<QueryResults, QuerySolutionsToStreamError> {
     let mut builders = Vec::new();
     for _ in 0..variables.len() {
-        builders.push(DecRdfTermBuilder::new())
+        builders.push(EncRdfTermBuilder::new())
     }
 
     for solution in solutions {
@@ -221,12 +218,12 @@ pub fn query_result_for_iterator(
 
     let fields = variables
         .iter()
-        .map(|v| Field::new(v.as_str(), DecTerm::term_type(), true))
+        .map(|v| Field::new(v.as_str(), EncTerm::term_type(), true))
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()
         .map(|builder| builder.finish())
-        .collect::<Result<Vec<_>, ArrowError>>()?;
+        .collect::<Result<Vec<_>, DataFusionError>>()?;
 
     let schema = SchemaRef::new(Schema::new(fields));
     let record_batch = RecordBatch::try_new(schema.clone(), columns)?;

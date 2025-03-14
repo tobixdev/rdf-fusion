@@ -103,7 +103,7 @@ impl RdfValue<'_> for XsdFloat {
             return internal_err!("Unexpected scalar");
         };
 
-        if *type_id != EncTermField::Float32.type_id() {
+        if *type_id != EncTermField::Float.type_id() {
             return internal_err!("Unexpected scalar type_id");
         }
 
@@ -118,7 +118,7 @@ impl RdfValue<'_> for XsdFloat {
         let offset = array.value_offset(index);
 
         match field {
-            EncTermField::Float32 => Ok(Self {
+            EncTermField::Float => Ok(Self {
                 value: array
                     .child(field.type_id())
                     .as_primitive::<Float32Type>()

@@ -47,7 +47,7 @@ impl EncScalarUnaryUdf for EncAsFloat {
 
         match converted {
             None => collector.append_null()?,
-            Some(converted) => collector.append_float32(converted)?,
+            Some(converted) => collector.append_float(converted)?,
         }
         Ok(())
     }

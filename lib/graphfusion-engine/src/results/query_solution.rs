@@ -1,6 +1,9 @@
 use crate::sparql::error::EvaluationError;
-use arrow_rdf::decoded::model::DecTermField;
+use arrow_rdf::encoded::EncTermField;
 use datafusion::arrow::array::{Array, AsArray, RecordBatch, UnionArray};
+use datafusion::arrow::datatypes::{
+    Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type,
+};
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use oxrdf::{BlankNode, Literal, NamedNode, Term, Variable};
@@ -120,7 +123,7 @@ fn to_query_solution(
                 .column_by_name(field.name())
                 .expect("Schema must match")
                 .as_union();
-            let term_field = DecTermField::try_from(column.type_id(i))?;
+            let term_field = EncTermField::try_from(column.type_id(i))?;
             let term = to_term(column, column.value_offset(i), term_field)?;
             terms.push(term);
         }
@@ -133,10 +136,10 @@ fn to_query_solution(
 fn to_term(
     objects: &UnionArray,
     i: usize,
-    term_field: DecTermField,
+    term_field: EncTermField,
 ) -> Result<Option<Term>, EvaluationError> {
     Ok(match term_field {
-        DecTermField::NamedNode => {
+        EncTermField::NamedNode => {
             let value = objects
                 .child(term_field.type_id())
                 .as_string::<i32>()
@@ -144,12 +147,10 @@ fn to_term(
             if value == "DEFAULT" {
                 Some(Term::Literal(Literal::new_simple_literal(value)))
             } else {
-                Some(Term::NamedNode(
-                    NamedNode::new(value).map_err(EvaluationError::unexpected)?,
-                ))
+                Some(Term::NamedNode(NamedNode::new(value).unwrap()))
             }
         }
-        DecTermField::BlankNode => {
+        EncTermField::BlankNode => {
             let value = objects
                 .child(term_field.type_id())
                 .as_string::<i32>()
@@ -158,7 +159,46 @@ fn to_term(
                 BlankNode::new(value).map_err(|err| EvaluationError::Unexpected(Box::new(err)))?,
             ))
         }
-        DecTermField::String => {
+        EncTermField::Boolean => {
+            let value = objects.child(term_field.type_id()).as_boolean().value(i);
+            Some(Term::Literal(Literal::from(value)))
+        }
+        EncTermField::Int => {
+            let value = objects
+                .child(term_field.type_id())
+                .as_primitive::<Int32Type>()
+                .value(i);
+            Some(Term::Literal(Literal::from(value)))
+        }
+        EncTermField::Integer => {
+            let value = objects
+                .child(term_field.type_id())
+                .as_primitive::<Int64Type>()
+                .value(i);
+            Some(Term::Literal(Literal::from(value)))
+        }
+        EncTermField::Float => {
+            let value = objects
+                .child(term_field.type_id())
+                .as_primitive::<Float32Type>()
+                .value(i);
+            Some(Term::Literal(Literal::from(value)))
+        }
+        EncTermField::Double => {
+            let value = objects
+                .child(term_field.type_id())
+                .as_primitive::<Float64Type>()
+                .value(i);
+            Some(Term::Literal(Literal::from(value)))
+        }
+        EncTermField::Decimal => {
+            let value = objects
+                .child(term_field.type_id())
+                .as_primitive::<Decimal128Type>()
+                .value(i);
+            Some(Term::Literal(Literal::from(value)))
+        }
+        EncTermField::String => {
             let values = objects
                 .child(term_field.type_id())
                 .as_struct()
@@ -186,7 +226,7 @@ fn to_term(
                 ))
             }
         }
-        DecTermField::TypedLiteral => {
+        EncTermField::TypedLiteral => {
             let values = objects
                 .child(term_field.type_id())
                 .as_struct()
@@ -201,11 +241,10 @@ fn to_term(
                 .as_string::<i32>();
             Some(Term::Literal(Literal::new_typed_literal(
                 String::from(values.value(i)),
-                NamedNode::new(String::from(datatypes.value(i)))
-                    .map_err(EvaluationError::unexpected)?,
+                NamedNode::new(String::from(datatypes.value(i))).unwrap(),
             )))
         }
-        DecTermField::Null => None,
+        EncTermField::Null => None,
     })
 }
 

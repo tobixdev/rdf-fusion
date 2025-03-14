@@ -32,8 +32,8 @@ impl EncScalarUnaryUdf for EncUnaryPlus {
         match value {
             XsdNumeric::Int(value) => collector.append_int(value)?,
             XsdNumeric::Integer(value) => collector.append_integer(value)?,
-            XsdNumeric::Float(value) => collector.append_float32(value)?,
-            XsdNumeric::Double(value) => collector.append_float64(value)?,
+            XsdNumeric::Float(value) => collector.append_float(value)?,
+            XsdNumeric::Double(value) => collector.append_double(value)?,
             XsdNumeric::Decimal(value) => collector.append_decimal(value)?,
         }
         Ok(())

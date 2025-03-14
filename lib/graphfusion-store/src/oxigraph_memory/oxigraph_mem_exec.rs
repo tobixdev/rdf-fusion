@@ -314,8 +314,8 @@ fn encode_term(
             builder.append_typed_literal(&value, &datatype)
         }
         EncodedTerm::BooleanLiteral(v) => builder.append_boolean(v.into()),
-        EncodedTerm::FloatLiteral(v) => builder.append_float32(f32::from(v).into()),
-        EncodedTerm::DoubleLiteral(v) => builder.append_float64(f64::from(v).into()),
+        EncodedTerm::FloatLiteral(v) => builder.append_float(f32::from(v).into()),
+        EncodedTerm::DoubleLiteral(v) => builder.append_double(f64::from(v).into()),
         EncodedTerm::DecimalLiteral(v) => {
             builder.append_decimal(XsdDecimal::from_be_bytes(v.to_be_bytes()))
         }

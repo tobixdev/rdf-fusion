@@ -38,8 +38,8 @@ impl EncScalarUnaryUdf for EncUnaryMinus {
                 Some(value) => collector.append_integer(value)?,
                 None => collector.append_null()?,
             },
-            XsdNumeric::Float(value) => collector.append_float32(value)?,
-            XsdNumeric::Double(value) => collector.append_float64(-value)?,
+            XsdNumeric::Float(value) => collector.append_float(value)?,
+            XsdNumeric::Double(value) => collector.append_double(-value)?,
             XsdNumeric::Decimal(value) => match value.checked_neg() {
                 Some(value) => collector.append_decimal(value)?,
                 None => collector.append_null()?,

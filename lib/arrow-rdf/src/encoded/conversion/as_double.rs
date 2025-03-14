@@ -50,7 +50,7 @@ impl EncScalarUnaryUdf for EncAsDouble {
 
         match converted {
             None => collector.append_null()?,
-            Some(converted) => collector.append_float64(converted)?,
+            Some(converted) => collector.append_double(converted)?,
         }
         Ok(())
     }

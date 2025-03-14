@@ -11,7 +11,7 @@ use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::logical_expr::{col, lit, LogicalPlan};
 use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
-use graphfusion_engine::results::{decode_rdf_terms, DecodeRdfTermsToProjectionRule, QueryResults};
+use graphfusion_engine::results::{QueryResults};
 use graphfusion_engine::sparql::error::EvaluationError;
 use graphfusion_engine::sparql::{
     evaluate_query, PathToJoinsRule, Query, QueryExplanation, QueryOptions,
@@ -28,7 +28,6 @@ pub struct MemoryTripleStore {
 impl MemoryTripleStore {
     pub async fn new() -> Result<Self, StorageError> {
         let state = SessionStateBuilder::new()
-            .with_analyzer_rule(Arc::new(DecodeRdfTermsToProjectionRule::default()))
             .with_analyzer_rule(Arc::new(PathToJoinsRule::default()))
             .build();
         let ctx = SessionContext::from(state);
@@ -110,7 +109,7 @@ impl TripleStore for MemoryTripleStore {
         let pattern_plan = self
             .match_pattern(graph_name, subject, predicate, object)
             .await?;
-        let result = DataFrame::new(self.ctx.state(), decode_rdf_terms(pattern_plan)?)
+        let result = DataFrame::new(self.ctx.state(), pattern_plan)
             .execute_stream()
             .await?;
         Ok(result)

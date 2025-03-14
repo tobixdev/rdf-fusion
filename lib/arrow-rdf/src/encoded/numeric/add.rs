@@ -43,8 +43,8 @@ impl EncScalarBinaryUdf for EncAdd {
                 None => collector.append_null()?,
                 Some(value) => collector.append_integer(value)?,
             },
-            XsdNumericPair::Float(lhs, rhs) => collector.append_float32(lhs + rhs)?,
-            XsdNumericPair::Double(lhs, rhs) => collector.append_float64(lhs + rhs)?,
+            XsdNumericPair::Float(lhs, rhs) => collector.append_float(lhs + rhs)?,
+            XsdNumericPair::Double(lhs, rhs) => collector.append_double(lhs + rhs)?,
             XsdNumericPair::Decimal(lhs, rhs) => match lhs.checked_add(rhs) {
                 None => collector.append_null()?,
                 Some(value) => collector.append_decimal(value)?,

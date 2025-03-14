@@ -7,6 +7,7 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use std::any::Any;
+use oxiri::Iri;
 
 #[derive(Debug)]
 pub struct EncStrDt {

@@ -32,8 +32,8 @@ impl EncScalarUnaryUdf for EncFloor {
         match value {
             XsdNumeric::Int(value) => collector.append_int(value)?,
             XsdNumeric::Integer(value) => collector.append_integer(value)?,
-            XsdNumeric::Float(value) => collector.append_float32(value.floor())?,
-            XsdNumeric::Double(value) => collector.append_float64(value.floor())?,
+            XsdNumeric::Float(value) => collector.append_float(value.floor())?,
+            XsdNumeric::Double(value) => collector.append_double(value.floor())?,
             XsdNumeric::Decimal(value) => match value.checked_floor() {
                 Some(value) => collector.append_decimal(value)?,
                 None => collector.append_null()?,

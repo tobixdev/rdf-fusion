@@ -172,8 +172,8 @@ impl RdfValue<'_> for XsdNumeric {
         match field {
             EncTermField::Int => Ok(Self::Int(XsdInt::from_enc_scalar(scalar)?)),
             EncTermField::Integer => Ok(Self::Integer(XsdInteger::from_enc_scalar(scalar)?)),
-            EncTermField::Float32 => Ok(Self::Float(XsdFloat::from_enc_scalar(scalar)?)),
-            EncTermField::Float64 => Ok(Self::Double(XsdDouble::from_enc_scalar(scalar)?)),
+            EncTermField::Float => Ok(Self::Float(XsdFloat::from_enc_scalar(scalar)?)),
+            EncTermField::Double => Ok(Self::Double(XsdDouble::from_enc_scalar(scalar)?)),
             EncTermField::Decimal => Ok(Self::Decimal(XsdDecimal::from_enc_scalar(scalar)?)),
             _ => internal_err!("Cannot create EncNumeric from {}.", field),
         }
@@ -184,8 +184,8 @@ impl RdfValue<'_> for XsdNumeric {
         match field {
             EncTermField::Int => Ok(Self::Int(XsdInt::from_enc_array(array, index)?)),
             EncTermField::Integer => Ok(Self::Integer(XsdInteger::from_enc_array(array, index)?)),
-            EncTermField::Float32 => Ok(Self::Float(XsdFloat::from_enc_array(array, index)?)),
-            EncTermField::Float64 => Ok(Self::Double(XsdDouble::from_enc_array(array, index)?)),
+            EncTermField::Float => Ok(Self::Float(XsdFloat::from_enc_array(array, index)?)),
+            EncTermField::Double => Ok(Self::Double(XsdDouble::from_enc_array(array, index)?)),
             EncTermField::Decimal => Ok(Self::Decimal(XsdDecimal::from_enc_array(array, index)?)),
             _ => internal_err!("Cannot create EncNumeric from {}.", field),
         }

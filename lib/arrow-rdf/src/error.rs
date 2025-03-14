@@ -1,20 +1,30 @@
 use datafusion::arrow::error::ArrowError;
 use std::error::Error;
-use std::num::ParseIntError;
+use std::num::{ParseFloatError, ParseIntError};
+use std::str::ParseBoolError;
 
-pub enum TermEncodingError {
-    Arrow(ArrowError),
-    ParsingError(Box<dyn Error>),
+#[derive(Debug, thiserror::Error)]
+pub enum LiteralEncodingError {
+    #[error("Error while writing to the arrow arrays.")]
+    Arrow(#[from] ArrowError),
+    #[error("There was an error while obtaining the query solutions")]
+    ParsingError(#[from] Box<dyn Error>),
 }
 
-impl From<ArrowError> for TermEncodingError {
-    fn from(error: ArrowError) -> Self {
-        TermEncodingError::Arrow(error)
+impl From<ParseIntError> for LiteralEncodingError {
+    fn from(error: ParseIntError) -> Self {
+        LiteralEncodingError::ParsingError(Box::new(error))
     }
 }
 
-impl From<ParseIntError> for TermEncodingError {
-    fn from(error: ParseIntError) -> Self {
-        TermEncodingError::ParsingError(Box::new(error))
+impl From<ParseFloatError> for LiteralEncodingError {
+    fn from(error: ParseFloatError) -> Self {
+        LiteralEncodingError::ParsingError(Box::new(error))
+    }
+}
+
+impl From<ParseBoolError> for LiteralEncodingError {
+    fn from(error: ParseBoolError) -> Self {
+        LiteralEncodingError::ParsingError(Box::new(error))
     }
 }

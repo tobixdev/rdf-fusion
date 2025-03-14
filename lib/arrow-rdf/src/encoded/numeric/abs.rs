@@ -38,8 +38,8 @@ impl EncScalarUnaryUdf for EncAbs {
                 Some(value) => collector.append_integer(value)?,
                 None => collector.append_null()?,
             },
-            XsdNumeric::Float(value) => collector.append_float32(value.abs())?,
-            XsdNumeric::Double(value) => collector.append_float64(value.abs())?,
+            XsdNumeric::Float(value) => collector.append_float(value.abs())?,
+            XsdNumeric::Double(value) => collector.append_double(value.abs())?,
             XsdNumeric::Decimal(value) => match value.checked_abs() {
                 Some(value) => collector.append_decimal(value)?,
                 None => collector.append_null()?,

@@ -42,13 +42,13 @@ const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
             false,
         ),
         Field::new(
-            EncTermField::Float32.name(),
-            EncTermField::Float32.data_type(),
+            EncTermField::Float.name(),
+            EncTermField::Float.data_type(),
             false,
         ),
         Field::new(
-            EncTermField::Float64.name(),
-            EncTermField::Float64.data_type(),
+            EncTermField::Double.name(),
+            EncTermField::Double.data_type(),
             false,
         ),
         Field::new(
@@ -111,8 +111,8 @@ pub enum EncTermField {
     BlankNode,
     String,
     Boolean,
-    Float32,
-    Float64,
+    Float,
+    Double,
     Decimal,
     Int,
     Integer,
@@ -131,8 +131,8 @@ impl EncTermField {
             EncTermField::BlankNode => "blank_node",
             EncTermField::String => "string",
             EncTermField::Boolean => "boolean",
-            EncTermField::Float32 => "float32",
-            EncTermField::Float64 => "float64",
+            EncTermField::Float => "float",
+            EncTermField::Double => "double",
             EncTermField::Decimal => "decimal",
             EncTermField::Int => "int",
             EncTermField::Integer => "integer",
@@ -147,8 +147,8 @@ impl EncTermField {
             EncTermField::BlankNode => DataType::Utf8,
             EncTermField::String => DataType::Struct(FIELDS_STRING.clone()),
             EncTermField::Boolean => DataType::Boolean,
-            EncTermField::Float32 => DataType::Float32,
-            EncTermField::Float64 => DataType::Float64,
+            EncTermField::Float => DataType::Float32,
+            EncTermField::Double => DataType::Float64,
             EncTermField::Decimal => DataType::Decimal128(RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE),
             EncTermField::Int => DataType::Int32,
             EncTermField::Integer => DataType::Int64,
@@ -180,8 +180,8 @@ impl TryFrom<i8> for EncTermField {
             1 => EncTermField::BlankNode,
             2 => EncTermField::String,
             3 => EncTermField::Boolean,
-            4 => EncTermField::Float32,
-            5 => EncTermField::Float64,
+            4 => EncTermField::Float,
+            5 => EncTermField::Double,
             6 => EncTermField::Decimal,
             7 => EncTermField::Int,
             8 => EncTermField::Integer,
@@ -199,8 +199,8 @@ impl From<&EncTermField> for i8 {
             EncTermField::BlankNode => 1,
             EncTermField::String => 2,
             EncTermField::Boolean => 3,
-            EncTermField::Float32 => 4,
-            EncTermField::Float64 => 5,
+            EncTermField::Float => 4,
+            EncTermField::Double => 5,
             EncTermField::Decimal => 6,
             EncTermField::Int => 7,
             EncTermField::Integer => 8,
@@ -220,8 +220,8 @@ mod tests {
         test_type_id(EncTermField::BlankNode);
         test_type_id(EncTermField::String);
         test_type_id(EncTermField::Boolean);
-        test_type_id(EncTermField::Float32);
-        test_type_id(EncTermField::Float64);
+        test_type_id(EncTermField::Float);
+        test_type_id(EncTermField::Double);
         test_type_id(EncTermField::Decimal);
         test_type_id(EncTermField::Int);
         test_type_id(EncTermField::Integer);

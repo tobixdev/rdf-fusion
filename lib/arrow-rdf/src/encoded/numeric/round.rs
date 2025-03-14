@@ -32,8 +32,8 @@ impl EncScalarUnaryUdf for EncRound {
         match value {
             XsdNumeric::Int(value) => collector.append_int(value)?,
             XsdNumeric::Integer(value) => collector.append_integer(value)?,
-            XsdNumeric::Float(value) => collector.append_float32(value.round())?,
-            XsdNumeric::Double(value) => collector.append_float64(value.round())?,
+            XsdNumeric::Float(value) => collector.append_float(value.round())?,
+            XsdNumeric::Double(value) => collector.append_double(value.round())?,
             XsdNumeric::Decimal(value) => match value.checked_round() {
                 Some(value) => collector.append_decimal(value)?,
                 None => collector.append_null()?,

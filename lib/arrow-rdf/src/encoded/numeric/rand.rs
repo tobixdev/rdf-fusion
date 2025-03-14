@@ -50,7 +50,7 @@ impl ScalarUDFImpl for EncRand {
 
         let mut builder = EncRdfTermBuilder::new();
         for _ in 0..number_rows {
-            builder.append_float64(random::<f64>().into())?;
+            builder.append_double(random::<f64>().into())?;
         }
 
         Ok(ColumnarValue::Array(Arc::new(builder.finish()?)))

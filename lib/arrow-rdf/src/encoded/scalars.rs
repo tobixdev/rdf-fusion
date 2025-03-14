@@ -7,6 +7,7 @@ use oxrdf::vocab::{rdf, xsd};
 use oxrdf::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, SubjectRef, TermRef};
 use std::str::FromStr;
 use std::sync::Arc;
+use oxiri::Iri;
 
 pub fn encode_scalar_graph(graph: GraphNameRef<'_>) -> ScalarValue {
     match graph {
@@ -52,6 +53,7 @@ pub fn encode_scalar_literal(literal: LiteralRef<'_>) -> DFResult<ScalarValue> {
 }
 
 pub fn encode_string(value: String) -> ScalarValue {
+    // TODO: shouldn't this be a struct?
     let value = ScalarValue::Utf8(Some(value));
     ScalarValue::Union(
         Some((EncTermField::String.type_id(), Box::new(value))),
@@ -61,6 +63,10 @@ pub fn encode_string(value: String) -> ScalarValue {
 }
 
 pub fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
+    if Iri::parse(node.as_str()).is_err() {
+        todo!("This shouldn't happen")
+    }
+
     let value = ScalarValue::Utf8(Some(String::from(node.as_str())));
     ScalarValue::Union(
         Some((EncTermField::NamedNode.type_id(), Box::new(value))),
@@ -116,13 +122,13 @@ fn specialize_boolean(value: &str) -> DFResult<ScalarValue> {
 }
 
 fn specialize_float32(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, EncTermField::Float32, |value: f32| {
+    specialize_primitive(value, EncTermField::Float, |value: f32| {
         ScalarValue::Float32(Some(value))
     })
 }
 
 fn specialize_float64(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, EncTermField::Float64, |value: f64| {
+    specialize_primitive(value, EncTermField::Double, |value: f64| {
         ScalarValue::Float64(Some(value))
     })
 }

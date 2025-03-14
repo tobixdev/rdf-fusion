@@ -6,9 +6,8 @@ use datafusion::error::DataFusionError;
 // TODO: Make DataFusion integration optional and use regular Arrow Crate
 
 pub mod datatypes;
-pub mod decoded;
 pub mod encoded;
-mod error;
+pub mod error;
 mod result_collector;
 mod sorting;
 

@@ -56,8 +56,8 @@ impl<'data> RdfValue<'data> for RdfTerm<'data> {
                         _ => internal_err!("Unexpected Scalar for String")?,
                     },
                     EncTermField::Boolean => RdfTerm::Boolean(XsdBoolean::from_enc_scalar(scalar)?),
-                    EncTermField::Float32
-                    | EncTermField::Float64
+                    EncTermField::Float
+                    | EncTermField::Double
                     | EncTermField::Decimal
                     | EncTermField::Int
                     | EncTermField::Integer => {
@@ -105,8 +105,8 @@ impl<'data> RdfValue<'data> for RdfTerm<'data> {
             EncTermField::Boolean => RdfTerm::Boolean(
                 XsdBoolean::from_enc_array(array, index).expect("EncTermField checked"),
             ),
-            EncTermField::Float32
-            | EncTermField::Float64
+            EncTermField::Float
+            | EncTermField::Double
             | EncTermField::Decimal
             | EncTermField::Int
             | EncTermField::Integer => RdfTerm::Numeric(

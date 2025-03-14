@@ -1,4 +1,3 @@
-use crate::results::decode_rdf_terms;
 use crate::sparql::paths::PathNode;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
@@ -17,9 +16,7 @@ use arrow_rdf::encoded::{
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
-use datafusion::common::{
-    internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
-};
+use datafusion::common::{exec_datafusion_err, internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
     lit, BinaryExpr, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF,
@@ -54,7 +51,7 @@ impl GraphPatternRewriter {
 
     pub fn rewrite(&mut self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
         let plan = self.rewrite_graph_pattern(pattern)?;
-        Ok(decode_rdf_terms(plan.build()?)?)
+        Ok(plan.build()?)
     }
 
     fn rewrite_graph_pattern(&mut self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
