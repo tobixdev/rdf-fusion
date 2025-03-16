@@ -127,55 +127,12 @@ impl GraphPatternRewriter {
             None,
         )?;
 
-        let (subject_filter, subject_projection) =
-            pattern_to_filter_and_projections(&pattern.subject)?;
-        let predicate_term_pattern = pattern.predicate.clone().into_term_pattern();
-        let (predicate_filter, predicate_projection) =
-            pattern_to_filter_and_projections(&predicate_term_pattern)?;
-        let (object_filter, object_projection) =
-            pattern_to_filter_and_projections(&pattern.object)?;
+        let graph_pattern = self.state.graph.as_ref();
+        let plan = filter_by_constants(plan, graph_pattern, pattern)?;
+        let plan = filter_pattern_same_variables(plan, graph_pattern, pattern)?;
+        let plan = project_quads_to_variables(plan, graph_pattern, pattern)?;
 
-        let plan = filter_equal_to_scalar(plan, COL_SUBJECT, subject_filter)?;
-        let plan = filter_equal_to_scalar(plan, COL_PREDICATE, predicate_filter)?;
-        let plan = filter_equal_to_scalar(plan, COL_OBJECT, object_filter)?;
-
-        let graph_projection = self.state.graph.as_ref().and_then(|p| match p {
-            NamedNodePattern::Variable(var) => Some(var.as_str()),
-            _ => None,
-        });
-        let plan = match self.state.graph.as_ref() {
-            None => plan,
-            Some(NamedNodePattern::NamedNode(nn)) => filter_equal_to_scalar(
-                plan,
-                COL_GRAPH,
-                Some(encode_scalar_named_node(nn.as_ref())),
-            )?,
-            Some(NamedNodePattern::Variable(_)) => plan.filter(Expr::IsNotNull(Box::new(col(
-                Column::new_unqualified(COL_GRAPH),
-            ))))?,
-        };
-
-        let possible_projections = [
-            (COL_GRAPH, graph_projection),
-            (COL_SUBJECT, subject_projection),
-            (COL_PREDICATE, predicate_projection),
-            (COL_OBJECT, object_projection),
-        ];
-
-        let mut already_projected = HashSet::new();
-        let mut projections = Vec::new();
-        for (old_name, new_name) in possible_projections {
-            match new_name {
-                Some(new_name) if !already_projected.contains(new_name) => {
-                    let expr = col(Column::new_unqualified(old_name)).alias(new_name);
-                    already_projected.insert(new_name.to_string());
-                    projections.push(expr);
-                }
-                _ => {}
-            }
-        }
-
-        plan.project(projections)
+        Ok(plan)
     }
 
     /// Rewrites a projection
@@ -560,21 +517,6 @@ fn binary_udf(
     Ok(udf.call(vec![lhs, rhs]))
 }
 
-fn pattern_to_filter_and_projections(
-    pattern: &TermPattern,
-) -> DFResult<(Option<ScalarValue>, Option<&str>)> {
-    Ok(match pattern {
-        TermPattern::NamedNode(nn) => (Some(encode_scalar_named_node(nn.as_ref())), None),
-        TermPattern::BlankNode(bnode) => (
-            Some(encode_scalar_blank_node(bnode.as_ref())),
-            Some(bnode.as_str()),
-        ),
-        TermPattern::Literal(lit) => (Some(encode_scalar_literal(lit.as_ref())?), None),
-        TermPattern::Variable(var) => (None, Some(var.as_str())),
-        TermPattern::Triple(_) => unimplemented!(),
-    })
-}
-
 fn encode_solution(terms: &Vec<Option<GroundTerm>>) -> DFResult<Vec<Expr>> {
     terms
         .iter()
@@ -649,6 +591,142 @@ fn create_join(
         .collect::<Vec<_>>();
     lhs.join_on(rhs.build()?, join_type, join_on_exprs)?
         .project(projections)
+}
+
+/// Adds filter operations that constraints the solutions of patterns that use literals.
+///
+/// For example, for the pattern `?a foaf:knows ?b` this functions adds a filter that ensures that
+/// the predicate is `foaf:knows`.
+fn filter_by_constants(
+    plan: LogicalPlanBuilder,
+    graph_pattern: Option<&NamedNodePattern>,
+    pattern: &TriplePattern,
+) -> DFResult<LogicalPlanBuilder> {
+    let graph_filter = graph_pattern
+        .map(|p| p.clone().into_term_pattern())
+        .and_then(|p| pattern_to_filter_scalar(&p).transpose())
+        .transpose()?;
+    let subject_filter = pattern_to_filter_scalar(&pattern.subject)?;
+    let predicate_filter =
+        pattern_to_filter_scalar(&pattern.predicate.clone().into_term_pattern())?;
+    let object_filter = pattern_to_filter_scalar(&pattern.object)?;
+
+    let plan = filter_equal_to_scalar(plan, COL_GRAPH, graph_filter)?;
+    let plan = filter_equal_to_scalar(plan, COL_SUBJECT, subject_filter)?;
+    let plan = filter_equal_to_scalar(plan, COL_PREDICATE, predicate_filter)?;
+    let plan = filter_equal_to_scalar(plan, COL_OBJECT, object_filter)?;
+
+    Ok(plan)
+}
+
+/// Adds filter operations that constraints the solutions of patterns that use the same variable
+/// twice.
+///
+/// For example, for the pattern `?a ?a ?b` this functions adds a constraint that ensures that the
+/// subject is equal to the predicate.
+fn filter_pattern_same_variables(
+    plan: LogicalPlanBuilder,
+    graph_pattern: Option<&NamedNodePattern>,
+    pattern: &TriplePattern,
+) -> DFResult<LogicalPlanBuilder> {
+    let graph_variable = graph_pattern
+        .map(|p| p.clone().into_term_pattern())
+        .and_then(|p| pattern_to_variable_name(&p));
+    let subject_variable = pattern_to_variable_name(&pattern.subject);
+    let predicate_variable =
+        pattern_to_variable_name(&pattern.predicate.clone().into_term_pattern());
+    let object_variable = pattern_to_variable_name(&pattern.object);
+    let all_variables = [
+        (graph_variable, COL_GRAPH),
+        (subject_variable, COL_SUBJECT),
+        (predicate_variable, COL_PREDICATE),
+        (object_variable, COL_OBJECT),
+    ];
+
+    let mut mappings = HashMap::new();
+    for (variable, quad_column) in all_variables {
+        match variable {
+            Some(variable) => {
+                if !mappings.contains_key(&variable) {
+                    mappings.insert(variable.clone(), Vec::new());
+                }
+                mappings.get_mut(&variable).unwrap().push(quad_column);
+            }
+            None => {}
+        }
+    }
+
+    let mut result_plan = plan;
+    for mut value in mappings.into_values() {
+        let columns = value
+            .into_iter()
+            .map(|v| col(Column::new_unqualified(v)))
+            .collect::<Vec<_>>();
+        let constraint = columns
+            .iter()
+            .zip(columns.iter().skip(1))
+            .map(|(a, b)| {
+                ENC_EFFECTIVE_BOOLEAN_VALUE
+                    .call(vec![ENC_SAME_TERM.call(vec![a.clone(), b.clone()])])
+            })
+            .reduce(|a, b| a.and(b));
+        result_plan = match constraint {
+            Some(constraint) => result_plan.filter(constraint)?,
+            _ => result_plan,
+        }
+    }
+
+    Ok(result_plan)
+}
+
+fn project_quads_to_variables(
+    plan: LogicalPlanBuilder,
+    graph_pattern: Option<&NamedNodePattern>,
+    pattern: &TriplePattern,
+) -> DFResult<LogicalPlanBuilder> {
+    let graph_pattern =
+        graph_pattern.and_then(|p| pattern_to_variable_name(&p.clone().into_term_pattern()));
+    let predicate_pattern =
+        pattern_to_variable_name(&pattern.predicate.clone().into_term_pattern());
+    let possible_projections = [
+        (COL_GRAPH, graph_pattern),
+        (COL_SUBJECT, pattern_to_variable_name(&pattern.subject)),
+        (COL_PREDICATE, predicate_pattern),
+        (COL_OBJECT, pattern_to_variable_name(&pattern.object)),
+    ];
+
+    let mut already_projected = HashSet::new();
+    let mut projections = Vec::new();
+    for (old_name, new_name) in possible_projections {
+        match &new_name {
+            Some(new_name) if !already_projected.contains(new_name) => {
+                let expr = col(Column::new_unqualified(old_name)).alias(new_name);
+                already_projected.insert(new_name.clone());
+                projections.push(expr);
+            }
+            _ => {}
+        }
+    }
+
+    plan.project(projections)
+}
+
+fn pattern_to_variable_name(pattern: &TermPattern) -> Option<String> {
+    match pattern {
+        TermPattern::BlankNode(bnode) => Some(bnode.as_ref().as_str().into()),
+        TermPattern::Variable(var) => Some(var.as_str().into()),
+        _ => None,
+    }
+}
+
+fn pattern_to_filter_scalar(pattern: &TermPattern) -> DFResult<Option<ScalarValue>> {
+    Ok(match pattern {
+        TermPattern::NamedNode(nn) => Some(encode_scalar_named_node(nn.as_ref())),
+        TermPattern::BlankNode(bnode) => Some(encode_scalar_blank_node(bnode.as_ref())),
+        TermPattern::Literal(lit) => Some(encode_scalar_literal(lit.as_ref())?),
+        TermPattern::Variable(_) => None,
+        TermPattern::Triple(_) => unimplemented!(),
+    })
 }
 
 /// Creates a filter node that applies the predicate
