@@ -210,6 +210,7 @@ impl EncRdfTermBuilder {
             ScalarBuffer::from(self.type_ids),
             Some(ScalarBuffer::from(self.offsets)),
             vec![
+                Arc::new(self.null_builder.finish()),
                 Arc::new(self.named_node_builder.finish()),
                 Arc::new(self.blank_node_builder.finish()),
                 Arc::new(self.string_builder.finish()),
@@ -220,7 +221,6 @@ impl EncRdfTermBuilder {
                 Arc::new(self.int32_builder.finish()),
                 Arc::new(self.integer_builder.finish()),
                 Arc::new(self.typed_literal_builder.finish()),
-                Arc::new(self.null_builder.finish()),
             ],
         )?))
     }

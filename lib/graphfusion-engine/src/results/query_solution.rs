@@ -147,7 +147,9 @@ fn to_term(
             if value == "DEFAULT" {
                 Some(Term::Literal(Literal::new_simple_literal(value)))
             } else {
-                Some(Term::NamedNode(NamedNode::new(value).unwrap()))
+                Some(Term::NamedNode(
+                    NamedNode::new(value).map_err(EvaluationError::unexpected)?,
+                ))
             }
         }
         EncTermField::BlankNode => {
@@ -241,7 +243,8 @@ fn to_term(
                 .as_string::<i32>();
             Some(Term::Literal(Literal::new_typed_literal(
                 String::from(values.value(i)),
-                NamedNode::new(String::from(datatypes.value(i))).unwrap(),
+                NamedNode::new(String::from(datatypes.value(i)))
+                    .map_err(EvaluationError::unexpected)?,
             )))
         }
         EncTermField::Null => None,

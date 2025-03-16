@@ -22,6 +22,11 @@ const FIELDS_TYPED_LITERAL: Lazy<Fields> = Lazy::new(|| {
 const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
     let fields = vec![
         Field::new(
+            EncTermField::Null.name(),
+            EncTermField::Null.data_type(),
+            true,
+        ),
+        Field::new(
             EncTermField::NamedNode.name(),
             EncTermField::NamedNode.data_type(),
             false,
@@ -71,11 +76,6 @@ const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
             EncTermField::TypedLiteral.data_type(),
             false,
         ),
-        Field::new(
-            EncTermField::Null.name(),
-            EncTermField::Null.data_type(),
-            false,
-        ),
     ];
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
 });
@@ -107,6 +107,11 @@ impl EncTerm {
 #[repr(i8)]
 #[derive(Ord, PartialOrd, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum EncTermField {
+    /// Represents an unbound value or an error.
+    ///
+    /// This has to be the first encoded field as OUTER joins will use it to initialize default
+    /// values for non-matching rows.
+    Null,
     NamedNode,
     BlankNode,
     String,
@@ -117,7 +122,6 @@ pub enum EncTermField {
     Int,
     Integer,
     TypedLiteral,
-    Null,
 }
 
 impl EncTermField {
@@ -127,6 +131,7 @@ impl EncTermField {
 
     pub fn name(&self) -> &'static str {
         match self {
+            EncTermField::Null => "null",
             EncTermField::NamedNode => "named_node",
             EncTermField::BlankNode => "blank_node",
             EncTermField::String => "string",
@@ -137,7 +142,6 @@ impl EncTermField {
             EncTermField::Int => "int",
             EncTermField::Integer => "integer",
             EncTermField::TypedLiteral => "typed_literal",
-            EncTermField::Null => "null",
         }
     }
 
@@ -176,17 +180,17 @@ impl TryFrom<i8> for EncTermField {
 
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         Ok(match value {
-            0 => EncTermField::NamedNode,
-            1 => EncTermField::BlankNode,
-            2 => EncTermField::String,
-            3 => EncTermField::Boolean,
-            4 => EncTermField::Float,
-            5 => EncTermField::Double,
-            6 => EncTermField::Decimal,
-            7 => EncTermField::Int,
-            8 => EncTermField::Integer,
-            9 => EncTermField::TypedLiteral,
-            10 => EncTermField::Null,
+            0 => EncTermField::Null,
+            1 => EncTermField::NamedNode,
+            2 => EncTermField::BlankNode,
+            3 => EncTermField::String,
+            4 => EncTermField::Boolean,
+            5 => EncTermField::Float,
+            6 => EncTermField::Double,
+            7 => EncTermField::Decimal,
+            8 => EncTermField::Int,
+            9 => EncTermField::Integer,
+            10 => EncTermField::TypedLiteral,
             _ => return exec_err!("Unexpected type_id for encoded RDF Term"),
         })
     }
@@ -195,17 +199,17 @@ impl TryFrom<i8> for EncTermField {
 impl From<&EncTermField> for i8 {
     fn from(value: &EncTermField) -> Self {
         match value {
-            EncTermField::NamedNode => 0,
-            EncTermField::BlankNode => 1,
-            EncTermField::String => 2,
-            EncTermField::Boolean => 3,
-            EncTermField::Float => 4,
-            EncTermField::Double => 5,
-            EncTermField::Decimal => 6,
-            EncTermField::Int => 7,
-            EncTermField::Integer => 8,
-            EncTermField::TypedLiteral => 9,
-            EncTermField::Null => 10,
+            EncTermField::Null => 0,
+            EncTermField::NamedNode => 1,
+            EncTermField::BlankNode => 2,
+            EncTermField::String => 3,
+            EncTermField::Boolean => 4,
+            EncTermField::Float => 5,
+            EncTermField::Double => 6,
+            EncTermField::Decimal => 7,
+            EncTermField::Int => 8,
+            EncTermField::Integer => 9,
+            EncTermField::TypedLiteral => 10,
         }
     }
 }
