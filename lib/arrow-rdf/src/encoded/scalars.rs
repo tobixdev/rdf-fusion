@@ -13,14 +13,7 @@ pub fn encode_scalar_graph(graph: GraphNameRef<'_>) -> ScalarValue {
     match graph {
         GraphNameRef::NamedNode(nn) => encode_scalar_named_node(nn),
         GraphNameRef::BlankNode(bnode) => encode_scalar_blank_node(bnode),
-        GraphNameRef::DefaultGraph => ScalarValue::Union(
-            Some((
-                EncTermField::NamedNode.type_id(),
-                Box::new(String::from("DEFAULT").into()),
-            )),
-            EncTerm::term_fields().clone(),
-            UnionMode::Dense,
-        ),
+        GraphNameRef::DefaultGraph => encode_scalar_null(),
     }
 }
 

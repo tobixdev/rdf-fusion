@@ -86,7 +86,7 @@ impl EncRdfTermBuilder {
     }
 
     pub fn append_named_node(&mut self, value: &str) -> AResult<()> {
-        if value != "DEFAULT" && Iri::parse(value).is_err() {
+        if Iri::parse(value).is_err() {
             return Err(ArrowError::InvalidArgumentError(String::from(
                 "Invalid IRI.",
             )));

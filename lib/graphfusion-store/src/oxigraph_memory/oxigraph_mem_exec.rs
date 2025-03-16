@@ -256,7 +256,7 @@ fn encode_term(
     term: EncodedTerm,
 ) -> AResult<()> {
     match term {
-        EncodedTerm::DefaultGraph => builder.append_named_node("DEFAULT"),
+        EncodedTerm::DefaultGraph => builder.append_null(),
         EncodedTerm::NamedNode { iri_id } => {
             let string = load_string(reader, &iri_id)?;
             builder.append_named_node(&string)

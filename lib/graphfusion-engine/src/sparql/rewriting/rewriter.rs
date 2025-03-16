@@ -127,11 +127,6 @@ impl GraphPatternRewriter {
             None,
         )?;
 
-        let graph_name_pattern = self.state.graph.clone().map(|p| p.into_term_pattern());
-        let (graph_filter, graph_projection) = match &graph_name_pattern {
-            None => (None, None),
-            Some(pattern) => pattern_to_filter_and_projections(pattern)?,
-        };
         let (subject_filter, subject_projection) =
             pattern_to_filter_and_projections(&pattern.subject)?;
         let predicate_term_pattern = pattern.predicate.clone().into_term_pattern();
@@ -140,10 +135,25 @@ impl GraphPatternRewriter {
         let (object_filter, object_projection) =
             pattern_to_filter_and_projections(&pattern.object)?;
 
-        let plan = filter_equal_to_scalar(plan, COL_GRAPH, graph_filter)?;
         let plan = filter_equal_to_scalar(plan, COL_SUBJECT, subject_filter)?;
         let plan = filter_equal_to_scalar(plan, COL_PREDICATE, predicate_filter)?;
         let plan = filter_equal_to_scalar(plan, COL_OBJECT, object_filter)?;
+
+        let graph_projection = self.state.graph.as_ref().and_then(|p| match p {
+            NamedNodePattern::Variable(var) => Some(var.as_str()),
+            _ => None,
+        });
+        let plan = match self.state.graph.as_ref() {
+            None => plan,
+            Some(NamedNodePattern::NamedNode(nn)) => filter_equal_to_scalar(
+                plan,
+                COL_GRAPH,
+                Some(encode_scalar_named_node(nn.as_ref())),
+            )?,
+            Some(NamedNodePattern::Variable(_)) => plan.filter(Expr::IsNotNull(Box::new(col(
+                Column::new_unqualified(COL_GRAPH),
+            ))))?,
+        };
 
         let projections = [
             (COL_GRAPH, graph_projection),

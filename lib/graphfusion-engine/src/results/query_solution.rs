@@ -144,13 +144,9 @@ fn to_term(
                 .child(term_field.type_id())
                 .as_string::<i32>()
                 .value(i);
-            if value == "DEFAULT" {
-                Some(Term::Literal(Literal::new_simple_literal(value)))
-            } else {
-                Some(Term::NamedNode(
-                    NamedNode::new(value).map_err(EvaluationError::unexpected)?,
-                ))
-            }
+            Some(Term::NamedNode(
+                NamedNode::new(value).map_err(EvaluationError::unexpected)?,
+            ))
         }
         EncTermField::BlankNode => {
             let value = objects

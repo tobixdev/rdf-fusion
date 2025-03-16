@@ -51,8 +51,7 @@ impl Stream for QuadStream {
 }
 
 fn to_quad(solution: QuerySolution) -> Result<Quad, EvaluationError> {
-    // TODO: error handling
-    let graph_name = to_graph_name(solution.get(COL_GRAPH).expect("Grpah not found").clone())?;
+    let graph_name = to_graph_name(solution.get(COL_GRAPH))?;
     let subject = to_subject(
         solution
             .get(COL_SUBJECT)
@@ -69,11 +68,11 @@ fn to_quad(solution: QuerySolution) -> Result<Quad, EvaluationError> {
     Ok(Quad::new(subject, predicate, object, graph_name))
 }
 
-fn to_graph_name(term: Term) -> Result<GraphName, EvaluationError> {
+fn to_graph_name(term: Option<&Term>) -> Result<GraphName, EvaluationError> {
     Ok(match term {
-        Term::NamedNode(n) => GraphName::from(n),
-        Term::BlankNode(n) => GraphName::from(n),
-        Term::Literal(literal) if literal.value() == "DEFAULT" => GraphName::DefaultGraph,
+        None => GraphName::DefaultGraph,
+        Some(Term::NamedNode(n)) => GraphName::from(n.clone()),
+        Some(Term::BlankNode(n)) => GraphName::from(n.clone()),
         _ => {
             unimplemented!("Proper error handling")
         }
