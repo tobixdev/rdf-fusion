@@ -1,5 +1,6 @@
+use crate::datatypes::XsdDecimal;
 use crate::encoded::{EncTerm, EncTermField};
-use crate::DFResult;
+use crate::{DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
 use datafusion::arrow::array::{ArrayRef, StringArray, StructArray};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::{DataFusionError, ScalarValue};
@@ -7,7 +8,6 @@ use oxrdf::vocab::{rdf, xsd};
 use oxrdf::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, SubjectRef, TermRef};
 use std::str::FromStr;
 use std::sync::Arc;
-use oxiri::Iri;
 
 pub fn encode_scalar_graph(graph: GraphNameRef<'_>) -> ScalarValue {
     match graph {
@@ -87,8 +87,9 @@ fn try_specialize_literal(literal: LiteralRef<'_>) -> Option<DFResult<ScalarValu
     match datatype {
         xsd::STRING | rdf::LANG_STRING => Some(specialize_string(literal, value)),
         xsd::BOOLEAN => Some(specialize_boolean(value)),
-        xsd::FLOAT => Some(specialize_float32(value)),
-        xsd::DOUBLE => Some(specialize_float64(value)),
+        xsd::FLOAT => Some(specialize_float(value)),
+        xsd::DECIMAL => Some(specialize_decimal(value)),
+        xsd::DOUBLE => Some(specialize_double(value)),
         xsd::INTEGER => Some(specialize_integer(value)),
         xsd::INT => Some(specialize_int(value)),
         _ => None,
@@ -118,15 +119,25 @@ fn specialize_boolean(value: &str) -> DFResult<ScalarValue> {
     })
 }
 
-fn specialize_float32(value: &str) -> DFResult<ScalarValue> {
+fn specialize_float(value: &str) -> DFResult<ScalarValue> {
     specialize_primitive(value, EncTermField::Float, |value: f32| {
         ScalarValue::Float32(Some(value))
     })
 }
 
-fn specialize_float64(value: &str) -> DFResult<ScalarValue> {
+fn specialize_double(value: &str) -> DFResult<ScalarValue> {
     specialize_primitive(value, EncTermField::Double, |value: f64| {
         ScalarValue::Float64(Some(value))
+    })
+}
+
+fn specialize_decimal(value: &str) -> DFResult<ScalarValue> {
+    specialize_primitive(value, EncTermField::Decimal, |value: XsdDecimal| {
+        ScalarValue::Decimal128(
+            Some(i128::from_be_bytes(value.to_be_bytes())),
+            RDF_DECIMAL_PRECISION,
+            RDF_DECIMAL_SCALE,
+        )
     })
 }
 
