@@ -36,16 +36,22 @@ impl EncScalarBinaryUdf for EncEq {
         rhs: &Self::ArgRhs<'_>,
     ) -> DFResult<()> {
         let result = match (lhs, rhs) {
-            (RdfTerm::NamedNode(l), RdfTerm::NamedNode(r)) => l == r,
-            (RdfTerm::BlankNode(l), RdfTerm::BlankNode(r)) => l == r,
-            (RdfTerm::Boolean(l), RdfTerm::Boolean(r)) => l == r,
-            (RdfTerm::Numeric(l), RdfTerm::Numeric(r)) => l.cmp(r) == Ordering::Equal,
-            (RdfTerm::SimpleLiteral(l), RdfTerm::SimpleLiteral(r)) => l == r,
-            (RdfTerm::LanguageString(l), RdfTerm::LanguageString(r)) => l == r,
-            (RdfTerm::TypedLiteral(l), RdfTerm::TypedLiteral(r)) => l == r,
-            _ => false,
+            // Same term are also equal.
+            (RdfTerm::TypedLiteral(l), RdfTerm::TypedLiteral(r)) if l == r => Some(true),
+            // Cannot say anything about unsupported typed literals that are not the same term.
+            (RdfTerm::TypedLiteral(_), _) => None,
+            (_, RdfTerm::TypedLiteral(_)) => None,
+            // For numerics, compare values.
+            (RdfTerm::Numeric(lhs), RdfTerm::Numeric(rhs)) => Some(lhs.cmp(rhs) == Ordering::Equal),
+            // Otherwise compare for equality.
+            _ => Some(lhs == rhs),
         };
-        collector.append_boolean(result)?;
+
+        match result {
+            Some(result) => collector.append_boolean(result)?,
+            None => collector.append_null()?,
+        }
+
         Ok(())
     }
 
