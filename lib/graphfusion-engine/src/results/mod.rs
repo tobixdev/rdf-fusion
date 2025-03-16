@@ -1,3 +1,4 @@
+use arrow_rdf::encoded::{EncRdfTermBuilder, EncTerm};
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
@@ -13,8 +14,6 @@ use sparesults::{
 use std::error::Error;
 use std::io::{Read, Write};
 use std::sync::Arc;
-use arrow_rdf::encoded::{EncRdfTermBuilder, EncTerm};
-use arrow_rdf::error::LiteralEncodingError;
 
 mod graph_name;
 mod quads;
@@ -208,11 +207,14 @@ pub fn query_result_for_iterator(
     for solution in solutions {
         let solution =
             solution.map_err(|err| QuerySolutionsToStreamError::QuerySolutionSource(err))?;
-        for (idx, (_, term)) in solution.iter().enumerate() {
-            builders
+        for (idx, term) in solution.values().iter().enumerate() {
+            let builder = builders
                 .get_mut(idx)
-                .expect("Initialized with enough builders")
-                .append_term(term)?
+                .expect("Initialized with enough builders");
+            match term {
+                Some(term) => builder.append_term(term)?,
+                None => builder.append_null()?,
+            }
         }
     }
 

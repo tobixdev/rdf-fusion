@@ -261,8 +261,8 @@ impl GraphPatternRewriter {
         let right = self.rewrite_graph_pattern(right)?;
 
         if let Some(filter) = filter {
-            create_join(left, right, JoinType::Left)?
-                .filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(filter)?]))
+            let right = right.filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(filter)?]))?;
+            create_join(left, right, JoinType::Left)
         } else {
             create_join(left, right, JoinType::Left)
         }
