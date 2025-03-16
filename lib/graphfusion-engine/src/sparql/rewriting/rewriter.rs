@@ -155,16 +155,25 @@ impl GraphPatternRewriter {
             ))))?,
         };
 
-        let projections = [
+        let possible_projections = [
             (COL_GRAPH, graph_projection),
             (COL_SUBJECT, subject_projection),
             (COL_PREDICATE, predicate_projection),
             (COL_OBJECT, object_projection),
-        ]
-        .into_iter()
-        .filter_map(|(col_name, var)| {
-            var.map(|new_col_name| col(Column::new_unqualified(col_name)).alias(new_col_name))
-        });
+        ];
+
+        let mut already_projected = HashSet::new();
+        let mut projections = Vec::new();
+        for (old_name, new_name) in possible_projections {
+            match new_name {
+                Some(new_name) if !already_projected.contains(new_name) => {
+                    let expr = col(Column::new_unqualified(old_name)).alias(new_name);
+                    already_projected.insert(new_name.to_string());
+                    projections.push(expr);
+                }
+                _ => {}
+            }
+        }
 
         plan.project(projections)
     }
@@ -261,7 +270,8 @@ impl GraphPatternRewriter {
         let right = self.rewrite_graph_pattern(right)?;
 
         if let Some(filter) = filter {
-            let right = right.filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(filter)?]))?;
+            let right =
+                right.filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(filter)?]))?;
             create_join(left, right, JoinType::Left)
         } else {
             create_join(left, right, JoinType::Left)
