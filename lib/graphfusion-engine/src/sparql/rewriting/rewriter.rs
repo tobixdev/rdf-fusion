@@ -1,16 +1,29 @@
 use crate::sparql::paths::PathNode;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
-    encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
+    encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
-use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AS_BOOLEAN, ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_RAND, ENC_REGEX, ENC_REPLACE, ENC_ROUND, ENC_SAME_TERM, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID};
+use arrow_rdf::encoded::{
+    enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AS_BOOLEAN, ENC_AS_DECIMAL,
+    ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN,
+    ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND,
+    ENC_CEIL, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI,
+    ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE,
+    ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE,
+    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_RAND, ENC_REGEX, ENC_REPLACE, ENC_ROUND,
+    ENC_SAME_TERM, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG,
+    ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS,
+    ENC_UNARY_PLUS, ENC_UUID,
+};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
-use datafusion::common::{exec_datafusion_err, internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue};
+use datafusion::common::{
+    internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
+};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
     lit, BinaryExpr, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF,
-    SortExpr,
+    SortExpr, UserDefinedLogicalNode,
 };
 use datafusion::prelude::col;
 use oxiri::Iri;
@@ -282,9 +295,37 @@ impl GraphPatternRewriter {
         left: &GraphPattern,
         right: &GraphPattern,
     ) -> DFResult<LogicalPlanBuilder> {
-        let left = self.rewrite_graph_pattern(left)?;
-        let right = self.rewrite_graph_pattern(right)?;
-        left.union(right.build()?)
+        let lhs = self.rewrite_graph_pattern(left)?;
+        let rhs = self.rewrite_graph_pattern(right)?;
+
+        let mut new_schema = lhs.schema().as_ref().clone();
+        new_schema.merge(&rhs.schema().as_ref());
+
+        let lhs_projections = new_schema
+            .fields()
+            .iter()
+            .map(|f| {
+                if lhs.schema().has_column(&Column::new_unqualified(f.name())) {
+                    col(Column::new_unqualified(f.name()))
+                } else {
+                    lit(encode_scalar_null()).alias(f.name())
+                }
+            })
+            .collect::<Vec<_>>();
+        let rhs_projections = new_schema
+            .fields()
+            .iter()
+            .map(|f| {
+                if rhs.schema().has_column(&Column::new_unqualified(f.name())) {
+                    col(Column::new_unqualified(f.name()))
+                } else {
+                    lit(encode_scalar_null()).alias(f.name())
+                }
+            })
+            .collect::<Vec<_>>();
+
+        lhs.project(lhs_projections)?
+            .union(rhs.project(rhs_projections)?.build()?)
     }
 
     /// Rewrites a path to a [PathNode].

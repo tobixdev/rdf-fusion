@@ -62,11 +62,15 @@ pub fn encode_string(value: String) -> ScalarValue {
     )
 }
 
-pub fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
-    if Iri::parse(node.as_str()).is_err() {
-        todo!("This shouldn't happen")
-    }
+pub fn encode_scalar_null() -> ScalarValue {
+    ScalarValue::Union(
+        Some((EncTermField::Null.type_id(), Box::new(ScalarValue::Null))),
+        EncTerm::term_fields(),
+        UnionMode::Dense,
+    )
+}
 
+pub fn encode_scalar_named_node(node: NamedNodeRef<'_>) -> ScalarValue {
     let value = ScalarValue::Utf8(Some(String::from(node.as_str())));
     ScalarValue::Union(
         Some((EncTermField::NamedNode.type_id(), Box::new(value))),
