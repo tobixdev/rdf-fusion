@@ -72,7 +72,7 @@ impl EncRdfTermBuilder {
             xsd::DOUBLE => self.append_double(literal.value().parse()?)?,
             xsd::INTEGER => self.append_integer(literal.value().parse()?)?,
             xsd::INT => self.append_int(literal.value().parse()?)?,
-            rdf::LANG_STRING => self.append_string(literal.value(), Some(literal.value()))?,
+            rdf::LANG_STRING => self.append_string(literal.value(), literal.language())?,
             xsd::STRING => self.append_string(literal.value(), None)?,
             _ => self.append_typed_literal(literal.value(), literal.datatype().as_str())?,
         })
