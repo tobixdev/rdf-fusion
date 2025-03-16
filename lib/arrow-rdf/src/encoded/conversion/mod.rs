@@ -5,13 +5,16 @@ use crate::encoded::conversion::as_int::EncAsInt;
 use crate::encoded::conversion::as_integer::EncAsInteger;
 use datafusion::logical_expr::ScalarUDF;
 use once_cell::sync::Lazy;
+use crate::encoded::conversion::as_boolean::EncAsBoolean;
 
 mod as_decimal;
 mod as_float;
 mod as_double;
 mod as_int;
 mod as_integer;
+mod as_boolean;
 
+pub const ENC_AS_BOOLEAN: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncAsBoolean::new()));
 pub const ENC_AS_DECIMAL: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncAsDecimal::new()));
 pub const ENC_AS_INT: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncAsInt::new()));
 pub const ENC_AS_INTEGER: Lazy<ScalarUDF> = Lazy::new(|| ScalarUDF::from(EncAsInteger::new()));

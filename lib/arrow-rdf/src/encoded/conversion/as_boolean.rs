@@ -1,4 +1,4 @@
-use crate::datatypes::{RdfTerm, XsdDecimal, XsdNumeric};
+use crate::datatypes::{RdfTerm, XsdBoolean, XsdNumeric};
 use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
@@ -9,11 +9,11 @@ use datafusion::logical_expr::{
 use std::any::Any;
 
 #[derive(Debug)]
-pub struct EncAsDecimal {
+pub struct EncAsBoolean {
     signature: Signature,
 }
 
-impl EncAsDecimal {
+impl EncAsBoolean {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -24,29 +24,28 @@ impl EncAsDecimal {
     }
 }
 
-impl EncScalarUnaryUdf for EncAsDecimal {
+impl EncScalarUnaryUdf for EncAsBoolean {
     type Arg<'data> = RdfTerm<'data>;
     type Collector = EncRdfTermBuilder;
 
     fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
         let converted = match value {
-            RdfTerm::Boolean(v) => Some(XsdDecimal::from(v)),
+            RdfTerm::Boolean(v) => Some(XsdBoolean::from(v)),
             RdfTerm::SimpleLiteral(v) => v.value.parse().ok(),
-            RdfTerm::Numeric(numeric) => match numeric {
-                XsdNumeric::Int(v) => Some(XsdDecimal::from(v)),
-                XsdNumeric::Integer(v) => Some(XsdDecimal::from(v)),
-                XsdNumeric::Float(v) => XsdDecimal::try_from(v).ok(),
-                XsdNumeric::Double(v) => XsdDecimal::try_from(v).ok(),
-                XsdNumeric::Decimal(v) => Some(v),
-            },
+            RdfTerm::Numeric(numeric) => Some(match numeric {
+                XsdNumeric::Int(v) => XsdBoolean::from(v),
+                XsdNumeric::Integer(v) => XsdBoolean::from(v),
+                XsdNumeric::Float(v) => XsdBoolean::from(v),
+                XsdNumeric::Double(v) => XsdBoolean::from(v),
+                XsdNumeric::Decimal(v) => XsdBoolean::from(v),
+            }),
             _ => None,
         };
 
         match converted {
-            Some(converted) => collector.append_decimal(converted)?,
             None => collector.append_null()?,
+            Some(converted) => collector.append_boolean(converted.as_bool())?,
         }
-
         Ok(())
     }
 
@@ -56,7 +55,7 @@ impl EncScalarUnaryUdf for EncAsDecimal {
     }
 }
 
-impl ScalarUDFImpl for EncAsDecimal {
+impl ScalarUDFImpl for EncAsBoolean {
     fn as_any(&self) -> &dyn Any {
         self
     }

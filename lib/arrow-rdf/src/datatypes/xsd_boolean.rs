@@ -1,5 +1,5 @@
 use crate::datatypes::rdf_term::RdfTerm;
-use crate::datatypes::{RdfValue, XsdDecimal, XsdDouble, XsdFloat, XsdInteger};
+use crate::datatypes::{RdfValue, XsdDecimal, XsdDouble, XsdFloat, XsdInt, XsdInteger};
 use crate::encoded::EncTermField;
 use crate::DFResult;
 use datafusion::arrow::array::{AsArray, UnionArray};
@@ -75,6 +75,13 @@ impl From<bool> for XsdBoolean {
     #[inline]
     fn from(value: bool) -> Self {
         Self { value }
+    }
+}
+
+impl From<XsdInt> for XsdBoolean {
+    #[inline]
+    fn from(value: XsdInt) -> Self {
+        (value != XsdInt::from(0)).into()
     }
 }
 
