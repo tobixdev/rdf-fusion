@@ -207,7 +207,7 @@ impl GraphPatternRewriter {
             .schema()
             .fields()
             .iter()
-            .map(|f| Expr::Column(Column::from(f.name())))
+            .map(|f| Expr::Column(Column::new_unqualified(f.name())))
             .collect();
         new_exprs.push(self.rewrite_expr(expression)?.alias(variable.as_str()));
 
@@ -364,7 +364,7 @@ impl GraphPatternRewriter {
     fn rewrite_expr(&mut self, expression: &Expression) -> DFResult<Expr> {
         match expression {
             Expression::Bound(var) => {
-                Ok(ENC_BOUND.call(vec![Expr::from(Column::from(var.as_str()))]))
+                Ok(ENC_BOUND.call(vec![Expr::from(Column::new_unqualified(var.as_str()))]))
             }
             Expression::Not(inner) => Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![Expr::Not(Box::new(
                 ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?]),
@@ -391,7 +391,7 @@ impl GraphPatternRewriter {
             Expression::Literal(literal) => {
                 Ok(Expr::Literal(encode_scalar_literal(literal.as_ref())?))
             }
-            Expression::Variable(var) => Ok(Expr::Column(Column::from(var.as_str()))),
+            Expression::Variable(var) => Ok(Expr::Column(Column::new_unqualified(var.as_str()))),
             Expression::FunctionCall(function, args) => self.rewrite_function_call(function, args),
             Expression::NamedNode(nn) => Ok(Expr::Literal(encode_scalar_named_node(nn.as_ref()))),
             Expression::Or(lhs, rhs) => logical_expression(self, Operator::Or, lhs, rhs),
