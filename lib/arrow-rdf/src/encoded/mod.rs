@@ -14,6 +14,7 @@ mod strings;
 mod terms;
 mod udfs;
 mod dispatch_quaternary;
+mod logical;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
@@ -26,6 +27,7 @@ pub use comparison::*;
 pub use conversion::*;
 pub use encoding::*;
 pub use functional_forms::*;
+pub use logical::*;
 pub use numeric::*;
 pub use query_evaluation::*;
 pub use strings::*;

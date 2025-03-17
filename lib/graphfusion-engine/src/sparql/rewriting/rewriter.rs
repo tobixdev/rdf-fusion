@@ -4,26 +4,26 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
 use arrow_rdf::encoded::{
-    enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AS_BOOLEAN, ENC_AS_DECIMAL,
+    enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DECIMAL,
     ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN,
     ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND,
     ENC_CEIL, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI,
     ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE,
     ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE,
-    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_RAND, ENC_REGEX, ENC_REPLACE, ENC_ROUND,
+    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX, ENC_REPLACE, ENC_ROUND,
     ENC_SAME_TERM, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG,
     ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS,
     ENC_UNARY_PLUS, ENC_UUID,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
+use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{
     internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
 };
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
-    lit, BinaryExpr, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF,
-    SortExpr, UserDefinedLogicalNode,
+    lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF, SortExpr,
 };
 use datafusion::prelude::col;
 use oxiri::Iri;
@@ -107,7 +107,7 @@ impl GraphPatternRewriter {
         patterns
             .iter()
             .map(|p| self.rewrite_triple_pattern(p))
-            .reduce(|lhs, rhs| create_join(lhs?, rhs?, JoinType::Inner))
+            .reduce(|lhs, rhs| create_join(lhs?, rhs?, JoinType::Inner, None))
             .unwrap_or_else(|| {
                 Ok(LogicalPlanBuilder::scan(
                     TABLE_QUADS,
@@ -212,27 +212,21 @@ impl GraphPatternRewriter {
     ) -> DFResult<LogicalPlanBuilder> {
         let left = self.rewrite_graph_pattern(left)?;
         let right = self.rewrite_graph_pattern(right)?;
-        create_join(left, right, JoinType::Inner)
+        create_join(left, right, JoinType::Inner, None)
     }
 
     /// Creates a logical left join node for the two graph patterns. Optionally, a filter node is
     /// applied.
     fn rewrite_left_join(
         &mut self,
-        left: &GraphPattern,
-        right: &GraphPattern,
+        lhs: &GraphPattern,
+        rhs: &GraphPattern,
         filter: Option<&Expression>,
     ) -> DFResult<LogicalPlanBuilder> {
-        let left = self.rewrite_graph_pattern(left)?;
-        let right = self.rewrite_graph_pattern(right)?;
-
-        if let Some(filter) = filter {
-            let right =
-                right.filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(filter)?]))?;
-            create_join(left, right, JoinType::Left)
-        } else {
-            create_join(left, right, JoinType::Left)
-        }
+        let lhs = self.rewrite_graph_pattern(lhs)?;
+        let rhs = self.rewrite_graph_pattern(rhs)?;
+        let filter = filter.map(|f| self.rewrite_expr(f)).transpose()?;
+        create_join(lhs, rhs, JoinType::Left, filter)
     }
 
     /// Creates a limit node that applies skip (`start`) and fetch (`length`) to `inner`.
@@ -493,7 +487,13 @@ fn logical_expression(
 ) -> DFResult<Expr> {
     let lhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite_expr(lhs)?]);
     let rhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite_expr(rhs)?]);
-    let booleans = Expr::BinaryExpr(BinaryExpr::new(Box::new(lhs), operator, Box::new(rhs)));
+
+    let connective_impl = match operator {
+        Operator::And => ENC_AND,
+        Operator::Or => ENC_OR,
+        _ => plan_err!("Unsupported logical expression: {}", &operator)?,
+    };
+    let booleans = connective_impl.call(vec![lhs, rhs]);
     Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![booleans]))
 }
 
@@ -543,6 +543,7 @@ fn create_join(
     lhs: LogicalPlanBuilder,
     rhs: LogicalPlanBuilder,
     join_type: JoinType,
+    filter: Option<Expr>,
 ) -> DFResult<LogicalPlanBuilder> {
     let lhs = lhs.alias("lhs")?;
     let rhs = rhs.alias("rhs")?;
@@ -559,38 +560,62 @@ fn create_join(
         .map(|c| c.name().to_string())
         .collect();
 
-    let join_on_exprs = lhs_keys.intersection(&rhs_keys).map(|k| {
-        ENC_IS_COMPATIBLE.call(vec![
-            Expr::from(Column {
-                relation: Some("lhs".into()),
-                name: k.clone(),
-            }),
-            Expr::from(Column {
-                relation: Some("rhs".into()),
-                name: k.clone(),
-            }),
-        ])
-    });
-
-    let projections = lhs_keys
-        .union(&rhs_keys)
+    let mut join_filters = lhs_keys
+        .intersection(&rhs_keys)
         .map(|k| {
-            if lhs_keys.contains(k) {
+            ENC_IS_COMPATIBLE.call(vec![
                 Expr::from(Column {
                     relation: Some("lhs".into()),
                     name: k.clone(),
-                })
-            } else {
+                }),
                 Expr::from(Column {
                     relation: Some("rhs".into()),
                     name: k.clone(),
-                })
-            }
-            .alias(k.as_str())
+                }),
+            ])
         })
         .collect::<Vec<_>>();
-    lhs.join_on(rhs.build()?, join_type, join_on_exprs)?
-        .project(projections)
+    if let Some(filter) = filter {
+        let filter = filter
+            .transform(|e| {
+                Ok(match e {
+                    Expr::Column(c) => Transformed::yes(use_lhs_or_rhs(&lhs_keys, c.name())),
+                    _ => Transformed::no(e),
+                })
+            })?
+            .data;
+        join_filters.push(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![filter]));
+    }
+    let filter_expr = join_filters.into_iter().reduce(Expr::and);
+
+    let projections = lhs_keys
+        .union(&rhs_keys)
+        .map(|k| use_lhs_or_rhs(&lhs_keys, k))
+        .collect::<Vec<_>>();
+
+    lhs.join_detailed(
+        rhs.build()?,
+        join_type,
+        (Vec::<Column>::new(), Vec::<Column>::new()),
+        filter_expr,
+        false,
+    )?
+    .project(projections)
+}
+
+fn use_lhs_or_rhs(lhs_keys: &HashSet<String>, k: &str) -> Expr {
+    if lhs_keys.contains(k) {
+        Expr::from(Column {
+            relation: Some("lhs".into()),
+            name: k.into(),
+        })
+    } else {
+        Expr::from(Column {
+            relation: Some("rhs".into()),
+            name: k.into(),
+        })
+    }
+    .alias(k)
 }
 
 /// Adds filter operations that constraints the solutions of patterns that use literals.
@@ -657,7 +682,7 @@ fn filter_pattern_same_variables(
     }
 
     let mut result_plan = plan;
-    for mut value in mappings.into_values() {
+    for value in mappings.into_values() {
         let columns = value
             .into_iter()
             .map(|v| col(Column::new_unqualified(v)))

@@ -20,7 +20,7 @@ pub use self::xsd_decimal::{ParseDecimalError, TooLargeForDecimalError, XsdDecim
 pub use self::xsd_double::XsdDouble;
 pub use self::xsd_float::XsdFloat;
 pub use self::xsd_integer::{TooLargeForIntegerError, XsdInteger};
-use datafusion::arrow::array::UnionArray;
+use datafusion::arrow::array::{Array, UnionArray};
 use datafusion::common::ScalarValue;
 use datafusion::error::DataFusionError;
 pub use rdf_blank_node::RdfBlankNode;
@@ -47,4 +47,43 @@ pub trait RdfValue<'data> {
     fn from_enc_array(array: &'data UnionArray, index: usize) -> DFResult<Self>
     where
         Self: Sized;
+}
+
+/// Each RdfValue implementation can be wrapped in an option that explicitly handles unbound or
+/// erroneous values.
+///
+/// Some Functions handle Unbound/Errors in a special way (e.g., && and ||) and thus need access to
+/// a wrapper that represents Unbound/Error explicitly.
+impl<'value, TValue> RdfValue<'value> for Option<TValue>
+where
+    TValue: RdfValue<'value>,
+{
+    fn from_term(term: RdfTerm<'value>) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        TValue::from_term(term).map(Some)
+    }
+
+    fn from_enc_scalar(scalar: &'value ScalarValue) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        if scalar.is_null() {
+            Ok(None)
+        } else {
+            TValue::from_enc_scalar(scalar).map(Some)
+        }
+    }
+
+    fn from_enc_array(array: &'value UnionArray, index: usize) -> DFResult<Self>
+    where
+        Self: Sized,
+    {
+        if array.is_null(index) {
+            Ok(None)
+        } else {
+            TValue::from_enc_array(array, index).map(Some)
+        }
+    }
 }
