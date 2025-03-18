@@ -5,7 +5,7 @@ use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
 use crate::oxigraph_memory::hash::StrHash;
 use crate::{AResult, DFResult};
-use arrow_rdf::datatypes::XsdDecimal;
+use arrow_rdf::datatypes::Decimal;
 use arrow_rdf::encoded::{EncRdfTermBuilder, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
@@ -317,9 +317,10 @@ fn encode_term(
         EncodedTerm::FloatLiteral(v) => builder.append_float(f32::from(v).into()),
         EncodedTerm::DoubleLiteral(v) => builder.append_double(f64::from(v).into()),
         EncodedTerm::DecimalLiteral(v) => {
-            builder.append_decimal(XsdDecimal::from_be_bytes(v.to_be_bytes()))
+            builder.append_decimal(Decimal::from_be_bytes(v.to_be_bytes()))
         }
         EncodedTerm::DateTimeLiteral(v) => {
+            // timestamp?
             builder.append_typed_literal(&v.to_string(), xsd::DATE_TIME.as_str())
         }
         EncodedTerm::TimeLiteral(v) => {
@@ -344,13 +345,13 @@ fn encode_term(
             builder.append_typed_literal(&v.to_string(), xsd::G_MONTH.as_str())
         }
         EncodedTerm::DurationLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::DURATION.as_str())
+            builder.append_duration()
         }
         EncodedTerm::YearMonthDurationLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::YEAR_MONTH_DURATION.as_str())
+            builder.append_typed_literal(Some(v), None)
         }
         EncodedTerm::DayTimeDurationLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::DAY_TIME_DURATION.as_str())
+            builder.append_typed_literal(None, Some(v))
         }
         EncodedTerm::Triple(_) => unimplemented!("Encode Triple"),
     }

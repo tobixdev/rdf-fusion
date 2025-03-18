@@ -1,19 +1,14 @@
-mod comparison;
-mod conversion;
-mod dispatch_binary;
-mod dispatch_ternary;
-mod dispatch_unary;
 mod encoding;
-mod functional_forms;
 mod model;
-mod numeric;
-mod query_evaluation;
+mod rdf_ops;
 mod rdf_term_builder;
 pub mod scalars;
-mod strings;
-mod terms;
 mod udfs;
-mod dispatch_quaternary;
+#[macro_use]
+mod macros;
+mod write_enc_term;
+mod from_encoded_term;
+mod dispatch;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
@@ -22,14 +17,8 @@ use once_cell::unsync::Lazy;
 pub use rdf_term_builder::EncRdfTermBuilder;
 
 // Functions
-pub use comparison::*;
-pub use conversion::*;
 pub use encoding::*;
-pub use functional_forms::*;
-pub use numeric::*;
-pub use query_evaluation::*;
-pub use strings::*;
-pub use terms::*;
+pub use rdf_ops::*;
 pub use udfs::*;
 
 pub const ENC_QUAD_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {

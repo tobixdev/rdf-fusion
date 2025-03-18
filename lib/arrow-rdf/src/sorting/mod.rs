@@ -1,7 +1,5 @@
 mod sort_builder;
 
-pub use sort_builder::RdfTermSortBuilder;
-
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use once_cell::unsync::Lazy;
 

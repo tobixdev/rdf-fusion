@@ -1,11 +1,10 @@
-use crate::datatypes::XsdDecimal;
 use crate::encoded::{EncTerm, EncTermField};
-use crate::{DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
+use crate::DFResult;
 use datafusion::arrow::array::{ArrayRef, StringArray, StructArray};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::{DataFusionError, ScalarValue};
+use datamodel::{BlankNodeRef, Decimal, DecodedTermRef, GraphNameRef, LiteralRef, NamedNodeRef, SubjectRef};
 use oxrdf::vocab::{rdf, xsd};
-use oxrdf::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, SubjectRef, TermRef};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -29,12 +28,12 @@ pub fn encode_scalar_predicate(predicate: NamedNodeRef<'_>) -> ScalarValue {
     encode_scalar_named_node(predicate)
 }
 
-pub fn encode_scalar_object(object: TermRef<'_>) -> DFResult<ScalarValue> {
+pub fn encode_scalar_object(object: DecodedTermRef<'_>) -> DFResult<ScalarValue> {
     match object {
-        TermRef::NamedNode(nn) => Ok(encode_scalar_named_node(nn)),
-        TermRef::BlankNode(bnode) => Ok(encode_scalar_blank_node(bnode)),
-        TermRef::Literal(lit) => encode_scalar_literal(lit),
-        TermRef::Triple(_) => unimplemented!(),
+        DecodedTermRef::NamedNode(nn) => Ok(encode_scalar_named_node(nn)),
+        DecodedTermRef::BlankNode(bnode) => Ok(encode_scalar_blank_node(bnode)),
+        DecodedTermRef::Literal(lit) => encode_scalar_literal(lit),
+        DecodedTermRef::Triple(_) => unimplemented!(),
     }
 }
 
@@ -84,6 +83,7 @@ pub fn encode_scalar_blank_node(node: BlankNodeRef<'_>) -> ScalarValue {
 fn try_specialize_literal(literal: LiteralRef<'_>) -> Option<DFResult<ScalarValue>> {
     let value = literal.value();
     let datatype = literal.datatype();
+    // TODO: Move these constants to the datamodel
     match datatype {
         xsd::STRING | rdf::LANG_STRING => Some(specialize_string(literal, value)),
         xsd::BOOLEAN => Some(specialize_boolean(value)),
@@ -132,11 +132,11 @@ fn specialize_double(value: &str) -> DFResult<ScalarValue> {
 }
 
 fn specialize_decimal(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, EncTermField::Decimal, |value: XsdDecimal| {
+    specialize_primitive(value, EncTermField::Decimal, |value: Decimal| {
         ScalarValue::Decimal128(
             Some(i128::from_be_bytes(value.to_be_bytes())),
-            RDF_DECIMAL_PRECISION,
-            RDF_DECIMAL_SCALE,
+            Decimal::PRECISION,
+            Decimal::SCALE,
         )
     })
 }

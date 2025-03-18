@@ -11,7 +11,7 @@ use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::logical_expr::{col, lit, LogicalPlan};
 use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
-use graphfusion_engine::results::{QueryResults};
+use graphfusion_engine::results::QueryResults;
 use graphfusion_engine::sparql::error::EvaluationError;
 use graphfusion_engine::sparql::{
     evaluate_query, PathToJoinsRule, Query, QueryExplanation, QueryOptions,

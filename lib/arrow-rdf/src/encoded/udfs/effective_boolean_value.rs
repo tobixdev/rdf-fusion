@@ -1,12 +1,12 @@
-use crate::datatypes::{RdfTerm, XsdDecimal, XsdDouble, XsdFloat, XsdInt, XsdInteger, XsdNumeric};
-use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
+use crate::encoded::from_encoded_term::FromEncodedTerm;
 use crate::encoded::EncTerm;
-use crate::DFResult;
-use datafusion::arrow::array::BooleanBuilder;
+use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
+use datamodel::{Decimal, Double, Float, Int, Integer, Numeric, RdfOpResult, TermRef};
 use std::any::Any;
 
 #[derive(Debug)]
@@ -22,39 +22,6 @@ impl EncEffectiveBooleanValue {
                 Volatility::Immutable,
             ),
         }
-    }
-}
-
-impl EncScalarUnaryUdf for EncEffectiveBooleanValue {
-    type Arg<'data> = RdfTerm<'data>;
-    type Collector = BooleanBuilder;
-
-    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
-        // TODO implement all rules
-        let result = match value {
-            RdfTerm::Boolean(value) => Some(value.as_bool()),
-            RdfTerm::Numeric(value) => Some(match value {
-                XsdNumeric::Int(value) => value != XsdInt::from(0),
-                XsdNumeric::Integer(value) => value != XsdInteger::from(0),
-                XsdNumeric::Float(value) => value != XsdFloat::from(0f32),
-                XsdNumeric::Double(value) => value != XsdDouble::from(0f64),
-                XsdNumeric::Decimal(value) => value != XsdDecimal::from(0),
-            }),
-            RdfTerm::SimpleLiteral(value) => Some(!value.is_empty()),
-            _ => None
-        };
-
-        match result {
-            None => collector.append_null(),
-            Some(result) => collector.append_value(result)
-        }
-
-        Ok(())
-    }
-
-    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_null();
-        Ok(())
     }
 }
 
@@ -80,6 +47,39 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
         args: &[ColumnarValue],
         number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        dispatch_unary::<EncEffectiveBooleanValue>(self, args, number_rows)
+        if args.len() != 1 {
+            return exec_err!("Unexpected number of arguments");
+        }
+
+        match &args[0] {
+            ColumnarValue::Array(array) => {
+                let array = as_enc_term_array(array.as_ref())?;
+                let results = (0..number_rows)
+                    .into_iter()
+                    .map(|i| TermRef::from_enc_array(array, i).and_then(evaluate));
+                let result = bool::iter_into_array(results)?;
+                Ok(ColumnarValue::Array(result))
+            }
+            ColumnarValue::Scalar(scalar) => {
+                let result = TermRef::from_enc_scalar(scalar).and_then(evaluate).ok();
+                Ok(ColumnarValue::Scalar(ScalarValue::Boolean(result)))
+            }
+        }
     }
+}
+
+fn evaluate(value: TermRef<'_>) -> RdfOpResult<bool> {
+    let result = match value {
+        TermRef::Boolean(value) => value.as_bool(),
+        TermRef::Numeric(value) => match value {
+            Numeric::Int(value) => value != Int::from(0),
+            Numeric::Integer(value) => value != Integer::from(0),
+            Numeric::Float(value) => value != Float::from(0f32),
+            Numeric::Double(value) => value != Double::from(0f64),
+            Numeric::Decimal(value) => value != Decimal::from(0),
+        },
+        TermRef::SimpleLiteral(value) => !value.is_empty(),
+        _ => return Err(()),
+    };
+    Ok(result)
 }
