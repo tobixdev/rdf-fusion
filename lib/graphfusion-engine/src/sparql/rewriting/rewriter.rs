@@ -154,8 +154,10 @@ impl GraphPatternRewriter {
         inner: &GraphPattern,
         expression: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
-        self.rewrite_graph_pattern(inner)?
-            .filter(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(expression)?]))
+        let inner = self.rewrite_graph_pattern(inner)?;
+        let expression = self.rewrite_expr(expression)?;
+        let expression = create_filter_expression(inner.schema(), expression)?;
+        inner.filter(expression)
     }
 
     /// Creates a projection that adds another column with the name `variable`.
@@ -535,6 +537,18 @@ fn encode_solution(terms: &Vec<Option<GroundTerm>>) -> DFResult<Vec<Expr>> {
         .collect()
 }
 
+fn create_filter_expression(schema: &DFSchema, filter: Expr) -> DFResult<Expr> {
+    let new_expr = filter.transform(|e| {
+        Ok(match e {
+            Expr::Column(c) if !schema.has_column(&c) => {
+                Transformed::yes(lit(encode_scalar_null()))
+            }
+            e => Transformed::no(e),
+        })
+    })?;
+    Ok(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![new_expr.data]))
+}
+
 /// Creates a join node of two logical plans that contain encoded RDF Terms.
 ///
 /// See https://www.w3.org/TR/sparql11-query/#defn_algCompatibleMapping for a definition for
@@ -560,6 +574,9 @@ fn create_join(
         .map(|c| c.name().to_string())
         .collect();
 
+    let mut join_schema = lhs.schema().as_ref().clone();
+    join_schema.merge(rhs.schema());
+
     let mut join_filters = lhs_keys
         .intersection(&rhs_keys)
         .map(|k| {
@@ -584,7 +601,8 @@ fn create_join(
                 })
             })?
             .data;
-        join_filters.push(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![filter]));
+        let filter = create_filter_expression(&join_schema, filter)?;
+        join_filters.push(filter);
     }
     let filter_expr = join_filters.into_iter().reduce(Expr::and);
 
