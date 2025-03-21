@@ -5,6 +5,12 @@ use oxrdf::BlankNode;
 #[derive(Debug)]
 pub struct BNodeRdfOp {}
 
+impl BNodeRdfOp {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl ScalarNullaryRdfOp for BNodeRdfOp {
     type Result<'data> = BlankNode;
 

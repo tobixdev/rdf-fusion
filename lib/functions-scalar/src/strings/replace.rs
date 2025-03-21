@@ -1,6 +1,6 @@
 use crate::strings::regex::compile_pattern;
 use crate::{RdfOpResult, ScalarQuaternaryRdfOp, ScalarTernaryRdfOp};
-use datamodel::{OwnedStringLiteral, SimpleLiteralRef, StringLiteral};
+use datamodel::{OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef};
 use std::borrow::Cow;
 
 #[derive(Debug)]
@@ -15,7 +15,7 @@ impl ReplaceRdfOp {
 }
 
 impl ScalarTernaryRdfOp for ReplaceRdfOp {
-    type Arg0<'data> = StringLiteral<'data>;
+    type Arg0<'data> = StringLiteralRef<'data>;
     type Arg1<'data> = SimpleLiteralRef<'data>;
     type Arg2<'data> = SimpleLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
@@ -38,7 +38,7 @@ impl ScalarTernaryRdfOp for ReplaceRdfOp {
 }
 
 impl ScalarQuaternaryRdfOp for ReplaceRdfOp {
-    type Arg0<'data> = StringLiteral<'data>;
+    type Arg0<'data> = StringLiteralRef<'data>;
     type Arg1<'data> = SimpleLiteralRef<'data>;
     type Arg2<'data> = SimpleLiteralRef<'data>;
     type Arg3<'data> = SimpleLiteralRef<'data>;

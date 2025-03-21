@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarBinaryRdfOp, ScalarTernaryRdfOp};
-use datamodel::{Boolean, SimpleLiteralRef, StringLiteral};
+use datamodel::{Boolean, SimpleLiteralRef, StringLiteralRef};
 use regex::{Regex, RegexBuilder};
 use std::borrow::Cow;
 
@@ -15,7 +15,7 @@ impl RegexRdfOp {
 }
 
 impl ScalarBinaryRdfOp for RegexRdfOp {
-    type ArgLhs<'data> = StringLiteral<'data>;
+    type ArgLhs<'data> = StringLiteralRef<'data>;
     type ArgRhs<'data> = SimpleLiteralRef<'data>;
     type Result<'data> = Boolean;
 
@@ -30,7 +30,7 @@ impl ScalarBinaryRdfOp for RegexRdfOp {
 }
 
 impl ScalarTernaryRdfOp for RegexRdfOp {
-    type Arg0<'data> = StringLiteral<'data>;
+    type Arg0<'data> = StringLiteralRef<'data>;
     type Arg1<'data> = SimpleLiteralRef<'data>;
     type Arg2<'data> = SimpleLiteralRef<'data>;
     type Result<'data> = Boolean;

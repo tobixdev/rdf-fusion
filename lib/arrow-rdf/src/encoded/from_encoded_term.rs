@@ -6,7 +6,7 @@ use datafusion::arrow::datatypes::{
 use datafusion::common::ScalarValue;
 use datamodel::{
     Boolean, Decimal, Double, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpResult,
-    SimpleLiteralRef, StringLiteral, TermRef, TypedLiteralRef,
+    SimpleLiteralRef, StringLiteralRef, TermRef, TypedLiteralRef,
 };
 use oxrdf::{BlankNodeRef, NamedNodeRef};
 
@@ -275,7 +275,7 @@ impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
         }
     }
 }
-impl<'data> FromEncodedTerm<'data> for StringLiteral<'data> {
+impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
     fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -417,7 +417,7 @@ impl FromEncodedTerm<'_> for Decimal {
         }
 
         match scalar.as_ref() {
-            ScalarValue::Decimal128(Some(value), _, _) => Ok(Self { value: *value }),
+            ScalarValue::Decimal128(Some(value), _, _) => Ok(Decimal::new_from_i128_unchecked(*value)),
             _ => Err(()),
         }
     }
@@ -554,10 +554,8 @@ impl FromEncodedTerm<'_> for Integer {
         }
 
         match scalar.as_ref() {
-            ScalarValue::Int32(Some(value)) => Ok(Self {
-                value: *value as i64,
-            }),
-            ScalarValue::Int64(Some(value)) => Ok(Self { value: *value }),
+            ScalarValue::Int32(Some(value)) => Ok((*value).into()),
+            ScalarValue::Int64(Some(value)) => Ok((*value).into()),
             _ => Err(()),
         }
     }
@@ -567,18 +565,16 @@ impl FromEncodedTerm<'_> for Integer {
         let offset = array.value_offset(index);
 
         match field {
-            EncTermField::Int => Ok(Self {
-                value: array
-                    .child(field.type_id())
-                    .as_primitive::<Int32Type>()
-                    .value(offset) as i64,
-            }),
-            EncTermField::Integer => Ok(Self {
-                value: array
-                    .child(field.type_id())
-                    .as_primitive::<Int64Type>()
-                    .value(offset),
-            }),
+            EncTermField::Int => Ok(array
+                .child(field.type_id())
+                .as_primitive::<Int32Type>()
+                .value(offset)
+                .into()),
+            EncTermField::Integer => Ok(array
+                .child(field.type_id())
+                .as_primitive::<Int64Type>()
+                .value(offset)
+                .into()),
             _ => Err(()),
         }
     }

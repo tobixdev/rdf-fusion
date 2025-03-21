@@ -7,7 +7,6 @@ use datafusion::error::DataFusionError;
 
 pub mod encoded;
 pub mod error;
-mod result_collector;
 mod sorting;
 
 pub const TABLE_QUADS: &str = "quads";

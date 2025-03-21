@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{Numeric, TermRef, StringLiteral};
+use datamodel::{Numeric, TermRef, StringLiteralRef};
 use oxrdf::vocab::{rdf, xsd};
 
 #[derive(Debug)]
@@ -13,7 +13,7 @@ impl DatatypeRdfOp {
 
 impl ScalarUnaryRdfOp for DatatypeRdfOp {
     type Arg<'data> = TermRef<'data>;
-    type Result<'data> = StringLiteral<'data>;
+    type Result<'data> = StringLiteralRef<'data>;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let datatype = match value {
@@ -33,6 +33,6 @@ impl ScalarUnaryRdfOp for DatatypeRdfOp {
             TermRef::TypedLiteral(value) => Some(value.literal_type),
         }
         .ok_or(())?;
-        Ok(StringLiteral(datatype, None))
+        Ok(StringLiteralRef(datatype, None))
     }
 }

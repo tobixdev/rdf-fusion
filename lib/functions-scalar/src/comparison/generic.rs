@@ -5,6 +5,7 @@ use datamodel::TermRef;
 
 macro_rules! create_binary_cmp_udf {
     ($STRUCT: ident, $OP: tt) => {
+        #[derive(Debug)]
         pub struct $STRUCT {
         }
 

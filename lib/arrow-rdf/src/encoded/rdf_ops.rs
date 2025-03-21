@@ -1,10 +1,11 @@
 use functions_scalar::*;
-use crate::{make_binary_rdf_udf, make_unary_rdf_udf};
+use crate::encoded::write_enc_term::WriteEncTerm;
+use crate::{make_binary_rdf_udf, make_nullary_rdf_udf, make_quaternary_rdf_udf, make_ternary_rdf_udf, make_unary_rdf_udf};
 
 // Comparison
 
 make_binary_rdf_udf!(SameTermRdfOp, EncSameTerm, ENC_SAME_TERM, "enc_same_term");
-make_binary_rdf_udf!(EqRdfOp, EncEq, EN_EQ, "enc_eq");
+make_binary_rdf_udf!(EqRdfOp, EncEq, ENC_EQ, "enc_eq");
 make_binary_rdf_udf!(GreaterThanRdfOp, EncGreaterThan, ENC_GREATER_THAN, "enc_greater_than");
 make_binary_rdf_udf!(GreaterOrEqualRdfOp, EncGreaterOrEqual, ENC_GREATER_OR_EQUAL, "enc_greater_or_equal");
 make_binary_rdf_udf!(LessThanRdfOp, EncLessThan, ENC_LESS_THAN, "enc_less_than");
@@ -34,7 +35,7 @@ make_unary_rdf_udf!(UnaryPlusRdfOp, EncUnaryPlus, ENC_UNARY_PLUS, "enc_unary_plu
 make_unary_rdf_udf!(RoundRdfOp, EncRound, ENC_ROUND, "enc_round");
 make_unary_rdf_udf!(CeilRdfOp, EncCeil, ENC_CEIL, "enc_ceil");
 make_unary_rdf_udf!(FloorRdfOp, EncFloor, ENC_FLOOR, "enc_floor");
-make_unary_rdf_udf!(RandRdfOp, EncRand, ENC_RAND, "enc_rand");
+make_nullary_rdf_udf!(RandRdfOp, EncRand, ENC_RAND, "enc_rand");
 
 // Strings
 
@@ -44,13 +45,15 @@ make_unary_rdf_udf!(UCaseRdfOp, EncUcase, ENC_UCASE, "enc_ucase");
 make_unary_rdf_udf!(LCaseRdfOp, EncLcase, ENC_LCASE, "enc_lcase");
 make_binary_rdf_udf!(StrStartsRdfOp, EncStrstarts, ENC_STRSTARTS, "enc_strstarts");
 make_binary_rdf_udf!(StrEndsRdfOp, EncStrends, ENC_STRENDS, "enc_strends");
-make_unary_rdf_udf!(ContainsRdfOp, EncContains, ENC_CONTAINS, "enc_contains");
+make_binary_rdf_udf!(ContainsRdfOp, EncContains, ENC_CONTAINS, "enc_contains");
 make_binary_rdf_udf!(StrBeforeRdfOp, EncStrbefore, ENC_STRBEFORE, "enc_strbefore");
 make_binary_rdf_udf!(StrAfterRdfOp, EncStrafter, ENC_STRAFTER, "enc_strafter");
 make_unary_rdf_udf!(EncodeForUriRdfOp, EncEncodeforuri, ENC_ENCODEFORURI, "enc_encodeforuri");
 make_binary_rdf_udf!(LangMatchesRdfOp, EncLangmatches, ENC_LANGMATCHES, "enc_langmatches");
-make_unary_rdf_udf!(RegexRdfOp, EncRegex, ENC_REGEX, "enc_regex");
-make_unary_rdf_udf!(ReplaceRdfOp, EncReplace, ENC_REPLACE, "enc_replace");
+make_binary_rdf_udf!(RegexRdfOp, EncRegexBinary, ENC_REGEX_BINARY, "enc_regex");
+make_ternary_rdf_udf!(RegexRdfOp, EncRegexTernary, ENC_REGEX_TERNARY, "enc_regex");
+make_ternary_rdf_udf!(ReplaceRdfOp, EncReplaceTernary, ENC_REPLACE_TERNARY, "enc_replace");
+make_quaternary_rdf_udf!(ReplaceRdfOp, EncReplaceQuaternary, ENC_REPLACE_QUATERNARY, "enc_replace");
 
 // Terms
 
@@ -65,5 +68,5 @@ make_unary_rdf_udf!(BNodeRdfOp, EncBnodeNullary, ENC_BNODE_NULLARY, "enc_bnode")
 make_unary_rdf_udf!(BNodeRdfOp, EncBnodeUnary, ENC_BNODE_UNARY, "enc_bnode");
 make_binary_rdf_udf!(StrDtRdfOp, EncStrdt, ENC_STRDT, "enc_strdt");
 make_binary_rdf_udf!(StrLangRdfOp, EncStrlang, ENC_STRLANG, "enc_strlang");
-make_binary_rdf_udf!(UuidRdfOp, EncUuid, ENC_UUID, "enc_uuid");
-make_binary_rdf_udf!(StrUuidRdfOp, EncStruuid, ENC_STRUUID, "enc_struuid");
+make_nullary_rdf_udf!(UuidRdfOp, EncUuid, ENC_UUID, "enc_uuid");
+make_nullary_rdf_udf!(StrUuidRdfOp, EncStruuid, ENC_STRUUID, "enc_struuid");

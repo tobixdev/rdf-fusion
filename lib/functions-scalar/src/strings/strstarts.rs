@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarBinaryRdfOp};
-use datamodel::{Boolean, CompatibleStringArgs, StringLiteral};
+use datamodel::{Boolean, CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct StrStartsRdfOp {}
@@ -11,8 +11,8 @@ impl StrStartsRdfOp {
 }
 
 impl ScalarBinaryRdfOp for StrStartsRdfOp {
-    type ArgLhs<'data> = StringLiteral<'data>;
-    type ArgRhs<'data> = StringLiteral<'data>;
+    type ArgLhs<'data> = StringLiteralRef<'data>;
+    type ArgRhs<'data> = StringLiteralRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(

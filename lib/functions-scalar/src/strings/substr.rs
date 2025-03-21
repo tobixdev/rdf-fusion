@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarBinaryRdfOp};
-use datamodel::{Integer, StringLiteral};
+use datamodel::{Integer, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct SubStrRdfOp {}
@@ -11,9 +11,9 @@ impl SubStrRdfOp {
 }
 
 impl ScalarBinaryRdfOp for SubStrRdfOp {
-    type ArgLhs<'lhs> = StringLiteral<'lhs>;
+    type ArgLhs<'lhs> = StringLiteralRef<'lhs>;
     type ArgRhs<'lhs> = Integer;
-    type Result<'data> = StringLiteral<'data>;
+    type Result<'data> = StringLiteralRef<'data>;
 
     fn evaluate<'data>(
         &self,
@@ -21,6 +21,6 @@ impl ScalarBinaryRdfOp for SubStrRdfOp {
         arg_rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
         let index = usize::try_from(arg_rhs.try_as_i64()?).map_err(|_| ())?;
-        Ok(StringLiteral(&arg_lhs.0[index..], arg_lhs.1))
+        Ok(StringLiteralRef(&arg_lhs.0[index..], arg_lhs.1))
     }
 }

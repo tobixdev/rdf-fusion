@@ -2,7 +2,14 @@ use crate::{RdfOpResult, ScalarBinaryRdfOp};
 use datamodel::TermRef;
 use std::cmp::Ordering;
 
+#[derive(Debug)]
 pub struct EqRdfOp {}
+
+impl EqRdfOp {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
 impl ScalarBinaryRdfOp for EqRdfOp {
     type ArgLhs<'data> = TermRef<'data>;

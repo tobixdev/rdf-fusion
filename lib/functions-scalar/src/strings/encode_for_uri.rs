@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{OwnedStringLiteral, StringLiteral};
+use datamodel::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct EncodeForUriRdfOp {}
@@ -11,7 +11,7 @@ impl EncodeForUriRdfOp {
 }
 
 impl ScalarUnaryRdfOp for EncodeForUriRdfOp {
-    type Arg<'data> = StringLiteral<'data>;
+    type Arg<'data> = StringLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {

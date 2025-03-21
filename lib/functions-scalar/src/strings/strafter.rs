@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarBinaryRdfOp};
-use datamodel::{CompatibleStringArgs, StringLiteral};
+use datamodel::{CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct StrAfterRdfOp {}
@@ -11,9 +11,9 @@ impl StrAfterRdfOp {
 }
 
 impl ScalarBinaryRdfOp for StrAfterRdfOp {
-    type ArgLhs<'data> = StringLiteral<'data>;
-    type ArgRhs<'data> = StringLiteral<'data>;
-    type Result<'data> = StringLiteral<'data>;
+    type ArgLhs<'data> = StringLiteralRef<'data>;
+    type ArgRhs<'data> = StringLiteralRef<'data>;
+    type Result<'data> = StringLiteralRef<'data>;
 
     fn evaluate<'data>(
         &self,
@@ -24,9 +24,9 @@ impl ScalarBinaryRdfOp for StrAfterRdfOp {
 
         if let Some(position) = args.lhs.find(args.rhs) {
             let start = position + args.rhs.len();
-            Ok(StringLiteral(&args.lhs[start..], args.language))
+            Ok(StringLiteralRef(&args.lhs[start..], args.language))
         } else {
-            Ok(StringLiteral("", args.language))
+            Ok(StringLiteralRef("", args.language))
         }
     }
 }

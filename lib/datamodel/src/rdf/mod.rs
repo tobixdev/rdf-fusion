@@ -10,6 +10,6 @@ pub use language_string::LanguageStringRef;
 pub use simple_literal::SimpleLiteralRef;
 pub use string_literal::CompatibleStringArgs;
 pub use string_literal::OwnedStringLiteral;
-pub use string_literal::StringLiteral;
+pub use string_literal::StringLiteralRef;
 pub use term::TermRef;
 pub use typed_literal::TypedLiteralRef;
