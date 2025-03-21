@@ -8,6 +8,8 @@ use datafusion::logical_expr::{
 };
 use datamodel::{Decimal, Double, Float, Int, Integer, Numeric, RdfOpResult, TermRef};
 use std::any::Any;
+use std::sync::Arc;
+use datafusion::arrow::array::BooleanArray;
 
 #[derive(Debug)]
 pub struct EncEffectiveBooleanValue {
@@ -54,11 +56,11 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
         match &args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_enc_term_array(array.as_ref())?;
-                let results = (0..number_rows)
+                let result = (0..number_rows)
                     .into_iter()
-                    .map(|i| TermRef::from_enc_array(array, i).and_then(evaluate));
-                let result = bool::iter_into_array(results)?;
-                Ok(ColumnarValue::Array(result))
+                    .map(|i| TermRef::from_enc_array(array, i).and_then(evaluate).ok())
+                    .collect::<BooleanArray>();
+                Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
                 let result = TermRef::from_enc_scalar(scalar).and_then(evaluate).ok();
