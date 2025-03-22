@@ -417,7 +417,9 @@ impl FromEncodedTerm<'_> for Decimal {
         }
 
         match scalar.as_ref() {
-            ScalarValue::Decimal128(Some(value), _, _) => Ok(Decimal::new_from_i128_unchecked(*value)),
+            ScalarValue::Decimal128(Some(value), _, _) => {
+                Ok(Decimal::from_be_bytes(value.to_be_bytes()))
+            }
             _ => Err(()),
         }
     }
@@ -427,11 +429,12 @@ impl FromEncodedTerm<'_> for Decimal {
         let offset = array.value_offset(index);
 
         match field {
-            EncTermField::Decimal => Ok(Decimal::new_from_i128_unchecked(
+            EncTermField::Decimal => Ok(Decimal::from_be_bytes(
                 array
                     .child(field.type_id())
                     .as_primitive::<Decimal128Type>()
-                    .value(offset),
+                    .value(offset)
+                    .to_be_bytes(),
             )),
             _ => Err(()),
         }

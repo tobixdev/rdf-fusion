@@ -1,36 +1,95 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp};
-use datamodel::{Boolean, RdfTerm};
+use crate::encoded::dispatch::dispatch_binary;
+use crate::encoded::{EncTerm, EncTermField};
+use crate::{as_enc_term_array, DFResult};
+use datafusion::arrow::datatypes::DataType;
+use datafusion::common::ScalarValue;
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
+use datamodel::{Boolean, RdfOpResult, TermRef};
+use functions_scalar::ScalarBinaryRdfOp;
+use std::any::Any;
+use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct IsCompatibleRdfOp {}
+pub struct EncIsCompatible {
+    signature: Signature,
+}
 
-impl IsCompatibleRdfOp {
+impl EncIsCompatible {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            signature: Signature::new(
+                TypeSignature::Exact(vec![EncTerm::term_type()]),
+                Volatility::Immutable,
+            ),
+        }
     }
 }
 
-impl ScalarBinaryRdfOp for IsCompatibleRdfOp {
-    type ArgLhs<'data> = RdfTerm<'data>;
-    type ArgRhs<'data> = RdfTerm<'data>;
+impl ScalarBinaryRdfOp for EncIsCompatible {
+    type ArgLhs<'data> = TermRef<'data>;
+    type ArgRhs<'data> = TermRef<'data>;
     type Result<'data> = Boolean;
 
-    fn evaluate<'data>(lhs: &Self::ArgLhs<'data>, rhs: &Self::ArgRhs<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(
+        &self,
+        lhs: Self::ArgLhs<'data>,
+        rhs: Self::ArgRhs<'data>,
+    ) -> RdfOpResult<Self::Result<'data>> {
         let is_compatible = match (lhs, rhs) {
-            (RdfTerm::BlankNode(lhs), RdfTerm::BlankNode(rhs)) => lhs == rhs,
-            (RdfTerm::NamedNode(lhs), RdfTerm::NamedNode(rhs)) => lhs == rhs,
-            (RdfTerm::Boolean(lhs), RdfTerm::Boolean(rhs)) => lhs == rhs,
-            (RdfTerm::Numeric(lhs), RdfTerm::Numeric(rhs)) => lhs == rhs,
-            (RdfTerm::SimpleLiteral(lhs), RdfTerm::SimpleLiteral(rhs)) => lhs == rhs,
-            (RdfTerm::LanguageString(lhs), RdfTerm::LanguageString(rhs)) => lhs == rhs,
-            (RdfTerm::TypedLiteral(lhs), RdfTerm::TypedLiteral(rhs)) => lhs == rhs,
+            (TermRef::BlankNode(lhs), TermRef::BlankNode(rhs)) => lhs == rhs,
+            (TermRef::NamedNode(lhs), TermRef::NamedNode(rhs)) => lhs == rhs,
+            (TermRef::Boolean(lhs), TermRef::Boolean(rhs)) => lhs == rhs,
+            (TermRef::Numeric(lhs), TermRef::Numeric(rhs)) => lhs == rhs,
+            (TermRef::SimpleLiteral(lhs), TermRef::SimpleLiteral(rhs)) => lhs == rhs,
+            (TermRef::LanguageString(lhs), TermRef::LanguageString(rhs)) => lhs == rhs,
+            (TermRef::TypedLiteral(lhs), TermRef::TypedLiteral(rhs)) => lhs == rhs,
             _ => false,
         };
         Ok(is_compatible.into())
     }
 
-    fn evaluate_error() -> RdfOpResult<Self::Result<'static>> {
+    fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
         // At least one side is an error, therefore the terms are compatible.
         Ok(true.into())
+    }
+}
+
+impl ScalarUDFImpl for EncIsCompatible {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn name(&self) -> &str {
+        "enc_is_compatible"
+    }
+
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
+        Ok(DataType::Boolean)
+    }
+
+    fn invoke_batch(
+        &self,
+        args: &[ColumnarValue],
+        number_rows: usize,
+    ) -> datafusion::common::Result<ColumnarValue> {
+        let result = dispatch_binary(self, args, number_rows)?;
+        match result {
+            ColumnarValue::Array(array) => {
+                let array = as_enc_term_array(array.as_ref())?;
+                Ok(ColumnarValue::Array(Arc::clone(
+                    array.child(EncTermField::Boolean.type_id()),
+                )))
+            }
+            ColumnarValue::Scalar(ScalarValue::Union(Some((_, scalar)), _, _)) => {
+                Ok(ColumnarValue::Scalar(*scalar))
+            }
+            _ => unreachable!("Unexpected result"),
+        }
     }
 }

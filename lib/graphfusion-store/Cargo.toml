@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 arrow-rdf.workspace = true
 async-trait.workspace = true
+datamodel.workspace = true
 datafusion.workspace = true
 graphfusion-engine.workspace = true
 dashmap.workspace = true

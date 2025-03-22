@@ -10,10 +10,10 @@ use arrow_rdf::encoded::{
     ENC_CEIL, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI,
     ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE,
     ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE,
-    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_RAND, ENC_REGEX, ENC_REPLACE, ENC_ROUND,
-    ENC_SAME_TERM, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG,
-    ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS,
-    ENC_UNARY_PLUS, ENC_UUID,
+    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY,
+    ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM, ENC_STR, ENC_STRAFTER,
+    ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID,
+    ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
@@ -418,8 +418,16 @@ impl GraphPatternRewriter {
             Function::EncodeForUri => Ok(ENC_ENCODEFORURI.call(args)),
             Function::Concat => not_impl_err!("Function::Concat"),
             Function::LangMatches => Ok(ENC_LANGMATCHES.call(args)),
-            Function::Regex => Ok(ENC_REGEX.call(args)),
-            Function::Replace => Ok(ENC_REPLACE.call(args)),
+            Function::Regex => Ok(match args.len() {
+                2 => ENC_REGEX_BINARY.call(args),
+                3 => ENC_REGEX_TERNARY.call(args),
+                _ => unreachable!("Unexpected number of args"),
+            }),
+            Function::Replace => Ok(match args.len() {
+                3 => ENC_REPLACE_TERNARY.call(args),
+                4 => ENC_REPLACE_QUATERNARY.call(args),
+                _ => unreachable!("Unexpected number of args"),
+            }),
             // Numeric
             Function::Abs => Ok(ENC_ABS.call(args)),
             Function::Round => Ok(ENC_ROUND.call(args)),

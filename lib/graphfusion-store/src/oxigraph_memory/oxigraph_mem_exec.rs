@@ -5,7 +5,6 @@ use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
 use crate::oxigraph_memory::hash::StrHash;
 use crate::{AResult, DFResult};
-use arrow_rdf::datatypes::Decimal;
 use arrow_rdf::encoded::{EncRdfTermBuilder, ENC_QUAD_SCHEMA};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
@@ -24,6 +23,7 @@ use std::fmt::{Debug, Formatter};
 use std::io::Write;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use datamodel::Decimal;
 
 pub struct OxigraphMemExec {
     reader: Arc<MemoryStorageReader>,
@@ -345,13 +345,13 @@ fn encode_term(
             builder.append_typed_literal(&v.to_string(), xsd::G_MONTH.as_str())
         }
         EncodedTerm::DurationLiteral(v) => {
-            builder.append_duration()
+            todo!()
         }
         EncodedTerm::YearMonthDurationLiteral(v) => {
-            builder.append_typed_literal(Some(v), None)
+            todo!()
         }
         EncodedTerm::DayTimeDurationLiteral(v) => {
-            builder.append_typed_literal(None, Some(v))
+            todo!()
         }
         EncodedTerm::Triple(_) => unimplemented!("Encode Triple"),
     }

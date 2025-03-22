@@ -258,6 +258,7 @@ impl EncRdfTermBuilder {
                 Arc::new(self.decimal_builder.finish()),
                 Arc::new(self.int32_builder.finish()),
                 Arc::new(self.integer_builder.finish()),
+                Arc::new(self.duration_builder.finish()),
                 Arc::new(self.typed_literal_builder.finish()),
             ],
         )?))

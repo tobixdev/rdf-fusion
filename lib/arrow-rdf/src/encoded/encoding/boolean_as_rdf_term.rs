@@ -17,7 +17,7 @@ impl EncBooleanAsRdfTerm {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
-                TypeSignature::Exact(vec![DataType::Boolean]),
+                TypeSignature::Exact(vec![EncTerm::term_type()]),
                 Volatility::Immutable,
             ),
         }
@@ -38,7 +38,7 @@ impl ScalarUDFImpl for EncBooleanAsRdfTerm {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(EncTerm::term_type())
+        Ok(DataType::Boolean)
     }
 
     fn invoke_batch(

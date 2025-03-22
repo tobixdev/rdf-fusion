@@ -224,6 +224,9 @@ fn to_term(
                 ))
             }
         }
+        EncTermField::Duration => {
+            todo!()
+        }
         EncTermField::TypedLiteral => {
             let values = objects
                 .child(term_field.type_id())

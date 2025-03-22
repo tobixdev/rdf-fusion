@@ -9,6 +9,7 @@ mod macros;
 mod write_enc_term;
 mod from_encoded_term;
 mod dispatch;
+mod query_evaluation;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
@@ -18,6 +19,7 @@ pub use rdf_term_builder::EncRdfTermBuilder;
 
 // Functions
 pub use encoding::*;
+pub use query_evaluation::*;
 pub use rdf_ops::*;
 pub use udfs::*;
 
