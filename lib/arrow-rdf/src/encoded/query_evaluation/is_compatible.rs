@@ -1,13 +1,15 @@
-use crate::datatypes::RdfTerm;
-use crate::encoded::dispatch_binary::{dispatch_binary, EncScalarBinaryUdf};
-use crate::encoded::EncTerm;
-use crate::DFResult;
-use datafusion::arrow::array::BooleanBuilder;
+use crate::encoded::dispatch::dispatch_binary;
+use crate::encoded::{EncTerm, EncTermField};
+use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::ScalarValue;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
+use datamodel::{Boolean, RdfOpResult, TermRef};
+use functions_scalar::ScalarBinaryRdfOp;
 use std::any::Any;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct EncIsCompatible {
@@ -18,41 +20,39 @@ impl EncIsCompatible {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
-                TypeSignature::Exact(vec![EncTerm::term_type(), EncTerm::term_type()]),
+                TypeSignature::Exact(vec![EncTerm::term_type(); 2]),
                 Volatility::Immutable,
             ),
         }
     }
 }
 
-impl EncScalarBinaryUdf for EncIsCompatible {
-    type ArgLhs<'data> = RdfTerm<'data>;
-    type ArgRhs<'data> = RdfTerm<'data>;
-    type Collector = BooleanBuilder;
+impl ScalarBinaryRdfOp for EncIsCompatible {
+    type ArgLhs<'data> = TermRef<'data>;
+    type ArgRhs<'data> = TermRef<'data>;
+    type Result<'data> = Boolean;
 
-    fn evaluate(
-        collector: &mut Self::Collector,
-        lhs: &Self::ArgLhs<'_>,
-        rhs: &Self::ArgRhs<'_>,
-    ) -> DFResult<()> {
+    fn evaluate<'data>(
+        &self,
+        lhs: Self::ArgLhs<'data>,
+        rhs: Self::ArgRhs<'data>,
+    ) -> RdfOpResult<Self::Result<'data>> {
         let is_compatible = match (lhs, rhs) {
-            (RdfTerm::BlankNode(lhs), RdfTerm::BlankNode(rhs)) => lhs == rhs,
-            (RdfTerm::NamedNode(lhs), RdfTerm::NamedNode(rhs)) => lhs == rhs,
-            (RdfTerm::Boolean(lhs), RdfTerm::Boolean(rhs)) => lhs == rhs,
-            (RdfTerm::Numeric(lhs), RdfTerm::Numeric(rhs)) => lhs == rhs,
-            (RdfTerm::SimpleLiteral(lhs), RdfTerm::SimpleLiteral(rhs)) => lhs == rhs,
-            (RdfTerm::LanguageString(lhs), RdfTerm::LanguageString(rhs)) => lhs == rhs,
-            (RdfTerm::TypedLiteral(lhs), RdfTerm::TypedLiteral(rhs)) => lhs == rhs,
+            (TermRef::BlankNode(lhs), TermRef::BlankNode(rhs)) => lhs == rhs,
+            (TermRef::NamedNode(lhs), TermRef::NamedNode(rhs)) => lhs == rhs,
+            (TermRef::Boolean(lhs), TermRef::Boolean(rhs)) => lhs == rhs,
+            (TermRef::Numeric(lhs), TermRef::Numeric(rhs)) => lhs == rhs,
+            (TermRef::SimpleLiteral(lhs), TermRef::SimpleLiteral(rhs)) => lhs == rhs,
+            (TermRef::LanguageString(lhs), TermRef::LanguageString(rhs)) => lhs == rhs,
+            (TermRef::TypedLiteral(lhs), TermRef::TypedLiteral(rhs)) => lhs == rhs,
             _ => false,
         };
-        collector.append_value(is_compatible);
-        Ok(())
+        Ok(is_compatible.into())
     }
 
-    fn evaluate_error(collector: &mut Self::Collector) -> DFResult<()> {
-        // At least one value is NULL, therefore the columns are compatible.
-        collector.append_value(true);
-        Ok(())
+    fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
+        // At least one side is an error, therefore the terms are compatible.
+        Ok(true.into())
     }
 }
 
@@ -78,6 +78,18 @@ impl ScalarUDFImpl for EncIsCompatible {
         args: &[ColumnarValue],
         number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        dispatch_binary::<Self>(args, number_rows)
+        let result = dispatch_binary(self, args, number_rows)?;
+        match result {
+            ColumnarValue::Array(array) => {
+                let array = as_enc_term_array(array.as_ref())?;
+                Ok(ColumnarValue::Array(Arc::clone(
+                    array.child(EncTermField::Boolean.type_id()),
+                )))
+            }
+            ColumnarValue::Scalar(ScalarValue::Union(Some((_, scalar)), _, _)) => {
+                Ok(ColumnarValue::Scalar(*scalar))
+            }
+            _ => unreachable!("Unexpected result"),
+        }
     }
 }

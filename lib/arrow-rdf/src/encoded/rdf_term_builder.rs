@@ -1,16 +1,15 @@
-use crate::datatypes::{XsdDecimal, XsdDouble, XsdFloat, XsdInt, XsdInteger};
 use crate::encoded::{EncTerm, EncTermField};
 use crate::error::LiteralEncodingError;
-use crate::{AResult, DFResult, RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE};
+use crate::{AResult, DFResult};
 use datafusion::arrow::array::{
     ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
     Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder, UnionArray,
 };
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
-use oxiri::Iri;
+use datamodel::{BlankNode, DayTimeDuration, YearMonthDuration};
+use datamodel::{Decimal, DecodedTerm, Double, Float, Int, Integer, Iri, Literal};
 use oxrdf::vocab::{rdf, xsd};
-use oxrdf::{BlankNode, Literal, Term};
 use std::sync::Arc;
 
 pub struct EncRdfTermBuilder {
@@ -25,6 +24,7 @@ pub struct EncRdfTermBuilder {
     decimal_builder: Decimal128Builder,
     int32_builder: Int32Builder,
     integer_builder: Int64Builder,
+    duration_builder: StructBuilder,
     typed_literal_builder: StructBuilder,
     null_builder: NullBuilder,
 }
@@ -41,20 +41,21 @@ impl EncRdfTermBuilder {
             float_builder: Float32Builder::with_capacity(0),
             double_builder: Float64Builder::with_capacity(0),
             decimal_builder: Decimal128Builder::with_capacity(0)
-                .with_precision_and_scale(RDF_DECIMAL_PRECISION, RDF_DECIMAL_SCALE)
+                .with_precision_and_scale(Decimal::PRECISION, Decimal::SCALE)
                 .expect("Precision and scale fixed"),
             int32_builder: Int32Builder::with_capacity(0),
             integer_builder: Int64Builder::with_capacity(0),
+            duration_builder: StructBuilder::from_fields(EncTerm::duration_fields(), 0),
             typed_literal_builder: StructBuilder::from_fields(EncTerm::typed_literal_fields(), 0),
             null_builder: NullBuilder::new(),
         }
     }
 
-    pub fn append_term(&mut self, value: &Term) -> Result<(), ArrowError> {
+    pub fn append_term(&mut self, value: &DecodedTerm) -> Result<(), ArrowError> {
         Ok(match value {
-            Term::NamedNode(nn) => self.append_named_node(nn.as_str())?,
-            Term::BlankNode(bnode) => self.append_blank_node(bnode.as_str())?,
-            Term::Literal(literal) => match self.append_literal(literal) {
+            DecodedTerm::NamedNode(nn) => self.append_named_node(nn.as_str())?,
+            DecodedTerm::BlankNode(bnode) => self.append_blank_node(bnode.as_str())?,
+            DecodedTerm::Literal(literal) => match self.append_literal(literal) {
                 Ok(_) => (),
                 Err(LiteralEncodingError::Arrow(error)) => return Err(error),
                 Err(LiteralEncodingError::ParsingError(_)) => {
@@ -140,39 +141,76 @@ impl EncRdfTermBuilder {
         Ok(())
     }
 
-    pub fn append_int(&mut self, int: XsdInt) -> AResult<()> {
+    pub fn append_int(&mut self, int: Int) -> AResult<()> {
         self.type_ids.push(EncTermField::Int.type_id());
         self.offsets.push(self.int32_builder.len() as i32);
-        self.int32_builder.append_value(int.as_i32());
+        self.int32_builder.append_value(int.into());
         Ok(())
     }
 
-    pub fn append_integer(&mut self, integer: XsdInteger) -> AResult<()> {
+    pub fn append_integer(&mut self, integer: Integer) -> AResult<()> {
         self.type_ids.push(EncTermField::Integer.type_id());
         self.offsets.push(self.integer_builder.len() as i32);
-        self.integer_builder.append_value(integer.as_i64());
+        self.integer_builder.append_value(integer.into());
         Ok(())
     }
 
-    pub fn append_float(&mut self, value: XsdFloat) -> AResult<()> {
+    pub fn append_float(&mut self, value: Float) -> AResult<()> {
         self.type_ids.push(EncTermField::Float.type_id());
         self.offsets.push(self.float_builder.len() as i32);
-        self.float_builder.append_value(value.as_f32());
+        self.float_builder.append_value(value.into());
         Ok(())
     }
 
-    pub fn append_double(&mut self, value: XsdDouble) -> AResult<()> {
+    pub fn append_double(&mut self, value: Double) -> AResult<()> {
         self.type_ids.push(EncTermField::Double.type_id());
         self.offsets.push(self.double_builder.len() as i32);
-        self.double_builder.append_value(value.as_f64());
+        self.double_builder.append_value(value.into());
         Ok(())
     }
 
-    pub fn append_decimal(&mut self, value: XsdDecimal) -> AResult<()> {
+    pub fn append_decimal(&mut self, value: Decimal) -> AResult<()> {
         self.type_ids.push(EncTermField::Decimal.type_id());
         self.offsets.push(self.decimal_builder.len() as i32);
         self.decimal_builder
             .append_value(i128::from_be_bytes(value.to_be_bytes()));
+        Ok(())
+    }
+
+    pub fn append_duration(
+        &mut self,
+        year_month: Option<YearMonthDuration>,
+        day_time: Option<DayTimeDuration>,
+    ) -> AResult<()> {
+        if year_month.is_none() && day_time.is_none() {
+            return Err(ArrowError::InvalidArgumentError(String::from(
+                "One duration component required",
+            )));
+        }
+
+        self.type_ids.push(EncTermField::Duration.type_id());
+        self.offsets.push(self.duration_builder.len() as i32);
+
+        let year_month_builder = self
+            .duration_builder
+            .field_builder::<Int64Builder>(0)
+            .unwrap();
+        if let Some(year_month) = year_month {
+            year_month_builder.append_value(year_month.as_i64());
+        } else {
+            year_month_builder.append_null();
+        }
+
+        let day_time_builder = self
+            .duration_builder
+            .field_builder::<Decimal128Builder>(0)
+            .unwrap();
+        if let Some(day_time) = day_time {
+            day_time_builder.append_value(day_time.as_seconds().as_i128());
+        } else {
+            day_time_builder.append_null();
+        }
+
         Ok(())
     }
 
@@ -220,6 +258,7 @@ impl EncRdfTermBuilder {
                 Arc::new(self.decimal_builder.finish()),
                 Arc::new(self.int32_builder.finish()),
                 Arc::new(self.integer_builder.finish()),
+                Arc::new(self.duration_builder.finish()),
                 Arc::new(self.typed_literal_builder.finish()),
             ],
         )?))

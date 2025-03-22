@@ -5,14 +5,9 @@ use datafusion::common::{downcast_value, internal_err};
 use datafusion::error::DataFusionError;
 // TODO: Make DataFusion integration optional and use regular Arrow Crate
 
-pub mod datatypes;
 pub mod encoded;
 pub mod error;
-mod result_collector;
 mod sorting;
-
-pub const RDF_DECIMAL_PRECISION: u8 = 36;
-pub const RDF_DECIMAL_SCALE: i8 = 18;
 
 pub const TABLE_QUADS: &str = "quads";
 pub const COL_GRAPH: &str = "graph";

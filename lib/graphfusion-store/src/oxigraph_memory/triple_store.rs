@@ -11,6 +11,7 @@ use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::logical_expr::{col, lit, LogicalPlan};
 use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
+use graphfusion_engine::results::QueryResults;
 use graphfusion_engine::sparql::error::EvaluationError;
 use graphfusion_engine::sparql::{
     evaluate_query, PathToJoinsRule, Query, QueryExplanation, QueryOptions,
@@ -18,7 +19,6 @@ use graphfusion_engine::sparql::{
 use graphfusion_engine::TripleStore;
 use oxrdf::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
-use graphfusion_engine::results::QueryResults;
 
 #[derive(Clone)]
 pub struct MemoryTripleStore {

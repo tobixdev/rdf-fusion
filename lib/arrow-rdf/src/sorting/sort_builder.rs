@@ -1,9 +1,5 @@
-use crate::result_collector::ResultCollector;
-use crate::sorting::{RdfTermSortField, FIELDS_RDF_TERM_SORT};
-use crate::DFResult;
+use crate::sorting::RdfTermSortField;
 use datafusion::arrow::array::{Float64Builder, StringBuilder, StructBuilder, UInt8Builder};
-use datafusion::logical_expr::ColumnarValue;
-use std::sync::Arc;
 
 enum RdfSortType {
     Null,
@@ -86,17 +82,5 @@ impl RdfTermSortBuilder {
         }
 
         self.sort_builder.append(true)
-    }
-}
-
-impl ResultCollector for RdfTermSortBuilder {
-    fn new() -> Self {
-        Self {
-            sort_builder: StructBuilder::from_fields(FIELDS_RDF_TERM_SORT.clone(), 0),
-        }
-    }
-
-    fn finish_columnar_value(mut self) -> DFResult<ColumnarValue> {
-        Ok(ColumnarValue::Array(Arc::new(self.sort_builder.finish())))
     }
 }

@@ -1,9 +1,8 @@
-use crate::datatypes::{RdfTerm, XsdDouble, XsdNumeric};
-use crate::encoded::dispatch_unary::{dispatch_unary, EncScalarUnaryUdf};
 use crate::encoded::EncTerm;
-use crate::sorting::{RdfTermSort, RdfTermSortBuilder};
+use crate::sorting::RdfTermSort;
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::not_impl_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
@@ -22,35 +21,6 @@ impl EncAsRdfTermSort {
                 Volatility::Immutable,
             ),
         }
-    }
-}
-
-impl EncScalarUnaryUdf for EncAsRdfTermSort {
-    type Collector = RdfTermSortBuilder;
-    type Arg<'data> = RdfTerm<'data>;
-
-    fn evaluate(&self, collector: &mut Self::Collector, value: Self::Arg<'_>) -> DFResult<()> {
-        match value {
-            RdfTerm::NamedNode(value) => collector.append_iri(value.name),
-            RdfTerm::BlankNode(value) => collector.append_blank_node(value.id),
-            RdfTerm::Boolean(value) => collector.append_boolean(value.as_bool()),
-            RdfTerm::Numeric(value) => collector.append_numeric(match value {
-                XsdNumeric::Int(value) => XsdDouble::from(value).as_f64(),
-                XsdNumeric::Integer(value) => XsdDouble::from(value).as_f64(),
-                XsdNumeric::Float(value) => XsdDouble::from(value).as_f64(),
-                XsdNumeric::Double(value) => value.as_f64(),
-                XsdNumeric::Decimal(value) => XsdDouble::from(value).as_f64(),
-            }),
-            RdfTerm::SimpleLiteral(value) => collector.append_string(value.value),
-            RdfTerm::LanguageString(value) => collector.append_string(value.value),
-            RdfTerm::TypedLiteral(value) => collector.append_string(value.value),
-        };
-        Ok(())
-    }
-
-    fn evaluate_error(&self, collector: &mut Self::Collector) -> DFResult<()> {
-        collector.append_null();
-        Ok(())
     }
 }
 
@@ -73,9 +43,9 @@ impl ScalarUDFImpl for EncAsRdfTermSort {
 
     fn invoke_batch(
         &self,
-        args: &[ColumnarValue],
-        number_rows: usize,
+        _args: &[ColumnarValue],
+        _number_rows: usize,
     ) -> datafusion::common::Result<ColumnarValue> {
-        dispatch_unary(self, args, number_rows)
+        not_impl_err!("Sorting not implemented")
     }
 }

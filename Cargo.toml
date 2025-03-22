@@ -2,6 +2,8 @@
 members = [
     "cli",
     "lib/arrow-rdf",
+    "lib/datamodel",
+    "lib/functions-scalar",
     "lib/graphfusion-engine",
     "lib/graphfusion-store",
     "lib/graphfusion",
@@ -65,6 +67,8 @@ oxrdfio = { version = "0.1.4", features = ["rdf-star"] }
 
 # Internal dependencies
 arrow-rdf = { version = "=0.4.5", path = "lib/arrow-rdf" }
+datamodel = { version = "=0.4.5", path = "lib/datamodel" }
+functions-scalar = { version = "=0.4.5", path = "lib/functions-scalar" }
 graphfusion-engine = { version = "=0.4.5", path = "lib/graphfusion-engine" }
 graphfusion-store = { version = "=0.4.5", path = "lib/graphfusion-store" }
 graphfusion = { version = "=0.4.5", path = "lib/graphfusion" }
