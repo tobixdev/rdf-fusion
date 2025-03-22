@@ -1,4 +1,5 @@
 use crate::sparql::paths::PathNode;
+use crate::sparql::QueryDataset;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
@@ -20,7 +21,8 @@ use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{
-    internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
+    internal_err, not_impl_err, plan_datafusion_err, plan_err, Column, DFSchema, DFSchemaRef,
+    JoinType, ScalarValue,
 };
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
@@ -29,7 +31,7 @@ use datafusion::logical_expr::{
 use datafusion::prelude::col;
 use oxiri::Iri;
 use oxrdf::vocab::xsd;
-use oxrdf::{NamedNode, Variable};
+use oxrdf::{GraphName, NamedNode, NamedOrBlankNode, Variable};
 use spargebra::algebra::{
     Expression, Function, GraphPattern, OrderExpression, PropertyPathExpression,
 };
@@ -38,6 +40,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 pub struct GraphPatternRewriter {
+    dataset: QueryDataset,
     base_iri: Option<Iri<String>>,
     // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
     quads_table: Arc<dyn TableProvider>,
@@ -45,8 +48,13 @@ pub struct GraphPatternRewriter {
 }
 
 impl GraphPatternRewriter {
-    pub fn new(base_iri: Option<Iri<String>>, quads_table: Arc<dyn TableProvider>) -> Self {
+    pub fn new(
+        dataset: QueryDataset,
+        base_iri: Option<Iri<String>>,
+        quads_table: Arc<dyn TableProvider>,
+    ) -> Self {
         Self {
+            dataset,
             base_iri,
             quads_table,
             state: RewritingState::default(),
@@ -129,7 +137,8 @@ impl GraphPatternRewriter {
         )?;
 
         let graph_pattern = self.state.graph.as_ref();
-        let plan = filter_by_constants(plan, graph_pattern, pattern)?;
+        let plan = filter_by_triple_part(plan, pattern)?;
+        let plan = filter_by_named_graph(plan, &self.dataset, graph_pattern)?;
         let plan = filter_pattern_same_variables(plan, graph_pattern, pattern)?;
         let plan = project_quads_to_variables(plan, graph_pattern, pattern)?;
 
@@ -649,26 +658,85 @@ fn use_lhs_or_rhs(lhs_keys: &HashSet<String>, k: &str) -> Expr {
 ///
 /// For example, for the pattern `?a foaf:knows ?b` this functions adds a filter that ensures that
 /// the predicate is `foaf:knows`.
-fn filter_by_constants(
+fn filter_by_triple_part(
     plan: LogicalPlanBuilder,
-    graph_pattern: Option<&NamedNodePattern>,
     pattern: &TriplePattern,
 ) -> DFResult<LogicalPlanBuilder> {
-    let graph_filter = graph_pattern
-        .map(|p| p.clone().into_term_pattern())
-        .and_then(|p| pattern_to_filter_scalar(&p).transpose())
-        .transpose()?;
     let subject_filter = pattern_to_filter_scalar(&pattern.subject)?;
     let predicate_filter =
         pattern_to_filter_scalar(&pattern.predicate.clone().into_term_pattern())?;
     let object_filter = pattern_to_filter_scalar(&pattern.object)?;
 
-    let plan = filter_equal_to_scalar(plan, COL_GRAPH, graph_filter)?;
     let plan = filter_equal_to_scalar(plan, COL_SUBJECT, subject_filter)?;
     let plan = filter_equal_to_scalar(plan, COL_PREDICATE, predicate_filter)?;
     let plan = filter_equal_to_scalar(plan, COL_OBJECT, object_filter)?;
 
     Ok(plan)
+}
+
+/// Adds filter operations that constraints the solutions of patterns to named graphs if necessary.
+fn filter_by_named_graph(
+    plan: LogicalPlanBuilder,
+    dataset: &QueryDataset,
+    graph_pattern: Option<&NamedNodePattern>,
+) -> DFResult<LogicalPlanBuilder> {
+    match graph_pattern {
+        None => plan.filter(create_filter_for_default_graph(
+            dataset.default_graph_graphs(),
+        )?),
+        Some(NamedNodePattern::Variable(_)) => plan.filter(create_filter_for_named_graph(
+            dataset.available_named_graphs(),
+        )?),
+        Some(NamedNodePattern::NamedNode(nn)) => {
+            let graph_filter = col(COL_GRAPH).eq(lit(encode_scalar_named_node(nn.as_ref())));
+            plan.filter(graph_filter)
+        }
+    }
+}
+
+fn create_filter_for_default_graph(graph: Option<&[GraphName]>) -> DFResult<Expr> {
+    let Some(graph) = graph else {
+        return Ok(lit(true));
+    };
+
+    graph
+        .iter()
+        .map(|name| match name {
+            GraphName::NamedNode(nn) => ENC_SAME_TERM.call(vec![
+                col(COL_GRAPH),
+                lit(encode_scalar_named_node(nn.as_ref())),
+            ]),
+            GraphName::BlankNode(bnode) => ENC_SAME_TERM.call(vec![
+                col(COL_GRAPH),
+                lit(encode_scalar_blank_node(bnode.as_ref())),
+            ]),
+            GraphName::DefaultGraph => lit(true)
+        })
+        .reduce(Expr::or)
+        .ok_or(plan_datafusion_err!(
+            "Creating a filter from an empty graph."
+        ))
+}
+
+fn create_filter_for_named_graph(graph: Option<&[NamedOrBlankNode]>) -> DFResult<Expr> {
+    let Some(graph) = graph else {
+        return Ok(lit(false));
+    };
+
+    graph
+        .iter()
+        .map(|name| match name {
+            NamedOrBlankNode::NamedNode(nn) => {
+                col(COL_GRAPH).eq(lit(encode_scalar_named_node(nn.as_ref())))
+            }
+            NamedOrBlankNode::BlankNode(bnode) => {
+                col(COL_GRAPH).eq(lit(encode_scalar_blank_node(bnode.as_ref())))
+            }
+        })
+        .reduce(Expr::or)
+        .ok_or(plan_datafusion_err!(
+            "Creating a filter from an empty graph."
+        ))
 }
 
 /// Adds filter operations that constraints the solutions of patterns that use the same variable

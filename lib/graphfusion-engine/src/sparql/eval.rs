@@ -1,8 +1,6 @@
 use crate::sparql::error::EvaluationError;
 use crate::sparql::rewriting::GraphPatternRewriter;
-use crate::sparql::{
-    Query, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream, QueryTripleStream,
-};
+use crate::sparql::{Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream, QueryTripleStream};
 use arrow_rdf::TABLE_QUADS;
 use datafusion::prelude::{DataFrame, SessionContext};
 use oxiri::Iri;
@@ -19,8 +17,7 @@ pub async fn evaluate_query(
         spargebra::Query::Select {
             pattern, base_iri, ..
         } => {
-            // TODO consider other parts
-            let dataframe = create_dataframe(ctx, pattern, base_iri).await?;
+            let dataframe = create_dataframe(ctx, &query.dataset, pattern, base_iri).await?;
             let batch_record_stream = dataframe.execute_stream().await?;
             let stream = QuerySolutionStream::new(create_variables(pattern), batch_record_stream);
 
@@ -32,8 +29,7 @@ pub async fn evaluate_query(
             base_iri,
             ..
         } => {
-            // TODO consider other parts
-            let dataframe = create_dataframe(ctx, pattern, base_iri).await?;
+            let dataframe = create_dataframe(ctx, &query.dataset, pattern, base_iri).await?;
             let batch_record_stream = dataframe.execute_stream().await?;
             let stream = QuerySolutionStream::new(create_variables(pattern), batch_record_stream);
 
@@ -45,8 +41,7 @@ pub async fn evaluate_query(
         spargebra::Query::Ask {
             pattern, base_iri, ..
         } => {
-            // TODO consider other parts
-            let dataframe = create_dataframe(ctx, pattern, base_iri).await?;
+            let dataframe = create_dataframe(ctx, &query.dataset, pattern, base_iri).await?;
             let count = dataframe.limit(0, Some(1))?.count().await?;
             Ok((QueryResults::Boolean(count > 0), None))
         }
@@ -58,12 +53,12 @@ pub async fn evaluate_query(
 
 async fn create_dataframe(
     ctx: &SessionContext,
+    dataset: &QueryDataset,
     pattern: &GraphPattern,
     base_iri: &Option<Iri<String>>,
 ) -> Result<DataFrame, EvaluationError> {
     let quads = ctx.table_provider(TABLE_QUADS).await?;
-
-    let logical_plan = GraphPatternRewriter::new(base_iri.clone(), quads)
+    let logical_plan = GraphPatternRewriter::new(dataset.clone(), base_iri.clone(), quads)
         .rewrite(pattern)
         .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
 
