@@ -56,6 +56,8 @@ make_unary_rdf_udf!(
     ENC_AS_INTEGER,
     "enc_as_integer"
 );
+make_unary_rdf_udf!(AsDateTimeRdfOp, EncAsDateTimeRdfOp, ENC_AS_DATETIME, "enc_as_datetime");
+make_unary_rdf_udf!(AsStringRdfOp, EncAsString, ENC_AS_STRING, "enc_as_string");
 
 // Functional Forms
 
