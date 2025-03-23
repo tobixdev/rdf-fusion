@@ -34,7 +34,7 @@ impl RdfValueRef<'_> for Boolean {
         Self: Sized,
     {
         match term {
-            TermRef::Boolean(inner) => Ok(inner),
+            TermRef::BooleanLiteral(inner) => Ok(inner),
             _ => Err(()),
         }
     }

@@ -40,10 +40,10 @@ impl ScalarBinaryRdfOp for EncIsCompatible {
         let is_compatible = match (lhs, rhs) {
             (TermRef::BlankNode(lhs), TermRef::BlankNode(rhs)) => lhs == rhs,
             (TermRef::NamedNode(lhs), TermRef::NamedNode(rhs)) => lhs == rhs,
-            (TermRef::Boolean(lhs), TermRef::Boolean(rhs)) => lhs == rhs,
-            (TermRef::Numeric(lhs), TermRef::Numeric(rhs)) => lhs == rhs,
+            (TermRef::BooleanLiteral(lhs), TermRef::BooleanLiteral(rhs)) => lhs == rhs,
+            (TermRef::NumericLiteral(lhs), TermRef::NumericLiteral(rhs)) => lhs == rhs,
             (TermRef::SimpleLiteral(lhs), TermRef::SimpleLiteral(rhs)) => lhs == rhs,
-            (TermRef::LanguageString(lhs), TermRef::LanguageString(rhs)) => lhs == rhs,
+            (TermRef::LanguageStringLiteral(lhs), TermRef::LanguageStringLiteral(rhs)) => lhs == rhs,
             (TermRef::TypedLiteral(lhs), TermRef::TypedLiteral(rhs)) => lhs == rhs,
             _ => false,
         };

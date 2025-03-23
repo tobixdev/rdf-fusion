@@ -16,9 +16,9 @@ impl ScalarUnaryRdfOp for AsFloatRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let converted = match value {
-            TermRef::Boolean(v) => Float::from(v),
+            TermRef::BooleanLiteral(v) => Float::from(v),
             TermRef::SimpleLiteral(v) => v.value.parse().map_err(|_| ())?,
-            TermRef::Numeric(numeric) => match numeric {
+            TermRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Float::from(v),
                 Numeric::Integer(v) => Float::from(v),
                 Numeric::Float(v) => v,
@@ -40,7 +40,7 @@ mod tests {
     fn test_enc_as_float() {
         let udf = AsFloatRdfOp::new();
         let result = udf
-            .evaluate(TermRef::Numeric(Numeric::Int(10.into())))
+            .evaluate(TermRef::NumericLiteral(Numeric::Int(10.into())))
             .unwrap();
         assert_eq!(result, Numeric::Float(10.0.into()));
     }

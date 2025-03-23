@@ -50,6 +50,14 @@ impl Duration {
         })
     }
 
+    pub fn year_month(&self) -> YearMonthDuration {
+        self.year_month
+    }
+
+    pub fn day_time(&self) -> DayTimeDuration {
+        self.day_time
+    }
+
     #[inline]
     #[must_use]
     pub fn from_be_bytes(bytes: [u8; 24]) -> Self {
@@ -103,13 +111,13 @@ impl Duration {
 
     #[inline]
     #[must_use]
-    pub(crate) const fn all_months(self) -> i64 {
+    pub const fn all_months(self) -> i64 {
         self.year_month.all_months()
     }
 
     #[inline]
     #[must_use]
-    pub(crate) const fn all_seconds(self) -> Decimal {
+    pub const fn all_seconds(self) -> Decimal {
         self.day_time.as_seconds()
     }
 
@@ -176,7 +184,7 @@ impl RdfValueRef<'_> for Duration {
         Self: Sized,
     {
         match term {
-            TermRef::Duration(inner) => Ok(inner),
+            TermRef::DurationLiteral(inner) => Ok(inner),
             _ => Err(()),
         }
     }

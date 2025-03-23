@@ -10,6 +10,7 @@ rust-version.workspace = true
 arrow-rdf.workspace = true
 async-trait.workspace = true
 datafusion.workspace = true
+datamodel.workspace = true
 futures.workspace = true
 oxiri.workspace = true
 oxrdf.workspace = true

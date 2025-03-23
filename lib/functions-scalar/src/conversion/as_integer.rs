@@ -16,9 +16,9 @@ impl ScalarUnaryRdfOp for AsIntegerRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let converted = match value {
-            TermRef::Boolean(v) => Integer::from(v),
+            TermRef::BooleanLiteral(v) => Integer::from(v),
             TermRef::SimpleLiteral(v) => v.value.parse().map_err(|_| ())?,
-            TermRef::Numeric(numeric) => match numeric {
+            TermRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Integer::from(v),
                 Numeric::Integer(v) => v,
                 Numeric::Float(v) => Integer::try_from(v).map_err(|_| ())?,

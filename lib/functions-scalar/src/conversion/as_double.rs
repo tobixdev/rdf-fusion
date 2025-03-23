@@ -16,9 +16,9 @@ impl ScalarUnaryRdfOp for AsDoubleRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let converted = match value {
-            TermRef::Boolean(v) => Double::from(v),
+            TermRef::BooleanLiteral(v) => Double::from(v),
             TermRef::SimpleLiteral(v) => v.value.parse().map_err(|_| ())?,
-            TermRef::Numeric(numeric) => match numeric {
+            TermRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Double::from(v),
                 Numeric::Integer(v) => Double::from(v),
                 Numeric::Float(v) => Double::from(v),

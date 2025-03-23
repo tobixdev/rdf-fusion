@@ -5,9 +5,12 @@ use datafusion::arrow::datatypes::{
     Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type,
 };
 use datafusion::execution::SendableRecordBatchStream;
+use datamodel::{DayTimeDuration, Decimal, Duration, YearMonthDuration};
 use futures::{Stream, StreamExt};
+use oxrdf::vocab::xsd;
 use oxrdf::{BlankNode, Literal, NamedNode, Term, Variable};
 pub use sparesults::QuerySolution;
+use std::ops::Not;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
@@ -225,7 +228,46 @@ fn to_term(
             }
         }
         EncTermField::Duration => {
-            todo!()
+            let year_month = objects
+                .child(term_field.type_id())
+                .as_struct()
+                .column(0)
+                .as_primitive::<Int64Type>();
+            let day_time = objects
+                .child(term_field.type_id())
+                .as_struct()
+                .column(1)
+                .as_primitive::<Decimal128Type>();
+            let year_month = year_month.is_null(i).not().then(|| year_month.value(i));
+            let day_time = day_time
+                .is_null(i)
+                .not()
+                .then(|| Decimal::from_be_bytes(day_time.value(i).to_be_bytes()));
+
+            match (year_month, day_time) {
+                (Some(year_month), Some(day_time)) => {
+                    let duration = Duration::new(year_month, day_time).expect("Valid encoded");
+                    Some(Term::Literal(Literal::new_typed_literal(
+                        duration.to_string(),
+                        xsd::DURATION,
+                    )))
+                }
+                (Some(year_month), None) => {
+                    let duration = YearMonthDuration::new(year_month);
+                    Some(Term::Literal(Literal::new_typed_literal(
+                        duration.to_string(),
+                        xsd::YEAR_MONTH_DURATION,
+                    )))
+                }
+                (None, Some(day_time)) => {
+                    let duration = DayTimeDuration::new(day_time);
+                    Some(Term::Literal(Literal::new_typed_literal(
+                        duration.to_string(),
+                        xsd::DAY_TIME_DURATION,
+                    )))
+                }
+                (None, None) => unreachable!("Unexpected encoding."),
+            }
         }
         EncTermField::TypedLiteral => {
             let values = objects

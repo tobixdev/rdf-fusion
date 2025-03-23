@@ -16,9 +16,9 @@ impl ScalarUnaryRdfOp for AsDecimalRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let converted = match value {
-            TermRef::Boolean(v) => Decimal::from(v),
+            TermRef::BooleanLiteral(v) => Decimal::from(v),
             TermRef::SimpleLiteral(v) => v.value.parse().map_err(|_| ())?,
-            TermRef::Numeric(numeric) => match numeric {
+            TermRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Decimal::from(v),
                 Numeric::Integer(v) => Decimal::from(v),
                 Numeric::Float(v) => Decimal::try_from(v).map_err(|_| ())?,

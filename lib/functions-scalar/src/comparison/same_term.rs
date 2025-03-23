@@ -23,10 +23,13 @@ impl ScalarBinaryRdfOp for SameTermRdfOp {
         let result = match (lhs, rhs) {
             (TermRef::NamedNode(l), TermRef::NamedNode(r)) => l == r,
             (TermRef::BlankNode(l), TermRef::BlankNode(r)) => l == r,
-            (TermRef::Boolean(l), TermRef::Boolean(r)) => l == r,
-            (TermRef::Numeric(l), TermRef::Numeric(r)) => l == r,
+            (TermRef::BooleanLiteral(l), TermRef::BooleanLiteral(r)) => l == r,
+            (TermRef::NumericLiteral(l), TermRef::NumericLiteral(r)) => l == r,
             (TermRef::SimpleLiteral(l), TermRef::SimpleLiteral(r)) => l == r,
-            (TermRef::LanguageString(l), TermRef::LanguageString(r)) => l == r,
+            (TermRef::LanguageStringLiteral(l), TermRef::LanguageStringLiteral(r)) => l == r,
+            (TermRef::DurationLiteral(l), TermRef::DurationLiteral(r)) => l == r,
+            (TermRef::YearMonthDurationLiteral(l), TermRef::YearMonthDurationLiteral(r)) => l == r,
+            (TermRef::DayTimeDurationLiteral(l), TermRef::DayTimeDurationLiteral(r)) => l == r,
             (TermRef::TypedLiteral(l), TermRef::TypedLiteral(r)) => l == r,
             _ => false,
         };

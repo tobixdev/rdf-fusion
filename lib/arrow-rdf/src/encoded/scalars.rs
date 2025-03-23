@@ -1,9 +1,10 @@
+use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::{EncTerm, EncTermField};
 use crate::DFResult;
 use datafusion::arrow::array::{ArrayRef, StringArray, StructArray};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::{DataFusionError, ScalarValue};
-use datamodel::{BlankNodeRef, Decimal, DecodedTermRef, GraphNameRef, LiteralRef, NamedNodeRef, SubjectRef};
+use datamodel::{BlankNodeRef, Boolean, DayTimeDuration, Decimal, DecodedTermRef, Double, Duration, Float, GraphNameRef, Int, Integer, LiteralRef, NamedNodeRef, SubjectRef, YearMonthDuration};
 use oxrdf::vocab::{rdf, xsd};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -86,12 +87,15 @@ fn try_specialize_literal(literal: LiteralRef<'_>) -> Option<DFResult<ScalarValu
     // TODO: Move these constants to the datamodel
     match datatype {
         xsd::STRING | rdf::LANG_STRING => Some(specialize_string(literal, value)),
-        xsd::BOOLEAN => Some(specialize_boolean(value)),
-        xsd::FLOAT => Some(specialize_float(value)),
-        xsd::DECIMAL => Some(specialize_decimal(value)),
-        xsd::DOUBLE => Some(specialize_double(value)),
-        xsd::INTEGER => Some(specialize_integer(value)),
-        xsd::INT => Some(specialize_int(value)),
+        xsd::BOOLEAN => Some(specialize_parsable::<Boolean>(value)),
+        xsd::FLOAT => Some(specialize_parsable::<Float>(value)),
+        xsd::DECIMAL => Some(specialize_parsable::<Decimal>(value)),
+        xsd::DOUBLE => Some(specialize_parsable::<Double>(value)),
+        xsd::INTEGER => Some(specialize_parsable::<Integer>(value)),
+        xsd::INT => Some(specialize_parsable::<Int>(value)),
+        xsd::DURATION => Some(specialize_parsable::<Duration>(value)),
+        xsd::YEAR_MONTH_DURATION => Some(specialize_parsable::<YearMonthDuration>(value)),
+        xsd::DAY_TIME_DURATION => Some(specialize_parsable::<DayTimeDuration>(value)),
         _ => None,
     }
 }
@@ -113,64 +117,16 @@ fn specialize_string(literal: LiteralRef<'_>, value: &str) -> DFResult<ScalarVal
     ))
 }
 
-fn specialize_boolean(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, EncTermField::Boolean, |value: bool| {
-        ScalarValue::Boolean(Some(value))
-    })
-}
-
-fn specialize_float(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, EncTermField::Float, |value: f32| {
-        ScalarValue::Float32(Some(value))
-    })
-}
-
-fn specialize_double(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, EncTermField::Double, |value: f64| {
-        ScalarValue::Float64(Some(value))
-    })
-}
-
-fn specialize_decimal(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, EncTermField::Decimal, |value: Decimal| {
-        ScalarValue::Decimal128(
-            Some(i128::from_be_bytes(value.to_be_bytes())),
-            Decimal::PRECISION,
-            Decimal::SCALE,
-        )
-    })
-}
-
-fn specialize_int(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, EncTermField::Int, |value: i32| {
-        ScalarValue::Int32(Some(value))
-    })
-}
-
-fn specialize_integer(value: &str) -> DFResult<ScalarValue> {
-    specialize_primitive(value, EncTermField::Integer, |value: i64| {
-        ScalarValue::Int64(Some(value))
-    })
-}
-
-fn specialize_primitive<T, F>(
-    value: &str,
-    term_field: EncTermField,
-    map: F,
-) -> DFResult<ScalarValue>
+fn specialize_parsable<T>(value: &str) -> DFResult<ScalarValue>
 where
     T: FromStr,
-    F: Fn(T) -> ScalarValue,
+    T: WriteEncTerm,
     <T as FromStr>::Err: std::fmt::Display,
 {
-    let value = value.parse::<T>().map(map).map_err(|inner| {
+    let value = value.parse::<T>().map_err(|inner| {
         DataFusionError::Execution(format!("Could not parse primitive: {}", inner))
     })?;
-    Ok(ScalarValue::Union(
-        Some((term_field.type_id(), Box::new(value))),
-        EncTerm::term_fields(),
-        UnionMode::Dense,
-    ))
+    Ok(value.into_scalar_value()?)
 }
 
 fn handle_generic_literal(literal: LiteralRef<'_>) -> DFResult<ScalarValue> {

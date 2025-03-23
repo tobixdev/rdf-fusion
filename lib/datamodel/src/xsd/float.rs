@@ -95,7 +95,7 @@ impl RdfValueRef<'_> for Float {
         Self: Sized,
     {
         match term {
-            TermRef::Numeric(Numeric::Float(inner)) => Ok(inner),
+            TermRef::NumericLiteral(Numeric::Float(inner)) => Ok(inner),
             _ => Err(()),
         }
     }

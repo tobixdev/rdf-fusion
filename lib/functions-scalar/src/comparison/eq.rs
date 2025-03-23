@@ -28,8 +28,18 @@ impl ScalarBinaryRdfOp for EqRdfOp {
             (TermRef::TypedLiteral(_), _) => Err(()),
             (_, TermRef::TypedLiteral(_)) => Err(()),
             // For numerics, compare values.
-            (TermRef::Numeric(lhs), TermRef::Numeric(rhs)) => {
+            (TermRef::NumericLiteral(lhs), TermRef::NumericLiteral(rhs)) => {
                 Ok((lhs.cmp(&rhs) == Ordering::Equal).into())
+            }
+            // For durations, compare values.
+            (TermRef::DurationLiteral(lhs), TermRef::DurationLiteral(rhs)) => {
+                Ok((lhs == rhs).into())
+            }
+            (TermRef::YearMonthDurationLiteral(lhs), TermRef::YearMonthDurationLiteral(rhs)) => {
+                Ok((lhs == rhs).into())
+            }
+            (TermRef::DayTimeDurationLiteral(lhs), TermRef::DayTimeDurationLiteral(rhs)) => {
+                Ok((lhs == rhs).into())
             }
             // Otherwise compare for equality.
             _ => Ok((lhs == rhs).into()),

@@ -277,7 +277,7 @@ impl RdfValueRef<'_> for Decimal {
         Self: Sized,
     {
         match term {
-            TermRef::Numeric(Numeric::Decimal(inner)) => Ok(inner),
+            TermRef::NumericLiteral(Numeric::Decimal(inner)) => Ok(inner),
             _ => Err(()),
         }
     }

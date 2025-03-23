@@ -18,11 +18,13 @@ impl ScalarUnaryRdfOp for StrRdfOp {
         let result = match value {
             TermRef::NamedNode(value) => value.as_str().to_string(),
             TermRef::BlankNode(value) => value.as_str().to_string(),
-            TermRef::Boolean(value) => value.to_string(),
-            TermRef::Numeric(value) => value.format_value(),
+            TermRef::BooleanLiteral(value) => value.to_string(),
+            TermRef::NumericLiteral(value) => value.format_value(),
             TermRef::SimpleLiteral(value) => value.value.to_string(),
-            TermRef::LanguageString(value) => value.value.to_string(),
-            TermRef::Duration(value) => value.to_string(),
+            TermRef::LanguageStringLiteral(value) => value.value.to_string(),
+            TermRef::DurationLiteral(value) => value.to_string(),
+            TermRef::YearMonthDurationLiteral(value) => value.to_string(),
+            TermRef::DayTimeDurationLiteral(value) => value.to_string(),
             TermRef::TypedLiteral(value) => value.value.to_string(),
         };
         Ok(OwnedStringLiteral(result, None))

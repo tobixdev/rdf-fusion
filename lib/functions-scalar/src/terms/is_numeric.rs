@@ -16,7 +16,7 @@ impl ScalarUnaryRdfOp for IsNumericRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let result = match value {
-            TermRef::Numeric(_) => true,
+            TermRef::NumericLiteral(_) => true,
             TermRef::TypedLiteral(literal) => literal.is_numeric(),
             _ => false,
         };

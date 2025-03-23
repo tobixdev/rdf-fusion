@@ -17,7 +17,7 @@ impl ScalarUnaryRdfOp for LangRdfOp {
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let result = match value {
             TermRef::NamedNode(_) | TermRef::BlankNode(_) => return Err(()),
-            TermRef::LanguageString(value) => value.language,
+            TermRef::LanguageStringLiteral(value) => value.language,
             _ => "",
         };
         Ok(Self::Result::new(result))

@@ -4,11 +4,9 @@ use datafusion::arrow::datatypes::{
     Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type,
 };
 use datafusion::common::ScalarValue;
-use datamodel::{
-    Boolean, Decimal, Double, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpResult,
-    SimpleLiteralRef, StringLiteralRef, TermRef, TypedLiteralRef,
-};
+use datamodel::{Boolean, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, TypedLiteralRef, YearMonthDuration};
 use oxrdf::{BlankNodeRef, NamedNodeRef};
+use std::ops::Not;
 
 pub trait FromEncodedTerm<'data> {
     fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
@@ -41,20 +39,26 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                                 true => TermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(
                                     scalar,
                                 )?),
-                                false => TermRef::LanguageString(
+                                false => TermRef::LanguageStringLiteral(
                                     LanguageStringRef::from_enc_scalar(scalar)?,
                                 ),
                             }
                         }
                         _ => Err(())?,
                     },
-                    EncTermField::Boolean => TermRef::Boolean(Boolean::from_enc_scalar(scalar)?),
+                    EncTermField::Boolean => {
+                        TermRef::BooleanLiteral(Boolean::from_enc_scalar(scalar)?)
+                    }
                     EncTermField::Float
                     | EncTermField::Double
                     | EncTermField::Decimal
                     | EncTermField::Int
-                    | EncTermField::Integer => TermRef::Numeric(Numeric::from_enc_scalar(scalar)?),
-                    EncTermField::Duration => todo!(),
+                    | EncTermField::Integer => {
+                        TermRef::NumericLiteral(Numeric::from_enc_scalar(scalar)?)
+                    }
+                    EncTermField::Duration => {
+                        TermRef::DurationLiteral(Duration::from_enc_scalar(scalar)?)
+                    }
                     EncTermField::TypedLiteral => {
                         TermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
                     }
@@ -89,22 +93,39 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     SimpleLiteralRef::from_enc_array(array, index)
                         .expect("EncTermField and null checked"),
                 ),
-                false => TermRef::LanguageString(
+                false => TermRef::LanguageStringLiteral(
                     LanguageStringRef::from_enc_array(array, index)
                         .expect("EncTermField and null checked"),
                 ),
             },
-            EncTermField::Boolean => TermRef::Boolean(
+            EncTermField::Boolean => TermRef::BooleanLiteral(
                 Boolean::from_enc_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::Float
             | EncTermField::Double
             | EncTermField::Decimal
             | EncTermField::Int
-            | EncTermField::Integer => TermRef::Numeric(
+            | EncTermField::Integer => TermRef::NumericLiteral(
                 Numeric::from_enc_array(array, index).expect("EncTermField checked"),
             ),
-            EncTermField::Duration => todo!(),
+            EncTermField::Duration => {
+                let year_month_is_null = array
+                    .child(field.type_id())
+                    .as_struct()
+                    .column(0)
+                    .is_null(offset);
+                let day_time_is_null = array
+                    .child(field.type_id())
+                    .as_struct()
+                    .column(1)
+                    .is_null(offset);
+                match (year_month_is_null, day_time_is_null) {
+                    (false, false) => TermRef::DurationLiteral(Duration::from_enc_array(array, index)?),
+                    (false, true) => TermRef::YearMonthDurationLiteral(YearMonthDuration::from_enc_array(array, index)?),
+                    (true, false) => TermRef::DayTimeDurationLiteral(DayTimeDuration::from_enc_array(array, index)?),
+                    _ => unreachable!("Unexpected encoding"),
+                }
+            },
             EncTermField::TypedLiteral => TermRef::TypedLiteral(
                 TypedLiteralRef::from_enc_array(array, index).expect("EncTermField checked"),
             ),
@@ -614,4 +635,125 @@ impl FromEncodedTerm<'_> for Numeric {
             _ => Err(()),
         }
     }
+}
+
+impl FromEncodedTerm<'_> for Duration {
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    where
+        Self: Sized,
+    {
+        match get_duration_encoding_scalar(scalar)? {
+            (Some(year_month), Some(day_time)) => {
+                Ok(Duration::new(year_month, day_time).map_err(|_| ())?)
+            }
+            _ => Err(()),
+        }
+    }
+
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+        match get_duration_encoding_array(array, index)? {
+            (Some(year_month), Some(day_time)) => {
+                Ok(Duration::new(year_month, day_time).map_err(|_| ())?)
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+impl FromEncodedTerm<'_> for YearMonthDuration {
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    where
+        Self: Sized,
+    {
+        match get_duration_encoding_scalar(scalar)? {
+            (Some(year_month), None) => {
+                Ok(YearMonthDuration::new(year_month))
+            }
+            _ => Err(()),
+        }
+    }
+
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+        match get_duration_encoding_array(array, index)? {
+            (Some(year_month), None) => {
+                Ok(YearMonthDuration::new(year_month))
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+impl FromEncodedTerm<'_> for DayTimeDuration {
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    where
+        Self: Sized,
+    {
+        match get_duration_encoding_scalar(scalar)? {
+            (None, Some(day_time)) => {
+                Ok(DayTimeDuration::new(day_time))
+            }
+            _ => Err(()),
+        }
+    }
+
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+        match get_duration_encoding_array(array, index)? {
+            (None, Some(day_time)) => {
+                Ok(DayTimeDuration::new(day_time))
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+fn get_duration_encoding_scalar(scalar: &ScalarValue) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
+    let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
+        return Err(());
+    };
+
+    let field = EncTermField::try_from(*type_id).expect("Fixed encoding");
+    if field != EncTermField::Duration {
+        return Err(());
+    }
+
+    let ScalarValue::Struct(struct_array) = scalar.as_ref() else {
+        return Err(());
+    };
+
+    let year_month_array = struct_array.as_ref().column(0).as_primitive::<Int64Type>();
+    let day_time_array = struct_array
+        .as_ref()
+        .column(0)
+        .as_primitive::<Decimal128Type>();
+
+    let year_month = year_month_array
+        .is_null(0)
+        .not()
+        .then(|| year_month_array.value(0));
+    let day_time = day_time_array
+        .is_null(0)
+        .not()
+        .then(|| Decimal::from_be_bytes(day_time_array.value(0).to_be_bytes()));
+    Ok((year_month, day_time))
+}
+
+fn get_duration_encoding_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
+    let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    if field != EncTermField::Duration {
+        return Err(());
+    }
+
+    let struct_array = array.child(field.type_id()).as_struct();
+    let year_month_array = struct_array.column(0).as_primitive::<Int64Type>();
+    let day_time_array = struct_array.column(0).as_primitive::<Decimal128Type>();
+
+    let year_month = year_month_array
+        .is_null(index)
+        .not()
+        .then(|| year_month_array.value(index));
+    let day_time = day_time_array
+        .is_null(index)
+        .not()
+        .then(|| Decimal::from_be_bytes(day_time_array.value(index).to_be_bytes()));
+    Ok((year_month, day_time))
 }

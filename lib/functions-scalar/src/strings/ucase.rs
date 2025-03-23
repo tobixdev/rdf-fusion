@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{TermRef, StringLiteralRef};
+use datamodel::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct UCaseRdfOp {}
@@ -12,10 +12,12 @@ impl UCaseRdfOp {
 
 impl ScalarUnaryRdfOp for UCaseRdfOp {
     type Arg<'data> = StringLiteralRef<'data>;
-    type Result<'data> = TermRef<'data>;
+    type Result<'data> = OwnedStringLiteral;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
-        (&value.len().to_string().to_uppercase(), value.1);
-        todo!()
+        Ok(OwnedStringLiteral(
+            value.len().to_string().to_uppercase(),
+            value.1.map(ToOwned::to_owned),
+        ))
     }
 }

@@ -85,7 +85,7 @@ where
     let results = offsets
         .iter()
         .map(|o| values.value(*o as usize))
-        .map(|v| TUdf::Arg::from_term(TermRef::Boolean(Boolean::from(v))))
+        .map(|v| TUdf::Arg::from_term(TermRef::BooleanLiteral(Boolean::from(v))))
         .map(|v| udf.evaluate(v?));
     let result = TUdf::Result::iter_into_array(results)?;
     Ok(ColumnarValue::Array(result))

@@ -88,7 +88,7 @@ impl<'data> RdfValueRef<'data> for StringLiteralRef<'data> {
     {
         match term {
             TermRef::SimpleLiteral(inner) => Ok(StringLiteralRef(inner.value, None)),
-            TermRef::LanguageString(inner) => Ok(StringLiteralRef(inner.value, Some(inner.language))),
+            TermRef::LanguageStringLiteral(inner) => Ok(StringLiteralRef(inner.value, Some(inner.language))),
             _ => Err(()),
         }
     }

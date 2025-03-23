@@ -15,6 +15,7 @@ use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
 };
+use datamodel::{DayTimeDuration, Decimal, Duration, YearMonthDuration};
 use futures::Stream;
 use oxrdf::vocab::xsd;
 use std::any::Any;
@@ -23,7 +24,6 @@ use std::fmt::{Debug, Formatter};
 use std::io::Write;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use datamodel::Decimal;
 
 pub struct OxigraphMemExec {
     reader: Arc<MemoryStorageReader>,
@@ -345,13 +345,16 @@ fn encode_term(
             builder.append_typed_literal(&v.to_string(), xsd::G_MONTH.as_str())
         }
         EncodedTerm::DurationLiteral(v) => {
-            todo!()
+            let duration = Duration::from_be_bytes(v.to_be_bytes());
+            builder.append_duration(Some(duration.year_month()), Some(duration.day_time()))
         }
         EncodedTerm::YearMonthDurationLiteral(v) => {
-            todo!()
+            let duration = YearMonthDuration::from_be_bytes(v.to_be_bytes());
+            builder.append_duration(Some(duration), None)
         }
         EncodedTerm::DayTimeDurationLiteral(v) => {
-            todo!()
+            let duration = DayTimeDuration::from_be_bytes(v.to_be_bytes());
+            builder.append_duration(None, Some(duration))
         }
         EncodedTerm::Triple(_) => unimplemented!("Encode Triple"),
     }

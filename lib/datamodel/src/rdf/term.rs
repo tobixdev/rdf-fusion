@@ -1,17 +1,17 @@
-use crate::{
-    Boolean, Duration, LanguageStringRef, Numeric, RdfOpResult, RdfValueRef, SimpleLiteralRef, TypedLiteralRef,
-};
+use crate::{Boolean, DayTimeDuration, Duration, LanguageStringRef, Numeric, RdfOpResult, RdfValueRef, SimpleLiteralRef, TypedLiteralRef, YearMonthDuration};
 use oxrdf::{BlankNodeRef, NamedNodeRef};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TermRef<'value> {
     NamedNode(NamedNodeRef<'value>),
     BlankNode(BlankNodeRef<'value>),
-    Boolean(Boolean),
-    Numeric(Numeric),
+    BooleanLiteral(Boolean),
+    NumericLiteral(Numeric),
     SimpleLiteral(SimpleLiteralRef<'value>),
-    LanguageString(LanguageStringRef<'value>),
-    Duration(Duration),
+    LanguageStringLiteral(LanguageStringRef<'value>),
+    DurationLiteral(Duration),
+    YearMonthDurationLiteral(YearMonthDuration),
+    DayTimeDurationLiteral(DayTimeDuration),
     TypedLiteral(TypedLiteralRef<'value>),
 }
 

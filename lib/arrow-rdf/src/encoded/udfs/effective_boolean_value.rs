@@ -72,8 +72,8 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
 
 fn evaluate(value: TermRef<'_>) -> RdfOpResult<bool> {
     let result = match value {
-        TermRef::Boolean(value) => value.as_bool(),
-        TermRef::Numeric(value) => match value {
+        TermRef::BooleanLiteral(value) => value.as_bool(),
+        TermRef::NumericLiteral(value) => match value {
             Numeric::Int(value) => value != Int::from(0),
             Numeric::Integer(value) => value != Integer::from(0),
             Numeric::Float(value) => value != Float::from(0f32),

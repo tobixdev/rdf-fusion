@@ -1770,6 +1770,7 @@ dependencies = [
  "arrow-rdf",
  "async-trait",
  "datafusion",
+ "datamodel",
  "futures",
  "oxiri",
  "oxrdf",

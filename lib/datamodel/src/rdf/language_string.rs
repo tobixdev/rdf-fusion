@@ -31,7 +31,7 @@ impl<'data> RdfValueRef<'data> for LanguageStringRef<'data> {
         Self: Sized,
     {
         match term {
-            TermRef::LanguageString(inner) => Ok(inner),
+            TermRef::LanguageStringLiteral(inner) => Ok(inner),
             _ => Err(()),
         }
     }

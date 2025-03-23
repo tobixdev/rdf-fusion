@@ -2,10 +2,7 @@ use crate::encoded::EncRdfTermBuilder;
 use crate::AResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::common::ScalarValue;
-use datamodel::{
-    Boolean, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric,
-    OwnedStringLiteral, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, TypedLiteralRef,
-};
+use datamodel::{Boolean, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, OwnedStringLiteral, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, TypedLiteralRef, YearMonthDuration};
 use oxrdf::{BlankNodeRef, NamedNode, NamedNodeRef};
 
 pub trait WriteEncTerm {
@@ -301,7 +298,15 @@ impl WriteEncTerm for LanguageStringRef<'_> {
     where
         Self: Sized,
     {
-        todo!()
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        for value in values {
+            match value {
+                Ok(value) => rdf_term_builder
+                    .append_string(value.value, Some(value.language))?,
+                Err(_) => rdf_term_builder.append_null()?,
+            }
+        }
+        Ok(rdf_term_builder.finish()?)
     }
 }
 
@@ -391,11 +396,13 @@ impl WriteEncTerm for TermRef<'_> {
         match self {
             TermRef::NamedNode(value) => value.into_scalar_value(),
             TermRef::BlankNode(value) => value.into_scalar_value(),
-            TermRef::Boolean(value) => value.into_scalar_value(),
-            TermRef::Numeric(value) => value.into_scalar_value(),
+            TermRef::BooleanLiteral(value) => value.into_scalar_value(),
+            TermRef::NumericLiteral(value) => value.into_scalar_value(),
             TermRef::SimpleLiteral(value) => value.into_scalar_value(),
-            TermRef::LanguageString(value) => value.into_scalar_value(),
-            TermRef::Duration(value) => value.into_scalar_value(),
+            TermRef::LanguageStringLiteral(value) => value.into_scalar_value(),
+            TermRef::DurationLiteral(value) => value.into_scalar_value(),
+            TermRef::YearMonthDurationLiteral(value) => value.into_scalar_value(),
+            TermRef::DayTimeDurationLiteral(value) => value.into_scalar_value(),
             TermRef::TypedLiteral(value) => value.into_scalar_value(),
         }
     }
@@ -413,28 +420,34 @@ impl WriteEncTerm for TermRef<'_> {
                 Ok(TermRef::BlankNode(value)) => {
                     rdf_term_builder.append_blank_node(value.as_str())?
                 }
-                Ok(TermRef::Boolean(value)) => rdf_term_builder.append_boolean(value.as_bool())?,
-                Ok(TermRef::Numeric(Numeric::Float(value))) => {
+                Ok(TermRef::BooleanLiteral(value)) => rdf_term_builder.append_boolean(value.as_bool())?,
+                Ok(TermRef::NumericLiteral(Numeric::Float(value))) => {
                     rdf_term_builder.append_float(value)?
                 }
-                Ok(TermRef::Numeric(Numeric::Double(value))) => {
+                Ok(TermRef::NumericLiteral(Numeric::Double(value))) => {
                     rdf_term_builder.append_double(value)?
                 }
-                Ok(TermRef::Numeric(Numeric::Decimal(value))) => {
+                Ok(TermRef::NumericLiteral(Numeric::Decimal(value))) => {
                     rdf_term_builder.append_decimal(value)?
                 }
-                Ok(TermRef::Numeric(Numeric::Int(value))) => rdf_term_builder.append_int(value)?,
-                Ok(TermRef::Numeric(Numeric::Integer(value))) => {
+                Ok(TermRef::NumericLiteral(Numeric::Int(value))) => rdf_term_builder.append_int(value)?,
+                Ok(TermRef::NumericLiteral(Numeric::Integer(value))) => {
                     rdf_term_builder.append_integer(value)?
                 }
                 Ok(TermRef::SimpleLiteral(value)) => {
                     rdf_term_builder.append_string(value.value, None)?
                 }
-                Ok(TermRef::LanguageString(value)) => {
+                Ok(TermRef::LanguageStringLiteral(value)) => {
                     rdf_term_builder.append_string(value.value, Some(value.language))?
                 }
-                Ok(TermRef::Duration(value)) => {
-                    todo!()
+                Ok(TermRef::DurationLiteral(value)) => {
+                    rdf_term_builder.append_duration(Some(value.year_month()), Some(value.day_time()))?
+                }
+                Ok(TermRef::YearMonthDurationLiteral(value)) => {
+                    rdf_term_builder.append_duration(Some(value), None)?
+                }
+                Ok(TermRef::DayTimeDurationLiteral(value)) => {
+                    rdf_term_builder.append_duration(None, Some(value))?
                 }
                 Ok(TermRef::TypedLiteral(value)) => {
                     rdf_term_builder.append_typed_literal(value.value, value.literal_type)?
@@ -451,14 +464,76 @@ impl WriteEncTerm for Duration {
     where
         Self: Sized,
     {
-        todo!()
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        rdf_term_builder.append_duration(Some(self.year_month()), Some(self.day_time()))?;
+        let array = rdf_term_builder.finish()?;
+        Ok(ScalarValue::try_from_array(&array, 0)?)
     }
 
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
     {
-        todo!()
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        for value in values {
+            match value {
+                Ok(value) => rdf_term_builder.append_duration(Some(value.year_month()), Some(value.day_time()))?,
+                Err(_) => rdf_term_builder.append_null()?,
+            }
+        }
+        Ok(rdf_term_builder.finish()?)
+    }
+}
+
+impl WriteEncTerm for YearMonthDuration {
+    fn into_scalar_value(self) -> AResult<ScalarValue>
+    where
+        Self: Sized,
+    {
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        rdf_term_builder.append_duration(Some(self), None)?;
+        let array = rdf_term_builder.finish()?;
+        Ok(ScalarValue::try_from_array(&array, 0)?)
+    }
+
+    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    where
+        Self: Sized,
+    {
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        for value in values {
+            match value {
+                Ok(value) => rdf_term_builder.append_duration(Some(value), None)?,
+                Err(_) => rdf_term_builder.append_null()?,
+            }
+        }
+        Ok(rdf_term_builder.finish()?)
+    }
+}
+
+impl WriteEncTerm for DayTimeDuration {
+    fn into_scalar_value(self) -> AResult<ScalarValue>
+    where
+        Self: Sized,
+    {
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        rdf_term_builder.append_duration(None, Some(self))?;
+        let array = rdf_term_builder.finish()?;
+        Ok(ScalarValue::try_from_array(&array, 0)?)
+    }
+
+    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    where
+        Self: Sized,
+    {
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        for value in values {
+            match value {
+                Ok(value) => rdf_term_builder.append_duration(None, Some(value))?,
+                Err(_) => rdf_term_builder.append_null()?,
+            }
+        }
+        Ok(rdf_term_builder.finish()?)
     }
 }
 
@@ -477,6 +552,13 @@ impl WriteEncTerm for TypedLiteralRef<'_> {
     where
         Self: Sized,
     {
-        todo!()
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        for value in values {
+            match value {
+                Ok(value) => rdf_term_builder.append_typed_literal(value.value, value.literal_type)?,
+                Err(_) => rdf_term_builder.append_null()?,
+            }
+        }
+        Ok(rdf_term_builder.finish()?)
     }
 }
