@@ -21,12 +21,11 @@ use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{
-    internal_err, not_impl_err, plan_datafusion_err, plan_err, Column, DFSchema, DFSchemaRef,
-    JoinType, ScalarValue,
+    internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
 };
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
-    lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF, SortExpr,
+    lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF, SortExpr,
 };
 use datafusion::prelude::col;
 use oxiri::Iri;
@@ -285,24 +284,24 @@ impl GraphPatternRewriter {
         new_schema.merge(&rhs.schema().as_ref());
 
         let lhs_projections = new_schema
-            .fields()
+            .columns()
             .iter()
-            .map(|f| {
-                if lhs.schema().has_column(&Column::new_unqualified(f.name())) {
-                    col(Column::new_unqualified(f.name()))
+            .map(|c| {
+                if lhs.schema().has_column(c) {
+                    col(c.clone())
                 } else {
-                    lit(encode_scalar_null()).alias(f.name())
+                    lit(encode_scalar_null()).alias(c.name())
                 }
             })
             .collect::<Vec<_>>();
         let rhs_projections = new_schema
-            .fields()
+            .columns()
             .iter()
-            .map(|f| {
-                if rhs.schema().has_column(&Column::new_unqualified(f.name())) {
-                    col(Column::new_unqualified(f.name()))
+            .map(|c| {
+                if rhs.schema().has_column(c) {
+                    col(c.clone())
                 } else {
-                    lit(encode_scalar_null()).alias(f.name())
+                    lit(encode_scalar_null()).alias(c.name())
                 }
             })
             .collect::<Vec<_>>();
@@ -683,20 +682,23 @@ fn filter_by_named_graph(
     match graph_pattern {
         None => plan.filter(create_filter_for_default_graph(
             dataset.default_graph_graphs(),
-        )?),
+        )),
         Some(NamedNodePattern::Variable(_)) => plan.filter(create_filter_for_named_graph(
             dataset.available_named_graphs(),
-        )?),
+        )),
         Some(NamedNodePattern::NamedNode(nn)) => {
-            let graph_filter = col(COL_GRAPH).eq(lit(encode_scalar_named_node(nn.as_ref())));
+            let graph_filter = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM.call(vec![
+                col(COL_GRAPH),
+                lit(encode_scalar_named_node(nn.as_ref())),
+            ])]);
             plan.filter(graph_filter)
         }
     }
 }
 
-fn create_filter_for_default_graph(graph: Option<&[GraphName]>) -> DFResult<Expr> {
+fn create_filter_for_default_graph(graph: Option<&[GraphName]>) -> Expr {
     let Some(graph) = graph else {
-        return Ok(lit(true));
+        return not(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_BOUND.call(vec![col(COL_GRAPH)])]));
     };
 
     graph
@@ -713,20 +715,20 @@ fn create_filter_for_default_graph(graph: Option<&[GraphName]>) -> DFResult<Expr
                     col(COL_GRAPH),
                     lit(encode_scalar_blank_node(bnode.as_ref())),
                 ])]),
-            GraphName::DefaultGraph => lit(true),
+            GraphName::DefaultGraph => {
+                not(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_BOUND.call(vec![col(COL_GRAPH)])]))
+            }
         })
         .reduce(Expr::or)
-        .ok_or(plan_datafusion_err!(
-            "Creating a filter from an empty graph."
-        ))
+        .unwrap_or(lit(false))
 }
 
-fn create_filter_for_named_graph(graph: Option<&[NamedOrBlankNode]>) -> DFResult<Expr> {
-    let Some(graph) = graph else {
-        return Ok(lit(false));
+fn create_filter_for_named_graph(graphs: Option<&[NamedOrBlankNode]>) -> Expr {
+    let Some(graphs) = graphs else {
+        return ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_BOUND.call(vec![col(COL_GRAPH)])]);
     };
 
-    graph
+    graphs
         .iter()
         .map(|name| match name {
             NamedOrBlankNode::NamedNode(nn) => {
@@ -743,9 +745,7 @@ fn create_filter_for_named_graph(graph: Option<&[NamedOrBlankNode]>) -> DFResult
             }
         })
         .reduce(Expr::or)
-        .ok_or(plan_datafusion_err!(
-            "Creating a filter from an empty graph."
-        ))
+        .unwrap_or(lit(false))
 }
 
 /// Adds filter operations that constraints the solutions of patterns that use the same variable
