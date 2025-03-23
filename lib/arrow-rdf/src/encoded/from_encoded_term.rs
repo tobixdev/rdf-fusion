@@ -1,10 +1,8 @@
-use crate::encoded::EncTermField;
+use crate::encoded::{EncTerm, EncTermField};
 use datafusion::arrow::array::{Array, AsArray, UnionArray};
-use datafusion::arrow::datatypes::{
-    Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type,
-};
+use datafusion::arrow::datatypes::{DataType, Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type};
 use datafusion::common::ScalarValue;
-use datamodel::{Boolean, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, TypedLiteralRef, YearMonthDuration};
+use datamodel::{Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, Time, Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration};
 use oxrdf::{BlankNodeRef, NamedNodeRef};
 use std::ops::Not;
 
@@ -59,6 +57,15 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     EncTermField::Duration => {
                         TermRef::DurationLiteral(Duration::from_enc_scalar(scalar)?)
                     }
+                    EncTermField::DateTime => {
+                        TermRef::DateTimeLiteral(DateTime::from_enc_scalar(scalar)?)
+                    }
+                    EncTermField::Time => {
+                        TermRef::TimeLiteral(Time::from_enc_scalar(scalar)?)
+                    }
+                    EncTermField::Date => {
+                        TermRef::DateLiteral(Date::from_enc_scalar(scalar)?)
+                    }
                     EncTermField::TypedLiteral => {
                         TermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
                     }
@@ -107,6 +114,15 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
             | EncTermField::Int
             | EncTermField::Integer => TermRef::NumericLiteral(
                 Numeric::from_enc_array(array, index).expect("EncTermField checked"),
+            ),
+            EncTermField::DateTime => TermRef::DateTimeLiteral(
+                DateTime::from_enc_array(array, index).expect("EncTermField checked"),
+            ),
+            EncTermField::Time => TermRef::TimeLiteral(
+                Time::from_enc_array(array, index).expect("EncTermField checked"),
+            ),
+            EncTermField::Date => TermRef::DateLiteral(
+                Date::from_enc_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::Duration => {
                 let year_month_is_null = array
@@ -703,6 +719,133 @@ impl FromEncodedTerm<'_> for DayTimeDuration {
             }
             _ => Err(()),
         }
+    }
+}
+
+
+impl FromEncodedTerm<'_> for DateTime {
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    where
+        Self: Sized,
+    {
+        let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
+            return Err(());
+        };
+
+        if *type_id != EncTermField::DateTime.type_id() {
+            return Err(());
+        }
+
+        let timestamp = Timestamp::from_enc_scalar(scalar)?;
+        Ok(DateTime::new(timestamp))
+    }
+
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+        if field != EncTermField::DateTime {
+            return Err(());
+        }
+
+        let timestamp = Timestamp::from_enc_array(array, index)?;
+        Ok(DateTime::new(timestamp))
+    }
+}
+
+
+impl FromEncodedTerm<'_> for Time {
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    where
+        Self: Sized,
+    {
+        let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
+            return Err(());
+        };
+
+        if *type_id != EncTermField::Time.type_id() {
+            return Err(());
+        }
+
+        let timestamp = Timestamp::from_enc_scalar(scalar)?;
+        Ok(Time::new(timestamp))
+    }
+
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+        if field != EncTermField::Time {
+            return Err(());
+        }
+
+        let timestamp = Timestamp::from_enc_array(array, index)?;
+        Ok(Time::new(timestamp))
+    }
+}
+
+impl FromEncodedTerm<'_> for Date {
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    where
+        Self: Sized,
+    {
+        let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
+            return Err(());
+        };
+
+        if *type_id != EncTermField::Date.type_id() {
+            return Err(());
+        }
+
+        let timestamp = Timestamp::from_enc_scalar(scalar)?;
+        Ok(Date::new(timestamp))
+    }
+
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+        if field != EncTermField::Date {
+            return Err(());
+        }
+
+        let timestamp = Timestamp::from_enc_array(array, index)?;
+        Ok(Date::new(timestamp))
+    }
+}
+
+impl FromEncodedTerm<'_> for Timestamp {
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    where
+        Self: Sized,
+    {
+        let ScalarValue::Union(Some((_, value)), _, _) = scalar else {
+            return Err(());
+        };
+
+        if value.data_type() != DataType::Struct(EncTerm::timestamp_fields()) {
+            return Err(());
+        }
+
+        let ScalarValue::Struct(struct_array) = value.as_ref() else {
+            unreachable!("Type already checked.")
+        };
+
+        let value = struct_array.column(0).as_primitive::<Decimal128Type>();
+        let offset = struct_array.column(1).as_primitive::<Int16Type>();
+
+        Ok(Timestamp::new(
+            Decimal::from_be_bytes(value.value(0).to_be_bytes()),
+            offset.is_null(0).not().then(|| TimezoneOffset::new_unchecked(offset.value(0)))
+        ))
+    }
+
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+        let offset = array.value_offset(index);
+        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+        let struct_array = array.child(field.type_id()).as_struct_opt().ok_or(())?;
+
+        let value_array = struct_array.column(0).as_primitive::<Decimal128Type>();
+        let offset_array = struct_array.column(1).as_primitive::<Int16Type>();
+
+        Ok(Timestamp::new(
+            Decimal::from_be_bytes(value_array.value(offset).to_be_bytes()),
+            offset_array.is_null(offset).not().then(|| TimezoneOffset::new_unchecked(offset_array.value(offset)))
+        ))
     }
 }
 

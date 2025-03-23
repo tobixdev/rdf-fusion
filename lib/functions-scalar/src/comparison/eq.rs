@@ -31,6 +31,12 @@ impl ScalarBinaryRdfOp for EqRdfOp {
             (TermRef::NumericLiteral(lhs), TermRef::NumericLiteral(rhs)) => {
                 Ok((lhs.cmp(&rhs) == Ordering::Equal).into())
             }
+            // For dates & times, compare values.
+            (TermRef::DateTimeLiteral(lhs), TermRef::DateTimeLiteral(rhs)) => {
+                Ok((lhs == rhs).into())
+            }
+            (TermRef::DateLiteral(lhs), TermRef::DateLiteral(rhs)) => Ok((lhs == rhs).into()),
+            (TermRef::TimeLiteral(lhs), TermRef::TimeLiteral(rhs)) => Ok((lhs == rhs).into()),
             // For durations, compare values.
             (TermRef::DurationLiteral(lhs), TermRef::DurationLiteral(rhs)) => {
                 Ok((lhs == rhs).into())

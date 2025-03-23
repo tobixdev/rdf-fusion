@@ -283,19 +283,19 @@ impl fmt::Display for Duration {
 impl PartialOrd for Duration {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let first = DateTime::new(1969, 9, 1, 0, 0, 0.into(), None).ok()?;
+        let first = DateTime::from_seven_property_model(1969, 9, 1, 0, 0, 0.into(), None).ok()?;
         let first_result = first
             .checked_add_duration(*self)?
             .partial_cmp(&first.checked_add_duration(*other)?);
-        let second = DateTime::new(1697, 2, 1, 0, 0, 0.into(), None).ok()?;
+        let second = DateTime::from_seven_property_model(1697, 2, 1, 0, 0, 0.into(), None).ok()?;
         let second_result = second
             .checked_add_duration(*self)?
             .partial_cmp(&second.checked_add_duration(*other)?);
-        let third = DateTime::new(1903, 3, 1, 0, 0, 0.into(), None).ok()?;
+        let third = DateTime::from_seven_property_model(1903, 3, 1, 0, 0, 0.into(), None).ok()?;
         let third_result = third
             .checked_add_duration(*self)?
             .partial_cmp(&third.checked_add_duration(*other)?);
-        let fourth = DateTime::new(1903, 7, 1, 0, 0, 0.into(), None).ok()?;
+        let fourth = DateTime::from_seven_property_model(1903, 7, 1, 0, 0, 0.into(), None).ok()?;
         let fourth_result = fourth
             .checked_add_duration(*self)?
             .partial_cmp(&fourth.checked_add_duration(*other)?);

@@ -1,4 +1,3 @@
-use crate::encoded::EncTerm;
 use crate::DFResult;
 use datafusion::arrow::array::{as_boolean_array, Array, BooleanBuilder};
 use datafusion::arrow::datatypes::DataType;

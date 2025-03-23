@@ -2,13 +2,21 @@ use crate::encoded::EncRdfTermBuilder;
 use crate::AResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::common::ScalarValue;
-use datamodel::{Boolean, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, OwnedStringLiteral, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, TypedLiteralRef, YearMonthDuration};
+use datamodel::{
+    Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
+    LanguageStringRef, Numeric, OwnedStringLiteral, RdfOpResult, SimpleLiteralRef,
+    StringLiteralRef, TermRef, Time, TypedLiteralRef, YearMonthDuration,
+};
 use oxrdf::{BlankNodeRef, NamedNode, NamedNodeRef};
 
 pub trait WriteEncTerm {
     fn into_scalar_value(self) -> AResult<ScalarValue>
     where
-        Self: Sized;
+        Self: Sized,
+    {
+        let array = Self::iter_into_array([Ok(self)].into_iter())?;
+        Ok(ScalarValue::try_from_array(&array, 0)?)
+    }
 
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
@@ -16,16 +24,6 @@ pub trait WriteEncTerm {
 }
 
 impl WriteEncTerm for Boolean {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_boolean(self.as_bool())?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -42,16 +40,6 @@ impl WriteEncTerm for Boolean {
 }
 
 impl WriteEncTerm for Float {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_float(self)?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -68,16 +56,6 @@ impl WriteEncTerm for Float {
 }
 
 impl WriteEncTerm for Decimal {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_decimal(self)?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -94,16 +72,6 @@ impl WriteEncTerm for Decimal {
 }
 
 impl WriteEncTerm for Double {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_double(self)?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -120,16 +88,6 @@ impl WriteEncTerm for Double {
 }
 
 impl WriteEncTerm for Int {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_int(self)?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -146,16 +104,6 @@ impl WriteEncTerm for Int {
 }
 
 impl WriteEncTerm for Integer {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_integer(self)?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -172,19 +120,6 @@ impl WriteEncTerm for Integer {
 }
 
 impl WriteEncTerm for Numeric {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        match self {
-            Numeric::Int(value) => value.into_scalar_value(),
-            Numeric::Integer(value) => value.into_scalar_value(),
-            Numeric::Float(value) => value.into_scalar_value(),
-            Numeric::Double(value) => value.into_scalar_value(),
-            Numeric::Decimal(value) => value.into_scalar_value(),
-        }
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -205,16 +140,6 @@ impl WriteEncTerm for Numeric {
 }
 
 impl WriteEncTerm for SimpleLiteralRef<'_> {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_string(self.value, None)?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -231,16 +156,6 @@ impl WriteEncTerm for SimpleLiteralRef<'_> {
 }
 
 impl WriteEncTerm for StringLiteralRef<'_> {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_string(self.0, self.1)?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -257,16 +172,6 @@ impl WriteEncTerm for StringLiteralRef<'_> {
 }
 
 impl WriteEncTerm for OwnedStringLiteral {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_string(self.0.as_str(), self.1.as_ref().map(|v| v.as_str()))?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -284,16 +189,6 @@ impl WriteEncTerm for OwnedStringLiteral {
 }
 
 impl WriteEncTerm for LanguageStringRef<'_> {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_string(self.value, Some(self.language))?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -301,8 +196,7 @@ impl WriteEncTerm for LanguageStringRef<'_> {
         let mut rdf_term_builder = EncRdfTermBuilder::new();
         for value in values {
             match value {
-                Ok(value) => rdf_term_builder
-                    .append_string(value.value, Some(value.language))?,
+                Ok(value) => rdf_term_builder.append_string(value.value, Some(value.language))?,
                 Err(_) => rdf_term_builder.append_null()?,
             }
         }
@@ -311,16 +205,6 @@ impl WriteEncTerm for LanguageStringRef<'_> {
 }
 
 impl WriteEncTerm for BlankNodeRef<'_> {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_blank_node(self.as_str())?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -337,16 +221,6 @@ impl WriteEncTerm for BlankNodeRef<'_> {
 }
 
 impl WriteEncTerm for NamedNodeRef<'_> {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_named_node(self.as_str())?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -363,16 +237,6 @@ impl WriteEncTerm for NamedNodeRef<'_> {
 }
 
 impl WriteEncTerm for NamedNode {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_named_node(self.as_str())?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -389,24 +253,6 @@ impl WriteEncTerm for NamedNode {
 }
 
 impl WriteEncTerm for TermRef<'_> {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        match self {
-            TermRef::NamedNode(value) => value.into_scalar_value(),
-            TermRef::BlankNode(value) => value.into_scalar_value(),
-            TermRef::BooleanLiteral(value) => value.into_scalar_value(),
-            TermRef::NumericLiteral(value) => value.into_scalar_value(),
-            TermRef::SimpleLiteral(value) => value.into_scalar_value(),
-            TermRef::LanguageStringLiteral(value) => value.into_scalar_value(),
-            TermRef::DurationLiteral(value) => value.into_scalar_value(),
-            TermRef::YearMonthDurationLiteral(value) => value.into_scalar_value(),
-            TermRef::DayTimeDurationLiteral(value) => value.into_scalar_value(),
-            TermRef::TypedLiteral(value) => value.into_scalar_value(),
-        }
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -420,7 +266,9 @@ impl WriteEncTerm for TermRef<'_> {
                 Ok(TermRef::BlankNode(value)) => {
                     rdf_term_builder.append_blank_node(value.as_str())?
                 }
-                Ok(TermRef::BooleanLiteral(value)) => rdf_term_builder.append_boolean(value.as_bool())?,
+                Ok(TermRef::BooleanLiteral(value)) => {
+                    rdf_term_builder.append_boolean(value.as_bool())?
+                }
                 Ok(TermRef::NumericLiteral(Numeric::Float(value))) => {
                     rdf_term_builder.append_float(value)?
                 }
@@ -430,7 +278,9 @@ impl WriteEncTerm for TermRef<'_> {
                 Ok(TermRef::NumericLiteral(Numeric::Decimal(value))) => {
                     rdf_term_builder.append_decimal(value)?
                 }
-                Ok(TermRef::NumericLiteral(Numeric::Int(value))) => rdf_term_builder.append_int(value)?,
+                Ok(TermRef::NumericLiteral(Numeric::Int(value))) => {
+                    rdf_term_builder.append_int(value)?
+                }
                 Ok(TermRef::NumericLiteral(Numeric::Integer(value))) => {
                     rdf_term_builder.append_integer(value)?
                 }
@@ -440,9 +290,11 @@ impl WriteEncTerm for TermRef<'_> {
                 Ok(TermRef::LanguageStringLiteral(value)) => {
                     rdf_term_builder.append_string(value.value, Some(value.language))?
                 }
-                Ok(TermRef::DurationLiteral(value)) => {
-                    rdf_term_builder.append_duration(Some(value.year_month()), Some(value.day_time()))?
-                }
+                Ok(TermRef::DateTimeLiteral(value)) => rdf_term_builder.append_date_time(value)?,
+                Ok(TermRef::TimeLiteral(value)) => rdf_term_builder.append_time(value)?,
+                Ok(TermRef::DateLiteral(value)) => rdf_term_builder.append_date(value)?,
+                Ok(TermRef::DurationLiteral(value)) => rdf_term_builder
+                    .append_duration(Some(value.year_month()), Some(value.day_time()))?,
                 Ok(TermRef::YearMonthDurationLiteral(value)) => {
                     rdf_term_builder.append_duration(Some(value), None)?
                 }
@@ -459,17 +311,7 @@ impl WriteEncTerm for TermRef<'_> {
     }
 }
 
-impl WriteEncTerm for Duration {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_duration(Some(self.year_month()), Some(self.day_time()))?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
+impl WriteEncTerm for DateTime {
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -477,7 +319,56 @@ impl WriteEncTerm for Duration {
         let mut rdf_term_builder = EncRdfTermBuilder::new();
         for value in values {
             match value {
-                Ok(value) => rdf_term_builder.append_duration(Some(value.year_month()), Some(value.day_time()))?,
+                Ok(value) => rdf_term_builder.append_date_time(value)?,
+                Err(_) => rdf_term_builder.append_null()?,
+            }
+        }
+        Ok(rdf_term_builder.finish()?)
+    }
+}
+
+impl WriteEncTerm for Time {
+    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    where
+        Self: Sized,
+    {
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        for value in values {
+            match value {
+                Ok(value) => rdf_term_builder.append_time(value)?,
+                Err(_) => rdf_term_builder.append_null()?,
+            }
+        }
+        Ok(rdf_term_builder.finish()?)
+    }
+}
+
+impl WriteEncTerm for Date {
+    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    where
+        Self: Sized,
+    {
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        for value in values {
+            match value {
+                Ok(value) => rdf_term_builder.append_date(value)?,
+                Err(_) => rdf_term_builder.append_null()?,
+            }
+        }
+        Ok(rdf_term_builder.finish()?)
+    }
+}
+
+impl WriteEncTerm for Duration {
+    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    where
+        Self: Sized,
+    {
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        for value in values {
+            match value {
+                Ok(value) => rdf_term_builder
+                    .append_duration(Some(value.year_month()), Some(value.day_time()))?,
                 Err(_) => rdf_term_builder.append_null()?,
             }
         }
@@ -486,16 +377,6 @@ impl WriteEncTerm for Duration {
 }
 
 impl WriteEncTerm for YearMonthDuration {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_duration(Some(self), None)?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -512,16 +393,6 @@ impl WriteEncTerm for YearMonthDuration {
 }
 
 impl WriteEncTerm for DayTimeDuration {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_duration(None, Some(self))?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -538,16 +409,6 @@ impl WriteEncTerm for DayTimeDuration {
 }
 
 impl WriteEncTerm for TypedLiteralRef<'_> {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
-    where
-        Self: Sized,
-    {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
-        rdf_term_builder.append_typed_literal(self.value, self.literal_type)?;
-        let array = rdf_term_builder.finish()?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
-    }
-
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,
@@ -555,7 +416,9 @@ impl WriteEncTerm for TypedLiteralRef<'_> {
         let mut rdf_term_builder = EncRdfTermBuilder::new();
         for value in values {
             match value {
-                Ok(value) => rdf_term_builder.append_typed_literal(value.value, value.literal_type)?,
+                Ok(value) => {
+                    rdf_term_builder.append_typed_literal(value.value, value.literal_type)?
+                }
                 Err(_) => rdf_term_builder.append_null()?,
             }
         }

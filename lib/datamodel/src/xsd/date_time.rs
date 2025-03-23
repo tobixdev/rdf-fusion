@@ -1,11 +1,11 @@
 #![allow(clippy::expect_used)]
 
+use crate::xsd::decimal::Decimal;
+use crate::xsd::duration::{DayTimeDuration, Duration, YearMonthDuration};
 use std::cmp::{min, Ordering};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
-use crate::xsd::decimal::Decimal;
-use crate::xsd::duration::{DayTimeDuration, Duration, YearMonthDuration};
 
 /// [XML Schema `dateTime` datatype](https://www.w3.org/TR/xmlschema11-2/#dateTime)
 ///
@@ -25,7 +25,7 @@ impl DateTime {
     };
 
     #[inline]
-    pub(super) fn new(
+    pub(super) fn from_seven_property_model(
         year: i64,
         month: u8,
         day: u8,
@@ -35,7 +35,7 @@ impl DateTime {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::new(&DateTimeSevenPropertyModel {
+            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
                 year: Some(year),
                 month: Some(month),
                 day: Some(day),
@@ -47,12 +47,20 @@ impl DateTime {
         })
     }
 
+    pub fn new(timestamp: Timestamp) -> Self {
+        Self { timestamp }
+    }
+
     /// [fn:current-dateTime](https://www.w3.org/TR/xpath-functions-31/#func-current-dateTime)
     #[inline]
     pub fn now() -> Self {
         Self {
             timestamp: Timestamp::now(),
         }
+    }
+
+    pub fn timestamp(&self) -> Timestamp {
+        self.timestamp
     }
 
     #[inline]
@@ -181,8 +189,11 @@ impl DateTime {
             self.checked_add_day_time_duration(rhs)
         } else {
             Some(Self {
-                timestamp: Timestamp::new(&date_time_plus_duration(rhs, &self.properties())?)
-                    .ok()?,
+                timestamp: Timestamp::from_seven_property_model(&date_time_plus_duration(
+                    rhs,
+                    &self.properties(),
+                )?)
+                .ok()?,
             })
         }
     }
@@ -222,7 +233,7 @@ impl DateTime {
             self.checked_sub_day_time_duration(rhs)
         } else {
             Some(Self {
-                timestamp: Timestamp::new(&date_time_plus_duration(
+                timestamp: Timestamp::from_seven_property_model(&date_time_plus_duration(
                     rhs.checked_neg()?,
                     &self.properties(),
                 )?)
@@ -256,7 +267,7 @@ impl TryFrom<Date> for DateTime {
 
     #[inline]
     fn try_from(date: Date) -> Result<Self, Self::Error> {
-        Self::new(
+        Self::from_seven_property_model(
             date.year(),
             date.month(),
             date.day(),
@@ -331,8 +342,12 @@ impl Time {
         },
     };
 
+    pub fn new(timestamp: Timestamp) -> Self {
+        Self { timestamp }
+    }
+
     #[inline]
-    fn new(
+    fn from_parts(
         mut hour: u8,
         minute: u8,
         second: Decimal,
@@ -342,7 +357,7 @@ impl Time {
             hour = 0;
         }
         Ok(Self {
-            timestamp: Timestamp::new(&DateTimeSevenPropertyModel {
+            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
                 year: None,
                 month: None,
                 day: None,
@@ -360,6 +375,10 @@ impl Time {
         Self {
             timestamp: Timestamp::from_be_bytes(bytes),
         }
+    }
+
+    pub fn timestamp(&self) -> Timestamp {
+        self.timestamp
     }
 
     /// [fn:current-time](https://www.w3.org/TR/xpath-functions-31/#func-current-time)
@@ -435,7 +454,7 @@ impl Time {
     #[must_use]
     pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> Option<Self> {
         Some(
-            DateTime::new(
+            DateTime::from_seven_property_model(
                 1972,
                 12,
                 31,
@@ -466,7 +485,7 @@ impl Time {
     #[must_use]
     pub fn checked_sub_duration(self, rhs: impl Into<Duration>) -> Option<Self> {
         Some(
-            DateTime::new(
+            DateTime::from_seven_property_model(
                 1972,
                 12,
                 31,
@@ -486,7 +505,7 @@ impl Time {
     #[must_use]
     pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> Option<Self> {
         Some(
-            DateTime::new(
+            DateTime::from_seven_property_model(
                 1972,
                 12,
                 31,
@@ -513,7 +532,7 @@ impl Time {
 impl From<DateTime> for Time {
     #[inline]
     fn from(date_time: DateTime) -> Self {
-        Self::new(
+        Self::from_parts(
             date_time.hour(),
             date_time.minute(),
             date_time.second(),
@@ -577,15 +596,19 @@ impl Date {
         },
     };
 
+    pub fn new(timestamp: Timestamp) -> Self {
+        Self { timestamp }
+    }
+
     #[inline]
-    fn new(
+    fn from_parts(
         year: i64,
         month: u8,
         day: u8,
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::new(&DateTimeSevenPropertyModel {
+            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
                 year: Some(year),
                 month: Some(month),
                 day: Some(day),
@@ -611,6 +634,10 @@ impl Date {
         DateTime::now()
             .try_into()
             .expect("The current time seems way in the future, it's strange")
+    }
+
+    pub fn timestamp(&self) -> Timestamp {
+        self.timestamp
     }
 
     /// [fn:year-from-date](https://www.w3.org/TR/xpath-functions-31/#func-year-from-date)
@@ -732,7 +759,7 @@ impl Date {
     #[inline]
     #[must_use]
     pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> Option<Self> {
-        DateTime::new(
+        DateTime::from_seven_property_model(
             self.year(),
             self.month(),
             self.day(),
@@ -761,7 +788,7 @@ impl TryFrom<DateTime> for Date {
 
     #[inline]
     fn try_from(date_time: DateTime) -> Result<Self, Self::Error> {
-        Self::new(
+        Self::from_parts(
             date_time.year(),
             date_time.month(),
             date_time.day(),
@@ -823,7 +850,7 @@ impl GYearMonth {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::new(&DateTimeSevenPropertyModel {
+            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
                 year: Some(year),
                 month: Some(month),
                 day: None,
@@ -964,7 +991,7 @@ impl GYear {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::new(&DateTimeSevenPropertyModel {
+            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
                 year: Some(year),
                 month: None,
                 day: None,
@@ -1093,7 +1120,7 @@ impl GMonthDay {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::new(&DateTimeSevenPropertyModel {
+            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
                 year: None,
                 month: Some(month),
                 day: Some(day),
@@ -1216,7 +1243,7 @@ impl GMonth {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::new(&DateTimeSevenPropertyModel {
+            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
                 year: None,
                 month: Some(month),
                 day: None,
@@ -1345,7 +1372,7 @@ impl GDay {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::new(&DateTimeSevenPropertyModel {
+            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
                 year: None,
                 month: None,
                 day: Some(day),
@@ -1478,6 +1505,14 @@ impl TimezoneOffset {
         }
     }
 
+    /// From offset in minute with respect to UTC
+    #[inline]
+    pub fn new_unchecked(offset_in_minutes: i16) -> Self {
+        Self {
+            offset: offset_in_minutes,
+        }
+    }
+
     #[inline]
     #[must_use]
     pub fn from_be_bytes(bytes: [u8; 2]) -> Self {
@@ -1490,6 +1525,10 @@ impl TimezoneOffset {
     #[must_use]
     pub fn to_be_bytes(self) -> [u8; 2] {
         self.offset.to_be_bytes()
+    }
+
+    pub fn in_minutes(&self) -> i16 {
+        self.offset
     }
 }
 
@@ -1564,7 +1603,7 @@ struct DateTimeSevenPropertyModel {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Timestamp {
+pub struct Timestamp {
     value: Decimal,
     timezone_offset: Option<TimezoneOffset>,
 }
@@ -1629,17 +1668,25 @@ impl Timestamp {
         timezone_offset: Some(TimezoneOffset::MIN),
     };
 
-    #[inline]
-    fn new(props: &DateTimeSevenPropertyModel) -> Result<Self, DateTimeOverflowError> {
+    fn from_seven_property_model(
+        props: &DateTimeSevenPropertyModel,
+    ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
             timezone_offset: props.timezone_offset,
             value: time_on_timeline(props).ok_or(DateTimeOverflowError)?,
         })
     }
 
+    pub fn new(value: Decimal, timezone_offset: Option<TimezoneOffset>) -> Self {
+        Self {
+            timezone_offset,
+            value,
+        }
+    }
+
     #[inline]
     fn now() -> Self {
-        Self::new(
+        Self::from_seven_property_model(
             &date_time_plus_duration(
                 since_unix_epoch(),
                 &DateTimeSevenPropertyModel {
@@ -1669,6 +1716,14 @@ impl Timestamp {
                 ))
             },
         }
+    }
+
+    pub fn value(self) -> Decimal {
+        self.value
+    }
+
+    pub fn offset(self) -> Option<TimezoneOffset> {
+        self.timezone_offset
     }
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
@@ -2058,7 +2113,15 @@ fn date_time_lexical_rep(input: &str) -> Result<(DateTime, &str), ParseDateTimeE
     let (timezone_offset, input) = optional_end(input, timezone_frag)?;
     validate_day_of_month(Some(year), month, day)?;
     Ok((
-        DateTime::new(year, month, day, hour, minute, second, timezone_offset)?,
+        DateTime::from_seven_property_model(
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            timezone_offset,
+        )?,
         input,
     ))
 }
@@ -2081,7 +2144,10 @@ fn time_lexical_rep(input: &str) -> Result<(Time, &str), ParseDateTimeError> {
         ));
     }
     let (timezone_offset, input) = optional_end(input, timezone_frag)?;
-    Ok((Time::new(hour, minute, second, timezone_offset)?, input))
+    Ok((
+        Time::from_parts(hour, minute, second, timezone_offset)?,
+        input,
+    ))
 }
 
 // [18]   dateLexicalRep ::= yearFrag '-' monthFrag '-' dayFrag timezoneFrag?   Constraint:  Day-of-month Representations
@@ -2093,7 +2159,7 @@ fn date_lexical_rep(input: &str) -> Result<(Date, &str), ParseDateTimeError> {
     let (day, input) = day_frag(input)?;
     let (timezone_offset, input) = optional_end(input, timezone_frag)?;
     validate_day_of_month(Some(year), month, day)?;
-    Ok((Date::new(year, month, day, timezone_offset)?, input))
+    Ok((Date::from_parts(year, month, day, timezone_offset)?, input))
 }
 
 // [19]   gYearMonthLexicalRep ::= yearFrag '-' monthFrag timezoneFrag?

@@ -1,13 +1,10 @@
 use crate::encoded::{EncTerm, EncTermField};
 use crate::error::LiteralEncodingError;
 use crate::{AResult, DFResult};
-use datafusion::arrow::array::{
-    ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
-    Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder, UnionArray,
-};
+use datafusion::arrow::array::{ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder, Int16Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder, UnionArray};
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
-use datamodel::{BlankNode, DayTimeDuration, YearMonthDuration};
+use datamodel::{BlankNode, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration};
 use datamodel::{Decimal, DecodedTerm, Double, Float, Int, Integer, Iri, Literal};
 use oxrdf::vocab::{rdf, xsd};
 use std::sync::Arc;
@@ -24,6 +21,9 @@ pub struct EncRdfTermBuilder {
     decimal_builder: Decimal128Builder,
     int32_builder: Int32Builder,
     integer_builder: Int64Builder,
+    date_time_builder: StructBuilder,
+    time_builder: StructBuilder,
+    date_builder: StructBuilder,
     duration_builder: StructBuilder,
     typed_literal_builder: StructBuilder,
     null_builder: NullBuilder,
@@ -45,6 +45,9 @@ impl EncRdfTermBuilder {
                 .expect("Precision and scale fixed"),
             int32_builder: Int32Builder::with_capacity(0),
             integer_builder: Int64Builder::with_capacity(0),
+            date_time_builder: StructBuilder::from_fields(EncTerm::timestamp_fields(), 0),
+            time_builder: StructBuilder::from_fields(EncTerm::timestamp_fields(), 0),
+            date_builder: StructBuilder::from_fields(EncTerm::timestamp_fields(), 0),
             duration_builder: StructBuilder::from_fields(EncTerm::duration_fields(), 0),
             typed_literal_builder: StructBuilder::from_fields(EncTerm::typed_literal_fields(), 0),
             null_builder: NullBuilder::new(),
@@ -138,6 +141,27 @@ impl EncRdfTermBuilder {
         }
         self.string_builder.append(true);
 
+        Ok(())
+    }
+
+    pub fn append_date_time(&mut self, value: DateTime) -> AResult<()> {
+        self.type_ids.push(EncTermField::DateTime.type_id());
+        self.offsets.push(self.date_time_builder.len() as i32);
+        append_timestamp(&mut self.date_time_builder, value.timestamp())?;
+        Ok(())
+    }
+
+    pub fn append_time(&mut self, value: Time) -> AResult<()> {
+        self.type_ids.push(EncTermField::Time.type_id());
+        self.offsets.push(self.time_builder.len() as i32);
+        append_timestamp(&mut self.time_builder, value.timestamp())?;
+        Ok(())
+    }
+
+    pub fn append_date(&mut self, value: Date) -> AResult<()> {
+        self.type_ids.push(EncTermField::Date.type_id());
+        self.offsets.push(self.date_builder.len() as i32);
+        append_timestamp(&mut self.date_builder, value.timestamp())?;
         Ok(())
     }
 
@@ -258,9 +282,31 @@ impl EncRdfTermBuilder {
                 Arc::new(self.decimal_builder.finish()),
                 Arc::new(self.int32_builder.finish()),
                 Arc::new(self.integer_builder.finish()),
+                Arc::new(self.date_time_builder.finish()),
+                Arc::new(self.time_builder.finish()),
+                Arc::new(self.date_builder.finish()),
                 Arc::new(self.duration_builder.finish()),
                 Arc::new(self.typed_literal_builder.finish()),
             ],
         )?))
     }
+}
+
+fn append_timestamp(builder: &mut StructBuilder, value: Timestamp) -> AResult<()> {
+    builder
+        .field_builder::<Decimal128Builder>(0)
+        .unwrap()
+        .append_value(i128::from_be_bytes(value.value().to_be_bytes()));
+
+    let offset_builder = builder
+        .field_builder::<Int16Builder>(1)
+        .unwrap();
+    if let Some(offset) = value.offset() {
+        offset_builder.append_value(offset.in_minutes());
+    } else {
+        offset_builder.append_null();
+    }
+    builder.append(true);
+
+    Ok(())
 }

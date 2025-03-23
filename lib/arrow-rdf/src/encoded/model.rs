@@ -1,14 +1,25 @@
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::{exec_err, DataFusionError};
+use datamodel::Decimal;
 use once_cell::unsync::Lazy;
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
-use datamodel::Decimal;
 
 const FIELDS_STRING: Lazy<Fields> = Lazy::new(|| {
     Fields::from(vec![
         Field::new("value", DataType::Utf8, false),
         Field::new("language", DataType::Utf8, true),
+    ])
+});
+
+const FIELDS_TIMESTAMP: Lazy<Fields> = Lazy::new(|| {
+    Fields::from(vec![
+        Field::new(
+            "value",
+            DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
+            false,
+        ),
+        Field::new("offset", DataType::Int16, true),
     ])
 });
 
@@ -83,6 +94,21 @@ const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
             false,
         ),
         Field::new(
+            EncTermField::DateTime.name(),
+            EncTermField::DateTime.data_type(),
+            false,
+        ),
+        Field::new(
+            EncTermField::Time.name(),
+            EncTermField::Time.data_type(),
+            false,
+        ),
+        Field::new(
+            EncTermField::Date.name(),
+            EncTermField::Date.data_type(),
+            false,
+        ),
+        Field::new(
             EncTermField::Duration.name(),
             EncTermField::Duration.data_type(),
             false,
@@ -109,6 +135,10 @@ impl EncTerm {
 
     pub fn string_type() -> DataType {
         DataType::Struct(Self::string_fields())
+    }
+
+    pub fn timestamp_fields() -> Fields {
+        FIELDS_TIMESTAMP.clone()
     }
 
     pub fn duration_fields() -> Fields {
@@ -141,6 +171,9 @@ pub enum EncTermField {
     Decimal,
     Int,
     Integer,
+    DateTime,
+    Time,
+    Date,
     Duration,
     TypedLiteral,
 }
@@ -162,6 +195,9 @@ impl EncTermField {
             EncTermField::Decimal => "decimal",
             EncTermField::Int => "int",
             EncTermField::Integer => "integer",
+            EncTermField::DateTime => "date_time",
+            EncTermField::Time => "time",
+            EncTermField::Date => "date",
             EncTermField::Duration => "duration",
             EncTermField::TypedLiteral => "typed_literal",
         }
@@ -179,6 +215,9 @@ impl EncTermField {
             EncTermField::Decimal => DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
             EncTermField::Int => DataType::Int32,
             EncTermField::Integer => DataType::Int64,
+            EncTermField::DateTime => DataType::Struct(FIELDS_TIMESTAMP.clone()),
+            EncTermField::Time => DataType::Struct(FIELDS_TIMESTAMP.clone()),
+            EncTermField::Date => DataType::Struct(FIELDS_TIMESTAMP.clone()),
             EncTermField::Duration => DataType::Struct(FIELDS_DURATION.clone()),
             EncTermField::TypedLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
         }
@@ -213,8 +252,11 @@ impl TryFrom<i8> for EncTermField {
             7 => EncTermField::Decimal,
             8 => EncTermField::Int,
             9 => EncTermField::Integer,
-            10 => EncTermField::Duration,
-            11 => EncTermField::TypedLiteral,
+            10 => EncTermField::DateTime,
+            11 => EncTermField::Time,
+            12 => EncTermField::Date,
+            13 => EncTermField::Duration,
+            14 => EncTermField::TypedLiteral,
             _ => return exec_err!("Unexpected type_id for encoded RDF Term"),
         })
     }
@@ -233,8 +275,11 @@ impl From<&EncTermField> for i8 {
             EncTermField::Decimal => 7,
             EncTermField::Int => 8,
             EncTermField::Integer => 9,
-            EncTermField::Duration => 10,
-            EncTermField::TypedLiteral => 11,
+            EncTermField::DateTime => 10,
+            EncTermField::Time => 11,
+            EncTermField::Date => 12,
+            EncTermField::Duration => 13,
+            EncTermField::TypedLiteral => 14,
         }
     }
 }
@@ -254,6 +299,9 @@ mod tests {
         test_type_id(EncTermField::Decimal);
         test_type_id(EncTermField::Int);
         test_type_id(EncTermField::Integer);
+        test_type_id(EncTermField::DateTime);
+        test_type_id(EncTermField::Time);
+        test_type_id(EncTermField::Date);
         test_type_id(EncTermField::Duration);
         test_type_id(EncTermField::TypedLiteral);
         test_type_id(EncTermField::Null);

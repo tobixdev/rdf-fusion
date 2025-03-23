@@ -1,16 +1,11 @@
 use crate::sparql::error::EvaluationError;
-use arrow_rdf::encoded::EncTermField;
-use datafusion::arrow::array::{Array, AsArray, RecordBatch, UnionArray};
-use datafusion::arrow::datatypes::{
-    Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type,
-};
+use arrow_rdf::encoded::FromEncodedTerm;
+use datafusion::arrow::array::{AsArray, RecordBatch, UnionArray};
 use datafusion::execution::SendableRecordBatchStream;
-use datamodel::{DayTimeDuration, Decimal, Duration, YearMonthDuration};
+use datamodel::{DecodedTerm, TermRef};
 use futures::{Stream, StreamExt};
-use oxrdf::vocab::xsd;
-use oxrdf::{BlankNode, Literal, NamedNode, Term, Variable};
+use oxrdf::Variable;
 pub use sparesults::QuerySolution;
-use std::ops::Not;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
@@ -126,8 +121,7 @@ fn to_query_solution(
                 .column_by_name(field.name())
                 .expect("Schema must match")
                 .as_union();
-            let term_field = EncTermField::try_from(column.type_id(i))?;
-            let term = to_term(column, column.value_offset(i), term_field)?;
+            let term = to_term(column, i);
             terms.push(term);
         }
         result.push((variables.clone(), terms).into())
@@ -136,160 +130,11 @@ fn to_query_solution(
     Ok(result.into_iter())
 }
 
-fn to_term(
-    objects: &UnionArray,
-    i: usize,
-    term_field: EncTermField,
-) -> Result<Option<Term>, EvaluationError> {
-    Ok(match term_field {
-        EncTermField::NamedNode => {
-            let value = objects
-                .child(term_field.type_id())
-                .as_string::<i32>()
-                .value(i);
-            Some(Term::NamedNode(
-                NamedNode::new(value).map_err(EvaluationError::unexpected)?,
-            ))
-        }
-        EncTermField::BlankNode => {
-            let value = objects
-                .child(term_field.type_id())
-                .as_string::<i32>()
-                .value(i);
-            Some(Term::BlankNode(
-                BlankNode::new(value).map_err(|err| EvaluationError::Unexpected(Box::new(err)))?,
-            ))
-        }
-        EncTermField::Boolean => {
-            let value = objects.child(term_field.type_id()).as_boolean().value(i);
-            Some(Term::Literal(Literal::from(value)))
-        }
-        EncTermField::Int => {
-            let value = objects
-                .child(term_field.type_id())
-                .as_primitive::<Int32Type>()
-                .value(i);
-            Some(Term::Literal(Literal::from(value)))
-        }
-        EncTermField::Integer => {
-            let value = objects
-                .child(term_field.type_id())
-                .as_primitive::<Int64Type>()
-                .value(i);
-            Some(Term::Literal(Literal::from(value)))
-        }
-        EncTermField::Float => {
-            let value = objects
-                .child(term_field.type_id())
-                .as_primitive::<Float32Type>()
-                .value(i);
-            Some(Term::Literal(Literal::from(value)))
-        }
-        EncTermField::Double => {
-            let value = objects
-                .child(term_field.type_id())
-                .as_primitive::<Float64Type>()
-                .value(i);
-            Some(Term::Literal(Literal::from(value)))
-        }
-        EncTermField::Decimal => {
-            let value = objects
-                .child(term_field.type_id())
-                .as_primitive::<Decimal128Type>()
-                .value(i);
-            Some(Term::Literal(Literal::from(value)))
-        }
-        EncTermField::String => {
-            let values = objects
-                .child(term_field.type_id())
-                .as_struct()
-                .column_by_name("value")
-                .expect("Schema is fixed")
-                .as_string::<i32>();
-            let language = objects
-                .child(term_field.type_id())
-                .as_struct()
-                .column_by_name("language")
-                .expect("Schema is fixed")
-                .as_string::<i32>();
-
-            if language.is_null(i) {
-                Some(Term::Literal(Literal::new_simple_literal(String::from(
-                    values.value(i),
-                ))))
-            } else {
-                Some(Term::Literal(
-                    Literal::new_language_tagged_literal(
-                        String::from(values.value(i)),
-                        String::from(language.value(i)),
-                    )
-                    .map_err(EvaluationError::unexpected)?,
-                ))
-            }
-        }
-        EncTermField::Duration => {
-            let year_month = objects
-                .child(term_field.type_id())
-                .as_struct()
-                .column(0)
-                .as_primitive::<Int64Type>();
-            let day_time = objects
-                .child(term_field.type_id())
-                .as_struct()
-                .column(1)
-                .as_primitive::<Decimal128Type>();
-            let year_month = year_month.is_null(i).not().then(|| year_month.value(i));
-            let day_time = day_time
-                .is_null(i)
-                .not()
-                .then(|| Decimal::from_be_bytes(day_time.value(i).to_be_bytes()));
-
-            match (year_month, day_time) {
-                (Some(year_month), Some(day_time)) => {
-                    let duration = Duration::new(year_month, day_time).expect("Valid encoded");
-                    Some(Term::Literal(Literal::new_typed_literal(
-                        duration.to_string(),
-                        xsd::DURATION,
-                    )))
-                }
-                (Some(year_month), None) => {
-                    let duration = YearMonthDuration::new(year_month);
-                    Some(Term::Literal(Literal::new_typed_literal(
-                        duration.to_string(),
-                        xsd::YEAR_MONTH_DURATION,
-                    )))
-                }
-                (None, Some(day_time)) => {
-                    let duration = DayTimeDuration::new(day_time);
-                    Some(Term::Literal(Literal::new_typed_literal(
-                        duration.to_string(),
-                        xsd::DAY_TIME_DURATION,
-                    )))
-                }
-                (None, None) => unreachable!("Unexpected encoding."),
-            }
-        }
-        EncTermField::TypedLiteral => {
-            let values = objects
-                .child(term_field.type_id())
-                .as_struct()
-                .column_by_name("value")
-                .expect("Schema is fixed")
-                .as_string::<i32>();
-            let datatypes = objects
-                .child(term_field.type_id())
-                .as_struct()
-                .column_by_name("datatype")
-                .expect("Schema is fixed")
-                .as_string::<i32>();
-            Some(Term::Literal(Literal::new_typed_literal(
-                String::from(values.value(i)),
-                NamedNode::new(String::from(datatypes.value(i)))
-                    .map_err(EvaluationError::unexpected)?,
-            )))
-        }
-        EncTermField::Null => None,
-    })
+fn to_term(objects: &UnionArray, i: usize) -> Option<DecodedTerm> {
+    match TermRef::from_enc_array(objects, i) {
+        Ok(value) => Some(value.into_decoded()),
+        Err(_) => None,
+    }
 }
 
 #[cfg(test)]

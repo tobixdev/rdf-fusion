@@ -6,14 +6,15 @@ pub mod scalars;
 mod udfs;
 #[macro_use]
 mod macros;
-mod write_enc_term;
-mod from_encoded_term;
 mod dispatch;
-mod query_evaluation;
+mod from_encoded_term;
 mod logical;
+mod query_evaluation;
+mod write_enc_term;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
+pub use from_encoded_term::FromEncodedTerm;
 pub use model::*;
 use once_cell::unsync::Lazy;
 pub use rdf_term_builder::EncRdfTermBuilder;

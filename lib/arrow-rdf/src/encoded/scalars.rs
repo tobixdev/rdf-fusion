@@ -4,7 +4,7 @@ use crate::DFResult;
 use datafusion::arrow::array::{ArrayRef, StringArray, StructArray};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::{DataFusionError, ScalarValue};
-use datamodel::{BlankNodeRef, Boolean, DayTimeDuration, Decimal, DecodedTermRef, Double, Duration, Float, GraphNameRef, Int, Integer, LiteralRef, NamedNodeRef, SubjectRef, YearMonthDuration};
+use datamodel::{BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, DecodedTermRef, Double, Duration, Float, GraphNameRef, Int, Integer, LiteralRef, NamedNodeRef, SubjectRef, Time, YearMonthDuration};
 use oxrdf::vocab::{rdf, xsd};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -93,6 +93,9 @@ fn try_specialize_literal(literal: LiteralRef<'_>) -> Option<DFResult<ScalarValu
         xsd::DOUBLE => Some(specialize_parsable::<Double>(value)),
         xsd::INTEGER => Some(specialize_parsable::<Integer>(value)),
         xsd::INT => Some(specialize_parsable::<Int>(value)),
+        xsd::DATE_TIME => Some(specialize_parsable::<DateTime>(value)),
+        xsd::TIME => Some(specialize_parsable::<Time>(value)),
+        xsd::DATE => Some(specialize_parsable::<Date>(value)),
         xsd::DURATION => Some(specialize_parsable::<Duration>(value)),
         xsd::YEAR_MONTH_DURATION => Some(specialize_parsable::<YearMonthDuration>(value)),
         xsd::DAY_TIME_DURATION => Some(specialize_parsable::<DayTimeDuration>(value)),

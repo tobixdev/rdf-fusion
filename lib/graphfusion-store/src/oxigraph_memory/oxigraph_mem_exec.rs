@@ -15,7 +15,7 @@ use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
 };
-use datamodel::{DayTimeDuration, Decimal, Duration, YearMonthDuration};
+use datamodel::{Date, DateTime, DayTimeDuration, Decimal, Duration, Time, YearMonthDuration};
 use futures::Stream;
 use oxrdf::vocab::xsd;
 use std::any::Any;
@@ -320,14 +320,13 @@ fn encode_term(
             builder.append_decimal(Decimal::from_be_bytes(v.to_be_bytes()))
         }
         EncodedTerm::DateTimeLiteral(v) => {
-            // timestamp?
-            builder.append_typed_literal(&v.to_string(), xsd::DATE_TIME.as_str())
+            builder.append_date_time(DateTime::from_be_bytes(v.to_be_bytes()))
         }
         EncodedTerm::TimeLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::TIME.as_str())
+            builder.append_time(Time::from_be_bytes(v.to_be_bytes()))
         }
         EncodedTerm::DateLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::DATE.as_str())
+            builder.append_date(Date::from_be_bytes(v.to_be_bytes()))
         }
         EncodedTerm::GYearMonthLiteral(v) => {
             builder.append_typed_literal(&v.to_string(), xsd::G_YEAR_MONTH.as_str())

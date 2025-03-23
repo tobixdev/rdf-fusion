@@ -1,7 +1,7 @@
-use oxrdf::NamedNodeRef;
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Numeric, TermRef};
 use oxrdf::vocab::{rdf, xsd};
+use oxrdf::NamedNodeRef;
 
 #[derive(Debug)]
 pub struct DatatypeRdfOp {}
@@ -20,22 +20,25 @@ impl ScalarUnaryRdfOp for DatatypeRdfOp {
         let datatype = match value {
             TermRef::NamedNode(_) => None,
             TermRef::BlankNode(_) => None,
-            TermRef::SimpleLiteral(_) => Some(xsd::STRING.as_str()),
+            TermRef::SimpleLiteral(_) => Some(xsd::STRING),
             TermRef::NumericLiteral(value) => Some(match value {
-                Numeric::Int(_) => xsd::INT.as_str(),
-                Numeric::Integer(_) => xsd::INTEGER.as_str(),
-                Numeric::Float(_) => xsd::FLOAT.as_str(),
-                Numeric::Double(_) => xsd::DOUBLE.as_str(),
-                Numeric::Decimal(_) => xsd::DECIMAL.as_str(),
+                Numeric::Int(_) => xsd::INT,
+                Numeric::Integer(_) => xsd::INTEGER,
+                Numeric::Float(_) => xsd::FLOAT,
+                Numeric::Double(_) => xsd::DOUBLE,
+                Numeric::Decimal(_) => xsd::DECIMAL,
             }),
-            TermRef::BooleanLiteral(_) => Some(xsd::BOOLEAN.as_str()),
-            TermRef::LanguageStringLiteral(_) => Some(rdf::LANG_STRING.as_str()),
-            TermRef::DurationLiteral(_) => Some(xsd::DURATION.as_str()),
-            TermRef::YearMonthDurationLiteral(_) => Some(xsd::YEAR_MONTH_DURATION.as_str()),
-            TermRef::DayTimeDurationLiteral(_) => Some(xsd::DAY_TIME_DURATION.as_str()),
-            TermRef::TypedLiteral(value) => Some(value.literal_type),
+            TermRef::BooleanLiteral(_) => Some(xsd::BOOLEAN),
+            TermRef::LanguageStringLiteral(_) => Some(rdf::LANG_STRING),
+            TermRef::DateTimeLiteral(_) => Some(xsd::DATE_TIME),
+            TermRef::TimeLiteral(_) => Some(xsd::TIME),
+            TermRef::DateLiteral(_) => Some(xsd::DATE),
+            TermRef::DurationLiteral(_) => Some(xsd::DURATION),
+            TermRef::YearMonthDurationLiteral(_) => Some(xsd::YEAR_MONTH_DURATION),
+            TermRef::DayTimeDurationLiteral(_) => Some(xsd::DAY_TIME_DURATION),
+            TermRef::TypedLiteral(value) => Some(NamedNodeRef::new_unchecked(value.literal_type)),
         }
         .ok_or(())?;
-        Ok(NamedNodeRef::new_unchecked(datatype))
+        Ok(datatype)
     }
 }
