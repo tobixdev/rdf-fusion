@@ -702,15 +702,18 @@ fn create_filter_for_default_graph(graph: Option<&[GraphName]>) -> DFResult<Expr
     graph
         .iter()
         .map(|name| match name {
-            GraphName::NamedNode(nn) => ENC_SAME_TERM.call(vec![
-                col(COL_GRAPH),
-                lit(encode_scalar_named_node(nn.as_ref())),
-            ]),
-            GraphName::BlankNode(bnode) => ENC_SAME_TERM.call(vec![
-                col(COL_GRAPH),
-                lit(encode_scalar_blank_node(bnode.as_ref())),
-            ]),
-            GraphName::DefaultGraph => lit(true)
+            GraphName::NamedNode(nn) => {
+                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM.call(vec![
+                    col(COL_GRAPH),
+                    lit(encode_scalar_named_node(nn.as_ref())),
+                ])])
+            }
+            GraphName::BlankNode(bnode) => ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM
+                .call(vec![
+                    col(COL_GRAPH),
+                    lit(encode_scalar_blank_node(bnode.as_ref())),
+                ])]),
+            GraphName::DefaultGraph => lit(true),
         })
         .reduce(Expr::or)
         .ok_or(plan_datafusion_err!(
@@ -727,10 +730,16 @@ fn create_filter_for_named_graph(graph: Option<&[NamedOrBlankNode]>) -> DFResult
         .iter()
         .map(|name| match name {
             NamedOrBlankNode::NamedNode(nn) => {
-                col(COL_GRAPH).eq(lit(encode_scalar_named_node(nn.as_ref())))
+                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM.call(vec![
+                    col(COL_GRAPH),
+                    lit(encode_scalar_named_node(nn.as_ref())),
+                ])])
             }
             NamedOrBlankNode::BlankNode(bnode) => {
-                col(COL_GRAPH).eq(lit(encode_scalar_blank_node(bnode.as_ref())))
+                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_SAME_TERM.call(vec![
+                    col(COL_GRAPH),
+                    lit(encode_scalar_blank_node(bnode.as_ref())),
+                ])])
             }
         })
         .reduce(Expr::or)
