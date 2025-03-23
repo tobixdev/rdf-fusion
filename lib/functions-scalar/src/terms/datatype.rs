@@ -1,6 +1,6 @@
 use oxrdf::NamedNodeRef;
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{Numeric, TermRef, StringLiteralRef};
+use datamodel::{Numeric, TermRef};
 use oxrdf::vocab::{rdf, xsd};
 
 #[derive(Debug)]

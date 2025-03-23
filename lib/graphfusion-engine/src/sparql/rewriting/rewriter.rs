@@ -7,15 +7,14 @@ use arrow_rdf::encoded::scalars::{
 use arrow_rdf::encoded::{
     enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DECIMAL,
     ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN,
-    ENC_AS_RDF_TERM_SORT, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND,
-    ENC_CEIL, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI,
-    ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE,
-    ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE,
-    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY,
-    ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM,
-    ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN,
-    ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS,
-    ENC_UUID,
+    ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_CONTAINS,
+    ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR,
+    ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI,
+    ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL,
+    ENC_LESS_THAN, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY,
+    ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM, ENC_STR, ENC_STRAFTER,
+    ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID,
+    ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
@@ -252,9 +251,8 @@ impl GraphPatternRewriter {
     }
 
     /// Creates a distinct node over all variables.
-    fn rewrite_distinct(&mut self, inner: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
-        // TODO: Does this use SAME Term?
-        self.rewrite_graph_pattern(inner)?.distinct()
+    fn rewrite_distinct(&mut self, _inner: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
+        plan_err!("Distinct not yet implemented")
     }
 
     /// Creates a distinct node over all variables.
@@ -476,11 +474,11 @@ impl GraphPatternRewriter {
 
     /// Rewrites an [OrderExpression].
     fn rewrite_order_expr(&mut self, expression: &OrderExpression) -> DFResult<SortExpr> {
-        let (asc, expression) = match expression {
+        let (_asc, _expression) = match expression {
             OrderExpression::Asc(inner) => (true, self.rewrite_expr(inner)?),
             OrderExpression::Desc(inner) => (false, self.rewrite_expr(inner)?),
         };
-        Ok(ENC_AS_RDF_TERM_SORT.call(vec![expression]).sort(asc, true))
+        plan_err!("Sorting not yet implemented")
     }
 }
 
