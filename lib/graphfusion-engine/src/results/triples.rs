@@ -4,7 +4,7 @@ use futures::{Stream, StreamExt};
 use oxrdf::{BlankNode, Graph, Term, Triple};
 use sparesults::QuerySolution;
 use spargebra::term::{TermPattern, TriplePattern};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
@@ -28,7 +28,7 @@ pub struct QueryTripleStream {
 
     buffered_results: Vec<Result<Triple, EvaluationError>>,
     already_emitted_results: HashSet<Triple>,
-    bnodes: Vec<BlankNode>,
+    bnodes: HashMap<BlankNode, BlankNode>,
 }
 
 impl QueryTripleStream {
@@ -38,7 +38,7 @@ impl QueryTripleStream {
             inner,
             buffered_results: vec![],
             already_emitted_results: HashSet::new(),
-            bnodes: vec![],
+            bnodes: HashMap::new(),
         }
     }
 
@@ -106,13 +106,15 @@ impl QueryTripleStream {
 fn get_triple_template_value(
     selector: &TermPattern,
     tuple: &QuerySolution,
-    bnodes: &mut Vec<BlankNode>,
+    bnodes: &mut HashMap<BlankNode, BlankNode>,
 ) -> Option<Term> {
     match selector {
         TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
         TermPattern::BlankNode(bnode) => {
-            bnodes.push(bnode.clone());
-            Some(Term::BlankNode(bnode.clone()))
+            if !bnodes.contains_key(bnode) {
+                bnodes.insert(bnode.clone(), BlankNode::default());
+            }
+            Some(Term::BlankNode(bnodes.get(bnode).expect("Ensured by insert").clone()))
         }
         TermPattern::Literal(term) => Some(Term::Literal(term.clone())),
         TermPattern::Variable(v) => tuple.get(v).cloned(),
