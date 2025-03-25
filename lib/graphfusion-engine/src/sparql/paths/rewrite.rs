@@ -4,7 +4,7 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
     encode_scalar_predicate,
 };
-use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EQ, ENC_QUAD_SCHEMA};
+use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_QUAD_SCHEMA, ENC_SAME_TERM};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_SUBJECT, TABLE_QUADS};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{Column, JoinType};
@@ -62,7 +62,7 @@ fn build_path_query(
     match path {
         PropertyPathExpression::NamedNode(node) => {
             let query =
-                scan_quads(graph)?.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
+                scan_quads(graph)?.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
                     col(COL_GRAPH),
                     lit(encode_scalar_predicate(node.as_ref())),
                 ])]))?;
@@ -81,7 +81,7 @@ fn build_path_query(
                 rhs.build()?,
                 JoinType::Inner,
                 [
-                    ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
+                    ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
                         Expr::from(Column {
                             relation: Some("lhs".into()),
                             name: String::from("graph"),
@@ -91,7 +91,7 @@ fn build_path_query(
                             name: String::from("graph"),
                         }),
                     ])]),
-                    ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
+                    ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
                         Expr::from(Column {
                             relation: Some("lhs".into()),
                             name: String::from("end"),
@@ -129,7 +129,7 @@ fn scan_quads(graph: Option<&NamedNodePattern>) -> DFResult<LogicalPlanBuilder> 
     let query = table_scan(Some(TABLE_QUADS), ENC_QUAD_SCHEMA.as_ref(), None)?;
     let query = match graph {
         Some(NamedNodePattern::NamedNode(nn)) => {
-            query.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
+            query.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
                 col(COL_GRAPH),
                 lit(encode_scalar_named_node(nn.as_ref())),
             ])]))?
@@ -149,19 +149,19 @@ fn filter_and_project_term(
 ) -> DFResult<LogicalPlanBuilder> {
     match term {
         TermPattern::NamedNode(nn) => {
-            inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
+            inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
                 col(Column::new_unqualified(column)),
                 lit(encode_scalar_named_node(nn.as_ref())),
             ])]))
         }
         TermPattern::BlankNode(bnode) => {
-            inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
+            inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
                 col(Column::new_unqualified(column)),
                 lit(encode_scalar_blank_node(bnode.as_ref())),
             ])]))
         }
         TermPattern::Literal(literal) => {
-            inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
+            inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
                 col(Column::new_unqualified(column)),
                 lit(encode_scalar_literal(literal.as_ref())?),
             ])]))

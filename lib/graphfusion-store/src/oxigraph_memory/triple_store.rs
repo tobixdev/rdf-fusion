@@ -3,7 +3,7 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
 };
-use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EQ};
+use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_SAME_TERM};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use async_trait::async_trait;
 use datafusion::error::DataFusionError;
@@ -50,23 +50,23 @@ impl MemoryTripleStore {
         let mut matching = quads;
         if let Some(graph_name) = graph_name {
             matching = matching.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
-                ENC_EQ.call(vec![col(COL_GRAPH), lit(encode_scalar_graph(graph_name))]),
+                ENC_SAME_TERM.call(vec![col(COL_GRAPH), lit(encode_scalar_graph(graph_name))]),
             ]))?
         }
         if let Some(subject) = subject {
             matching = matching.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
-                ENC_EQ.call(vec![col(COL_SUBJECT), lit(encode_scalar_subject(subject))]),
+                ENC_SAME_TERM.call(vec![col(COL_SUBJECT), lit(encode_scalar_subject(subject))]),
             ]))?
         }
         if let Some(predicate) = predicate {
-            matching = matching.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_EQ.call(vec![
+            matching = matching.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
                 col(COL_PREDICATE),
                 lit(encode_scalar_predicate(predicate)),
             ])]))?
         }
         if let Some(object) = object {
             matching = matching.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
-                ENC_EQ.call(vec![col(COL_OBJECT), lit(encode_scalar_object(object)?)]),
+                ENC_SAME_TERM.call(vec![col(COL_OBJECT), lit(encode_scalar_object(object)?)]),
             ]))?
         }
 

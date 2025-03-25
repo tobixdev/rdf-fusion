@@ -870,6 +870,6 @@ fn filter_equal_to_scalar(
     }
 
     plan.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
-        ENC_EQ.call(vec![col(Column::new_unqualified(col_name)), lit(filter)]),
+        ENC_SAME_TERM.call(vec![col(Column::new_unqualified(col_name)), lit(filter)]),
     ]))
 }
