@@ -1,6 +1,9 @@
 use crate::sparql::error::EvaluationError;
 use crate::sparql::rewriting::GraphPatternRewriter;
-use crate::sparql::{Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream, QueryTripleStream};
+use crate::sparql::{
+    Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream,
+    QueryTripleStream,
+};
 use arrow_rdf::TABLE_QUADS;
 use datafusion::prelude::{DataFrame, SessionContext};
 use oxiri::Iri;
@@ -18,8 +21,9 @@ pub async fn evaluate_query(
             pattern, base_iri, ..
         } => {
             let dataframe = create_dataframe(ctx, &query.dataset, pattern, base_iri).await?;
+            let variables = create_variables(&dataframe);
             let batch_record_stream = dataframe.execute_stream().await?;
-            let stream = QuerySolutionStream::new(create_variables(pattern), batch_record_stream);
+            let stream = QuerySolutionStream::new(variables, batch_record_stream);
 
             Ok((QueryResults::Solutions(stream), None))
         }
@@ -30,8 +34,9 @@ pub async fn evaluate_query(
             ..
         } => {
             let dataframe = create_dataframe(ctx, &query.dataset, pattern, base_iri).await?;
+            let variables = create_variables(&dataframe);
             let batch_record_stream = dataframe.execute_stream().await?;
-            let stream = QuerySolutionStream::new(create_variables(pattern), batch_record_stream);
+            let stream = QuerySolutionStream::new(variables, batch_record_stream);
 
             Ok((
                 QueryResults::Graph(QueryTripleStream::new(template.clone(), stream)),
@@ -65,8 +70,12 @@ async fn create_dataframe(
     Ok(DataFrame::new(ctx.state(), logical_plan.clone()))
 }
 
-fn create_variables(graph_pattern: &GraphPattern) -> Arc<[Variable]> {
-    let mut variables = Vec::new();
-    graph_pattern.on_in_scope_variable(|v| variables.push(v.clone()));
-    variables.into()
+fn create_variables(data_frame: &DataFrame) -> Arc<[Variable]> {
+    data_frame
+        .schema()
+        .fields()
+        .iter()
+        .map(|f| Variable::new(f.name()).expect("Variables should be created correctly."))
+        .collect::<Vec<_>>()
+        .into()
 }
