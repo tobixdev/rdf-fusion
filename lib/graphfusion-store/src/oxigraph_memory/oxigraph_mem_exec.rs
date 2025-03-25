@@ -299,7 +299,7 @@ fn encode_term(
         }
         EncodedTerm::SmallTypedLiteral { value, datatype_id } => {
             let datatype = load_string(reader, &datatype_id)?;
-            builder.append_typed_literal(&value, &datatype)
+            append_typed_literal(builder, &value, &datatype)
         }
         EncodedTerm::IntegerLiteral(integer) => {
             let value = i64::from_be_bytes(integer.to_be_bytes());
@@ -311,7 +311,7 @@ fn encode_term(
         } => {
             let value = load_string(reader, &value_id)?;
             let datatype = load_string(reader, &datatype_id)?;
-            builder.append_typed_literal(&value, &datatype)
+            append_typed_literal(builder, &value, &datatype)
         }
         EncodedTerm::BooleanLiteral(v) => builder.append_boolean(v.into()),
         EncodedTerm::FloatLiteral(v) => builder.append_float(f32::from(v).into()),
@@ -322,12 +322,8 @@ fn encode_term(
         EncodedTerm::DateTimeLiteral(v) => {
             builder.append_date_time(DateTime::from_be_bytes(v.to_be_bytes()))
         }
-        EncodedTerm::TimeLiteral(v) => {
-            builder.append_time(Time::from_be_bytes(v.to_be_bytes()))
-        }
-        EncodedTerm::DateLiteral(v) => {
-            builder.append_date(Date::from_be_bytes(v.to_be_bytes()))
-        }
+        EncodedTerm::TimeLiteral(v) => builder.append_time(Time::from_be_bytes(v.to_be_bytes())),
+        EncodedTerm::DateLiteral(v) => builder.append_date(Date::from_be_bytes(v.to_be_bytes())),
         EncodedTerm::GYearMonthLiteral(v) => {
             builder.append_typed_literal(&v.to_string(), xsd::G_YEAR_MONTH.as_str())
         }
@@ -357,6 +353,44 @@ fn encode_term(
         }
         EncodedTerm::Triple(_) => unimplemented!("Encode Triple"),
     }
+}
+
+fn append_typed_literal(
+    builder: &mut EncRdfTermBuilder,
+    value: &str,
+    datatype: &str,
+) -> AResult<()> {
+    // Do type promotion.
+    match datatype {
+        "http://www.w3.org/2001/XMLSchema#byte"
+        | "http://www.w3.org/2001/XMLSchema#short"
+        | "http://www.w3.org/2001/XMLSchema#int"
+        | "http://www.w3.org/2001/XMLSchema#long"
+        | "http://www.w3.org/2001/XMLSchema#unsignedByte"
+        | "http://www.w3.org/2001/XMLSchema#unsignedShort"
+        | "http://www.w3.org/2001/XMLSchema#unsignedInt"
+        | "http://www.w3.org/2001/XMLSchema#unsignedLong"
+        | "http://www.w3.org/2001/XMLSchema#positiveInteger"
+        | "http://www.w3.org/2001/XMLSchema#negativeInteger"
+        | "http://www.w3.org/2001/XMLSchema#nonPositiveInteger"
+        | "http://www.w3.org/2001/XMLSchema#nonNegativeInteger" => {
+            match value.parse() {
+                Ok(value) => builder.append_integer(value)?,
+                Err(_) => builder.append_null()?,
+            }
+            return Ok(());
+        }
+        "http://www.w3.org/2001/XMLSchema#dateTimeStamp" => {
+            match value.parse() {
+                Ok(value) => builder.append_date_time(value)?,
+                Err(_) => builder.append_null()?,
+            }
+            return Ok(());
+        }
+        _ => {}
+    }
+
+    builder.append_typed_literal(&value, &datatype)
 }
 
 fn load_string(reader: &MemoryStorageReader, str_id: &StrHash) -> DFResult<String> {
