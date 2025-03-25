@@ -186,9 +186,12 @@ fn query_result_for_parser(
     Ok(match parser {
         ReaderQueryResultsParserOutput::Solutions(s) => {
             let variables: Arc<[Variable]> = s.variables().into();
-            let parser_iter = s
-                .into_iter()
-                .map(|r| r.map_err(|error| Box::new(error) as Box<dyn Error + Send + Sync>));
+            let parser_iter = s.into_iter().map(|r| {
+                r.map_err(|error| {
+                    let error: Box<dyn Error + Send + Sync> = Box::new(error);
+                    error
+                })
+            });
             query_result_for_iterator(variables, parser_iter)?
         }
         ReaderQueryResultsParserOutput::Boolean(v) => QueryResults::Boolean(v),

@@ -1,3 +1,5 @@
+#![allow(dead_code)] // We want to keep this as close to the original as possible
+
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::encoder::{insert_term, Decoder, EncodedQuad, StrLookup};
 use crate::oxigraph_memory::hash::{StrHash, StrHashHasher};

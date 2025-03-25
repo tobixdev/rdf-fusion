@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{DateTime, Int, Numeric, TermRef};
+use datamodel::{DateTime, TermRef};
 
 #[derive(Debug)]
 pub struct AsDateTimeRdfOp {}
