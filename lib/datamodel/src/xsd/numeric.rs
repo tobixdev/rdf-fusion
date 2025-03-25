@@ -93,7 +93,7 @@ impl NumericPair {
             (Numeric::Integer(lhs), Numeric::Int(rhs)) => NumericPair::Integer(lhs, rhs.into()),
             (Numeric::Integer(lhs), Numeric::Integer(rhs)) => NumericPair::Integer(lhs, rhs),
             (Numeric::Integer(lhs), Numeric::Float(rhs)) => {
-                NumericPair::Double(lhs.into(), rhs.into())
+                NumericPair::Float(lhs.into(), rhs.into())
             }
             (Numeric::Integer(lhs), Numeric::Double(rhs)) => NumericPair::Double(lhs.into(), rhs),
             (Numeric::Integer(lhs), Numeric::Decimal(rhs)) => {
@@ -102,7 +102,7 @@ impl NumericPair {
 
             (Numeric::Float(lhs), Numeric::Int(rhs)) => NumericPair::Float(lhs, rhs.into()),
             (Numeric::Float(lhs), Numeric::Integer(rhs)) => {
-                NumericPair::Double(lhs.into(), rhs.into())
+                NumericPair::Float(lhs.into(), rhs.into())
             }
             (Numeric::Float(lhs), Numeric::Float(rhs)) => NumericPair::Float(lhs, rhs),
             (Numeric::Float(lhs), Numeric::Double(rhs)) => NumericPair::Double(lhs.into(), rhs),
