@@ -618,7 +618,7 @@ fn create_join(
         filter_expr,
         false,
     )?
-    .project(projections)
+        .project(projections)
 }
 
 fn use_lhs_or_rhs(lhs_keys: &HashSet<String>, k: &str) -> Expr {
@@ -627,7 +627,7 @@ fn use_lhs_or_rhs(lhs_keys: &HashSet<String>, k: &str) -> Expr {
     } else {
         Expr::from(Column::new(Some("rhs"), k))
     }
-    .alias(k)
+        .alias(k)
 }
 
 /// Adds filter operations that constraints the solutions of patterns that use literals.
