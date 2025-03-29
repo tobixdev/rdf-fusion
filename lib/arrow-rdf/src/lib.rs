@@ -7,7 +7,7 @@ use datafusion::error::DataFusionError;
 
 pub mod encoded;
 pub mod error;
-mod sorting;
+mod struct_encoded;
 
 pub const TABLE_QUADS: &str = "quads";
 pub const COL_GRAPH: &str = "graph";

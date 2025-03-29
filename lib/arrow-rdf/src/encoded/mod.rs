@@ -1,7 +1,7 @@
 mod encoding;
 mod model;
 mod rdf_ops;
-mod rdf_term_builder;
+mod builder;
 pub mod scalars;
 mod udfs;
 #[macro_use]
@@ -17,7 +17,7 @@ use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 pub use from_encoded_term::FromEncodedTerm;
 pub use model::*;
 use once_cell::unsync::Lazy;
-pub use rdf_term_builder::EncRdfTermBuilder;
+pub use builder::EncRdfTermBuilder;
 
 // Functions
 pub use encoding::*;

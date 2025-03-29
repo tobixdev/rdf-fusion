@@ -8,7 +8,8 @@ use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use async_trait::async_trait;
 use datafusion::error::DataFusionError;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
-use datafusion::logical_expr::{col, lit, LogicalPlan};
+use datafusion::functions_aggregate::first_last::FirstValue;
+use datafusion::logical_expr::{col, lit, AggregateUDF, LogicalPlan};
 use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::QueryResults;
@@ -28,6 +29,7 @@ pub struct MemoryTripleStore {
 impl MemoryTripleStore {
     pub async fn new() -> Result<Self, StorageError> {
         let state = SessionStateBuilder::new()
+            .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
             .with_analyzer_rule(Arc::new(PathToJoinsRule::default()))
             .build();
         let ctx = SessionContext::from(state);
@@ -59,10 +61,11 @@ impl MemoryTripleStore {
             ]))?
         }
         if let Some(predicate) = predicate {
-            matching = matching.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                col(COL_PREDICATE),
-                lit(encode_scalar_predicate(predicate)),
-            ])]))?
+            matching =
+                matching.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
+                    col(COL_PREDICATE),
+                    lit(encode_scalar_predicate(predicate)),
+                ])]))?
         }
         if let Some(object) = object {
             matching = matching.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![

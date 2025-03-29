@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{Numeric, TermRef, StringLiteralRef};
+use datamodel::{Numeric, TermRef};
 use oxrdf::vocab::{rdf, xsd};
 use oxrdf::NamedNodeRef;
 

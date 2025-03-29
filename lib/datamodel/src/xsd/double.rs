@@ -101,6 +101,19 @@ impl RdfValueRef<'_> for Double {
     }
 }
 
+impl From<Numeric> for Double {
+    #[inline]
+    fn from(value: Numeric) -> Self {
+        match value {
+            Numeric::Int(value) => value.into(),
+            Numeric::Integer(value) => value.into(),
+            Numeric::Float(value) => value.into(),
+            Numeric::Double(value) => value.into(),
+            Numeric::Decimal(value) => value.into(),
+        }
+    }
+}
+
 impl From<Double> for f64 {
     #[inline]
     fn from(value: Double) -> Self {
