@@ -12,11 +12,11 @@ use std::any::Any;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct EncAsStructEncoding {
+pub struct EncWithStructEncoding {
     signature: Signature,
 }
 
-impl EncAsStructEncoding {
+impl EncWithStructEncoding {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -27,13 +27,13 @@ impl EncAsStructEncoding {
     }
 }
 
-impl ScalarUDFImpl for EncAsStructEncoding {
+impl ScalarUDFImpl for EncWithStructEncoding {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_as_struct_encoding"
+        "enc_with_struct_encoding"
     }
 
     fn signature(&self) -> &Signature {

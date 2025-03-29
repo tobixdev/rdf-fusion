@@ -7,15 +7,15 @@ use arrow_rdf::encoded::scalars::{
 use arrow_rdf::encoded::{
     enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME,
     ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN,
-    ENC_AS_STRUCT_ENCODING, ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY,
-    ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV,
-    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL,
-    ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC,
-    ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_OR,
-    ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY,
-    ENC_ROUND, ENC_SAME_TERM, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS,
-    ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE,
-    ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID,
+    ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND,
+    ENC_CEIL, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI,
+    ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE,
+    ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE,
+    ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY,
+    ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM,
+    ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN,
+    ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS,
+    ENC_UUID, ENC_WITH_STRUCT_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
@@ -253,20 +253,22 @@ impl GraphPatternRewriter {
 
     /// Creates a distinct node over all variables.
     fn rewrite_distinct(&mut self, inner: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
+        let sort_expr = get_sort_expressions(inner);
+
         let inner = self.rewrite_graph_pattern(inner)?;
-
         let columns = inner.schema().columns();
-        let on_expr = columns
-            .iter()
-            .map(|c| {
-                ENC_AS_STRUCT_ENCODING
-                    .call(vec![Expr::Column(c.clone())])
-                    .alias(c.name())
-            })
-            .collect();
+        let on_expr = create_distinct_on_expr(inner.schema(), sort_expr)?;
         let select_expr = columns.iter().map(|c| Expr::Column(c.clone())).collect();
+        let sort_expr = sort_expr
+            .map(|exprs| {
+                exprs
+                    .iter()
+                    .map(|expr| self.rewrite_order_expr(expr))
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
 
-        inner.distinct_on(on_expr, select_expr, None)
+        inner.distinct_on(on_expr, select_expr, sort_expr)
     }
 
     /// Creates a distinct node over all variables.
@@ -490,11 +492,13 @@ impl GraphPatternRewriter {
 
     /// Rewrites an [OrderExpression].
     fn rewrite_order_expr(&mut self, expression: &OrderExpression) -> DFResult<SortExpr> {
-        let (_asc, _expression) = match expression {
+        let (asc, expression) = match expression {
             OrderExpression::Asc(inner) => (true, self.rewrite_expr(inner)?),
             OrderExpression::Desc(inner) => (false, self.rewrite_expr(inner)?),
         };
-        plan_err!("Sorting not yet implemented")
+        Ok(ENC_WITH_STRUCT_ENCODING
+            .call(vec![expression])
+            .sort(asc, true))
     }
 }
 
@@ -885,4 +889,63 @@ fn filter_equal_to_scalar(
     plan.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
         ENC_SAME_TERM.call(vec![col(Column::new_unqualified(col_name)), lit(filter)]),
     ]))
+}
+
+/// Extracts sort expressions from possible solution modifiers.
+fn get_sort_expressions(graph_pattern: &GraphPattern) -> Option<&Vec<OrderExpression>> {
+    match graph_pattern {
+        GraphPattern::OrderBy { expression, .. } => Some(expression),
+        GraphPattern::Project { inner, .. } => get_sort_expressions(inner),
+        GraphPattern::Distinct { inner, .. } => get_sort_expressions(inner),
+        GraphPattern::Reduced { inner, .. } => get_sort_expressions(inner),
+        GraphPattern::Slice { inner, .. } => get_sort_expressions(inner),
+        _ => None,
+    }
+}
+
+/// Creates the `on_expr` for a DISTINCT ON operation. This function ensures that the first
+/// expressions in the results aligns with `sort_exprs`, if present.
+fn create_distinct_on_expr(
+    schema: &DFSchema,
+    sort_exprs: Option<&Vec<OrderExpression>>,
+) -> DFResult<Vec<Expr>> {
+    let Some(sort_exprs) = sort_exprs else {
+        return Ok(schema
+            .columns()
+            .iter()
+            .map(|c| {
+                ENC_WITH_STRUCT_ENCODING
+                    .call(vec![Expr::Column(c.clone())])
+                    .alias(c.name())
+            })
+            .collect());
+    };
+
+    let mut on_exprs = create_initial_columns_from_sort(sort_exprs)?;
+    for column in schema.columns() {
+        if !on_exprs.contains(&column) {
+            on_exprs.push(column.clone());
+        }
+    }
+
+    Ok(on_exprs
+        .into_iter()
+        .map(|c| ENC_WITH_STRUCT_ENCODING.call(vec![Expr::Column(c)]))
+        .collect())
+}
+
+/// When creating a DISTINCT ON node, the initial `on_expr` expressions must match the given
+/// `sort_expr` (if they exist). This function creates these initial columns from the order
+/// expressions.
+fn create_initial_columns_from_sort(sort_exprs: &Vec<OrderExpression>) -> DFResult<Vec<Column>> {
+    sort_exprs
+        .iter()
+        .map(|sort_expr| match sort_expr.expression() {
+            Expression::Variable(var) => Ok(Column::new_unqualified(var.as_str())),
+            _ => plan_err!(
+                "Expression {} not supported for ORDER BY in combination with DISTINCT.",
+                sort_expr
+            ),
+        })
+        .collect::<DFResult<Vec<_>>>()
 }
