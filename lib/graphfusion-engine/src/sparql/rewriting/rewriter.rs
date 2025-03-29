@@ -382,16 +382,16 @@ impl GraphPatternRewriter {
             Expression::NamedNode(nn) => Ok(Expr::Literal(encode_scalar_named_node(nn.as_ref()))),
             Expression::Or(lhs, rhs) => logical_expression(self, Operator::Or, lhs, rhs),
             Expression::And(lhs, rhs) => logical_expression(self, Operator::And, lhs, rhs),
-            Expression::In(_, _) => unimplemented!("Expression::In"),
+            Expression::In(_, _) => plan_err!("Expression::In not implemented"),
             Expression::Add(lhs, rhs) => binary_udf(self, &ENC_ADD, lhs, rhs),
             Expression::Subtract(lhs, rhs) => binary_udf(self, &ENC_SUB, lhs, rhs),
             Expression::Multiply(lhs, rhs) => binary_udf(self, &ENC_MUL, lhs, rhs),
             Expression::Divide(lhs, rhs) => binary_udf(self, &ENC_DIV, lhs, rhs),
             Expression::UnaryPlus(value) => unary_udf(self, &ENC_UNARY_PLUS, value),
             Expression::UnaryMinus(value) => unary_udf(self, &ENC_UNARY_MINUS, value),
-            Expression::Exists(_) => unimplemented!("Expression::Exists"),
-            Expression::If(_, _, _) => unimplemented!("Expression::If"),
-            Expression::Coalesce(_) => unimplemented!("Expression::Coalesce"),
+            Expression::Exists(_) => plan_err!("Expression::Exists not implemented"),
+            Expression::If(_, _, _) => plan_err!("Expression::If not implemented"),
+            Expression::Coalesce(_) => plan_err!("Expression::Coalesce not implemented"),
         }
     }
 
