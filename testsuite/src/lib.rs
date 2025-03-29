@@ -10,18 +10,13 @@ mod vocab;
 
 use crate::evaluator::TestEvaluator;
 use crate::manifest::TestManifest;
-use crate::parser_evaluator::register_parser_tests;
-use crate::sparql_evaluator::register_sparql_tests;
 use anyhow::Result;
 
 #[allow(clippy::panic_in_result_fn)]
-pub fn check_testsuite(manifest_url: &str, ignored_tests: &[&str]) -> Result<()> {
-    let mut evaluator = TestEvaluator::new();
-    register_parser_tests(&mut evaluator);
-    register_sparql_tests(&mut evaluator);
-
+pub async fn check_testsuite(manifest_url: &str, ignored_tests: &[&str]) -> Result<()> {
+    let evaluator = TestEvaluator::new();
     let manifest = TestManifest::new([manifest_url]);
-    let results = evaluator.evaluate(manifest)?;
+    let results = evaluator.evaluate(manifest).await?;
     let test_count = results.len();
 
     let mut errors = Vec::default();

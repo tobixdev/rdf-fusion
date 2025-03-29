@@ -3,18 +3,18 @@
 use anyhow::Result;
 use oxigraph_testsuite::check_testsuite;
 
-#[test]
-fn sparql10_w3c_query_syntax_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql10_w3c_query_syntax_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/sparql/sparql10/manifest-syntax.ttl",
         &[
             "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/syntax-sparql3/manifest#syn-bad-26", /* tokenizer */
         ],
-    )
+    ).await
 }
 
-#[test]
-fn sparql10_w3c_query_evaluation_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql10_w3c_query_evaluation_testsuite() -> Result<()> {
     check_testsuite("https://w3c.github.io/rdf-tests/sparql/sparql10/manifest-evaluation.ttl", &[
         //Multiple writing of the same xsd:integer. Our system does strong normalization.
         "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/distinct/manifest#distinct-1",
@@ -45,11 +45,11 @@ fn sparql10_w3c_query_evaluation_testsuite() -> Result<()> {
         // This test relies on naive iteration on the input file
         "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/reduced/manifest#reduced-1",
         "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/reduced/manifest#reduced-2"
-    ])
+    ]).await
 }
 
-#[test]
-fn sparql11_query_w3c_evaluation_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql11_query_w3c_evaluation_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/sparql/sparql11/manifest-sparql11-query.ttl",
         &[
@@ -58,41 +58,41 @@ fn sparql11_query_w3c_evaluation_testsuite() -> Result<()> {
             // SERVICE name from a BGP
             "http://www.w3.org/2009/sparql/docs/tests/data-sparql11/service/manifest#service5",
         ],
-    )
+    ).await
 }
 
-#[test]
-fn sparql11_federation_w3c_evaluation_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql11_federation_w3c_evaluation_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/sparql/sparql11/manifest-sparql11-fed.ttl",
         &[
             // Problem during service evaluation order
             "http://www.w3.org/2009/sparql/docs/tests/data-sparql11/service/manifest#service5",
         ],
-    )
+    ).await
 }
 
-#[test]
-fn sparql11_update_w3c_evaluation_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql11_update_w3c_evaluation_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/sparql/sparql11/manifest-sparql11-update.ttl",
         &[
             // We allow multiple INSERT DATA with the same blank nodes
             "http://www.w3.org/2009/sparql/docs/tests/data-sparql11/syntax-update-1/manifest#test_54",
         ],
-    )
+    ).await
 }
 
-#[test]
-fn sparql11_json_w3c_evaluation_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql11_json_w3c_evaluation_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/sparql/sparql11/json-res/manifest.ttl",
         &[],
-    )
+    ).await
 }
 
-#[test]
-fn sparql11_tsv_w3c_evaluation_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql11_tsv_w3c_evaluation_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/sparql/sparql11/csv-tsv-res/manifest.ttl",
         &[
@@ -101,32 +101,32 @@ fn sparql11_tsv_w3c_evaluation_testsuite() -> Result<()> {
             "http://www.w3.org/2009/sparql/docs/tests/data-sparql11/csv-tsv-res/manifest#csv02",
             "http://www.w3.org/2009/sparql/docs/tests/data-sparql11/csv-tsv-res/manifest#csv03",
         ],
-    )
+    ).await
 }
 
-#[test]
-fn sparql12_w3c_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql12_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/sparql/sparql12/manifest.ttl",
         &[
             // Literal normalization
             "https://w3c.github.io/rdf-tests/sparql/sparql12/grouping#group01",
         ],
-    )
+    ).await
 }
 
-#[test]
-fn sparql_star_syntax_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql_star_syntax_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-star/tests/sparql/syntax/manifest.ttl",
         &[],
-    )
+    ).await
 }
 
-#[test]
-fn sparql_star_eval_testsuite() -> Result<()> {
+#[tokio::test]
+async fn sparql_star_eval_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-star/tests/sparql/eval/manifest.ttl",
         &[],
-    )
+    ).await
 }

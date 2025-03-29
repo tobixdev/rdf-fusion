@@ -3,9 +3,7 @@ use anyhow::Result;
 use clap::Parser;
 use oxigraph_testsuite::evaluator::TestEvaluator;
 use oxigraph_testsuite::manifest::TestManifest;
-use oxigraph_testsuite::parser_evaluator::register_parser_tests;
 use oxigraph_testsuite::report::build_report;
-use oxigraph_testsuite::sparql_evaluator::register_sparql_tests;
 
 #[derive(Parser)]
 /// Oxigraph testsuite runner
@@ -14,14 +12,13 @@ struct Args {
     manifest: Vec<String>,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let matches = Args::parse();
 
-    let mut evaluator = TestEvaluator::new();
-    register_parser_tests(&mut evaluator);
-    register_sparql_tests(&mut evaluator);
+    let evaluator = TestEvaluator::new();
     let manifest = TestManifest::new(matches.manifest);
-    let results = evaluator.evaluate(manifest)?;
+    let results = evaluator.evaluate(manifest).await?;
     print!("{}", build_report(results));
     Ok(())
 }

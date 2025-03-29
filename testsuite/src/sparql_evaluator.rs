@@ -1,4 +1,3 @@
-use crate::evaluator::TestEvaluator;
 use crate::files::*;
 use crate::manifest::*;
 use crate::report::{dataset_diff, format_diff};
@@ -16,64 +15,8 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::io::Cursor;
 use std::str::FromStr;
-use tokio::runtime::Runtime;
 
-pub fn register_sparql_tests(evaluator: &mut TestEvaluator) {
-    evaluator.register(
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#PositiveSyntaxTest",
-        evaluate_positive_syntax_test,
-    );
-    evaluator.register(
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#PositiveSyntaxTest11",
-        evaluate_positive_syntax_test,
-    );
-    evaluator.register(
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#NegativeSyntaxTest",
-        evaluate_negative_syntax_test,
-    );
-    evaluator.register(
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#NegativeSyntaxTest11",
-        evaluate_negative_syntax_test,
-    );
-    evaluator.register(
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#QueryEvaluationTest",
-        evaluate_evaluation_test,
-    );
-    evaluator.register(
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#PositiveUpdateSyntaxTest11",
-        evaluate_positive_update_syntax_test,
-    );
-    evaluator.register(
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#NegativeUpdateSyntaxTest11",
-        evaluate_negative_update_syntax_test,
-    );
-    evaluator.register(
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#UpdateEvaluationTest",
-        evaluate_update_evaluation_test,
-    );
-    evaluator.register(
-        "https://github.com/oxigraph/oxigraph/tests#PositiveJsonResultsSyntaxTest",
-        |r, t| evaluate_positive_result_syntax_test(r, t, QueryResultsFormat::Json),
-    );
-    evaluator.register(
-        "https://github.com/oxigraph/oxigraph/tests#NegativeJsonResultsSyntaxTest",
-        |r, t| evaluate_negative_result_syntax_test(r, t, QueryResultsFormat::Json),
-    );
-    evaluator.register(
-        "https://github.com/oxigraph/oxigraph/tests#PositiveXmlResultsSyntaxTest",
-        |r, t| evaluate_positive_result_syntax_test(r, t, QueryResultsFormat::Xml),
-    );
-    evaluator.register(
-        "https://github.com/oxigraph/oxigraph/tests#NegativeXmlResultsSyntaxTest",
-        |r, t| evaluate_negative_result_syntax_test(r, t, QueryResultsFormat::Xml),
-    );
-    evaluator.register(
-        "https://github.com/oxigraph/oxigraph/tests#NegativeTsvResultsSyntaxTest",
-        |r, t| evaluate_negative_result_syntax_test(r, t, QueryResultsFormat::Tsv),
-    );
-}
-
-fn evaluate_positive_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
+pub fn sparql_evaluate_positive_syntax_test(test: &Test) -> Result<()> {
     let query_file = test.action.as_deref().context("No action found")?;
     let query = Query::parse(&read_file_to_string(query_file)?, Some(query_file))
         .context("Not able to parse")?;
@@ -82,7 +25,7 @@ fn evaluate_positive_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
     Ok(())
 }
 
-fn evaluate_negative_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
+pub fn sparql_evaluate_negative_syntax_test(test: &Test) -> Result<()> {
     let query_file = test.action.as_deref().context("No action found")?;
     ensure!(
         Query::parse(&read_file_to_string(query_file)?, Some(query_file)).is_err(),
@@ -91,116 +34,106 @@ fn evaluate_negative_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
     Ok(())
 }
 
-fn evaluate_positive_result_syntax_test(
-    runtime: &Runtime,
+pub async fn sparql_evaluate_positive_result_syntax_test(
     test: &Test,
     format: QueryResultsFormat,
 ) -> Result<()> {
-    runtime.block_on(async {
-        let action_file = test.action.as_deref().context("No action found")?;
-        let actual_results = StaticQueryResults::from_query_results(
-            QueryResults::read(read_file(action_file)?, format)?,
+    let action_file = test.action.as_deref().context("No action found")?;
+    let actual_results = StaticQueryResults::from_query_results(
+        QueryResults::read(read_file(action_file)?, format)?,
+        true,
+    )
+    .await?;
+    if let Some(result_file) = test.result.as_deref() {
+        let expected_results = StaticQueryResults::from_query_results(
+            QueryResults::read(read_file(result_file)?, format)?,
             true,
         )
         .await?;
-        if let Some(result_file) = test.result.as_deref() {
-            let expected_results = StaticQueryResults::from_query_results(
-                QueryResults::read(read_file(result_file)?, format)?,
-                true,
-            )
-            .await?;
-            ensure!(
-                are_query_results_isomorphic(&expected_results, &actual_results),
-                "Not isomorphic results:\n{}\n",
-                results_diff(expected_results, actual_results),
-            );
-        }
-        Ok(())
-    })
+        ensure!(
+            are_query_results_isomorphic(&expected_results, &actual_results),
+            "Not isomorphic results:\n{}\n",
+            results_diff(expected_results, actual_results),
+        );
+    }
+    Ok(())
 }
 
-fn evaluate_negative_result_syntax_test(
-    runtime: &Runtime,
+pub async fn sparql_evaluate_negative_result_syntax_test(
     test: &Test,
     format: QueryResultsFormat,
 ) -> Result<()> {
-    runtime.block_on(async {
-        let action_file = test.action.as_deref().context("No action found")?;
-        let query_results =
-            QueryResults::read(Cursor::new(read_file_to_string(action_file)?), format)
-                .map_err(Error::from)?;
-        let static_results = StaticQueryResults::from_query_results(query_results, true).await;
-        ensure!(
-            static_results.is_err(),
-            "Oxigraph parses even if it should not."
-        );
-        Ok(())
-    })
+    let action_file = test.action.as_deref().context("No action found")?;
+    let query_results = QueryResults::read(Cursor::new(read_file_to_string(action_file)?), format)
+        .map_err(Error::from)?;
+    let static_results = StaticQueryResults::from_query_results(query_results, true).await;
+    ensure!(
+        static_results.is_err(),
+        "Oxigraph parses even if it should not."
+    );
+    Ok(())
 }
 
-fn evaluate_evaluation_test(runtime: &Runtime, test: &Test) -> Result<()> {
-    runtime.block_on(async {
-        let store = Store::new().await?;
-        if let Some(data) = &test.data {
-            load_to_store(data, &store, GraphName::DefaultGraph).await?;
+pub async fn sparql_evaluate_evaluation_test(test: &Test) -> Result<()> {
+    let store = Store::new().await?;
+    if let Some(data) = &test.data {
+        load_to_store(data, &store, GraphName::DefaultGraph).await?;
+    }
+    for (name, value) in &test.graph_data {
+        load_to_store(value, &store, name.clone()).await?;
+    }
+    let query_file = test.query.as_deref().context("No action found")?;
+    let options = QueryOptions::default();
+    let query = Query::parse(&read_file_to_string(query_file)?, Some(query_file))
+        .context("Failure to parse query")?;
+
+    // We check parsing roundtrip
+    Query::parse(&query.to_string(), None)
+        .with_context(|| format!("Failure to deserialize \"{query}\""))?;
+
+    // FROM and FROM NAMED support. We make sure the data is in the store
+    if !query.dataset().is_default_dataset() {
+        for graph_name in query.dataset().default_graph_graphs().unwrap_or(&[]) {
+            let GraphName::NamedNode(graph_name) = graph_name else {
+                bail!("Invalid FROM in query {query}");
+            };
+            load_to_store(graph_name.as_str(), &store, graph_name.as_ref()).await?;
         }
-        for (name, value) in &test.graph_data {
-            load_to_store(value, &store, name.clone()).await?;
+        for graph_name in query.dataset().available_named_graphs().unwrap_or(&[]) {
+            let NamedOrBlankNode::NamedNode(graph_name) = graph_name else {
+                bail!("Invalid FROM NAMED in query {query}");
+            };
+            load_to_store(graph_name.as_str(), &store, graph_name.as_ref()).await?;
         }
-        let query_file = test.query.as_deref().context("No action found")?;
-        let options = QueryOptions::default();
-        let query = Query::parse(&read_file_to_string(query_file)?, Some(query_file))
-            .context("Failure to parse query")?;
+    }
 
-        // We check parsing roundtrip
-        Query::parse(&query.to_string(), None)
-            .with_context(|| format!("Failure to deserialize \"{query}\""))?;
+    let expected_results = load_sparql_query_result(test.result.as_ref().unwrap())
+        .await
+        .context("Error constructing expected graph")?;
+    let with_order = if let StaticQueryResults::Solutions { ordered, .. } = &expected_results {
+        *ordered
+    } else {
+        false
+    };
 
-        // FROM and FROM NAMED support. We make sure the data is in the store
-        if !query.dataset().is_default_dataset() {
-            for graph_name in query.dataset().default_graph_graphs().unwrap_or(&[]) {
-                let GraphName::NamedNode(graph_name) = graph_name else {
-                    bail!("Invalid FROM in query {query}");
-                };
-                load_to_store(graph_name.as_str(), &store, graph_name.as_ref()).await?;
-            }
-            for graph_name in query.dataset().available_named_graphs().unwrap_or(&[]) {
-                let NamedOrBlankNode::NamedNode(graph_name) = graph_name else {
-                    bail!("Invalid FROM NAMED in query {query}");
-                };
-                load_to_store(graph_name.as_str(), &store, graph_name.as_ref()).await?;
-            }
-        }
+    let options = options.clone();
+    let actual_results = store
+        .query_opt(query.clone(), options)
+        .await
+        .context("Failure to execute query")?;
+    let actual_results = StaticQueryResults::from_query_results(actual_results, with_order).await?;
 
-        let expected_results = load_sparql_query_result(test.result.as_ref().unwrap())
-            .await
-            .context("Error constructing expected graph")?;
-        let with_order = if let StaticQueryResults::Solutions { ordered, .. } = &expected_results {
-            *ordered
-        } else {
-            false
-        };
-
-        let options = options.clone();
-        let actual_results = store
-            .query_opt(query.clone(), options)
-            .await
-            .context("Failure to execute query")?;
-        let actual_results =
-            StaticQueryResults::from_query_results(actual_results, with_order).await?;
-
-        ensure!(
-            are_query_results_isomorphic(&expected_results, &actual_results),
-            "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{:?}\n",
-            results_diff(expected_results, actual_results),
-            Query::parse(&read_file_to_string(query_file)?, Some(query_file))?,
-            store.stream().await?.try_collect().await?
-        );
-        Ok(())
-    })
+    ensure!(
+        are_query_results_isomorphic(&expected_results, &actual_results),
+        "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{:?}\n",
+        results_diff(expected_results, actual_results),
+        Query::parse(&read_file_to_string(query_file)?, Some(query_file))?,
+        store.stream().await?.try_collect().await?
+    );
+    Ok(())
 }
 
-fn evaluate_positive_update_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
+pub fn sparql_evaluate_positive_update_syntax_test(test: &Test) -> Result<()> {
     let update_file = test.action.as_deref().context("No action found")?;
     let update = Update::parse(&read_file_to_string(update_file)?, Some(update_file))
         .context("Not able to parse")?;
@@ -209,7 +142,7 @@ fn evaluate_positive_update_syntax_test(_: &Runtime, test: &Test) -> Result<()> 
     Ok(())
 }
 
-fn evaluate_negative_update_syntax_test(_: &Runtime, test: &Test) -> Result<()> {
+pub fn sparql_evaluate_negative_update_syntax_test(test: &Test) -> Result<()> {
     let update_file = test.action.as_deref().context("No action found")?;
     ensure!(
         Update::parse(&read_file_to_string(update_file)?, Some(update_file)).is_err(),
@@ -218,57 +151,55 @@ fn evaluate_negative_update_syntax_test(_: &Runtime, test: &Test) -> Result<()> 
     Ok(())
 }
 
-fn evaluate_update_evaluation_test(runtime: &Runtime, test: &Test) -> Result<()> {
-    runtime.block_on(async {
-        let store = Store::new().await?;
-        if let Some(data) = &test.data {
-            load_to_store(data, &store, GraphName::DefaultGraph).await?;
-        }
-        for (name, value) in &test.graph_data {
-            load_to_store(value, &store, name.clone()).await?;
-        }
+pub async fn sparql_evaluate_update_evaluation_test(test: &Test) -> Result<()> {
+    let store = Store::new().await?;
+    if let Some(data) = &test.data {
+        load_to_store(data, &store, GraphName::DefaultGraph).await?;
+    }
+    for (name, value) in &test.graph_data {
+        load_to_store(value, &store, name.clone()).await?;
+    }
 
-        let result_store = Store::new().await?;
-        if let Some(data) = &test.result {
-            load_to_store(data, &result_store, GraphName::DefaultGraph).await?;
-        }
-        for (name, value) in &test.result_graph_data {
-            load_to_store(value, &result_store, name.clone()).await?;
-        }
+    let result_store = Store::new().await?;
+    if let Some(data) = &test.result {
+        load_to_store(data, &result_store, GraphName::DefaultGraph).await?;
+    }
+    for (name, value) in &test.result_graph_data {
+        load_to_store(value, &result_store, name.clone()).await?;
+    }
 
-        let update_file = test.update.as_deref().context("No action found")?;
-        let update = Update::parse(&read_file_to_string(update_file)?, Some(update_file))
-            .context("Failure to parse update")?;
+    let update_file = test.update.as_deref().context("No action found")?;
+    let update = Update::parse(&read_file_to_string(update_file)?, Some(update_file))
+        .context("Failure to parse update")?;
 
-        // We check parsing roundtrip
-        Update::parse(&update.to_string(), None)
-            .with_context(|| format!("Failure to deserialize \"{update}\""))?;
+    // We check parsing roundtrip
+    Update::parse(&update.to_string(), None)
+        .with_context(|| format!("Failure to deserialize \"{update}\""))?;
 
-        store.update(update).context("Failure to execute update")?;
-        let mut store_dataset: Dataset = store
-            .stream()
-            .await?
-            .try_collect()
-            .await?
-            .into_iter()
-            .collect();
-        store_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
-        let mut result_store_dataset: Dataset = result_store
-            .stream()
-            .await?
-            .try_collect()
-            .await?
-            .into_iter()
-            .collect();
-        result_store_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
-        ensure!(
-            store_dataset == result_store_dataset,
-            "Not isomorphic result dataset.\nDiff:\n{}\nParsed update:\n{}\n",
-            dataset_diff(&result_store_dataset, &store_dataset),
-            Update::parse(&read_file_to_string(update_file)?, Some(update_file)).unwrap(),
-        );
-        Ok(())
-    })
+    store.update(update).context("Failure to execute update")?;
+    let mut store_dataset: Dataset = store
+        .stream()
+        .await?
+        .try_collect()
+        .await?
+        .into_iter()
+        .collect();
+    store_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
+    let mut result_store_dataset: Dataset = result_store
+        .stream()
+        .await?
+        .try_collect()
+        .await?
+        .into_iter()
+        .collect();
+    result_store_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
+    ensure!(
+        store_dataset == result_store_dataset,
+        "Not isomorphic result dataset.\nDiff:\n{}\nParsed update:\n{}\n",
+        dataset_diff(&result_store_dataset, &store_dataset),
+        Update::parse(&read_file_to_string(update_file)?, Some(update_file)).unwrap(),
+    );
+    Ok(())
 }
 
 async fn load_sparql_query_result(url: &str) -> Result<StaticQueryResults> {
