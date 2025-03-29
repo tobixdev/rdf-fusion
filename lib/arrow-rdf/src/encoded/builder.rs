@@ -227,7 +227,7 @@ impl EncRdfTermBuilder {
 
         let day_time_builder = self
             .duration_builder
-            .field_builder::<Decimal128Builder>(0)
+            .field_builder::<Decimal128Builder>(1)
             .unwrap();
         if let Some(day_time) = day_time {
             day_time_builder.append_value(day_time.as_seconds().as_i128());
