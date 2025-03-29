@@ -21,6 +21,18 @@ impl ScalarBinaryRdfOp for SubStrRdfOp {
         arg_rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
         let index = usize::try_from(arg_rhs.try_as_i64()?).map_err(|_| ())?;
-        Ok(StringLiteralRef(&arg_lhs.0[index..], arg_lhs.1))
+
+        // We want to slice on char indices, not byte indices
+        let mut start_iter = arg_lhs.0
+            .char_indices()
+            .skip(index.checked_sub(1).ok_or(())?)
+            .peekable();
+        let result = if let Some((start_position, _)) = start_iter.peek().copied() {
+            &arg_lhs.0[start_position..]
+        } else {
+            ""
+        };
+
+        Ok(StringLiteralRef(result, arg_lhs.1))
     }
 }
