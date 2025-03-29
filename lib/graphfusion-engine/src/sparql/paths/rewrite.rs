@@ -82,24 +82,12 @@ fn build_path_query(
                 JoinType::Inner,
                 [
                     ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                        Expr::from(Column {
-                            relation: Some("lhs".into()),
-                            name: String::from("graph"),
-                        }),
-                        Expr::from(Column {
-                            relation: Some("rhs".into()),
-                            name: String::from("graph"),
-                        }),
+                        Expr::from(Column::new(Some("lhs"), "graph")),
+                        Expr::from(Column::new(Some("rhs"), "graph")),
                     ])]),
                     ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                        Expr::from(Column {
-                            relation: Some("lhs".into()),
-                            name: String::from("end"),
-                        }),
-                        Expr::from(Column {
-                            relation: Some("rhs".into()),
-                            name: String::from("start"),
-                        }),
+                        Expr::from(Column::new(Some("lhs"), "end")),
+                        Expr::from(Column::new(Some("lhs"), "start")),
                     ])]),
                 ],
             )

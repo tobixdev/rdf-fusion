@@ -587,14 +587,8 @@ fn create_join(
         .intersection(&rhs_keys)
         .map(|k| {
             ENC_IS_COMPATIBLE.call(vec![
-                Expr::from(Column {
-                    relation: Some("lhs".into()),
-                    name: k.clone(),
-                }),
-                Expr::from(Column {
-                    relation: Some("rhs".into()),
-                    name: k.clone(),
-                }),
+                Expr::from(Column::new(Some("lhs"), k)),
+                Expr::from(Column::new(Some("rhs"), k)),
             ])
         })
         .collect::<Vec<_>>();
@@ -629,15 +623,9 @@ fn create_join(
 
 fn use_lhs_or_rhs(lhs_keys: &HashSet<String>, k: &str) -> Expr {
     if lhs_keys.contains(k) {
-        Expr::from(Column {
-            relation: Some("lhs".into()),
-            name: k.into(),
-        })
+        Expr::from(Column::new(Some("lhs"), k))
     } else {
-        Expr::from(Column {
-            relation: Some("rhs".into()),
-            name: k.into(),
-        })
+        Expr::from(Column::new(Some("rhs"), k))
     }
     .alias(k)
 }
