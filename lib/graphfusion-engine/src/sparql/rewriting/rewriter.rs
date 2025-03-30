@@ -105,6 +105,7 @@ impl GraphPatternRewriter {
                 subject,
                 object,
             } => self.rewrite_path(path, subject, object),
+            GraphPattern::Minus { left, right } => self.rewrite_minus(left, right),
             pattern => not_impl_err!("rewrite_graph_pattern: {:?}", pattern),
         }
     }
@@ -334,6 +335,23 @@ impl GraphPatternRewriter {
         Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
             node: Arc::new(node),
         })))
+    }
+
+    /// Rewrites a MINUS pattern to an except expression.
+    fn rewrite_minus(
+        &mut self,
+        left: &GraphPattern,
+        right: &GraphPattern,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let left = self.rewrite_graph_pattern(left)?;
+        let right = self.rewrite_graph_pattern(right)?;
+
+        // TODO: This doesn't implement IS_COMPATIBLE correctly.
+        Ok(LogicalPlanBuilder::from(LogicalPlanBuilder::except(
+            left.build()?,
+            right.build()?,
+            false,
+        )?))
     }
 
     //
