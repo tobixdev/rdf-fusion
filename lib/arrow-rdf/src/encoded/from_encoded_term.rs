@@ -886,17 +886,18 @@ fn get_duration_encoding_array(array: &'_ UnionArray, index: usize) -> RdfOpResu
         return Err(());
     }
 
+    let offset = array.value_offset(index);
     let struct_array = array.child(field.type_id()).as_struct();
     let year_month_array = struct_array.column(0).as_primitive::<Int64Type>();
-    let day_time_array = struct_array.column(0).as_primitive::<Decimal128Type>();
+    let day_time_array = struct_array.column(1).as_primitive::<Decimal128Type>();
 
     let year_month = year_month_array
-        .is_null(index)
+        .is_null(offset)
         .not()
-        .then(|| year_month_array.value(index));
+        .then(|| year_month_array.value(offset));
     let day_time = day_time_array
-        .is_null(index)
+        .is_null(offset)
         .not()
-        .then(|| Decimal::from_be_bytes(day_time_array.value(index).to_be_bytes()));
+        .then(|| Decimal::from_be_bytes(day_time_array.value(offset).to_be_bytes()));
     Ok((year_month, day_time))
 }

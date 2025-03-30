@@ -235,6 +235,8 @@ impl EncRdfTermBuilder {
             day_time_builder.append_null();
         }
 
+        self.duration_builder.append(true);
+
         Ok(())
     }
 
