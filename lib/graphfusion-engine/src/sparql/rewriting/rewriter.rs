@@ -116,13 +116,7 @@ impl GraphPatternRewriter {
             .iter()
             .map(|p| self.rewrite_triple_pattern(p))
             .reduce(|lhs, rhs| create_join(lhs?, rhs?, JoinType::Inner, None))
-            .unwrap_or_else(|| {
-                Ok(LogicalPlanBuilder::scan(
-                    TABLE_QUADS,
-                    Arc::new(DefaultTableSource::new(Arc::clone(&mut self.quads_table))),
-                    None,
-                )?)
-            })
+            .unwrap_or_else(|| Ok(LogicalPlanBuilder::empty(true)))
     }
 
     /// Rewrites a single triple pattern to a SELECT on the QUADS table.
