@@ -4,7 +4,19 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
-use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME, ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_CONCAT, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID, ENC_WITH_STRUCT_ENCODING};
+use arrow_rdf::encoded::{
+    enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME,
+    ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN,
+    ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND,
+    ENC_CEIL, ENC_CONCAT, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE,
+    ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK,
+    ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES,
+    ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY,
+    ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM,
+    ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN,
+    ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS,
+    ENC_UUID, ENC_WITH_STRUCT_ENCODING,
+};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
@@ -15,7 +27,7 @@ use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF, SortExpr,
 };
-use datafusion::prelude::col;
+use datafusion::prelude::{col, exists};
 use oxiri::Iri;
 use oxrdf::vocab::xsd;
 use oxrdf::{GraphName, NamedNode, NamedOrBlankNode, Variable};
@@ -377,7 +389,7 @@ impl GraphPatternRewriter {
             Expression::Divide(lhs, rhs) => binary_udf(self, &ENC_DIV, lhs, rhs),
             Expression::UnaryPlus(value) => unary_udf(self, &ENC_UNARY_PLUS, value),
             Expression::UnaryMinus(value) => unary_udf(self, &ENC_UNARY_MINUS, value),
-            Expression::Exists(_) => plan_err!("Expression::Exists not implemented"),
+            Expression::Exists(pattern) => self.rewrite_exists(pattern),
             Expression::If(_, _, _) => plan_err!("Expression::If not implemented"),
             Expression::Coalesce(_) => plan_err!("Expression::Coalesce not implemented"),
         }
@@ -478,6 +490,12 @@ impl GraphPatternRewriter {
         }
 
         plan_err!("Custom Function {} is not supported.", function.as_str())
+    }
+
+    /// Rewrites an exists expression to a correlated subquery.
+    fn rewrite_exists(&mut self, inner: &GraphPattern) -> DFResult<Expr> {
+        let inner = self.rewrite_graph_pattern(inner)?;
+        Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![exists(inner.build()?.into())]))
     }
 
     /// Rewrites an [OrderExpression].
