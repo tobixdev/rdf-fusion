@@ -6,6 +6,7 @@ use std::cmp::{min, Ordering};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use crate::{RdfOpResult, RdfValueRef, TermRef};
 
 /// [XML Schema `dateTime` datatype](https://www.w3.org/TR/xmlschema11-2/#dateTime)
 ///
@@ -258,6 +259,18 @@ impl DateTime {
     #[must_use]
     pub fn is_identical_with(self, other: Self) -> bool {
         self.timestamp.is_identical_with(other.timestamp)
+    }
+}
+
+impl RdfValueRef<'_> for DateTime {
+    fn from_term(term: TermRef<'_>) -> RdfOpResult<Self>
+    where
+        Self: Sized
+    {
+        match term {
+            TermRef::DateTimeLiteral(value) => Ok(value),
+            _ => Err(())
+        }
     }
 }
 

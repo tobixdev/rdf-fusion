@@ -5,9 +5,11 @@ mod numeric;
 mod strings;
 mod terms;
 mod hash;
+mod dates_and_times;
 
 pub use comparison::*;
 pub use conversion::*;
+pub use dates_and_times::*;
 pub use functional_forms::*;
 pub use hash::*;
 pub use numeric::*;

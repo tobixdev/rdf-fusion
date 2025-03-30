@@ -158,6 +158,18 @@ make_binary_rdf_udf!(StrLangRdfOp, EncStrlang, ENC_STRLANG, "enc_strlang");
 make_nullary_rdf_udf!(UuidRdfOp, EncUuid, ENC_UUID, "enc_uuid");
 make_nullary_rdf_udf!(StrUuidRdfOp, EncStruuid, ENC_STRUUID, "enc_struuid");
 
+
+// Date and Time
+
+make_unary_rdf_udf!(YearRdfOp, EncYear, ENC_YEAR, "enc_year");
+make_unary_rdf_udf!(MonthRdfOp, EncMonth, ENC_MONTH, "enc_month");
+make_unary_rdf_udf!(DayRdfOp, EncDay, ENC_DAY, "enc_day");
+make_unary_rdf_udf!(HoursRdfOp, EncHours, ENC_HOURS, "enc_hours");
+make_unary_rdf_udf!(MinutesRdfOp, EncMinutes, ENC_MINUTES, "enc_minutes");
+make_unary_rdf_udf!(SecondsRdfOp, EncSeconds, ENC_SECONDS, "enc_seconds");
+make_unary_rdf_udf!(TimezoneRdfOp, EncTimezone, ENC_TIMEZONE, "enc_timezone");
+make_unary_rdf_udf!(TzRdfOp, EncTz, ENC_TZ, "enc_tz");
+
 // Hash
 
 make_unary_rdf_udf!(Md5RdfOp, EncMd5, ENC_MD5, "enc_md5");

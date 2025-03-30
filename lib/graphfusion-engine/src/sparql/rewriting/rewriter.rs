@@ -4,7 +4,7 @@ use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
-use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME, ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_COALESCE, ENC_CONCAT, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MD5, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM, ENC_SHA1, ENC_SHA256, ENC_SHA384, ENC_SHA512, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID, ENC_WITH_STRUCT_ENCODING};
+use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME, ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_COALESCE, ENC_CONCAT, ENC_CONTAINS, ENC_DATATYPE, ENC_DAY, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_HOURS, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MD5, ENC_MINUTES, ENC_MONTH, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM, ENC_SECONDS, ENC_SHA1, ENC_SHA256, ENC_SHA384, ENC_SHA512, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_TIMEZONE, ENC_TZ, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID, ENC_WITH_STRUCT_ENCODING, ENC_YEAR};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
@@ -25,6 +25,7 @@ use spargebra::algebra::{
 use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use datamodel::DateTime;
 
 pub struct GraphPatternRewriter {
     dataset: QueryDataset,
@@ -449,15 +450,18 @@ impl GraphPatternRewriter {
             Function::Floor => Ok(ENC_FLOOR.call(args)),
             Function::Rand => Ok(ENC_RAND.call(args)),
             // Dates & Durations
-            Function::Year => not_impl_err!("Function::Year not implemented"),
-            Function::Month => not_impl_err!("Function::Month not implemented"),
-            Function::Day => not_impl_err!("Function::Day not implemented"),
-            Function::Hours => not_impl_err!("Function::Hours not implemented"),
-            Function::Minutes => not_impl_err!("Function::Minutes not implemented"),
-            Function::Seconds => not_impl_err!("Function::Seconds not implemented"),
-            Function::Timezone => not_impl_err!("Function::Timezone not implemented"),
-            Function::Tz => not_impl_err!("Function::Tz not implemented"),
-            Function::Now => not_impl_err!("Function::Now not implemented"),
+            Function::Year => Ok(ENC_YEAR.call(args)),
+            Function::Month => Ok(ENC_MONTH.call(args)),
+            Function::Day => Ok(ENC_DAY.call(args)),
+            Function::Hours => Ok(ENC_HOURS.call(args)),
+            Function::Minutes => Ok(ENC_MINUTES.call(args)),
+            Function::Seconds => Ok(ENC_SECONDS.call(args)),
+            Function::Timezone => Ok(ENC_TIMEZONE.call(args)),
+            Function::Tz => Ok(ENC_TZ.call(args)),
+            Function::Now => {
+                let literal = Literal::new_typed_literal(DateTime::now().to_string(), xsd::DATE_TIME);
+                Ok(lit(encode_scalar_literal(literal.as_ref())?))
+            },
             // Hashing
             Function::Md5 => Ok(ENC_MD5.call(args)),
             Function::Sha1 => Ok(ENC_SHA1.call(args)),
