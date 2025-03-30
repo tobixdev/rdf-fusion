@@ -4,10 +4,12 @@ mod functional_forms;
 mod numeric;
 mod strings;
 mod terms;
+mod hash;
 
 pub use comparison::*;
 pub use conversion::*;
 pub use functional_forms::*;
+pub use hash::*;
 pub use numeric::*;
 pub use strings::*;
 pub use terms::*;

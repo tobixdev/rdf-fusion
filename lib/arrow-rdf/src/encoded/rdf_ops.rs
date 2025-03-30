@@ -158,6 +158,14 @@ make_binary_rdf_udf!(StrLangRdfOp, EncStrlang, ENC_STRLANG, "enc_strlang");
 make_nullary_rdf_udf!(UuidRdfOp, EncUuid, ENC_UUID, "enc_uuid");
 make_nullary_rdf_udf!(StrUuidRdfOp, EncStruuid, ENC_STRUUID, "enc_struuid");
 
+// Hash
+
+make_unary_rdf_udf!(Md5RdfOp, EncMd5, ENC_MD5, "enc_md5");
+make_unary_rdf_udf!(Sha1RdfOp, EncSha1, ENC_SHA1, "enc_sha1");
+make_unary_rdf_udf!(Sha256RdfOp, EncSha256, ENC_SHA256, "enc_sha256");
+make_unary_rdf_udf!(Sha384RdfOp, EncSha384, ENC_SHA384, "enc_sha384");
+make_unary_rdf_udf!(Sha512RdfOp, EncSha512, ENC_SHA512, "enc_sha512");
+
 #[derive(Debug)]
 pub struct EncIri {
     signature: datafusion::logical_expr::Signature,
