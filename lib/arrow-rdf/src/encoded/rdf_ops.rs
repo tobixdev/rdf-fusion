@@ -2,8 +2,8 @@ use crate::encoded::dispatch::dispatch_unary;
 use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::EncTerm;
 use crate::{
-    make_binary_rdf_udf, make_nullary_rdf_udf, make_quaternary_rdf_udf, make_ternary_rdf_udf,
-    make_unary_rdf_udf,
+    make_binary_rdf_udf, make_n_ary_rdf_udf, make_nullary_rdf_udf, make_quaternary_rdf_udf,
+    make_ternary_rdf_udf, make_unary_rdf_udf,
 };
 use datafusion::logical_expr::ScalarUDF;
 use datamodel::Iri;
@@ -56,7 +56,12 @@ make_unary_rdf_udf!(
     ENC_AS_INTEGER,
     "enc_as_integer"
 );
-make_unary_rdf_udf!(AsDateTimeRdfOp, EncAsDateTimeRdfOp, ENC_AS_DATETIME, "enc_as_datetime");
+make_unary_rdf_udf!(
+    AsDateTimeRdfOp,
+    EncAsDateTimeRdfOp,
+    ENC_AS_DATETIME,
+    "enc_as_datetime"
+);
 make_unary_rdf_udf!(AsStringRdfOp, EncAsString, ENC_AS_STRING, "enc_as_string");
 
 // Functional Forms
@@ -95,6 +100,7 @@ make_unary_rdf_udf!(UCaseRdfOp, EncUcase, ENC_UCASE, "enc_ucase");
 make_unary_rdf_udf!(LCaseRdfOp, EncLcase, ENC_LCASE, "enc_lcase");
 make_binary_rdf_udf!(StrStartsRdfOp, EncStrstarts, ENC_STRSTARTS, "enc_strstarts");
 make_binary_rdf_udf!(StrEndsRdfOp, EncStrends, ENC_STRENDS, "enc_strends");
+make_n_ary_rdf_udf!(ConcatRdfOp, EncConcat, ENC_CONCAT, "enc_concat");
 make_binary_rdf_udf!(ContainsRdfOp, EncContains, ENC_CONTAINS, "enc_contains");
 make_binary_rdf_udf!(StrBeforeRdfOp, EncStrbefore, ENC_STRBEFORE, "enc_strbefore");
 make_binary_rdf_udf!(StrAfterRdfOp, EncStrafter, ENC_STRAFTER, "enc_strafter");

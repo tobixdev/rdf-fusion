@@ -11,7 +11,9 @@ mod strlen;
 mod strstarts;
 mod substr;
 mod ucase;
+mod concat;
 
+pub use concat::ConcatRdfOp;
 pub use contains::ContainsRdfOp;
 pub use encode_for_uri::EncodeForUriRdfOp;
 pub use lang_matches::LangMatchesRdfOp;

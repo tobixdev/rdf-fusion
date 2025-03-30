@@ -58,34 +58,76 @@ macro_rules! make_nullary_rdf_udf {
 #[macro_export]
 macro_rules! make_unary_rdf_udf {
     ($IMPL_TYPE: ty, $STRUCT_NAME: ident, $CONST_NAME: ident, $NAME: literal) => {
-        crate::make_rdf_udf!($IMPL_TYPE, $STRUCT_NAME, $CONST_NAME, $NAME, crate::encoded::dispatch::dispatch_unary, 1);
+        crate::make_rdf_udf!(
+            $IMPL_TYPE,
+            $STRUCT_NAME,
+            $CONST_NAME,
+            $NAME,
+            crate::encoded::dispatch::dispatch_unary,
+            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::term_type()])
+        );
     };
 }
 
 #[macro_export]
 macro_rules! make_binary_rdf_udf {
     ($IMPL_TYPE: ty, $STRUCT_NAME: ident, $CONST_NAME: ident, $NAME: literal) => {
-       crate::make_rdf_udf!($IMPL_TYPE, $STRUCT_NAME, $CONST_NAME, $NAME, crate::encoded::dispatch::dispatch_binary, 2);
+        crate::make_rdf_udf!(
+            $IMPL_TYPE,
+            $STRUCT_NAME,
+            $CONST_NAME,
+            $NAME,
+            crate::encoded::dispatch::dispatch_binary,
+            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::term_type(); 2])
+        );
     };
 }
 
 #[macro_export]
 macro_rules! make_ternary_rdf_udf {
     ($IMPL_TYPE: ty, $STRUCT_NAME: ident, $CONST_NAME: ident, $NAME: literal) => {
-        crate::make_rdf_udf!($IMPL_TYPE, $STRUCT_NAME, $CONST_NAME, $NAME, crate::encoded::dispatch::dispatch_ternary, 3);
+        crate::make_rdf_udf!(
+            $IMPL_TYPE,
+            $STRUCT_NAME,
+            $CONST_NAME,
+            $NAME,
+            crate::encoded::dispatch::dispatch_ternary,
+            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::term_type(); 3])
+        );
     };
 }
 
 #[macro_export]
 macro_rules! make_quaternary_rdf_udf {
     ($IMPL_TYPE: ty, $STRUCT_NAME: ident, $CONST_NAME: ident, $NAME: literal) => {
-        crate::make_rdf_udf!($IMPL_TYPE, $STRUCT_NAME, $CONST_NAME, $NAME, crate::encoded::dispatch::dispatch_quaternary, 4);
+        crate::make_rdf_udf!(
+            $IMPL_TYPE,
+            $STRUCT_NAME,
+            $CONST_NAME,
+            $NAME,
+            crate::encoded::dispatch::dispatch_quaternary,
+            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::term_type(); 4])
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! make_n_ary_rdf_udf {
+    ($IMPL_TYPE: ty, $STRUCT_NAME: ident, $CONST_NAME: ident, $NAME: literal) => {
+        crate::make_rdf_udf!(
+            $IMPL_TYPE,
+            $STRUCT_NAME,
+            $CONST_NAME,
+            $NAME,
+            crate::encoded::dispatch::dispatch_n_ary,
+            datafusion::logical_expr::TypeSignature::Variadic(vec![crate::EncTerm::term_type()])
+        );
     };
 }
 
 #[macro_export]
 macro_rules! make_rdf_udf {
-    ($IMPL_TYPE: ty, $STRUCT_NAME: ident, $CONST_NAME: ident, $NAME: literal, $DISPATCH: expr, $ARG_COUNT: literal) => {
+    ($IMPL_TYPE: ty, $STRUCT_NAME: ident, $CONST_NAME: ident, $NAME: literal, $DISPATCH: expr, $SIGNATURE: expr) => {
         #[derive(Debug)]
         pub struct $STRUCT_NAME {
             signature: datafusion::logical_expr::Signature,
@@ -96,7 +138,7 @@ macro_rules! make_rdf_udf {
             pub fn new() -> Self {
                 Self {
                     signature: datafusion::logical_expr::Signature::new(
-                        datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::term_type(); $ARG_COUNT]),
+                        $SIGNATURE,
                         datafusion::logical_expr::Volatility::Immutable,
                     ),
                     implementation: <$IMPL_TYPE>::new()

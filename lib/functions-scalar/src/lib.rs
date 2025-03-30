@@ -88,3 +88,14 @@ pub trait ScalarQuaternaryRdfOp {
         Err(())
     }
 }
+
+pub trait ScalarNAryRdfOp {
+    type Args<'data>: RdfValueRef<'data>;
+    type Result<'data>;
+
+    fn evaluate<'data>(&self, args: &[Self::Args<'data>]) -> RdfOpResult<Self::Result<'data>>;
+
+    fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
+        Err(())
+    }
+}

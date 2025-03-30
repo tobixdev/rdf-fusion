@@ -7,7 +7,7 @@ use arrow_rdf::encoded::scalars::{
 use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_QUAD_SCHEMA, ENC_SAME_TERM};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_SUBJECT, TABLE_QUADS};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, JoinType};
+use datafusion::common::{plan_err, Column, JoinType};
 use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::{
     col, lit, table_scan, Expr, Extension, LogicalPlan, LogicalPlanBuilder,
@@ -72,7 +72,7 @@ fn build_path_query(
                 col(COL_OBJECT).alias("end"),
             ])
         }
-        PropertyPathExpression::Reverse(_) => todo!("Track state for Sequence operator"),
+        PropertyPathExpression::Reverse(_) => plan_err!("Track state for Sequence operator"),
         PropertyPathExpression::Sequence(lhs, rhs) => {
             let lhs = build_path_query(graph, lhs.as_ref())?.alias("lhs")?;
             let rhs = build_path_query(graph, rhs.as_ref())?.alias("rhs")?;
@@ -98,16 +98,16 @@ fn build_path_query(
             lhs.union(rhs.build()?)
         }
         PropertyPathExpression::ZeroOrMore(_) => {
-            todo!("Recursive CTE - include path length and filter")
+            plan_err!("Recursive CTE - include path length and filter")
         }
         PropertyPathExpression::OneOrMore(_) => {
-            todo!("Recursive CTE - include path length and filter")
+            plan_err!("Recursive CTE - include path length and filter")
         }
         PropertyPathExpression::ZeroOrOne(_) => {
-            todo!("Recusive CTE - include path length and filter")
+            plan_err!("Recusive CTE - include path length and filter")
         }
         PropertyPathExpression::NegatedPropertySet(_) => {
-            todo!("Use not in")
+            plan_err!("Use not in")
         }
     }
 }
