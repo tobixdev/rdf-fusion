@@ -7,7 +7,7 @@ use datamodel::{
     LanguageStringRef, Numeric, OwnedStringLiteral, RdfOpResult, SimpleLiteralRef,
     StringLiteralRef, TermRef, Time, TypedLiteralRef, YearMonthDuration,
 };
-use oxrdf::{BlankNodeRef, NamedNode, NamedNodeRef};
+use oxrdf::{BlankNode, BlankNodeRef, NamedNode, NamedNodeRef};
 
 pub trait WriteEncTerm {
     fn into_scalar_value(self) -> AResult<ScalarValue>
@@ -205,6 +205,22 @@ impl WriteEncTerm for LanguageStringRef<'_> {
 }
 
 impl WriteEncTerm for BlankNodeRef<'_> {
+    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    where
+        Self: Sized,
+    {
+        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        for value in values {
+            match value {
+                Ok(value) => rdf_term_builder.append_blank_node(value.as_str())?,
+                Err(_) => rdf_term_builder.append_null()?,
+            }
+        }
+        Ok(rdf_term_builder.finish()?)
+    }
+}
+
+impl WriteEncTerm for BlankNode {
     fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
     where
         Self: Sized,

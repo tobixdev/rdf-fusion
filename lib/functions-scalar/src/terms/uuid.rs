@@ -1,23 +1,21 @@
 use crate::{RdfOpResult, ScalarNullaryRdfOp};
-use datamodel::OwnedStringLiteral;
+use oxrdf::NamedNode;
 use uuid::Uuid;
 
 #[derive(Debug)]
-pub struct UuidRdfOp {
-}
+pub struct UuidRdfOp {}
 
 impl UuidRdfOp {
     pub fn new() -> Self {
-        Self {
-        }
+        Self {}
     }
 }
 
 impl ScalarNullaryRdfOp for UuidRdfOp {
-    type Result<'data> = OwnedStringLiteral;
+    type Result<'data> = NamedNode;
 
     fn evaluate<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
         let formatted = format!("urn:uuid:{}", Uuid::new_v4());
-        Ok(OwnedStringLiteral(formatted, None))
+        Ok(NamedNode::new_unchecked(formatted))
     }
 }

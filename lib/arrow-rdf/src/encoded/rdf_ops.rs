@@ -151,7 +151,7 @@ make_unary_rdf_udf!(
 );
 make_unary_rdf_udf!(StrRdfOp, EncStr, ENC_STR, "enc_str");
 make_unary_rdf_udf!(LangRdfOp, EncLang, ENC_LANG, "enc_lang");
-make_unary_rdf_udf!(BNodeRdfOp, EncBnodeNullary, ENC_BNODE_NULLARY, "enc_bnode");
+make_nullary_rdf_udf!(BNodeRdfOp, EncBnodeNullary, ENC_BNODE_NULLARY, "enc_bnode");
 make_unary_rdf_udf!(BNodeRdfOp, EncBnodeUnary, ENC_BNODE_UNARY, "enc_bnode");
 make_binary_rdf_udf!(StrDtRdfOp, EncStrdt, ENC_STRDT, "enc_strdt");
 make_binary_rdf_udf!(StrLangRdfOp, EncStrlang, ENC_STRLANG, "enc_strlang");
