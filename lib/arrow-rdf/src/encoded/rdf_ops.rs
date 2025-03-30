@@ -67,6 +67,7 @@ make_unary_rdf_udf!(AsStringRdfOp, EncAsString, ENC_AS_STRING, "enc_as_string");
 // Functional Forms
 
 make_unary_rdf_udf!(BoundRdfOp, EncBound, ENC_BOUND, "enc_bound");
+make_n_ary_rdf_udf!(CoalesceRdfOp, EncCoalesce, ENC_COALESCE, "enc_coalesce");
 
 // Numeric
 

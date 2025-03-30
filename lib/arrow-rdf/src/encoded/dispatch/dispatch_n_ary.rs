@@ -3,7 +3,6 @@ use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::FromEncodedTerm;
 use crate::DFResult;
 use datafusion::logical_expr::ColumnarValue;
-use datamodel::RdfOpResult;
 use functions_scalar::ScalarNAryRdfOp;
 
 pub fn dispatch_n_ary<'data, TUdf>(
@@ -20,10 +19,13 @@ where
         let args = args
             .iter()
             .map(|a| borrow_value::<TUdf::Args<'data>>(a, i))
-            .collect::<RdfOpResult<Vec<_>>>();
-        match args {
-            Ok(args) => udf.evaluate(args.as_slice()),
-            _ => udf.evaluate_error(),
+            .collect::<Vec<_>>();
+
+        if args.iter().all(|arg| arg.is_ok()) {
+            let args = args.into_iter().map(|arg| arg.unwrap()).collect::<Vec<_>>();
+            udf.evaluate(args.as_slice())
+        } else {
+            udf.evaluate_error(args.as_slice())
         }
     });
     let result = TUdf::Result::iter_into_array(results)?;

@@ -95,7 +95,10 @@ pub trait ScalarNAryRdfOp {
 
     fn evaluate<'data>(&self, args: &[Self::Args<'data>]) -> RdfOpResult<Self::Result<'data>>;
 
-    fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate_error<'data>(
+        &self,
+        _args: &[RdfOpResult<Self::Args<'data>>],
+    ) -> RdfOpResult<Self::Result<'data>> {
         Err(())
     }
 }

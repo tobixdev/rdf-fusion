@@ -8,14 +8,14 @@ use arrow_rdf::encoded::{
     enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME,
     ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN,
     ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND,
-    ENC_CEIL, ENC_CONCAT, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE,
-    ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_IS_BLANK,
-    ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES,
-    ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY,
-    ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM,
-    ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN,
-    ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS,
-    ENC_UUID, ENC_WITH_STRUCT_ENCODING,
+    ENC_CEIL, ENC_COALESCE, ENC_CONCAT, ENC_CONTAINS, ENC_DATATYPE, ENC_DIV,
+    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL,
+    ENC_GREATER_THAN, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC,
+    ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MUL, ENC_OR,
+    ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY,
+    ENC_ROUND, ENC_SAME_TERM, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS,
+    ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_UCASE,
+    ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID, ENC_WITH_STRUCT_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
@@ -367,31 +367,18 @@ impl GraphPatternRewriter {
             Expression::Not(inner) => Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![Expr::Not(Box::new(
                 ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?]),
             ))])),
-            Expression::Equal(lhs, rhs) => {
-                Ok(ENC_EQ.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
-            }
-            Expression::SameTerm(lhs, rhs) => {
-                Ok(ENC_SAME_TERM.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
-            }
-            Expression::Greater(lhs, rhs) => {
-                Ok(ENC_GREATER_THAN.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
-            }
+            Expression::Equal(lhs, rhs) => binary_udf(self, &ENC_EQ, lhs, rhs),
+            Expression::SameTerm(lhs, rhs) => binary_udf(self, &ENC_SAME_TERM, lhs, rhs),
+            Expression::Greater(lhs, rhs) => binary_udf(self, &ENC_GREATER_THAN, lhs, rhs),
             Expression::GreaterOrEqual(lhs, rhs) => {
-                Ok(ENC_GREATER_OR_EQUAL
-                    .call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
+                binary_udf(self, &ENC_GREATER_OR_EQUAL, lhs, rhs)
             }
-            Expression::Less(lhs, rhs) => {
-                Ok(ENC_LESS_THAN.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
-            }
-            Expression::LessOrEqual(lhs, rhs) => {
-                Ok(ENC_LESS_OR_EQUAL.call(vec![self.rewrite_expr(lhs)?, self.rewrite_expr(rhs)?]))
-            }
-            Expression::Literal(literal) => {
-                Ok(Expr::Literal(encode_scalar_literal(literal.as_ref())?))
-            }
+            Expression::Less(lhs, rhs) => binary_udf(self, &ENC_LESS_THAN, lhs, rhs),
+            Expression::LessOrEqual(lhs, rhs) => binary_udf(self, &ENC_LESS_OR_EQUAL, lhs, rhs),
+            Expression::Literal(literal) => Ok(lit(encode_scalar_literal(literal.as_ref())?)),
             Expression::Variable(var) => Ok(Expr::Column(Column::new_unqualified(var.as_str()))),
             Expression::FunctionCall(function, args) => self.rewrite_function_call(function, args),
-            Expression::NamedNode(nn) => Ok(Expr::Literal(encode_scalar_named_node(nn.as_ref()))),
+            Expression::NamedNode(nn) => Ok(lit(encode_scalar_named_node(nn.as_ref()))),
             Expression::Or(lhs, rhs) => logical_expression(self, Operator::Or, lhs, rhs),
             Expression::And(lhs, rhs) => logical_expression(self, Operator::And, lhs, rhs),
             Expression::In(lhs, rhs) => self.rewrite_in(lhs, rhs),
@@ -403,7 +390,13 @@ impl GraphPatternRewriter {
             Expression::UnaryMinus(value) => unary_udf(self, &ENC_UNARY_MINUS, value),
             Expression::Exists(pattern) => self.rewrite_exists(pattern),
             Expression::If(test, if_true, if_false) => self.rewrite_if(test, if_true, if_false),
-            Expression::Coalesce(_) => plan_err!("Expression::Coalesce not implemented"),
+            Expression::Coalesce(args) => {
+                let args = args
+                    .iter()
+                    .map(|arg| self.rewrite_expr(arg))
+                    .collect::<DFResult<Vec<_>>>()?;
+                Ok(ENC_COALESCE.call(args))
+            }
         }
     }
 
