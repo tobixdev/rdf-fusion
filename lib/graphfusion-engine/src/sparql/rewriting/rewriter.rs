@@ -25,12 +25,12 @@ use datafusion::common::{
 };
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
-    lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF, SortExpr,
+    lit, not, or, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF, SortExpr,
 };
 use datafusion::prelude::{col, exists};
 use oxiri::Iri;
 use oxrdf::vocab::xsd;
-use oxrdf::{GraphName, NamedNode, NamedOrBlankNode, Variable};
+use oxrdf::{GraphName, Literal, NamedNode, NamedOrBlankNode, Variable};
 use spargebra::algebra::{
     Expression, Function, GraphPattern, OrderExpression, PropertyPathExpression,
 };
@@ -382,7 +382,7 @@ impl GraphPatternRewriter {
             Expression::NamedNode(nn) => Ok(Expr::Literal(encode_scalar_named_node(nn.as_ref()))),
             Expression::Or(lhs, rhs) => logical_expression(self, Operator::Or, lhs, rhs),
             Expression::And(lhs, rhs) => logical_expression(self, Operator::And, lhs, rhs),
-            Expression::In(_, _) => plan_err!("Expression::In not implemented"),
+            Expression::In(lhs, rhs) => self.rewrite_in(lhs, rhs),
             Expression::Add(lhs, rhs) => binary_udf(self, &ENC_ADD, lhs, rhs),
             Expression::Subtract(lhs, rhs) => binary_udf(self, &ENC_SUB, lhs, rhs),
             Expression::Multiply(lhs, rhs) => binary_udf(self, &ENC_MUL, lhs, rhs),
@@ -492,7 +492,30 @@ impl GraphPatternRewriter {
         plan_err!("Custom Function {} is not supported.", function.as_str())
     }
 
-    /// Rewrites an exists expression to a correlated subquery.
+    /// Rewrites an IN expression to a list of equality checks. As the IN operation is equal to
+    /// checking equality (using the "=" operator) this rewrite is sound.
+    ///
+    /// We cannot use the default DataFusion [Expr::InList] (without additional canonicalization) as
+    /// the `=` is used.
+    ///
+    /// https://www.w3.org/TR/sparql11-query/#func-in
+    fn rewrite_in(&mut self, lhs: &Expression, rhs: &Vec<Expression>) -> DFResult<Expr> {
+        let lhs = self.rewrite_expr(lhs)?;
+        let expressions = rhs
+            .iter()
+            .map(|e| Ok(ENC_EQ.call(vec![lhs.clone(), self.rewrite_expr(e)?])))
+            .collect::<DFResult<Vec<_>>>()?;
+
+        let false_literal = Literal::from(false);
+        let result = expressions
+            .into_iter()
+            .reduce(|lhs, rhs| or(lhs, rhs))
+            .unwrap_or(lit(encode_scalar_literal(false_literal.as_ref())?));
+
+        Ok(result)
+    }
+
+    /// Rewrites an EXISTS expression to a correlated subquery.
     fn rewrite_exists(&mut self, inner: &GraphPattern) -> DFResult<Expr> {
         let inner = self.rewrite_graph_pattern(inner)?;
         Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![exists(inner.build()?.into())]))
@@ -527,8 +550,8 @@ impl RewritingState {
 fn logical_expression(
     rewriter: &mut GraphPatternRewriter,
     operator: Operator,
-    lhs: &Box<Expression>,
-    rhs: &Box<Expression>,
+    lhs: &Expression,
+    rhs: &Expression,
 ) -> DFResult<Expr> {
     let lhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite_expr(lhs)?]);
     let rhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite_expr(rhs)?]);
