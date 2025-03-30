@@ -27,7 +27,7 @@ use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
     lit, not, or, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF, SortExpr,
 };
-use datafusion::prelude::{col, exists};
+use datafusion::prelude::{case, col, exists};
 use oxiri::Iri;
 use oxrdf::vocab::xsd;
 use oxrdf::{GraphName, Literal, NamedNode, NamedOrBlankNode, Variable};
@@ -390,7 +390,7 @@ impl GraphPatternRewriter {
             Expression::UnaryPlus(value) => unary_udf(self, &ENC_UNARY_PLUS, value),
             Expression::UnaryMinus(value) => unary_udf(self, &ENC_UNARY_MINUS, value),
             Expression::Exists(pattern) => self.rewrite_exists(pattern),
-            Expression::If(_, _, _) => plan_err!("Expression::If not implemented"),
+            Expression::If(test, if_true, if_false) => self.rewrite_if(test, if_true, if_false),
             Expression::Coalesce(_) => plan_err!("Expression::Coalesce not implemented"),
         }
     }
@@ -521,6 +521,23 @@ impl GraphPatternRewriter {
         Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![exists(inner.build()?.into())]))
     }
 
+    /// Rewrites an IF expression to a case expression.
+    fn rewrite_if(
+        &mut self,
+        test: &Expression,
+        if_true: &Expression,
+        if_false: &Expression,
+    ) -> DFResult<Expr> {
+        let test = self.rewrite_expr(test)?;
+        let if_true = self.rewrite_expr(if_true)?;
+        let if_false = self.rewrite_expr(if_false)?;
+
+        case(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![test]))
+            .when(lit(true), if_true)
+            .when(lit(false), if_false)
+            .otherwise(lit(encode_scalar_null()))
+    }
+
     /// Rewrites an [OrderExpression].
     fn rewrite_order_expr(&mut self, expression: &OrderExpression) -> DFResult<SortExpr> {
         let (asc, expression) = match expression {
@@ -577,8 +594,8 @@ fn unary_udf(
 fn binary_udf(
     rewriter: &mut GraphPatternRewriter,
     udf: &ScalarUDF,
-    lhs: &Box<Expression>,
-    rhs: &Box<Expression>,
+    lhs: &Expression,
+    rhs: &Expression,
 ) -> DFResult<Expr> {
     let lhs = rewriter.rewrite_expr(lhs)?;
     let rhs = rewriter.rewrite_expr(rhs)?;
