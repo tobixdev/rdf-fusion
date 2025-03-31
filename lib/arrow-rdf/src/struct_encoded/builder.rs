@@ -1,10 +1,9 @@
+use crate::encoded::EncTermField;
 use crate::struct_encoded::{StructEncTerm, StructEncTermField};
 use datafusion::arrow::array::{
     Float64Builder, StringBuilder, StructArray, StructBuilder, UInt8Builder,
 };
-use datamodel::{
-    Boolean, Date, DateTime, DayTimeDuration, Double, Duration, Integer, Time, YearMonthDuration,
-};
+use datamodel::{Boolean, Date, DateTime, DayTimeDuration, Double, Duration, Integer, Numeric, Time, YearMonthDuration};
 use oxrdf::{BlankNodeRef, NamedNodeRef};
 
 enum StructEncTermType {
@@ -55,32 +54,41 @@ impl StructEncTermBuilder {
     }
 
     pub fn append_null(&mut self) {
-        self.append(StructEncTermType::Null, None, None)
+        self.append(StructEncTermType::Null, EncTermField::Null, None, None)
     }
 
     pub fn append_boolean(&mut self, value: Boolean) {
-        self.append(StructEncTermType::Boolean, Some(value.into()), None)
+        self.append(StructEncTermType::Boolean, EncTermField::Boolean, Some(value.into()), None)
     }
 
-    pub fn append_numeric(&mut self, value: Double) {
-        self.append(StructEncTermType::Numeric, Some(value), None)
+    pub fn append_numeric(&mut self, value: Numeric) {
+        let field = match value {
+            Numeric::Int(_) => EncTermField::Int,
+            Numeric::Integer(_) => EncTermField::Integer,
+            Numeric::Float(_) => EncTermField::Float,
+            Numeric::Double(_) => EncTermField::Double,
+            Numeric::Decimal(_) => EncTermField::Decimal
+        };
+        let value = Double::from(value);
+        self.append(StructEncTermType::Numeric, field, Some(value), None)
     }
 
     pub fn append_blank_node(&mut self, value: BlankNodeRef<'_>) {
-        self.append(StructEncTermType::BlankNodes, None, Some(value.as_str()))
+        self.append(StructEncTermType::BlankNodes, EncTermField::BlankNode, None, Some(value.as_str()))
     }
 
     pub fn append_named_node(&mut self, value: NamedNodeRef<'_>) {
-        self.append(StructEncTermType::NamedNode, None, Some(value.as_str()))
+        self.append(StructEncTermType::NamedNode, EncTermField::NamedNode, None, Some(value.as_str()))
     }
 
     pub fn append_string(&mut self, value: &str) {
-        self.append(StructEncTermType::String, None, Some(value))
+        self.append(StructEncTermType::String, EncTermField::String, None, Some(value))
     }
 
     pub(crate) fn append_date_time(&mut self, value: DateTime) {
         self.append(
             StructEncTermType::DateTime,
+            EncTermField::DateTime,
             Some(value.timestamp().value().into()),
             None,
         )
@@ -89,6 +97,7 @@ impl StructEncTermBuilder {
     pub(crate) fn append_time(&mut self, value: Time) {
         self.append(
             StructEncTermType::Time,
+            EncTermField::Time,
             Some(value.timestamp().value().into()),
             None,
         )
@@ -97,6 +106,7 @@ impl StructEncTermBuilder {
     pub(crate) fn append_date(&mut self, value: Date) {
         self.append(
             StructEncTermType::Date,
+            EncTermField::Date,
             Some(value.timestamp().value().into()),
             None,
         )
@@ -105,6 +115,7 @@ impl StructEncTermBuilder {
     pub(crate) fn append_duration(&mut self, value: Duration) {
         self.append(
             StructEncTermType::Duration,
+            EncTermField::Duration,
             Some(Integer::from(value.all_months()).into()),
             Some(&value.seconds().to_string()),
         )
@@ -113,6 +124,7 @@ impl StructEncTermBuilder {
     pub(crate) fn append_year_month_duration(&mut self, value: YearMonthDuration) {
         self.append(
             StructEncTermType::YearMonthDuration,
+            EncTermField::Duration,
             Some(Integer::from(value.as_i64()).into()),
             None,
         )
@@ -121,18 +133,25 @@ impl StructEncTermBuilder {
     pub(crate) fn append_day_time_duration(&mut self, value: DayTimeDuration) {
         self.append(
             StructEncTermType::DayTimeDuration,
+            EncTermField::Duration,
             Some(value.as_seconds().into()),
             None,
         )
     }
 
     pub fn append_literal(&mut self, value: &str) {
-        self.append(StructEncTermType::UnsupportedLiteral, None, Some(value))
+        self.append(
+            StructEncTermType::UnsupportedLiteral,
+            EncTermField::TypedLiteral,
+            None,
+            Some(value),
+        )
     }
 
     fn append(
         &mut self,
         sort_type: StructEncTermType,
+        enc_type: EncTermField,
         numeric: Option<Double>,
         string: Option<&str>,
     ) {
@@ -140,6 +159,10 @@ impl StructEncTermBuilder {
             .field_builder::<UInt8Builder>(StructEncTermField::Type.index())
             .unwrap()
             .append_value(sort_type.as_u8());
+        self.builder
+            .field_builder::<UInt8Builder>(StructEncTermField::EncTermType.index())
+            .unwrap()
+            .append_value(enc_type.type_id() as u8);
 
         let numeric_builder = self
             .builder

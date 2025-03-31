@@ -8,6 +8,7 @@ enum StructEncTermField {
     Type,
     Numeric,
     String,
+    EncTermType
 }
 
 impl StructEncTermField {
@@ -16,6 +17,7 @@ impl StructEncTermField {
             StructEncTermField::Type => "type",
             StructEncTermField::Numeric => "numeric",
             StructEncTermField::String => "string",
+            StructEncTermField::EncTermType => "enc_term_type",
         }
     }
 
@@ -24,6 +26,7 @@ impl StructEncTermField {
             StructEncTermField::Type => 0,
             StructEncTermField::Numeric => 1,
             StructEncTermField::String => 2,
+            StructEncTermField::EncTermType => 3,
         }
     }
 
@@ -32,6 +35,7 @@ impl StructEncTermField {
             StructEncTermField::Type => DataType::UInt8,
             StructEncTermField::Numeric => DataType::Float64,
             StructEncTermField::String => DataType::Utf8,
+            StructEncTermField::EncTermType => DataType::UInt8,
         }
     }
 }
@@ -52,6 +56,11 @@ const FIELDS_STRUCT_ENC_TERM: Lazy<Fields> = Lazy::new(|| {
             StructEncTermField::String.name(),
             StructEncTermField::String.data_type(),
             true,
+        ),
+        Field::new(
+            StructEncTermField::EncTermType.name(),
+            StructEncTermField::EncTermType.data_type(),
+            false,
         ),
     ])
 });
