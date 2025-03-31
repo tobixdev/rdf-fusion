@@ -16,7 +16,7 @@ impl ScalarUnaryRdfOp for UCaseRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         Ok(OwnedStringLiteral(
-            value.len().to_string().to_uppercase(),
+            value.0.to_owned().to_uppercase(),
             value.1.map(ToOwned::to_owned),
         ))
     }
