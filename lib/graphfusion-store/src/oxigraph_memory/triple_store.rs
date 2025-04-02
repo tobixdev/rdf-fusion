@@ -20,6 +20,7 @@ use graphfusion_engine::sparql::{
 use graphfusion_engine::TripleStore;
 use oxrdf::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
+use datafusion::catalog::TableProvider;
 
 #[derive(Clone)]
 pub struct MemoryTripleStore {
@@ -28,14 +29,15 @@ pub struct MemoryTripleStore {
 
 impl MemoryTripleStore {
     pub async fn new() -> Result<Self, StorageError> {
+        let triples_table: Arc<dyn TableProvider> = Arc::new(OxigraphMemTable::new());
+
         let state = SessionStateBuilder::new()
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            .with_analyzer_rule(Arc::new(PathToJoinsRule::default()))
+            .with_analyzer_rule(Arc::new(PathToJoinsRule::new(Arc::clone(&triples_table))))
             .build();
         let ctx = SessionContext::from(state);
 
-        let triples_table = OxigraphMemTable::new();
-        ctx.register_table("quads", Arc::new(triples_table))
+        ctx.register_table("quads", Arc::clone(&triples_table))
             .map_err(|e| StorageError::from(e))?;
         Ok(MemoryTripleStore { ctx })
     }
