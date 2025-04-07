@@ -12,6 +12,7 @@ async-trait.workspace = true
 datafusion.workspace = true
 datamodel.workspace = true
 futures.workspace = true
+graphfusion-logical.workspace = true
 oxiri.workspace = true
 oxrdf.workspace = true
 oxrdfio.workspace = true

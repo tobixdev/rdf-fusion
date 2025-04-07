@@ -6,6 +6,7 @@ use arrow_rdf::encoded::scalars::{
 use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_SAME_TERM};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use async_trait::async_trait;
+use datafusion::catalog::TableProvider;
 use datafusion::error::DataFusionError;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
@@ -14,13 +15,11 @@ use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::QueryResults;
 use graphfusion_engine::sparql::error::EvaluationError;
-use graphfusion_engine::sparql::{
-    evaluate_query, PathToJoinsRule, Query, QueryExplanation, QueryOptions,
-};
+use graphfusion_engine::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions};
 use graphfusion_engine::TripleStore;
+use graphfusion_logical::{PathToJoinsRule, PatternToProjectionRule};
 use oxrdf::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
-use datafusion::catalog::TableProvider;
 
 #[derive(Clone)]
 pub struct MemoryTripleStore {
@@ -33,7 +32,8 @@ impl MemoryTripleStore {
 
         let state = SessionStateBuilder::new()
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            .with_analyzer_rule(Arc::new(PathToJoinsRule::new(Arc::clone(&triples_table))))
+            .with_optimizer_rule(Arc::new(PathToJoinsRule::new(Arc::clone(&triples_table))))
+            .with_optimizer_rule(Arc::new(PatternToProjectionRule::default()))
             .build();
         let ctx = SessionContext::from(state);
 

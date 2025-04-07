@@ -5,6 +5,7 @@ members = [
     "lib/datamodel",
     "lib/functions-scalar",
     "lib/graphfusion-engine",
+    "lib/graphfusion-logical",
     "lib/graphfusion-store",
     "lib/graphfusion",
     "lib/sparesults",
@@ -74,6 +75,7 @@ arrow-rdf = { version = "=0.4.5", path = "lib/arrow-rdf" }
 datamodel = { version = "=0.4.5", path = "lib/datamodel" }
 functions-scalar = { version = "=0.4.5", path = "lib/functions-scalar" }
 graphfusion-engine = { version = "=0.4.5", path = "lib/graphfusion-engine" }
+graphfusion-logical = { version = "=0.4.5", path = "lib/graphfusion-logical" }
 graphfusion-store = { version = "=0.4.5", path = "lib/graphfusion-store" }
 graphfusion = { version = "=0.4.5", path = "lib/graphfusion" }
 spargebra = { version = "=0.3.3", path = "lib/spargebra" }

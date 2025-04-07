@@ -1,10 +1,22 @@
-use crate::sparql::paths::PathNode;
 use crate::sparql::QueryDataset;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
-use arrow_rdf::encoded::{enc_iri, EncTerm, EncTermField, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME, ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN, ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_COALESCE, ENC_CONCAT, ENC_CONTAINS, ENC_DATATYPE, ENC_DAY, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_HOURS, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MD5, ENC_MINUTES, ENC_MONTH, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM, ENC_SECONDS, ENC_SHA1, ENC_SHA256, ENC_SHA384, ENC_SHA512, ENC_STR, ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_TIMEZONE, ENC_TZ, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID, ENC_WITH_STRUCT_ENCODING, ENC_YEAR};
+use arrow_rdf::encoded::{
+    enc_iri, EncTerm, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME, ENC_AS_DECIMAL,
+    ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_STRING, ENC_BNODE_NULLARY,
+    ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_COALESCE, ENC_CONCAT,
+    ENC_CONTAINS, ENC_DATATYPE, ENC_DAY, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI,
+    ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_HOURS, ENC_IS_BLANK,
+    ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES,
+    ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MD5, ENC_MINUTES, ENC_MONTH, ENC_MUL, ENC_OR,
+    ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY,
+    ENC_ROUND, ENC_SAME_TERM, ENC_SECONDS, ENC_SHA1, ENC_SHA256, ENC_SHA384, ENC_SHA512, ENC_STR,
+    ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS,
+    ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_TIMEZONE, ENC_TZ, ENC_UCASE, ENC_UNARY_MINUS,
+    ENC_UNARY_PLUS, ENC_UUID, ENC_WITH_STRUCT_ENCODING, ENC_YEAR,
+};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
@@ -16,6 +28,8 @@ use datafusion::logical_expr::{
     lit, not, or, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF, SortExpr,
 };
 use datafusion::prelude::{case, col, exists};
+use datamodel::DateTime;
+use graphfusion_logical::{PathNode, PatternNode};
 use oxiri::Iri;
 use oxrdf::vocab::xsd;
 use oxrdf::{GraphName, Literal, NamedNode, NamedOrBlankNode, Variable};
@@ -25,7 +39,6 @@ use spargebra::algebra::{
 use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use datamodel::DateTime;
 
 pub struct GraphPatternRewriter {
     dataset: QueryDataset,
@@ -109,7 +122,8 @@ impl GraphPatternRewriter {
             .unwrap_or_else(|| Ok(LogicalPlanBuilder::empty(true)))
     }
 
-    /// Rewrites a single triple pattern to a SELECT on the QUADS table.
+    /// Rewrites a single triple pattern to a scan of the QUADS table, then filtering on the graph,
+    /// and lastly applying the pattern.
     ///
     /// This considers whether `pattern` is within a [GraphPattern::Graph] pattern.
     fn rewrite_triple_pattern(&mut self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
@@ -118,14 +132,38 @@ impl GraphPatternRewriter {
             Arc::new(DefaultTableSource::new(Arc::clone(&mut self.quads_table))),
             None,
         )?;
+        let plan = filter_by_named_graph(plan, &self.dataset, self.state.graph.as_ref())?;
 
-        let graph_pattern = self.state.graph.as_ref();
-        let plan = filter_by_triple_part(plan, pattern)?;
-        let plan = filter_by_named_graph(plan, &self.dataset, graph_pattern)?;
-        let plan = filter_pattern_same_variables(plan, graph_pattern, pattern)?;
-        let plan = project_quads_to_variables(plan, graph_pattern, pattern)?;
+        let graph_pattern = self
+            .state
+            .graph
+            .as_ref()
+            .map(|nn| nn.clone().into_term_pattern());
 
-        Ok(plan)
+        match graph_pattern {
+            None => {
+                let plan = plan.project([col(COL_SUBJECT), col(COL_PREDICATE), col(COL_OBJECT)])?;
+                let patterns = vec![
+                    pattern.subject.clone(),
+                    pattern.predicate.clone().into_term_pattern(),
+                    pattern.object.clone(),
+                ];
+                Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
+                    node: Arc::new(PatternNode::try_new(plan.build()?, patterns)?),
+                })))
+            }
+            Some(graph_pattern) => {
+                let patterns = vec![
+                    graph_pattern,
+                    pattern.subject.clone(),
+                    pattern.predicate.clone().into_term_pattern(),
+                    pattern.object.clone(),
+                ];
+                Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
+                    node: Arc::new(PatternNode::try_new(plan.build()?, patterns)?),
+                })))
+            }
+        }
     }
 
     /// Rewrites a projection
@@ -459,9 +497,10 @@ impl GraphPatternRewriter {
             Function::Timezone => Ok(ENC_TIMEZONE.call(args)),
             Function::Tz => Ok(ENC_TZ.call(args)),
             Function::Now => {
-                let literal = Literal::new_typed_literal(DateTime::now().to_string(), xsd::DATE_TIME);
+                let literal =
+                    Literal::new_typed_literal(DateTime::now().to_string(), xsd::DATE_TIME);
                 Ok(lit(encode_scalar_literal(literal.as_ref())?))
-            },
+            }
             // Hashing
             Function::Md5 => Ok(ENC_MD5.call(args)),
             Function::Sha1 => Ok(ENC_SHA1.call(args)),
@@ -720,26 +759,6 @@ fn use_lhs_or_rhs(lhs_keys: &HashSet<String>, k: &str) -> Expr {
     .alias(k)
 }
 
-/// Adds filter operations that constraints the solutions of patterns that use literals.
-///
-/// For example, for the pattern `?a foaf:knows ?b` this functions adds a filter that ensures that
-/// the predicate is `foaf:knows`.
-fn filter_by_triple_part(
-    plan: LogicalPlanBuilder,
-    pattern: &TriplePattern,
-) -> DFResult<LogicalPlanBuilder> {
-    let subject_filter = pattern_to_filter_scalar(&pattern.subject)?;
-    let predicate_filter =
-        pattern_to_filter_scalar(&pattern.predicate.clone().into_term_pattern())?;
-    let object_filter = pattern_to_filter_scalar(&pattern.object)?;
-
-    let plan = filter_equal_to_scalar(plan, COL_SUBJECT, subject_filter)?;
-    let plan = filter_equal_to_scalar(plan, COL_PREDICATE, predicate_filter)?;
-    let plan = filter_equal_to_scalar(plan, COL_OBJECT, object_filter)?;
-
-    Ok(plan)
-}
-
 /// Adds filter operations that constraints the solutions of patterns to named graphs if necessary.
 fn filter_by_named_graph(
     plan: LogicalPlanBuilder,
@@ -813,143 +832,6 @@ fn create_filter_for_named_graph(graphs: Option<&[NamedOrBlankNode]>) -> Expr {
         })
         .reduce(Expr::or)
         .unwrap_or(lit(false))
-}
-
-/// Adds filter operations that constraints the solutions of patterns that use the same variable
-/// twice.
-///
-/// For example, for the pattern `?a ?a ?b` this functions adds a constraint that ensures that the
-/// subject is equal to the predicate.
-fn filter_pattern_same_variables(
-    plan: LogicalPlanBuilder,
-    graph_pattern: Option<&NamedNodePattern>,
-    pattern: &TriplePattern,
-) -> DFResult<LogicalPlanBuilder> {
-    let graph_variable = graph_pattern
-        .map(|p| p.clone().into_term_pattern())
-        .and_then(|p| pattern_to_variable_name(&p));
-    let subject_variable = pattern_to_variable_name(&pattern.subject);
-    let predicate_variable =
-        pattern_to_variable_name(&pattern.predicate.clone().into_term_pattern());
-    let object_variable = pattern_to_variable_name(&pattern.object);
-    let all_variables = [
-        (graph_variable, COL_GRAPH),
-        (subject_variable, COL_SUBJECT),
-        (predicate_variable, COL_PREDICATE),
-        (object_variable, COL_OBJECT),
-    ];
-
-    let mut mappings = HashMap::new();
-    for (variable, quad_column) in all_variables {
-        match variable {
-            Some(variable) => {
-                if !mappings.contains_key(&variable) {
-                    mappings.insert(variable.clone(), Vec::new());
-                }
-                mappings.get_mut(&variable).unwrap().push(quad_column);
-            }
-            None => {}
-        }
-    }
-
-    let mut result_plan = plan;
-    for value in mappings.into_values() {
-        let columns = value
-            .into_iter()
-            .map(|v| col(Column::new_unqualified(v)))
-            .collect::<Vec<_>>();
-        let constraint = columns
-            .iter()
-            .zip(columns.iter().skip(1))
-            .map(|(a, b)| {
-                ENC_EFFECTIVE_BOOLEAN_VALUE
-                    .call(vec![ENC_SAME_TERM.call(vec![a.clone(), b.clone()])])
-            })
-            .reduce(|a, b| a.and(b));
-        result_plan = match constraint {
-            Some(constraint) => result_plan.filter(constraint)?,
-            _ => result_plan,
-        }
-    }
-
-    Ok(result_plan)
-}
-
-fn project_quads_to_variables(
-    plan: LogicalPlanBuilder,
-    graph_pattern: Option<&NamedNodePattern>,
-    pattern: &TriplePattern,
-) -> DFResult<LogicalPlanBuilder> {
-    let graph_pattern =
-        graph_pattern.and_then(|p| pattern_to_variable_name(&p.clone().into_term_pattern()));
-    let predicate_pattern =
-        pattern_to_variable_name(&pattern.predicate.clone().into_term_pattern());
-    let possible_projections = [
-        (COL_GRAPH, graph_pattern),
-        (COL_SUBJECT, pattern_to_variable_name(&pattern.subject)),
-        (COL_PREDICATE, predicate_pattern),
-        (COL_OBJECT, pattern_to_variable_name(&pattern.object)),
-    ];
-
-    let mut already_projected = HashSet::new();
-    let mut projections = Vec::new();
-    for (old_name, new_name) in possible_projections {
-        match &new_name {
-            Some(new_name) if !already_projected.contains(new_name) => {
-                let expr = col(Column::new_unqualified(old_name)).alias(new_name);
-                already_projected.insert(new_name.clone());
-                projections.push(expr);
-            }
-            _ => {}
-        }
-    }
-
-    plan.project(projections)
-}
-
-fn pattern_to_variable_name(pattern: &TermPattern) -> Option<String> {
-    match pattern {
-        TermPattern::BlankNode(bnode) => Some(bnode.as_ref().as_str().into()),
-        TermPattern::Variable(var) => Some(var.as_str().into()),
-        _ => None,
-    }
-}
-
-fn pattern_to_filter_scalar(pattern: &TermPattern) -> DFResult<Option<ScalarValue>> {
-    Ok(match pattern {
-        TermPattern::NamedNode(nn) => Some(encode_scalar_named_node(nn.as_ref())),
-        TermPattern::BlankNode(bnode) => Some(encode_scalar_blank_node(bnode.as_ref())),
-        TermPattern::Literal(lit) => Some(encode_scalar_literal(lit.as_ref())?),
-        TermPattern::Variable(_) => None,
-        TermPattern::Triple(_) => unimplemented!(),
-    })
-}
-
-/// Creates a filter node that applies the predicate
-fn filter_equal_to_scalar(
-    plan: LogicalPlanBuilder,
-    col_name: &str,
-    filter: Option<ScalarValue>,
-) -> DFResult<LogicalPlanBuilder> {
-    let Some(filter) = filter else {
-        return Ok(plan);
-    };
-
-    if filter.data_type() != EncTerm::term_type() {
-        return plan_err!("Unexpected type of scalar in filter_equal_to_scalar");
-    };
-
-    let ScalarValue::Union(Some((type_id, _)), _, _) = &filter else {
-        return plan_err!("Unexpected value of scalar in filter_equal_to_scalar");
-    };
-
-    if *type_id == EncTermField::BlankNode.type_id() {
-        return Ok(plan);
-    }
-
-    plan.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
-        ENC_SAME_TERM.call(vec![col(Column::new_unqualified(col_name)), lit(filter)]),
-    ]))
 }
 
 /// Extracts sort expressions from possible solution modifiers.

@@ -1,27 +1,19 @@
-use crate::sparql::paths::PathNode;
-use crate::DFResult;
-use arrow_rdf::encoded::scalars::{
-    encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node,
-    encode_scalar_predicate,
-};
+use crate::{DFResult, PathNode, PatternNode};
+use arrow_rdf::encoded::scalars::{encode_scalar_named_node, encode_scalar_predicate};
 use arrow_rdf::encoded::{
-    ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM,
-    ENC_WITH_STRUCT_ENCODING,
+    ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM, ENC_WITH_STRUCT_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_err, Column, JoinType};
-use datafusion::config::ConfigOptions;
 use datafusion::datasource::DefaultTableSource;
-use datafusion::logical_expr::{
-    col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder,
-};
-use datafusion::optimizer::AnalyzerRule;
+use datafusion::logical_expr::{col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
+use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
 use oxrdf::NamedNode;
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{NamedNodePattern, TermPattern};
+use spargebra::term::NamedNodePattern;
 use std::sync::Arc;
 
 const COL_SOURCE: &str = "_source";
@@ -33,13 +25,17 @@ pub struct PathToJoinsRule {
     quads_table: Arc<dyn TableProvider>,
 }
 
-impl AnalyzerRule for PathToJoinsRule {
-    fn analyze(&self, plan: LogicalPlan, _config: &ConfigOptions) -> DFResult<LogicalPlan> {
-        self.analyze_plan(plan)
-    }
-
+impl OptimizerRule for PathToJoinsRule {
     fn name(&self) -> &str {
         "path_to_joins_rule"
+    }
+
+    fn rewrite(
+        &self,
+        plan: LogicalPlan,
+        _config: &dyn OptimizerConfig,
+    ) -> DFResult<Transformed<LogicalPlan>> {
+        self.rewrite(plan)
     }
 }
 
@@ -48,32 +44,40 @@ impl PathToJoinsRule {
         Self { quads_table }
     }
 
-    fn analyze_plan(&self, plan: LogicalPlan) -> DFResult<LogicalPlan> {
-        Ok(plan
-            .transform(|plan| {
-                let new_plan = match plan {
-                    LogicalPlan::Extension(Extension { node })
-                        if node.as_any().downcast_ref::<PathNode>().is_some() =>
-                    {
-                        let node = node.as_any().downcast_ref::<PathNode>().unwrap();
-                        let query = self
-                            .rewrite_property_path_expression(node.graph().as_ref(), node.path())?;
-                        let graph_pattern =
-                            node.graph().as_ref().map(|p| p.clone().into_term_pattern());
-                        // TODO: Fix projection with two times the same variable
-                        let query =
-                            filter_and_project_term(query, COL_GRAPH, graph_pattern.as_ref())?;
-                        let query =
-                            filter_and_project_term(query, COL_SOURCE, Some(node.subject()))?;
-                        let query =
-                            filter_and_project_term(query, COL_TARGET, Some(node.object()))?;
-                        Transformed::yes(query.build()?)
-                    }
-                    _ => Transformed::no(plan),
-                };
-                Ok(new_plan)
-            })?
-            .data)
+    fn rewrite(&self, plan: LogicalPlan) -> DFResult<Transformed<LogicalPlan>> {
+        Ok(plan.transform(|plan| {
+            let new_plan = match plan {
+                LogicalPlan::Extension(Extension { node })
+                    if node.as_any().downcast_ref::<PathNode>().is_some() =>
+                {
+                    let node = node.as_any().downcast_ref::<PathNode>().unwrap();
+
+                    let query =
+                        self.rewrite_property_path_expression(node.graph().as_ref(), node.path())?;
+                    let graph_pattern =
+                        node.graph().as_ref().map(|p| p.clone().into_term_pattern());
+
+                    let pattern_node = match graph_pattern {
+                        None => LogicalPlan::Extension(Extension {
+                            node: Arc::new(PatternNode::try_new(
+                                query.project([col(COL_SOURCE), col(COL_TARGET)])?.build()?,
+                                vec![node.subject().clone(), node.object().clone()],
+                            )?),
+                        }),
+                        Some(graph_pattern) => LogicalPlan::Extension(Extension {
+                            node: Arc::new(PatternNode::try_new(
+                                query.build()?,
+                                vec![graph_pattern, node.subject().clone(), node.object().clone()],
+                            )?),
+                        }),
+                    };
+
+                    Transformed::yes(pattern_node.into())
+                }
+                _ => Transformed::no(plan),
+            };
+            Ok(new_plan)
+        })?)
     }
 
     /// The resulting query always has a column "start" and "end" that indicates the respective start
@@ -264,58 +268,6 @@ impl PathToJoinsRule {
     }
 }
 
-/// Depending on `term`, this function either
-/// - ... projects the `column` of a path to the respective variable
-/// - ... filter the `column` of a path by the given term
-fn filter_and_project_term(
-    inner: LogicalPlanBuilder,
-    column: &str,
-    term: Option<&TermPattern>,
-) -> DFResult<LogicalPlanBuilder> {
-    let Some(term) = term else {
-        return Ok(inner);
-    };
-
-    // TODO: adjust and re-use from rewriter
-    match term {
-        TermPattern::NamedNode(nn) => {
-            inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                col(Column::new_unqualified(column)),
-                lit(encode_scalar_named_node(nn.as_ref())),
-            ])]))
-        }
-        TermPattern::BlankNode(bnode) => {
-            inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                col(Column::new_unqualified(column)),
-                lit(encode_scalar_blank_node(bnode.as_ref())),
-            ])]))
-        }
-        TermPattern::Literal(literal) => {
-            inner.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                col(Column::new_unqualified(column)),
-                lit(encode_scalar_literal(literal.as_ref())?),
-            ])]))
-        }
-        TermPattern::Variable(var) => {
-            let columns = inner
-                .schema()
-                .fields()
-                .iter()
-                .map(|f| {
-                    let expr = col(Column::new_unqualified(f.name()));
-                    if f.name() == column {
-                        expr.alias(var.as_str())
-                    } else {
-                        expr
-                    }
-                })
-                .collect::<Vec<_>>();
-            inner.project(columns)
-        }
-        TermPattern::Triple(_) => unimplemented!("Triple"),
-    }
-}
-
 /// Creates a join that represents a sequence of two paths.
 fn join_path_sequence(
     lhs: LogicalPlanBuilder,
@@ -347,7 +299,6 @@ fn join_path_alternatives(
     lhs: LogicalPlanBuilder,
     rhs: LogicalPlanBuilder,
 ) -> DFResult<LogicalPlanBuilder> {
-    // TODO: DISTINCT ON
     lhs.union(rhs.build()?)?.distinct_on(
         vec![
             ENC_WITH_STRUCT_ENCODING.call(vec![col(COL_GRAPH)]),
