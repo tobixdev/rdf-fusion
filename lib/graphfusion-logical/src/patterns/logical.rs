@@ -23,12 +23,32 @@ impl PatternNode {
             return plan_err!("Patterns must match the number of column of inner.");
         }
 
-        let schema = compute_schema(&patterns);
+        let schema = Self::compute_schema(&patterns);
         Ok(Self {
             input,
             patterns,
             schema,
         })
+    }
+
+    pub(crate) fn compute_schema(patterns: &Vec<TermPattern>) -> DFSchemaRef {
+        let mut fields = Vec::new();
+        for pattern in patterns {
+            match pattern_to_variable_name(pattern) {
+                None => {}
+                Some(variable) => {
+                    if !fields.contains(&variable) {
+                        fields.push(variable);
+                    }
+                }
+            }
+        }
+
+        let fields = fields
+            .into_iter()
+            .map(|name| Field::new(name, EncTerm::term_type(), false))
+            .collect::<Fields>();
+        Arc::new(DFSchema::from_unqualified_fields(fields, HashMap::new()).expect("Names correct"))
     }
 
     pub fn input(&self) -> &LogicalPlan {
@@ -98,24 +118,4 @@ fn format_pattern(pattern: &TermPattern) -> String {
         TermPattern::Triple(_) => unreachable!(),
         TermPattern::Variable(v) => v.to_string(),
     }
-}
-
-fn compute_schema(patterns: &Vec<TermPattern>) -> DFSchemaRef {
-    let mut fields = Vec::new();
-    for pattern in patterns {
-        match pattern_to_variable_name(pattern) {
-            None => {}
-            Some(variable) => {
-                if !fields.contains(&variable) {
-                    fields.push(variable);
-                }
-            }
-        }
-    }
-
-    let fields = fields
-        .into_iter()
-        .map(|name| Field::new(name, EncTerm::term_type(), true))
-        .collect::<Fields>();
-    Arc::new(DFSchema::from_unqualified_fields(fields, HashMap::new()).expect("Names correct"))
 }
