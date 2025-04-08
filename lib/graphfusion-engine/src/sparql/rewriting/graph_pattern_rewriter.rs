@@ -5,15 +5,12 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
 use arrow_rdf::encoded::{
-    EncTerm, ENC_BOUND, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
+    ENC_BOUND, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
     ENC_WITH_STRUCT_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
-use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{
-    not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
-};
+use datafusion::common::{not_impl_err, plan_err, Column, DFSchema, JoinType, ScalarValue};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
@@ -176,7 +173,7 @@ impl GraphPatternRewriter {
         expression: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_graph_pattern(inner)?;
-        let expression = self.rewrite_expr(inner.schema(), expression)?;
+        let expression = self.rewrite_expression(inner.schema(), expression)?;
         let expression = create_filter_expression(inner.schema(), expression)?;
         inner.filter(expression)
     }
@@ -199,7 +196,7 @@ impl GraphPatternRewriter {
             .map(|f| Expr::Column(Column::new_unqualified(f.name())))
             .collect();
         new_exprs.push(
-            self.rewrite_expr(inner.schema(), expression)?
+            self.rewrite_expression(inner.schema(), expression)?
                 .alias(variable.as_str()),
         );
 
@@ -213,21 +210,24 @@ impl GraphPatternRewriter {
         bindings: &Vec<Vec<Option<GroundTerm>>>,
     ) -> DFResult<LogicalPlanBuilder> {
         if bindings.is_empty() {
-            return Ok(LogicalPlanBuilder::empty(false));
+            return Ok(LogicalPlanBuilder::empty(true));
         }
-
-        let fields: Vec<_> = variables
-            .iter()
-            .map(|v| Field::new(v.as_str(), EncTerm::term_type(), true))
-            .collect();
-        let schema = DFSchemaRef::new(DFSchema::try_from(Schema::new(fields))?);
 
         let values = bindings
             .iter()
             .map(|solution| encode_solution(solution))
             .collect::<DFResult<Vec<_>>>()?;
+        let values = LogicalPlanBuilder::values(values)?;
 
-        LogicalPlanBuilder::values_with_schema(values, &schema)
+        let projections: Vec<_> = values
+            .schema()
+            .columns()
+            .iter()
+            .zip(variables.iter())
+            .map(|(column, variable)| Expr::from(column.clone()).alias(variable.as_str()))
+            .collect();
+
+        values.project(projections)
     }
 
     /// Creates a logical join node for the two graph patterns.
@@ -258,7 +258,7 @@ impl GraphPatternRewriter {
         join_schema.merge(rhs.schema());
 
         let filter = filter
-            .map(|f| self.rewrite_expr(&join_schema, f))
+            .map(|f| self.rewrite_expression(&join_schema, f))
             .transpose()?;
         create_join(lhs, rhs, JoinType::Left, filter)
     }
@@ -286,7 +286,7 @@ impl GraphPatternRewriter {
             .map(|exprs| {
                 exprs
                     .iter()
-                    .map(|expr| self.rewrite_order_expr(inner.schema(), expr))
+                    .map(|expr| self.rewrite_order_expression(inner.schema(), expr))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -303,7 +303,7 @@ impl GraphPatternRewriter {
         let inner = self.rewrite_graph_pattern(inner)?;
         let sort_exprs = expression
             .iter()
-            .map(|e| self.rewrite_order_expr(inner.schema(), e))
+            .map(|e| self.rewrite_order_expression(inner.schema(), e))
             .collect::<Result<Vec<_>, _>>()?;
         LogicalPlanBuilder::sort(inner, sort_exprs)
     }
@@ -383,13 +383,13 @@ impl GraphPatternRewriter {
     }
 
     /// Rewrites an [Expression].
-    fn rewrite_expr(&self, schema: &DFSchema, expression: &Expression) -> DFResult<Expr> {
+    fn rewrite_expression(&self, schema: &DFSchema, expression: &Expression) -> DFResult<Expr> {
         let expression_rewriter = ExpressionRewriter::new(self, self.base_iri.as_ref(), schema);
         expression_rewriter.rewrite(expression)
     }
 
     /// Rewrites an [OrderExpression].
-    pub fn rewrite_order_expr(
+    fn rewrite_order_expression(
         &self,
         schema: &DFSchema,
         expression: &OrderExpression,
