@@ -10,7 +10,7 @@ use arrow_rdf::encoded::{
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{not_impl_err, plan_err, Column, DFSchema, JoinType, ScalarValue};
+use datafusion::common::{not_impl_err, plan_err, Column, DFSchema, JoinType};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
@@ -424,13 +424,9 @@ fn encode_solution(terms: &Vec<Option<GroundTerm>>) -> DFResult<Vec<Expr>> {
         .iter()
         .map(|t| {
             Ok(match t {
-                Some(GroundTerm::NamedNode(nn)) => {
-                    Expr::Literal(encode_scalar_named_node(nn.as_ref()))
-                }
-                Some(GroundTerm::Literal(lit)) => {
-                    Expr::Literal(encode_scalar_literal(lit.as_ref())?)
-                }
-                None => Expr::Literal(ScalarValue::Null),
+                Some(GroundTerm::NamedNode(nn)) => lit(encode_scalar_named_node(nn.as_ref())),
+                Some(GroundTerm::Literal(literal)) => lit(encode_scalar_literal(literal.as_ref())?),
+                None => lit(encode_scalar_null()),
                 _ => unimplemented!("encoding values"),
             })
         })
