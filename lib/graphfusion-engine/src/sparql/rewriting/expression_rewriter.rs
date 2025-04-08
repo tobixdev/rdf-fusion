@@ -4,32 +4,32 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
 use arrow_rdf::encoded::{
-    enc_iri, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME, ENC_AS_DECIMAL,
+    enc_iri, EncTerm, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME, ENC_AS_DECIMAL,
     ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_STRING, ENC_BNODE_NULLARY,
     ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_COALESCE, ENC_CONCAT,
     ENC_CONTAINS, ENC_DATATYPE, ENC_DAY, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI,
-    ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_HOURS, ENC_IS_BLANK, ENC_IS_IRI,
-    ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL,
-    ENC_LESS_THAN, ENC_MD5, ENC_MINUTES, ENC_MONTH, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY,
-    ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM,
-    ENC_SECONDS, ENC_SHA1, ENC_SHA256, ENC_SHA384, ENC_SHA512, ENC_STR, ENC_STRAFTER,
-    ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID,
-    ENC_SUB, ENC_SUBSTR, ENC_TIMEZONE, ENC_TZ, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS,
-    ENC_UUID, ENC_YEAR,
+    ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_HOURS, ENC_IS_BLANK,
+    ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES,
+    ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MD5, ENC_MINUTES, ENC_MONTH, ENC_MUL, ENC_OR,
+    ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY,
+    ENC_ROUND, ENC_SAME_TERM, ENC_SECONDS, ENC_SHA1, ENC_SHA256, ENC_SHA384, ENC_SHA512, ENC_STR,
+    ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS,
+    ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_TIMEZONE, ENC_TZ, ENC_UCASE, ENC_UNARY_MINUS,
+    ENC_UNARY_PLUS, ENC_UUID, ENC_YEAR,
 };
 use datafusion::common::{internal_err, not_impl_err, plan_err, Column, DFSchema};
-use datafusion::logical_expr::{
-    case, exists, lit, or, Expr, LogicalPlanBuilder, Operator, ScalarUDF,
-};
+use datafusion::logical_expr::{case, lit, or, Expr, LogicalPlanBuilder, Operator, ScalarUDF};
+use datafusion::prelude::{and, exists};
 use datamodel::DateTime;
 use oxiri::Iri;
 use oxrdf::vocab::xsd;
 use oxrdf::{Literal, NamedNode};
 use spargebra::algebra::{Expression, Function, GraphPattern};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 pub(super) struct ExpressionRewriter<'rewriter> {
-    graph: &'rewriter GraphPatternRewriter,
+    graph_rewriter: &'rewriter GraphPatternRewriter,
     base_iri: Option<&'rewriter Iri<String>>,
     schema: &'rewriter DFSchema,
 }
@@ -37,12 +37,12 @@ pub(super) struct ExpressionRewriter<'rewriter> {
 impl<'rewriter> ExpressionRewriter<'rewriter> {
     /// Creates a new expression rewriter for a given schema.
     pub fn new(
-        graph: &'rewriter GraphPatternRewriter,
+        graph_rewriter: &'rewriter GraphPatternRewriter,
         base_iri: Option<&'rewriter Iri<String>>,
         schema: &'rewriter DFSchema,
     ) -> Self {
         Self {
-            graph,
+            graph_rewriter,
             base_iri,
             schema,
         }
@@ -235,9 +235,43 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
 
     /// Rewrites an EXISTS expression to a correlated subquery.
     fn rewrite_exists(&self, inner: &GraphPattern) -> DFResult<Expr> {
-        let inner = self.graph.rewrite(inner)?;
-        let inner = LogicalPlanBuilder::from(inner);
-        Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![exists(inner.build()?.into())]))
+        let inner = LogicalPlanBuilder::new(self.graph_rewriter.rewrite(inner)?);
+
+        let outer_keys: HashSet<_> = self
+            .schema
+            .columns()
+            .into_iter()
+            .map(|c| c.name().to_string())
+            .collect();
+        let inner_keys: HashSet<_> = inner
+            .schema()
+            .columns()
+            .into_iter()
+            .map(|c| c.name().to_string())
+            .collect();
+
+        // TODO: Investigate why we need this renaming and cannot refer to the unqualified column
+        let projections = inner
+            .schema()
+            .columns()
+            .into_iter()
+            .map(|c| Expr::from(c.clone()).alias(format!("__inner__{}", c.name())))
+            .collect::<Vec<_>>();
+        let projected_inner = inner.project(projections)?;
+
+        let compatible_filter = outer_keys
+            .intersection(&inner_keys)
+            .map(|k| {
+                ENC_IS_COMPATIBLE.call(vec![
+                    Expr::OuterReferenceColumn(EncTerm::term_type(), Column::new_unqualified(k)),
+                    Expr::from(Column::new_unqualified(format!("__inner__{}", k))),
+                ])
+            })
+            .reduce(|lhs, rhs| and(lhs, rhs))
+            .unwrap_or(lit(true));
+
+        let subquery = Arc::new(projected_inner.filter(compatible_filter)?.build()?);
+        Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![exists(subquery)]))
     }
 
     /// Rewrites an IF expression to a case expression.
