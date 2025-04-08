@@ -1,3 +1,4 @@
-mod rewriter;
+mod graph_pattern_rewriter;
+mod expression_rewriter;
 
-pub use rewriter::GraphPatternRewriter;
+pub use graph_pattern_rewriter::GraphPatternRewriter;

@@ -1,43 +1,31 @@
+use crate::sparql::rewriting::expression_rewriter::ExpressionRewriter;
 use crate::sparql::QueryDataset;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
 use arrow_rdf::encoded::{
-    enc_iri, EncTerm, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME, ENC_AS_DECIMAL,
-    ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_STRING, ENC_BNODE_NULLARY,
-    ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND, ENC_CEIL, ENC_COALESCE, ENC_CONCAT,
-    ENC_CONTAINS, ENC_DATATYPE, ENC_DAY, ENC_DIV, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI,
-    ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL, ENC_GREATER_THAN, ENC_HOURS, ENC_IS_BLANK,
-    ENC_IS_COMPATIBLE, ENC_IS_IRI, ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES,
-    ENC_LCASE, ENC_LESS_OR_EQUAL, ENC_LESS_THAN, ENC_MD5, ENC_MINUTES, ENC_MONTH, ENC_MUL, ENC_OR,
-    ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY,
-    ENC_ROUND, ENC_SAME_TERM, ENC_SECONDS, ENC_SHA1, ENC_SHA256, ENC_SHA384, ENC_SHA512, ENC_STR,
-    ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS,
-    ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_TIMEZONE, ENC_TZ, ENC_UCASE, ENC_UNARY_MINUS,
-    ENC_UNARY_PLUS, ENC_UUID, ENC_WITH_STRUCT_ENCODING, ENC_YEAR,
+    EncTerm, ENC_BOUND, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
+    ENC_WITH_STRUCT_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::{Field, Schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{
-    internal_err, not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
+    not_impl_err, plan_err, Column, DFSchema, DFSchemaRef, JoinType, ScalarValue,
 };
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::logical_expr::{
-    lit, not, or, Expr, Extension, LogicalPlan, LogicalPlanBuilder, Operator, ScalarUDF, SortExpr,
+    lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
 };
-use datafusion::prelude::{case, col, exists};
-use datamodel::DateTime;
+use datafusion::prelude::col;
 use graphfusion_logical::{PathNode, PatternNode};
 use oxiri::Iri;
-use oxrdf::vocab::xsd;
-use oxrdf::{GraphName, Literal, NamedNode, NamedOrBlankNode, Variable};
-use spargebra::algebra::{
-    Expression, Function, GraphPattern, OrderExpression, PropertyPathExpression,
-};
+use oxrdf::{GraphName, NamedOrBlankNode, Variable};
+use spargebra::algebra::{Expression, GraphPattern, OrderExpression, PropertyPathExpression};
 use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
-use std::collections::{HashMap, HashSet};
+use std::cell::RefCell;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 pub struct GraphPatternRewriter {
@@ -45,7 +33,7 @@ pub struct GraphPatternRewriter {
     base_iri: Option<Iri<String>>,
     // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
     quads_table: Arc<dyn TableProvider>,
-    state: RewritingState,
+    state: RefCell<RewritingState>,
 }
 
 impl GraphPatternRewriter {
@@ -58,16 +46,16 @@ impl GraphPatternRewriter {
             dataset,
             base_iri,
             quads_table,
-            state: RewritingState::default(),
+            state: RefCell::default(),
         }
     }
 
-    pub fn rewrite(&mut self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
+    pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
         let plan = self.rewrite_graph_pattern(pattern)?;
         Ok(plan.build()?)
     }
 
-    fn rewrite_graph_pattern(&mut self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_graph_pattern(&self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
         match pattern {
             GraphPattern::Bgp { patterns } => self.rewrite_bgp(patterns),
             GraphPattern::Project { inner, variables } => self.rewrite_project(inner, variables),
@@ -96,10 +84,11 @@ impl GraphPatternRewriter {
             GraphPattern::OrderBy { inner, expression } => self.rewrite_order_by(inner, expression),
             GraphPattern::Union { left, right } => self.rewrite_union(left, right),
             GraphPattern::Graph { name, inner } => {
-                let old = self.state.clone();
-                self.state = old.with_graph(name.clone());
+                let old_state = self.state.borrow().clone();
+                let new_state = old_state.with_graph(name.clone());
+                self.state.replace(new_state);
                 let result = self.rewrite_graph_pattern(inner.as_ref());
-                self.state = old;
+                self.state.replace(old_state);
                 result
             }
             GraphPattern::Path {
@@ -114,7 +103,7 @@ impl GraphPatternRewriter {
 
     /// Rewrites a basic graph pattern into multiple scans of the quads table and joins them
     /// together.
-    fn rewrite_bgp(&mut self, patterns: &Vec<TriplePattern>) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_bgp(&self, patterns: &Vec<TriplePattern>) -> DFResult<LogicalPlanBuilder> {
         patterns
             .iter()
             .map(|p| self.rewrite_triple_pattern(p))
@@ -126,16 +115,17 @@ impl GraphPatternRewriter {
     /// and lastly applying the pattern.
     ///
     /// This considers whether `pattern` is within a [GraphPattern::Graph] pattern.
-    fn rewrite_triple_pattern(&mut self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_triple_pattern(&self, pattern: &TriplePattern) -> DFResult<LogicalPlanBuilder> {
         let plan = LogicalPlanBuilder::scan(
             TABLE_QUADS,
-            Arc::new(DefaultTableSource::new(Arc::clone(&mut self.quads_table))),
+            Arc::new(DefaultTableSource::new(Arc::clone(&self.quads_table))),
             None,
         )?;
-        let plan = filter_by_named_graph(plan, &self.dataset, self.state.graph.as_ref())?;
+        let plan = filter_by_named_graph(plan, &self.dataset, self.state.borrow().graph.as_ref())?;
 
         let graph_pattern = self
             .state
+            .borrow()
             .graph
             .as_ref()
             .map(|nn| nn.clone().into_term_pattern());
@@ -168,7 +158,7 @@ impl GraphPatternRewriter {
 
     /// Rewrites a projection
     fn rewrite_project(
-        &mut self,
+        &self,
         inner: &GraphPattern,
         variables: &Vec<Variable>,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -181,12 +171,12 @@ impl GraphPatternRewriter {
 
     /// Creates a filter node using `expression`.
     fn rewrite_filter(
-        &mut self,
+        &self,
         inner: &GraphPattern,
         expression: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_graph_pattern(inner)?;
-        let expression = self.rewrite_expr(expression)?;
+        let expression = self.rewrite_expr(inner.schema(), expression)?;
         let expression = create_filter_expression(inner.schema(), expression)?;
         inner.filter(expression)
     }
@@ -195,7 +185,7 @@ impl GraphPatternRewriter {
     ///
     /// The column is computed by evaluating `expression`.
     fn rewrite_extend(
-        &mut self,
+        &self,
         inner: &GraphPattern,
         expression: &Expression,
         variable: &Variable,
@@ -208,14 +198,17 @@ impl GraphPatternRewriter {
             .iter()
             .map(|f| Expr::Column(Column::new_unqualified(f.name())))
             .collect();
-        new_exprs.push(self.rewrite_expr(expression)?.alias(variable.as_str()));
+        new_exprs.push(
+            self.rewrite_expr(inner.schema(), expression)?
+                .alias(variable.as_str()),
+        );
 
         inner.project(new_exprs)
     }
 
     /// Creates a logical node that holds the given VALUES as encoded RDF terms
     fn rewrite_values(
-        &mut self,
+        &self,
         variables: &Vec<Variable>,
         bindings: &Vec<Vec<Option<GroundTerm>>>,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -239,7 +232,7 @@ impl GraphPatternRewriter {
 
     /// Creates a logical join node for the two graph patterns.
     fn rewrite_join(
-        &mut self,
+        &self,
         left: &GraphPattern,
         right: &GraphPattern,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -251,20 +244,28 @@ impl GraphPatternRewriter {
     /// Creates a logical left join node for the two graph patterns. Optionally, a filter node is
     /// applied.
     fn rewrite_left_join(
-        &mut self,
+        &self,
         lhs: &GraphPattern,
         rhs: &GraphPattern,
         filter: Option<&Expression>,
     ) -> DFResult<LogicalPlanBuilder> {
         let lhs = self.rewrite_graph_pattern(lhs)?;
         let rhs = self.rewrite_graph_pattern(rhs)?;
-        let filter = filter.map(|f| self.rewrite_expr(f)).transpose()?;
+
+        let lhs = lhs.alias("lhs")?;
+        let rhs = rhs.alias("rhs")?;
+        let mut join_schema = lhs.schema().as_ref().clone();
+        join_schema.merge(rhs.schema());
+
+        let filter = filter
+            .map(|f| self.rewrite_expr(&join_schema, f))
+            .transpose()?;
         create_join(lhs, rhs, JoinType::Left, filter)
     }
 
     /// Creates a limit node that applies skip (`start`) and fetch (`length`) to `inner`.
     fn rewrite_slice(
-        &mut self,
+        &self,
         inner: &GraphPattern,
         start: usize,
         length: Option<usize>,
@@ -274,7 +275,7 @@ impl GraphPatternRewriter {
     }
 
     /// Creates a distinct node over all variables.
-    fn rewrite_distinct(&mut self, inner: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_distinct(&self, inner: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
         let sort_expr = get_sort_expressions(inner);
 
         let inner = self.rewrite_graph_pattern(inner)?;
@@ -285,7 +286,7 @@ impl GraphPatternRewriter {
             .map(|exprs| {
                 exprs
                     .iter()
-                    .map(|expr| self.rewrite_order_expr(expr))
+                    .map(|expr| self.rewrite_order_expr(inner.schema(), expr))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -295,21 +296,21 @@ impl GraphPatternRewriter {
 
     /// Creates a distinct node over all variables.
     fn rewrite_order_by(
-        &mut self,
+        &self,
         inner: &GraphPattern,
         expression: &Vec<OrderExpression>,
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_graph_pattern(inner)?;
         let sort_exprs = expression
             .iter()
-            .map(|e| self.rewrite_order_expr(e))
+            .map(|e| self.rewrite_order_expr(inner.schema(), e))
             .collect::<Result<Vec<_>, _>>()?;
         LogicalPlanBuilder::sort(inner, sort_exprs)
     }
 
     /// Creates a union node
     fn rewrite_union(
-        &mut self,
+        &self,
         left: &GraphPattern,
         right: &GraphPattern,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -348,13 +349,13 @@ impl GraphPatternRewriter {
 
     /// Rewrites a path to a [PathNode].
     fn rewrite_path(
-        &mut self,
+        &self,
         path: &PropertyPathExpression,
         subject: &TermPattern,
         object: &TermPattern,
     ) -> DFResult<LogicalPlanBuilder> {
         let node = PathNode::new(
-            self.state.graph.clone(),
+            self.state.borrow().graph.clone(),
             subject.clone(),
             path.clone(),
             object.clone(),
@@ -366,7 +367,7 @@ impl GraphPatternRewriter {
 
     /// Rewrites a MINUS pattern to an except expression.
     fn rewrite_minus(
-        &mut self,
+        &self,
         left: &GraphPattern,
         right: &GraphPattern,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -381,220 +382,22 @@ impl GraphPatternRewriter {
         )?))
     }
 
-    //
-    // Expressions
-    //
-
     /// Rewrites an [Expression].
-    fn rewrite_expr(&mut self, expression: &Expression) -> DFResult<Expr> {
-        match expression {
-            Expression::Bound(var) => {
-                Ok(ENC_BOUND.call(vec![Expr::from(Column::new_unqualified(var.as_str()))]))
-            }
-            Expression::Not(inner) => Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![Expr::Not(Box::new(
-                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite_expr(inner)?]),
-            ))])),
-            Expression::Equal(lhs, rhs) => binary_udf(self, &ENC_EQ, lhs, rhs),
-            Expression::SameTerm(lhs, rhs) => binary_udf(self, &ENC_SAME_TERM, lhs, rhs),
-            Expression::Greater(lhs, rhs) => binary_udf(self, &ENC_GREATER_THAN, lhs, rhs),
-            Expression::GreaterOrEqual(lhs, rhs) => {
-                binary_udf(self, &ENC_GREATER_OR_EQUAL, lhs, rhs)
-            }
-            Expression::Less(lhs, rhs) => binary_udf(self, &ENC_LESS_THAN, lhs, rhs),
-            Expression::LessOrEqual(lhs, rhs) => binary_udf(self, &ENC_LESS_OR_EQUAL, lhs, rhs),
-            Expression::Literal(literal) => Ok(lit(encode_scalar_literal(literal.as_ref())?)),
-            Expression::Variable(var) => Ok(Expr::Column(Column::new_unqualified(var.as_str()))),
-            Expression::FunctionCall(function, args) => self.rewrite_function_call(function, args),
-            Expression::NamedNode(nn) => Ok(lit(encode_scalar_named_node(nn.as_ref()))),
-            Expression::Or(lhs, rhs) => logical_expression(self, Operator::Or, lhs, rhs),
-            Expression::And(lhs, rhs) => logical_expression(self, Operator::And, lhs, rhs),
-            Expression::In(lhs, rhs) => self.rewrite_in(lhs, rhs),
-            Expression::Add(lhs, rhs) => binary_udf(self, &ENC_ADD, lhs, rhs),
-            Expression::Subtract(lhs, rhs) => binary_udf(self, &ENC_SUB, lhs, rhs),
-            Expression::Multiply(lhs, rhs) => binary_udf(self, &ENC_MUL, lhs, rhs),
-            Expression::Divide(lhs, rhs) => binary_udf(self, &ENC_DIV, lhs, rhs),
-            Expression::UnaryPlus(value) => unary_udf(self, &ENC_UNARY_PLUS, value),
-            Expression::UnaryMinus(value) => unary_udf(self, &ENC_UNARY_MINUS, value),
-            Expression::Exists(pattern) => self.rewrite_exists(pattern),
-            Expression::If(test, if_true, if_false) => self.rewrite_if(test, if_true, if_false),
-            Expression::Coalesce(args) => {
-                let args = args
-                    .iter()
-                    .map(|arg| self.rewrite_expr(arg))
-                    .collect::<DFResult<Vec<_>>>()?;
-                Ok(ENC_COALESCE.call(args))
-            }
-        }
-    }
-
-    /// Rewrites a SPARQL function call.
-    ///
-    /// We assume here that the length of `args` matches the expected number of arguments.
-    fn rewrite_function_call(
-        &mut self,
-        function: &Function,
-        args: &Vec<Expression>,
-    ) -> DFResult<Expr> {
-        let args = args
-            .iter()
-            .map(|e| self.rewrite_expr(e))
-            .collect::<DFResult<Vec<_>>>()?;
-        match function {
-            // Functions on RDF Terms
-            Function::IsIri => Ok(ENC_IS_IRI.call(args)),
-            Function::IsBlank => Ok(ENC_IS_BLANK.call(args)),
-            Function::IsLiteral => Ok(ENC_IS_LITERAL.call(args)),
-            Function::IsNumeric => Ok(ENC_IS_NUMERIC.call(args)),
-            Function::Str => Ok(ENC_STR.call(args)),
-            Function::Lang => Ok(ENC_LANG.call(args)),
-            Function::Datatype => Ok(ENC_DATATYPE.call(args)),
-            Function::Iri => Ok(enc_iri(self.base_iri.clone()).call(args)),
-            Function::BNode => match args.len() {
-                0 => Ok(ENC_BNODE_NULLARY.call(args)),
-                1 => Ok(ENC_BNODE_UNARY.call(args)),
-                _ => internal_err!("Unexpected arity for BNode"),
-            },
-            Function::StrDt => Ok(ENC_STRDT.call(args)),
-            Function::StrLang => Ok(ENC_STRLANG.call(args)),
-            Function::Uuid => Ok(ENC_UUID.call(args)),
-            Function::StrUuid => Ok(ENC_STRUUID.call(args)),
-            // Strings
-            Function::StrLen => Ok(ENC_STRLEN.call(args)),
-            Function::SubStr => Ok(ENC_SUBSTR.call(args)),
-            Function::UCase => Ok(ENC_UCASE.call(args)),
-            Function::LCase => Ok(ENC_LCASE.call(args)),
-            Function::StrStarts => Ok(ENC_STRSTARTS.call(args)),
-            Function::StrEnds => Ok(ENC_STRENDS.call(args)),
-            Function::Contains => Ok(ENC_CONTAINS.call(args)),
-            Function::StrBefore => Ok(ENC_STRBEFORE.call(args)),
-            Function::StrAfter => Ok(ENC_STRAFTER.call(args)),
-            Function::EncodeForUri => Ok(ENC_ENCODEFORURI.call(args)),
-            Function::Concat => Ok(ENC_CONCAT.call(args)),
-            Function::LangMatches => Ok(ENC_LANGMATCHES.call(args)),
-            Function::Regex => Ok(match args.len() {
-                2 => ENC_REGEX_BINARY.call(args),
-                3 => ENC_REGEX_TERNARY.call(args),
-                _ => unreachable!("Unexpected number of args"),
-            }),
-            Function::Replace => Ok(match args.len() {
-                3 => ENC_REPLACE_TERNARY.call(args),
-                4 => ENC_REPLACE_QUATERNARY.call(args),
-                _ => unreachable!("Unexpected number of args"),
-            }),
-            // Numeric
-            Function::Abs => Ok(ENC_ABS.call(args)),
-            Function::Round => Ok(ENC_ROUND.call(args)),
-            Function::Ceil => Ok(ENC_CEIL.call(args)),
-            Function::Floor => Ok(ENC_FLOOR.call(args)),
-            Function::Rand => Ok(ENC_RAND.call(args)),
-            // Dates & Durations
-            Function::Year => Ok(ENC_YEAR.call(args)),
-            Function::Month => Ok(ENC_MONTH.call(args)),
-            Function::Day => Ok(ENC_DAY.call(args)),
-            Function::Hours => Ok(ENC_HOURS.call(args)),
-            Function::Minutes => Ok(ENC_MINUTES.call(args)),
-            Function::Seconds => Ok(ENC_SECONDS.call(args)),
-            Function::Timezone => Ok(ENC_TIMEZONE.call(args)),
-            Function::Tz => Ok(ENC_TZ.call(args)),
-            Function::Now => {
-                let literal =
-                    Literal::new_typed_literal(DateTime::now().to_string(), xsd::DATE_TIME);
-                Ok(lit(encode_scalar_literal(literal.as_ref())?))
-            }
-            // Hashing
-            Function::Md5 => Ok(ENC_MD5.call(args)),
-            Function::Sha1 => Ok(ENC_SHA1.call(args)),
-            Function::Sha256 => Ok(ENC_SHA256.call(args)),
-            Function::Sha384 => Ok(ENC_SHA384.call(args)),
-            Function::Sha512 => Ok(ENC_SHA512.call(args)),
-            // Custom
-            Function::Custom(nn) => self.rewrite_custom_function_call(nn, args),
-            _ => not_impl_err!("rewrite_function_call: {:?}", function),
-        }
-    }
-
-    /// Rewrites a custom SPARQL function call
-    fn rewrite_custom_function_call(
-        &mut self,
-        function: &NamedNode,
-        args: Vec<Expr>,
-    ) -> DFResult<Expr> {
-        let supported_conversion_functions = HashMap::from([
-            (xsd::BOOLEAN.as_str(), ENC_AS_BOOLEAN),
-            (xsd::INT.as_str(), ENC_AS_INT),
-            (xsd::INTEGER.as_str(), ENC_AS_INTEGER),
-            (xsd::FLOAT.as_str(), ENC_AS_FLOAT),
-            (xsd::DOUBLE.as_str(), ENC_AS_DOUBLE),
-            (xsd::DECIMAL.as_str(), ENC_AS_DECIMAL),
-            (xsd::DATE_TIME.as_str(), ENC_AS_DATETIME),
-            (xsd::STRING.as_str(), ENC_AS_STRING),
-        ]);
-
-        let supported_conversion = supported_conversion_functions.get(function.as_str());
-        if let Some(supported_conversion) = supported_conversion {
-            if args.len() != 1 {
-                return plan_err!(
-                    "Unsupported argument count for conversion function {}.",
-                    function.as_str()
-                );
-            }
-            return Ok(supported_conversion.call(args));
-        }
-
-        plan_err!("Custom Function {} is not supported.", function.as_str())
-    }
-
-    /// Rewrites an IN expression to a list of equality checks. As the IN operation is equal to
-    /// checking equality (using the "=" operator) this rewrite is sound.
-    ///
-    /// We cannot use the default DataFusion [Expr::InList] (without additional canonicalization) as
-    /// the `=` is used.
-    ///
-    /// https://www.w3.org/TR/sparql11-query/#func-in
-    fn rewrite_in(&mut self, lhs: &Expression, rhs: &Vec<Expression>) -> DFResult<Expr> {
-        let lhs = self.rewrite_expr(lhs)?;
-        let expressions = rhs
-            .iter()
-            .map(|e| Ok(ENC_EQ.call(vec![lhs.clone(), self.rewrite_expr(e)?])))
-            .collect::<DFResult<Vec<_>>>()?;
-
-        let false_literal = Literal::from(false);
-        let result = expressions
-            .into_iter()
-            .reduce(|lhs, rhs| or(lhs, rhs))
-            .unwrap_or(lit(encode_scalar_literal(false_literal.as_ref())?));
-
-        Ok(result)
-    }
-
-    /// Rewrites an EXISTS expression to a correlated subquery.
-    fn rewrite_exists(&mut self, inner: &GraphPattern) -> DFResult<Expr> {
-        let inner = self.rewrite_graph_pattern(inner)?;
-        Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![exists(inner.build()?.into())]))
-    }
-
-    /// Rewrites an IF expression to a case expression.
-    fn rewrite_if(
-        &mut self,
-        test: &Expression,
-        if_true: &Expression,
-        if_false: &Expression,
-    ) -> DFResult<Expr> {
-        let test = self.rewrite_expr(test)?;
-        let if_true = self.rewrite_expr(if_true)?;
-        let if_false = self.rewrite_expr(if_false)?;
-
-        case(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![test]))
-            .when(lit(true), if_true)
-            .when(lit(false), if_false)
-            .otherwise(lit(encode_scalar_null()))
+    fn rewrite_expr(&self, schema: &DFSchema, expression: &Expression) -> DFResult<Expr> {
+        let expression_rewriter = ExpressionRewriter::new(self, self.base_iri.as_ref(), schema);
+        expression_rewriter.rewrite(expression)
     }
 
     /// Rewrites an [OrderExpression].
-    fn rewrite_order_expr(&mut self, expression: &OrderExpression) -> DFResult<SortExpr> {
+    pub fn rewrite_order_expr(
+        &self,
+        schema: &DFSchema,
+        expression: &OrderExpression,
+    ) -> DFResult<SortExpr> {
+        let expression_rewriter = ExpressionRewriter::new(self, self.base_iri.as_ref(), schema);
         let (asc, expression) = match expression {
-            OrderExpression::Asc(inner) => (true, self.rewrite_expr(inner)?),
-            OrderExpression::Desc(inner) => (false, self.rewrite_expr(inner)?),
+            OrderExpression::Asc(inner) => (true, expression_rewriter.rewrite(inner)?),
+            OrderExpression::Desc(inner) => (false, expression_rewriter.rewrite(inner)?),
         };
         Ok(ENC_WITH_STRUCT_ENCODING
             .call(vec![expression])
@@ -614,44 +417,6 @@ impl RewritingState {
             ..*self
         }
     }
-}
-
-fn logical_expression(
-    rewriter: &mut GraphPatternRewriter,
-    operator: Operator,
-    lhs: &Expression,
-    rhs: &Expression,
-) -> DFResult<Expr> {
-    let lhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite_expr(lhs)?]);
-    let rhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite_expr(rhs)?]);
-
-    let connective_impl = match operator {
-        Operator::And => ENC_AND,
-        Operator::Or => ENC_OR,
-        _ => plan_err!("Unsupported logical expression: {}", &operator)?,
-    };
-    let booleans = connective_impl.call(vec![lhs, rhs]);
-    Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![booleans]))
-}
-
-fn unary_udf(
-    rewriter: &mut GraphPatternRewriter,
-    udf: &ScalarUDF,
-    value: &Box<Expression>,
-) -> DFResult<Expr> {
-    let value = rewriter.rewrite_expr(value)?;
-    Ok(udf.call(vec![value]))
-}
-
-fn binary_udf(
-    rewriter: &mut GraphPatternRewriter,
-    udf: &ScalarUDF,
-    lhs: &Expression,
-    rhs: &Expression,
-) -> DFResult<Expr> {
-    let lhs = rewriter.rewrite_expr(lhs)?;
-    let rhs = rewriter.rewrite_expr(rhs)?;
-    Ok(udf.call(vec![lhs, rhs]))
 }
 
 fn encode_solution(terms: &Vec<Option<GroundTerm>>) -> DFResult<Vec<Expr>> {
