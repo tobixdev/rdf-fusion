@@ -5,7 +5,7 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
 use arrow_rdf::encoded::{
-    ENC_BOUND, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
+    ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
     ENC_WITH_STRUCT_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
@@ -174,7 +174,7 @@ impl GraphPatternRewriter {
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_graph_pattern(inner)?;
         let expression = self.rewrite_expression(inner.schema(), expression)?;
-        let expression = create_filter_expression(inner.schema(), expression)?;
+        let expression = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![expression]);
         inner.filter(expression)
     }
 
@@ -433,18 +433,6 @@ fn encode_solution(terms: &Vec<Option<GroundTerm>>) -> DFResult<Vec<Expr>> {
         .collect()
 }
 
-fn create_filter_expression(schema: &DFSchema, filter: Expr) -> DFResult<Expr> {
-    let new_expr = filter.transform(|e| {
-        Ok(match e {
-            Expr::Column(c) if !schema.has_column(&c) => {
-                Transformed::yes(lit(encode_scalar_null()))
-            }
-            e => Transformed::no(e),
-        })
-    })?;
-    Ok(ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![new_expr.data]))
-}
-
 /// Creates a join node of two logical plans that contain encoded RDF Terms.
 ///
 /// See https://www.w3.org/TR/sparql11-query/#defn_algCompatibleMapping for a definition for
@@ -486,19 +474,21 @@ fn create_join(
         let filter = filter
             .transform(|e| {
                 Ok(match e {
-                    Expr::Column(c) => Transformed::yes(use_lhs_or_rhs(&lhs_keys, c.name())),
+                    Expr::Column(c) => {
+                        Transformed::yes(value_from_joined(&lhs_keys, &rhs_keys, c.name()))
+                    }
                     _ => Transformed::no(e),
                 })
             })?
             .data;
-        let filter = create_filter_expression(&join_schema, filter)?;
+        let filter = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![filter]);
         join_filters.push(filter);
     }
     let filter_expr = join_filters.into_iter().reduce(Expr::and);
 
     let projections = lhs_keys
         .union(&rhs_keys)
-        .map(|k| use_lhs_or_rhs(&lhs_keys, k))
+        .map(|k| value_from_joined(&lhs_keys, &rhs_keys, k))
         .collect::<Vec<_>>();
 
     lhs.join_detailed(
@@ -511,13 +501,23 @@ fn create_join(
     .project(projections)
 }
 
-fn use_lhs_or_rhs(lhs_keys: &HashSet<String>, k: &str) -> Expr {
-    if lhs_keys.contains(k) {
-        Expr::from(Column::new(Some("lhs"), k))
-    } else {
-        Expr::from(Column::new(Some("rhs"), k))
+/// Returns an expression that obtains value `variable` from either the lhs, the rhs, or both
+/// depending on the schema.
+fn value_from_joined(
+    lhs_keys: &HashSet<String>,
+    rhs_keys: &HashSet<String>,
+    variable: &str,
+) -> Expr {
+    let lhs_expr = Expr::from(Column::new(Some("lhs"), variable));
+    let rhs_expr = Expr::from(Column::new(Some("rhs"), variable));
+
+    match (lhs_keys.contains(variable), rhs_keys.contains(variable)) {
+        (true, true) => ENC_COALESCE.call(vec![lhs_expr, rhs_expr]),
+        (true, false) => lhs_expr,
+        (false, true) => rhs_expr,
+        (false, false) => lit(encode_scalar_null()),
     }
-    .alias(k)
+    .alias(variable)
 }
 
 /// Adds filter operations that constraints the solutions of patterns to named graphs if necessary.
