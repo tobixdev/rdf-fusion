@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, TermRef, RdfValueRef};
+use crate::{RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
 
 /// https://www.w3.org/TR/sparql11-query/#func-string
@@ -26,7 +26,6 @@ impl Ord for StringLiteralRef<'_> {
         self.partial_cmp(other).expect("Ordering is total")
     }
 }
-
 
 // TODO: This should only be a temporary solution once the results can write into the arrays.
 
@@ -63,11 +62,7 @@ impl<'data> CompatibleStringArgs<'data> {
         lhs: StringLiteralRef<'data>,
         rhs: StringLiteralRef<'data>,
     ) -> RdfOpResult<CompatibleStringArgs<'data>> {
-        let is_compatible = match (lhs.1, rhs.1) {
-            (None, Some(_)) => false,
-            (Some(lhs_lang), Some(rhs_lang)) if lhs_lang != rhs_lang => false,
-            _ => true,
-        };
+        let is_compatible = rhs.1.is_none() || lhs.1 == rhs.1;
 
         if !is_compatible {
             return Err(());
@@ -76,7 +71,7 @@ impl<'data> CompatibleStringArgs<'data> {
         Ok(CompatibleStringArgs {
             lhs: lhs.0,
             rhs: rhs.0,
-            language: None,
+            language: lhs.1,
         })
     }
 }
@@ -88,10 +83,10 @@ impl<'data> RdfValueRef<'data> for StringLiteralRef<'data> {
     {
         match term {
             TermRef::SimpleLiteral(inner) => Ok(StringLiteralRef(inner.value, None)),
-            TermRef::LanguageStringLiteral(inner) => Ok(StringLiteralRef(inner.value, Some(inner.language))),
+            TermRef::LanguageStringLiteral(inner) => {
+                Ok(StringLiteralRef(inner.value, Some(inner.language)))
+            }
             _ => Err(()),
         }
     }
 }
-
-
