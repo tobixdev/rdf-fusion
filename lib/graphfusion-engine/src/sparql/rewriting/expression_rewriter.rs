@@ -14,8 +14,8 @@ use arrow_rdf::encoded::{
     ENC_RAND, ENC_REGEX_BINARY, ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY,
     ENC_ROUND, ENC_SAME_TERM, ENC_SECONDS, ENC_SHA1, ENC_SHA256, ENC_SHA384, ENC_SHA512, ENC_STR,
     ENC_STRAFTER, ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS,
-    ENC_STRUUID, ENC_SUB, ENC_SUBSTR, ENC_TIMEZONE, ENC_TZ, ENC_UCASE, ENC_UNARY_MINUS,
-    ENC_UNARY_PLUS, ENC_UUID, ENC_YEAR,
+    ENC_STRUUID, ENC_SUB, ENC_SUBSTR_BINARY, ENC_SUBSTR_TERNARY, ENC_TIMEZONE, ENC_TZ, ENC_UCASE,
+    ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID, ENC_YEAR,
 };
 use datafusion::common::{internal_err, not_impl_err, plan_err, Column, DFSchema};
 use datafusion::logical_expr::{case, lit, or, Expr, LogicalPlanBuilder, Operator, ScalarUDF};
@@ -126,7 +126,11 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             Function::StrUuid => Ok(ENC_STRUUID.call(args)),
             // Strings
             Function::StrLen => Ok(ENC_STRLEN.call(args)),
-            Function::SubStr => Ok(ENC_SUBSTR.call(args)),
+            Function::SubStr => Ok(match args.len() {
+                2 => ENC_SUBSTR_BINARY.call(args),
+                3 => ENC_SUBSTR_TERNARY.call(args),
+                _ => unreachable!("Unexpected number of args"),
+            }),
             Function::UCase => Ok(ENC_UCASE.call(args)),
             Function::LCase => Ok(ENC_LCASE.call(args)),
             Function::StrStarts => Ok(ENC_STRSTARTS.call(args)),

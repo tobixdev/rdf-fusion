@@ -96,7 +96,8 @@ make_nullary_rdf_udf!(RandRdfOp, EncRand, ENC_RAND, "enc_rand");
 // Strings
 
 make_unary_rdf_udf!(StrLenRdfOp, EncStrlen, ENC_STRLEN, "enc_strlen");
-make_binary_rdf_udf!(SubStrRdfOp, EncSubstr, ENC_SUBSTR, "enc_substr");
+make_binary_rdf_udf!(SubStrRdfOp, EncSubstrBinary, ENC_SUBSTR_BINARY, "enc_substr");
+make_ternary_rdf_udf!(SubStrRdfOp, EncSubstrTernary, ENC_SUBSTR_TERNARY, "enc_substr");
 make_unary_rdf_udf!(UCaseRdfOp, EncUcase, ENC_UCASE, "enc_ucase");
 make_unary_rdf_udf!(LCaseRdfOp, EncLcase, ENC_LCASE, "enc_lcase");
 make_binary_rdf_udf!(StrStartsRdfOp, EncStrstarts, ENC_STRSTARTS, "enc_strstarts");
