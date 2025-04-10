@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarBinaryRdfOp};
-use datamodel::{LanguageStringRef, SimpleLiteralRef};
+use datamodel::{OwnedStringLiteral, SimpleLiteralRef};
 
 #[derive(Debug)]
 pub struct StrLangRdfOp {}
@@ -13,16 +13,16 @@ impl StrLangRdfOp {
 impl ScalarBinaryRdfOp for StrLangRdfOp {
     type ArgLhs<'lhs> = SimpleLiteralRef<'lhs>;
     type ArgRhs<'rhs> = SimpleLiteralRef<'rhs>;
-    type Result<'data> = LanguageStringRef<'data>;
+    type Result<'data> = OwnedStringLiteral;
 
     fn evaluate<'data>(
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        Ok(LanguageStringRef {
-            value: lhs.value,
-            language: rhs.value,
-        })
+        Ok(OwnedStringLiteral::new(
+            lhs.value.to_owned(),
+            Some(rhs.value.to_owned().to_ascii_lowercase()),
+        ))
     }
 }
