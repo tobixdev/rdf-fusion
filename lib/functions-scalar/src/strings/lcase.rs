@@ -16,7 +16,7 @@ impl ScalarUnaryRdfOp for LCaseRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         Ok(OwnedStringLiteral(
-            value.len().to_string().to_lowercase(),
+            value.0.to_string().to_lowercase(),
             value.1.map(String::from),
         ))
     }
