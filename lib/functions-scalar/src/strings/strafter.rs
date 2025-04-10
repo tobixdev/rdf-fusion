@@ -26,7 +26,7 @@ impl ScalarBinaryRdfOp for StrAfterRdfOp {
             let start = position + args.rhs.len();
             Ok(StringLiteralRef(&args.lhs[start..], args.language))
         } else {
-            Ok(StringLiteralRef("", args.language))
+            Ok(StringLiteralRef("", None))
         }
     }
 }

@@ -25,7 +25,7 @@ impl ScalarBinaryRdfOp for StrBeforeRdfOp {
         if let Some(position) = args.lhs.find(args.rhs) {
             Ok(StringLiteralRef(&args.lhs[..position], args.language))
         } else {
-            Ok(StringLiteralRef("", args.language))
+            Ok(StringLiteralRef("", None))
         }
     }
 }
