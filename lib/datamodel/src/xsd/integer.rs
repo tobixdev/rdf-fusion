@@ -1,4 +1,4 @@
-use crate::{Boolean, Decimal, Double, Float, Int, Numeric, RdfOpResult, TermRef, RdfValueRef};
+use crate::{Boolean, Decimal, Double, Float, Int, Numeric, RdfOpResult, RdfValueRef, TermRef};
 use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
@@ -98,24 +98,24 @@ impl Integer {
 
     /// [op:numeric-unary-minus](https://www.w3.org/TR/xpath-functions-31/#func-numeric-unary-minus)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_neg(self) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_neg()?,
-        })
+    pub fn checked_neg(self) -> RdfOpResult<Self> {
+        self.value
+            .checked_neg()
+            .map(|value| Self { value })
+            .ok_or(())
     }
 
     /// [fn:abs](https://www.w3.org/TR/xpath-functions-31/#func-abs)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_abs(self) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_abs()?,
-        })
+    pub fn checked_abs(self) -> RdfOpResult<Self> {
+        self.value
+            .checked_abs()
+            .map(|value| Self { value })
+            .ok_or(())
     }
 
     #[inline]
@@ -136,7 +136,6 @@ impl Integer {
     pub fn is_identical_with(self, other: Self) -> bool {
         self == other
     }
-
 
     /// Checks if the two values are [identical](https://www.w3.org/TR/xmlschema11-2/#identity).
     #[inline]
