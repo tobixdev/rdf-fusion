@@ -14,7 +14,7 @@ macro_rules! make_nullary_rdf_udf {
                         datafusion::logical_expr::TypeSignature::Nullary,
                         datafusion::logical_expr::Volatility::Volatile,
                     ),
-                    implementation: <$IMPL_TYPE>::new()
+                    implementation: <$IMPL_TYPE>::new(),
                 }
             }
         }
@@ -32,7 +32,10 @@ macro_rules! make_nullary_rdf_udf {
                 &self.signature
             }
 
-            fn return_type(&self, _arg_types: &[datafusion::arrow::datatypes::DataType]) -> crate::DFResult<datafusion::arrow::datatypes::DataType> {
+            fn return_type(
+                &self,
+                _arg_types: &[datafusion::arrow::datatypes::DataType],
+            ) -> crate::DFResult<datafusion::arrow::datatypes::DataType> {
                 Ok(crate::EncTerm::term_type())
             }
 
@@ -45,13 +48,18 @@ macro_rules! make_nullary_rdf_udf {
                     .into_iter()
                     .map(|_| functions_scalar::ScalarNullaryRdfOp::evaluate(&self.implementation));
 
-                let result = <$IMPL_TYPE as functions_scalar::ScalarNullaryRdfOp>::Result::iter_into_array(results)?;
+                let result =
+                    <$IMPL_TYPE as functions_scalar::ScalarNullaryRdfOp>::Result::iter_into_array(
+                        results,
+                    )?;
                 Ok(datafusion::physical_plan::ColumnarValue::Array(result))
             }
         }
 
         pub const $CONST_NAME: once_cell::sync::Lazy<datafusion::logical_expr::ScalarUDF> =
-            once_cell::sync::Lazy::new(|| datafusion::logical_expr::ScalarUDF::from($STRUCT_NAME::new()));
+            once_cell::sync::Lazy::new(|| {
+                datafusion::logical_expr::ScalarUDF::from($STRUCT_NAME::new())
+            });
     };
 }
 
@@ -120,7 +128,12 @@ macro_rules! make_n_ary_rdf_udf {
             $CONST_NAME,
             $NAME,
             crate::encoded::dispatch::dispatch_n_ary,
-            datafusion::logical_expr::TypeSignature::Variadic(vec![crate::EncTerm::term_type()])
+            datafusion::logical_expr::TypeSignature::OneOf(vec![
+                datafusion::logical_expr::TypeSignature::Nullary,
+                datafusion::logical_expr::TypeSignature::Variadic(
+                    vec![crate::EncTerm::term_type()]
+                )
+            ])
         );
     };
 }
@@ -141,7 +154,7 @@ macro_rules! make_rdf_udf {
                         $SIGNATURE,
                         datafusion::logical_expr::Volatility::Immutable,
                     ),
-                    implementation: <$IMPL_TYPE>::new()
+                    implementation: <$IMPL_TYPE>::new(),
                 }
             }
         }
@@ -159,7 +172,10 @@ macro_rules! make_rdf_udf {
                 &self.signature
             }
 
-            fn return_type(&self, _arg_types: &[datafusion::arrow::datatypes::DataType]) -> crate::DFResult<datafusion::arrow::datatypes::DataType> {
+            fn return_type(
+                &self,
+                _arg_types: &[datafusion::arrow::datatypes::DataType],
+            ) -> crate::DFResult<datafusion::arrow::datatypes::DataType> {
                 Ok(crate::EncTerm::term_type())
             }
 
@@ -173,6 +189,8 @@ macro_rules! make_rdf_udf {
         }
 
         pub const $CONST_NAME: once_cell::sync::Lazy<datafusion::logical_expr::ScalarUDF> =
-            once_cell::sync::Lazy::new(|| datafusion::logical_expr::ScalarUDF::from($STRUCT_NAME::new()));
+            once_cell::sync::Lazy::new(|| {
+                datafusion::logical_expr::ScalarUDF::from($STRUCT_NAME::new())
+            });
     };
 }
