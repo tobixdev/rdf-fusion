@@ -230,7 +230,8 @@ impl EncRdfTermBuilder {
             .field_builder::<Decimal128Builder>(1)
             .unwrap();
         if let Some(day_time) = day_time {
-            day_time_builder.append_value(day_time.as_seconds().as_i128());
+            let day_time = i128::from_be_bytes(day_time.as_seconds().to_be_bytes());
+            day_time_builder.append_value(day_time);
         } else {
             day_time_builder.append_null();
         }
