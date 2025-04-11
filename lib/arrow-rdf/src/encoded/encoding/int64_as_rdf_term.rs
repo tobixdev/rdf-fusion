@@ -1,7 +1,8 @@
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::DFResult;
-use datafusion::arrow::array::{as_boolean_array, Array};
+use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::cast::as_int64_array;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
@@ -9,28 +10,28 @@ use datafusion::logical_expr::{
 use std::any::Any;
 
 #[derive(Debug)]
-pub struct EncBooleanAsRdfTerm {
+pub struct EncInt64AsRdfTerm {
     signature: Signature,
 }
 
-impl EncBooleanAsRdfTerm {
+impl EncInt64AsRdfTerm {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
-                TypeSignature::Exact(vec![DataType::Boolean]),
+                TypeSignature::Exact(vec![DataType::Int64]),
                 Volatility::Immutable,
             ),
         }
     }
 }
 
-impl ScalarUDFImpl for EncBooleanAsRdfTerm {
+impl ScalarUDFImpl for EncInt64AsRdfTerm {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_boolean_as_rdf_term"
+        "enc_int64_as_rdf_term"
     }
 
     fn signature(&self) -> &Signature {
@@ -50,20 +51,15 @@ impl ScalarUDFImpl for EncBooleanAsRdfTerm {
             return exec_err!("Unexpected number of arguments");
         }
 
-        let arg = &args[0];
-        if arg.data_type() != DataType::Boolean {
-            return exec_err!("Unexpected argument type: {:?}", arg.data_type());
-        }
-
         // Performance could be optimized here
-        let arg = arg.to_array(number_rows)?;
-        let arg = as_boolean_array(&arg);
+        let arg = args[0].to_array(number_rows)?;
+        let arg = as_int64_array(&arg)?;
         let mut builder = EncRdfTermBuilder::new();
         for i in 0..number_rows {
             if arg.is_null(i) {
                 builder.append_null()?;
             } else {
-                builder.append_boolean(arg.value(i))?;
+                builder.append_integer(arg.value(i).into())?;
             }
         }
 

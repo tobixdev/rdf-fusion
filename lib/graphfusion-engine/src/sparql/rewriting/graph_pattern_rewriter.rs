@@ -5,13 +5,15 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
 use arrow_rdf::encoded::{
-    ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
-    ENC_WITH_STRUCT_ENCODING,
+    EncTerm, ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_INT64_AS_RDF_TERM,
+    ENC_IS_COMPATIBLE, ENC_SAME_TERM, ENC_WITH_STRUCT_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
+use datafusion::arrow::datatypes::DataType;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema, JoinType};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
+use datafusion::functions_aggregate::count::{count, count_all};
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
 };
@@ -20,7 +22,8 @@ use graphfusion_logical::{PathNode, PatternNode};
 use oxiri::Iri;
 use oxrdf::{GraphName, NamedOrBlankNode, Variable};
 use spargebra::algebra::{
-    AggregateExpression, Expression, GraphPattern, OrderExpression, PropertyPathExpression,
+    AggregateExpression, AggregateFunction, Expression, GraphPattern, OrderExpression,
+    PropertyPathExpression,
 };
 use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
 use std::cell::RefCell;
@@ -402,22 +405,22 @@ impl GraphPatternRewriter {
 
         let group_exprs = variables
             .iter()
-            .map(|e| {
+            .map(|var| {
                 expression_rewriter
-                    .rewrite(&Expression::Variable(e.clone()))
-                    .map(|e| ENC_WITH_STRUCT_ENCODING.call(vec![e]))
+                    .rewrite(&Expression::Variable(var.clone()))
+                    .map(|e| ENC_WITH_STRUCT_ENCODING.call(vec![e]).alias(var.as_str()))
             })
             .collect::<DFResult<Vec<_>>>()?;
         let aggregate_exprs = aggregates
             .iter()
             .map(|(var, aggregate)| {
-                expression_rewriter
-                    .rewrite_aggregate(aggregate)
+                self.rewrite_aggregate(inner.schema(), aggregate)
                     .map(|a| a.alias(var.as_str()))
             })
             .collect::<DFResult<Vec<_>>>()?;
 
-        inner.aggregate(group_exprs, aggregate_exprs)
+        let aggregate_result = inner.aggregate(group_exprs, aggregate_exprs)?;
+        ensure_all_columns_are_rdf_terms(aggregate_result)
     }
 
     /// Rewrites an [Expression].
@@ -440,6 +443,36 @@ impl GraphPatternRewriter {
         Ok(ENC_WITH_STRUCT_ENCODING
             .call(vec![expression])
             .sort(asc, true))
+    }
+
+    /// Rewrites an [AggregateExpression].
+    pub fn rewrite_aggregate(
+        &self,
+        schema: &DFSchema,
+        expression: &AggregateExpression,
+    ) -> DFResult<Expr> {
+        let expression_rewriter = ExpressionRewriter::new(self, self.base_iri.as_ref(), schema);
+        match expression {
+            AggregateExpression::CountSolutions { distinct } => match distinct {
+                false => plan_err!("Unsupported distinct count"),
+                true => Ok(count_all()),
+            },
+            AggregateExpression::FunctionCall {
+                name,
+                expr,
+                distinct,
+            } => {
+                let expr = match distinct {
+                    false => expression_rewriter.rewrite(expr)?,
+                    true => return plan_err!("Unsupported distinct aggregation"),
+                };
+
+                match name {
+                    AggregateFunction::Count => Ok(count(expr)),
+                    _ => plan_err!("Unsupported aggreagte function: {}", name),
+                }
+            }
+        }
     }
 }
 
@@ -690,4 +723,26 @@ fn create_initial_columns_from_sort(sort_exprs: &Vec<OrderExpression>) -> DFResu
             ),
         })
         .collect::<DFResult<Vec<_>>>()
+}
+
+/// Ensures that all columns in the result are RDF terms. If not, a cast operation is inserted if
+/// possible.
+fn ensure_all_columns_are_rdf_terms(inner: LogicalPlanBuilder) -> DFResult<LogicalPlanBuilder> {
+    let projections = inner
+        .schema()
+        .fields()
+        .into_iter()
+        .map(|f| {
+            let column = Expr::from(Column::new_unqualified(f.name().as_str()));
+            if f.data_type() != &EncTerm::term_type() {
+                match f.data_type() {
+                    DataType::Int64 => Ok(ENC_INT64_AS_RDF_TERM.call(vec![column]).alias(f.name())),
+                    _ => plan_err!("Unsupported data type {:?}", f.data_type()),
+                }
+            } else {
+                Ok(column)
+            }
+        })
+        .collect::<DFResult<Vec<_>>>()?;
+    inner.project(projections)
 }
