@@ -3,7 +3,6 @@ mod model;
 mod rdf_ops;
 mod builder;
 pub mod scalars;
-mod udfs;
 #[macro_use]
 mod macros;
 mod dispatch;
@@ -24,7 +23,6 @@ pub use encoding::*;
 pub use logical::*;
 pub use query_evaluation::*;
 pub use rdf_ops::*;
-pub use udfs::*;
 
 pub const ENC_QUAD_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     SchemaRef::new(Schema::new(vec![
