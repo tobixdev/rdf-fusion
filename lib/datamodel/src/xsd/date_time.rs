@@ -3186,18 +3186,6 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(feature = "custom-now")]
-    #[test]
-    fn custom_now() {
-        #[allow(unsafe_code)]
-        #[no_mangle]
-        extern "Rust" fn custom_ox_now() -> Duration {
-            Duration::default()
-        }
-        DateTime::now();
-    }
-
-    #[cfg(not(feature = "custom-now"))]
     #[test]
     fn now() -> Result<(), ParseDateTimeError> {
         let now = DateTime::now();

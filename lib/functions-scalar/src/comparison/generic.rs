@@ -63,7 +63,7 @@ mod tests {
         let result = less_than
             .evaluate(
                 TermRef::NumericLiteral(Numeric::Int(5.into())),
-                TermRef::NumericLiteral(Numeric::Float(10.into())),
+                TermRef::NumericLiteral(Numeric::Float(10.0.into())),
             )
             .unwrap();
         assert_eq!(result, false.into());

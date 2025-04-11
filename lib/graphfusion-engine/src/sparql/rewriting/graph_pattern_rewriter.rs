@@ -19,7 +19,9 @@ use datafusion::prelude::col;
 use graphfusion_logical::{PathNode, PatternNode};
 use oxiri::Iri;
 use oxrdf::{GraphName, NamedOrBlankNode, Variable};
-use spargebra::algebra::{Expression, GraphPattern, OrderExpression, PropertyPathExpression};
+use spargebra::algebra::{
+    AggregateExpression, Expression, GraphPattern, OrderExpression, PropertyPathExpression,
+};
 use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -94,6 +96,11 @@ impl GraphPatternRewriter {
                 object,
             } => self.rewrite_path(path, subject, object),
             GraphPattern::Minus { left, right } => self.rewrite_minus(left, right),
+            GraphPattern::Group {
+                inner,
+                variables,
+                aggregates,
+            } => self.rewrite_group(inner, variables, aggregates),
             pattern => not_impl_err!("rewrite_graph_pattern: {:?}", pattern),
         }
     }
@@ -380,6 +387,37 @@ impl GraphPatternRewriter {
             right.build()?,
             false,
         )?))
+    }
+
+    /// Rewrites a GROUP pattern to a group plan.
+    fn rewrite_group(
+        &self,
+        inner: &GraphPattern,
+        variables: &Vec<Variable>,
+        aggregates: &Vec<(Variable, AggregateExpression)>,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let inner = self.rewrite_graph_pattern(inner)?;
+        let expression_rewriter =
+            ExpressionRewriter::new(self, self.base_iri.as_ref(), inner.schema());
+
+        let group_exprs = variables
+            .iter()
+            .map(|e| {
+                expression_rewriter
+                    .rewrite(&Expression::Variable(e.clone()))
+                    .map(|e| ENC_WITH_STRUCT_ENCODING.call(vec![e]))
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+        let aggregate_exprs = aggregates
+            .iter()
+            .map(|(var, aggregate)| {
+                expression_rewriter
+                    .rewrite_aggregate(aggregate)
+                    .map(|a| a.alias(var.as_str()))
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+
+        inner.aggregate(group_exprs, aggregate_exprs)
     }
 
     /// Rewrites an [Expression].

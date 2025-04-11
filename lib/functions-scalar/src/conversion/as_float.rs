@@ -42,6 +42,6 @@ mod tests {
         let result = udf
             .evaluate(TermRef::NumericLiteral(Numeric::Int(10.into())))
             .unwrap();
-        assert_eq!(result, Numeric::Float(10.0.into()));
+        assert_eq!(result, 10.0.into());
     }
 }

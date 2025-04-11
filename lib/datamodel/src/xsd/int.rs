@@ -269,7 +269,6 @@ pub struct TooLargeForIntError;
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
-    use oxsdatatypes::{Decimal, Double};
 
     #[test]
     fn from_str() -> Result<(), ParseIntError> {

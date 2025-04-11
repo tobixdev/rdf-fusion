@@ -24,7 +24,7 @@ use datamodel::DateTime;
 use oxiri::Iri;
 use oxrdf::vocab::xsd;
 use oxrdf::{Literal, NamedNode};
-use spargebra::algebra::{Expression, Function, GraphPattern};
+use spargebra::algebra::{AggregateExpression, Expression, Function, GraphPattern};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -95,6 +95,11 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                 Ok(ENC_COALESCE.call(args))
             }
         }
+    }
+
+    /// Rewrites an [AggregateExpression].
+    pub fn rewrite_aggregate(&self, _expression: &AggregateExpression) -> DFResult<Expr> {
+        plan_err!("Aggregates not implemented.")
     }
 
     /// Rewrites a SPARQL function call.
