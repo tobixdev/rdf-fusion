@@ -1,11 +1,11 @@
-use crate::encoded::write_enc_term::WriteEncTerm;
+use crate::encoded::from_encoded_term::FromEncodedTerm;
 use crate::encoded::scalars::encode_scalar_null;
+use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::Array;
-use datafusion::common::{exec_err, not_impl_err, DataFusionError, ScalarValue};
+use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use functions_scalar::ScalarBinaryRdfOp;
-use crate::encoded::from_encoded_term::FromEncodedTerm;
 
 pub fn dispatch_binary<'data, TUdf>(
     udf: &TUdf,
@@ -65,10 +65,10 @@ where
 }
 
 fn dispatch_binary_scalar_array<'data, TUdf>(
-    _udf: &TUdf,
-    lhs: &ScalarValue,
-    _rhs: &'data dyn Array,
-    _number_of_rows: usize,
+    udf: &TUdf,
+    lhs: &'data ScalarValue,
+    rhs: &'data dyn Array,
+    number_of_rows: usize,
 ) -> DFResult<ColumnarValue>
 where
     TUdf: ScalarBinaryRdfOp,
@@ -76,14 +76,28 @@ where
     TUdf::ArgRhs<'data>: FromEncodedTerm<'data>,
     TUdf::Result<'data>: WriteEncTerm,
 {
-    let ScalarValue::Union(element, _, _) = lhs else {
-        return exec_err!("Unexpected type for scalar.");
+    let lhs_value = TUdf::ArgLhs::from_enc_scalar(lhs);
+    let lhs_value = match lhs_value {
+        Ok(value) => value,
+        Err(_) => {
+            let result = udf
+                .evaluate_error()
+                .and_then(|v| v.into_scalar_value().map_err(|_| ()))
+                .unwrap_or(encode_scalar_null());
+            return Ok(ColumnarValue::Scalar(result));
+        }
     };
 
-    match element {
-        None => not_impl_err!("dispatch_binary_scalar_array: None Case"),
-        Some(_) => not_impl_err!("dispatch_binary_scalar_array: Some Case"),
-    }
+    let rhs = as_enc_term_array(rhs)?;
+    let results = (0..number_of_rows).into_iter().map(|i| {
+        let rhs_value = TUdf::ArgRhs::from_enc_array(rhs, i);
+        match rhs_value {
+            Ok(rhs_value) => udf.evaluate(lhs_value, rhs_value),
+            _ => udf.evaluate_error(),
+        }
+    });
+    let result = TUdf::Result::iter_into_array(results)?;
+    Ok(ColumnarValue::Array(result))
 }
 
 fn dispatch_binary_array_scalar<'data, TUdf>(
@@ -112,9 +126,9 @@ where
 
     let lhs = as_enc_term_array(lhs)?;
     let results = (0..number_of_rows).into_iter().map(|i| {
-        let arg0 = TUdf::ArgLhs::from_enc_array(lhs, i);
-        match arg0 {
-            Ok(arg0) => udf.evaluate(arg0, rhs_value),
+        let lhs_value = TUdf::ArgLhs::from_enc_array(lhs, i);
+        match lhs_value {
+            Ok(lhs_value) => udf.evaluate(lhs_value, rhs_value),
             _ => udf.evaluate_error(),
         }
     });
