@@ -149,7 +149,7 @@ impl EncTerm {
         FIELDS_TYPED_LITERAL.clone()
     }
 
-    pub fn term_type() -> DataType {
+    pub fn data_type() -> DataType {
         DataType::Union(Self::term_fields().clone(), UnionMode::Dense)
     }
 }

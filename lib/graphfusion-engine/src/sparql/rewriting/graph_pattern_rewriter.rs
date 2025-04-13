@@ -6,7 +6,7 @@ use arrow_rdf::encoded::scalars::{
 };
 use arrow_rdf::encoded::{
     EncTerm, ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_INT64_AS_RDF_TERM,
-    ENC_IS_COMPATIBLE, ENC_SAME_TERM, ENC_WITH_STRUCT_ENCODING,
+    ENC_IS_COMPATIBLE, ENC_SAME_TERM, ENC_WITH_SORTABLE_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::DataType;
@@ -408,7 +408,7 @@ impl GraphPatternRewriter {
             .map(|var| {
                 expression_rewriter
                     .rewrite(&Expression::Variable(var.clone()))
-                    .map(|e| ENC_WITH_STRUCT_ENCODING.call(vec![e]).alias(var.as_str()))
+                    .map(|e| ENC_WITH_SORTABLE_ENCODING.call(vec![e]).alias(var.as_str()))
             })
             .collect::<DFResult<Vec<_>>>()?;
         let aggregate_exprs = aggregates
@@ -440,7 +440,7 @@ impl GraphPatternRewriter {
             OrderExpression::Asc(inner) => (true, expression_rewriter.rewrite(inner)?),
             OrderExpression::Desc(inner) => (false, expression_rewriter.rewrite(inner)?),
         };
-        Ok(ENC_WITH_STRUCT_ENCODING
+        Ok(ENC_WITH_SORTABLE_ENCODING
             .call(vec![expression])
             .sort(asc, true))
     }
@@ -689,7 +689,7 @@ fn create_distinct_on_expr(
             .columns()
             .iter()
             .map(|c| {
-                ENC_WITH_STRUCT_ENCODING
+                ENC_WITH_SORTABLE_ENCODING
                     .call(vec![Expr::Column(c.clone())])
                     .alias(c.name())
             })
@@ -705,7 +705,7 @@ fn create_distinct_on_expr(
 
     Ok(on_exprs
         .into_iter()
-        .map(|c| ENC_WITH_STRUCT_ENCODING.call(vec![Expr::Column(c)]))
+        .map(|c| ENC_WITH_SORTABLE_ENCODING.call(vec![Expr::Column(c)]))
         .collect())
 }
 
@@ -734,7 +734,7 @@ fn ensure_all_columns_are_rdf_terms(inner: LogicalPlanBuilder) -> DFResult<Logic
         .into_iter()
         .map(|f| {
             let column = Expr::from(Column::new_unqualified(f.name().as_str()));
-            if f.data_type() != &EncTerm::term_type() {
+            if f.data_type() != &EncTerm::data_type() {
                 match f.data_type() {
                     DataType::Int64 => Ok(ENC_INT64_AS_RDF_TERM.call(vec![column]).alias(f.name())),
                     _ => plan_err!("Unsupported data type {:?}", f.data_type()),

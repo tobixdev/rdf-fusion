@@ -15,6 +15,7 @@ pub enum Numeric {
 }
 
 impl Numeric {
+    #[must_use]
     pub fn format_value(&self) -> String {
         match self {
             Numeric::Int(value) => value.to_string(),
@@ -22,6 +23,17 @@ impl Numeric {
             Numeric::Float(value) => value.to_string(),
             Numeric::Double(value) => value.to_string(),
             Numeric::Decimal(value) => value.to_string(),
+        }
+    }
+
+    #[must_use]
+    pub fn to_be_bytes(&self) -> Box<[u8]> {
+        match self {
+            Numeric::Int(int) => int.to_be_bytes().into(),
+            Numeric::Integer(int) => int.to_be_bytes().into(),
+            Numeric::Float(float) => float.to_be_bytes().into(),
+            Numeric::Double(double) => double.to_be_bytes().into(),
+            Numeric::Decimal(decimal) => decimal.to_be_bytes().into()
         }
     }
 }

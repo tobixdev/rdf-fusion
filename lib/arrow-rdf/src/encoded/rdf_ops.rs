@@ -189,7 +189,7 @@ impl EncIri {
     pub fn new(base_iri: Option<Iri<String>>) -> Self {
         Self {
             signature: datafusion::logical_expr::Signature::new(
-                datafusion::logical_expr::TypeSignature::Exact(vec![EncTerm::term_type()]),
+                datafusion::logical_expr::TypeSignature::Exact(vec![EncTerm::data_type()]),
                 datafusion::logical_expr::Volatility::Immutable,
             ),
             implementation: IriRdfOp::new(base_iri),
@@ -214,7 +214,7 @@ impl datafusion::logical_expr::ScalarUDFImpl for EncIri {
         &self,
         _arg_types: &[datafusion::arrow::datatypes::DataType],
     ) -> crate::DFResult<datafusion::arrow::datatypes::DataType> {
-        Ok(EncTerm::term_type())
+        Ok(EncTerm::data_type())
     }
 
     fn invoke_batch(

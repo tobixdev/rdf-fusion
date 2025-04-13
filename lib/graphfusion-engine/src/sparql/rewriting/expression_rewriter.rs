@@ -271,7 +271,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .intersection(&inner_keys)
             .map(|k| {
                 ENC_IS_COMPATIBLE.call(vec![
-                    Expr::OuterReferenceColumn(EncTerm::term_type(), Column::new_unqualified(k)),
+                    Expr::OuterReferenceColumn(EncTerm::data_type(), Column::new_unqualified(k)),
                     Expr::from(Column::new_unqualified(format!("__inner__{}", k))),
                 ])
             })

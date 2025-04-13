@@ -36,7 +36,7 @@ macro_rules! make_nullary_rdf_udf {
                 &self,
                 _arg_types: &[datafusion::arrow::datatypes::DataType],
             ) -> crate::DFResult<datafusion::arrow::datatypes::DataType> {
-                Ok(crate::EncTerm::term_type())
+                Ok(crate::EncTerm::data_type())
             }
 
             fn invoke_batch(
@@ -176,7 +176,7 @@ macro_rules! make_rdf_udf {
                 &self,
                 _arg_types: &[datafusion::arrow::datatypes::DataType],
             ) -> crate::DFResult<datafusion::arrow::datatypes::DataType> {
-                Ok(crate::EncTerm::term_type())
+                Ok(crate::EncTerm::data_type())
             }
 
             fn invoke_batch(

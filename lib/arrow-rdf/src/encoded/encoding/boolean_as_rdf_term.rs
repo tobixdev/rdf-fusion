@@ -38,7 +38,7 @@ impl ScalarUDFImpl for EncBooleanAsRdfTerm {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(EncTerm::term_type())
+        Ok(EncTerm::data_type())
     }
 
     fn invoke_batch(

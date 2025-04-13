@@ -21,6 +21,12 @@ impl Int {
         Self { value }
     }
 
+    #[inline]
+    #[must_use]
+    pub fn to_be_bytes(self) -> [u8; 4] {
+        self.value.to_be_bytes()
+    }
+
     /// [op:numeric-add](https://www.w3.org/TR/xpath-functions-31/#func-numeric-add)
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).

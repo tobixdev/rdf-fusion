@@ -7,7 +7,7 @@ use datafusion::error::DataFusionError;
 
 pub mod encoded;
 pub mod error;
-mod struct_encoded;
+mod sortable;
 
 pub const TABLE_QUADS: &str = "quads";
 pub const COL_GRAPH: &str = "graph";
@@ -20,7 +20,7 @@ type AResult<T> = Result<T, ArrowError>;
 
 // Downcast ArrayRef to Int64Array
 pub fn as_enc_term_array(array: &dyn Array) -> DFResult<&UnionArray> {
-    if *array.data_type() != EncTerm::term_type() {
+    if *array.data_type() != EncTerm::data_type() {
         return internal_err!("as_rdf_term_array expects a term type");
     }
     Ok(downcast_value!(array, UnionArray))

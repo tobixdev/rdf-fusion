@@ -1,7 +1,7 @@
 use crate::{DFResult, PathNode, PatternNode};
 use arrow_rdf::encoded::scalars::{encode_scalar_named_node, encode_scalar_predicate};
 use arrow_rdf::encoded::{
-    ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM, ENC_WITH_STRUCT_ENCODING,
+    ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM, ENC_WITH_SORTABLE_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::catalog::TableProvider;
@@ -240,8 +240,8 @@ impl PathToJoinsRule {
         ])?;
         subjects.union(objects.build()?)?.distinct_on(
             vec![
-                ENC_WITH_STRUCT_ENCODING.call(vec![col(COL_GRAPH)]),
-                ENC_WITH_STRUCT_ENCODING.call(vec![col(COL_SOURCE)]),
+                ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_GRAPH)]),
+                ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_SOURCE)]),
             ],
             vec![col(COL_GRAPH), col(COL_SOURCE), col(COL_TARGET)],
             None,
@@ -301,9 +301,9 @@ fn join_path_alternatives(
 ) -> DFResult<LogicalPlanBuilder> {
     lhs.union(rhs.build()?)?.distinct_on(
         vec![
-            ENC_WITH_STRUCT_ENCODING.call(vec![col(COL_GRAPH)]),
-            ENC_WITH_STRUCT_ENCODING.call(vec![col(COL_SOURCE)]),
-            ENC_WITH_STRUCT_ENCODING.call(vec![col(COL_TARGET)]),
+            ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_GRAPH)]),
+            ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_SOURCE)]),
+            ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_TARGET)]),
         ],
         vec![col(COL_GRAPH), col(COL_SOURCE), col(COL_TARGET)],
         None,

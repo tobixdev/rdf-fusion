@@ -6,77 +6,14 @@ use datamodel::{Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Durat
 use oxrdf::{BlankNodeRef, NamedNodeRef};
 use std::ops::Not;
 
-pub trait FromEncodedTerm<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
-    where
-        Self: Sized;
-
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self>
+pub trait FromSortableTerm<'data> {
+    fn from_sortable_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self>
     where
         Self: Sized;
 }
 
-impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
-    where
-        Self: Sized,
-    {
-        match scalar {
-            ScalarValue::Union(Some((type_id, inner_value)), _, _) => {
-                let type_id = EncTermField::try_from(*type_id).map_err(|_| ())?;
-                Ok(match type_id {
-                    EncTermField::NamedNode => {
-                        TermRef::NamedNode(NamedNodeRef::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::BlankNode => {
-                        TermRef::BlankNode(BlankNodeRef::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::String => match inner_value.as_ref() {
-                        ScalarValue::Struct(struct_array) => {
-                            match struct_array.column(1).is_null(0) {
-                                true => TermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(
-                                    scalar,
-                                )?),
-                                false => TermRef::LanguageStringLiteral(
-                                    LanguageStringRef::from_enc_scalar(scalar)?,
-                                ),
-                            }
-                        }
-                        _ => Err(())?,
-                    },
-                    EncTermField::Boolean => {
-                        TermRef::BooleanLiteral(Boolean::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::Float
-                    | EncTermField::Double
-                    | EncTermField::Decimal
-                    | EncTermField::Int
-                    | EncTermField::Integer => {
-                        TermRef::NumericLiteral(Numeric::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::Duration => {
-                        TermRef::DurationLiteral(Duration::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::DateTime => {
-                        TermRef::DateTimeLiteral(DateTime::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::Time => {
-                        TermRef::TimeLiteral(Time::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::Date => {
-                        TermRef::DateLiteral(Date::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::TypedLiteral => {
-                        TermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::Null => Err(())?,
-                })
-            }
-            _ => Err(()),
-        }
-    }
-
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self>
+impl<'data> FromSortableTerm<'data> for TermRef<'data> {
+    fn from_sortable_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self>
     where
         Self: Sized,
     {
@@ -85,10 +22,10 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
 
         Ok(match field {
             EncTermField::NamedNode => TermRef::NamedNode(
-                NamedNodeRef::from_enc_array(array, index).expect("EncTermField checked"),
+                NamedNodeRef::from_sortable_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::BlankNode => TermRef::BlankNode(
-                BlankNodeRef::from_enc_array(array, index).expect("EncTermField checked"),
+                BlankNodeRef::from_sortable_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::String => match array
                 .child(field.type_id())
@@ -97,32 +34,32 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                 .is_null(offset)
             {
                 true => TermRef::SimpleLiteral(
-                    SimpleLiteralRef::from_enc_array(array, index)
+                    SimpleLiteralRef::from_sortable_array(array, index)
                         .expect("EncTermField and null checked"),
                 ),
                 false => TermRef::LanguageStringLiteral(
-                    LanguageStringRef::from_enc_array(array, index)
+                    LanguageStringRef::from_sortable_array(array, index)
                         .expect("EncTermField and null checked"),
                 ),
             },
             EncTermField::Boolean => TermRef::BooleanLiteral(
-                Boolean::from_enc_array(array, index).expect("EncTermField checked"),
+                Boolean::from_sortable_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::Float
             | EncTermField::Double
             | EncTermField::Decimal
             | EncTermField::Int
             | EncTermField::Integer => TermRef::NumericLiteral(
-                Numeric::from_enc_array(array, index).expect("EncTermField checked"),
+                Numeric::from_sortable_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::DateTime => TermRef::DateTimeLiteral(
-                DateTime::from_enc_array(array, index).expect("EncTermField checked"),
+                DateTime::from_sortable_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::Time => TermRef::TimeLiteral(
-                Time::from_enc_array(array, index).expect("EncTermField checked"),
+                Time::from_sortable_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::Date => TermRef::DateLiteral(
-                Date::from_enc_array(array, index).expect("EncTermField checked"),
+                Date::from_sortable_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::Duration => {
                 let year_month_is_null = array
@@ -136,21 +73,21 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     .column(1)
                     .is_null(offset);
                 match (year_month_is_null, day_time_is_null) {
-                    (false, false) => TermRef::DurationLiteral(Duration::from_enc_array(array, index)?),
-                    (false, true) => TermRef::YearMonthDurationLiteral(YearMonthDuration::from_enc_array(array, index)?),
-                    (true, false) => TermRef::DayTimeDurationLiteral(DayTimeDuration::from_enc_array(array, index)?),
+                    (false, false) => TermRef::DurationLiteral(Duration::from_sortable_array(array, index)?),
+                    (false, true) => TermRef::YearMonthDurationLiteral(YearMonthDuration::from_sortable_array(array, index)?),
+                    (true, false) => TermRef::DayTimeDurationLiteral(DayTimeDuration::from_sortable_array(array, index)?),
                     _ => unreachable!("Unexpected encoding"),
                 }
             },
             EncTermField::TypedLiteral => TermRef::TypedLiteral(
-                TypedLiteralRef::from_enc_array(array, index).expect("EncTermField checked"),
+                TypedLiteralRef::from_sortable_array(array, index).expect("EncTermField checked"),
             ),
             EncTermField::Null => Err(())?,
         })
     }
 }
 
-impl<'data> FromEncodedTerm<'data> for BlankNodeRef<'data> {
+impl<'data> FromSortableTerm<'data> for BlankNodeRef<'data> {
     fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -169,7 +106,7 @@ impl<'data> FromEncodedTerm<'data> for BlankNodeRef<'data> {
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -185,7 +122,7 @@ impl<'data> FromEncodedTerm<'data> for BlankNodeRef<'data> {
     }
 }
 
-impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
+impl<'data> FromSortableTerm<'data> for LanguageStringRef<'data> {
     fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -210,7 +147,7 @@ impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -233,7 +170,7 @@ impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
     }
 }
 
-impl<'data> FromEncodedTerm<'data> for NamedNodeRef<'data> {
+impl<'data> FromSortableTerm<'data> for NamedNodeRef<'data> {
     fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -252,7 +189,7 @@ impl<'data> FromEncodedTerm<'data> for NamedNodeRef<'data> {
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -268,7 +205,7 @@ impl<'data> FromEncodedTerm<'data> for NamedNodeRef<'data> {
     }
 }
 
-impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
+impl<'data> FromSortableTerm<'data> for SimpleLiteralRef<'data> {
     fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -292,7 +229,7 @@ impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -313,7 +250,7 @@ impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
         }
     }
 }
-impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
+impl<'data> FromSortableTerm<'data> for StringLiteralRef<'data> {
     fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -340,7 +277,7 @@ impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -363,7 +300,7 @@ impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
     }
 }
 
-impl<'data> FromEncodedTerm<'data> for TypedLiteralRef<'data> {
+impl<'data> FromSortableTerm<'data> for TypedLiteralRef<'data> {
     fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -388,7 +325,7 @@ impl<'data> FromEncodedTerm<'data> for TypedLiteralRef<'data> {
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -407,7 +344,7 @@ impl<'data> FromEncodedTerm<'data> for TypedLiteralRef<'data> {
     }
 }
 
-impl FromEncodedTerm<'_> for Boolean {
+impl FromSortableTerm<'_> for Boolean {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -426,7 +363,7 @@ impl FromEncodedTerm<'_> for Boolean {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -441,7 +378,7 @@ impl FromEncodedTerm<'_> for Boolean {
     }
 }
 
-impl FromEncodedTerm<'_> for Decimal {
+impl FromSortableTerm<'_> for Decimal {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -462,7 +399,7 @@ impl FromEncodedTerm<'_> for Decimal {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -479,7 +416,7 @@ impl FromEncodedTerm<'_> for Decimal {
     }
 }
 
-impl FromEncodedTerm<'_> for Double {
+impl FromSortableTerm<'_> for Double {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -498,7 +435,7 @@ impl FromEncodedTerm<'_> for Double {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -513,7 +450,7 @@ impl FromEncodedTerm<'_> for Double {
     }
 }
 
-impl FromEncodedTerm<'_> for Float {
+impl FromSortableTerm<'_> for Float {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -532,7 +469,7 @@ impl FromEncodedTerm<'_> for Float {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -547,7 +484,7 @@ impl FromEncodedTerm<'_> for Float {
     }
 }
 
-impl FromEncodedTerm<'_> for Int {
+impl FromSortableTerm<'_> for Int {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -566,7 +503,7 @@ impl FromEncodedTerm<'_> for Int {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -581,7 +518,7 @@ impl FromEncodedTerm<'_> for Int {
     }
 }
 
-impl FromEncodedTerm<'_> for Integer {
+impl FromSortableTerm<'_> for Integer {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -601,7 +538,7 @@ impl FromEncodedTerm<'_> for Integer {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let offset = array.value_offset(index);
 
@@ -621,7 +558,7 @@ impl FromEncodedTerm<'_> for Integer {
     }
 }
 
-impl FromEncodedTerm<'_> for Numeric {
+impl FromSortableTerm<'_> for Numeric {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -641,20 +578,20 @@ impl FromEncodedTerm<'_> for Numeric {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         match field {
-            EncTermField::Int => Ok(Self::Int(Int::from_enc_array(array, index)?)),
-            EncTermField::Integer => Ok(Self::Integer(Integer::from_enc_array(array, index)?)),
-            EncTermField::Float => Ok(Self::Float(Float::from_enc_array(array, index)?)),
-            EncTermField::Double => Ok(Self::Double(Double::from_enc_array(array, index)?)),
-            EncTermField::Decimal => Ok(Self::Decimal(Decimal::from_enc_array(array, index)?)),
+            EncTermField::Int => Ok(Self::Int(Int::from_sortable_array(array, index)?)),
+            EncTermField::Integer => Ok(Self::Integer(Integer::from_sortable_array(array, index)?)),
+            EncTermField::Float => Ok(Self::Float(Float::from_sortable_array(array, index)?)),
+            EncTermField::Double => Ok(Self::Double(Double::from_sortable_array(array, index)?)),
+            EncTermField::Decimal => Ok(Self::Decimal(Decimal::from_sortable_array(array, index)?)),
             _ => Err(()),
         }
     }
 }
 
-impl FromEncodedTerm<'_> for Duration {
+impl FromSortableTerm<'_> for Duration {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -667,7 +604,7 @@ impl FromEncodedTerm<'_> for Duration {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         match get_duration_encoding_array(array, index)? {
             (Some(year_month), Some(day_time)) => {
                 Ok(Duration::new(year_month, day_time).map_err(|_| ())?)
@@ -677,7 +614,7 @@ impl FromEncodedTerm<'_> for Duration {
     }
 }
 
-impl FromEncodedTerm<'_> for YearMonthDuration {
+impl FromSortableTerm<'_> for YearMonthDuration {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -690,7 +627,7 @@ impl FromEncodedTerm<'_> for YearMonthDuration {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         match get_duration_encoding_array(array, index)? {
             (Some(year_month), None) => {
                 Ok(YearMonthDuration::new(year_month))
@@ -700,7 +637,7 @@ impl FromEncodedTerm<'_> for YearMonthDuration {
     }
 }
 
-impl FromEncodedTerm<'_> for DayTimeDuration {
+impl FromSortableTerm<'_> for DayTimeDuration {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -713,7 +650,7 @@ impl FromEncodedTerm<'_> for DayTimeDuration {
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         match get_duration_encoding_array(array, index)? {
             (None, Some(day_time)) => {
                 Ok(DayTimeDuration::new(day_time))
@@ -724,7 +661,7 @@ impl FromEncodedTerm<'_> for DayTimeDuration {
 }
 
 
-impl FromEncodedTerm<'_> for DateTime {
+impl FromSortableTerm<'_> for DateTime {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -741,19 +678,19 @@ impl FromEncodedTerm<'_> for DateTime {
         Ok(DateTime::new(timestamp))
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         if field != EncTermField::DateTime {
             return Err(());
         }
 
-        let timestamp = Timestamp::from_enc_array(array, index)?;
+        let timestamp = Timestamp::from_sortable_array(array, index)?;
         Ok(DateTime::new(timestamp))
     }
 }
 
 
-impl FromEncodedTerm<'_> for Time {
+impl FromSortableTerm<'_> for Time {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -770,18 +707,18 @@ impl FromEncodedTerm<'_> for Time {
         Ok(Time::new(timestamp))
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         if field != EncTermField::Time {
             return Err(());
         }
 
-        let timestamp = Timestamp::from_enc_array(array, index)?;
+        let timestamp = Timestamp::from_sortable_array(array, index)?;
         Ok(Time::new(timestamp))
     }
 }
 
-impl FromEncodedTerm<'_> for Date {
+impl FromSortableTerm<'_> for Date {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -798,18 +735,18 @@ impl FromEncodedTerm<'_> for Date {
         Ok(Date::new(timestamp))
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         if field != EncTermField::Date {
             return Err(());
         }
 
-        let timestamp = Timestamp::from_enc_array(array, index)?;
+        let timestamp = Timestamp::from_sortable_array(array, index)?;
         Ok(Date::new(timestamp))
     }
 }
 
-impl FromEncodedTerm<'_> for Timestamp {
+impl FromSortableTerm<'_> for Timestamp {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
     where
         Self: Sized,
@@ -835,7 +772,7 @@ impl FromEncodedTerm<'_> for Timestamp {
         ))
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_sortable_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let offset = array.value_offset(index);
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         let struct_array = array.child(field.type_id()).as_struct_opt().ok_or(())?;

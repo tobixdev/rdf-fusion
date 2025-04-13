@@ -1,5 +1,5 @@
 use crate::encoded::{EncTerm, FromEncodedTerm};
-use crate::struct_encoded::{StructEncTerm, StructEncTermBuilder};
+use crate::sortable::{SortableTerm, SortableTermBuilder};
 use crate::DFResult;
 use datafusion::arrow::array::{as_union_array, StructArray};
 use datafusion::arrow::datatypes::DataType;
@@ -12,28 +12,28 @@ use std::any::Any;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct EncWithStructEncoding {
+pub struct EncWithSortableEncoding {
     signature: Signature,
 }
 
-impl EncWithStructEncoding {
+impl EncWithSortableEncoding {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
-                TypeSignature::Exact(vec![EncTerm::term_type()]),
+                TypeSignature::Exact(vec![EncTerm::data_type()]),
                 Volatility::Immutable,
             ),
         }
     }
 }
 
-impl ScalarUDFImpl for EncWithStructEncoding {
+impl ScalarUDFImpl for EncWithSortableEncoding {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_with_struct_encoding"
+        "enc_with_sortable_encoding"
     }
 
     fn signature(&self) -> &Signature {
@@ -41,7 +41,7 @@ impl ScalarUDFImpl for EncWithStructEncoding {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(StructEncTerm::data_type())
+        Ok(SortableTerm::data_type())
     }
 
     fn invoke_batch(
@@ -79,7 +79,7 @@ fn into_struct_enc<'data>(
     let terms_iter = terms.into_iter();
 
     let (_, size_upper_bound) = terms_iter.size_hint();
-    let mut builder = StructEncTermBuilder::new(size_upper_bound.unwrap_or(0));
+    let mut builder = SortableTermBuilder::new(size_upper_bound.unwrap_or(0));
 
     for term in terms_iter {
         if let Ok(term) = term {
@@ -87,7 +87,9 @@ fn into_struct_enc<'data>(
                 TermRef::NamedNode(v) => builder.append_named_node(v),
                 TermRef::BlankNode(v) => builder.append_blank_node(v),
                 TermRef::BooleanLiteral(v) => builder.append_boolean(v),
-                TermRef::NumericLiteral(v) => builder.append_numeric(v.into()),
+                TermRef::NumericLiteral(v) => {
+                    builder.append_numeric(v.into(), v.to_be_bytes().as_ref())
+                }
                 TermRef::SimpleLiteral(v) => builder.append_string(v.value),
                 TermRef::LanguageStringLiteral(v) => builder.append_string(v.value),
                 TermRef::DateTimeLiteral(v) => builder.append_date_time(v),

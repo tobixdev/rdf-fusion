@@ -223,7 +223,7 @@ pub fn query_result_for_iterator(
 
     let fields = variables
         .iter()
-        .map(|v| Field::new(v.as_str(), EncTerm::term_type(), true))
+        .map(|v| Field::new(v.as_str(), EncTerm::data_type(), true))
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()

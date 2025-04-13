@@ -18,7 +18,7 @@ impl EncAsNativeBoolean {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
-                TypeSignature::Exact(vec![EncTerm::term_type()]),
+                TypeSignature::Exact(vec![EncTerm::data_type()]),
                 Volatility::Immutable,
             ),
         }

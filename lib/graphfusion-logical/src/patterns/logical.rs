@@ -46,7 +46,7 @@ impl PatternNode {
 
         let fields = fields
             .into_iter()
-            .map(|name| Field::new(name, EncTerm::term_type(), false))
+            .map(|name| Field::new(name, EncTerm::data_type(), false))
             .collect::<Fields>();
         Arc::new(DFSchema::from_unqualified_fields(fields, HashMap::new()).expect("Names correct"))
     }
