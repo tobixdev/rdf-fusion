@@ -1,7 +1,22 @@
-use crate::{RdfOpResult, TermRef, RdfValueRef};
+use crate::{RdfOpResult, RdfValueRef, TermRef};
 use oxrdf::vocab::xsd;
 use std::cmp::Ordering;
 use std::collections::HashSet;
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TypedLiteral {
+    pub value: String,
+    pub literal_type: String,
+}
+
+impl TypedLiteral {
+    pub fn as_ref(&self) -> TypedLiteralRef<'_> {
+        TypedLiteralRef {
+            value: &self.value,
+            literal_type: &self.literal_type,
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct TypedLiteralRef<'value> {
@@ -40,6 +55,13 @@ impl TypedLiteralRef<'_> {
         // TODO: We must check whether the literal is valid or encode all numeric types in the union
 
         numeric_types.contains(self.literal_type)
+    }
+
+    pub fn to_owned(&self) -> TypedLiteral {
+        TypedLiteral {
+            value: self.value.to_owned(),
+            literal_type: self.literal_type.to_owned(),
+        }
     }
 }
 

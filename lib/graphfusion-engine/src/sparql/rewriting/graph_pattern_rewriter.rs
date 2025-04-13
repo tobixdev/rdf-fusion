@@ -5,8 +5,8 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
 use arrow_rdf::encoded::{
-    EncTerm, ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_INT64_AS_RDF_TERM,
-    ENC_IS_COMPATIBLE, ENC_SAME_TERM, ENC_WITH_SORTABLE_ENCODING,
+    EncTerm, ENC_AVG, ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_INT64_AS_RDF_TERM,
+    ENC_IS_COMPATIBLE, ENC_MAX, ENC_MIN, ENC_SAME_TERM, ENC_SUM, ENC_WITH_SORTABLE_ENCODING,
 };
 use arrow_rdf::sortable::{SortableTerm, ENC_WITH_REGULAR_ENCODING};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
@@ -15,7 +15,7 @@ use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema, JoinType};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::functions_aggregate::count::{count, count_all, count_distinct, count_udaf};
-use datafusion::functions_window::expr_fn::first_value;
+use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
 };
@@ -30,6 +30,7 @@ use spargebra::algebra::{
 use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::ops::Deref;
 use std::sync::Arc;
 
 pub struct GraphPatternRewriter {
@@ -482,11 +483,51 @@ impl GraphPatternRewriter {
             } => {
                 let expr = expression_rewriter.rewrite(expr)?;
                 let result = match name {
+                    AggregateFunction::Avg => Expr::AggregateFunction(
+                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
+                            Arc::new(ENC_AVG.deref().clone()),
+                            vec![expr],
+                            *distinct,
+                            None,
+                            None,
+                            None,
+                        ),
+                    ),
                     AggregateFunction::Count => match distinct {
                         false => count(expr),
                         true => count_distinct(expr),
                     },
-                    AggregateFunction::Sample => first_value(expr),
+                    AggregateFunction::Max => Expr::AggregateFunction(
+                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
+                            Arc::new(ENC_MAX.deref().clone()),
+                            vec![expr],
+                            false, // DISTINCT doesn't change the result.
+                            None,
+                            None,
+                            None,
+                        ),
+                    ),
+                    AggregateFunction::Min => Expr::AggregateFunction(
+                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
+                            Arc::new(ENC_MIN.deref().clone()),
+                            vec![expr],
+                            false, // DISTINCT doesn't change the result.
+                            None,
+                            None,
+                            None,
+                        ),
+                    ),
+                    AggregateFunction::Sample => first_value(expr, None),
+                    AggregateFunction::Sum => Expr::AggregateFunction(
+                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
+                            Arc::new(ENC_SUM.deref().clone()),
+                            vec![expr],
+                            *distinct,
+                            None,
+                            None,
+                            None,
+                        ),
+                    ),
                     _ => return plan_err!("Unsupported aggreagte function: {}", name),
                 };
                 Ok(result)

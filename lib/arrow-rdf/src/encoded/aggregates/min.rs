@@ -1,0 +1,91 @@
+use crate::encoded::scalars::{encode_scalar_null, encode_scalar_term};
+use crate::encoded::write_enc_term::WriteEncTerm;
+use crate::encoded::{EncTerm, FromEncodedTerm};
+use crate::{as_enc_term_array, DFResult};
+use datafusion::arrow::array::{Array, ArrayRef};
+use datafusion::logical_expr::{create_udaf, Volatility};
+use datafusion::scalar::ScalarValue;
+use datafusion::{error::Result, physical_plan::Accumulator};
+use datamodel::{RdfOpResult, Term, TermRef};
+use std::sync::Arc;
+
+pub const ENC_MIN: once_cell::unsync::Lazy<datafusion::logical_expr::AggregateUDF> =
+    once_cell::unsync::Lazy::new(|| {
+        create_udaf(
+            "enc_min",
+            vec![EncTerm::data_type()],
+            Arc::new(EncTerm::data_type()),
+            Volatility::Immutable,
+            Arc::new(|_| Ok(Box::new(SparqlMin::new()))),
+            Arc::new(vec![EncTerm::data_type()]),
+        )
+    });
+
+#[derive(Debug)]
+struct SparqlMin {
+    min: RdfOpResult<Term>,
+    executed_once: bool,
+}
+
+impl SparqlMin {
+    pub fn new() -> Self {
+        SparqlMin {
+            min: Err(()),
+            executed_once: false,
+        }
+    }
+}
+
+impl Accumulator for SparqlMin {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+        if values.is_empty() {
+            return Ok(());
+        }
+        let arr = as_enc_term_array(&values[0]).expect("Type constraint.");
+
+        // TODO: Can we stop once we error?
+
+        for i in 0..arr.len() {
+            let value = TermRef::from_enc_array(arr, i);
+
+            if !self.executed_once {
+                self.min = value.map(|t| t.to_owned());
+                self.executed_once = true;
+            } else {
+                if let Ok(min) = self.min.as_ref() {
+                    if let Ok(value) = value {
+                        if value < min.as_ref() {
+                            self.min = Ok(value.to_owned());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn evaluate(&mut self) -> DFResult<ScalarValue> {
+        let value = match self.min.as_ref() {
+            Ok(value) => value.as_ref().into_scalar_value()?,
+            Err(_) => encode_scalar_null(),
+        };
+        Ok(value)
+    }
+
+    fn size(&self) -> usize {
+        size_of_val(self)
+    }
+
+    fn state(&mut self) -> DFResult<Vec<ScalarValue>> {
+        let value = match self.min.as_ref().map(|v| v.as_ref()) {
+            Ok(value) => encode_scalar_term(value.into_decoded().as_ref())?,
+            Err(_) => encode_scalar_null(),
+        };
+        Ok(vec![value])
+    }
+
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+        self.update_batch(states)
+    }
+}

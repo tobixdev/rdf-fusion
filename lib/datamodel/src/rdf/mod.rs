@@ -6,10 +6,13 @@ mod string_literal;
 mod term;
 mod typed_literal;
 
+pub use language_string::LanguageString;
 pub use language_string::LanguageStringRef;
+pub use simple_literal::SimpleLiteral;
 pub use simple_literal::SimpleLiteralRef;
 pub use string_literal::CompatibleStringArgs;
 pub use string_literal::OwnedStringLiteral;
 pub use string_literal::StringLiteralRef;
+pub use term::Term;
 pub use term::TermRef;
 pub use typed_literal::TypedLiteralRef;

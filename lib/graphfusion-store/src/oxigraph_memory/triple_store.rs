@@ -1,7 +1,7 @@
 use crate::oxigraph_memory::table_provider::OxigraphMemTable;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
-    encode_scalar_graph, encode_scalar_object, encode_scalar_predicate, encode_scalar_subject,
+    encode_scalar_graph, encode_scalar_term, encode_scalar_predicate, encode_scalar_subject,
 };
 use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_SAME_TERM};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
@@ -71,7 +71,7 @@ impl MemoryTripleStore {
         }
         if let Some(object) = object {
             matching = matching.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![
-                ENC_SAME_TERM.call(vec![col(COL_OBJECT), lit(encode_scalar_object(object)?)]),
+                ENC_SAME_TERM.call(vec![col(COL_OBJECT), lit(encode_scalar_term(object)?)]),
             ]))?
         }
 

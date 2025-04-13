@@ -1,5 +1,20 @@
-use crate::{RdfOpResult, TermRef, RdfValueRef};
+use crate::{RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct LanguageString {
+    pub value: String,
+    pub language: String,
+}
+
+impl LanguageString {
+    pub fn as_ref(&self) -> LanguageStringRef<'_> {
+        LanguageStringRef {
+            value: &self.value,
+            language: &self.language,
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct LanguageStringRef<'value> {
@@ -11,17 +26,22 @@ impl LanguageStringRef<'_> {
     pub fn is_empty(&self) -> bool {
         self.value.is_empty()
     }
+
+    pub fn to_owned(&self) -> LanguageString {
+        LanguageString {
+            value: self.value.to_owned(),
+            language: self.language.to_owned(),
+        }
+    }
 }
 
 impl PartialOrd for LanguageStringRef<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.value.partial_cmp(other.value)
-    }
-}
-
-impl Ord for LanguageStringRef<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("Ordering is total")
+        if self.language == other.language {
+            self.value.partial_cmp(other.value)
+        } else {
+            None
+        }
     }
 }
 

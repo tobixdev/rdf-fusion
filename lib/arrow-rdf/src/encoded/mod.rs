@@ -1,7 +1,8 @@
+mod aggregates;
+mod builder;
 mod encoding;
 mod model;
 mod rdf_ops;
-mod builder;
 pub mod scalars;
 #[macro_use]
 mod macros;
@@ -12,13 +13,14 @@ mod query_evaluation;
 mod write_enc_term;
 
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+pub use builder::EncRdfTermBuilder;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 pub use from_encoded_term::FromEncodedTerm;
 pub use model::*;
 use once_cell::unsync::Lazy;
-pub use builder::EncRdfTermBuilder;
 
 // Functions
+pub use aggregates::*;
 pub use encoding::*;
 pub use logical::*;
 pub use query_evaluation::*;

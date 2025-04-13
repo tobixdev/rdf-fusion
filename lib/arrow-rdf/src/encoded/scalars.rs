@@ -29,7 +29,7 @@ pub fn encode_scalar_predicate(predicate: NamedNodeRef<'_>) -> ScalarValue {
     encode_scalar_named_node(predicate)
 }
 
-pub fn encode_scalar_object(object: DecodedTermRef<'_>) -> DFResult<ScalarValue> {
+pub fn encode_scalar_term(object: DecodedTermRef<'_>) -> DFResult<ScalarValue> {
     match object {
         DecodedTermRef::NamedNode(nn) => Ok(encode_scalar_named_node(nn)),
         DecodedTermRef::BlankNode(bnode) => Ok(encode_scalar_blank_node(bnode)),
