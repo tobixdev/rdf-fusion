@@ -15,6 +15,7 @@ use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema, JoinType};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::functions_aggregate::count::{count, count_all, count_distinct, count_udaf};
+use datafusion::functions_window::expr_fn::first_value;
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
 };
@@ -480,14 +481,15 @@ impl GraphPatternRewriter {
                 distinct,
             } => {
                 let expr = expression_rewriter.rewrite(expr)?;
-
-                match name {
+                let result = match name {
                     AggregateFunction::Count => match distinct {
-                        false => Ok(count(expr)),
-                        true => Ok(count_distinct(expr)),
+                        false => count(expr),
+                        true => count_distinct(expr),
                     },
-                    _ => plan_err!("Unsupported aggreagte function: {}", name),
-                }
+                    AggregateFunction::Sample => first_value(expr),
+                    _ => return plan_err!("Unsupported aggreagte function: {}", name),
+                };
+                Ok(result)
             }
         }
     }
