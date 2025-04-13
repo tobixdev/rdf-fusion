@@ -1,5 +1,5 @@
 use crate::xsd::double::Double;
-use crate::{Boolean, Decimal, Float, Integer, Numeric, RdfOpResult, TermRef, RdfValueRef};
+use crate::{Boolean, Decimal, Float, Integer, Numeric, RdfOpResult, RdfValueRef, TermRef};
 use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
@@ -19,6 +19,14 @@ impl Int {
 
     pub fn new(value: i32) -> Self {
         Self { value }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn from_be_bytes(bytes: [u8; 4]) -> Self {
+        Self {
+            value: i32::from_be_bytes(bytes),
+        }
     }
 
     #[inline]

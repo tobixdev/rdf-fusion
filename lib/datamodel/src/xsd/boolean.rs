@@ -2,7 +2,7 @@ use crate::xsd::decimal::Decimal;
 use crate::xsd::double::Double;
 use crate::xsd::float::Float;
 use crate::xsd::integer::Integer;
-use crate::{Int, RdfOpResult, TermRef, RdfValueRef};
+use crate::{Int, RdfOpResult, RdfValueRef, TermRef};
 use std::fmt;
 use std::str::{FromStr, ParseBoolError};
 
@@ -16,6 +16,19 @@ pub struct Boolean {
 }
 
 impl Boolean {
+    #[inline]
+    #[must_use]
+    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        let value = bytes[0] == 1;
+        Self { value }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn to_be_bytes(self) -> [u8; 1] {
+        [self.value as u8]
+    }
+
     /// Checks if the two values are [identical](https://www.w3.org/TR/xmlschema11-2/#identity).
     #[inline]
     #[must_use]

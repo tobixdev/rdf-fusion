@@ -1,11 +1,16 @@
 mod builder;
+mod from_sortable_term;
 mod term_type;
 mod with_regular_encoding;
-mod from_sortable_term;
 
+use crate::sortable::with_regular_encoding::EncWithRegularEncoding;
 pub use builder::SortableTermBuilder;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
+use datafusion::logical_expr::ScalarUDF;
 use once_cell::unsync::Lazy;
+
+pub const ENC_WITH_REGULAR_ENCODING: Lazy<ScalarUDF> =
+    Lazy::new(|| ScalarUDF::from(EncWithRegularEncoding::new()));
 
 enum SortableTermField {
     Type,

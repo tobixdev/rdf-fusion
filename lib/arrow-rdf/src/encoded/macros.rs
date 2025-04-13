@@ -72,7 +72,7 @@ macro_rules! make_unary_rdf_udf {
             $CONST_NAME,
             $NAME,
             crate::encoded::dispatch::dispatch_unary,
-            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::term_type()])
+            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::data_type()])
         );
     };
 }
@@ -86,7 +86,7 @@ macro_rules! make_binary_rdf_udf {
             $CONST_NAME,
             $NAME,
             crate::encoded::dispatch::dispatch_binary,
-            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::term_type(); 2])
+            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::data_type(); 2])
         );
     };
 }
@@ -100,7 +100,7 @@ macro_rules! make_ternary_rdf_udf {
             $CONST_NAME,
             $NAME,
             crate::encoded::dispatch::dispatch_ternary,
-            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::term_type(); 3])
+            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::data_type(); 3])
         );
     };
 }
@@ -114,7 +114,7 @@ macro_rules! make_quaternary_rdf_udf {
             $CONST_NAME,
             $NAME,
             crate::encoded::dispatch::dispatch_quaternary,
-            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::term_type(); 4])
+            datafusion::logical_expr::TypeSignature::Exact(vec![crate::EncTerm::data_type(); 4])
         );
     };
 }
@@ -131,7 +131,7 @@ macro_rules! make_n_ary_rdf_udf {
             datafusion::logical_expr::TypeSignature::OneOf(vec![
                 datafusion::logical_expr::TypeSignature::Nullary,
                 datafusion::logical_expr::TypeSignature::Variadic(
-                    vec![crate::EncTerm::term_type()]
+                    vec![crate::EncTerm::data_type()]
                 )
             ])
         );

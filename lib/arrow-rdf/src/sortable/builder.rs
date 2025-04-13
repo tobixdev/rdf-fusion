@@ -22,7 +22,7 @@ impl SortableTermBuilder {
     }
 
     pub fn append_null(&mut self) {
-        self.append(SortableTermType::Null, EncTermField::Null, None, None)
+        self.append(SortableTermType::Null, EncTermField::Null, None, &[])
     }
 
     pub fn append_boolean(&mut self, value: Boolean) {
@@ -30,7 +30,7 @@ impl SortableTermBuilder {
             SortableTermType::Boolean,
             EncTermField::Boolean,
             Some(value.into()),
-            None,
+            &value.to_be_bytes(),
         )
     }
 
@@ -47,7 +47,7 @@ impl SortableTermBuilder {
             SortableTermType::Numeric,
             field,
             Some(value),
-            Some(original_be_bytes),
+            original_be_bytes,
         )
     }
 
@@ -56,7 +56,7 @@ impl SortableTermBuilder {
             SortableTermType::BlankNodes,
             EncTermField::BlankNode,
             None,
-            Some(value.as_str().as_bytes()),
+            value.as_str().as_bytes(),
         )
     }
 
@@ -65,7 +65,7 @@ impl SortableTermBuilder {
             SortableTermType::NamedNode,
             EncTermField::NamedNode,
             None,
-            Some(value.as_str().as_bytes()),
+            value.as_str().as_bytes(),
         )
     }
 
@@ -74,7 +74,7 @@ impl SortableTermBuilder {
             SortableTermType::String,
             EncTermField::String,
             None,
-            Some(value.as_bytes()),
+            value.as_bytes(),
         )
     }
 
@@ -83,7 +83,7 @@ impl SortableTermBuilder {
             SortableTermType::DateTime,
             EncTermField::DateTime,
             Some(value.timestamp().value().into()),
-            None,
+            &value.to_be_bytes(),
         )
     }
 
@@ -92,7 +92,7 @@ impl SortableTermBuilder {
             SortableTermType::Time,
             EncTermField::Time,
             Some(value.timestamp().value().into()),
-            None,
+            &value.to_be_bytes(),
         )
     }
 
@@ -101,7 +101,7 @@ impl SortableTermBuilder {
             SortableTermType::Date,
             EncTermField::Date,
             Some(value.timestamp().value().into()),
-            None,
+            &value.to_be_bytes(),
         )
     }
 
@@ -110,7 +110,7 @@ impl SortableTermBuilder {
             SortableTermType::Duration,
             EncTermField::Duration,
             Some(Integer::from(value.all_months()).into()),
-            Some(&value.seconds().to_string().as_bytes()),
+            &value.seconds().to_string().as_bytes(),
         )
     }
 
@@ -119,7 +119,7 @@ impl SortableTermBuilder {
             SortableTermType::YearMonthDuration,
             EncTermField::Duration,
             Some(Integer::from(value.as_i64()).into()),
-            None,
+            &value.to_be_bytes(),
         )
     }
 
@@ -128,7 +128,7 @@ impl SortableTermBuilder {
             SortableTermType::DayTimeDuration,
             EncTermField::Duration,
             Some(value.as_seconds().into()),
-            None,
+            &value.to_be_bytes(),
         )
     }
 
@@ -137,7 +137,7 @@ impl SortableTermBuilder {
             SortableTermType::UnsupportedLiteral,
             EncTermField::TypedLiteral,
             None,
-            Some(value.as_bytes()),
+            value.as_bytes(),
         )
     }
 
@@ -146,7 +146,7 @@ impl SortableTermBuilder {
         sort_type: SortableTermType,
         enc_type: EncTermField,
         numeric: Option<Double>,
-        string: Option<&[u8]>,
+        bytes: &[u8],
     ) {
         self.builder
             .field_builder::<UInt8Builder>(SortableTermField::Type.index())
@@ -170,10 +170,7 @@ impl SortableTermBuilder {
             .builder
             .field_builder::<BinaryBuilder>(SortableTermField::Bytes.index())
             .unwrap();
-        match string {
-            None => bytes_builder.append_null(),
-            Some(bytes) => bytes_builder.append_value(bytes),
-        }
+        bytes_builder.append_value(bytes);
 
         self.builder.append(true)
     }

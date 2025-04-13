@@ -8,6 +8,7 @@ use arrow_rdf::encoded::{
     EncTerm, ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_INT64_AS_RDF_TERM,
     ENC_IS_COMPATIBLE, ENC_SAME_TERM, ENC_WITH_SORTABLE_ENCODING,
 };
+use arrow_rdf::sortable::{SortableTerm, ENC_WITH_REGULAR_ENCODING};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::tree_node::{Transformed, TreeNode};
@@ -737,7 +738,13 @@ fn ensure_all_columns_are_rdf_terms(inner: LogicalPlanBuilder) -> DFResult<Logic
             if f.data_type() != &EncTerm::data_type() {
                 match f.data_type() {
                     DataType::Int64 => Ok(ENC_INT64_AS_RDF_TERM.call(vec![column]).alias(f.name())),
-                    _ => plan_err!("Unsupported data type {:?}", f.data_type()),
+                    other => {
+                        if other == &SortableTerm::data_type() {
+                            Ok(ENC_WITH_REGULAR_ENCODING.call(vec![column]).alias(f.name()))
+                        } else {
+                            plan_err!("Unsupported data type {:?}", f.data_type())
+                        }
+                    }
                 }
             } else {
                 Ok(column)
