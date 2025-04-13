@@ -14,7 +14,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema, JoinType};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
-use datafusion::functions_aggregate::count::{count, count_all};
+use datafusion::functions_aggregate::count::{count, count_all, count_distinct, count_udaf};
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
 };
@@ -455,21 +455,37 @@ impl GraphPatternRewriter {
         let expression_rewriter = ExpressionRewriter::new(self, self.base_iri.as_ref(), schema);
         match expression {
             AggregateExpression::CountSolutions { distinct } => match distinct {
-                false => plan_err!("Unsupported distinct count"),
-                true => Ok(count_all()),
+                false => Ok(count_all()),
+                true => {
+                    let exprs = schema
+                        .columns()
+                        .into_iter()
+                        .map(|c| Expr::from(Column::new_unqualified(c.name())))
+                        .collect::<Vec<_>>();
+                    Ok(Expr::AggregateFunction(
+                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
+                            count_udaf(),
+                            exprs,
+                            true,
+                            None,
+                            None,
+                            None,
+                        ),
+                    ))
+                }
             },
             AggregateExpression::FunctionCall {
                 name,
                 expr,
                 distinct,
             } => {
-                let expr = match distinct {
-                    false => expression_rewriter.rewrite(expr)?,
-                    true => return plan_err!("Unsupported distinct aggregation"),
-                };
+                let expr = expression_rewriter.rewrite(expr)?;
 
                 match name {
-                    AggregateFunction::Count => Ok(count(expr)),
+                    AggregateFunction::Count => match distinct {
+                        false => Ok(count(expr)),
+                        true => Ok(count_distinct(expr)),
+                    },
                     _ => plan_err!("Unsupported aggreagte function: {}", name),
                 }
             }
