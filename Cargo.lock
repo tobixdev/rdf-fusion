@@ -312,7 +312,7 @@ dependencies = [
 
 [[package]]
 name = "arrow-rdf"
-version = "0.4.5"
+version = "0.1.0"
 dependencies = [
  "datafusion",
  "datamodel",
@@ -1457,7 +1457,7 @@ dependencies = [
 
 [[package]]
 name = "datamodel"
-version = "0.4.5"
+version = "0.1.0"
 dependencies = [
  "oxiri",
  "oxrdf",
@@ -1599,7 +1599,7 @@ dependencies = [
 
 [[package]]
 name = "functions-scalar"
-version = "0.4.5"
+version = "0.1.0"
 dependencies = [
  "datamodel",
  "hex",
@@ -1782,7 +1782,7 @@ dependencies = [
 
 [[package]]
 name = "graphfusion"
-version = "0.4.5"
+version = "0.1.0"
 dependencies = [
  "codspeed-criterion-compat",
  "datafusion",
@@ -1805,7 +1805,7 @@ dependencies = [
 
 [[package]]
 name = "graphfusion-engine"
-version = "0.4.5"
+version = "0.1.0"
 dependencies = [
  "arrow-rdf",
  "async-trait",
@@ -1824,7 +1824,7 @@ dependencies = [
 
 [[package]]
 name = "graphfusion-logical"
-version = "0.4.5"
+version = "0.1.0"
 dependencies = [
  "arrow-rdf",
  "async-trait",
@@ -1842,7 +1842,7 @@ dependencies = [
 
 [[package]]
 name = "graphfusion-store"
-version = "0.4.5"
+version = "0.1.0"
 dependencies = [
  "arrow-rdf",
  "async-trait",
@@ -2569,7 +2569,7 @@ dependencies = [
 
 [[package]]
 name = "oxigraph-cli"
-version = "0.4.5"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3374,7 +3374,7 @@ checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "sparesults"
-version = "0.2.3"
+version = "0.1.0"
 dependencies = [
  "json-event-parser",
  "memchr",
@@ -3386,7 +3386,7 @@ dependencies = [
 
 [[package]]
 name = "spargebra"
-version = "0.3.3"
+version = "0.1.0"
 dependencies = [
  "oxilangtag",
  "oxiri",

@@ -15,8 +15,8 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.4.5"
-authors = ["Tpt <thomas@pellissier-tanon.fr>"]
+version = "0.1.0"
+authors = ["Tobias Schwarzinger <tobias.schwarzinger@tuwien.ac.at>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.75"
@@ -71,15 +71,15 @@ oxttl = { version = "0.1.4", features = ["rdf-star"] }
 oxrdfio = { version = "0.1.4", features = ["rdf-star"] }
 
 # Internal dependencies
-arrow-rdf = { version = "=0.4.5", path = "lib/arrow-rdf" }
-datamodel = { version = "=0.4.5", path = "lib/datamodel" }
-functions-scalar = { version = "=0.4.5", path = "lib/functions-scalar" }
-graphfusion-engine = { version = "=0.4.5", path = "lib/graphfusion-engine" }
-graphfusion-logical = { version = "=0.4.5", path = "lib/graphfusion-logical" }
-graphfusion-store = { version = "=0.4.5", path = "lib/graphfusion-store" }
-graphfusion = { version = "=0.4.5", path = "lib/graphfusion" }
-spargebra = { version = "=0.3.3", path = "lib/spargebra" }
-sparesults = { version = "=0.2.3", path = "lib/sparesults" }
+arrow-rdf = { version = "=0.1.0", path = "lib/arrow-rdf" }
+datamodel = { version = "=0.1.0", path = "lib/datamodel" }
+functions-scalar = { version = "=0.1.0", path = "lib/functions-scalar" }
+graphfusion-engine = { version = "=0.1.0", path = "lib/graphfusion-engine" }
+graphfusion-logical = { version = "=0.1.0", path = "lib/graphfusion-logical" }
+graphfusion-store = { version = "=0.1.0", path = "lib/graphfusion-store" }
+graphfusion = { version = "=0.1.0", path = "lib/graphfusion" }
+spargebra = { version = "=0.1.0", path = "lib/spargebra" }
+sparesults = { version = "=0.1.0", path = "lib/sparesults" }
 
 [workspace.lints.rust]
 absolute_paths_not_starting_with_crate = "warn"
