@@ -40,12 +40,10 @@ impl SparqlAvg {
 
 impl Accumulator for SparqlAvg {
     fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
-        if values.is_empty() {
+        if values.is_empty() || self.sum.is_err() {
             return Ok(());
         }
         let arr = as_enc_term_array(&values[0]).expect("Type constraint.");
-
-        // TODO: Can we stop once we error?
 
         self.count += arr.len() as i64;
         for i in 0..arr.len() {
@@ -66,6 +64,9 @@ impl Accumulator for SparqlAvg {
                         }
                     };
                 }
+                else {
+                    self.sum = Err(());
+                }
             }
         }
 
@@ -77,12 +78,11 @@ impl Accumulator for SparqlAvg {
             return Ok(Integer::from(self.count).into_scalar_value()?);
         }
 
-        let count = Numeric::Integer(Integer::from(self.count));
-
         if self.sum.is_err() {
             return Ok(encode_scalar_null());
         }
 
+        let count = Numeric::Decimal(Decimal::from(self.count));
         let result = match NumericPair::with_casts_from(self.sum.unwrap(), count) {
             NumericPair::Int(_, _) => unreachable!("Starts with Integer"),
             NumericPair::Integer(lhs, rhs) => lhs
@@ -131,6 +131,9 @@ impl Accumulator for SparqlAvg {
                             lhs.checked_add(rhs).map(Numeric::Decimal).ok_or(())
                         }
                     };
+                }
+                else {
+                    self.sum = Err(());
                 }
             }
             self.count += counts.value(i);
