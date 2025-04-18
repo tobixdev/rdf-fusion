@@ -5,8 +5,9 @@ use arrow_rdf::encoded::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
 use arrow_rdf::encoded::{
-    EncTerm, ENC_AVG, ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_INT64_AS_RDF_TERM,
-    ENC_IS_COMPATIBLE, ENC_MAX, ENC_MIN, ENC_SAME_TERM, ENC_SUM, ENC_WITH_SORTABLE_ENCODING,
+    enc_group_concat, EncTerm, ENC_AVG, ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE,
+    ENC_INT64_AS_RDF_TERM, ENC_IS_COMPATIBLE, ENC_MAX, ENC_MIN, ENC_SAME_TERM, ENC_SUM,
+    ENC_WITH_SORTABLE_ENCODING,
 };
 use arrow_rdf::sortable::{SortableTerm, ENC_WITH_REGULAR_ENCODING};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
@@ -528,7 +529,21 @@ impl GraphPatternRewriter {
                             None,
                         ),
                     ),
-                    _ => return plan_err!("Unsupported aggreagte function: {}", name),
+                    AggregateFunction::GroupConcat { separator } => Expr::AggregateFunction(
+                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
+                            Arc::new(enc_group_concat(
+                                separator.as_ref().map(|s| s.as_str()).unwrap_or(""),
+                            )),
+                            vec![expr],
+                            *distinct,
+                            None,
+                            None,
+                            None,
+                        ),
+                    ),
+                    AggregateFunction::Custom(name) => {
+                        return plan_err!("Unsupported custom aggregate function: {name}");
+                    }
                 };
                 Ok(result)
             }

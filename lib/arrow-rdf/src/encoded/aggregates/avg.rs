@@ -1,4 +1,4 @@
-use crate::encoded::scalars::{encode_scalar_literal, encode_scalar_null};
+use crate::encoded::scalars::encode_scalar_null;
 use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::{EncTerm, FromEncodedTerm};
 use crate::{as_enc_term_array, DFResult};

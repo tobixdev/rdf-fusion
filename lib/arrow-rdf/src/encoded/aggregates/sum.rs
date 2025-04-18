@@ -6,7 +6,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use datamodel::{Decimal, Integer, Numeric, NumericPair, RdfOpResult};
+use datamodel::{Integer, Numeric, NumericPair, RdfOpResult};
 use std::sync::Arc;
 
 pub const ENC_SUM: once_cell::unsync::Lazy<datafusion::logical_expr::AggregateUDF> =
