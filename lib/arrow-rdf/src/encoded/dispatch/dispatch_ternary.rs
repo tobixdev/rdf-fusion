@@ -28,7 +28,7 @@ where
         let arg2 = borrow_value::<TUdf::Arg2<'data>>(&args[2], i);
         match (arg0, arg1, arg2) {
             (Ok(arg0), Ok(arg1), Ok(arg2)) => udf.evaluate(arg0, arg1, arg2),
-            _ => udf.evaluate_error(),
+            _ => udf.evaluate_error(arg0, arg1, arg2),
         }
     });
     let result = TUdf::Result::iter_into_array(results)?;

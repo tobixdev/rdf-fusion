@@ -68,6 +68,7 @@ make_unary_rdf_udf!(AsStringRdfOp, EncAsString, ENC_AS_STRING, "enc_as_string");
 
 make_unary_rdf_udf!(BoundRdfOp, EncBound, ENC_BOUND, "enc_bound");
 make_n_ary_rdf_udf!(CoalesceRdfOp, EncCoalesce, ENC_COALESCE, "enc_coalesce");
+make_ternary_rdf_udf!(IfRdfOp, EncIf, ENC_IF, "enc_if");
 
 // Numeric
 
@@ -96,8 +97,18 @@ make_nullary_rdf_udf!(RandRdfOp, EncRand, ENC_RAND, "enc_rand");
 // Strings
 
 make_unary_rdf_udf!(StrLenRdfOp, EncStrlen, ENC_STRLEN, "enc_strlen");
-make_binary_rdf_udf!(SubStrRdfOp, EncSubstrBinary, ENC_SUBSTR_BINARY, "enc_substr");
-make_ternary_rdf_udf!(SubStrRdfOp, EncSubstrTernary, ENC_SUBSTR_TERNARY, "enc_substr");
+make_binary_rdf_udf!(
+    SubStrRdfOp,
+    EncSubstrBinary,
+    ENC_SUBSTR_BINARY,
+    "enc_substr"
+);
+make_ternary_rdf_udf!(
+    SubStrRdfOp,
+    EncSubstrTernary,
+    ENC_SUBSTR_TERNARY,
+    "enc_substr"
+);
 make_unary_rdf_udf!(UCaseRdfOp, EncUcase, ENC_UCASE, "enc_ucase");
 make_unary_rdf_udf!(LCaseRdfOp, EncLcase, ENC_LCASE, "enc_lcase");
 make_binary_rdf_udf!(StrStartsRdfOp, EncStrstarts, ENC_STRSTARTS, "enc_strstarts");
@@ -158,7 +169,6 @@ make_binary_rdf_udf!(StrDtRdfOp, EncStrdt, ENC_STRDT, "enc_strdt");
 make_binary_rdf_udf!(StrLangRdfOp, EncStrlang, ENC_STRLANG, "enc_strlang");
 make_nullary_rdf_udf!(UuidRdfOp, EncUuid, ENC_UUID, "enc_uuid");
 make_nullary_rdf_udf!(StrUuidRdfOp, EncStruuid, ENC_STRUUID, "enc_struuid");
-
 
 // Date and Time
 

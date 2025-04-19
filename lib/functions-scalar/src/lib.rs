@@ -1,11 +1,11 @@
 mod comparison;
 mod conversion;
+mod dates_and_times;
 mod functional_forms;
+mod hash;
 mod numeric;
 mod strings;
 mod terms;
-mod hash;
-mod dates_and_times;
 
 pub use comparison::*;
 pub use conversion::*;
@@ -68,7 +68,12 @@ pub trait ScalarTernaryRdfOp {
         arg2: Self::Arg2<'data>,
     ) -> RdfOpResult<Self::Result<'data>>;
 
-    fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate_error<'data>(
+        &self,
+        _arg0: RdfOpResult<Self::Arg0<'data>>,
+        _arg1: RdfOpResult<Self::Arg1<'data>>,
+        _arg2: RdfOpResult<Self::Arg2<'data>>,
+    ) -> RdfOpResult<Self::Result<'data>> {
         Err(())
     }
 }
