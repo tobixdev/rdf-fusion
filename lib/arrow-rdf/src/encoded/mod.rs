@@ -28,9 +28,9 @@ pub use rdf_ops::*;
 
 pub const ENC_QUAD_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     SchemaRef::new(Schema::new(vec![
-        Field::new(COL_GRAPH, EncTerm::data_type(), false),
-        Field::new(COL_SUBJECT, EncTerm::data_type(), false),
-        Field::new(COL_PREDICATE, EncTerm::data_type(), false),
-        Field::new(COL_OBJECT, EncTerm::data_type(), false),
+        Field::new(COL_GRAPH, EncTerm::data_type(), true),
+        Field::new(COL_SUBJECT, EncTerm::data_type(), true),
+        Field::new(COL_PREDICATE, EncTerm::data_type(), true),
+        Field::new(COL_OBJECT, EncTerm::data_type(), true),
     ]))
 });
