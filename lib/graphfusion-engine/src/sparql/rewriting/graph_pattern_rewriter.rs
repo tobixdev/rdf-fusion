@@ -532,7 +532,7 @@ impl GraphPatternRewriter {
                     AggregateFunction::GroupConcat { separator } => Expr::AggregateFunction(
                         datafusion::logical_expr::expr::AggregateFunction::new_udf(
                             Arc::new(enc_group_concat(
-                                separator.as_ref().map(|s| s.as_str()).unwrap_or(""),
+                                separator.as_ref().map(|s| s.as_str()).unwrap_or(" "),
                             )),
                             vec![expr],
                             *distinct,

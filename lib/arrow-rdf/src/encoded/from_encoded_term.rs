@@ -1,8 +1,14 @@
 use crate::encoded::{EncTerm, EncTermField};
 use datafusion::arrow::array::{Array, AsArray, UnionArray};
-use datafusion::arrow::datatypes::{DataType, Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type};
+use datafusion::arrow::datatypes::{
+    DataType, Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
+};
 use datafusion::common::ScalarValue;
-use datamodel::{Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, Time, Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration};
+use datamodel::{
+    Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
+    LanguageStringRef, Numeric, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, Time,
+    Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration,
+};
 use oxrdf::{BlankNodeRef, NamedNodeRef};
 use std::ops::Not;
 
@@ -60,12 +66,8 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     EncTermField::DateTime => {
                         TermRef::DateTimeLiteral(DateTime::from_enc_scalar(scalar)?)
                     }
-                    EncTermField::Time => {
-                        TermRef::TimeLiteral(Time::from_enc_scalar(scalar)?)
-                    }
-                    EncTermField::Date => {
-                        TermRef::DateLiteral(Date::from_enc_scalar(scalar)?)
-                    }
+                    EncTermField::Time => TermRef::TimeLiteral(Time::from_enc_scalar(scalar)?),
+                    EncTermField::Date => TermRef::DateLiteral(Date::from_enc_scalar(scalar)?),
                     EncTermField::TypedLiteral => {
                         TermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
                     }
@@ -136,12 +138,18 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     .column(1)
                     .is_null(offset);
                 match (year_month_is_null, day_time_is_null) {
-                    (false, false) => TermRef::DurationLiteral(Duration::from_enc_array(array, index)?),
-                    (false, true) => TermRef::YearMonthDurationLiteral(YearMonthDuration::from_enc_array(array, index)?),
-                    (true, false) => TermRef::DayTimeDurationLiteral(DayTimeDuration::from_enc_array(array, index)?),
+                    (false, false) => {
+                        TermRef::DurationLiteral(Duration::from_enc_array(array, index)?)
+                    }
+                    (false, true) => TermRef::YearMonthDurationLiteral(
+                        YearMonthDuration::from_enc_array(array, index)?,
+                    ),
+                    (true, false) => TermRef::DayTimeDurationLiteral(
+                        DayTimeDuration::from_enc_array(array, index)?,
+                    ),
                     _ => unreachable!("Unexpected encoding"),
                 }
-            },
+            }
             EncTermField::TypedLiteral => TermRef::TypedLiteral(
                 TypedLiteralRef::from_enc_array(array, index).expect("EncTermField checked"),
             ),
@@ -683,18 +691,14 @@ impl FromEncodedTerm<'_> for YearMonthDuration {
         Self: Sized,
     {
         match get_duration_encoding_scalar(scalar)? {
-            (Some(year_month), None) => {
-                Ok(YearMonthDuration::new(year_month))
-            }
+            (Some(year_month), None) => Ok(YearMonthDuration::new(year_month)),
             _ => Err(()),
         }
     }
 
     fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         match get_duration_encoding_array(array, index)? {
-            (Some(year_month), None) => {
-                Ok(YearMonthDuration::new(year_month))
-            }
+            (Some(year_month), None) => Ok(YearMonthDuration::new(year_month)),
             _ => Err(()),
         }
     }
@@ -706,23 +710,18 @@ impl FromEncodedTerm<'_> for DayTimeDuration {
         Self: Sized,
     {
         match get_duration_encoding_scalar(scalar)? {
-            (None, Some(day_time)) => {
-                Ok(DayTimeDuration::new(day_time))
-            }
+            (None, Some(day_time)) => Ok(DayTimeDuration::new(day_time)),
             _ => Err(()),
         }
     }
 
     fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         match get_duration_encoding_array(array, index)? {
-            (None, Some(day_time)) => {
-                Ok(DayTimeDuration::new(day_time))
-            }
+            (None, Some(day_time)) => Ok(DayTimeDuration::new(day_time)),
             _ => Err(()),
         }
     }
 }
-
 
 impl FromEncodedTerm<'_> for DateTime {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
@@ -751,7 +750,6 @@ impl FromEncodedTerm<'_> for DateTime {
         Ok(DateTime::new(timestamp))
     }
 }
-
 
 impl FromEncodedTerm<'_> for Time {
     fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
@@ -831,7 +829,10 @@ impl FromEncodedTerm<'_> for Timestamp {
 
         Ok(Timestamp::new(
             Decimal::from_be_bytes(value.value(0).to_be_bytes()),
-            offset.is_null(0).not().then(|| TimezoneOffset::new_unchecked(offset.value(0)))
+            offset
+                .is_null(0)
+                .not()
+                .then(|| TimezoneOffset::new_unchecked(offset.value(0))),
         ))
     }
 
@@ -845,12 +846,17 @@ impl FromEncodedTerm<'_> for Timestamp {
 
         Ok(Timestamp::new(
             Decimal::from_be_bytes(value_array.value(offset).to_be_bytes()),
-            offset_array.is_null(offset).not().then(|| TimezoneOffset::new_unchecked(offset_array.value(offset)))
+            offset_array
+                .is_null(offset)
+                .not()
+                .then(|| TimezoneOffset::new_unchecked(offset_array.value(offset))),
         ))
     }
 }
 
-fn get_duration_encoding_scalar(scalar: &ScalarValue) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
+fn get_duration_encoding_scalar(
+    scalar: &ScalarValue,
+) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
     let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
         return Err(());
     };
@@ -881,7 +887,10 @@ fn get_duration_encoding_scalar(scalar: &ScalarValue) -> RdfOpResult<(Option<i64
     Ok((year_month, day_time))
 }
 
-fn get_duration_encoding_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
+fn get_duration_encoding_array(
+    array: &'_ UnionArray,
+    index: usize,
+) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
     let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
     if field != EncTermField::Duration {
         return Err(());

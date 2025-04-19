@@ -31,7 +31,7 @@ pub fn enc_group_concat(separator: impl Into<String>) -> AggregateUDF {
 struct SparqlGroupConcat {
     separator: String,
     error: bool,
-    value: String,
+    value: Option<String>,
     language_error: bool,
     language: Option<String>,
 }
@@ -41,7 +41,7 @@ impl SparqlGroupConcat {
         SparqlGroupConcat {
             separator,
             error: false,
-            value: "".to_owned(),
+            value: None,
             language_error: false,
             language: None,
         }
@@ -56,11 +56,18 @@ impl Accumulator for SparqlGroupConcat {
 
         let arr = as_enc_term_array(&values[0]).expect("Type constraint.");
 
+        let mut value_exists = self.value.is_some();
+        let mut value = self.value.take().unwrap_or_default();
+
         for i in 0..arr.len() {
             let string = StringLiteralRef::from_enc_array(arr, i);
             match string {
                 Ok(string) => {
-                    self.value += string.0;
+                    if value_exists {
+                        value += self.separator.as_str();
+                    }
+                    value += string.0;
+                    value_exists = true;
                     if let Some(lang) = &self.language {
                         if Some(lang.as_str()) != string.1 {
                             self.language_error = true;
@@ -72,12 +79,13 @@ impl Accumulator for SparqlGroupConcat {
                 }
                 Err(_) => {
                     self.error = true;
-                    self.value = "".to_owned();
+                    self.value = None;
                     return Ok(());
                 }
             }
         }
 
+        self.value = Some(value);
         Ok(())
     }
 
@@ -86,10 +94,8 @@ impl Accumulator for SparqlGroupConcat {
             return Ok(encode_scalar_null());
         }
 
-        let literal = StringLiteralRef(
-            self.value.as_str(),
-            self.language.as_ref().map(|l| l.as_str()),
-        );
+        let value = self.value.as_deref().unwrap_or("");
+        let literal = StringLiteralRef(value, self.language.as_deref());
         Ok(literal.into_scalar_value()?)
     }
 
@@ -100,7 +106,7 @@ impl Accumulator for SparqlGroupConcat {
     fn state(&mut self) -> DFResult<Vec<ScalarValue>> {
         Ok(vec![
             ScalarValue::Boolean(Some(self.error)),
-            ScalarValue::Utf8(Some(self.value.clone())),
+            ScalarValue::Utf8(self.value.clone()),
             ScalarValue::Boolean(Some(self.language_error)),
             ScalarValue::Utf8(self.language.clone()),
         ])
@@ -110,16 +116,25 @@ impl Accumulator for SparqlGroupConcat {
         let error = states[0].as_boolean().iter().any(|e| e == Some(true));
         if error {
             self.error = true;
-            self.value = "".to_owned();
+            self.value = None;
             self.language = None;
             return Ok(());
         }
 
+        let mut value_exists = self.value.is_some();
+        let mut value = self.value.take().unwrap_or_default();
+
         let old_values = states[1].as_string::<i32>();
-        for old_value in old_values.iter().skip(1) {
-            self.value += self.separator.as_str();
-            self.value += old_value.unwrap();
+        for old_value in old_values.iter() {
+            if let Some(old_value) = old_value {
+                if value_exists {
+                    value += self.separator.as_str();
+                }
+                value += old_value;
+                value_exists = true;
+            }
         }
+        self.value = Some(value);
 
         let existing_language_error = states[2].as_boolean().iter().any(|e| e == Some(true));
         if existing_language_error {
