@@ -183,12 +183,8 @@ impl PathToJoinsRule {
         lhs: &PropertyPathExpression,
         rhs: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
-        let lhs = self
-            .rewrite_property_path_expression(graph, lhs)?
-            .alias("lhs")?;
-        let rhs = self
-            .rewrite_property_path_expression(graph, rhs)?
-            .alias("rhs")?;
+        let lhs = self.rewrite_property_path_expression(graph, lhs)?;
+        let rhs = self.rewrite_property_path_expression(graph, rhs)?;
         join_path_sequence(lhs, rhs)
     }
 
@@ -277,25 +273,27 @@ fn join_path_sequence(
     lhs: LogicalPlanBuilder,
     rhs: LogicalPlanBuilder,
 ) -> DFResult<LogicalPlanBuilder> {
-    lhs.join_on(
-        rhs.build()?,
-        JoinType::Inner,
-        [
-            ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                Expr::from(Column::new(Some("lhs"), COL_GRAPH)),
-                Expr::from(Column::new(Some("rhs"), COL_GRAPH)),
-            ])]),
-            ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                Expr::from(Column::new(Some("lhs"), COL_TARGET)),
-                Expr::from(Column::new(Some("rhs"), COL_SOURCE)),
-            ])]),
-        ],
-    )?
-    .project([
-        col(Column::new(Some("lhs"), COL_GRAPH)),
-        col(Column::new(Some("lhs"), COL_SOURCE)).alias(COL_SOURCE),
-        col(Column::new(Some("rhs"), COL_TARGET)).alias(COL_TARGET),
-    ])
+    lhs.alias("lhs")?
+        .join_on(
+            rhs.alias("rhs")?.build()?,
+            JoinType::Inner,
+            [
+                // TODO: I think this should be part
+                // ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
+                //     Expr::from(Column::new(Some("lhs"), COL_GRAPH)),
+                //     Expr::from(Column::new(Some("rhs"), COL_GRAPH)),
+                // ])]),
+                ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
+                    Expr::from(Column::new(Some("lhs"), COL_TARGET)),
+                    Expr::from(Column::new(Some("rhs"), COL_SOURCE)),
+                ])]),
+            ],
+        )?
+        .project([
+            col(Column::new(Some("lhs"), COL_GRAPH)).alias(COL_GRAPH),
+            col(Column::new(Some("lhs"), COL_SOURCE)).alias(COL_SOURCE),
+            col(Column::new(Some("rhs"), COL_TARGET)).alias(COL_TARGET),
+        ])
 }
 
 /// Creates a union that represents an alternative of two paths.
