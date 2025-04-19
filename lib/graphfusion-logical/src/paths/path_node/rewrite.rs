@@ -1,3 +1,5 @@
+use crate::paths::kleene_plus::KleenePlusPathNode;
+use crate::paths::{COL_SOURCE, COL_TARGET};
 use crate::{DFResult, PathNode, PatternNode};
 use arrow_rdf::encoded::scalars::{encode_scalar_named_node, encode_scalar_predicate};
 use arrow_rdf::encoded::{
@@ -6,7 +8,7 @@ use arrow_rdf::encoded::{
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_err, Column, JoinType};
+use datafusion::common::{Column, JoinType};
 use datafusion::datasource::DefaultTableSource;
 use datafusion::logical_expr::{col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
@@ -15,9 +17,6 @@ use oxrdf::NamedNode;
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::NamedNodePattern;
 use std::sync::Arc;
-
-const COL_SOURCE: &str = "_source";
-const COL_TARGET: &str = "_target";
 
 #[derive(Debug)]
 pub struct PathToJoinsRule {
@@ -207,11 +206,16 @@ impl PathToJoinsRule {
     /// Rewrites a one or more by building a recursive query.
     fn rewrite_one_or_more(
         &self,
-        _graph: Option<&NamedNodePattern>,
-        _inner: &PropertyPathExpression,
+        graph: Option<&NamedNodePattern>,
+        inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
-        plan_err!("Recursive paths not yet supported.")
-        // rewrite_property_path_expression(graph, inner)?.alias("l")
+        let inner = self.rewrite_property_path_expression(graph, inner)?;
+        let node = KleenePlusPathNode::try_new(inner.build()?)?;
+
+        let builder = LogicalPlanBuilder::from(LogicalPlan::Extension(Extension {
+            node: Arc::new(node),
+        }));
+        Ok(builder.into())
     }
 
     fn rewrite_zero_or_one(

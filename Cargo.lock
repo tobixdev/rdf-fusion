@@ -1831,6 +1831,26 @@ dependencies = [
  "datafusion",
  "datamodel",
  "futures",
+ "once_cell",
+ "oxiri",
+ "oxrdf",
+ "oxrdfio",
+ "sparesults",
+ "spargebra",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "graphfusion-physical"
+version = "0.1.0"
+dependencies = [
+ "arrow-rdf",
+ "async-trait",
+ "datafusion",
+ "datamodel",
+ "futures",
+ "once_cell",
  "oxiri",
  "oxrdf",
  "oxrdfio",

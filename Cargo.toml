@@ -6,6 +6,7 @@ members = [
     "lib/functions-scalar",
     "lib/graphfusion-engine",
     "lib/graphfusion-logical",
+    "lib/graphfusion-physical",
     "lib/graphfusion-store",
     "lib/graphfusion",
     "lib/sparesults",
@@ -76,6 +77,7 @@ datamodel = { version = "=0.1.0", path = "lib/datamodel" }
 functions-scalar = { version = "=0.1.0", path = "lib/functions-scalar" }
 graphfusion-engine = { version = "=0.1.0", path = "lib/graphfusion-engine" }
 graphfusion-logical = { version = "=0.1.0", path = "lib/graphfusion-logical" }
+graphfusion-physical = { version = "=0.1.0", path = "lib/graphfusion-physical" }
 graphfusion-store = { version = "=0.1.0", path = "lib/graphfusion-store" }
 graphfusion = { version = "=0.1.0", path = "lib/graphfusion" }
 spargebra = { version = "=0.1.0", path = "lib/spargebra" }

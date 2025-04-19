@@ -1,5 +1,5 @@
 [package]
-name = "graphfusion-logical"
+name = "graphfusion-physical"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
