@@ -20,7 +20,7 @@ use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
 };
-use datafusion::prelude::col;
+use datafusion::prelude::{and, col};
 use graphfusion_logical::{PathNode, PatternNode};
 use oxiri::Iri;
 use oxrdf::{GraphName, NamedOrBlankNode, Variable};
@@ -385,15 +385,68 @@ impl GraphPatternRewriter {
         left: &GraphPattern,
         right: &GraphPattern,
     ) -> DFResult<LogicalPlanBuilder> {
-        let left = self.rewrite_graph_pattern(left)?;
-        let right = self.rewrite_graph_pattern(right)?;
+        let lhs = self.rewrite_graph_pattern(left)?;
+        let rhs = self.rewrite_graph_pattern(right)?;
 
-        // TODO: This doesn't implement IS_COMPATIBLE correctly.
-        Ok(LogicalPlanBuilder::from(LogicalPlanBuilder::except(
-            left.build()?,
-            right.build()?,
+        let lhs_keys: HashSet<_> = lhs
+            .schema()
+            .columns()
+            .into_iter()
+            .map(|c| c.name().to_string())
+            .collect();
+        let rhs_keys: HashSet<_> = rhs
+            .schema()
+            .columns()
+            .into_iter()
+            .map(|c| c.name().to_string())
+            .collect();
+
+        let overlapping_keys = lhs_keys
+            .intersection(&rhs_keys)
+            .collect::<HashSet<&String>>();
+        if overlapping_keys.is_empty() {
+            return Ok(lhs);
+        }
+
+        let lhs = lhs.alias("lhs")?;
+        let rhs = rhs.alias("rhs")?;
+
+        let mut join_filters = Vec::new();
+
+        for k in &overlapping_keys {
+            let expr = ENC_IS_COMPATIBLE.call(vec![
+                Expr::from(Column::new(Some("lhs"), *k)),
+                Expr::from(Column::new(Some("rhs"), *k)),
+            ]);
+            join_filters.push(expr);
+        }
+        let any_both_not_null = overlapping_keys
+            .iter()
+            .map(|k| {
+                and(
+                    Expr::from(Column::new(Some("lhs"), *k)).is_not_null(),
+                    Expr::from(Column::new(Some("rhs"), *k)).is_not_null(),
+                )
+            })
+            .reduce(Expr::or)
+            .expect("There must be at least one overlapping key");
+        join_filters.push(any_both_not_null);
+
+        let filter_expr = join_filters.into_iter().reduce(Expr::and);
+
+        let projections = lhs_keys
+            .iter()
+            .map(|k| Expr::from(Column::new(Some("lhs"), k)).alias(k))
+            .collect::<Vec<_>>();
+
+        lhs.join_detailed(
+            rhs.build()?,
+            JoinType::LeftAnti,
+            (Vec::<Column>::new(), Vec::<Column>::new()),
+            filter_expr,
             false,
-        )?))
+        )?
+        .project(projections)
     }
 
     /// Rewrites a GROUP pattern to a group plan.
