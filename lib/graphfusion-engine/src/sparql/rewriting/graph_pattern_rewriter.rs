@@ -21,7 +21,8 @@ use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
 };
 use datafusion::prelude::{and, col};
-use graphfusion_logical::{PathNode, PatternNode};
+use graphfusion_logical::paths::PathNode;
+use graphfusion_logical::patterns::PatternNode;
 use oxiri::Iri;
 use oxrdf::{GraphName, NamedOrBlankNode, Variable};
 use spargebra::algebra::{

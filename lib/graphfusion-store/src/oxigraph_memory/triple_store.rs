@@ -1,7 +1,7 @@
 use crate::oxigraph_memory::table_provider::OxigraphMemTable;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{
-    encode_scalar_graph, encode_scalar_term, encode_scalar_predicate, encode_scalar_subject,
+    encode_scalar_graph, encode_scalar_predicate, encode_scalar_subject, encode_scalar_term,
 };
 use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_SAME_TERM};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
@@ -17,7 +17,9 @@ use graphfusion_engine::results::QueryResults;
 use graphfusion_engine::sparql::error::EvaluationError;
 use graphfusion_engine::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions};
 use graphfusion_engine::TripleStore;
-use graphfusion_logical::{PathToJoinsRule, PatternToProjectionRule};
+use graphfusion_logical::paths::PathToJoinsRule;
+use graphfusion_logical::patterns::PatternToProjectionRule;
+use graphfusion_physical::GraphFusionPlanner;
 use oxrdf::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
 
@@ -31,6 +33,7 @@ impl MemoryTripleStore {
         let triples_table: Arc<dyn TableProvider> = Arc::new(OxigraphMemTable::new());
 
         let state = SessionStateBuilder::new()
+            .with_query_planner(Arc::new(GraphFusionPlanner::new()))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
             .with_optimizer_rule(Arc::new(PathToJoinsRule::new(Arc::clone(&triples_table))))
             .with_optimizer_rule(Arc::new(PatternToProjectionRule::default()))

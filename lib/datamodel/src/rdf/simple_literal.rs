@@ -1,6 +1,6 @@
 use crate::{RdfOpResult, RdfValueRef, TermRef};
 
-#[derive(Clone, PartialEq, Eq, Debug, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Debug, PartialOrd, Ord, Hash)]
 pub struct SimpleLiteral {
     pub value: String,
 }

@@ -1,0 +1,48 @@
+use crate::paths::kleene_plus::KleenePlusPathExec;
+use async_trait::async_trait;
+use datafusion::common::plan_err;
+use datafusion::error::Result as DFResult;
+use datafusion::execution::context::SessionState;
+use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
+use datafusion::physical_plan::ExecutionPlan;
+use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
+use graphfusion_logical::paths::KleenePlusPathNode;
+use std::sync::Arc;
+
+/// Planner for KleenePlusPath nodes
+pub(crate) struct KleenePlusPathPlanner;
+
+impl KleenePlusPathPlanner {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+#[async_trait]
+impl ExtensionPlanner for KleenePlusPathPlanner {
+    /// Converts a logical KleenePlusPath node into its physical execution plan
+    async fn plan_extension(
+        &self,
+        _planner: &dyn PhysicalPlanner,
+        node: &dyn UserDefinedLogicalNode,
+        logical_inputs: &[&LogicalPlan],
+        physical_inputs: &[Arc<dyn ExecutionPlan>],
+        _session_state: &SessionState,
+    ) -> DFResult<Option<Arc<dyn ExecutionPlan>>> {
+        // Try to downcast the logical node to our KleenePlusPathNode
+        if let Some(_) = node.as_any().downcast_ref::<KleenePlusPathNode>() {
+            // Verify we have exactly one input
+            if logical_inputs.len() != 1 || physical_inputs.len() != 1 {
+                return plan_err!("KleenePlusPath node must have exactly one input");
+            }
+
+            // Create the physical execution plan
+            let physical_plan = KleenePlusPathExec::try_new(physical_inputs[0].clone())?;
+
+            Ok(Some(Arc::new(physical_plan)))
+        } else {
+            // This planner doesn't handle this type of node
+            Ok(None)
+        }
+    }
+}

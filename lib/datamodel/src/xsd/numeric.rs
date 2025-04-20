@@ -2,8 +2,9 @@ use crate::xsd::decimal::Decimal;
 use crate::xsd::double::Double;
 use crate::xsd::float::Float;
 use crate::xsd::integer::Integer;
-use crate::{Int, RdfOpResult, TermRef, RdfValueRef};
+use crate::{Int, RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
+use std::hash::Hash;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Numeric {
@@ -33,7 +34,7 @@ impl Numeric {
             Numeric::Integer(int) => int.to_be_bytes().into(),
             Numeric::Float(float) => float.to_be_bytes().into(),
             Numeric::Double(double) => double.to_be_bytes().into(),
-            Numeric::Decimal(decimal) => decimal.to_be_bytes().into()
+            Numeric::Decimal(decimal) => decimal.to_be_bytes().into(),
         }
     }
 }
@@ -64,6 +65,18 @@ impl PartialEq for Numeric {
 }
 
 impl Eq for Numeric {}
+
+impl Hash for Numeric {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Numeric::Int(int) => int.hash(state),
+            Numeric::Integer(int) => int.hash(state),
+            Numeric::Float(float) => float.to_be_bytes().hash(state),
+            Numeric::Double(double) => double.to_be_bytes().hash(state),
+            Numeric::Decimal(decimal) => decimal.hash(state),
+        }
+    }
+}
 
 impl PartialOrd for Numeric {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

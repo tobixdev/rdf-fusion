@@ -9,7 +9,7 @@ use oxrdf::vocab::xsd;
 use oxrdf::{BlankNode, BlankNodeRef, Literal, NamedNode, NamedNodeRef};
 use std::cmp::Ordering;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub enum Term {
     NamedNode(NamedNode),
     BlankNode(BlankNode),

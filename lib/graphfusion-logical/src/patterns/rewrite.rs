@@ -1,5 +1,5 @@
-use crate::patterns::pattern_to_variable_name;
-use crate::{DFResult, PatternNode};
+use crate::patterns::{pattern_to_variable_name, PatternNode};
+use crate::DFResult;
 use arrow_rdf::encoded::scalars::{encode_scalar_literal, encode_scalar_named_node};
 use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM};
 use datafusion::common::tree_node::{Transformed, TreeNode};

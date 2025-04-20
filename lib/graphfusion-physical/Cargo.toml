@@ -12,14 +12,8 @@ async-trait.workspace = true
 datafusion.workspace = true
 datamodel.workspace = true
 futures.workspace = true
+graphfusion-logical.workspace = true
 once_cell.workspace = true
-oxiri.workspace = true
-oxrdf.workspace = true
-oxrdfio.workspace = true
-spargebra = { workspace = true, features = ["rdf-star"] }
-sparesults = { workspace = true, features = ["rdf-star"] }
-thiserror.workspace = true
-tokio.workspace = true
 
 [lints]
 workspace = true

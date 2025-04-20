@@ -1,4 +1,4 @@
-use crate::paths::PATH_TABLE_SCHEMA;
+use crate::paths::PATH_TABLE_DFSCHEMA;
 use crate::DFResult;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
@@ -15,14 +15,14 @@ impl KleenePlusPathNode {
     pub fn try_new(inner: LogicalPlan) -> DFResult<Self> {
         if inner
             .schema()
-            .equivalent_names_and_types(PATH_TABLE_SCHEMA.as_ref())
+            .equivalent_names_and_types(PATH_TABLE_DFSCHEMA.as_ref())
         {
             return plan_err!("Unexpected schema for inner path node.");
         }
 
         Ok(Self {
             inner,
-            schema: PATH_TABLE_SCHEMA.clone(),
+            schema: PATH_TABLE_DFSCHEMA.clone(),
         })
     }
 

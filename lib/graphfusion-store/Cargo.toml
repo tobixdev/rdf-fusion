@@ -13,6 +13,7 @@ datamodel.workspace = true
 datafusion.workspace = true
 graphfusion-engine.workspace = true
 graphfusion-logical.workspace = true
+graphfusion-physical.workspace = true
 dashmap.workspace = true
 futures.workspace = true
 oxrdf.workspace = true

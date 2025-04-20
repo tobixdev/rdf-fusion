@@ -1,9 +1,6 @@
 extern crate core;
 
-mod paths;
-mod patterns;
-
-pub use paths::*;
-pub use patterns::*;
+pub mod paths;
+pub mod patterns;
 
 type DFResult<T> = datafusion::error::Result<T>;

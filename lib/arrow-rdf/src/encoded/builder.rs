@@ -54,7 +54,7 @@ impl EncRdfTermBuilder {
         }
     }
 
-    pub fn append_term(&mut self, value: &DecodedTerm) -> Result<(), ArrowError> {
+    pub fn append_decoded_term(&mut self, value: &DecodedTerm) -> Result<(), ArrowError> {
         Ok(match value {
             DecodedTerm::NamedNode(nn) => self.append_named_node(nn.as_str())?,
             DecodedTerm::BlankNode(bnode) => self.append_blank_node(bnode.as_str())?,

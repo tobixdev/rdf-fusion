@@ -9,7 +9,7 @@ use datamodel::{
     LanguageStringRef, Numeric, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, Time,
     Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration,
 };
-use oxrdf::{BlankNodeRef, NamedNodeRef};
+use oxrdf::{BlankNodeRef, GraphNameRef, NamedNodeRef};
 use std::ops::Not;
 
 pub trait FromEncodedTerm<'data> {
@@ -271,6 +271,42 @@ impl<'data> FromEncodedTerm<'data> for NamedNodeRef<'data> {
                     .as_string::<i32>()
                     .value(offset),
             )),
+            _ => Err(()),
+        }
+    }
+}
+
+impl<'data> FromEncodedTerm<'data> for GraphNameRef<'data> {
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    where
+        Self: Sized,
+    {
+        let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
+            return Err(());
+        };
+
+        match EncTermField::try_from(*type_id).expect("Fixed encoding") {
+            EncTermField::Null => Ok(GraphNameRef::DefaultGraph),
+            EncTermField::NamedNode => {
+                NamedNodeRef::from_enc_scalar(scalar).map(GraphNameRef::NamedNode)
+            }
+            EncTermField::BlankNode => {
+                BlankNodeRef::from_enc_scalar(scalar).map(GraphNameRef::BlankNode)
+            }
+            _ => Err(()),
+        }
+    }
+
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+        match field {
+            EncTermField::Null => Ok(GraphNameRef::DefaultGraph),
+            EncTermField::NamedNode => {
+                NamedNodeRef::from_enc_array(array, index).map(GraphNameRef::NamedNode)
+            }
+            EncTermField::BlankNode => {
+                BlankNodeRef::from_enc_array(array, index).map(GraphNameRef::BlankNode)
+            }
             _ => Err(()),
         }
     }

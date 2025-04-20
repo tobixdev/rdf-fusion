@@ -1,7 +1,7 @@
 use crate::{RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct LanguageString {
     pub value: String,
     pub language: String,

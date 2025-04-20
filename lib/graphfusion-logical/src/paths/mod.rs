@@ -3,22 +3,25 @@ mod path_node;
 
 use arrow_rdf::encoded::EncTerm;
 use arrow_rdf::COL_GRAPH;
-use datafusion::arrow::datatypes::{Field, Schema};
+use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
+pub use kleene_plus::*;
 use once_cell::sync::Lazy;
 pub use path_node::*;
+use std::clone::Clone;
+use std::ops::Deref;
 use std::sync::Arc;
 
-const COL_SOURCE: &str = "_source";
-const COL_TARGET: &str = "_target";
+pub const COL_SOURCE: &str = "_source";
+pub const COL_TARGET: &str = "_target";
 
-static PATH_TABLE_SCHEMA: Lazy<DFSchemaRef> = Lazy::new(|| {
-    Arc::new(
-        DFSchema::try_from(Schema::new(vec![
-            Field::new(COL_GRAPH, EncTerm::data_type(), true),
-            Field::new(COL_SOURCE, EncTerm::data_type(), false),
-            Field::new(COL_TARGET, EncTerm::data_type(), false),
-        ]))
-        .unwrap(),
-    )
+pub static PATH_TABLE_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
+    Arc::new(Schema::new(vec![
+        Field::new(COL_GRAPH, EncTerm::data_type(), true),
+        Field::new(COL_SOURCE, EncTerm::data_type(), false),
+        Field::new(COL_TARGET, EncTerm::data_type(), false),
+    ]))
 });
+
+pub static PATH_TABLE_DFSCHEMA: Lazy<DFSchemaRef> =
+    Lazy::new(|| Arc::new(DFSchema::try_from(PATH_TABLE_SCHEMA.deref().clone()).unwrap()));

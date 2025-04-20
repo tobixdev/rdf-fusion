@@ -1813,6 +1813,7 @@ dependencies = [
  "datamodel",
  "futures",
  "graphfusion-logical",
+ "graphfusion-physical",
  "oxiri",
  "oxrdf",
  "oxrdfio",
@@ -1827,18 +1828,10 @@ name = "graphfusion-logical"
 version = "0.1.0"
 dependencies = [
  "arrow-rdf",
- "async-trait",
  "datafusion",
- "datamodel",
- "futures",
  "once_cell",
- "oxiri",
  "oxrdf",
- "oxrdfio",
- "sparesults",
  "spargebra",
- "thiserror",
- "tokio",
 ]
 
 [[package]]
@@ -1850,14 +1843,8 @@ dependencies = [
  "datafusion",
  "datamodel",
  "futures",
+ "graphfusion-logical",
  "once_cell",
- "oxiri",
- "oxrdf",
- "oxrdfio",
- "sparesults",
- "spargebra",
- "thiserror",
- "tokio",
 ]
 
 [[package]]
@@ -1872,6 +1859,7 @@ dependencies = [
  "futures",
  "graphfusion-engine",
  "graphfusion-logical",
+ "graphfusion-physical",
  "oxrdf",
  "oxsdatatypes",
  "rustc-hash",

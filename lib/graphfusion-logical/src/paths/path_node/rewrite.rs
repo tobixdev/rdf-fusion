@@ -1,6 +1,5 @@
 use crate::paths::kleene_plus::KleenePlusPathNode;
-use crate::paths::{COL_SOURCE, COL_TARGET};
-use crate::{DFResult, PathNode, PatternNode};
+use crate::paths::{PathNode, COL_SOURCE, COL_TARGET};
 use arrow_rdf::encoded::scalars::{encode_scalar_named_node, encode_scalar_predicate};
 use arrow_rdf::encoded::{
     ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM, ENC_WITH_SORTABLE_ENCODING,
@@ -17,6 +16,8 @@ use oxrdf::NamedNode;
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::NamedNodePattern;
 use std::sync::Arc;
+use crate::DFResult;
+use crate::patterns::PatternNode;
 
 #[derive(Debug)]
 pub struct PathToJoinsRule {

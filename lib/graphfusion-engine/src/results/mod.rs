@@ -215,7 +215,7 @@ pub fn query_result_for_iterator(
                 .get_mut(idx)
                 .expect("Initialized with enough builders");
             match term {
-                Some(term) => builder.append_term(term)?,
+                Some(term) => builder.append_decoded_term(term)?,
                 None => builder.append_null()?,
             }
         }

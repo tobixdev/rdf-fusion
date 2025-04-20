@@ -3,7 +3,7 @@ use oxrdf::vocab::xsd;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct TypedLiteral {
     pub value: String,
     pub literal_type: String,
