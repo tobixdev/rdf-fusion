@@ -135,7 +135,8 @@ impl PathToJoinsRule {
             .reduce(|lhs, rhs| or(lhs, rhs))
             .expect("There must be at least one element in the negated property set.");
 
-        self.scan_quads(graph, Some(not(test_expression)))
+        let paths = self.scan_quads(graph, Some(not(test_expression)))?;
+        make_distinct(paths)
     }
 
     /// Reverses the inner path by swapping [COL_SOURCE] and [COL_TARGET].
@@ -173,7 +174,7 @@ impl PathToJoinsRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let lhs = self.rewrite_property_path_expression(graph, lhs)?;
         let rhs = self.rewrite_property_path_expression(graph, rhs)?;
-        join_path_sequence(lhs, rhs)
+        make_distinct(join_path_sequence(lhs, rhs)?)
     }
 
     /// Rewrites a zero or more to a CTE.
@@ -184,7 +185,8 @@ impl PathToJoinsRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let zero = self.zero_length_paths(graph)?;
         let repetition = self.rewrite_one_or_more(graph, inner)?;
-        join_path_alternatives(zero, repetition)
+        let paths = join_path_alternatives(zero, repetition)?;
+        make_distinct(paths)
     }
 
     /// Rewrites a one or more by building a recursive query.
@@ -308,6 +310,14 @@ fn join_path_alternatives(
 
 /// Makes the path set distinct.
 fn make_distinct(builder: LogicalPlanBuilder) -> DFResult<LogicalPlanBuilder> {
+    // TODO: Behavior is weird for pp02 and pp12. The missing results are present.
+    // E.g., Result for pp02:
+    //
+    // Note: missing solutions in yellow and extra solutions in blue
+    // {?x = <http://www.example.org/instance#a> }
+    // {?x = <http://www.example.org/instance#a> }
+    // {?x = <http://www.example.org/instance#a> }
+    // {?x = <http://www.example.org/instance#c> }
     builder.distinct_on(
         vec![
             ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_GRAPH)]),
