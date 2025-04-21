@@ -18,8 +18,8 @@ pub const COL_TARGET: &str = "_target";
 pub static PATH_TABLE_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     Arc::new(Schema::new(vec![
         Field::new(COL_GRAPH, EncTerm::data_type(), true),
-        Field::new(COL_SOURCE, EncTerm::data_type(), false),
-        Field::new(COL_TARGET, EncTerm::data_type(), false),
+        Field::new(COL_SOURCE, EncTerm::data_type(), true),
+        Field::new(COL_TARGET, EncTerm::data_type(), true),
     ]))
 });
 
