@@ -13,11 +13,11 @@ pub struct KleenePlusPathNode {
 
 impl KleenePlusPathNode {
     pub fn try_new(inner: LogicalPlan) -> DFResult<Self> {
-        if inner
-            .schema()
-            .equivalent_names_and_types(PATH_TABLE_DFSCHEMA.as_ref())
-        {
-            return plan_err!("Unexpected schema for inner path node.");
+        if inner.schema().as_ref() != PATH_TABLE_DFSCHEMA.as_ref() {
+            return plan_err!(
+                "Unexpected schema for inner path node. Schema: {}",
+                inner.schema()
+            );
         }
 
         Ok(Self {

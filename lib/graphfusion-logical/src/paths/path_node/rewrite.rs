@@ -160,8 +160,8 @@ impl PathToJoinsRule {
         let inner = self.rewrite_property_path_expression(graph, inner)?;
         inner.project([
             col(COL_GRAPH),
-            col(COL_SOURCE).alias(COL_TARGET),
             col(COL_TARGET).alias(COL_SOURCE),
+            col(COL_SOURCE).alias(COL_TARGET),
         ])
     }
 
