@@ -1,5 +1,7 @@
 use crate::paths::kleene_plus::KleenePlusPathNode;
 use crate::paths::{PathNode, COL_SOURCE, COL_TARGET};
+use crate::patterns::PatternNode;
+use crate::DFResult;
 use arrow_rdf::encoded::scalars::{encode_scalar_named_node, encode_scalar_predicate};
 use arrow_rdf::encoded::{
     ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM, ENC_WITH_SORTABLE_ENCODING,
@@ -16,8 +18,6 @@ use oxrdf::NamedNode;
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::NamedNodePattern;
 use std::sync::Arc;
-use crate::DFResult;
-use crate::patterns::PatternNode;
 
 #[derive(Debug)]
 pub struct PathToJoinsRule {
@@ -111,18 +111,11 @@ impl PathToJoinsRule {
         graph: Option<&NamedNodePattern>,
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
-        let query = self
-            .scan_quads(graph)?
-            .filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                col(COL_PREDICATE),
-                lit(encode_scalar_predicate(node.as_ref())),
-            ])]))?;
-
-        query.project([
-            col(COL_GRAPH),
-            col(COL_SUBJECT).alias(COL_SOURCE),
-            col(COL_OBJECT).alias(COL_TARGET),
-        ])
+        let filter = ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
+            col(COL_PREDICATE),
+            lit(encode_scalar_predicate(node.as_ref())),
+        ])]);
+        self.scan_quads(graph, Some(filter))
     }
 
     /// Rewrites a negated property set to scanning the quads relation and checking whether the
@@ -142,13 +135,7 @@ impl PathToJoinsRule {
             .reduce(|lhs, rhs| or(lhs, rhs))
             .expect("There must be at least one element in the negated property set.");
 
-        self.scan_quads(graph)?
-            .filter(not(test_expression))?
-            .project([
-                col(COL_GRAPH),
-                col(COL_SUBJECT).alias(COL_SOURCE),
-                col(COL_OBJECT).alias(COL_TARGET),
-            ])
+        self.scan_quads(graph, Some(not(test_expression)))
     }
 
     /// Reverses the inner path by swapping [COL_SOURCE] and [COL_TARGET].
@@ -212,7 +199,7 @@ impl PathToJoinsRule {
         let builder = LogicalPlanBuilder::from(LogicalPlan::Extension(Extension {
             node: Arc::new(node),
         }));
-        Ok(builder.into())
+        Ok(builder.into()) // Is already DISTINCT
     }
 
     fn rewrite_zero_or_one(
@@ -229,33 +216,32 @@ impl PathToJoinsRule {
     /// the target of the path.
     fn zero_length_paths(&self, graph: Option<&NamedNodePattern>) -> DFResult<LogicalPlanBuilder> {
         // TODO: This must be optimized
-        let subjects = self.scan_quads(graph)?.project([
-            col(COL_GRAPH),
-            col(COL_SUBJECT).alias(COL_SOURCE),
-            col(COL_SUBJECT).alias(COL_TARGET),
+        let subjects = self.scan_quads(graph, None)?.project([
+            col(COL_GRAPH).alias(COL_GRAPH),
+            col(COL_SOURCE).alias(COL_SOURCE),
+            col(COL_SOURCE).alias(COL_TARGET),
         ])?;
-        let objects = self.scan_quads(graph)?.project([
-            col(COL_GRAPH),
-            col(COL_OBJECT).alias(COL_SOURCE),
-            col(COL_OBJECT).alias(COL_TARGET),
+        let objects = self.scan_quads(graph, None)?.project([
+            col(COL_GRAPH).alias(COL_GRAPH),
+            col(COL_TARGET).alias(COL_SOURCE),
+            col(COL_TARGET).alias(COL_TARGET),
         ])?;
-        subjects.union(objects.build()?)?.distinct_on(
-            vec![
-                ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_GRAPH)]),
-                ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_SOURCE)]),
-            ],
-            vec![col(COL_GRAPH), col(COL_SOURCE), col(COL_TARGET)],
-            None,
-        )
+        make_distinct(subjects.union(objects.build()?)?)
     }
 
     /// Scans the quads table and optionally filters it to the given named graph.
-    fn scan_quads(&self, graph: Option<&NamedNodePattern>) -> DFResult<LogicalPlanBuilder> {
+    fn scan_quads(
+        &self,
+        graph: Option<&NamedNodePattern>,
+        filter: Option<Expr>,
+    ) -> DFResult<LogicalPlanBuilder> {
         let query = LogicalPlanBuilder::scan(
             TABLE_QUADS,
             Arc::new(DefaultTableSource::new(Arc::clone(&self.quads_table))),
             None,
         )?;
+
+        // Apply graph filter if present
         let query = match graph {
             Some(NamedNodePattern::NamedNode(nn)) => {
                 query.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
@@ -265,6 +251,21 @@ impl PathToJoinsRule {
             }
             _ => query,
         };
+
+        // Apply filter if present
+        let query = if let Some(filter) = filter {
+            query.filter(filter)?
+        } else {
+            query
+        };
+
+        // Project columns to PATH_TABLE
+        let query = query.project([
+            col(COL_GRAPH).alias(COL_GRAPH),
+            col(COL_SUBJECT).alias(COL_SOURCE),
+            col(COL_OBJECT).alias(COL_TARGET),
+        ])?;
+
         Ok(query)
     }
 }
@@ -302,7 +303,12 @@ fn join_path_alternatives(
     lhs: LogicalPlanBuilder,
     rhs: LogicalPlanBuilder,
 ) -> DFResult<LogicalPlanBuilder> {
-    lhs.union(rhs.build()?)?.distinct_on(
+    lhs.union(rhs.build()?)
+}
+
+/// Makes the path set distinct.
+fn make_distinct(builder: LogicalPlanBuilder) -> DFResult<LogicalPlanBuilder> {
+    builder.distinct_on(
         vec![
             ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_GRAPH)]),
             ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_SOURCE)]),
