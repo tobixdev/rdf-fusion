@@ -1,5 +1,5 @@
 use arrow_rdf::encoded::{EncRdfTermBuilder, EncTerm};
-use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::array::{RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
@@ -207,7 +207,9 @@ pub fn query_result_for_iterator(
         builders.push(EncRdfTermBuilder::new())
     }
 
+    let mut count = 0;
     for solution in solutions {
+        count += 1;
         let solution =
             solution.map_err(|err| QuerySolutionsToStreamError::QuerySolutionSource(err))?;
         for (idx, term) in solution.values().iter().enumerate() {
@@ -231,7 +233,8 @@ pub fn query_result_for_iterator(
         .collect::<Result<Vec<_>, DataFusionError>>()?;
 
     let schema = SchemaRef::new(Schema::new(fields));
-    let record_batch = RecordBatch::try_new(schema.clone(), columns)?;
+    let options = RecordBatchOptions::new().with_row_count(Some(count));
+    let record_batch = RecordBatch::try_new_with_options(schema.clone(), columns, &options)?;
     let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
     let stream = QuerySolutionStream::new(variables, Box::pin(record_batch_stream));
     Ok(QueryResults::Solutions(stream))

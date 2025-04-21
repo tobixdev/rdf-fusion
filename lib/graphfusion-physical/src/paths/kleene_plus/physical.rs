@@ -1,6 +1,7 @@
 use crate::DFResult;
 use arrow_rdf::as_enc_term_array;
 use arrow_rdf::encoded::{EncRdfTermBuilder, FromEncodedTerm};
+use datafusion::arrow::array::RecordBatchOptions;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::{exec_datafusion_err, internal_err, plan_err, SchemaExt};
@@ -338,7 +339,12 @@ impl KleenePlusPathStream {
         let start_array = start_builder.finish()?;
         let end_array = end_builder.finish()?;
 
-        RecordBatch::try_new(schema.clone(), vec![graph_array, start_array, end_array])
-            .map_err(Into::into)
+        let options = RecordBatchOptions::new().with_row_count(Some(all_paths.len()));
+        RecordBatch::try_new_with_options(
+            schema.clone(),
+            vec![graph_array, start_array, end_array],
+            &options,
+        )
+        .map_err(Into::into)
     }
 }
