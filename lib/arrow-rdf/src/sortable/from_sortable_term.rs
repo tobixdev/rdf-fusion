@@ -1,6 +1,7 @@
 use crate::encoded::EncTermField;
+use crate::sortable::term_type::SortableTermType;
 use crate::sortable::SortableTermField;
-use datafusion::arrow::array::{AsArray, StructArray};
+use datafusion::arrow::array::{Array, AsArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
 use datamodel::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
@@ -26,6 +27,12 @@ impl<'data> FromSortableTerm<'data> for TermRef<'data> {
         let enc_term_field = EncTermField::try_from(enc_term_type.value(index) as i8)
             .expect("Conversion should always succeed.");
 
+        let sortable_type = array
+            .column(SortableTermField::Type.index())
+            .as_primitive::<UInt8Type>();
+        let sortable_term_type = SortableTermType::try_from(sortable_type.value(index))
+            .expect("Conversion should always succeed.");
+
         let result = match enc_term_field {
             EncTermField::Null => return Err(()),
             EncTermField::NamedNode => {
@@ -35,7 +42,16 @@ impl<'data> FromSortableTerm<'data> for TermRef<'data> {
                 TermRef::BlankNode(BlankNodeRef::from_sortable_array(array, index)?)
             }
             EncTermField::String => {
-                TermRef::SimpleLiteral(SimpleLiteralRef::from_sortable_array(array, index)?)
+                if array
+                    .column(SortableTermField::AdditionalBytes.index())
+                    .is_null(index)
+                {
+                    TermRef::SimpleLiteral(SimpleLiteralRef::from_sortable_array(array, index)?)
+                } else {
+                    TermRef::LanguageStringLiteral(LanguageStringRef::from_sortable_array(
+                        array, index,
+                    )?)
+                }
             }
             EncTermField::Boolean => {
                 TermRef::BooleanLiteral(Boolean::from_sortable_array(array, index)?)
@@ -60,9 +76,18 @@ impl<'data> FromSortableTerm<'data> for TermRef<'data> {
             }
             EncTermField::Time => TermRef::TimeLiteral(Time::from_sortable_array(array, index)?),
             EncTermField::Date => TermRef::DateLiteral(Date::from_sortable_array(array, index)?),
-            EncTermField::Duration => {
-                TermRef::DurationLiteral(Duration::from_sortable_array(array, index)?)
-            }
+            EncTermField::Duration => match sortable_term_type {
+                SortableTermType::Duration => {
+                    TermRef::DurationLiteral(Duration::from_sortable_array(array, index)?)
+                }
+                SortableTermType::YearMonthDuration => TermRef::YearMonthDurationLiteral(
+                    YearMonthDuration::from_sortable_array(array, index)?,
+                ),
+                SortableTermType::DayTimeDuration => TermRef::DayTimeDurationLiteral(
+                    DayTimeDuration::from_sortable_array(array, index)?,
+                ),
+                _ => unreachable!("Cannot not have EncTermField::Duration"),
+            },
             EncTermField::TypedLiteral => {
                 TermRef::TypedLiteral(TypedLiteralRef::from_sortable_array(array, index)?)
             }
@@ -89,50 +114,69 @@ impl<'data> FromSortableTerm<'data> for NamedNodeRef<'data> {
 
 impl<'data> FromSortableTerm<'data> for SimpleLiteralRef<'data> {
     fn from_sortable_array(array: &'data StructArray, index: usize) -> RdfOpResult<Self> {
+        if !array
+            .column(SortableTermField::AdditionalBytes.index())
+            .is_null(index)
+        {
+            return Err(());
+        }
+
         let bytes = try_obtain_bytes(array, index, EncTermField::String)?;
         let string = std::str::from_utf8(bytes).expect("Term field checked");
-
-        // TODO: This is not correct if the @ is within the regular string.
-        let language_mark = string.rfind('@');
-        match language_mark {
-            None => Ok(SimpleLiteralRef::new(string)),
-            Some(_) => Err(()),
-        }
+        Ok(SimpleLiteralRef::new(string))
     }
 }
 
 impl<'data> FromSortableTerm<'data> for LanguageStringRef<'data> {
     fn from_sortable_array(array: &'data StructArray, index: usize) -> RdfOpResult<Self> {
+        if array
+            .column(SortableTermField::AdditionalBytes.index())
+            .is_null(index)
+        {
+            return Err(());
+        }
+
         let bytes = try_obtain_bytes(array, index, EncTermField::String)?;
         let string = std::str::from_utf8(bytes).expect("Term field checked");
 
-        // TODO: This is not correct if the @ is within the regular string.
-        let language_mark = string.rfind('@');
-        match language_mark {
-            None => Err(()),
-            Some(language_mark) => Ok(LanguageStringRef {
-                value: &string[..language_mark],
-                language: &string[language_mark + 1..],
-            }),
-        }
+        let additional_bytes = try_obtain_bytes_from_field(
+            array,
+            SortableTermField::AdditionalBytes,
+            index,
+            EncTermField::String,
+        )?;
+        let additional_string = std::str::from_utf8(additional_bytes).expect("Term field checked");
+
+        Ok(LanguageStringRef {
+            value: string,
+            language: additional_string,
+        })
     }
 }
 
 impl<'data> FromSortableTerm<'data> for TypedLiteralRef<'data> {
     fn from_sortable_array(array: &'data StructArray, index: usize) -> RdfOpResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::String)?;
-        let string = std::str::from_utf8(bytes).expect("Term field checked");
-
-        // TODO: This is not correct if the ^^ is within the regular string.
-        let type_mark = string.rfind("^^");
-        if type_mark.is_none() {
+        if array
+            .column(SortableTermField::AdditionalBytes.index())
+            .is_null(index)
+        {
             return Err(());
         }
 
-        let type_mark = type_mark.unwrap();
+        let bytes = try_obtain_bytes(array, index, EncTermField::TypedLiteral)?;
+        let string = std::str::from_utf8(bytes).expect("Term field checked");
+
+        let additional_bytes = try_obtain_bytes_from_field(
+            array,
+            SortableTermField::AdditionalBytes,
+            index,
+            EncTermField::TypedLiteral,
+        )?;
+        let additional_string = std::str::from_utf8(additional_bytes).expect("Term field checked");
+
         Ok(TypedLiteralRef {
-            value: &string[..type_mark],
-            literal_type: &string[type_mark + 2..],
+            value: string,
+            literal_type: additional_string,
         })
     }
 }
@@ -226,6 +270,15 @@ fn try_obtain_bytes(
     index: usize,
     expected_field: EncTermField,
 ) -> RdfOpResult<&[u8]> {
+    try_obtain_bytes_from_field(array, SortableTermField::Bytes, index, expected_field)
+}
+
+fn try_obtain_bytes_from_field(
+    array: &StructArray,
+    field: SortableTermField,
+    index: usize,
+    expected_field: EncTermField,
+) -> RdfOpResult<&[u8]> {
     let enc_term_type = array
         .column(SortableTermField::EncTermType.index())
         .as_primitive::<UInt8Type>()
@@ -237,8 +290,5 @@ fn try_obtain_bytes(
         return Err(());
     }
 
-    Ok(array
-        .column(SortableTermField::Bytes.index())
-        .as_binary::<i32>()
-        .value(index))
+    Ok(array.column(field.index()).as_binary::<i32>().value(index))
 }

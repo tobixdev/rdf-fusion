@@ -7,6 +7,7 @@ use crate::sortable::with_regular_encoding::EncWithRegularEncoding;
 pub use builder::SortableTermBuilder;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::logical_expr::ScalarUDF;
+pub use from_sortable_term::FromSortableTerm;
 use once_cell::unsync::Lazy;
 
 pub const ENC_WITH_REGULAR_ENCODING: Lazy<ScalarUDF> =
@@ -16,6 +17,7 @@ enum SortableTermField {
     Type,
     Numeric,
     Bytes,
+    AdditionalBytes,
     EncTermType,
 }
 
@@ -25,6 +27,7 @@ impl SortableTermField {
             SortableTermField::Type => "type",
             SortableTermField::Numeric => "numeric",
             SortableTermField::Bytes => "bytes",
+            SortableTermField::AdditionalBytes => "additional_bytes",
             SortableTermField::EncTermType => "enc_term_type",
         }
     }
@@ -34,7 +37,8 @@ impl SortableTermField {
             SortableTermField::Type => 0,
             SortableTermField::Numeric => 1,
             SortableTermField::Bytes => 2,
-            SortableTermField::EncTermType => 3,
+            SortableTermField::AdditionalBytes => 3,
+            SortableTermField::EncTermType => 4,
         }
     }
 
@@ -43,6 +47,7 @@ impl SortableTermField {
             SortableTermField::Type => DataType::UInt8,
             SortableTermField::Numeric => DataType::Float64,
             SortableTermField::Bytes => DataType::Binary,
+            SortableTermField::AdditionalBytes => DataType::Binary,
             SortableTermField::EncTermType => DataType::UInt8,
         }
     }
@@ -64,6 +69,11 @@ const FIELDS_SORTABLE_TERM: Lazy<Fields> = Lazy::new(|| {
             SortableTermField::Bytes.name(),
             SortableTermField::Bytes.data_type(),
             false,
+        ),
+        Field::new(
+            SortableTermField::AdditionalBytes.name(),
+            SortableTermField::AdditionalBytes.data_type(),
+            true,
         ),
         Field::new(
             SortableTermField::EncTermType.name(),

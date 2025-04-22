@@ -22,7 +22,7 @@ impl SortableTermBuilder {
     }
 
     pub fn append_null(&mut self) {
-        self.append(SortableTermType::Null, EncTermField::Null, None, &[])
+        self.append(SortableTermType::Null, EncTermField::Null, None, &[], None)
     }
 
     pub fn append_boolean(&mut self, value: Boolean) {
@@ -31,6 +31,7 @@ impl SortableTermBuilder {
             EncTermField::Boolean,
             Some(value.into()),
             &value.to_be_bytes(),
+            None,
         )
     }
 
@@ -48,6 +49,7 @@ impl SortableTermBuilder {
             field,
             Some(value),
             original_be_bytes,
+            None,
         )
     }
 
@@ -57,6 +59,7 @@ impl SortableTermBuilder {
             EncTermField::BlankNode,
             None,
             value.as_str().as_bytes(),
+            None,
         )
     }
 
@@ -66,15 +69,17 @@ impl SortableTermBuilder {
             EncTermField::NamedNode,
             None,
             value.as_str().as_bytes(),
+            None,
         )
     }
 
-    pub fn append_string(&mut self, value: &str) {
+    pub fn append_string(&mut self, value: &str, language: Option<&str>) {
         self.append(
             SortableTermType::String,
             EncTermField::String,
             None,
             value.as_bytes(),
+            language.map(|l| l.as_bytes()),
         )
     }
 
@@ -84,6 +89,7 @@ impl SortableTermBuilder {
             EncTermField::DateTime,
             Some(value.timestamp().value().into()),
             &value.to_be_bytes(),
+            None,
         )
     }
 
@@ -93,6 +99,7 @@ impl SortableTermBuilder {
             EncTermField::Time,
             Some(value.timestamp().value().into()),
             &value.to_be_bytes(),
+            None,
         )
     }
 
@@ -102,6 +109,7 @@ impl SortableTermBuilder {
             EncTermField::Date,
             Some(value.timestamp().value().into()),
             &value.to_be_bytes(),
+            None,
         )
     }
 
@@ -109,8 +117,9 @@ impl SortableTermBuilder {
         self.append(
             SortableTermType::Duration,
             EncTermField::Duration,
-            Some(Integer::from(value.all_months()).into()),
-            &value.seconds().to_string().as_bytes(),
+            None, // Sort by bytes
+            &value.to_be_bytes(),
+            None,
         )
     }
 
@@ -119,7 +128,8 @@ impl SortableTermBuilder {
             SortableTermType::YearMonthDuration,
             EncTermField::Duration,
             Some(Integer::from(value.as_i64()).into()),
-            &value.to_be_bytes(),
+            Duration::from(value).to_be_bytes().as_slice(),
+            None,
         )
     }
 
@@ -128,16 +138,18 @@ impl SortableTermBuilder {
             SortableTermType::DayTimeDuration,
             EncTermField::Duration,
             Some(value.as_seconds().into()),
-            &value.to_be_bytes(),
+            Duration::from(value).to_be_bytes().as_slice(),
+            None,
         )
     }
 
-    pub fn append_literal(&mut self, value: &str) {
+    pub fn append_literal(&mut self, value: &str, literal_type: &str) {
         self.append(
             SortableTermType::UnsupportedLiteral,
             EncTermField::TypedLiteral,
             None,
             value.as_bytes(),
+            Some(literal_type.as_bytes()),
         )
     }
 
@@ -147,6 +159,7 @@ impl SortableTermBuilder {
         enc_type: EncTermField,
         numeric: Option<Double>,
         bytes: &[u8],
+        additional_bytes: Option<&[u8]>,
     ) {
         self.builder
             .field_builder::<UInt8Builder>(SortableTermField::Type.index())
@@ -171,6 +184,16 @@ impl SortableTermBuilder {
             .field_builder::<BinaryBuilder>(SortableTermField::Bytes.index())
             .unwrap();
         bytes_builder.append_value(bytes);
+
+        let additional_bytes_builder = self
+            .builder
+            .field_builder::<BinaryBuilder>(SortableTermField::AdditionalBytes.index())
+            .unwrap();
+        if let Some(additional_bytes) = additional_bytes {
+            additional_bytes_builder.append_value(additional_bytes);
+        } else {
+            additional_bytes_builder.append_null();
+        }
 
         self.builder.append(true)
     }

@@ -90,15 +90,17 @@ fn into_struct_enc<'data>(
                 TermRef::NumericLiteral(v) => {
                     builder.append_numeric(v.into(), v.to_be_bytes().as_ref())
                 }
-                TermRef::SimpleLiteral(v) => builder.append_string(v.value),
-                TermRef::LanguageStringLiteral(v) => builder.append_string(v.value),
+                TermRef::SimpleLiteral(v) => builder.append_string(v.value, None),
+                TermRef::LanguageStringLiteral(v) => {
+                    builder.append_string(v.value, Some(v.language))
+                }
                 TermRef::DateTimeLiteral(v) => builder.append_date_time(v),
                 TermRef::TimeLiteral(v) => builder.append_time(v),
                 TermRef::DateLiteral(v) => builder.append_date(v),
                 TermRef::DurationLiteral(v) => builder.append_duration(v),
                 TermRef::YearMonthDurationLiteral(v) => builder.append_year_month_duration(v),
                 TermRef::DayTimeDurationLiteral(v) => builder.append_day_time_duration(v),
-                TermRef::TypedLiteral(v) => builder.append_literal(v.value),
+                TermRef::TypedLiteral(v) => builder.append_literal(v.value, v.literal_type),
             }
         } else {
             builder.append_null()
@@ -106,4 +108,60 @@ fn into_struct_enc<'data>(
     }
 
     Ok(builder.finish())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::encoded::{EncRdfTermBuilder, FromEncodedTerm};
+    use crate::sortable::FromSortableTerm;
+    use crate::{as_enc_term_array, DFResult};
+    use datafusion::arrow::array::{Array, AsArray};
+    use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl};
+    use datamodel::{Date, DayTimeDuration, TermRef, Timestamp, YearMonthDuration};
+    use oxrdf::vocab::xsd;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_with_struct_encoding_results_in_same_terms() -> DFResult<()> {
+        let mut test_data_builder = EncRdfTermBuilder::new();
+        test_data_builder.append_named_node("http://www.example.org/instance#a")?;
+        test_data_builder.append_blank_node("blank1")?;
+        test_data_builder.append_boolean(true)?;
+        test_data_builder.append_int(1.into())?;
+        test_data_builder.append_integer(2.into())?;
+        test_data_builder.append_float(3u16.into())?;
+        test_data_builder.append_double(4.into())?;
+        test_data_builder.append_decimal(5.into())?;
+        test_data_builder.append_date(Date::new(Timestamp::new(0.into(), None)))?;
+        test_data_builder.append_duration(Some(YearMonthDuration::new(12).into()), None)?;
+        test_data_builder.append_duration(None, Some(DayTimeDuration::new(30)))?;
+        test_data_builder.append_duration(
+            Some(YearMonthDuration::new(12).into()),
+            Some(DayTimeDuration::new(30)),
+        )?;
+        test_data_builder.append_string("simple string", None)?;
+        test_data_builder.append_string("language string", Some("en"))?;
+        test_data_builder.append_typed_literal("10", xsd::SHORT.as_str())?;
+        test_data_builder.append_null()?;
+        let test_array = test_data_builder.finish()?;
+
+        let number_of_rows = test_array.len();
+        let udf = super::EncWithSortableEncoding::new();
+        let result = udf
+            .invoke_batch(
+                &[ColumnarValue::Array(Arc::new(test_array.clone()))],
+                number_of_rows,
+            )?
+            .to_array(number_of_rows)?;
+
+        let expected_array = as_enc_term_array(&test_array)?;
+        let result = result.as_struct();
+        for i in 0..number_of_rows {
+            let expected = TermRef::from_enc_array(expected_array, i);
+            let actual = TermRef::from_sortable_array(result, i);
+            assert_eq!(expected, actual);
+        }
+
+        Ok(())
+    }
 }

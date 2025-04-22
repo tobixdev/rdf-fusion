@@ -33,3 +33,27 @@ impl SortableTermType {
         }
     }
 }
+
+impl TryFrom<u8> for SortableTermType {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        let term_type = match value {
+            0 => SortableTermType::Null,
+            1 => SortableTermType::BlankNodes,
+            2 => SortableTermType::NamedNode,
+            3 => SortableTermType::Boolean,
+            4 => SortableTermType::Numeric,
+            5 => SortableTermType::String,
+            6 => SortableTermType::DateTime,
+            7 => SortableTermType::Time,
+            8 => SortableTermType::Date,
+            9 => SortableTermType::Duration,
+            10 => SortableTermType::YearMonthDuration,
+            11 => SortableTermType::DayTimeDuration,
+            12 => SortableTermType::UnsupportedLiteral,
+            _ => return Err(()),
+        };
+        Ok(term_type)
+    }
+}
