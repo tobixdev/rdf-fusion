@@ -1,3 +1,3 @@
 mod logical;
 
-pub use logical::KleenePlusPathNode;
+pub use logical::KleenePlusClosureNode;

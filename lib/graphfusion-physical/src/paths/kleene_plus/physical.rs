@@ -20,9 +20,9 @@ use std::fmt::Formatter;
 use std::hash::Hash;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
-// Represents a path in the closure.
+/// Represents a path in the closure.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 struct Path {
     graph: GraphName,
@@ -30,15 +30,24 @@ struct Path {
     end: Term,
 }
 
+/// Represents a Kleene-plus path closure execution plan. This plan computes the Kleene-plus closure
+/// of the inner paths. This closure is the result of the `+` operator in SPARQL property paths.
 #[derive(Debug)]
-pub struct KleenePlusPathExec {
+pub struct KleenePlusClosureExec {
+    /// The execution properties of this operator.
     plan_properties: PlanProperties,
+    /// The inner execution plan.
     inner: Arc<dyn ExecutionPlan>,
+    /// See [KleenePlusClosureNode::allow_cross_graph_paths] for details.
+    allow_cross_graph_paths: bool,
 }
 
-impl KleenePlusPathExec {
-    /// Creates a new [KleenePlusPathExec].
-    pub fn try_new(inner: Arc<dyn ExecutionPlan>) -> DFResult<Self> {
+impl KleenePlusClosureExec {
+    /// Creates a new [KleenePlusClosureExec] over the `inner` [ExecutionPlan].
+    ///
+    /// The `allow_cross_graph_paths` argument indicates whether paths are created across multiple
+    /// graphs. See [KleenePlusClosureNode::allow_cross_graph_paths] for details.
+    pub fn try_new(inner: Arc<dyn ExecutionPlan>, allow_cross_graph_paths: bool) -> DFResult<Self> {
         if !inner
             .schema()
             .equivalent_names_and_types(PATH_TABLE_SCHEMA.as_ref())
@@ -60,11 +69,12 @@ impl KleenePlusPathExec {
         Ok(Self {
             plan_properties,
             inner,
+            allow_cross_graph_paths,
         })
     }
 }
 
-impl ExecutionPlan for KleenePlusPathExec {
+impl ExecutionPlan for KleenePlusClosureExec {
     fn name(&self) -> &str {
         "KleenePlusPathExec"
     }
@@ -91,8 +101,9 @@ impl ExecutionPlan for KleenePlusPathExec {
                 children.len()
             );
         }
-        // Recreate the operator using try_new to ensure invariants hold
-        let exec = KleenePlusPathExec::try_new(children[0].clone())?;
+
+        let exec =
+            KleenePlusClosureExec::try_new(children[0].clone(), self.allow_cross_graph_paths)?;
         Ok(Arc::new(exec))
     }
 
@@ -111,11 +122,15 @@ impl ExecutionPlan for KleenePlusPathExec {
         let input_stream = self.inner.execute(0, context)?;
         let schema = self.schema().clone();
 
-        Ok(Box::pin(KleenePlusPathStream::new(input_stream, schema)))
+        Ok(Box::pin(KleenePlusClosureStream::new(
+            input_stream,
+            schema,
+            self.allow_cross_graph_paths,
+        )))
     }
 }
 
-impl DisplayAs for KleenePlusPathExec {
+impl DisplayAs for KleenePlusClosureExec {
     fn fmt_as(&self, t: DisplayFormatType, f: &mut Formatter<'_>) -> std::fmt::Result {
         match t {
             DisplayFormatType::Default | DisplayFormatType::Verbose => {
@@ -125,148 +140,139 @@ impl DisplayAs for KleenePlusPathExec {
     }
 }
 
-// Helper struct to hold the state of our stream
-struct KleenePlusPathStream {
+/// Helper struct to hold the state of our stream
+struct KleenePlusClosureStream {
+    /// The current state of the stream.
     state: KleenePlusPathStreamState,
+    /// The schema of the stream.
     schema: SchemaRef,
+    /// See [KleenePlusClosureNode::allow_cross_graph_paths].
+    allow_cross_graph_paths: bool,
+
+    // State
+    initial_paths_map: HashMap<GraphName, HashSet<(Term, Term)>>,
+    all_paths: HashSet<Path>,
+    current_delta: Vec<Path>,
 }
 
-// Enum to track the state of our stream processing
+/// Enum to track the state of our stream processing
 enum KleenePlusPathStreamState {
-    // Initial state - need to collect input batches
-    CollectingInput {
-        stream: SendableRecordBatchStream,
-        batches: Vec<RecordBatch>,
-    },
-    // Computing the closure
-    Computing {
-        initial_paths_map: HashMap<GraphName, HashSet<(Term, Term)>>,
-        all_paths: HashSet<Path>,
-        current_delta: Vec<Path>,
-    },
-    // Done - either yielding final batch or finished
+    /// Initial state - need to collect input batches
+    CollectingInput { stream: SendableRecordBatchStream },
+    /// Computing the closure
+    Computing,
+    /// Done - either yielding the final batch or already finished
     Done,
-    // Error state
+    /// Error state
     Error,
 }
 
-impl KleenePlusPathStream {
-    fn new(input: SendableRecordBatchStream, schema: SchemaRef) -> Self {
+impl KleenePlusClosureStream {
+    /// Creates a new [KleenePlusClosureStream].
+    ///
+    /// See [KleenePlusClosureNode::allow_cross_graph_paths] for details on
+    /// `allow_cross_graph_paths`.
+    fn new(
+        input: SendableRecordBatchStream,
+        schema: SchemaRef,
+        allow_cross_graph_paths: bool,
+    ) -> Self {
         Self {
-            state: KleenePlusPathStreamState::CollectingInput {
-                stream: input,
-                batches: Vec::new(),
-            },
+            state: KleenePlusPathStreamState::CollectingInput { stream: input },
             schema,
+            allow_cross_graph_paths,
+            initial_paths_map: HashMap::new(),
+            all_paths: HashSet::new(),
+            current_delta: Vec::new(),
         }
     }
 }
 
-impl RecordBatchStream for KleenePlusPathStream {
+impl RecordBatchStream for KleenePlusClosureStream {
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
     }
 }
 
-impl Stream for KleenePlusPathStream {
+impl Stream for KleenePlusClosureStream {
     type Item = DFResult<RecordBatch>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
+        this.poll_inner(cx)
+    }
+}
+
+impl KleenePlusClosureStream {
+    fn poll_inner(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<<KleenePlusClosureStream as Stream>::Item>> {
         loop {
-            match &mut this.state {
-                KleenePlusPathStreamState::CollectingInput { stream, batches } => {
-                    match stream.poll_next_unpin(cx) {
-                        Poll::Ready(Some(Ok(batch))) => {
-                            batches.push(batch);
+            match &mut self.state {
+                KleenePlusPathStreamState::CollectingInput { stream } => {
+                    match ready!(stream.poll_next_unpin(cx)) {
+                        Some(Ok(batch)) => {
+                            if let Err(e) = self.collect_next_batch(&batch) {
+                                self.state = KleenePlusPathStreamState::Error;
+                                return Poll::Ready(Some(Err(e)));
+                            }
                             continue;
                         }
-                        Poll::Ready(None) => {
-                            // All input collected, move to computing state
-                            let collected_batches = std::mem::take(batches);
-                            if collected_batches.is_empty() {
-                                this.state = KleenePlusPathStreamState::Done;
-                                return Poll::Ready(Some(Ok(RecordBatch::new_empty(
-                                    this.schema.clone(),
-                                ))));
-                            }
-
-                            // Initialize computation state
-                            let mut initial_paths_map: HashMap<GraphName, HashSet<(Term, Term)>> =
-                                HashMap::new();
-                            let mut all_paths: HashSet<Path> = HashSet::new();
-                            let mut current_delta: Vec<Path> = Vec::new();
-
-                            // Process initial batches
-                            for batch in collected_batches {
-                                if let Err(e) = Self::process_batch(
-                                    &batch,
-                                    &mut initial_paths_map,
-                                    &mut all_paths,
-                                    &mut current_delta,
-                                ) {
-                                    this.state = KleenePlusPathStreamState::Error;
-                                    return Poll::Ready(Some(Err(e)));
-                                }
-                            }
-
-                            this.state = KleenePlusPathStreamState::Computing {
-                                initial_paths_map,
-                                all_paths,
-                                current_delta,
-                            };
-                            continue;
-                        }
-                        Poll::Ready(Some(Err(e))) => {
-                            this.state = KleenePlusPathStreamState::Error;
+                        Some(Err(e)) => {
+                            self.state = KleenePlusPathStreamState::Error;
                             return Poll::Ready(Some(Err(e)));
                         }
-                        Poll::Pending => return Poll::Pending,
+                        None => {
+                            self.state = KleenePlusPathStreamState::Computing;
+                            continue;
+                        }
                     }
                 }
-                KleenePlusPathStreamState::Computing {
-                    initial_paths_map,
-                    ref mut all_paths,
-                    current_delta,
-                } => {
+                KleenePlusPathStreamState::Computing => {
+                    // All input collected, jump to Done state
+                    if self.all_paths.is_empty() {
+                        self.state = KleenePlusPathStreamState::Done;
+                        continue;
+                    }
+
                     // Compute one iteration of the closure
                     let mut next_delta = Vec::new();
 
-                    for path_ab in current_delta.iter() {
-                        if let Some(initial_paths_from_b) = initial_paths_map.get(&path_ab.graph) {
-                            for (initial_start_b, initial_end_c) in initial_paths_from_b {
-                                if &path_ab.end == initial_start_b {
-                                    let path_ac = Path {
-                                        graph: path_ab.graph.clone(),
-                                        start: path_ab.start.clone(),
-                                        end: initial_end_c.clone(),
-                                    };
-
-                                    if all_paths.insert(path_ac.clone()) {
-                                        next_delta.push(path_ac);
-                                    }
-                                }
-                            }
+                    for current_path in self.current_delta.iter() {
+                        if self.allow_cross_graph_paths {
+                            Self::compute_new_cross_graph_paths(
+                                &self.initial_paths_map,
+                                &mut self.all_paths,
+                                &mut next_delta,
+                                current_path,
+                            );
+                        } else {
+                            Self::compute_new_single_graph_paths(
+                                &self.initial_paths_map,
+                                &mut self.all_paths,
+                                &mut next_delta,
+                                &current_path.graph,
+                                current_path,
+                            );
                         }
                     }
 
                     if next_delta.is_empty() {
-                        // Closure computation complete, create final batch
-                        return match Self::create_output_batch(all_paths, &this.schema) {
+                        // Closure computation complete, create the final batch
+                        return match self.create_output_batch() {
                             Ok(batch) => {
-                                this.state = KleenePlusPathStreamState::Done;
+                                self.state = KleenePlusPathStreamState::Done;
                                 Poll::Ready(Some(Ok(batch)))
                             }
                             Err(e) => {
-                                this.state = KleenePlusPathStreamState::Error;
+                                self.state = KleenePlusPathStreamState::Error;
                                 Poll::Ready(Some(Err(e)))
                             }
                         };
                     }
 
-                    *current_delta = next_delta;
-                    cx.waker().wake_by_ref();
-                    return Poll::Pending;
+                    self.current_delta = next_delta;
                 }
                 KleenePlusPathStreamState::Done => {
                     return Poll::Ready(None);
@@ -277,15 +283,11 @@ impl Stream for KleenePlusPathStream {
             }
         }
     }
-}
 
-impl KleenePlusPathStream {
-    fn process_batch(
-        batch: &RecordBatch,
-        initial_paths_map: &mut HashMap<GraphName, HashSet<(Term, Term)>>,
-        all_paths: &mut HashSet<Path>,
-        current_delta: &mut Vec<Path>,
-    ) -> DFResult<()> {
+    /// Collects the inner paths of a single [RecordBatch].
+    ///
+    /// This adds all inner paths to the `initial_paths_map`, `all_paths`, and the `current_delta`.
+    fn collect_next_batch(self: &mut Self, batch: &RecordBatch) -> DFResult<()> {
         let graph_names = as_enc_term_array(batch.column(0))?;
         let starts = as_enc_term_array(batch.column(1))?;
         let ends = as_enc_term_array(batch.column(2))?;
@@ -301,31 +303,72 @@ impl KleenePlusPathStream {
                 exec_datafusion_err!("Could not obtain end value from inner paths.")
             })?;
 
+            let path_tuple = (start.to_owned(), end.to_owned());
+            self.initial_paths_map
+                .entry(graph.into_owned())
+                .or_default()
+                .insert(path_tuple);
+
             let path = Path {
                 graph: graph.into_owned(),
                 start: start.to_owned(),
                 end: end.to_owned(),
             };
 
-            let path_tuple = (start.to_owned(), end.to_owned());
-            initial_paths_map
-                .entry(graph.into_owned())
-                .or_default()
-                .insert(path_tuple);
-
-            if all_paths.insert(path.clone()) {
-                current_delta.push(path);
-            }
+            self.all_paths.insert(path.clone()); // All inner paths are part of the closure.
+            self.current_delta.push(path); // All inner paths must be part of the next iteration.
         }
         Ok(())
     }
 
-    fn create_output_batch(all_paths: &HashSet<Path>, schema: &SchemaRef) -> DFResult<RecordBatch> {
+    fn compute_new_cross_graph_paths(
+        initial_paths_map: &HashMap<GraphName, HashSet<(Term, Term)>>,
+        all_paths: &mut HashSet<Path>,
+        next_delta: &mut Vec<Path>,
+        current_path: &Path,
+    ) {
+        for graph in initial_paths_map.keys() {
+            Self::compute_new_single_graph_paths(
+                initial_paths_map,
+                all_paths,
+                next_delta,
+                &graph,
+                current_path,
+            );
+        }
+    }
+
+    fn compute_new_single_graph_paths(
+        initial_paths_map: &HashMap<GraphName, HashSet<(Term, Term)>>,
+        all_paths: &mut HashSet<Path>,
+        next_delta: &mut Vec<Path>,
+        graph_name: &GraphName,
+        current_path: &Path,
+    ) {
+        if let Some(initial_paths_from_b) = initial_paths_map.get(graph_name) {
+            for (initial_start_b, initial_end_c) in initial_paths_from_b {
+                if &current_path.end == initial_start_b {
+                    let path_ac = Path {
+                        graph: current_path.graph.clone(),
+                        start: current_path.start.clone(),
+                        end: initial_end_c.clone(),
+                    };
+
+                    if all_paths.insert(path_ac.clone()) {
+                        next_delta.push(path_ac);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Creates a [RecordBatch] from the internal state of `self`.
+    fn create_output_batch(&self) -> DFResult<RecordBatch> {
         let mut graph_builder = EncRdfTermBuilder::new();
         let mut start_builder = EncRdfTermBuilder::new();
         let mut end_builder = EncRdfTermBuilder::new();
 
-        for path in all_paths {
+        for path in self.all_paths.iter() {
             match &path.graph {
                 GraphName::NamedNode(named) => graph_builder.append_named_node(named.as_str())?,
                 GraphName::BlankNode(bnode) => graph_builder.append_blank_node(bnode.as_str())?,
@@ -339,9 +382,9 @@ impl KleenePlusPathStream {
         let start_array = start_builder.finish()?;
         let end_array = end_builder.finish()?;
 
-        let options = RecordBatchOptions::new().with_row_count(Some(all_paths.len()));
+        let options = RecordBatchOptions::new().with_row_count(Some(self.all_paths.len()));
         RecordBatch::try_new_with_options(
-            schema.clone(),
+            self.schema.clone(),
             vec![graph_array, start_array, end_array],
             &options,
         )

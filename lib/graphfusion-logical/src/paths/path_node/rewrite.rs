@@ -1,10 +1,11 @@
-use crate::paths::kleene_plus::KleenePlusPathNode;
+use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{PathNode, COL_SOURCE, COL_TARGET};
 use crate::patterns::PatternNode;
 use crate::DFResult;
 use arrow_rdf::encoded::scalars::{encode_scalar_named_node, encode_scalar_predicate};
 use arrow_rdf::encoded::{
-    ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM, ENC_WITH_SORTABLE_ENCODING,
+    ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
+    ENC_WITH_SORTABLE_ENCODING,
 };
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::catalog::TableProvider;
@@ -174,7 +175,7 @@ impl PathToJoinsRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let lhs = self.rewrite_property_path_expression(graph, lhs)?;
         let rhs = self.rewrite_property_path_expression(graph, rhs)?;
-        make_distinct(join_path_sequence(lhs, rhs)?)
+        make_distinct(join_path_sequence(graph, lhs, rhs)?)
     }
 
     /// Rewrites a zero or more to a CTE.
@@ -196,12 +197,13 @@ impl PathToJoinsRule {
         inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_property_path_expression(graph, inner)?;
-        let node = KleenePlusPathNode::try_new(inner.build()?)?;
+        let allow_cross_graph_paths = graph.is_none();
+        let node = KleenePlusClosureNode::try_new(inner.build()?, allow_cross_graph_paths)?;
 
         let builder = LogicalPlanBuilder::from(LogicalPlan::Extension(Extension {
             node: Arc::new(node),
         }));
-        Ok(builder.into()) // Is already DISTINCT
+        Ok(builder.into())
     }
 
     fn rewrite_zero_or_one(
@@ -274,25 +276,25 @@ impl PathToJoinsRule {
 
 /// Creates a join that represents a sequence of two paths.
 fn join_path_sequence(
+    graph: Option<&NamedNodePattern>,
     lhs: LogicalPlanBuilder,
     rhs: LogicalPlanBuilder,
 ) -> DFResult<LogicalPlanBuilder> {
+    let path_join_expr = ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
+        Expr::from(Column::new(Some("lhs"), COL_TARGET)),
+        Expr::from(Column::new(Some("rhs"), COL_SOURCE)),
+    ])]);
+    let mut on_exprs = vec![path_join_expr];
+
+    if graph.is_some() {
+        on_exprs.push(ENC_IS_COMPATIBLE.call(vec![
+            Expr::from(Column::new(Some("lhs"), COL_GRAPH)),
+            Expr::from(Column::new(Some("rhs"), COL_GRAPH)),
+        ]))
+    }
+
     lhs.alias("lhs")?
-        .join_on(
-            rhs.alias("rhs")?.build()?,
-            JoinType::Inner,
-            [
-                // TODO: I think this should be part
-                // ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                //     Expr::from(Column::new(Some("lhs"), COL_GRAPH)),
-                //     Expr::from(Column::new(Some("rhs"), COL_GRAPH)),
-                // ])]),
-                ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                    Expr::from(Column::new(Some("lhs"), COL_TARGET)),
-                    Expr::from(Column::new(Some("rhs"), COL_SOURCE)),
-                ])]),
-            ],
-        )?
+        .join_on(rhs.alias("rhs")?.build()?, JoinType::Inner, on_exprs)?
         .project([
             col(Column::new(Some("lhs"), COL_GRAPH)).alias(COL_GRAPH),
             col(Column::new(Some("lhs"), COL_SOURCE)).alias(COL_SOURCE),
@@ -310,14 +312,6 @@ fn join_path_alternatives(
 
 /// Makes the path set distinct.
 fn make_distinct(builder: LogicalPlanBuilder) -> DFResult<LogicalPlanBuilder> {
-    // TODO: Behavior is weird for pp02 and pp12. The missing results are present.
-    // E.g., Result for pp02:
-    //
-    // Note: missing solutions in yellow and extra solutions in blue
-    // {?x = <http://www.example.org/instance#a> }
-    // {?x = <http://www.example.org/instance#a> }
-    // {?x = <http://www.example.org/instance#a> }
-    // {?x = <http://www.example.org/instance#c> }
     builder.distinct_on(
         vec![
             ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_GRAPH)]),

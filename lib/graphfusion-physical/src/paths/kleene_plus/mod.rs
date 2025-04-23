@@ -1,5 +1,5 @@
 mod physical;
 mod planner;
 
-pub use physical::KleenePlusPathExec;
+pub use physical::KleenePlusClosureExec;
 pub(crate) use planner::KleenePlusPathPlanner;
