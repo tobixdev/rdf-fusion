@@ -1,7 +1,11 @@
 use crate::encoded::{EncTerm, EncTermField};
 use crate::error::LiteralEncodingError;
 use crate::{AResult, DFResult};
-use datafusion::arrow::array::{ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder, Int16Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder, UnionArray};
+use datafusion::arrow::array::{
+    ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
+    Int16Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder,
+    UnionArray,
+};
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use datamodel::{BlankNode, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration};
@@ -301,9 +305,7 @@ fn append_timestamp(builder: &mut StructBuilder, value: Timestamp) -> AResult<()
         .unwrap()
         .append_value(i128::from_be_bytes(value.value().to_be_bytes()));
 
-    let offset_builder = builder
-        .field_builder::<Int16Builder>(1)
-        .unwrap();
+    let offset_builder = builder.field_builder::<Int16Builder>(1).unwrap();
     if let Some(offset) = value.offset() {
         offset_builder.append_value(offset.in_minutes());
     } else {

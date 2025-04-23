@@ -93,6 +93,9 @@ impl UserDefinedLogicalNodeCore for KleenePlusClosureNode {
     ) -> DFResult<Self> {
         assert_eq!(inputs.len(), 1, "input size inconsistent");
         assert_eq!(exprs.len(), 0, "expression size inconsistent");
-        Ok(Self::try_new(inputs.pop().unwrap(), self.allow_cross_graph_paths())?)
+        Ok(Self::try_new(
+            inputs.pop().unwrap(),
+            self.allow_cross_graph_paths(),
+        )?)
     }
 }

@@ -2,11 +2,11 @@
 
 use crate::xsd::decimal::Decimal;
 use crate::xsd::duration::{DayTimeDuration, Duration, YearMonthDuration};
+use crate::{RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::{min, Ordering};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
-use crate::{RdfOpResult, RdfValueRef, TermRef};
 
 /// [XML Schema `dateTime` datatype](https://www.w3.org/TR/xmlschema11-2/#dateTime)
 ///
@@ -265,11 +265,11 @@ impl DateTime {
 impl RdfValueRef<'_> for DateTime {
     fn from_term(term: TermRef<'_>) -> RdfOpResult<Self>
     where
-        Self: Sized
+        Self: Sized,
     {
         match term {
             TermRef::DateTimeLiteral(value) => Ok(value),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }

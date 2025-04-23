@@ -10,7 +10,8 @@ async fn rdf11_n_triples_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-n-triples/manifest.ttl",
         &[],
-    ).await
+    )
+    .await
 }
 
 #[tokio::test]
@@ -39,7 +40,8 @@ async fn rdf12_n_triples_c14n_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-n-triples/c14n/manifest.ttl",
         &["https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-n-triples/c14n#dirlangtagged_string"],
-    ).await
+    )
+    .await
 }
 
 #[tokio::test]
@@ -47,7 +49,8 @@ async fn rdf11_n_quads_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-n-quads/manifest.ttl",
         &[],
-    ).await
+    )
+    .await
 }
 
 #[cfg(not(windows))] // Tests don't like git auto "\r\n" on Windows
@@ -56,7 +59,8 @@ async fn rdf11_turtle_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-turtle/manifest.ttl",
         &[],
-    ).await
+    )
+    .await
 }
 
 #[tokio::test]
@@ -67,7 +71,8 @@ async fn rdf12_turtle_syntax_w3c_testsuite() -> Result<()> {
             "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-turtle/syntax#nt-ttl-base-1",
             "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-turtle/syntax#nt-ttl-base-2",
         ],
-    ).await
+    )
+    .await
 }
 
 #[tokio::test]
@@ -75,7 +80,8 @@ async fn rdf12_turtle_eval_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-turtle/eval/manifest.ttl",
         &[],
-    ).await
+    )
+    .await
 }
 
 #[cfg(not(windows))] // Tests don't like git auto "\r\n" on Windows
@@ -84,7 +90,8 @@ async fn rdf11_trig_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-trig/manifest.ttl",
         &[],
-    ).await
+    )
+    .await
 }
 
 #[tokio::test]
@@ -95,7 +102,8 @@ async fn rdf12_trig_syntax_w3c_testsuite() -> Result<()> {
             "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-trig/syntax#trig-base-1",
             "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-trig/syntax#trig-base-2",
         ],
-    ).await
+    )
+    .await
 }
 
 #[tokio::test]
@@ -103,7 +111,8 @@ async fn rdf12_trig_eval_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-trig/eval/manifest.ttl",
         &[],
-    ).await
+    )
+    .await
 }
 
 #[tokio::test]
@@ -111,7 +120,8 @@ async fn rdf11_xml_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/manifest.ttl",
         &[],
-    ).await
+    )
+    .await
 }
 
 #[tokio::test]
@@ -119,7 +129,8 @@ async fn n3_parser_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/N3/tests/N3Tests/manifest-parser.ttl",
         &[],
-    ).await
+    )
+    .await
 }
 
 #[tokio::test]
@@ -127,7 +138,8 @@ async fn n3_extended_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/N3/tests/N3Tests/manifest-extended.ttl",
         &[],
-    ).await
+    )
+    .await
 }
 
 #[cfg(not(windows))] // Tests don't like git auto "\r\n" on Windows
@@ -136,5 +148,6 @@ async fn n3_turtle_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/N3/tests/TurtleTests/manifest.ttl",
         &[],
-    ).await
+    )
+    .await
 }

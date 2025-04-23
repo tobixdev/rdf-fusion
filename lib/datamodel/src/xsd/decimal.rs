@@ -1,5 +1,5 @@
 use crate::{
-    Boolean, Double, Float, Int, Integer, Numeric, RdfOpResult, TermRef, RdfValueRef,
+    Boolean, Double, Float, Int, Integer, Numeric, RdfOpResult, RdfValueRef, TermRef,
     TooLargeForIntError, TooLargeForIntegerError,
 };
 use std::fmt;

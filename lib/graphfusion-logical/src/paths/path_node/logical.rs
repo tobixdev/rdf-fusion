@@ -1,3 +1,4 @@
+use crate::patterns::PatternNode;
 use crate::DFResult;
 use datafusion::common::DFSchemaRef;
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
@@ -5,7 +6,6 @@ use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{NamedNodePattern, TermPattern};
 use std::cmp::Ordering;
 use std::fmt;
-use crate::patterns::PatternNode;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct PathNode {

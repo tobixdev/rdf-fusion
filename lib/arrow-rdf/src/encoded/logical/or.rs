@@ -1,7 +1,9 @@
 use crate::DFResult;
 use datafusion::arrow::array::{as_boolean_array, Array, BooleanBuilder};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use std::any::Any;
 use std::ops::Not;
 use std::sync::Arc;
@@ -39,7 +41,10 @@ impl ScalarUDFImpl for EncOr {
         Ok(DataType::Boolean)
     }
 
-    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> datafusion::common::Result<ColumnarValue> {
+    fn invoke_with_args(
+        &self,
+        args: ScalarFunctionArgs<'_>,
+    ) -> datafusion::common::Result<ColumnarValue> {
         let lhs = args.args[0].to_array(args.number_rows)?;
         let rhs = args.args[1].to_array(args.number_rows)?;
 

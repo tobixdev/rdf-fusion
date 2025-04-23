@@ -1,19 +1,19 @@
-use datafusion::logical_expr::ColumnarValue;
-use datamodel::RdfOpResult;
 use crate::as_enc_term_array;
 use crate::encoded::from_encoded_term::FromEncodedTerm;
+use datafusion::logical_expr::ColumnarValue;
+use datamodel::RdfOpResult;
 
-mod dispatch_unary;
 mod dispatch_binary;
-mod dispatch_ternary;
-mod dispatch_quaternary;
 mod dispatch_n_ary;
+mod dispatch_quaternary;
+mod dispatch_ternary;
+mod dispatch_unary;
 
-pub use dispatch_unary::dispatch_unary;
 pub use dispatch_binary::dispatch_binary;
-pub use dispatch_ternary::dispatch_ternary;
-pub use dispatch_quaternary::dispatch_quaternary;
 pub use dispatch_n_ary::dispatch_n_ary;
+pub use dispatch_quaternary::dispatch_quaternary;
+pub use dispatch_ternary::dispatch_ternary;
+pub use dispatch_unary::dispatch_unary;
 
 fn borrow_value<'data, TValue>(value: &'data ColumnarValue, index: usize) -> RdfOpResult<TValue>
 where

@@ -3,7 +3,9 @@ use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{as_boolean_array, Array, BooleanArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::internal_err;
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use std::any::Any;
 use std::sync::Arc;
 

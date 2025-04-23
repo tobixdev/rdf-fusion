@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, TermRef, RdfValueRef};
+use crate::{RdfOpResult, RdfValueRef, TermRef};
 use oxrdf::BlankNodeRef;
 
 impl<'data> RdfValueRef<'data> for BlankNodeRef<'data> {

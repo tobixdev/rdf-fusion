@@ -1305,7 +1305,7 @@ impl OrderExpression {
     pub fn expression(&self) -> &Expression {
         match self {
             OrderExpression::Asc(expr) => expr,
-            OrderExpression::Desc(expr) => expr
+            OrderExpression::Desc(expr) => expr,
         }
     }
 }

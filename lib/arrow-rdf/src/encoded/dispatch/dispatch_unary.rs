@@ -1,5 +1,6 @@
-use crate::encoded::write_enc_term::WriteEncTerm;
+use crate::encoded::from_encoded_term::FromEncodedTerm;
 use crate::encoded::scalars::encode_scalar_null;
+use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::EncTermField;
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{Array, AsArray, BooleanArray};
@@ -8,7 +9,6 @@ use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use datamodel::{Boolean, RdfValueRef, TermRef};
 use functions_scalar::ScalarUnaryRdfOp;
-use crate::encoded::from_encoded_term::FromEncodedTerm;
 
 pub fn dispatch_unary<'data, TUdf>(
     udf: &TUdf,
@@ -29,7 +29,10 @@ where
     }
 }
 
-fn dispatch_unary_scalar<'data, TUdf>(udf: &TUdf, value: &'data ScalarValue) -> DFResult<ColumnarValue>
+fn dispatch_unary_scalar<'data, TUdf>(
+    udf: &TUdf,
+    value: &'data ScalarValue,
+) -> DFResult<ColumnarValue>
 where
     TUdf: ScalarUnaryRdfOp,
     TUdf::Arg<'data>: FromEncodedTerm<'data>,
@@ -46,7 +49,10 @@ where
     Ok(ColumnarValue::Scalar(result))
 }
 
-fn dispatch_unary_array<'data, TUdf>(udf: &TUdf, values: &'data dyn Array) -> DFResult<ColumnarValue>
+fn dispatch_unary_array<'data, TUdf>(
+    udf: &TUdf,
+    values: &'data dyn Array,
+) -> DFResult<ColumnarValue>
 where
     TUdf: ScalarUnaryRdfOp,
     TUdf::Arg<'data>: FromEncodedTerm<'data>,

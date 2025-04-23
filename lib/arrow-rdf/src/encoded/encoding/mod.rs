@@ -1,14 +1,14 @@
 use crate::encoded::as_native_boolean::EncAsNativeBoolean;
-use crate::encoded::with_struct_encoding::EncWithSortableEncoding;
 use crate::encoded::encoding::boolean_as_rdf_term::EncBooleanAsRdfTerm;
 use crate::encoded::encoding::int64_as_rdf_term::EncInt64AsRdfTerm;
+use crate::encoded::with_struct_encoding::EncWithSortableEncoding;
 use datafusion::logical_expr::ScalarUDF;
 use once_cell::sync::Lazy;
 
 pub mod as_native_boolean;
-pub mod with_struct_encoding;
 mod boolean_as_rdf_term;
 mod int64_as_rdf_term;
+pub mod with_struct_encoding;
 
 pub const ENC_AS_NATIVE_BOOLEAN: once_cell::unsync::Lazy<ScalarUDF> =
     once_cell::unsync::Lazy::new(|| ScalarUDF::from(EncAsNativeBoolean::new()));

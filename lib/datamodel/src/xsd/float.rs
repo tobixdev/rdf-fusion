@@ -1,4 +1,4 @@
-use crate::{Boolean, Double, Int, Integer, Numeric, RdfOpResult, TermRef, RdfValueRef};
+use crate::{Boolean, Double, Int, Integer, Numeric, RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
 use std::fmt;
 use std::num::ParseFloatError;

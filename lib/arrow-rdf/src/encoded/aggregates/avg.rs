@@ -63,8 +63,7 @@ impl Accumulator for SparqlAvg {
                             lhs.checked_add(rhs).map(Numeric::Decimal).ok_or(())
                         }
                     };
-                }
-                else {
+                } else {
                     self.sum = Err(());
                 }
             }
@@ -131,8 +130,7 @@ impl Accumulator for SparqlAvg {
                             lhs.checked_add(rhs).map(Numeric::Decimal).ok_or(())
                         }
                     };
-                }
-                else {
+                } else {
                     self.sum = Err(());
                 }
             }

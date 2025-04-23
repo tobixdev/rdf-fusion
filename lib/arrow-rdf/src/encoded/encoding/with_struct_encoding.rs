@@ -4,7 +4,9 @@ use crate::DFResult;
 use datafusion::arrow::array::{as_union_array, StructArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use datamodel::{RdfOpResult, TermRef};
 use std::any::Any;
 use std::sync::Arc;

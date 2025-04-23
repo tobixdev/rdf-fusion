@@ -1,13 +1,15 @@
 use crate::encoded::from_encoded_term::FromEncodedTerm;
 use crate::encoded::EncTerm;
 use crate::{as_enc_term_array, DFResult};
+use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use datamodel::{Decimal, Double, Float, Int, Integer, Numeric, RdfOpResult, TermRef};
 use std::any::Any;
 use std::sync::Arc;
-use datafusion::arrow::array::BooleanArray;
 
 #[derive(Debug)]
 pub struct EncEffectiveBooleanValue {
@@ -42,7 +44,10 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
         Ok(DataType::Boolean)
     }
 
-    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> datafusion::common::Result<ColumnarValue> {
+    fn invoke_with_args(
+        &self,
+        args: ScalarFunctionArgs<'_>,
+    ) -> datafusion::common::Result<ColumnarValue> {
         if args.args.len() != 1 {
             return exec_err!("Unexpected number of arguments");
         }

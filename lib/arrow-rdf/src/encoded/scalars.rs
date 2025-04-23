@@ -4,7 +4,11 @@ use crate::DFResult;
 use datafusion::arrow::array::{ArrayRef, StringArray, StructArray};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::{DataFusionError, ScalarValue};
-use datamodel::{BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, DecodedTermRef, Double, Duration, Float, GraphNameRef, Int, Integer, LiteralRef, NamedNodeRef, SubjectRef, Time, YearMonthDuration};
+use datamodel::{
+    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, DecodedTermRef, Double,
+    Duration, Float, GraphNameRef, Int, Integer, LiteralRef, NamedNodeRef, SubjectRef, Time,
+    YearMonthDuration,
+};
 use oxrdf::vocab::{rdf, xsd};
 use std::str::FromStr;
 use std::sync::Arc;

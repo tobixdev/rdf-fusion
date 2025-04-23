@@ -3,7 +3,9 @@ use crate::encoded::{EncTerm, EncTermField};
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::ScalarValue;
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use datamodel::{Boolean, RdfOpResult, TermRef};
 use functions_scalar::ScalarBinaryRdfOp;
 use std::any::Any;
@@ -41,7 +43,9 @@ impl ScalarBinaryRdfOp for EncIsCompatible {
             (TermRef::BooleanLiteral(lhs), TermRef::BooleanLiteral(rhs)) => lhs == rhs,
             (TermRef::NumericLiteral(lhs), TermRef::NumericLiteral(rhs)) => lhs == rhs,
             (TermRef::SimpleLiteral(lhs), TermRef::SimpleLiteral(rhs)) => lhs == rhs,
-            (TermRef::LanguageStringLiteral(lhs), TermRef::LanguageStringLiteral(rhs)) => lhs == rhs,
+            (TermRef::LanguageStringLiteral(lhs), TermRef::LanguageStringLiteral(rhs)) => {
+                lhs == rhs
+            }
             (TermRef::TypedLiteral(lhs), TermRef::TypedLiteral(rhs)) => lhs == rhs,
             _ => false,
         };
@@ -71,7 +75,10 @@ impl ScalarUDFImpl for EncIsCompatible {
         Ok(DataType::Boolean)
     }
 
-    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> datafusion::common::Result<ColumnarValue> {
+    fn invoke_with_args(
+        &self,
+        args: ScalarFunctionArgs<'_>,
+    ) -> datafusion::common::Result<ColumnarValue> {
         let result = dispatch_binary(self, args.args.as_slice(), args.number_rows)?;
         match result {
             ColumnarValue::Array(array) => {
