@@ -8,8 +8,10 @@ use datafusion::common::{exec_datafusion_err, internal_err, plan_err, SchemaExt}
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
+use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion::physical_plan::{
-    DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties, RecordBatchStream,
+    DisplayAs, DisplayFormatType, ExecutionPlan, ExecutionPlanProperties, PlanProperties,
+    RecordBatchStream,
 };
 use datamodel::{GraphName, GraphNameRef, Term, TermRef};
 use futures::{Stream, StreamExt};
@@ -119,12 +121,19 @@ impl ExecutionPlan for KleenePlusClosureExec {
             );
         }
 
-        let input_stream = self.inner.execute(0, context)?;
-        let schema = self.schema().clone();
+        let partition_count = self.inner.output_partitioning().partition_count();
+        let all_partitions = (0..partition_count)
+            .map(|i| self.inner.execute(i, context.clone()))
+            .collect::<DFResult<Vec<_>>>()?;
+        let schema = self.schema();
+        let input_stream = RecordBatchStreamAdapter::new(
+            schema.clone(),
+            futures::stream::select_all(all_partitions),
+        );
 
         Ok(Box::pin(KleenePlusClosureStream::new(
-            input_stream,
-            schema,
+            Box::pin(input_stream),
+            schema.clone(),
             self.allow_cross_graph_paths,
         )))
     }
