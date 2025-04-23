@@ -67,7 +67,7 @@ async fn create_dataframe(
         .rewrite(pattern)
         .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
 
-    Ok(DataFrame::new(ctx.state(), logical_plan.clone()))
+    Ok(DataFrame::new(ctx.state(), logical_plan))
 }
 
 fn create_variables(data_frame: &DataFrame) -> Arc<[Variable]> {

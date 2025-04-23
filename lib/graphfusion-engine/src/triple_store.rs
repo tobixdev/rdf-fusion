@@ -22,6 +22,7 @@ pub trait TripleStore {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream>;
+
     async fn execute_query(
         &self,
         query: &Query,

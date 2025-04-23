@@ -17,8 +17,10 @@ use arrow_rdf::encoded::{
     ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR_BINARY, ENC_SUBSTR_TERNARY,
     ENC_TIMEZONE, ENC_TZ, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID, ENC_YEAR,
 };
-use datafusion::common::{internal_err, not_impl_err, plan_err, Column, DFSchema};
-use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, ScalarUDF};
+use datafusion::common::{internal_err, not_impl_err, plan_err, Column, DFSchema, Spans};
+use datafusion::functions_aggregate::count::count;
+use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
+use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, ScalarUDF, Subquery};
 use datafusion::prelude::{and, exists};
 use datamodel::DateTime;
 use oxiri::Iri;
@@ -257,6 +259,21 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .into_iter()
             .map(|c| c.name().to_string())
             .collect();
+
+        // TODO: Is there a better way to check for this?
+        if outer_keys.is_disjoint(&inner_keys) {
+            let group_expr: [Expr; 0] = [];
+            let count =
+                inner.aggregate(group_expr, [count(Expr::Literal(COUNT_STAR_EXPANSION))])?;
+            let subquery = Subquery {
+                subquery: count.build()?.into(),
+                outer_ref_columns: vec![],
+                spans: Spans(vec![]),
+            };
+            return Ok(
+                ENC_BOOLEAN_AS_RDF_TERM.call(vec![Expr::ScalarSubquery(subquery).gt(lit(0))])
+            );
+        }
 
         // TODO: Investigate why we need this renaming and cannot refer to the unqualified column
         let projections = inner
