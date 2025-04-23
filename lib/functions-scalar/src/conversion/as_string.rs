@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{OwnedStringLiteral, TermRef};
+use datamodel::{OwnedStringLiteral, RdfOpError, TermRef};
 
 #[derive(Debug)]
 pub struct AsStringRdfOp {}
@@ -17,7 +17,7 @@ impl ScalarUnaryRdfOp for AsStringRdfOp {
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let converted = match value {
             TermRef::NamedNode(value) => value.as_str().to_string(),
-            TermRef::BlankNode(_) => return Err(()),
+            TermRef::BlankNode(_) => return Err(RdfOpError),
             TermRef::BooleanLiteral(value) => value.to_string(),
             TermRef::NumericLiteral(value) => value.format_value(),
             TermRef::SimpleLiteral(value) => value.value.to_string(),

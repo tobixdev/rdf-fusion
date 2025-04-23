@@ -1304,8 +1304,7 @@ impl OrderExpression {
     /// Returns a reference to the contained expression.
     pub fn expression(&self) -> &Expression {
         match self {
-            OrderExpression::Asc(expr) => expr,
-            OrderExpression::Desc(expr) => expr,
+            OrderExpression::Asc(expr) | OrderExpression::Desc(expr) => expr,
         }
     }
 }

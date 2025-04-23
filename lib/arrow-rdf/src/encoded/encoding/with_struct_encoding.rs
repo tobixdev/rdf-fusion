@@ -112,7 +112,7 @@ mod tests {
     use crate::sortable::FromSortableTerm;
     use crate::{as_enc_term_array, DFResult};
     use datafusion::arrow::array::{Array, AsArray};
-    use datafusion::logical_expr::{ColumnarValue, ScalarUDFImpl};
+    use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
     use datamodel::{Date, DayTimeDuration, TermRef, Timestamp, YearMonthDuration};
     use oxrdf::vocab::xsd;
     use std::sync::Arc;
@@ -143,12 +143,12 @@ mod tests {
 
         let number_of_rows = test_array.len();
         let udf = super::EncWithSortableEncoding::new();
-        let result = udf
-            .invoke_batch(
-                &[ColumnarValue::Array(Arc::new(test_array.clone()))],
-                number_of_rows,
-            )?
-            .to_array(number_of_rows)?;
+        let args = ScalarFunctionArgs {
+            args: vec![ColumnarValue::Array(Arc::new(test_array.clone()))],
+            number_rows: number_of_rows,
+            return_type: &udf.return_type(&[test_array.data_type().clone()])?,
+        };
+        let result = udf.invoke_with_args(args)?.to_array(number_of_rows)?;
 
         let expected_array = as_enc_term_array(&test_array)?;
         let result = result.as_struct();

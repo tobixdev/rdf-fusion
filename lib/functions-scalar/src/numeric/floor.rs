@@ -18,7 +18,7 @@ impl ScalarUnaryRdfOp for FloorRdfOp {
         match value {
             Numeric::Float(value) => Ok(Numeric::Float(value.floor())),
             Numeric::Double(value) => Ok(Numeric::Double(value.floor())),
-            Numeric::Decimal(value) => value.checked_floor().map(Numeric::Decimal).ok_or(()),
+            Numeric::Decimal(value) => value.checked_floor().map(Numeric::Decimal),
             value => Ok(value),
         }
     }

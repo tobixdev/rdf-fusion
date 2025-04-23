@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::TermRef;
+use datamodel::{RdfOpError, TermRef};
 use oxiri::Iri;
 use oxrdf::NamedNode;
 
@@ -29,7 +29,7 @@ impl ScalarUnaryRdfOp for IriRdfOp {
                 };
                 Ok(NamedNode::from(resolving_result))
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

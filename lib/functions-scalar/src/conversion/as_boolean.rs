@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{Boolean, Numeric, TermRef};
+use datamodel::{Boolean, Numeric, RdfOpError, TermRef};
 
 #[derive(Debug)]
 pub struct AsBooleanRdfOp {}
@@ -25,7 +25,7 @@ impl ScalarUnaryRdfOp for AsBooleanRdfOp {
                 Numeric::Double(v) => Boolean::from(v),
                 Numeric::Decimal(v) => Boolean::from(v),
             },
-            _ => return Err(()),
+            _ => return Err(RdfOpError),
         };
         Ok(converted)
     }

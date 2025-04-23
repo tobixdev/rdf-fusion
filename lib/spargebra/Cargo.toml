@@ -20,6 +20,7 @@ sep-0002 = []
 sep-0006 = []
 
 [dependencies]
+datamodel.workspace = true
 oxilangtag.workspace = true
 oxiri.workspace = true
 oxrdf.workspace = true

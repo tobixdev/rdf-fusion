@@ -7,7 +7,7 @@ use datafusion::arrow::array::{Array, AsArray, BooleanArray};
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use datamodel::{Boolean, RdfValueRef, TermRef};
+use datamodel::{Boolean, RdfOpError, RdfValueRef, TermRef};
 use functions_scalar::ScalarUnaryRdfOp;
 
 pub fn dispatch_unary<'data, TUdf>(
@@ -44,7 +44,7 @@ where
         Err(_) => udf.evaluate_error(),
     };
     let result = result
-        .and_then(|value| value.into_scalar_value().map_err(|_| ()))
+        .and_then(|value| value.into_scalar_value().map_err(|_| RdfOpError))
         .unwrap_or(encode_scalar_null());
     Ok(ColumnarValue::Scalar(result))
 }

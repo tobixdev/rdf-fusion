@@ -17,11 +17,11 @@ impl ScalarUnaryRdfOp for UnaryMinusRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         match value {
-            Numeric::Int(value) => value.checked_neg().map(Numeric::Int).ok_or(()),
+            Numeric::Int(value) => value.checked_neg().map(Numeric::Int),
             Numeric::Integer(value) => value.checked_neg().map(Numeric::Integer),
             Numeric::Float(value) => Ok(Numeric::Float(value.neg())),
             Numeric::Double(value) => Ok(Numeric::Double(value.neg())),
-            Numeric::Decimal(value) => value.checked_neg().map(Numeric::Decimal).ok_or(()),
+            Numeric::Decimal(value) => value.checked_neg().map(Numeric::Decimal),
         }
     }
 }

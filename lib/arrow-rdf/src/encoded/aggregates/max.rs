@@ -6,7 +6,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use datamodel::{RdfOpResult, Term, TermRef};
+use datamodel::{RdfOpError, RdfOpResult, Term, TermRef};
 use std::sync::Arc;
 
 pub const ENC_MAX: once_cell::unsync::Lazy<datafusion::logical_expr::AggregateUDF> =
@@ -30,7 +30,7 @@ struct SparqlMax {
 impl SparqlMax {
     pub fn new() -> Self {
         SparqlMax {
-            max: Err(()),
+            max: Err(RdfOpError),
             executed_once: false,
         }
     }

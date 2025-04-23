@@ -2,7 +2,7 @@ use crate::xsd::decimal::Decimal;
 use crate::xsd::double::Double;
 use crate::xsd::float::Float;
 use crate::xsd::integer::Integer;
-use crate::{Int, RdfOpResult, RdfValueRef, TermRef};
+use crate::{Int, RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use std::fmt;
 use std::str::{FromStr, ParseBoolError};
 
@@ -26,7 +26,7 @@ impl Boolean {
     #[inline]
     #[must_use]
     pub fn to_be_bytes(self) -> [u8; 1] {
-        [self.value as u8]
+        [u8::from(self.value)]
     }
 
     /// Checks if the two values are [identical](https://www.w3.org/TR/xmlschema11-2/#identity).
@@ -48,7 +48,7 @@ impl RdfValueRef<'_> for Boolean {
     {
         match term {
             TermRef::BooleanLiteral(inner) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

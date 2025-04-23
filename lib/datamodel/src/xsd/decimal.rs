@@ -1,5 +1,5 @@
 use crate::{
-    Boolean, Double, Float, Int, Integer, Numeric, RdfOpResult, RdfValueRef, TermRef,
+    Boolean, Double, Float, Int, Integer, Numeric, RdfOpError, RdfOpResult, RdfValueRef, TermRef,
     TooLargeForIntError, TooLargeForIntegerError,
 };
 use std::fmt;
@@ -64,10 +64,9 @@ impl Decimal {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_add(self, rhs: impl Into<Self>) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_add(rhs.into().value)?,
+    pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_add(rhs.into().value).ok_or(RdfOpError)?,
         })
     }
 
@@ -75,10 +74,9 @@ impl Decimal {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_sub(rhs.into().value)?,
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_sub(rhs.into().value).ok_or(RdfOpError)?,
         })
     }
 
@@ -86,8 +84,7 @@ impl Decimal {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_mul(self, rhs: impl Into<Self>) -> Option<Self> {
+    pub fn checked_mul(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         // Idea: we shift right as much as possible to keep as much precision as possible
         // Do the multiplication and do the required left shift
         let mut left = self.value;
@@ -109,11 +106,15 @@ impl Decimal {
         }
 
         // We do multiplication + shift
-        let shift = (shift_left + shift_right).checked_sub(DECIMAL_PART_DIGITS)?;
-        Some(Self {
+        let shift = (shift_left + shift_right)
+            .checked_sub(DECIMAL_PART_DIGITS)
+            .ok_or(RdfOpError)?;
+        Ok(Self {
             value: left
-                .checked_mul(right)?
-                .checked_mul(10_i128.checked_pow(shift)?)?,
+                .checked_mul(right)
+                .ok_or(RdfOpError)?
+                .checked_mul(10_i128.checked_pow(shift).ok_or(RdfOpError)?)
+                .ok_or(RdfOpError)?,
         })
     }
 
@@ -121,8 +122,7 @@ impl Decimal {
     ///
     /// Returns `None` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_div(self, rhs: impl Into<Self>) -> Option<Self> {
+    pub fn checked_div(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         // Idea: we shift the dividend left as much as possible to keep as much precision as possible
         // And we shift right the divisor as much as possible
         // Do the multiplication and do the required shift
@@ -144,11 +144,15 @@ impl Decimal {
         }
 
         // We do division + shift
-        let shift = (shift_left + shift_right).checked_sub(DECIMAL_PART_DIGITS)?;
-        Some(Self {
+        let shift = (shift_left + shift_right)
+            .checked_sub(DECIMAL_PART_DIGITS)
+            .ok_or(RdfOpError)?;
+        Ok(Self {
             value: left
-                .checked_div(right)?
-                .checked_div(10_i128.checked_pow(shift)?)?,
+                .checked_div(right)
+                .ok_or(RdfOpError)?
+                .checked_div(10_i128.checked_pow(shift).ok_or(RdfOpError)?)
+                .ok_or(RdfOpError)?,
         })
     }
 
@@ -178,10 +182,9 @@ impl Decimal {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_neg(self) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_neg()?,
+    pub fn checked_neg(self) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_neg().ok_or(RdfOpError)?,
         })
     }
 
@@ -189,10 +192,9 @@ impl Decimal {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_abs(self) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_abs()?,
+    pub fn checked_abs(self) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_abs().ok_or(RdfOpError)?,
         })
     }
 
@@ -201,15 +203,16 @@ impl Decimal {
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     #[must_use]
-    pub fn checked_round(self) -> Option<Self> {
+    pub fn checked_round(self) -> RdfOpResult<Self> {
         let value = self.value / DECIMAL_PART_POW_MINUS_ONE;
-        Some(Self {
+        Ok(Self {
             value: if value >= 0 {
                 value / 10 + i128::from(value % 10 >= 5)
             } else {
                 value / 10 - i128::from(-value % 10 > 5)
             }
-            .checked_mul(DECIMAL_PART_POW)?,
+            .checked_mul(DECIMAL_PART_POW)
+            .ok_or(RdfOpError)?,
         })
     }
 
@@ -217,15 +220,15 @@ impl Decimal {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_ceil(self) -> Option<Self> {
-        Some(Self {
+    pub fn checked_ceil(self) -> RdfOpResult<Self> {
+        Ok(Self {
             value: if self.value > 0 && self.value % DECIMAL_PART_POW != 0 {
                 self.value / DECIMAL_PART_POW + 1
             } else {
                 self.value / DECIMAL_PART_POW
             }
-            .checked_mul(DECIMAL_PART_POW)?,
+            .checked_mul(DECIMAL_PART_POW)
+            .ok_or(RdfOpError)?,
         })
     }
 
@@ -233,15 +236,15 @@ impl Decimal {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_floor(self) -> Option<Self> {
-        Some(Self {
+    pub fn checked_floor(self) -> RdfOpResult<Self> {
+        Ok(Self {
             value: if self.value >= 0 || self.value % DECIMAL_PART_POW == 0 {
                 self.value / DECIMAL_PART_POW
             } else {
                 self.value / DECIMAL_PART_POW - 1
             }
-            .checked_mul(DECIMAL_PART_POW)?,
+            .checked_mul(DECIMAL_PART_POW)
+            .ok_or(RdfOpError)?,
         })
     }
 
@@ -278,7 +281,7 @@ impl RdfValueRef<'_> for Decimal {
     {
         match term {
             TermRef::NumericLiteral(Numeric::Decimal(inner)) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

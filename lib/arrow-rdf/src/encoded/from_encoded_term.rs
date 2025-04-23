@@ -4,11 +4,7 @@ use datafusion::arrow::datatypes::{
     DataType, Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
 };
 use datafusion::common::ScalarValue;
-use datamodel::{
-    Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageStringRef, Numeric, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, Time,
-    Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration,
-};
+use datamodel::{Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpError, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, Time, Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration};
 use oxrdf::{BlankNodeRef, GraphNameRef, NamedNodeRef};
 use std::ops::Not;
 
@@ -48,7 +44,7 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                                 ),
                             }
                         }
-                        _ => Err(())?,
+                        _ => Err(RdfOpError)?,
                     },
                     EncTermField::Boolean => {
                         TermRef::BooleanLiteral(Boolean::from_enc_scalar(scalar)?)
@@ -71,10 +67,10 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     EncTermField::TypedLiteral => {
                         TermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
                     }
-                    EncTermField::Null => Err(())?,
+                    EncTermField::Null => Err(RdfOpError)?,
                 })
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -153,7 +149,7 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
             EncTermField::TypedLiteral => TermRef::TypedLiteral(
                 TypedLiteralRef::from_enc_array(array, index).expect("EncTermField checked"),
             ),
-            EncTermField::Null => Err(())?,
+            EncTermField::Null => Err(RdfOpError)?,
         })
     }
 }
@@ -164,16 +160,16 @@ impl<'data> FromEncodedTerm<'data> for BlankNodeRef<'data> {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::BlankNode.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Utf8(Some(value)) => Ok(Self::new_unchecked(value.as_str())),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -188,7 +184,7 @@ impl<'data> FromEncodedTerm<'data> for BlankNodeRef<'data> {
                     .as_string::<i32>()
                     .value(offset),
             )),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -199,22 +195,22 @@ impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::String.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Struct(value) => match value.column(1).is_null(0) {
-                true => Err(()),
+                true => Err(RdfOpError),
                 false => Ok(Self {
                     value: value.column(0).as_string::<i32>().value(0),
                     language: value.column(1).as_string::<i32>().value(0),
                 }),
             },
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -228,7 +224,7 @@ impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
                 let values = array.column(0).as_string::<i32>();
                 let language = array.column(1).as_string::<i32>();
                 if language.is_null(offset) {
-                    return Err(());
+                    return Err(RdfOpError);
                 }
 
                 Ok(Self {
@@ -236,7 +232,7 @@ impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
                     language: language.value(offset),
                 })
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -247,16 +243,16 @@ impl<'data> FromEncodedTerm<'data> for NamedNodeRef<'data> {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::NamedNode.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Utf8(Some(value)) => Ok(Self::new_unchecked(value.as_str())),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -271,7 +267,7 @@ impl<'data> FromEncodedTerm<'data> for NamedNodeRef<'data> {
                     .as_string::<i32>()
                     .value(offset),
             )),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -282,7 +278,7 @@ impl<'data> FromEncodedTerm<'data> for GraphNameRef<'data> {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         match EncTermField::try_from(*type_id).expect("Fixed encoding") {
@@ -293,7 +289,7 @@ impl<'data> FromEncodedTerm<'data> for GraphNameRef<'data> {
             EncTermField::BlankNode => {
                 BlankNodeRef::from_enc_scalar(scalar).map(GraphNameRef::BlankNode)
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -307,7 +303,7 @@ impl<'data> FromEncodedTerm<'data> for GraphNameRef<'data> {
             EncTermField::BlankNode => {
                 BlankNodeRef::from_enc_array(array, index).map(GraphNameRef::BlankNode)
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -318,11 +314,11 @@ impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::String.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
@@ -330,9 +326,9 @@ impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
                 true => Ok(Self {
                     value: value.column(0).as_string::<i32>().value(0),
                 }),
-                false => Err(()),
+                false => Err(RdfOpError),
             },
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -346,14 +342,14 @@ impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
                 let values = array.column(0).as_string::<i32>();
                 let language = array.column(1).as_string::<i32>();
                 if !language.is_null(offset) {
-                    return Err(());
+                    return Err(RdfOpError);
                 }
 
                 Ok(Self {
                     value: values.value(offset),
                 })
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -363,11 +359,11 @@ impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::String.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
@@ -380,7 +376,7 @@ impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
                     Ok(Self(value_arr.value(0), Some(language_arr.value(0))))
                 }
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -402,7 +398,7 @@ impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
                     ))
                 }
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -413,22 +409,22 @@ impl<'data> FromEncodedTerm<'data> for TypedLiteralRef<'data> {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::TypedLiteral.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Struct(value) => match value.column(1).is_null(0) {
-                true => Err(()),
+                true => Err(RdfOpError),
                 false => Ok(Self {
                     value: value.column(0).as_string::<i32>().value(0),
                     literal_type: value.column(1).as_string::<i32>().value(0),
                 }),
             },
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -446,7 +442,7 @@ impl<'data> FromEncodedTerm<'data> for TypedLiteralRef<'data> {
                     literal_type: datatypes.value(offset),
                 })
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -457,16 +453,16 @@ impl FromEncodedTerm<'_> for Boolean {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::Boolean.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Boolean(Some(value)) => Ok(Self::from(*value)),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -480,7 +476,7 @@ impl FromEncodedTerm<'_> for Boolean {
                 .as_boolean()
                 .value(offset)
                 .into()),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -491,18 +487,18 @@ impl FromEncodedTerm<'_> for Decimal {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::Decimal.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Decimal128(Some(value), _, _) => {
                 Ok(Decimal::from_be_bytes(value.to_be_bytes()))
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -518,7 +514,7 @@ impl FromEncodedTerm<'_> for Decimal {
                     .value(offset)
                     .to_be_bytes(),
             )),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -529,16 +525,16 @@ impl FromEncodedTerm<'_> for Double {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::Double.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Float64(Some(value)) => Ok((*value).into()),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -552,7 +548,7 @@ impl FromEncodedTerm<'_> for Double {
                 .as_primitive::<Float64Type>()
                 .value(offset)
                 .into()),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -563,16 +559,16 @@ impl FromEncodedTerm<'_> for Float {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::Float.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Float32(Some(value)) => Ok((*value).into()),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -586,7 +582,7 @@ impl FromEncodedTerm<'_> for Float {
                 .as_primitive::<Float32Type>()
                 .value(offset)
                 .into()),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -597,16 +593,16 @@ impl FromEncodedTerm<'_> for Int {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::Int.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Int32(Some(value)) => Ok(Self::new(*value)),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -620,7 +616,7 @@ impl FromEncodedTerm<'_> for Int {
                 .as_primitive::<Int32Type>()
                 .value(offset)
                 .into()),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -631,17 +627,17 @@ impl FromEncodedTerm<'_> for Integer {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::Int.type_id() && *type_id != EncTermField::Integer.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         match scalar.as_ref() {
             ScalarValue::Int32(Some(value)) => Ok((*value).into()),
             ScalarValue::Int64(Some(value)) => Ok((*value).into()),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -660,7 +656,7 @@ impl FromEncodedTerm<'_> for Integer {
                 .as_primitive::<Int64Type>()
                 .value(offset)
                 .into()),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -671,7 +667,7 @@ impl FromEncodedTerm<'_> for Numeric {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         let field = EncTermField::try_from(*type_id).expect("Fixed encoding");
@@ -681,7 +677,7 @@ impl FromEncodedTerm<'_> for Numeric {
             EncTermField::Float => Ok(Self::Float(Float::from_enc_scalar(scalar)?)),
             EncTermField::Double => Ok(Self::Double(Double::from_enc_scalar(scalar)?)),
             EncTermField::Decimal => Ok(Self::Decimal(Decimal::from_enc_scalar(scalar)?)),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -693,7 +689,7 @@ impl FromEncodedTerm<'_> for Numeric {
             EncTermField::Float => Ok(Self::Float(Float::from_enc_array(array, index)?)),
             EncTermField::Double => Ok(Self::Double(Double::from_enc_array(array, index)?)),
             EncTermField::Decimal => Ok(Self::Decimal(Decimal::from_enc_array(array, index)?)),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -707,7 +703,7 @@ impl FromEncodedTerm<'_> for Duration {
             (Some(year_month), Some(day_time)) => {
                 Ok(Duration::new(year_month, day_time).map_err(|_| ())?)
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
@@ -716,7 +712,7 @@ impl FromEncodedTerm<'_> for Duration {
             (Some(year_month), Some(day_time)) => {
                 Ok(Duration::new(year_month, day_time).map_err(|_| ())?)
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -728,14 +724,14 @@ impl FromEncodedTerm<'_> for YearMonthDuration {
     {
         match get_duration_encoding_scalar(scalar)? {
             (Some(year_month), None) => Ok(YearMonthDuration::new(year_month)),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
     fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         match get_duration_encoding_array(array, index)? {
             (Some(year_month), None) => Ok(YearMonthDuration::new(year_month)),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -747,14 +743,14 @@ impl FromEncodedTerm<'_> for DayTimeDuration {
     {
         match get_duration_encoding_scalar(scalar)? {
             (None, Some(day_time)) => Ok(DayTimeDuration::new(day_time)),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 
     fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         match get_duration_encoding_array(array, index)? {
             (None, Some(day_time)) => Ok(DayTimeDuration::new(day_time)),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -765,11 +761,11 @@ impl FromEncodedTerm<'_> for DateTime {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::DateTime.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let timestamp = Timestamp::from_enc_scalar(scalar)?;
@@ -779,7 +775,7 @@ impl FromEncodedTerm<'_> for DateTime {
     fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         if field != EncTermField::DateTime {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let timestamp = Timestamp::from_enc_array(array, index)?;
@@ -793,11 +789,11 @@ impl FromEncodedTerm<'_> for Time {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::Time.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let timestamp = Timestamp::from_enc_scalar(scalar)?;
@@ -807,7 +803,7 @@ impl FromEncodedTerm<'_> for Time {
     fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         if field != EncTermField::Time {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let timestamp = Timestamp::from_enc_array(array, index)?;
@@ -821,11 +817,11 @@ impl FromEncodedTerm<'_> for Date {
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if *type_id != EncTermField::Date.type_id() {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let timestamp = Timestamp::from_enc_scalar(scalar)?;
@@ -835,7 +831,7 @@ impl FromEncodedTerm<'_> for Date {
     fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
         let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
         if field != EncTermField::Date {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let timestamp = Timestamp::from_enc_array(array, index)?;
@@ -849,11 +845,11 @@ impl FromEncodedTerm<'_> for Timestamp {
         Self: Sized,
     {
         let ScalarValue::Union(Some((_, value)), _, _) = scalar else {
-            return Err(());
+            return Err(RdfOpError);
         };
 
         if value.data_type() != DataType::Struct(EncTerm::timestamp_fields()) {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let ScalarValue::Struct(struct_array) = value.as_ref() else {
@@ -894,16 +890,16 @@ fn get_duration_encoding_scalar(
     scalar: &ScalarValue,
 ) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
     let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-        return Err(());
+        return Err(RdfOpError);
     };
 
     let field = EncTermField::try_from(*type_id).expect("Fixed encoding");
     if field != EncTermField::Duration {
-        return Err(());
+        return Err(RdfOpError);
     }
 
     let ScalarValue::Struct(struct_array) = scalar.as_ref() else {
-        return Err(());
+        return Err(RdfOpError);
     };
 
     let year_month_array = struct_array.as_ref().column(0).as_primitive::<Int64Type>();
@@ -929,7 +925,7 @@ fn get_duration_encoding_array(
 ) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
     let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
     if field != EncTermField::Duration {
-        return Err(());
+        return Err(RdfOpError);
     }
 
     let offset = array.value_offset(index);

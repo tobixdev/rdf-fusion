@@ -1,4 +1,4 @@
-use crate::{Boolean, Double, Int, Integer, Numeric, RdfOpResult, RdfValueRef, TermRef};
+use crate::{Boolean, Double, Int, Integer, Numeric, RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
 use std::fmt;
 use std::num::ParseFloatError;
@@ -96,7 +96,7 @@ impl RdfValueRef<'_> for Float {
     {
         match term {
             TermRef::NumericLiteral(Numeric::Float(inner)) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -167,6 +167,7 @@ impl From<Boolean> for Float {
 
 impl From<Int> for Float {
     #[inline]
+    #[allow(clippy::cast_precision_loss)]
     fn from(value: Int) -> Self {
         (i32::from(value) as f32).into()
     }

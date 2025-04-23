@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, RdfValueRef, TermRef};
+use crate::{RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
@@ -27,7 +27,8 @@ impl LanguageStringRef<'_> {
         self.value.is_empty()
     }
 
-    pub fn to_owned(&self) -> LanguageString {
+    /// Converts `self` to an owned [LanguageString].
+    pub fn into_owned(self) -> LanguageString {
         LanguageString {
             value: self.value.to_owned(),
             language: self.language.to_owned(),
@@ -52,7 +53,7 @@ impl<'data> RdfValueRef<'data> for LanguageStringRef<'data> {
     {
         match term {
             TermRef::LanguageStringLiteral(inner) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

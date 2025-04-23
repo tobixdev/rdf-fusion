@@ -1,3 +1,5 @@
+use datamodel::RdfOpError;
+
 pub(super) enum SortableTermType {
     Null,
     BlankNodes,
@@ -35,7 +37,7 @@ impl SortableTermType {
 }
 
 impl TryFrom<u8> for SortableTermType {
-    type Error = ();
+    type Error = RdfOpError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let term_type = match value {
@@ -52,7 +54,7 @@ impl TryFrom<u8> for SortableTermType {
             10 => SortableTermType::YearMonthDuration,
             11 => SortableTermType::DayTimeDuration,
             12 => SortableTermType::UnsupportedLiteral,
-            _ => return Err(()),
+            _ => return Err(RdfOpError),
         };
         Ok(term_type)
     }

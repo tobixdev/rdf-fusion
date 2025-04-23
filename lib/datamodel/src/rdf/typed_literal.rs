@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, RdfValueRef, TermRef};
+use crate::{RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use oxrdf::vocab::xsd;
 use std::cmp::Ordering;
 use std::collections::HashSet;
@@ -84,7 +84,7 @@ impl<'data> RdfValueRef<'data> for TypedLiteralRef<'data> {
     {
         match term {
             TermRef::TypedLiteral(inner) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

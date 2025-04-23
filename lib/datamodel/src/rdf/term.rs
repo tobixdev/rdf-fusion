@@ -117,7 +117,9 @@ impl TermRef<'_> {
             TermRef::BooleanLiteral(inner) => Term::BooleanLiteral(*inner),
             TermRef::NumericLiteral(inner) => Term::NumericLiteral(*inner),
             TermRef::SimpleLiteral(inner) => Term::SimpleLiteral(inner.to_owned()),
-            TermRef::LanguageStringLiteral(inner) => Term::LanguageStringLiteral(inner.to_owned()),
+            TermRef::LanguageStringLiteral(inner) => {
+                Term::LanguageStringLiteral(inner.into_owned())
+            }
             TermRef::DateTimeLiteral(inner) => Term::DateTimeLiteral(*inner),
             TermRef::TimeLiteral(inner) => Term::TimeLiteral(*inner),
             TermRef::DateLiteral(inner) => Term::DateLiteral(*inner),

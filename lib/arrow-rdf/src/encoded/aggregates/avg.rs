@@ -7,7 +7,7 @@ use datafusion::arrow::datatypes::{DataType, Int64Type};
 use datafusion::logical_expr::{create_udaf, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use datamodel::{Decimal, Integer, Numeric, NumericPair, RdfOpResult};
+use datamodel::{Decimal, Integer, Numeric, NumericPair, RdfOpError, RdfOpResult};
 use std::ops::Div;
 use std::sync::Arc;
 
@@ -51,20 +51,18 @@ impl Accumulator for SparqlAvg {
             if let Ok(sum) = self.sum {
                 if let Ok(value) = value {
                     self.sum = match NumericPair::with_casts_from(sum, value) {
-                        NumericPair::Int(lhs, rhs) => {
-                            lhs.checked_add(rhs).map(Numeric::Int).ok_or(())
-                        }
+                        NumericPair::Int(lhs, rhs) => lhs.checked_add(rhs).map(Numeric::Int),
                         NumericPair::Integer(lhs, rhs) => {
-                            lhs.checked_add(rhs).map(Numeric::Integer).ok_or(())
+                            lhs.checked_add(rhs).map(Numeric::Integer)
                         }
                         NumericPair::Float(lhs, rhs) => Ok(Numeric::Float(lhs + rhs)),
                         NumericPair::Double(lhs, rhs) => Ok(Numeric::Double(lhs + rhs)),
                         NumericPair::Decimal(lhs, rhs) => {
-                            lhs.checked_add(rhs).map(Numeric::Decimal).ok_or(())
+                            lhs.checked_add(rhs).map(Numeric::Decimal)
                         }
                     };
                 } else {
-                    self.sum = Err(());
+                    self.sum = Err(RdfOpError);
                 }
             }
         }
@@ -118,20 +116,18 @@ impl Accumulator for SparqlAvg {
             if let Ok(sum) = self.sum {
                 if let Ok(value) = value {
                     self.sum = match NumericPair::with_casts_from(sum, value) {
-                        NumericPair::Int(lhs, rhs) => {
-                            lhs.checked_add(rhs).map(Numeric::Int).ok_or(())
-                        }
+                        NumericPair::Int(lhs, rhs) => lhs.checked_add(rhs).map(Numeric::Int),
                         NumericPair::Integer(lhs, rhs) => {
-                            lhs.checked_add(rhs).map(Numeric::Integer).ok_or(())
+                            lhs.checked_add(rhs).map(Numeric::Integer)
                         }
                         NumericPair::Float(lhs, rhs) => Ok(Numeric::Float(lhs + rhs)),
                         NumericPair::Double(lhs, rhs) => Ok(Numeric::Double(lhs + rhs)),
                         NumericPair::Decimal(lhs, rhs) => {
-                            lhs.checked_add(rhs).map(Numeric::Decimal).ok_or(())
+                            lhs.checked_add(rhs).map(Numeric::Decimal)
                         }
                     };
                 } else {
-                    self.sum = Err(());
+                    self.sum = Err(RdfOpError);
                 }
             }
             self.count += counts.value(i);

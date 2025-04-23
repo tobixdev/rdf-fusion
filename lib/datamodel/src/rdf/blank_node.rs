@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, RdfValueRef, TermRef};
+use crate::{RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use oxrdf::BlankNodeRef;
 
 impl<'data> RdfValueRef<'data> for BlankNodeRef<'data> {
@@ -8,7 +8,7 @@ impl<'data> RdfValueRef<'data> for BlankNodeRef<'data> {
     {
         match term {
             TermRef::BlankNode(inner) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

@@ -3497,6 +3497,7 @@ dependencies = [
 name = "spargebra"
 version = "0.1.0"
 dependencies = [
+ "datamodel",
  "oxilangtag",
  "oxiri",
  "oxrdf",

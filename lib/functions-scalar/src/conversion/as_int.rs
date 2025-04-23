@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{Int, Numeric, TermRef};
+use datamodel::{Int, Numeric, RdfOpError, TermRef};
 
 #[derive(Debug)]
 pub struct AsIntRdfOp {}
@@ -17,15 +17,15 @@ impl ScalarUnaryRdfOp for AsIntRdfOp {
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let converted = match value {
             TermRef::BooleanLiteral(v) => Int::from(v),
-            TermRef::SimpleLiteral(v) => v.value.parse().map_err(|_| ())?,
+            TermRef::SimpleLiteral(v) => v.value.parse()?,
             TermRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => v,
-                Numeric::Integer(v) => Int::try_from(v).map_err(|_| ())?,
-                Numeric::Float(v) => Int::try_from(v).map_err(|_| ())?,
-                Numeric::Double(v) => Int::try_from(v).map_err(|_| ())?,
-                Numeric::Decimal(v) => Int::try_from(v).map_err(|_| ())?,
+                Numeric::Integer(v) => Int::try_from(v)?,
+                Numeric::Float(v) => Int::try_from(v)?,
+                Numeric::Double(v) => Int::try_from(v)?,
+                Numeric::Decimal(v) => Int::try_from(v)?,
             },
-            _ => return Err(()),
+            _ => return Err(RdfOpError),
         };
         Ok(converted)
     }

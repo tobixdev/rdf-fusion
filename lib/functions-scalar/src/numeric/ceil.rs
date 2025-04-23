@@ -18,7 +18,7 @@ impl ScalarUnaryRdfOp for CeilRdfOp {
         match value {
             Numeric::Float(value) => Ok(Numeric::Float(value.ceil())),
             Numeric::Double(value) => Ok(Numeric::Double(value.ceil())),
-            Numeric::Decimal(value) => value.checked_ceil().map(Numeric::Decimal).ok_or(()),
+            Numeric::Decimal(value) => value.checked_ceil().map(Numeric::Decimal),
             value => Ok(value),
         }
     }

@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{DateTime, TermRef};
+use datamodel::{DateTime, RdfOpError, TermRef};
 
 #[derive(Debug)]
 pub struct AsDateTimeRdfOp {}
@@ -18,7 +18,7 @@ impl ScalarUnaryRdfOp for AsDateTimeRdfOp {
         let converted = match value {
             TermRef::SimpleLiteral(v) => v.value.parse().map_err(|_| ())?,
             TermRef::DateTimeLiteral(v) => v,
-            _ => return Err(()),
+            _ => return Err(RdfOpError),
         };
         Ok(converted)
     }

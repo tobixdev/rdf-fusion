@@ -7,12 +7,6 @@
 [submodule "bench/bsbm-tools"]
 	path = bench/bsbm-tools
 	url = https://github.com/Tpt/bsbm-tools.git
-[submodule "oxrocksdb-sys/rocksdb"]
-	path = oxrocksdb-sys/rocksdb
-	url = https://github.com/oxigraph/rocksdb.git
-[submodule "oxrocksdb-sys/lz4"]
-	path = oxrocksdb-sys/lz4
-	url = https://github.com/lz4/lz4.git
 [submodule "testsuite/N3"]
 	path = testsuite/N3
 	url = https://github.com/w3c/N3.git

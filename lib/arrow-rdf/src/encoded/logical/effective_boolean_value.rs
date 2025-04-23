@@ -7,7 +7,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datamodel::{Decimal, Double, Float, Int, Integer, Numeric, RdfOpResult, TermRef};
+use datamodel::{Decimal, Double, Float, Int, Integer, Numeric, RdfOpError, RdfOpResult, TermRef};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -80,7 +80,7 @@ fn evaluate(value: TermRef<'_>) -> RdfOpResult<bool> {
             Numeric::Decimal(value) => value != Decimal::from(0),
         },
         TermRef::SimpleLiteral(value) => !value.is_empty(),
-        _ => return Err(()),
+        _ => return Err(RdfOpError),
     };
     Ok(result)
 }

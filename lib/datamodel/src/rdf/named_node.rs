@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, RdfValueRef, TermRef};
+use crate::{RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use oxrdf::NamedNodeRef;
 
 impl<'data> RdfValueRef<'data> for NamedNodeRef<'data> {
@@ -8,7 +8,7 @@ impl<'data> RdfValueRef<'data> for NamedNodeRef<'data> {
     {
         match term {
             TermRef::NamedNode(inner) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

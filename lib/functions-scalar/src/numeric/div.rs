@@ -21,17 +21,13 @@ impl ScalarBinaryRdfOp for DivRdfOp {
         rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
         match NumericPair::with_casts_from(lhs, rhs) {
-            NumericPair::Int(lhs, rhs) => Decimal::from(lhs)
-                .checked_div(rhs)
-                .map(Numeric::Decimal)
-                .ok_or(()),
-            NumericPair::Integer(lhs, rhs) => Decimal::from(lhs)
-                .checked_div(rhs)
-                .map(Numeric::Decimal)
-                .ok_or(()),
+            NumericPair::Int(lhs, rhs) => Decimal::from(lhs).checked_div(rhs).map(Numeric::Decimal),
+            NumericPair::Integer(lhs, rhs) => {
+                Decimal::from(lhs).checked_div(rhs).map(Numeric::Decimal)
+            }
             NumericPair::Float(lhs, rhs) => Ok(Numeric::Float(lhs / rhs)),
             NumericPair::Double(lhs, rhs) => Ok(Numeric::Double(lhs / rhs)),
-            NumericPair::Decimal(lhs, rhs) => lhs.checked_div(rhs).map(Numeric::Decimal).ok_or(()),
+            NumericPair::Decimal(lhs, rhs) => lhs.checked_div(rhs).map(Numeric::Decimal),
         }
     }
 }

@@ -1,4 +1,6 @@
-use crate::{Boolean, Decimal, Double, Float, Int, Numeric, RdfOpResult, RdfValueRef, TermRef};
+use crate::{
+    Boolean, Decimal, Double, Float, Int, Numeric, RdfOpError, RdfOpResult, RdfValueRef, TermRef,
+};
 use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
@@ -34,10 +36,9 @@ impl Integer {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_add(self, rhs: impl Into<Self>) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_add(rhs.into().value)?,
+    pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_add(rhs.into().value).ok_or(RdfOpError)?,
         })
     }
 
@@ -45,10 +46,9 @@ impl Integer {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_sub(rhs.into().value)?,
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_sub(rhs.into().value).ok_or(RdfOpError)?,
         })
     }
 
@@ -56,10 +56,9 @@ impl Integer {
     ///
     /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_mul(self, rhs: impl Into<Self>) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_mul(rhs.into().value)?,
+    pub fn checked_mul(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_mul(rhs.into().value).ok_or(RdfOpError)?,
         })
     }
 
@@ -67,10 +66,9 @@ impl Integer {
     ///
     /// Returns `None` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_div(self, rhs: impl Into<Self>) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_div(rhs.into().value)?,
+    pub fn checked_div(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_div(rhs.into().value).ok_or(RdfOpError)?,
         })
     }
 
@@ -104,7 +102,7 @@ impl Integer {
         self.value
             .checked_neg()
             .map(|value| Self { value })
-            .ok_or(())
+            .ok_or(RdfOpError)
     }
 
     /// [fn:abs](https://www.w3.org/TR/xpath-functions-31/#func-abs)
@@ -115,7 +113,7 @@ impl Integer {
         self.value
             .checked_abs()
             .map(|value| Self { value })
-            .ok_or(())
+            .ok_or(RdfOpError)
     }
 
     #[inline]
@@ -137,11 +135,9 @@ impl Integer {
         self == other
     }
 
-    /// Checks if the two values are [identical](https://www.w3.org/TR/xmlschema11-2/#identity).
     #[inline]
-    #[must_use]
-    pub fn try_as_i64(self) -> RdfOpResult<i64> {
-        Ok(self.value)
+    pub fn as_i64(self) -> i64 {
+        self.value
     }
 }
 
@@ -152,7 +148,7 @@ impl RdfValueRef<'_> for Integer {
     {
         match term {
             TermRef::NumericLiteral(Numeric::Integer(inner)) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

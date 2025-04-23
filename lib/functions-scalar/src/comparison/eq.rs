@@ -1,5 +1,5 @@
 use crate::{RdfOpResult, ScalarBinaryRdfOp};
-use datamodel::{Boolean, TermRef};
+use datamodel::{Boolean, RdfOpError, TermRef};
 use std::cmp::Ordering;
 
 #[derive(Debug)]
@@ -25,11 +25,11 @@ impl ScalarBinaryRdfOp for EqRdfOp {
             // Same term are also equal.
             (TermRef::TypedLiteral(l), TermRef::TypedLiteral(r)) if l == r => Ok(true.into()),
             // Cannot say anything about unsupported typed literals that are not the same term.
-            (TermRef::TypedLiteral(_), _) => Err(()),
-            (_, TermRef::TypedLiteral(_)) => Err(()),
+            (TermRef::TypedLiteral(_), _) => Err(RdfOpError),
+            (_, TermRef::TypedLiteral(_)) => Err(RdfOpError),
             // For numerics, compare values.
             (TermRef::NumericLiteral(lhs), TermRef::NumericLiteral(rhs)) => {
-                Ok((lhs.cmp(&rhs) == Ordering::Equal).into())
+                Ok((lhs.partial_cmp(&rhs) == Some(Ordering::Equal)).into())
             }
             // For dates & times, compare values.
             (TermRef::DateTimeLiteral(lhs), TermRef::DateTimeLiteral(rhs)) => {

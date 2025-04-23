@@ -18,7 +18,7 @@ impl ScalarUnaryRdfOp for RoundRdfOp {
         match value {
             Numeric::Float(value) => Ok(Numeric::Float(value.round())),
             Numeric::Double(value) => Ok(Numeric::Double(value.round())),
-            Numeric::Decimal(value) => value.checked_round().map(Numeric::Decimal).ok_or(()),
+            Numeric::Decimal(value) => value.checked_round().map(Numeric::Decimal),
             value => Ok(value),
         }
     }

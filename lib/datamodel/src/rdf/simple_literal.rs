@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, RdfValueRef, TermRef};
+use crate::{RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 
 #[derive(Clone, PartialEq, Eq, Debug, PartialOrd, Ord, Hash)]
 pub struct SimpleLiteral {
@@ -39,7 +39,7 @@ impl<'data> RdfValueRef<'data> for SimpleLiteralRef<'data> {
     {
         match term {
             TermRef::SimpleLiteral(inner) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

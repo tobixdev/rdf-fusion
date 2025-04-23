@@ -3,11 +3,7 @@ use crate::sortable::term_type::SortableTermType;
 use crate::sortable::SortableTermField;
 use datafusion::arrow::array::{Array, AsArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
-use datamodel::{
-    Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageStringRef, Numeric, RdfOpResult, SimpleLiteralRef, TermRef, Time, TypedLiteralRef,
-    YearMonthDuration,
-};
+use datamodel::{Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpError, RdfOpResult, SimpleLiteralRef, TermRef, Time, TypedLiteralRef, YearMonthDuration};
 use oxrdf::{BlankNodeRef, NamedNodeRef};
 
 pub trait FromSortableTerm<'data> {
@@ -34,7 +30,7 @@ impl<'data> FromSortableTerm<'data> for TermRef<'data> {
             .expect("Conversion should always succeed.");
 
         let result = match enc_term_field {
-            EncTermField::Null => return Err(()),
+            EncTermField::Null => return Err(RdfOpError),
             EncTermField::NamedNode => {
                 TermRef::NamedNode(NamedNodeRef::from_sortable_array(array, index)?)
             }
@@ -118,7 +114,7 @@ impl<'data> FromSortableTerm<'data> for SimpleLiteralRef<'data> {
             .column(SortableTermField::AdditionalBytes.index())
             .is_null(index)
         {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let bytes = try_obtain_bytes(array, index, EncTermField::String)?;
@@ -133,7 +129,7 @@ impl<'data> FromSortableTerm<'data> for LanguageStringRef<'data> {
             .column(SortableTermField::AdditionalBytes.index())
             .is_null(index)
         {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let bytes = try_obtain_bytes(array, index, EncTermField::String)?;
@@ -160,7 +156,7 @@ impl<'data> FromSortableTerm<'data> for TypedLiteralRef<'data> {
             .column(SortableTermField::AdditionalBytes.index())
             .is_null(index)
         {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         let bytes = try_obtain_bytes(array, index, EncTermField::TypedLiteral)?;
@@ -287,7 +283,7 @@ fn try_obtain_bytes_from_field(
         EncTermField::try_from(enc_term_type as i8).expect("We only encode valid values.");
 
     if enc_term_type != expected_field {
-        return Err(());
+        return Err(RdfOpError);
     }
 
     Ok(array.column(field.index()).as_binary::<i32>().value(index))

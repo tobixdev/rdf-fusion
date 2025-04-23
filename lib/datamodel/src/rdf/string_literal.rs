@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, RdfValueRef, TermRef};
+use crate::{RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
 
 /// https://www.w3.org/TR/sparql11-query/#func-string
@@ -65,7 +65,7 @@ impl<'data> CompatibleStringArgs<'data> {
         let is_compatible = rhs.1.is_none() || lhs.1 == rhs.1;
 
         if !is_compatible {
-            return Err(());
+            return Err(RdfOpError);
         }
 
         Ok(CompatibleStringArgs {
@@ -86,7 +86,7 @@ impl<'data> RdfValueRef<'data> for StringLiteralRef<'data> {
             TermRef::LanguageStringLiteral(inner) => {
                 Ok(StringLiteralRef(inner.value, Some(inner.language)))
             }
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }

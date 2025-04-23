@@ -1,4 +1,4 @@
-use crate::{Boolean, Float, Int, Integer, Numeric, RdfOpResult, RdfValueRef, TermRef};
+use crate::{Boolean, Float, Int, Integer, Numeric, RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
 use std::fmt;
 use std::num::ParseFloatError;
@@ -96,7 +96,7 @@ impl RdfValueRef<'_> for Double {
     {
         match term {
             TermRef::NumericLiteral(Numeric::Double(inner)) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -108,7 +108,7 @@ impl From<Numeric> for Double {
             Numeric::Int(value) => value.into(),
             Numeric::Integer(value) => value.into(),
             Numeric::Float(value) => value.into(),
-            Numeric::Double(value) => value.into(),
+            Numeric::Double(value) => value,
             Numeric::Decimal(value) => value.into(),
         }
     }

@@ -4,7 +4,6 @@ Cargo.lock
 .idea
 *.iml
 js/node_modules
-lib/tests/rocksdb_bc_data
 venv
 .env
 data/

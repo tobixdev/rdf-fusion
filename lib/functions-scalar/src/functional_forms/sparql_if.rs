@@ -34,10 +34,7 @@ impl ScalarTernaryRdfOp for IfRdfOp {
         arg1: RdfOpResult<Self::Arg1<'data>>,
         arg2: RdfOpResult<Self::Arg2<'data>>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        if arg0.is_err() {
-            return Err(());
-        }
-        match arg0.unwrap().as_bool() {
+        match arg0?.as_bool() {
             true => arg1,
             false => arg2,
         }

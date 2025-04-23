@@ -45,9 +45,9 @@ fn evaluate_substr(
     starting_loc: Integer,
     length: Option<Integer>,
 ) -> RdfOpResult<StringLiteralRef<'_>> {
-    let index = usize::try_from(starting_loc.try_as_i64()?).map_err(|_| ())?;
+    let index = usize::try_from(starting_loc.as_i64()).map_err(|_| ())?;
     let length = length
-        .map(|l| usize::try_from(l.try_as_i64()?).map_err(|_| ()))
+        .map(|l| usize::try_from(l.as_i64()).map_err(|_| ()))
         .transpose()
         .map_err(|_| ())?;
 

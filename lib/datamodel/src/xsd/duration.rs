@@ -1,4 +1,4 @@
-use crate::{DateTime, Decimal, RdfOpResult, RdfValueRef, TermRef};
+use crate::{DateTime, Decimal, RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
@@ -135,13 +135,13 @@ impl Duration {
     /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
     #[must_use]
-    pub fn checked_add(self, rhs: impl Into<Self>) -> Option<Self> {
+    pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
         Self::construct(
             self.year_month.checked_add(rhs.year_month)?,
             self.day_time.checked_add(rhs.day_time)?,
         )
-        .ok()
+        .map_err(|_| RdfOpError)
     }
 
     /// [op:subtract-yearMonthDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDurations) and [op:subtract-dayTimeDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDurations)
@@ -149,22 +149,21 @@ impl Duration {
     /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
     #[must_use]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> Option<Self> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
         Self::construct(
             self.year_month.checked_sub(rhs.year_month)?,
             self.day_time.checked_sub(rhs.day_time)?,
         )
-        .ok()
+        .map_err(|_| RdfOpError)
     }
 
     /// Unary negation.
     ///
     /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_neg(self) -> Option<Self> {
-        Some(Self {
+    pub fn checked_neg(self) -> RdfOpResult<Self> {
+        Ok(Self {
             year_month: self.year_month.checked_neg()?,
             day_time: self.day_time.checked_neg()?,
         })
@@ -185,7 +184,7 @@ impl RdfValueRef<'_> for Duration {
     {
         match term {
             TermRef::DurationLiteral(inner) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -257,7 +256,7 @@ impl fmt::Display for Duration {
                 .checked_sub(
                     Decimal::try_from(d * 86400 + h * 3600 + m * 60).map_err(|_| fmt::Error)?,
                 )
-                .ok_or(fmt::Error)?;
+                .map_err(|_| fmt::Error)?;
 
             if d != 0 {
                 write!(f, "{}D", d.abs())?;
@@ -272,7 +271,7 @@ impl fmt::Display for Duration {
                     write!(f, "{}M", m.abs())?;
                 }
                 if s != 0.into() {
-                    write!(f, "{}S", s.checked_abs().ok_or(fmt::Error)?)?;
+                    write!(f, "{}S", s.checked_abs().map_err(|_| fmt::Error)?)?;
                 }
             }
         }
@@ -285,20 +284,24 @@ impl PartialOrd for Duration {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         let first = DateTime::from_seven_property_model(1969, 9, 1, 0, 0, 0.into(), None).ok()?;
         let first_result = first
-            .checked_add_duration(*self)?
-            .partial_cmp(&first.checked_add_duration(*other)?);
+            .checked_add_duration(*self)
+            .ok()?
+            .partial_cmp(&first.checked_add_duration(*other).ok()?);
         let second = DateTime::from_seven_property_model(1697, 2, 1, 0, 0, 0.into(), None).ok()?;
         let second_result = second
-            .checked_add_duration(*self)?
-            .partial_cmp(&second.checked_add_duration(*other)?);
+            .checked_add_duration(*self)
+            .ok()?
+            .partial_cmp(&second.checked_add_duration(*other).ok()?);
         let third = DateTime::from_seven_property_model(1903, 3, 1, 0, 0, 0.into(), None).ok()?;
         let third_result = third
-            .checked_add_duration(*self)?
-            .partial_cmp(&third.checked_add_duration(*other)?);
+            .checked_add_duration(*self)
+            .ok()?
+            .partial_cmp(&third.checked_add_duration(*other).ok()?);
         let fourth = DateTime::from_seven_property_model(1903, 7, 1, 0, 0, 0.into(), None).ok()?;
         let fourth_result = fourth
-            .checked_add_duration(*self)?
-            .partial_cmp(&fourth.checked_add_duration(*other)?);
+            .checked_add_duration(*self)
+            .ok()?
+            .partial_cmp(&fourth.checked_add_duration(*other).ok()?);
         if first_result == second_result
             && second_result == third_result
             && third_result == fourth_result
@@ -362,10 +365,10 @@ impl YearMonthDuration {
     ///
     /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_add(self, rhs: impl Into<Self>) -> Option<Self> {
+    pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
-        Some(Self {
-            months: self.months.checked_add(rhs.months)?,
+        Ok(Self {
+            months: self.months.checked_add(rhs.months).ok_or(RdfOpError)?,
         })
     }
 
@@ -373,10 +376,10 @@ impl YearMonthDuration {
     ///
     /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> Option<Self> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
-        Some(Self {
-            months: self.months.checked_sub(rhs.months)?,
+        Ok(Self {
+            months: self.months.checked_sub(rhs.months).ok_or(RdfOpError)?,
         })
     }
 
@@ -384,19 +387,23 @@ impl YearMonthDuration {
     ///
     /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_neg(self) -> Option<Self> {
-        Some(Self {
-            months: self.months.checked_neg()?,
+    pub fn checked_neg(self) -> RdfOpResult<Self> {
+        Ok(Self {
+            months: self.months.checked_neg().ok_or(RdfOpError)?,
         })
     }
 
     /// Checks if the two values are [identical](https://www.w3.org/TR/xmlschema11-2/#identity).
+    #[must_use]
     #[inline]
     pub fn is_identical_with(self, other: Self) -> bool {
         self == other
     }
 
-    pub fn as_i64(&self) -> i64 {
+    /// The duration in months.
+    #[must_use]
+    #[inline]
+    pub fn as_i64(self) -> i64 {
         self.months
     }
 }
@@ -553,9 +560,9 @@ impl DayTimeDuration {
     ///
     /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_add(self, rhs: impl Into<Self>) -> Option<Self> {
+    pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
-        Some(Self {
+        Ok(Self {
             seconds: self.seconds.checked_add(rhs.seconds)?,
         })
     }
@@ -564,9 +571,9 @@ impl DayTimeDuration {
     ///
     /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> Option<Self> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
-        Some(Self {
+        Ok(Self {
             seconds: self.seconds.checked_sub(rhs.seconds)?,
         })
     }
@@ -575,8 +582,8 @@ impl DayTimeDuration {
     ///
     /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_neg(self) -> Option<Self> {
-        Some(Self {
+    pub fn checked_neg(self) -> RdfOpResult<Self> {
+        Ok(Self {
             seconds: self.seconds.checked_neg()?,
         })
     }
@@ -634,15 +641,18 @@ impl TryFrom<DayTimeDuration> for StdDuration {
         if value.seconds.is_negative() {
             return Err(DurationOverflowError);
         }
-        let secs = value.seconds.checked_floor().ok_or(DurationOverflowError)?;
+        let secs = value
+            .seconds
+            .checked_floor()
+            .map_err(|_| DurationOverflowError)?;
         let nanos = value
             .seconds
             .checked_sub(secs)
-            .ok_or(DurationOverflowError)?
+            .map_err(|_| DurationOverflowError)?
             .checked_mul(1_000_000_000)
-            .ok_or(DurationOverflowError)?
+            .map_err(|_| DurationOverflowError)?
             .checked_floor()
-            .ok_or(DurationOverflowError)?;
+            .map_err(|_| DurationOverflowError)?;
         Ok(Self::new(
             secs.as_i128()
                 .try_into()
@@ -824,9 +834,9 @@ fn duration_parts(input: &str) -> Result<(DurationParts, &str), ParseDurationErr
                                     is_negative,
                                 )?
                                 .checked_mul(86400)
-                                .ok_or(OVERFLOW_ERROR)?,
+                                .map_err(|_| OVERFLOW_ERROR)?,
                             )
-                            .ok_or(OVERFLOW_ERROR)?,
+                            .map_err(|_| OVERFLOW_ERROR)?,
                     );
                     state = AFTER_DAY;
                 }
@@ -845,9 +855,9 @@ fn duration_parts(input: &str) -> Result<(DurationParts, &str), ParseDurationErr
                                     is_negative,
                                 )?
                                 .checked_mul(3600)
-                                .ok_or(OVERFLOW_ERROR)?,
+                                .map_err(|_| OVERFLOW_ERROR)?,
                             )
-                            .ok_or(OVERFLOW_ERROR)?,
+                            .map_err(|_| OVERFLOW_ERROR)?,
                     );
                     state = AFTER_HOUR;
                 }
@@ -866,9 +876,9 @@ fn duration_parts(input: &str) -> Result<(DurationParts, &str), ParseDurationErr
                                     is_negative,
                                 )?
                                 .checked_mul(60)
-                                .ok_or(OVERFLOW_ERROR)?,
+                                .map_err(|_| OVERFLOW_ERROR)?,
                             )
-                            .ok_or(OVERFLOW_ERROR)?,
+                            .map_err(|_| OVERFLOW_ERROR)?,
                     );
                     state = AFTER_MINUTE;
                 }
@@ -880,7 +890,7 @@ fn duration_parts(input: &str) -> Result<(DurationParts, &str), ParseDurationErr
                                 Decimal::from_str(number_str).map_err(|_| OVERFLOW_ERROR)?,
                                 is_negative,
                             )?)
-                            .ok_or(OVERFLOW_ERROR)?,
+                            .map_err(|_| OVERFLOW_ERROR)?,
                     );
                     state = AFTER_SECOND;
                 }
@@ -914,7 +924,7 @@ fn apply_i64_neg(value: i64, is_negative: bool) -> Result<i64, ParseDurationErro
 
 fn apply_decimal_neg(value: Decimal, is_negative: bool) -> Result<Decimal, ParseDurationError> {
     if is_negative {
-        value.checked_neg().ok_or(OVERFLOW_ERROR)
+        value.checked_neg().map_err(|_| OVERFLOW_ERROR)
     } else {
         Ok(value)
     }

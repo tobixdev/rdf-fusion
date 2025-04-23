@@ -16,7 +16,7 @@ pub use numeric::*;
 pub use strings::*;
 pub use terms::*;
 
-use datamodel::{RdfOpResult, RdfValueRef};
+use datamodel::{RdfOpError, RdfOpResult, RdfValueRef};
 
 pub trait ScalarNullaryRdfOp {
     type Result<'data>;
@@ -24,7 +24,7 @@ pub trait ScalarNullaryRdfOp {
     fn evaluate<'data>(&self) -> RdfOpResult<Self::Result<'data>>;
 
     fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
-        Err(())
+        Err(RdfOpError)
     }
 }
 
@@ -35,7 +35,7 @@ pub trait ScalarUnaryRdfOp {
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>>;
 
     fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
-        Err(())
+        Err(RdfOpError)
     }
 }
 
@@ -51,7 +51,7 @@ pub trait ScalarBinaryRdfOp {
     ) -> RdfOpResult<Self::Result<'data>>;
 
     fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
-        Err(())
+        Err(RdfOpError)
     }
 }
 
@@ -74,7 +74,7 @@ pub trait ScalarTernaryRdfOp {
         _arg1: RdfOpResult<Self::Arg1<'data>>,
         _arg2: RdfOpResult<Self::Arg2<'data>>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        Err(())
+        Err(RdfOpError)
     }
 }
 
@@ -94,7 +94,7 @@ pub trait ScalarQuaternaryRdfOp {
     ) -> RdfOpResult<Self::Result<'data>>;
 
     fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
-        Err(())
+        Err(RdfOpError)
     }
 }
 
@@ -108,6 +108,6 @@ pub trait ScalarNAryRdfOp {
         &self,
         _args: &[RdfOpResult<Self::Args<'data>>],
     ) -> RdfOpResult<Self::Result<'data>> {
-        Err(())
+        Err(RdfOpError)
     }
 }

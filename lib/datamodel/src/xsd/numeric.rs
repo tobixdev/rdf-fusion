@@ -2,7 +2,7 @@ use crate::xsd::decimal::Decimal;
 use crate::xsd::double::Double;
 use crate::xsd::float::Float;
 use crate::xsd::integer::Integer;
-use crate::{Int, RdfOpResult, RdfValueRef, TermRef};
+use crate::{Int, RdfOpError, RdfOpResult, RdfValueRef, TermRef};
 use std::cmp::Ordering;
 use std::hash::Hash;
 
@@ -46,7 +46,7 @@ impl RdfValueRef<'_> for Numeric {
     {
         match term {
             TermRef::NumericLiteral(inner) => Ok(inner),
-            _ => Err(()),
+            _ => Err(RdfOpError),
         }
     }
 }
@@ -90,12 +90,6 @@ impl PartialOrd for Numeric {
     }
 }
 
-impl Ord for Numeric {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("Ordering is total")
-    }
-}
-
 pub enum NumericPair {
     Int(Int, Int),
     Integer(Integer, Integer),
@@ -117,18 +111,14 @@ impl NumericPair {
 
             (Numeric::Integer(lhs), Numeric::Int(rhs)) => NumericPair::Integer(lhs, rhs.into()),
             (Numeric::Integer(lhs), Numeric::Integer(rhs)) => NumericPair::Integer(lhs, rhs),
-            (Numeric::Integer(lhs), Numeric::Float(rhs)) => {
-                NumericPair::Float(lhs.into(), rhs.into())
-            }
+            (Numeric::Integer(lhs), Numeric::Float(rhs)) => NumericPair::Float(lhs.into(), rhs),
             (Numeric::Integer(lhs), Numeric::Double(rhs)) => NumericPair::Double(lhs.into(), rhs),
             (Numeric::Integer(lhs), Numeric::Decimal(rhs)) => {
                 NumericPair::Decimal(Decimal::from(lhs), rhs)
             }
 
             (Numeric::Float(lhs), Numeric::Int(rhs)) => NumericPair::Float(lhs, rhs.into()),
-            (Numeric::Float(lhs), Numeric::Integer(rhs)) => {
-                NumericPair::Float(lhs.into(), rhs.into())
-            }
+            (Numeric::Float(lhs), Numeric::Integer(rhs)) => NumericPair::Float(lhs, rhs.into()),
             (Numeric::Float(lhs), Numeric::Float(rhs)) => NumericPair::Float(lhs, rhs),
             (Numeric::Float(lhs), Numeric::Double(rhs)) => NumericPair::Double(lhs.into(), rhs),
             (Numeric::Float(lhs), Numeric::Decimal(rhs)) => NumericPair::Float(lhs, rhs.into()),

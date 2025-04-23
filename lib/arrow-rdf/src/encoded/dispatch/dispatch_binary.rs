@@ -5,6 +5,7 @@ use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::Array;
 use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
+use datamodel::RdfOpError;
 use functions_scalar::ScalarBinaryRdfOp;
 
 pub fn dispatch_binary<'data, TUdf>(
@@ -82,7 +83,7 @@ where
         Err(_) => {
             let result = udf
                 .evaluate_error()
-                .and_then(|v| v.into_scalar_value().map_err(|_| ()))
+                .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
                 .unwrap_or(encode_scalar_null());
             return Ok(ColumnarValue::Scalar(result));
         }
@@ -118,7 +119,7 @@ where
         Err(_) => {
             let result = udf
                 .evaluate_error()
-                .and_then(|v| v.into_scalar_value().map_err(|_| ()))
+                .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
                 .unwrap_or(encode_scalar_null());
             return Ok(ColumnarValue::Scalar(result));
         }
@@ -153,11 +154,11 @@ where
     let result = match (lhs, rhs) {
         (Ok(lhs), Ok(rhs)) => udf
             .evaluate(lhs, rhs)
-            .and_then(|v| v.into_scalar_value().map_err(|_| ()))
+            .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
             .unwrap_or(encode_scalar_null()),
         _ => udf
             .evaluate_error()
-            .and_then(|v| v.into_scalar_value().map_err(|_| ()))
+            .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
             .unwrap_or(encode_scalar_null()),
     };
     Ok(ColumnarValue::Scalar(result))
