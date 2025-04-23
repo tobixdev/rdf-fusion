@@ -59,12 +59,8 @@ impl Debug for OxigraphMemExec {
 }
 
 impl DisplayAs for OxigraphMemExec {
-    fn fmt_as(&self, t: DisplayFormatType, f: &mut Formatter<'_>) -> fmt::Result {
-        match t {
-            DisplayFormatType::Default | DisplayFormatType::Verbose => {
-                write!(f, "OxigraphMemExec")
-            }
-        }
+    fn fmt_as(&self, _: DisplayFormatType, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "OxigraphMemExec")
     }
 }
 

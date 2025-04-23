@@ -4,9 +4,7 @@ use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::cast::as_int64_array;
 use datafusion::common::exec_err;
-use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
-};
+use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
 use std::any::Any;
 
 #[derive(Debug)]
@@ -42,20 +40,16 @@ impl ScalarUDFImpl for EncInt64AsRdfTerm {
         Ok(EncTerm::data_type())
     }
 
-    fn invoke_batch(
-        &self,
-        args: &[ColumnarValue],
-        number_rows: usize,
-    ) -> datafusion::common::Result<ColumnarValue> {
-        if args.len() != 1 {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
+        if args.args.len() != 1 {
             return exec_err!("Unexpected number of arguments");
         }
 
         // Performance could be optimized here
-        let arg = args[0].to_array(number_rows)?;
+        let arg = args.args[0].to_array(args.number_rows)?;
         let arg = as_int64_array(&arg)?;
         let mut builder = EncRdfTermBuilder::new();
-        for i in 0..number_rows {
+        for i in 0..args.number_rows {
             if arg.is_null(i) {
                 builder.append_null()?;
             } else {

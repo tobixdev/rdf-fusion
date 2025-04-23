@@ -140,12 +140,8 @@ impl ExecutionPlan for KleenePlusClosureExec {
 }
 
 impl DisplayAs for KleenePlusClosureExec {
-    fn fmt_as(&self, t: DisplayFormatType, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match t {
-            DisplayFormatType::Default | DisplayFormatType::Verbose => {
-                write!(f, "KleenePlusPathExec")
-            }
-        }
+    fn fmt_as(&self, _: DisplayFormatType, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "KleenePlusPathExec")
     }
 }
 

@@ -4,9 +4,7 @@ use crate::DFResult;
 use datafusion::arrow::array::{as_union_array, StructArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
-use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
-};
+use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
 use datamodel::{RdfOpResult, TermRef};
 use std::any::Any;
 use std::sync::Arc;
@@ -44,19 +42,15 @@ impl ScalarUDFImpl for EncWithSortableEncoding {
         Ok(SortableTerm::data_type())
     }
 
-    fn invoke_batch(
-        &self,
-        args: &[ColumnarValue],
-        number_rows: usize,
-    ) -> datafusion::common::Result<ColumnarValue> {
-        if args.len() != 1 {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
+        if args.args.len() != 1 {
             return exec_err!("Unexpected number of arguments");
         }
 
-        match &args[0] {
+        match &args.args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_union_array(array);
-                let values = (0..number_rows)
+                let values = (0..args.number_rows)
                     .into_iter()
                     .map(|i| TermRef::from_enc_array(array, i));
                 let result = into_struct_enc(values)?;

@@ -15,8 +15,9 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema, JoinType};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
-use datafusion::functions_aggregate::count::{count, count_all, count_distinct, count_udaf};
+use datafusion::functions_aggregate::count::{count, count_distinct, count_udaf};
 use datafusion::functions_aggregate::first_last::first_value;
+use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
 };
@@ -539,7 +540,7 @@ impl GraphPatternRewriter {
         let expression_rewriter = ExpressionRewriter::new(self, self.base_iri.as_ref(), schema);
         match expression {
             AggregateExpression::CountSolutions { distinct } => match distinct {
-                false => Ok(count_all()),
+                false => Ok(count(Expr::Literal(COUNT_STAR_EXPANSION))),
                 true => {
                     let exprs = schema
                         .columns()

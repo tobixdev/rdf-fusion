@@ -5,7 +5,7 @@ use crate::{
     make_binary_rdf_udf, make_n_ary_rdf_udf, make_nullary_rdf_udf, make_quaternary_rdf_udf,
     make_ternary_rdf_udf, make_unary_rdf_udf,
 };
-use datafusion::logical_expr::ScalarUDF;
+use datafusion::logical_expr::{ScalarFunctionArgs, ScalarUDF};
 use datamodel::Iri;
 use functions_scalar::*;
 
@@ -227,12 +227,11 @@ impl datafusion::logical_expr::ScalarUDFImpl for EncIri {
         Ok(EncTerm::data_type())
     }
 
-    fn invoke_batch(
+    fn invoke_with_args(
         &self,
-        args: &[datafusion::physical_plan::ColumnarValue],
-        number_rows: usize,
+        args: ScalarFunctionArgs<'_>,
     ) -> datafusion::common::Result<datafusion::physical_plan::ColumnarValue> {
-        dispatch_unary(&self.implementation, args, number_rows)
+        dispatch_unary(&self.implementation, args.args.as_slice(), args.number_rows)
     }
 }
 

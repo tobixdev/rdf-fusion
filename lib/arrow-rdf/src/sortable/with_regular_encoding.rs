@@ -1,16 +1,16 @@
 use crate::encoded::{EncRdfTermBuilder, EncTerm};
 use crate::sortable::from_sortable_term::FromSortableTerm;
+use crate::sortable::SortableTerm;
 use crate::DFResult;
 use datafusion::arrow::array::{as_struct_array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use datamodel::{Numeric, RdfOpResult, TermRef};
 use std::any::Any;
 use std::sync::Arc;
-use crate::sortable::SortableTerm;
 
 #[derive(Debug)]
 pub struct EncWithRegularEncoding {
@@ -45,28 +45,27 @@ impl ScalarUDFImpl for EncWithRegularEncoding {
         Ok(EncTerm::data_type())
     }
 
-    fn invoke_batch(
+    fn invoke_with_args(
         &self,
-        args: &[ColumnarValue],
-        number_rows: usize,
+        args: ScalarFunctionArgs<'_>,
     ) -> datafusion::common::Result<ColumnarValue> {
-        if args.len() != 1 {
+        if args.args.len() != 1 {
             return exec_err!("Unexpected number of arguments");
         }
 
-        match &args[0] {
+        match &args.args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_struct_array(array);
-                let values = (0..number_rows)
+                let values = (0..args.number_rows)
                     .into_iter()
                     .map(|i| TermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
-                let array = scalar.to_array_of_size(number_rows)?;
+                let array = scalar.to_array_of_size(args.number_rows)?;
                 let array = as_struct_array(&array);
-                let values = (0..number_rows)
+                let values = (0..args.number_rows)
                     .into_iter()
                     .map(|i| TermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;

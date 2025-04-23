@@ -3,9 +3,7 @@ use crate::encoded::EncTerm;
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
-use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
-};
+use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
 use datamodel::{Decimal, Double, Float, Int, Integer, Numeric, RdfOpResult, TermRef};
 use std::any::Any;
 use std::sync::Arc;
@@ -44,19 +42,15 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
         Ok(DataType::Boolean)
     }
 
-    fn invoke_batch(
-        &self,
-        args: &[ColumnarValue],
-        number_rows: usize,
-    ) -> datafusion::common::Result<ColumnarValue> {
-        if args.len() != 1 {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> datafusion::common::Result<ColumnarValue> {
+        if args.args.len() != 1 {
             return exec_err!("Unexpected number of arguments");
         }
 
-        match &args[0] {
+        match &args.args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_enc_term_array(array.as_ref())?;
-                let result = (0..number_rows)
+                let result = (0..args.number_rows)
                     .into_iter()
                     .map(|i| TermRef::from_enc_array(array, i).and_then(evaluate).ok())
                     .collect::<BooleanArray>();

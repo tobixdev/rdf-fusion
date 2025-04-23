@@ -3,9 +3,7 @@ use crate::encoded::{EncTerm, EncTermField};
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::ScalarValue;
-use datafusion::logical_expr::{
-    ColumnarValue, ScalarUDFImpl, Signature, TypeSignature, Volatility,
-};
+use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility};
 use datamodel::{Boolean, RdfOpResult, TermRef};
 use functions_scalar::ScalarBinaryRdfOp;
 use std::any::Any;
@@ -73,12 +71,8 @@ impl ScalarUDFImpl for EncIsCompatible {
         Ok(DataType::Boolean)
     }
 
-    fn invoke_batch(
-        &self,
-        args: &[ColumnarValue],
-        number_rows: usize,
-    ) -> datafusion::common::Result<ColumnarValue> {
-        let result = dispatch_binary(self, args, number_rows)?;
+    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> datafusion::common::Result<ColumnarValue> {
+        let result = dispatch_binary(self, args.args.as_slice(), args.number_rows)?;
         match result {
             ColumnarValue::Array(array) => {
                 let array = as_enc_term_array(array.as_ref())?;

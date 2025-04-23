@@ -39,12 +39,11 @@ macro_rules! make_nullary_rdf_udf {
                 Ok(crate::EncTerm::data_type())
             }
 
-            fn invoke_batch(
+            fn invoke_with_args(
                 &self,
-                _args: &[datafusion::physical_plan::ColumnarValue],
-                number_rows: usize,
+                args: datafusion::logical_expr::ScalarFunctionArgs<'_>,
             ) -> datafusion::common::Result<datafusion::physical_plan::ColumnarValue> {
-                let results = (0..number_rows)
+                let results = (0..args.number_rows)
                     .into_iter()
                     .map(|_| functions_scalar::ScalarNullaryRdfOp::evaluate(&self.implementation));
 
@@ -179,12 +178,11 @@ macro_rules! make_rdf_udf {
                 Ok(crate::EncTerm::data_type())
             }
 
-            fn invoke_batch(
+            fn invoke_with_args(
                 &self,
-                args: &[datafusion::physical_plan::ColumnarValue],
-                number_rows: usize,
+                args: datafusion::logical_expr::ScalarFunctionArgs<'_>,
             ) -> datafusion::common::Result<datafusion::physical_plan::ColumnarValue> {
-                $DISPATCH(&self.implementation, args, number_rows)
+                $DISPATCH(&self.implementation, args.args.as_slice(), args.number_rows)
             }
         }
 
