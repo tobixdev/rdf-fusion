@@ -702,6 +702,11 @@ fn create_join(
         .map(|c| c.name().to_string())
         .collect();
 
+    // If both solutions are disjoint, we can use a cross join.
+    if lhs_keys.is_disjoint(&rhs_keys) && filter.is_none() {
+        return lhs.cross_join(rhs.build()?);
+    }
+
     let mut join_schema = lhs.schema().as_ref().clone();
     join_schema.merge(rhs.schema());
 
@@ -869,10 +874,22 @@ fn create_distinct_on_expr(
             .collect());
     };
 
-    let mut on_exprs = create_initial_columns_from_sort(sort_exprs)?;
+    let mut on_exprs = Vec::new();
+
+    // TODO: This should be easier to do.
+    let on_exprs_order = create_initial_columns_from_sort(sort_exprs)?;
+    for on_expr in &on_exprs_order {
+        let column = schema
+            .columns()
+            .into_iter()
+            .find(|c| c.name() == on_expr)
+            .expect("Column must exist");
+        on_exprs.push(column);
+    }
+
     for column in schema.columns() {
         if !on_exprs.contains(&column) {
-            on_exprs.push(column.clone());
+            on_exprs.push(column);
         }
     }
 
@@ -885,11 +902,11 @@ fn create_distinct_on_expr(
 /// When creating a DISTINCT ON node, the initial `on_expr` expressions must match the given
 /// `sort_expr` (if they exist). This function creates these initial columns from the order
 /// expressions.
-fn create_initial_columns_from_sort(sort_exprs: &Vec<OrderExpression>) -> DFResult<Vec<Column>> {
+fn create_initial_columns_from_sort(sort_exprs: &Vec<OrderExpression>) -> DFResult<Vec<String>> {
     sort_exprs
         .iter()
         .map(|sort_expr| match sort_expr.expression() {
-            Expression::Variable(var) => Ok(Column::new_unqualified(var.as_str())),
+            Expression::Variable(var) => Ok(var.as_str().to_owned()),
             _ => plan_err!(
                 "Expression {} not supported for ORDER BY in combination with DISTINCT.",
                 sort_expr
