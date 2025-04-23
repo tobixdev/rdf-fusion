@@ -65,7 +65,18 @@ impl GraphPatternRewriter {
     fn rewrite_graph_pattern(&self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
         match pattern {
             GraphPattern::Bgp { patterns } => self.rewrite_bgp(patterns),
-            GraphPattern::Project { inner, variables } => self.rewrite_project(inner, variables),
+            GraphPattern::Project { inner, variables } => {
+                if self.graph_variable_goes_out_of_scope(variables) {
+                    let old_state = self.state.borrow().clone();
+                    let new_state = old_state.with_graph_variable_going_out_of_scope();
+                    self.state.replace(new_state);
+                    let result = self.rewrite_project(inner, variables);
+                    self.state.replace(old_state);
+                    result
+                } else {
+                    self.rewrite_project(inner, variables)
+                }
+            }
             GraphPattern::Filter { inner, expr } => self.rewrite_filter(inner, expr),
             GraphPattern::Extend {
                 inner,
@@ -135,11 +146,11 @@ impl GraphPatternRewriter {
         )?;
         let plan = filter_by_named_graph(plan, &self.dataset, self.state.borrow().graph.as_ref())?;
 
-        let graph_pattern = self
-            .state
-            .borrow()
+        let state = self.state.borrow();
+        let graph_pattern = state
             .graph
             .as_ref()
+            .filter(|_| !state.graph_is_out_of_scope)
             .map(|nn| nn.clone().into_term_pattern());
 
         match graph_pattern {
@@ -179,6 +190,22 @@ impl GraphPatternRewriter {
                 .iter()
                 .map(|v| col(Column::new_unqualified(v.as_str()))),
         )
+    }
+
+    /// Checks whether a potential variable in the GRAPH pattern goes out of scope. This is the case
+    /// if it either already is out of scope or if the variable is not projected to the outer
+    /// query.
+    fn graph_variable_goes_out_of_scope(&self, variables: &Vec<Variable>) -> bool {
+        let state = self.state.borrow();
+        state
+            .graph
+            .as_ref()
+            .filter(|_| !state.graph_is_out_of_scope)
+            .filter(|p| match p {
+                NamedNodePattern::Variable(v) => !variables.contains(v),
+                _ => false,
+            })
+            .is_some()
     }
 
     /// Creates a filter node using `expression`.
@@ -607,14 +634,30 @@ impl GraphPatternRewriter {
 
 #[derive(Clone, Default)]
 struct RewritingState {
+    /// Indicates whether the active graph is restricted to a particular pattern.
+    /// Note that [RewritingState::only_named_graphs] is still necessary, as the pattern can go
+    /// out of scope.
     graph: Option<NamedNodePattern>,
+    /// Indicates whether the active graph pattern is out of scope.
+    graph_is_out_of_scope: bool,
 }
 
 impl RewritingState {
+    /// Returns a new state like `self` but with the current graph set to `graph`.
     fn with_graph(&self, graph: NamedNodePattern) -> RewritingState {
         RewritingState {
             graph: Some(graph),
+            graph_is_out_of_scope: false,
             ..*self
+        }
+    }
+
+    /// Returns a new state like `self` but where [RewritingState::graph_is_out_of_scope] is set to
+    /// `true`.
+    fn with_graph_variable_going_out_of_scope(&self) -> RewritingState {
+        RewritingState {
+            graph_is_out_of_scope: true,
+            graph: self.graph.clone(),
         }
     }
 }
