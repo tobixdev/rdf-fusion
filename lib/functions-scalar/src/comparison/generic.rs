@@ -9,6 +9,12 @@ macro_rules! create_binary_cmp_udf {
         pub struct $STRUCT {
         }
 
+        impl Default for $STRUCT {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
         impl $STRUCT {
             pub fn new() -> Self {
                 Self {}

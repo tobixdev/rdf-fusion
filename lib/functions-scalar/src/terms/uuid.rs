@@ -3,7 +3,13 @@ use oxrdf::NamedNode;
 use uuid::Uuid;
 
 #[derive(Debug)]
-pub struct UuidRdfOp {}
+pub struct UuidRdfOp;
+
+impl Default for UuidRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl UuidRdfOp {
     pub fn new() -> Self {

@@ -11,7 +11,7 @@ pub type RdfOpResult<T> = Result<T, RdfOpError>;
 
 /// An empty error type for RDF operations. We do not want to add details to the error, as they are
 /// all encoded as NULLs in the solution sequence.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct RdfOpError;
 
 impl Debug for RdfOpError {

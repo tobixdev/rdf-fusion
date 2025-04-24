@@ -3,7 +3,11 @@ use crate::sortable::term_type::SortableTermType;
 use crate::sortable::SortableTermField;
 use datafusion::arrow::array::{Array, AsArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
-use datamodel::{Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpError, RdfOpResult, SimpleLiteralRef, TermRef, Time, TypedLiteralRef, YearMonthDuration};
+use datamodel::{
+    Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
+    LanguageStringRef, Numeric, RdfOpError, RdfOpResult, SimpleLiteralRef, TermRef, Time,
+    TypedLiteralRef, YearMonthDuration,
+};
 use oxrdf::{BlankNodeRef, NamedNodeRef};
 
 pub trait FromSortableTerm<'data> {

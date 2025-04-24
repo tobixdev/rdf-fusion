@@ -3,7 +3,13 @@ use datamodel::OwnedStringLiteral;
 use uuid::Uuid;
 
 #[derive(Debug)]
-pub struct StrUuidRdfOp {}
+pub struct StrUuidRdfOp;
+
+impl Default for StrUuidRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl StrUuidRdfOp {
     pub fn new() -> Self {

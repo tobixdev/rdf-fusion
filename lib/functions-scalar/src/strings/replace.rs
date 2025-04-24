@@ -4,9 +4,15 @@ use datamodel::{OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef};
 use std::borrow::Cow;
 
 #[derive(Debug)]
-pub struct ReplaceRdfOp {}
+pub struct ReplaceRdfOp;
 
 // TODO: Support pre-compiled regex if not a variable
+
+impl Default for ReplaceRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ReplaceRdfOp {
     pub fn new() -> Self {
@@ -22,18 +28,18 @@ impl ScalarTernaryRdfOp for ReplaceRdfOp {
 
     fn evaluate<'data>(
         &self,
-        text: Self::Arg0<'data>,
-        pattern: Self::Arg1<'data>,
-        replacement: Self::Arg2<'data>,
+        arg0: Self::Arg0<'data>,
+        arg1: Self::Arg1<'data>,
+        arg2: Self::Arg2<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        let regex = compile_pattern(&pattern.value, None).ok_or(())?;
+        let regex = compile_pattern(arg1.value, None).ok_or(())?;
 
-        let result = match regex.replace_all(&text.0, replacement.value) {
+        let result = match regex.replace_all(arg0.0, arg2.value) {
             Cow::Owned(replaced) => replaced,
-            Cow::Borrowed(_) => text.0.to_string(),
+            Cow::Borrowed(_) => arg0.0.to_owned(),
         };
 
-        Ok(OwnedStringLiteral::new(result, text.1.map(String::from)))
+        Ok(OwnedStringLiteral::new(result, arg0.1.map(String::from)))
     }
 }
 
@@ -46,18 +52,18 @@ impl ScalarQuaternaryRdfOp for ReplaceRdfOp {
 
     fn evaluate<'data>(
         &self,
-        text: Self::Arg0<'data>,
-        pattern: Self::Arg1<'data>,
-        replacement: Self::Arg2<'data>,
-        flags: Self::Arg3<'data>,
+        arg0: Self::Arg0<'data>,
+        arg1: Self::Arg1<'data>,
+        arg2: Self::Arg2<'data>,
+        arg3: Self::Arg3<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        let regex = compile_pattern(&pattern.value, Some(flags.value)).ok_or(())?;
+        let regex = compile_pattern(arg1.value, Some(arg3.value)).ok_or(())?;
 
-        let result = match regex.replace_all(&text.0, replacement.value) {
+        let result = match regex.replace_all(arg0.0, arg2.value) {
             Cow::Owned(replaced) => replaced,
-            Cow::Borrowed(_) => text.0.to_string(),
+            Cow::Borrowed(_) => arg0.0.to_owned(),
         };
 
-        Ok(OwnedStringLiteral::new(result, text.1.map(String::from)))
+        Ok(OwnedStringLiteral::new(result, arg0.1.map(String::from)))
     }
 }

@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{DateTime, OwnedStringLiteral};
 
 #[derive(Debug)]
-pub struct TzRdfOp {}
+pub struct TzRdfOp;
+
+impl Default for TzRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TzRdfOp {
     pub fn new() -> Self {
@@ -18,7 +24,7 @@ impl ScalarUnaryRdfOp for TzRdfOp {
         let result = value
             .timezone_offset()
             .map(|offset| offset.to_string())
-            .unwrap_or(String::new());
+            .unwrap_or_default();
         Ok(OwnedStringLiteral::new(result, None))
     }
 }

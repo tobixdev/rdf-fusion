@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarBinaryRdfOp};
 use datamodel::{Boolean, SimpleLiteralRef};
 
 #[derive(Debug)]
-pub struct LangMatchesRdfOp {}
+pub struct LangMatchesRdfOp;
+
+impl Default for LangMatchesRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl LangMatchesRdfOp {
     pub fn new() -> Self {
@@ -17,15 +23,15 @@ impl ScalarBinaryRdfOp for LangMatchesRdfOp {
 
     fn evaluate<'data>(
         &self,
-        language_tag: Self::ArgLhs<'data>,
-        language_range: Self::ArgRhs<'data>,
+        lhs: Self::ArgLhs<'data>,
+        rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        let matches = if &*language_range.value == "*" {
-            !language_tag.value.is_empty()
+        let matches = if rhs.value == "*" {
+            !lhs.value.is_empty()
         } else {
             !ZipLongest::new(
-                language_range.value.split('-'),
-                language_tag.value.split('-'),
+                rhs.value.split('-'),
+                lhs.value.split('-'),
             )
             .any(|parts| match parts {
                 (Some(range_subtag), Some(language_subtag)) => {

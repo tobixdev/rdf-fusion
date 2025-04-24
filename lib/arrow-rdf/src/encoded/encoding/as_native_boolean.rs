@@ -14,6 +14,12 @@ pub struct EncAsNativeBoolean {
     signature: Signature,
 }
 
+impl Default for EncAsNativeBoolean {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EncAsNativeBoolean {
     pub fn new() -> Self {
         Self {

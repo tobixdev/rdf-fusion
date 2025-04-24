@@ -4,7 +4,13 @@ use md5::Digest;
 use sha2::Sha512;
 
 #[derive(Debug)]
-pub struct Sha512RdfOp {}
+pub struct Sha512RdfOp;
+
+impl Default for Sha512RdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Sha512RdfOp {
     pub fn new() -> Self {

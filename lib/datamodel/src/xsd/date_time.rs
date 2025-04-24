@@ -158,7 +158,6 @@ impl DateTime {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    #[must_use]
     pub fn checked_add_year_month_duration(
         self,
         rhs: impl Into<YearMonthDuration>,
@@ -179,7 +178,7 @@ impl DateTime {
 
     /// [op:add-yearMonthDuration-to-dateTime](https://www.w3.org/TR/xpath-functions-31/#func-add-yearMonthDuration-to-dateTime) and [op:add-dayTimeDuration-to-dateTime](https://www.w3.org/TR/xpath-functions-31/#func-add-dayTimeDuration-to-dateTime)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
@@ -197,7 +196,7 @@ impl DateTime {
 
     /// [op:subtract-yearMonthDuration-from-dateTime](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDuration-from-dateTime)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_sub_year_month_duration(
         self,
@@ -208,7 +207,7 @@ impl DateTime {
 
     /// [op:subtract-dayTimeDuration-from-dateTime](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDuration-from-dateTime)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_sub_day_time_duration(
         self,
@@ -222,9 +221,8 @@ impl DateTime {
 
     /// [op:subtract-yearMonthDuration-from-dateTime](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDuration-from-dateTime) and [op:subtract-dayTimeDuration-from-dateTime](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDuration-from-dateTime)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    #[must_use]
     pub fn checked_sub_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
         if let Ok(rhs) = DayTimeDuration::try_from(rhs) {
@@ -241,7 +239,7 @@ impl DateTime {
 
     /// [fn:adjust-dateTime-to-timezone](https://www.w3.org/TR/xpath-functions-31/#func-adjust-dateTime-to-timezone)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
         Ok(Self {
@@ -439,7 +437,7 @@ impl Time {
 
     /// [op:subtract-times](https://www.w3.org/TR/xpath-functions-31/#func-subtract-times)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<DayTimeDuration> {
         self.timestamp.checked_sub(rhs.into().timestamp)
@@ -447,7 +445,7 @@ impl Time {
 
     /// [op:add-dayTimeDuration-to-time](https://www.w3.org/TR/xpath-functions-31/#func-add-dayTimeDuration-to-time)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_add_day_time_duration(
         self,
@@ -458,7 +456,7 @@ impl Time {
 
     /// [op:add-dayTimeDuration-to-time](https://www.w3.org/TR/xpath-functions-31/#func-add-dayTimeDuration-to-time)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
         Ok(DateTime::from_seven_property_model(
@@ -476,9 +474,8 @@ impl Time {
 
     /// [op:subtract-dayTimeDuration-from-time](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDuration-from-time)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    #[must_use]
     pub fn checked_sub_day_time_duration(
         self,
         rhs: impl Into<DayTimeDuration>,
@@ -488,9 +485,8 @@ impl Time {
 
     /// [op:subtract-dayTimeDuration-from-time](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDuration-from-time)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    #[must_use]
     pub fn checked_sub_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
         Ok(DateTime::from_seven_property_model(
             1972,
@@ -683,7 +679,7 @@ impl Date {
 
     /// [op:subtract-dates](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dates)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<DayTimeDuration> {
         self.timestamp.checked_sub(rhs.into().timestamp)
@@ -691,7 +687,7 @@ impl Date {
 
     /// [op:add-yearMonthDuration-to-date](https://www.w3.org/TR/xpath-functions-31/#func-add-yearMonthDuration-to-date)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_add_year_month_duration(
         self,
@@ -702,7 +698,7 @@ impl Date {
 
     /// [op:add-dayTimeDuration-to-dateTime](https://www.w3.org/TR/xpath-functions-31/#func-add-dayTimeDuration-to-date)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_add_day_time_duration(
         self,
@@ -713,7 +709,7 @@ impl Date {
 
     /// [op:add-yearMonthDuration-to-date](https://www.w3.org/TR/xpath-functions-31/#func-add-yearMonthDuration-to-date) and [op:add-dayTimeDuration-to-dateTime](https://www.w3.org/TR/xpath-functions-31/#func-add-dayTimeDuration-to-date)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
         DateTime::try_from(self)?
@@ -724,7 +720,7 @@ impl Date {
 
     /// [op:subtract-yearMonthDuration-from-date](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDuration-from-date)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_sub_year_month_duration(
         self,
@@ -735,7 +731,7 @@ impl Date {
 
     /// [op:subtract-dayTimeDuration-from-date](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDuration-from-date)
     ///
-    /// Returns `None` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
+    /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
     pub fn checked_sub_day_time_duration(
         self,
@@ -1158,7 +1154,6 @@ impl GMonthDay {
     }
 
     #[inline]
-    #[must_use]
     pub fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
         Ok(Self {
             timestamp: self.timestamp.adjust(timezone_offset)?,
@@ -1275,7 +1270,6 @@ impl GMonth {
     }
 
     #[inline]
-    #[must_use]
     pub fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
         Ok(Self {
             timestamp: self.timestamp.adjust(timezone_offset)?,
@@ -2923,37 +2917,37 @@ mod tests {
         assert_eq!(
             DateTime::from_str("2000-10-30T06:12:00-05:00")?
                 .checked_sub(DateTime::from_str("1999-11-28T09:00:00Z")?),
-            Some(DayTimeDuration::from_str("P337DT2H12M")?)
+            Ok(DayTimeDuration::from_str("P337DT2H12M")?)
         );
 
         assert_eq!(
             Date::from_str("2000-10-30")?.checked_sub(Date::from_str("1999-11-28")?),
-            Some(DayTimeDuration::from_str("P337D")?)
+            Ok(DayTimeDuration::from_str("P337D")?)
         );
         assert_eq!(
             Date::from_str("2000-10-30+05:00")?.checked_sub(Date::from_str("1999-11-28Z")?),
-            Some(DayTimeDuration::from_str("P336DT19H")?)
+            Ok(DayTimeDuration::from_str("P336DT19H")?)
         );
         assert_eq!(
             Date::from_str("2000-10-15-05:00")?.checked_sub(Date::from_str("2000-10-10+02:00")?),
-            Some(DayTimeDuration::from_str("P5DT7H")?)
+            Ok(DayTimeDuration::from_str("P5DT7H")?)
         );
 
         assert_eq!(
             Time::from_str("11:12:00Z")?.checked_sub(Time::from_str("04:00:00-05:00")?),
-            Some(DayTimeDuration::from_str("PT2H12M")?)
+            Ok(DayTimeDuration::from_str("PT2H12M")?)
         );
         assert_eq!(
             Time::from_str("11:00:00-05:00")?.checked_sub(Time::from_str("21:30:00+05:30")?),
-            Some(DayTimeDuration::from_str("PT0S")?)
+            Ok(DayTimeDuration::from_str("PT0S")?)
         );
         assert_eq!(
             Time::from_str("17:00:00-06:00")?.checked_sub(Time::from_str("08:00:00+09:00")?),
-            Some(DayTimeDuration::from_str("P1D")?)
+            Ok(DayTimeDuration::from_str("P1D")?)
         );
         assert_eq!(
             Time::from_str("24:00:00")?.checked_sub(Time::from_str("23:59:59")?),
-            Some(DayTimeDuration::from_str("-PT23H59M59S")?)
+            Ok(DayTimeDuration::from_str("-PT23H59M59S")?)
         );
         Ok(())
     }
@@ -2963,61 +2957,61 @@ mod tests {
         assert_eq!(
             DateTime::from_str("2000-01-12T12:13:14Z")?
                 .checked_add_duration(Duration::from_str("P1Y3M5DT7H10M3.3S")?),
-            Some(DateTime::from_str("2001-04-17T19:23:17.3Z")?)
+            Ok(DateTime::from_str("2001-04-17T19:23:17.3Z")?)
         );
         assert_eq!(
             Date::from_str("2000-01-01")?.checked_add_duration(Duration::from_str("-P3M")?),
-            Some(Date::from_str("1999-10-01")?)
+            Ok(Date::from_str("1999-10-01")?)
         );
         assert_eq!(
             Date::from_str("2000-01-12")?.checked_add_duration(Duration::from_str("PT33H")?),
-            Some(Date::from_str("2000-01-13")?)
+            Ok(Date::from_str("2000-01-13")?)
         );
         assert_eq!(
             Date::from_str("2000-03-30")?.checked_add_duration(Duration::from_str("P1D")?),
-            Some(Date::from_str("2000-03-31")?)
+            Ok(Date::from_str("2000-03-31")?)
         );
         assert_eq!(
             Date::from_str("2000-03-31")?.checked_add_duration(Duration::from_str("P1M")?),
-            Some(Date::from_str("2000-04-30")?)
+            Ok(Date::from_str("2000-04-30")?)
         );
         assert_eq!(
             Date::from_str("2000-03-30")?.checked_add_duration(Duration::from_str("P1M")?),
-            Some(Date::from_str("2000-04-30")?)
+            Ok(Date::from_str("2000-04-30")?)
         );
         assert_eq!(
             Date::from_str("2000-04-30")?.checked_add_duration(Duration::from_str("P1D")?),
-            Some(Date::from_str("2000-05-01")?)
+            Ok(Date::from_str("2000-05-01")?)
         );
 
         assert_eq!(
             DateTime::from_str("2000-10-30T11:12:00")?
                 .checked_add_duration(Duration::from_str("P1Y2M")?),
-            Some(DateTime::from_str("2001-12-30T11:12:00")?)
+            Ok(DateTime::from_str("2001-12-30T11:12:00")?)
         );
         assert_eq!(
             DateTime::from_str("2000-10-30T11:12:00")?
                 .checked_add_duration(Duration::from_str("P3DT1H15M")?),
-            Some(DateTime::from_str("2000-11-02T12:27:00")?)
+            Ok(DateTime::from_str("2000-11-02T12:27:00")?)
         );
 
         assert_eq!(
             Date::from_str("2000-10-30")?.checked_add_duration(Duration::from_str("P1Y2M")?),
-            Some(Date::from_str("2001-12-30")?)
+            Ok(Date::from_str("2001-12-30")?)
         );
         assert_eq!(
             Date::from_str("2004-10-30Z")?.checked_add_duration(Duration::from_str("P2DT2H30M0S")?),
-            Some(Date::from_str("2004-11-01Z")?)
+            Ok(Date::from_str("2004-11-01Z")?)
         );
 
         assert_eq!(
             Time::from_str("11:12:00")?.checked_add_duration(Duration::from_str("P3DT1H15M")?),
-            Some(Time::from_str("12:27:00")?)
+            Ok(Time::from_str("12:27:00")?)
         );
         assert_eq!(
             Time::from_str("23:12:00+03:00")?
                 .checked_add_duration(Duration::from_str("P1DT3H15M")?),
-            Some(Time::from_str("02:27:00+03:00")?)
+            Ok(Time::from_str("02:27:00+03:00")?)
         );
         Ok(())
     }
@@ -3027,39 +3021,39 @@ mod tests {
         assert_eq!(
             DateTime::from_str("2000-10-30T11:12:00")?
                 .checked_sub_duration(Duration::from_str("P1Y2M")?),
-            Some(DateTime::from_str("1999-08-30T11:12:00")?)
+            Ok(DateTime::from_str("1999-08-30T11:12:00")?)
         );
         assert_eq!(
             DateTime::from_str("2000-10-30T11:12:00")?
                 .checked_sub_duration(Duration::from_str("P3DT1H15M")?),
-            Some(DateTime::from_str("2000-10-27T09:57:00")?)
+            Ok(DateTime::from_str("2000-10-27T09:57:00")?)
         );
 
         assert_eq!(
             Date::from_str("2000-10-30")?.checked_sub_duration(Duration::from_str("P1Y2M")?),
-            Some(Date::from_str("1999-08-30")?)
+            Ok(Date::from_str("1999-08-30")?)
         );
         assert_eq!(
             Date::from_str("2000-02-29Z")?.checked_sub_duration(Duration::from_str("P1Y")?),
-            Some(Date::from_str("1999-02-28Z")?)
+            Ok(Date::from_str("1999-02-28Z")?)
         );
         assert_eq!(
             Date::from_str("2000-10-31-05:00")?.checked_sub_duration(Duration::from_str("P1Y1M")?),
-            Some(Date::from_str("1999-09-30-05:00")?)
+            Ok(Date::from_str("1999-09-30-05:00")?)
         );
         assert_eq!(
             Date::from_str("2000-10-30")?.checked_sub_duration(Duration::from_str("P3DT1H15M")?),
-            Some(Date::from_str("2000-10-26")?)
+            Ok(Date::from_str("2000-10-26")?)
         );
 
         assert_eq!(
             Time::from_str("11:12:00")?.checked_sub_duration(Duration::from_str("P3DT1H15M")?),
-            Some(Time::from_str("09:57:00")?)
+            Ok(Time::from_str("09:57:00")?)
         );
         assert_eq!(
             Time::from_str("08:20:00-05:00")?
                 .checked_sub_duration(Duration::from_str("P23DT10H10M")?),
-            Some(Time::from_str("22:10:00-05:00")?)
+            Ok(Time::from_str("22:10:00-05:00")?)
         );
         Ok(())
     }
@@ -3069,63 +3063,63 @@ mod tests {
         assert_eq!(
             DateTime::from_str("2002-03-07T10:00:00-07:00")?
                 .adjust(Some(DayTimeDuration::from_str("PT10H")?.try_into()?)),
-            Some(DateTime::from_str("2002-03-08T03:00:00+10:00")?)
+            Ok(DateTime::from_str("2002-03-08T03:00:00+10:00")?)
         );
         assert_eq!(
             DateTime::from_str("2002-03-07T00:00:00+01:00")?
                 .adjust(Some(DayTimeDuration::from_str("-PT8H")?.try_into()?)),
-            Some(DateTime::from_str("2002-03-06T15:00:00-08:00")?)
+            Ok(DateTime::from_str("2002-03-06T15:00:00-08:00")?)
         );
         assert_eq!(
             DateTime::from_str("2002-03-07T10:00:00")?.adjust(None),
-            Some(DateTime::from_str("2002-03-07T10:00:00")?)
+            Ok(DateTime::from_str("2002-03-07T10:00:00")?)
         );
         assert_eq!(
             DateTime::from_str("2002-03-07T10:00:00-07:00")?.adjust(None),
-            Some(DateTime::from_str("2002-03-07T10:00:00")?)
+            Ok(DateTime::from_str("2002-03-07T10:00:00")?)
         );
 
         assert_eq!(
             Date::from_str("2002-03-07")?
                 .adjust(Some(DayTimeDuration::from_str("-PT10H")?.try_into()?)),
-            Some(Date::from_str("2002-03-07-10:00")?)
+            Ok(Date::from_str("2002-03-07-10:00")?)
         );
         assert_eq!(
             Date::from_str("2002-03-07-07:00")?
                 .adjust(Some(DayTimeDuration::from_str("-PT10H")?.try_into()?)),
-            Some(Date::from_str("2002-03-06-10:00")?)
+            Ok(Date::from_str("2002-03-06-10:00")?)
         );
         assert_eq!(
             Date::from_str("2002-03-07")?.adjust(None),
-            Some(Date::from_str("2002-03-07")?)
+            Ok(Date::from_str("2002-03-07")?)
         );
         assert_eq!(
             Date::from_str("2002-03-07-07:00")?.adjust(None),
-            Some(Date::from_str("2002-03-07")?)
+            Ok(Date::from_str("2002-03-07")?)
         );
 
         assert_eq!(
             Time::from_str("10:00:00")?
                 .adjust(Some(DayTimeDuration::from_str("-PT10H")?.try_into()?)),
-            Some(Time::from_str("10:00:00-10:00")?)
+            Ok(Time::from_str("10:00:00-10:00")?)
         );
         assert_eq!(
             Time::from_str("10:00:00-07:00")?
                 .adjust(Some(DayTimeDuration::from_str("-PT10H")?.try_into()?)),
-            Some(Time::from_str("07:00:00-10:00")?)
+            Ok(Time::from_str("07:00:00-10:00")?)
         );
         assert_eq!(
             Time::from_str("10:00:00")?.adjust(None),
-            Some(Time::from_str("10:00:00")?)
+            Ok(Time::from_str("10:00:00")?)
         );
         assert_eq!(
             Time::from_str("10:00:00-07:00")?.adjust(None),
-            Some(Time::from_str("10:00:00")?)
+            Ok(Time::from_str("10:00:00")?)
         );
         assert_eq!(
             Time::from_str("10:00:00-07:00")?
                 .adjust(Some(DayTimeDuration::from_str("PT10H")?.try_into()?)),
-            Some(Time::from_str("03:00:00+10:00")?)
+            Ok(Time::from_str("03:00:00+10:00")?)
         );
         Ok(())
     }

@@ -1,18 +1,18 @@
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::{exec_err, DataFusionError};
 use datamodel::Decimal;
-use once_cell::unsync::Lazy;
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
+use std::sync::LazyLock;
 
-const FIELDS_STRING: Lazy<Fields> = Lazy::new(|| {
+static FIELDS_STRING: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
         Field::new("value", DataType::Utf8, false),
         Field::new("language", DataType::Utf8, true),
     ])
 });
 
-const FIELDS_TIMESTAMP: Lazy<Fields> = Lazy::new(|| {
+static FIELDS_TIMESTAMP: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
         Field::new(
             "value",
@@ -23,14 +23,14 @@ const FIELDS_TIMESTAMP: Lazy<Fields> = Lazy::new(|| {
     ])
 });
 
-const FIELDS_TYPED_LITERAL: Lazy<Fields> = Lazy::new(|| {
+static FIELDS_TYPED_LITERAL: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
         Field::new("value", DataType::Utf8, false),
         Field::new("datatype", DataType::Utf8, false),
     ])
 });
 
-const FIELDS_DURATION: Lazy<Fields> = Lazy::new(|| {
+static FIELDS_DURATION: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
         Field::new("months", DataType::Int64, true),
         Field::new(
@@ -41,7 +41,7 @@ const FIELDS_DURATION: Lazy<Fields> = Lazy::new(|| {
     ])
 });
 
-const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
+static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
     let fields = vec![
         Field::new(
             EncTermField::Null.name(),
@@ -122,7 +122,7 @@ const FIELDS_TYPE: Lazy<UnionFields> = Lazy::new(|| {
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
 });
 
-pub struct EncTerm {}
+pub struct EncTerm;
 
 impl EncTerm {
     pub fn term_fields() -> UnionFields {

@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
-pub struct IsLiteralRdfOp {}
+pub struct IsLiteralRdfOp;
+
+impl Default for IsLiteralRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl IsLiteralRdfOp {
     pub fn new() -> Self {
@@ -15,11 +21,7 @@ impl ScalarUnaryRdfOp for IsLiteralRdfOp {
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
-        let result = match value {
-            TermRef::NamedNode(_) => false,
-            TermRef::BlankNode(_) => false,
-            _ => true,
-        };
+        let result = matches!(value, TermRef::NamedNode(_) | TermRef::BlankNode(_));
         Ok(result.into())
     }
 }

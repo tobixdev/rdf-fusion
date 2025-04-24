@@ -16,6 +16,12 @@ pub struct EncWithSortableEncoding {
     signature: Signature,
 }
 
+impl Default for EncWithSortableEncoding {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EncWithSortableEncoding {
     pub fn new() -> Self {
         Self {
@@ -53,7 +59,6 @@ impl ScalarUDFImpl for EncWithSortableEncoding {
             ColumnarValue::Array(array) => {
                 let array = as_union_array(array);
                 let values = (0..args.number_rows)
-                    .into_iter()
                     .map(|i| TermRef::from_enc_array(array, i));
                 let result = into_struct_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
@@ -84,7 +89,7 @@ fn into_struct_enc<'data>(
                 TermRef::BlankNode(v) => builder.append_blank_node(v),
                 TermRef::BooleanLiteral(v) => builder.append_boolean(v),
                 TermRef::NumericLiteral(v) => {
-                    builder.append_numeric(v.into(), v.to_be_bytes().as_ref())
+                    builder.append_numeric(v, v.to_be_bytes().as_ref())
                 }
                 TermRef::SimpleLiteral(v) => builder.append_string(v.value, None),
                 TermRef::LanguageStringLiteral(v) => {
@@ -125,7 +130,7 @@ mod tests {
         test_data_builder.append_boolean(true)?;
         test_data_builder.append_int(1.into())?;
         test_data_builder.append_integer(2.into())?;
-        test_data_builder.append_float(3u16.into())?;
+        test_data_builder.append_float(3_u16.into())?;
         test_data_builder.append_double(4.into())?;
         test_data_builder.append_decimal(5.into())?;
         test_data_builder.append_date(Date::new(Timestamp::new(0.into(), None)))?;

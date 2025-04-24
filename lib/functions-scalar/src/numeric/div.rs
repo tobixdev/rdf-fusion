@@ -2,7 +2,13 @@ use crate::ScalarBinaryRdfOp;
 use datamodel::{Decimal, Numeric, NumericPair, RdfOpResult};
 
 #[derive(Debug)]
-pub struct DivRdfOp {}
+pub struct DivRdfOp;
+
+impl Default for DivRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl DivRdfOp {
     pub fn new() -> Self {

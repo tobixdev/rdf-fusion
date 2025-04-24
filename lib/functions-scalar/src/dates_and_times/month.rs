@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{DateTime, Integer};
 
 #[derive(Debug)]
-pub struct MonthRdfOp {}
+pub struct MonthRdfOp;
+
+impl Default for MonthRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl MonthRdfOp {
     pub fn new() -> Self {

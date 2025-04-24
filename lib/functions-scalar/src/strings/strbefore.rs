@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarBinaryRdfOp};
 use datamodel::{CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
-pub struct StrBeforeRdfOp {}
+pub struct StrBeforeRdfOp;
+
+impl Default for StrBeforeRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl StrBeforeRdfOp {
     pub fn new() -> Self {
@@ -17,10 +23,10 @@ impl ScalarBinaryRdfOp for StrBeforeRdfOp {
 
     fn evaluate<'data>(
         &self,
-        arg_lhs: Self::ArgLhs<'data>,
-        arg_rhs: Self::ArgRhs<'data>,
+        lhs: Self::ArgLhs<'data>,
+        rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        let args = CompatibleStringArgs::try_from(arg_lhs, arg_rhs)?;
+        let args = CompatibleStringArgs::try_from(lhs, rhs)?;
 
         if let Some(position) = args.lhs.find(args.rhs) {
             Ok(StringLiteralRef(&args.lhs[..position], args.language))

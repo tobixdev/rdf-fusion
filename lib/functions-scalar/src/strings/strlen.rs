@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Integer, StringLiteralRef};
 
 #[derive(Debug)]
-pub struct StrLenRdfOp {}
+pub struct StrLenRdfOp;
+
+impl Default for StrLenRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl StrLenRdfOp {
     pub fn new() -> Self {

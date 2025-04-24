@@ -4,7 +4,13 @@ use md5::Digest;
 use sha2::Sha384;
 
 #[derive(Debug)]
-pub struct Sha384RdfOp {}
+pub struct Sha384RdfOp;
+
+impl Default for Sha384RdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Sha384RdfOp {
     pub fn new() -> Self {

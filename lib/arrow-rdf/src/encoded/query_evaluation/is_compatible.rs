@@ -16,8 +16,8 @@ pub struct EncIsCompatible {
     signature: Signature,
 }
 
-impl EncIsCompatible {
-    pub fn new() -> Self {
+impl Default for EncIsCompatible {
+    fn default() -> Self {
         Self {
             signature: Signature::new(
                 TypeSignature::Exact(vec![EncTerm::data_type(); 2]),

@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::Numeric;
 
 #[derive(Debug)]
-pub struct AbsRdfOp {}
+pub struct AbsRdfOp;
+
+impl Default for AbsRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AbsRdfOp {
     pub fn new() -> Self {

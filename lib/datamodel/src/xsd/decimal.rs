@@ -62,7 +62,7 @@ impl Decimal {
 
     /// [op:numeric-add](https://www.w3.org/TR/xpath-functions-31/#func-numeric-add)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         Ok(Self {
@@ -72,7 +72,7 @@ impl Decimal {
 
     /// [op:numeric-subtract](https://www.w3.org/TR/xpath-functions-31/#func-numeric-subtract)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         Ok(Self {
@@ -82,7 +82,7 @@ impl Decimal {
 
     /// [op:numeric-multiply](https://www.w3.org/TR/xpath-functions-31/#func-numeric-multiply)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_mul(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         // Idea: we shift right as much as possible to keep as much precision as possible
@@ -120,7 +120,7 @@ impl Decimal {
 
     /// [op:numeric-divide](https://www.w3.org/TR/xpath-functions-31/#func-numeric-divide)
     ///
-    /// Returns `None` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_div(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         // Idea: we shift the dividend left as much as possible to keep as much precision as possible
@@ -158,7 +158,7 @@ impl Decimal {
 
     /// [op:numeric-mod](https://www.w3.org/TR/xpath-functions-31/#func-numeric-mod)
     ///
-    /// Returns `None` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     #[must_use]
     pub fn checked_rem(self, rhs: impl Into<Self>) -> Option<Self> {
@@ -169,7 +169,7 @@ impl Decimal {
 
     /// Euclidean remainder
     ///
-    /// Returns `None` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     #[must_use]
     pub fn checked_rem_euclid(self, rhs: impl Into<Self>) -> Option<Self> {
@@ -180,7 +180,7 @@ impl Decimal {
 
     /// [op:numeric-unary-minus](https://www.w3.org/TR/xpath-functions-31/#func-numeric-unary-minus)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_neg(self) -> RdfOpResult<Self> {
         Ok(Self {
@@ -190,7 +190,7 @@ impl Decimal {
 
     /// [fn:abs](https://www.w3.org/TR/xpath-functions-31/#func-abs)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_abs(self) -> RdfOpResult<Self> {
         Ok(Self {
@@ -200,9 +200,8 @@ impl Decimal {
 
     /// [fn:round](https://www.w3.org/TR/xpath-functions-31/#func-round)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
     pub fn checked_round(self) -> RdfOpResult<Self> {
         let value = self.value / DECIMAL_PART_POW_MINUS_ONE;
         Ok(Self {
@@ -218,7 +217,7 @@ impl Decimal {
 
     /// [fn:ceiling](https://www.w3.org/TR/xpath-functions-31/#func-ceiling)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_ceil(self) -> RdfOpResult<Self> {
         Ok(Self {
@@ -234,7 +233,7 @@ impl Decimal {
 
     /// [fn:floor](https://www.w3.org/TR/xpath-functions-31/#func-floor)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_floor(self) -> RdfOpResult<Self> {
         Ok(Self {
@@ -757,8 +756,8 @@ mod tests {
 
     #[test]
     fn add() {
-        assert!(Decimal::MIN.checked_add(Decimal::STEP).is_some());
-        assert!(Decimal::MAX.checked_add(Decimal::STEP).is_none());
+        Decimal::MIN.checked_add(Decimal::STEP).unwrap();
+        Decimal::MAX.checked_add(Decimal::STEP).unwrap_err();
         assert_eq!(
             Decimal::MAX.checked_add(Decimal::MIN),
             Decimal::STEP.checked_neg()
@@ -767,71 +766,71 @@ mod tests {
 
     #[test]
     fn sub() {
-        assert!(Decimal::MIN.checked_sub(Decimal::STEP).is_none());
-        assert!(Decimal::MAX.checked_sub(Decimal::STEP).is_some());
+        Decimal::MIN.checked_sub(Decimal::STEP).unwrap_err();
+        Decimal::MAX.checked_sub(Decimal::STEP).unwrap();
     }
 
     #[test]
     fn mul() -> Result<(), ParseDecimalError> {
-        assert_eq!(Decimal::from(1).checked_mul(-1), Some(Decimal::from(-1)));
+        assert_eq!(Decimal::from(1).checked_mul(-1), Ok(Decimal::from(-1)));
         assert_eq!(
             Decimal::from(1000).checked_mul(1000),
-            Some(Decimal::from(1_000_000))
+            Ok(Decimal::from(1_000_000))
         );
         assert_eq!(
             Decimal::from_str("0.1")?.checked_mul(Decimal::from_str("0.01")?),
-            Some(Decimal::from_str("0.001")?)
+            Ok(Decimal::from_str("0.001")?)
         );
-        assert_eq!(Decimal::from(0).checked_mul(1), Some(Decimal::from(0)));
-        assert_eq!(Decimal::from(1).checked_mul(0), Some(Decimal::from(0)));
-        assert_eq!(Decimal::MAX.checked_mul(1), Some(Decimal::MAX));
-        assert_eq!(Decimal::MIN.checked_mul(1), Some(Decimal::MIN));
+        assert_eq!(Decimal::from(0).checked_mul(1), Ok(Decimal::from(0)));
+        assert_eq!(Decimal::from(1).checked_mul(0), Ok(Decimal::from(0)));
+        assert_eq!(Decimal::MAX.checked_mul(1), Ok(Decimal::MAX));
+        assert_eq!(Decimal::MIN.checked_mul(1), Ok(Decimal::MIN));
         assert_eq!(
             Decimal::from(1).checked_mul(Decimal::MAX),
-            Some(Decimal::MAX)
+            Ok(Decimal::MAX)
         );
         assert_eq!(
             Decimal::from(1).checked_mul(Decimal::MIN),
-            Some(Decimal::MIN)
+            Ok(Decimal::MIN)
         );
         assert_eq!(
             Decimal::MAX.checked_mul(-1),
-            Some(Decimal::MIN.checked_add(Decimal::STEP).unwrap())
+            Ok(Decimal::MIN.checked_add(Decimal::STEP).unwrap())
         );
-        assert_eq!(Decimal::MIN.checked_mul(-1), None);
+        assert_eq!(Decimal::MIN.checked_mul(-1), Err(RdfOpError));
         assert_eq!(
             Decimal::MIN
                 .checked_add(Decimal::STEP)
                 .unwrap()
                 .checked_mul(-1),
-            Some(Decimal::MAX)
+            Ok(Decimal::MAX)
         );
         Ok(())
     }
 
     #[test]
     fn div() -> Result<(), ParseDecimalError> {
-        assert_eq!(Decimal::from(1).checked_div(1), Some(Decimal::from(1)));
-        assert_eq!(Decimal::from(100).checked_div(10), Some(Decimal::from(10)));
+        assert_eq!(Decimal::from(1).checked_div(1), Ok(Decimal::from(1)));
+        assert_eq!(Decimal::from(100).checked_div(10), Ok(Decimal::from(10)));
         assert_eq!(
             Decimal::from(10).checked_div(100),
-            Some(Decimal::from_str("0.1")?)
+            Ok(Decimal::from_str("0.1")?)
         );
-        assert_eq!(Decimal::from(1).checked_div(0), None);
-        assert_eq!(Decimal::from(0).checked_div(1), Some(Decimal::from(0)));
-        assert_eq!(Decimal::MAX.checked_div(1), Some(Decimal::MAX));
-        assert_eq!(Decimal::MIN.checked_div(1), Some(Decimal::MIN));
+        assert_eq!(Decimal::from(1).checked_div(0), Err(RdfOpError));
+        assert_eq!(Decimal::from(0).checked_div(1), Ok(Decimal::from(0)));
+        assert_eq!(Decimal::MAX.checked_div(1), Ok(Decimal::MAX));
+        assert_eq!(Decimal::MIN.checked_div(1), Ok(Decimal::MIN));
         assert_eq!(
             Decimal::MAX.checked_div(-1),
-            Some(Decimal::MIN.checked_add(Decimal::STEP).unwrap())
+            Ok(Decimal::MIN.checked_add(Decimal::STEP).unwrap())
         );
-        assert_eq!(Decimal::MIN.checked_div(-1), None);
+        assert_eq!(Decimal::MIN.checked_div(-1), Err(RdfOpError));
         assert_eq!(
             Decimal::MIN
                 .checked_add(Decimal::STEP)
                 .unwrap()
                 .checked_div(-1),
-            Some(Decimal::MAX)
+            Ok(Decimal::MAX)
         );
         Ok(())
     }
@@ -874,113 +873,113 @@ mod tests {
 
     #[test]
     fn round() -> Result<(), ParseDecimalError> {
-        assert_eq!(Decimal::from(10).checked_round(), Some(Decimal::from(10)));
-        assert_eq!(Decimal::from(-10).checked_round(), Some(Decimal::from(-10)));
+        assert_eq!(Decimal::from(10).checked_round(), Ok(Decimal::from(10)));
+        assert_eq!(Decimal::from(-10).checked_round(), Ok(Decimal::from(-10)));
         assert_eq!(
             Decimal::from(i64::MIN).checked_round(),
-            Some(Decimal::from(i64::MIN))
+            Ok(Decimal::from(i64::MIN))
         );
         assert_eq!(
             Decimal::from(i64::MAX).checked_round(),
-            Some(Decimal::from(i64::MAX))
+            Ok(Decimal::from(i64::MAX))
         );
         assert_eq!(
             Decimal::from_str("2.5")?.checked_round(),
-            Some(Decimal::from(3))
+            Ok(Decimal::from(3))
         );
         assert_eq!(
             Decimal::from_str("2.4999")?.checked_round(),
-            Some(Decimal::from(2))
+            Ok(Decimal::from(2))
         );
         assert_eq!(
             Decimal::from_str("-2.5")?.checked_round(),
-            Some(Decimal::from(-2))
+            Ok(Decimal::from(-2))
         );
-        assert_eq!(Decimal::MAX.checked_round(), None);
+        assert_eq!(Decimal::MAX.checked_round(), Err(RdfOpError));
         assert_eq!(
             Decimal::MAX
                 .checked_sub(Decimal::from_str("0.5")?)
                 .unwrap()
                 .checked_round(),
-            Some(Decimal::from_str("170141183460469231731")?)
+            Ok(Decimal::from_str("170141183460469231731")?)
         );
-        assert_eq!(Decimal::MIN.checked_round(), None);
+        assert_eq!(Decimal::MIN.checked_round(), Err(RdfOpError));
         assert_eq!(
             Decimal::MIN
                 .checked_add(Decimal::from_str("0.5")?)
                 .unwrap()
                 .checked_round(),
-            Some(Decimal::from_str("-170141183460469231731")?)
+            Ok(Decimal::from_str("-170141183460469231731")?)
         );
         Ok(())
     }
 
     #[test]
     fn ceil() -> Result<(), ParseDecimalError> {
-        assert_eq!(Decimal::from(10).checked_ceil(), Some(Decimal::from(10)));
-        assert_eq!(Decimal::from(-10).checked_ceil(), Some(Decimal::from(-10)));
+        assert_eq!(Decimal::from(10).checked_ceil(), Ok(Decimal::from(10)));
+        assert_eq!(Decimal::from(-10).checked_ceil(), Ok(Decimal::from(-10)));
         assert_eq!(
             Decimal::from_str("10.5")?.checked_ceil(),
-            Some(Decimal::from(11))
+            Ok(Decimal::from(11))
         );
         assert_eq!(
             Decimal::from_str("-10.5")?.checked_ceil(),
-            Some(Decimal::from(-10))
+            Ok(Decimal::from(-10))
         );
         assert_eq!(
             Decimal::from(i64::MIN).checked_ceil(),
-            Some(Decimal::from(i64::MIN))
+            Ok(Decimal::from(i64::MIN))
         );
         assert_eq!(
             Decimal::from(i64::MAX).checked_ceil(),
-            Some(Decimal::from(i64::MAX))
+            Ok(Decimal::from(i64::MAX))
         );
-        assert_eq!(Decimal::MAX.checked_ceil(), None);
+        assert_eq!(Decimal::MAX.checked_ceil(), Err(RdfOpError));
         assert_eq!(
             Decimal::MAX
                 .checked_sub(Decimal::from(1))
                 .unwrap()
                 .checked_ceil(),
-            Some(Decimal::from_str("170141183460469231731")?)
+            Ok(Decimal::from_str("170141183460469231731")?)
         );
         assert_eq!(
             Decimal::MIN.checked_ceil(),
-            Some(Decimal::from_str("-170141183460469231731")?)
+            Ok(Decimal::from_str("-170141183460469231731")?)
         );
         Ok(())
     }
 
     #[test]
     fn floor() -> Result<(), ParseDecimalError> {
-        assert_eq!(Decimal::from(10).checked_floor(), Some(Decimal::from(10)));
-        assert_eq!(Decimal::from(-10).checked_floor(), Some(Decimal::from(-10)));
+        assert_eq!(Decimal::from(10).checked_floor(), Ok(Decimal::from(10)));
+        assert_eq!(Decimal::from(-10).checked_floor(), Ok(Decimal::from(-10)));
         assert_eq!(
             Decimal::from_str("10.5")?.checked_floor(),
-            Some(Decimal::from(10))
+            Ok(Decimal::from(10))
         );
         assert_eq!(
             Decimal::from_str("-10.5")?.checked_floor(),
-            Some(Decimal::from(-11))
+            Ok(Decimal::from(-11))
         );
         assert_eq!(
             Decimal::from(i64::MIN).checked_floor(),
-            Some(Decimal::from(i64::MIN))
+            Ok(Decimal::from(i64::MIN))
         );
         assert_eq!(
             Decimal::from(i64::MAX).checked_floor(),
-            Some(Decimal::from(i64::MAX))
+            Ok(Decimal::from(i64::MAX))
         );
         assert_eq!(
             Decimal::MAX.checked_floor(),
-            Some(Decimal::from_str("170141183460469231731")?)
+            Ok(Decimal::from_str("170141183460469231731")?)
         );
-        assert_eq!(Decimal::MIN.checked_floor(), None);
+        assert_eq!(Decimal::MIN.checked_floor(), Err(RdfOpError));
         assert_eq!(
             Decimal::MIN
                 .checked_add(Decimal::from_str("1")?)
                 .unwrap()
                 .checked_floor(),
-            Some(Decimal::from_str("-170141183460469231731")?)
+            Ok(Decimal::from_str("-170141183460469231731")?)
         );
         Ok(())
     }

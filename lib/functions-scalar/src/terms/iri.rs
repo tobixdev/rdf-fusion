@@ -25,7 +25,7 @@ impl ScalarUnaryRdfOp for IriRdfOp {
                 let resolving_result = if let Some(base_iri) = &self.base_iri {
                     base_iri.resolve(simple_literal.value).map_err(|_| ())?
                 } else {
-                    Iri::parse(simple_literal.value.to_string()).map_err(|_| ())?
+                    Iri::parse(simple_literal.value.to_owned()).map_err(|_| ())?
                 };
                 Ok(NamedNode::from(resolving_result))
             }

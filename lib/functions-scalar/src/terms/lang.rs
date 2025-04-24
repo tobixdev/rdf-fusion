@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{RdfOpError, SimpleLiteralRef, TermRef};
 
 #[derive(Debug)]
-pub struct LangRdfOp {}
+pub struct LangRdfOp;
+
+impl Default for LangRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl LangRdfOp {
     pub fn new() -> Self {

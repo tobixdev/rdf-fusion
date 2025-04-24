@@ -34,7 +34,7 @@ impl Integer {
 
     /// [op:numeric-add](https://www.w3.org/TR/xpath-functions-31/#func-numeric-add)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         Ok(Self {
@@ -44,7 +44,7 @@ impl Integer {
 
     /// [op:numeric-subtract](https://www.w3.org/TR/xpath-functions-31/#func-numeric-subtract)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         Ok(Self {
@@ -54,7 +54,7 @@ impl Integer {
 
     /// [op:numeric-multiply](https://www.w3.org/TR/xpath-functions-31/#func-numeric-multiply)
     ///
-    /// Returns `None` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_mul(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         Ok(Self {
@@ -64,7 +64,7 @@ impl Integer {
 
     /// [op:numeric-integer-divide](https://www.w3.org/TR/xpath-functions-31/#func-numeric-integer-divide)
     ///
-    /// Returns `None` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
     pub fn checked_div(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         Ok(Self {
@@ -74,23 +74,21 @@ impl Integer {
 
     /// [op:numeric-mod](https://www.w3.org/TR/xpath-functions-31/#func-numeric-mod)
     ///
-    /// Returns `None` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_rem(self, rhs: impl Into<Self>) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_rem(rhs.into().value)?,
+    pub fn checked_rem(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_rem(rhs.into().value).ok_or(RdfOpError)?,
         })
     }
 
     /// Euclidean remainder
     ///
-    /// Returns `None` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
+    /// Returns `Err` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    #[must_use]
-    pub fn checked_rem_euclid(self, rhs: impl Into<Self>) -> Option<Self> {
-        Some(Self {
-            value: self.value.checked_rem_euclid(rhs.into().value)?,
+    pub fn checked_rem_euclid(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+        Ok(Self {
+            value: self.value.checked_rem_euclid(rhs.into().value).ok_or(RdfOpError)?,
         })
     }
 
@@ -385,35 +383,35 @@ mod tests {
     fn add() {
         assert_eq!(
             Integer::MIN.checked_add(1),
-            Some(Integer::from(i64::MIN + 1))
+            Ok(Integer::from(i64::MIN + 1))
         );
-        assert_eq!(Integer::MAX.checked_add(1), None);
+        assert_eq!(Integer::MAX.checked_add(1), Err(RdfOpError));
     }
 
     #[test]
     fn sub() {
-        assert_eq!(Integer::MIN.checked_sub(1), None);
+        assert_eq!(Integer::MIN.checked_sub(1), Err(RdfOpError));
         assert_eq!(
             Integer::MAX.checked_sub(1),
-            Some(Integer::from(i64::MAX - 1))
+            Ok(Integer::from(i64::MAX - 1))
         );
     }
 
     #[test]
     fn mul() {
-        assert_eq!(Integer::MIN.checked_mul(2), None);
-        assert_eq!(Integer::MAX.checked_mul(2), None);
+        assert_eq!(Integer::MIN.checked_mul(2), Err(RdfOpError));
+        assert_eq!(Integer::MAX.checked_mul(2), Err(RdfOpError));
     }
 
     #[test]
     fn div() {
-        assert_eq!(Integer::from(1).checked_div(0), None);
+        assert_eq!(Integer::from(1).checked_div(0), Err(RdfOpError));
     }
 
     #[test]
     fn rem() {
-        assert_eq!(Integer::from(10).checked_rem(3), Some(Integer::from(1)));
-        assert_eq!(Integer::from(6).checked_rem(-2), Some(Integer::from(0)));
-        assert_eq!(Integer::from(1).checked_rem(0), None);
+        assert_eq!(Integer::from(10).checked_rem(3), Ok(Integer::from(1)));
+        assert_eq!(Integer::from(6).checked_rem(-2), Ok(Integer::from(0)));
+        assert_eq!(Integer::from(1).checked_rem(0), Err(RdfOpError));
     }
 }

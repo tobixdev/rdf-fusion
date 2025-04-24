@@ -3,7 +3,13 @@ use datamodel::{OwnedStringLiteral, SimpleLiteralRef};
 use md5::{Digest, Md5};
 
 #[derive(Debug)]
-pub struct Md5RdfOp {}
+pub struct Md5RdfOp;
+
+impl Default for Md5RdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Md5RdfOp {
     pub fn new() -> Self {

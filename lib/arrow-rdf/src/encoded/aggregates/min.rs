@@ -3,14 +3,14 @@ use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::{EncTerm, FromEncodedTerm};
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{Array, ArrayRef};
-use datafusion::logical_expr::{create_udaf, Volatility};
+use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
 use datamodel::{RdfOpError, RdfOpResult, Term, TermRef};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
-pub const ENC_MIN: once_cell::unsync::Lazy<datafusion::logical_expr::AggregateUDF> =
-    once_cell::unsync::Lazy::new(|| {
+pub const ENC_MIN: LazyLock<AggregateUDF> =
+    LazyLock::new(|| {
         create_udaf(
             "enc_min",
             vec![EncTerm::data_type()],
@@ -49,14 +49,12 @@ impl Accumulator for SparqlMin {
             let value = TermRef::from_enc_array(arr, i);
 
             if !self.executed_once {
-                self.min = value.map(|t| t.to_owned());
+                self.min = value.map(TermRef::into_owned);
                 self.executed_once = true;
-            } else {
-                if let Ok(min) = self.min.as_ref() {
-                    if let Ok(value) = value {
-                        if value < min.as_ref() {
-                            self.min = Ok(value.to_owned());
-                        }
+            } else if let Ok(min) = self.min.as_ref() {
+                if let Ok(value) = value {
+                    if value < min.as_ref() {
+                        self.min = Ok(value.into_owned());
                     }
                 }
             }

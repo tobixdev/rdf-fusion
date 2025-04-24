@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{DateTime, DayTimeDuration};
 
 #[derive(Debug)]
-pub struct TimezoneRdfOp {}
+pub struct TimezoneRdfOp;
+
+impl Default for TimezoneRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TimezoneRdfOp {
     pub fn new() -> Self {

@@ -25,7 +25,7 @@ impl<'value> SimpleLiteralRef<'value> {
         self.value.is_empty()
     }
 
-    pub fn to_owned(&self) -> SimpleLiteral {
+    pub fn into_owned(self) -> SimpleLiteral {
         SimpleLiteral {
             value: self.value.to_owned(),
         }

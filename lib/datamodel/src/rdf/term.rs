@@ -110,23 +110,23 @@ impl TermRef<'_> {
         }
     }
 
-    pub fn to_owned(&self) -> Term {
+    pub fn into_owned(self) -> Term {
         match self {
             TermRef::NamedNode(inner) => Term::NamedNode(inner.into_owned()),
             TermRef::BlankNode(inner) => Term::BlankNode(inner.into_owned()),
-            TermRef::BooleanLiteral(inner) => Term::BooleanLiteral(*inner),
-            TermRef::NumericLiteral(inner) => Term::NumericLiteral(*inner),
-            TermRef::SimpleLiteral(inner) => Term::SimpleLiteral(inner.to_owned()),
+            TermRef::BooleanLiteral(inner) => Term::BooleanLiteral(inner),
+            TermRef::NumericLiteral(inner) => Term::NumericLiteral(inner),
+            TermRef::SimpleLiteral(inner) => Term::SimpleLiteral(inner.into_owned()),
             TermRef::LanguageStringLiteral(inner) => {
                 Term::LanguageStringLiteral(inner.into_owned())
             }
-            TermRef::DateTimeLiteral(inner) => Term::DateTimeLiteral(*inner),
-            TermRef::TimeLiteral(inner) => Term::TimeLiteral(*inner),
-            TermRef::DateLiteral(inner) => Term::DateLiteral(*inner),
-            TermRef::DurationLiteral(inner) => Term::DurationLiteral(*inner),
-            TermRef::YearMonthDurationLiteral(inner) => Term::YearMonthDurationLiteral(*inner),
-            TermRef::DayTimeDurationLiteral(inner) => Term::DayTimeDurationLiteral(*inner),
-            TermRef::TypedLiteral(inner) => Term::TypedLiteral(inner.to_owned()),
+            TermRef::DateTimeLiteral(inner) => Term::DateTimeLiteral(inner),
+            TermRef::TimeLiteral(inner) => Term::TimeLiteral(inner),
+            TermRef::DateLiteral(inner) => Term::DateLiteral(inner),
+            TermRef::DurationLiteral(inner) => Term::DurationLiteral(inner),
+            TermRef::YearMonthDurationLiteral(inner) => Term::YearMonthDurationLiteral(inner),
+            TermRef::DayTimeDurationLiteral(inner) => Term::DayTimeDurationLiteral(inner),
+            TermRef::TypedLiteral(inner) => Term::TypedLiteral(inner.into_owned()),
         }
     }
 }
@@ -141,20 +141,20 @@ impl<'data> RdfValueRef<'data> for TermRef<'data> {
 }
 
 impl PartialOrd for TermRef<'_> {
-    fn partial_cmp(&self, b: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match *self {
-            TermRef::BlankNode(a) => Some(match b {
+            TermRef::BlankNode(a) => Some(match other {
                 TermRef::BlankNode(b) => a.as_str().cmp(b.as_str()),
                 _ => Ordering::Less,
             }),
-            TermRef::NamedNode(a) => Some(match b {
+            TermRef::NamedNode(a) => Some(match other {
                 TermRef::BlankNode(_) => Ordering::Greater,
                 TermRef::NamedNode(b) => a.as_str().cmp(b.as_str()),
                 _ => Ordering::Less,
             }),
-            a => match b {
+            a => match other {
                 TermRef::NamedNode(_) | TermRef::BlankNode(_) => Some(Ordering::Greater),
-                _ => partial_cmp_literals(a, *b),
+                _ => partial_cmp_literals(a, *other),
             },
         }
     }

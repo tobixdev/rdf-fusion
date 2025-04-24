@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Decimal, Numeric, RdfOpError, TermRef};
 
 #[derive(Debug)]
-pub struct AsDecimalRdfOp {}
+pub struct AsDecimalRdfOp;
+
+impl Default for AsDecimalRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AsDecimalRdfOp {
     pub fn new() -> Self {

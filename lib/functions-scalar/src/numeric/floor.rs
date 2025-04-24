@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::Numeric;
 
 #[derive(Debug)]
-pub struct FloorRdfOp {}
+pub struct FloorRdfOp;
+
+impl Default for FloorRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl FloorRdfOp {
     pub fn new() -> Self {
@@ -19,7 +25,7 @@ impl ScalarUnaryRdfOp for FloorRdfOp {
             Numeric::Float(value) => Ok(Numeric::Float(value.floor())),
             Numeric::Double(value) => Ok(Numeric::Double(value.floor())),
             Numeric::Decimal(value) => value.checked_floor().map(Numeric::Decimal),
-            value => Ok(value),
+            _ => Ok(value),
         }
     }
 }

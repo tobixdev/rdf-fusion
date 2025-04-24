@@ -37,14 +37,13 @@ use graphfusion_engine::sparql::{
 };
 use graphfusion_engine::TripleStore;
 use graphfusion_store::MemoryTripleStore;
-use once_cell::sync::Lazy;
 use oxrdf::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef, Variable,
 };
 use std::io::{Read, Write};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
-static QUAD_VARIABLES: Lazy<Arc<[Variable]>> = Lazy::new(|| {
+static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
     Arc::new([
         Variable::new_unchecked("graph"),
         Variable::new_unchecked("subject"),

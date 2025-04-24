@@ -46,7 +46,7 @@ impl PathToJoinsRule {
     }
 
     fn rewrite(&self, plan: LogicalPlan) -> DFResult<Transformed<LogicalPlan>> {
-        Ok(plan.transform(|plan| {
+        plan.transform(|plan| {
             let new_plan = match plan {
                 LogicalPlan::Extension(Extension { node })
                     if node.as_any().downcast_ref::<PathNode>().is_some() =>
@@ -73,12 +73,12 @@ impl PathToJoinsRule {
                         }),
                     };
 
-                    Transformed::yes(pattern_node.into())
+                    Transformed::yes(pattern_node)
                 }
                 _ => Transformed::no(plan),
             };
             Ok(new_plan)
-        })?)
+        })
     }
 
     /// The resulting query always has a column "start" and "end" that indicates the respective start
@@ -133,7 +133,7 @@ impl PathToJoinsRule {
                 ENC_EFFECTIVE_BOOLEAN_VALUE
                     .call(vec![ENC_SAME_TERM.call(vec![col(COL_PREDICATE), expr])])
             })
-            .reduce(|lhs, rhs| or(lhs, rhs))
+            .reduce(or)
             .expect("There must be at least one element in the negated property set.");
 
         let paths = self.scan_quads(graph, Some(not(test_expression)))?;
@@ -203,7 +203,7 @@ impl PathToJoinsRule {
         let builder = LogicalPlanBuilder::from(LogicalPlan::Extension(Extension {
             node: Arc::new(node),
         }));
-        Ok(builder.into())
+        Ok(builder)
     }
 
     fn rewrite_zero_or_one(

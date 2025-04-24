@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Float, Numeric, RdfOpError, TermRef};
 
 #[derive(Debug)]
-pub struct AsFloatRdfOp {}
+pub struct AsFloatRdfOp;
+
+impl Default for AsFloatRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AsFloatRdfOp {
     pub fn new() -> Self {
@@ -22,7 +28,7 @@ impl ScalarUnaryRdfOp for AsFloatRdfOp {
                 Numeric::Int(v) => Float::from(v),
                 Numeric::Integer(v) => Float::from(v),
                 Numeric::Float(v) => v,
-                Numeric::Double(v) => Float::try_from(v).map_err(|_| ())?,
+                Numeric::Double(v) => Float::from(v),
                 Numeric::Decimal(v) => Float::from(v),
             },
             _ => return Err(RdfOpError),

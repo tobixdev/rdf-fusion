@@ -15,13 +15,13 @@ where
     TUdf::Args<'data>: FromEncodedTerm<'data>,
     TUdf::Result<'data>: WriteEncTerm,
 {
-    let results = (0..number_of_rows).into_iter().map(|i| {
+    let results = (0..number_of_rows).map(|i| {
         let args = args
             .iter()
             .map(|a| borrow_value::<TUdf::Args<'data>>(a, i))
             .collect::<Vec<_>>();
 
-        if args.iter().all(|arg| arg.is_ok()) {
+        if args.iter().all(Result::is_ok) {
             let args = args.into_iter().map(|arg| arg.unwrap()).collect::<Vec<_>>();
             udf.evaluate(args.as_slice())
         } else {

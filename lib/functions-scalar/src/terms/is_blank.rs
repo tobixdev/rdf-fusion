@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
-pub struct IsBlankRdfOp {}
+pub struct IsBlankRdfOp;
+
+impl Default for IsBlankRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl IsBlankRdfOp {
     pub fn new() -> Self {
@@ -15,10 +21,7 @@ impl ScalarUnaryRdfOp for IsBlankRdfOp {
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
-        let result = match value {
-            TermRef::BlankNode(_) => true,
-            _ => false,
-        };
+        let result = matches!(value, TermRef::BlankNode(_));
         Ok(result.into())
     }
 }

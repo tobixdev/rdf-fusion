@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{DateTime, Integer};
 
 #[derive(Debug)]
-pub struct HoursRdfOp {}
+pub struct HoursRdfOp;
+
+impl Default for HoursRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl HoursRdfOp {
     pub fn new() -> Self {

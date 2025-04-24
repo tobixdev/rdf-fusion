@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarBinaryRdfOp};
 use datamodel::{Numeric, NumericPair};
 
 #[derive(Debug)]
-pub struct MulRdfOp {}
+pub struct MulRdfOp;
+
+impl Default for MulRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl MulRdfOp {
     pub fn new() -> Self {

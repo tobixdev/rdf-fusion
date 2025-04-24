@@ -2,11 +2,17 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
-pub struct IsNumericRdfOp {}
+pub struct IsNumericRdfOp;
+
+impl Default for IsNumericRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl IsNumericRdfOp {
     pub fn new() -> Self {
-        Self {}
+        Self
     }
 }
 

@@ -2,11 +2,17 @@ use crate::{RdfOpResult, ScalarBinaryRdfOp};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
-pub struct SameTermRdfOp {}
+pub struct SameTermRdfOp;
+
+impl Default for SameTermRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SameTermRdfOp {
     pub fn new() -> Self {
-        Self {}
+        Self
     }
 }
 

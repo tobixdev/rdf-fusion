@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarTernaryRdfOp};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
-pub struct IfRdfOp {}
+pub struct IfRdfOp;
+
+impl Default for IfRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl IfRdfOp {
     pub fn new() -> Self {
@@ -18,14 +24,11 @@ impl ScalarTernaryRdfOp for IfRdfOp {
 
     fn evaluate<'data>(
         &self,
-        test: Self::Arg0<'data>,
-        if_true: Self::Arg1<'data>,
-        if_false: Self::Arg2<'data>,
+        arg0: Self::Arg0<'data>,
+        arg1: Self::Arg1<'data>,
+        arg2: Self::Arg2<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        Ok(match test.as_bool() {
-            true => if_true,
-            false => if_false,
-        })
+        Ok(if arg0.as_bool() { arg1 } else { arg2 })
     }
 
     fn evaluate_error<'data>(
@@ -34,9 +37,6 @@ impl ScalarTernaryRdfOp for IfRdfOp {
         arg1: RdfOpResult<Self::Arg1<'data>>,
         arg2: RdfOpResult<Self::Arg2<'data>>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        match arg0?.as_bool() {
-            true => arg1,
-            false => arg2,
-        }
+        if arg0?.as_bool() { arg1 } else { arg2 }
     }
 }

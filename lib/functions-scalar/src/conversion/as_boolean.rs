@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Boolean, Numeric, RdfOpError, TermRef};
 
 #[derive(Debug)]
-pub struct AsBooleanRdfOp {}
+pub struct AsBooleanRdfOp;
+
+impl Default for AsBooleanRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AsBooleanRdfOp {
     pub fn new() -> Self {
@@ -16,7 +22,7 @@ impl ScalarUnaryRdfOp for AsBooleanRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let converted = match value {
-            TermRef::BooleanLiteral(v) => Boolean::from(v),
+            TermRef::BooleanLiteral(v) => v,
             TermRef::SimpleLiteral(v) => v.value.parse().map_err(|_| ())?,
             TermRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Boolean::from(v),

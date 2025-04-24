@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::Numeric;
 
 #[derive(Debug)]
-pub struct RoundRdfOp {}
+pub struct RoundRdfOp;
+
+impl Default for RoundRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl RoundRdfOp {
     pub fn new() -> Self {
@@ -19,7 +25,7 @@ impl ScalarUnaryRdfOp for RoundRdfOp {
             Numeric::Float(value) => Ok(Numeric::Float(value.round())),
             Numeric::Double(value) => Ok(Numeric::Double(value.round())),
             Numeric::Decimal(value) => value.checked_round().map(Numeric::Decimal),
-            value => Ok(value),
+            _ => Ok(value),
         }
     }
 }

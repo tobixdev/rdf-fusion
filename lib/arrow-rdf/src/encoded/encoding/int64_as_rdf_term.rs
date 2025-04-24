@@ -50,7 +50,7 @@ impl ScalarUDFImpl for EncInt64AsRdfTerm {
         // Performance could be optimized here
         let arg = args.args[0].to_array(args.number_rows)?;
         let arg = as_int64_array(&arg)?;
-        let mut builder = EncRdfTermBuilder::new();
+        let mut builder = EncRdfTermBuilder::default();
         for i in 0..args.number_rows {
             if arg.is_null(i) {
                 builder.append_null()?;

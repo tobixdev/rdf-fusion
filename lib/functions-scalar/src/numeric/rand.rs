@@ -3,7 +3,13 @@ use datamodel::Double;
 use rand::random;
 
 #[derive(Debug)]
-pub struct RandRdfOp {}
+pub struct RandRdfOp;
+
+impl Default for RandRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl RandRdfOp {
     pub fn new() -> Self {

@@ -28,7 +28,7 @@ impl WriteEncTerm for Boolean {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_boolean(value.as_bool())?,
@@ -44,7 +44,7 @@ impl WriteEncTerm for Float {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_float(value)?,
@@ -60,7 +60,7 @@ impl WriteEncTerm for Decimal {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_decimal(value)?,
@@ -76,7 +76,7 @@ impl WriteEncTerm for Double {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_double(value)?,
@@ -92,7 +92,7 @@ impl WriteEncTerm for Int {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_int(value)?,
@@ -108,7 +108,7 @@ impl WriteEncTerm for Integer {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_integer(value)?,
@@ -124,7 +124,7 @@ impl WriteEncTerm for Numeric {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(Numeric::Float(value)) => rdf_term_builder.append_float(value)?,
@@ -144,7 +144,7 @@ impl WriteEncTerm for SimpleLiteralRef<'_> {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_string(value.value, None)?,
@@ -160,7 +160,7 @@ impl WriteEncTerm for StringLiteralRef<'_> {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_string(value.0, value.1)?,
@@ -176,11 +176,11 @@ impl WriteEncTerm for OwnedStringLiteral {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder
-                    .append_string(value.0.as_str(), value.1.as_ref().map(|v| v.as_str()))?,
+                    .append_string(value.0.as_str(), value.1.as_deref())?,
                 Err(_) => rdf_term_builder.append_null()?,
             }
         }
@@ -193,7 +193,7 @@ impl WriteEncTerm for LanguageStringRef<'_> {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_string(value.value, Some(value.language))?,
@@ -209,7 +209,7 @@ impl WriteEncTerm for BlankNodeRef<'_> {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_blank_node(value.as_str())?,
@@ -225,7 +225,7 @@ impl WriteEncTerm for BlankNode {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_blank_node(value.as_str())?,
@@ -241,7 +241,7 @@ impl WriteEncTerm for NamedNodeRef<'_> {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_named_node(value.as_str())?,
@@ -257,7 +257,7 @@ impl WriteEncTerm for NamedNode {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_named_node(value.as_str())?,
@@ -273,7 +273,7 @@ impl WriteEncTerm for TermRef<'_> {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(TermRef::NamedNode(value)) => {
@@ -332,7 +332,7 @@ impl WriteEncTerm for DateTime {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_date_time(value)?,
@@ -348,7 +348,7 @@ impl WriteEncTerm for Time {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_time(value)?,
@@ -364,7 +364,7 @@ impl WriteEncTerm for Date {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_date(value)?,
@@ -380,7 +380,7 @@ impl WriteEncTerm for Duration {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder
@@ -397,7 +397,7 @@ impl WriteEncTerm for YearMonthDuration {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_duration(Some(value), None)?,
@@ -413,7 +413,7 @@ impl WriteEncTerm for DayTimeDuration {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_duration(None, Some(value))?,
@@ -429,7 +429,7 @@ impl WriteEncTerm for TypedLiteralRef<'_> {
     where
         Self: Sized,
     {
-        let mut rdf_term_builder = EncRdfTermBuilder::new();
+        let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
                 Ok(value) => {

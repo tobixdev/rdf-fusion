@@ -3,7 +3,13 @@ use datamodel::{SimpleLiteralRef, TypedLiteralRef};
 use oxrdf::NamedNodeRef;
 
 #[derive(Debug)]
-pub struct StrDtRdfOp {}
+pub struct StrDtRdfOp;
+
+impl Default for StrDtRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl StrDtRdfOp {
     pub fn new() -> Self {

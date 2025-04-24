@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{DateTime, RdfOpError, TermRef};
 
 #[derive(Debug)]
-pub struct AsDateTimeRdfOp {}
+pub struct AsDateTimeRdfOp;
+
+impl Default for AsDateTimeRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AsDateTimeRdfOp {
     pub fn new() -> Self {

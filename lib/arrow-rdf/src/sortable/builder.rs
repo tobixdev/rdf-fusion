@@ -79,7 +79,7 @@ impl SortableTermBuilder {
             EncTermField::String,
             None,
             value.as_bytes(),
-            language.map(|l| l.as_bytes()),
+            language.map(str::as_bytes),
         )
     }
 

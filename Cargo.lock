@@ -317,7 +317,6 @@ dependencies = [
  "datafusion",
  "datamodel",
  "functions-scalar",
- "once_cell",
  "oxrdf",
  "thiserror",
  "uuid",
@@ -1902,7 +1901,6 @@ dependencies = [
  "graphfusion-store",
  "js-sys",
  "libc",
- "once_cell",
  "oxhttp",
  "oxiri",
  "oxrdf",
@@ -1939,7 +1937,6 @@ version = "0.1.0"
 dependencies = [
  "arrow-rdf",
  "datafusion",
- "once_cell",
  "oxrdf",
  "spargebra",
 ]
@@ -1954,7 +1951,6 @@ dependencies = [
  "datamodel",
  "futures",
  "graphfusion-logical",
- "once_cell",
 ]
 
 [[package]]

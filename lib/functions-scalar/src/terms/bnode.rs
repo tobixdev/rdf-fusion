@@ -3,7 +3,13 @@ use datamodel::{BlankNodeRef, SimpleLiteralRef};
 use oxrdf::BlankNode;
 
 #[derive(Debug)]
-pub struct BNodeRdfOp {}
+pub struct BNodeRdfOp;
+
+impl Default for BNodeRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl BNodeRdfOp {
     pub fn new() -> Self {

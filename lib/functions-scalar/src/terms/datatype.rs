@@ -4,7 +4,13 @@ use oxrdf::vocab::{rdf, xsd};
 use oxrdf::NamedNodeRef;
 
 #[derive(Debug)]
-pub struct DatatypeRdfOp {}
+pub struct DatatypeRdfOp;
+
+impl Default for DatatypeRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl DatatypeRdfOp {
     pub fn new() -> Self {
@@ -18,8 +24,7 @@ impl ScalarUnaryRdfOp for DatatypeRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         let datatype = match value {
-            TermRef::NamedNode(_) => None,
-            TermRef::BlankNode(_) => None,
+            TermRef::BlankNode(_) | TermRef::NamedNode(_) => None,
             TermRef::SimpleLiteral(_) => Some(xsd::STRING),
             TermRef::NumericLiteral(value) => Some(match value {
                 Numeric::Int(_) => xsd::INT,

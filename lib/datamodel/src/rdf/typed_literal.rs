@@ -57,7 +57,7 @@ impl TypedLiteralRef<'_> {
         numeric_types.contains(self.literal_type)
     }
 
-    pub fn to_owned(&self) -> TypedLiteral {
+    pub fn into_owned(self) -> TypedLiteral {
         TypedLiteral {
             value: self.value.to_owned(),
             literal_type: self.literal_type.to_owned(),
@@ -67,13 +67,13 @@ impl TypedLiteralRef<'_> {
 
 impl PartialOrd for TypedLiteralRef<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.value.partial_cmp(other.value)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for TypedLiteralRef<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("Ordering is total")
+        self.value.cmp(other.value)
     }
 }
 

@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarNAryRdfOp};
 use datamodel::{RdfOpError, TermRef};
 
 #[derive(Debug)]
-pub struct CoalesceRdfOp {}
+pub struct CoalesceRdfOp;
+
+impl Default for CoalesceRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CoalesceRdfOp {
     pub fn new() -> Self {
@@ -23,8 +29,7 @@ impl ScalarNAryRdfOp for CoalesceRdfOp {
         args: &[RdfOpResult<Self::Args<'data>>],
     ) -> RdfOpResult<Self::Result<'data>> {
         args.iter()
-            .find(|arg| arg.is_ok())
-            .map(|arg| arg.unwrap())
+            .find_map(|arg| arg.ok())
             .ok_or(RdfOpError)
     }
 }

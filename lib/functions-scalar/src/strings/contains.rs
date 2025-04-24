@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarBinaryRdfOp};
 use datamodel::{Boolean, CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
-pub struct ContainsRdfOp {}
+pub struct ContainsRdfOp;
+
+impl Default for ContainsRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ContainsRdfOp {
     pub fn new() -> Self {
@@ -17,10 +23,10 @@ impl ScalarBinaryRdfOp for ContainsRdfOp {
 
     fn evaluate<'data>(
         &self,
-        arg_lhs: Self::ArgLhs<'data>,
-        arg_rhs: Self::ArgRhs<'data>,
+        lhs: Self::ArgLhs<'data>,
+        rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        let args = CompatibleStringArgs::try_from(arg_lhs, arg_rhs)?;
+        let args = CompatibleStringArgs::try_from(lhs, rhs)?;
         Ok(args.lhs.contains(args.rhs).into())
     }
 }

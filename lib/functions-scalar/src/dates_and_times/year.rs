@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{DateTime, Integer};
 
 #[derive(Debug)]
-pub struct YearRdfOp {}
+pub struct YearRdfOp;
+
+impl Default for YearRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl YearRdfOp {
     pub fn new() -> Self {

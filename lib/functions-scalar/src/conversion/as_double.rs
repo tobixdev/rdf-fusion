@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Double, Numeric, RdfOpError, TermRef};
 
 #[derive(Debug)]
-pub struct AsDoubleRdfOp {}
+pub struct AsDoubleRdfOp;
+
+impl Default for AsDoubleRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AsDoubleRdfOp {
     pub fn new() -> Self {

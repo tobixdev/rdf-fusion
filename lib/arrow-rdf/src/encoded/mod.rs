@@ -12,12 +12,12 @@ mod logical;
 mod query_evaluation;
 mod write_enc_term;
 
+use std::sync::LazyLock;
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 pub use builder::EncRdfTermBuilder;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 pub use from_encoded_term::FromEncodedTerm;
 pub use model::*;
-use once_cell::unsync::Lazy;
 
 // Functions
 pub use aggregates::*;
@@ -26,7 +26,7 @@ pub use logical::*;
 pub use query_evaluation::*;
 pub use rdf_ops::*;
 
-pub const ENC_QUAD_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
+pub static ENC_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {
     SchemaRef::new(Schema::new(vec![
         Field::new(COL_GRAPH, EncTerm::data_type(), true),
         Field::new(COL_SUBJECT, EncTerm::data_type(), true),

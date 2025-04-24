@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
-pub struct LCaseRdfOp {}
+pub struct LCaseRdfOp;
+
+impl Default for LCaseRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl LCaseRdfOp {
     pub fn new() -> Self {
@@ -16,7 +22,7 @@ impl ScalarUnaryRdfOp for LCaseRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
         Ok(OwnedStringLiteral(
-            value.0.to_string().to_lowercase(),
+            value.0.to_owned().to_lowercase(),
             value.1.map(String::from),
         ))
     }

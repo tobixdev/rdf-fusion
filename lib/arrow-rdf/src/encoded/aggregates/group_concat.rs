@@ -61,27 +61,24 @@ impl Accumulator for SparqlGroupConcat {
 
         for i in 0..arr.len() {
             let string = StringLiteralRef::from_enc_array(arr, i);
-            match string {
-                Ok(string) => {
-                    if value_exists {
-                        value += self.separator.as_str();
-                    }
-                    value += string.0;
-                    value_exists = true;
-                    if let Some(lang) = &self.language {
-                        if Some(lang.as_str()) != string.1 {
-                            self.language_error = true;
-                            self.language = None;
-                        }
-                    } else {
-                        self.language = string.1.map(ToOwned::to_owned);
-                    }
+            if let Ok(string) = string {
+                if value_exists {
+                    value += self.separator.as_str();
                 }
-                Err(_) => {
-                    self.error = true;
-                    self.value = None;
-                    return Ok(());
+                value += string.0;
+                value_exists = true;
+                if let Some(lang) = &self.language {
+                    if Some(lang.as_str()) != string.1 {
+                        self.language_error = true;
+                        self.language = None;
+                    }
+                } else {
+                    self.language = string.1.map(ToOwned::to_owned);
                 }
+            } else {
+                self.error = true;
+                self.value = None;
+                return Ok(());
             }
         }
 
@@ -113,6 +110,8 @@ impl Accumulator for SparqlGroupConcat {
     }
 
     fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+        assert_eq!(states.len(), 4);
+        
         let error = states[0].as_boolean().iter().any(|e| e == Some(true));
         if error {
             self.error = true;
@@ -125,14 +124,12 @@ impl Accumulator for SparqlGroupConcat {
         let mut value = self.value.take().unwrap_or_default();
 
         let old_values = states[1].as_string::<i32>();
-        for old_value in old_values.iter() {
-            if let Some(old_value) = old_value {
-                if value_exists {
-                    value += self.separator.as_str();
-                }
-                value += old_value;
-                value_exists = true;
+        for old_value in old_values.iter().flatten() {
+            if value_exists {
+                value += self.separator.as_str();
             }
+            value += old_value;
+            value_exists = true;
         }
         self.value = Some(value);
 
@@ -144,7 +141,7 @@ impl Accumulator for SparqlGroupConcat {
         }
 
         let old_languages = states[3].as_string::<i32>();
-        for old_language in old_languages.iter() {
+        for old_language in old_languages {
             if let Some(lang) = &self.language {
                 if Some(lang.as_str()) != old_language {
                     self.language_error = true;

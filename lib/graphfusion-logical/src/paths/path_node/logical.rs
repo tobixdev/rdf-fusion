@@ -86,8 +86,8 @@ impl UserDefinedLogicalNodeCore for PathNode {
             &self
                 .graph
                 .as_ref()
-                .map(|g| g.to_string())
-                .unwrap_or("".to_owned()),
+                .map(ToString::to_string)
+                .unwrap_or_default(),
             self.subject,
             self.path,
             self.object
@@ -97,12 +97,12 @@ impl UserDefinedLogicalNodeCore for PathNode {
     fn with_exprs_and_inputs(&self, exprs: Vec<Expr>, inputs: Vec<LogicalPlan>) -> DFResult<Self> {
         assert_eq!(inputs.len(), 0, "input size inconsistent");
         assert_eq!(exprs.len(), 0, "expression size inconsistent");
-        Ok(Self::new(
+        Self::new(
             self.graph.clone(),
             self.subject.clone(),
             self.path.clone(),
             self.object.clone(),
-        )?)
+        )
     }
 }
 

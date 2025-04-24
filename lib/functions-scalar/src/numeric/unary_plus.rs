@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::Numeric;
 
 #[derive(Debug)]
-pub struct UnaryPlusRdfOp {}
+pub struct UnaryPlusRdfOp;
+
+impl Default for UnaryPlusRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl UnaryPlusRdfOp {
     pub fn new() -> Self {

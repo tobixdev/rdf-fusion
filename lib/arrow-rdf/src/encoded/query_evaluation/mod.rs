@@ -2,7 +2,7 @@ mod is_compatible;
 
 use datafusion::logical_expr::ScalarUDF;
 pub use is_compatible::*;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-pub const ENC_IS_COMPATIBLE: Lazy<ScalarUDF> =
-    Lazy::new(|| ScalarUDF::from(EncIsCompatible::new()));
+pub static ENC_IS_COMPATIBLE: LazyLock<ScalarUDF> =
+    LazyLock::new(|| ScalarUDF::from(EncIsCompatible::default()));

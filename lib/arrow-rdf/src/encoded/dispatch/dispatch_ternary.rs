@@ -22,7 +22,7 @@ where
         return exec_err!("Unexpected number of arguments.");
     }
 
-    let results = (0..number_of_rows).into_iter().map(|i| {
+    let results = (0..number_of_rows).map(|i| {
         let arg0 = borrow_value::<TUdf::Arg0<'data>>(&args[0], i);
         let arg1 = borrow_value::<TUdf::Arg1<'data>>(&args[1], i);
         let arg2 = borrow_value::<TUdf::Arg2<'data>>(&args[2], i);

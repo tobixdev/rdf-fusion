@@ -192,14 +192,14 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         args: Vec<Expr>,
     ) -> DFResult<Expr> {
         let supported_conversion_functions = HashMap::from([
-            (xsd::BOOLEAN.as_str(), ENC_AS_BOOLEAN),
-            (xsd::INT.as_str(), ENC_AS_INT),
-            (xsd::INTEGER.as_str(), ENC_AS_INTEGER),
-            (xsd::FLOAT.as_str(), ENC_AS_FLOAT),
-            (xsd::DOUBLE.as_str(), ENC_AS_DOUBLE),
-            (xsd::DECIMAL.as_str(), ENC_AS_DECIMAL),
-            (xsd::DATE_TIME.as_str(), ENC_AS_DATETIME),
-            (xsd::STRING.as_str(), ENC_AS_STRING),
+            (xsd::BOOLEAN.as_str(), &ENC_AS_BOOLEAN),
+            (xsd::INT.as_str(), &ENC_AS_INT),
+            (xsd::INTEGER.as_str(), &ENC_AS_INTEGER),
+            (xsd::FLOAT.as_str(), &ENC_AS_FLOAT),
+            (xsd::DOUBLE.as_str(), &ENC_AS_DOUBLE),
+            (xsd::DECIMAL.as_str(), &ENC_AS_DECIMAL),
+            (xsd::DATE_TIME.as_str(), &ENC_AS_DATETIME),
+            (xsd::STRING.as_str(), &ENC_AS_STRING),
         ]);
 
         let supported_conversion = supported_conversion_functions.get(function.as_str());
@@ -323,8 +323,8 @@ fn logical_expression(
     let rhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite(rhs)?]);
 
     let connective_impl = match operator {
-        Operator::And => ENC_AND,
-        Operator::Or => ENC_OR,
+        Operator::And => &ENC_AND,
+        Operator::Or => &ENC_OR,
         _ => plan_err!("Unsupported logical expression: {}", &operator)?,
     };
     let booleans = connective_impl.call(vec![lhs, rhs]);

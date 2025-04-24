@@ -57,7 +57,6 @@ impl ScalarUDFImpl for EncWithRegularEncoding {
             ColumnarValue::Array(array) => {
                 let array = as_struct_array(array);
                 let values = (0..args.number_rows)
-                    .into_iter()
                     .map(|i| TermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
@@ -66,7 +65,6 @@ impl ScalarUDFImpl for EncWithRegularEncoding {
                 let array = scalar.to_array_of_size(args.number_rows)?;
                 let array = as_struct_array(&array);
                 let values = (0..args.number_rows)
-                    .into_iter()
                     .map(|i| TermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
@@ -79,7 +77,7 @@ fn into_regular_enc<'data>(
     terms: impl IntoIterator<Item = RdfOpResult<TermRef<'data>>>,
 ) -> DFResult<ArrayRef> {
     let terms_iter = terms.into_iter();
-    let mut builder = EncRdfTermBuilder::new();
+    let mut builder = EncRdfTermBuilder::default();
 
     for term in terms_iter {
         if let Ok(term) = term {

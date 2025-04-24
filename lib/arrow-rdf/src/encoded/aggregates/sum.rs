@@ -3,23 +3,22 @@ use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::{EncTerm, FromEncodedTerm};
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{Array, ArrayRef};
-use datafusion::logical_expr::{create_udaf, Volatility};
+use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
 use datamodel::{Integer, Numeric, NumericPair, RdfOpResult};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
-pub const ENC_SUM: once_cell::unsync::Lazy<datafusion::logical_expr::AggregateUDF> =
-    once_cell::unsync::Lazy::new(|| {
-        create_udaf(
-            "enc_sum",
-            vec![EncTerm::data_type()],
-            Arc::new(EncTerm::data_type()),
-            Volatility::Immutable,
-            Arc::new(|_| Ok(Box::new(SparqlSum::new()))),
-            Arc::new(vec![EncTerm::data_type()]),
-        )
-    });
+pub static ENC_SUM: LazyLock<AggregateUDF> = LazyLock::new(|| {
+    create_udaf(
+        "enc_sum",
+        vec![EncTerm::data_type()],
+        Arc::new(EncTerm::data_type()),
+        Volatility::Immutable,
+        Arc::new(|_| Ok(Box::new(SparqlSum::new()))),
+        Arc::new(vec![EncTerm::data_type()]),
+    )
+});
 
 #[derive(Debug)]
 struct SparqlSum {
@@ -39,7 +38,7 @@ impl Accumulator for SparqlSum {
         if values.is_empty() {
             return Ok(());
         }
-        let arr = as_enc_term_array(&values[0]).expect("Type constraint.");
+        let arr = as_enc_term_array(&values[0])?;
 
         // TODO: Can we stop once we error?
 

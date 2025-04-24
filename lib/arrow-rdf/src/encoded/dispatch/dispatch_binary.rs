@@ -53,7 +53,7 @@ where
     let lhs = as_enc_term_array(lhs).expect("RDF term");
     let rhs = as_enc_term_array(rhs).expect("RDF term");
 
-    let results = (0..number_of_rows).into_iter().map(|i| {
+    let results = (0..number_of_rows).map(|i| {
         let arg0 = TUdf::ArgLhs::from_enc_array(lhs, i);
         let arg1 = TUdf::ArgRhs::from_enc_array(rhs, i);
         match (arg0, arg1) {
@@ -78,19 +78,16 @@ where
     TUdf::Result<'data>: WriteEncTerm,
 {
     let lhs_value = TUdf::ArgLhs::from_enc_scalar(lhs);
-    let lhs_value = match lhs_value {
-        Ok(value) => value,
-        Err(_) => {
-            let result = udf
-                .evaluate_error()
-                .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
-                .unwrap_or(encode_scalar_null());
-            return Ok(ColumnarValue::Scalar(result));
-        }
+    let lhs_value = if let Ok(value) = lhs_value { value } else {
+        let result = udf
+            .evaluate_error()
+            .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
+            .unwrap_or(encode_scalar_null());
+        return Ok(ColumnarValue::Scalar(result));
     };
 
     let rhs = as_enc_term_array(rhs)?;
-    let results = (0..number_of_rows).into_iter().map(|i| {
+    let results = (0..number_of_rows).map(|i| {
         let rhs_value = TUdf::ArgRhs::from_enc_array(rhs, i);
         match rhs_value {
             Ok(rhs_value) => udf.evaluate(lhs_value, rhs_value),
@@ -114,19 +111,16 @@ where
     TUdf::Result<'data>: WriteEncTerm,
 {
     let rhs_value = TUdf::ArgRhs::from_enc_scalar(rhs);
-    let rhs_value = match rhs_value {
-        Ok(value) => value,
-        Err(_) => {
-            let result = udf
-                .evaluate_error()
-                .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
-                .unwrap_or(encode_scalar_null());
-            return Ok(ColumnarValue::Scalar(result));
-        }
+    let rhs_value = if let Ok(value) = rhs_value { value } else {
+        let result = udf
+            .evaluate_error()
+            .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
+            .unwrap_or(encode_scalar_null());
+        return Ok(ColumnarValue::Scalar(result));
     };
 
     let lhs = as_enc_term_array(lhs)?;
-    let results = (0..number_of_rows).into_iter().map(|i| {
+    let results = (0..number_of_rows).map(|i| {
         let lhs_value = TUdf::ArgLhs::from_enc_array(lhs, i);
         match lhs_value {
             Ok(lhs_value) => udf.evaluate(lhs_value, rhs_value),

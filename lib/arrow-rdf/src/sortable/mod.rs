@@ -8,11 +8,12 @@ pub use builder::SortableTermBuilder;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::logical_expr::ScalarUDF;
 pub use from_sortable_term::FromSortableTerm;
-use once_cell::unsync::Lazy;
+use std::sync::LazyLock;
 
-pub const ENC_WITH_REGULAR_ENCODING: Lazy<ScalarUDF> =
-    Lazy::new(|| ScalarUDF::from(EncWithRegularEncoding::new()));
+pub static ENC_WITH_REGULAR_ENCODING: LazyLock<ScalarUDF> =
+    LazyLock::new(|| ScalarUDF::from(EncWithRegularEncoding::new()));
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SortableTermField {
     Type,
     Numeric,
@@ -22,7 +23,7 @@ enum SortableTermField {
 }
 
 impl SortableTermField {
-    pub fn name(&self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             SortableTermField::Type => "type",
             SortableTermField::Numeric => "numeric",
@@ -32,7 +33,7 @@ impl SortableTermField {
         }
     }
 
-    pub fn index(&self) -> usize {
+    pub fn index(self) -> usize {
         match self {
             SortableTermField::Type => 0,
             SortableTermField::Numeric => 1,
@@ -42,18 +43,16 @@ impl SortableTermField {
         }
     }
 
-    pub fn data_type(&self) -> DataType {
+    pub fn data_type(self) -> DataType {
         match self {
-            SortableTermField::Type => DataType::UInt8,
             SortableTermField::Numeric => DataType::Float64,
-            SortableTermField::Bytes => DataType::Binary,
-            SortableTermField::AdditionalBytes => DataType::Binary,
-            SortableTermField::EncTermType => DataType::UInt8,
+            SortableTermField::Bytes | SortableTermField::AdditionalBytes => DataType::Binary,
+            SortableTermField::EncTermType | SortableTermField::Type => DataType::UInt8,
         }
     }
 }
 
-const FIELDS_SORTABLE_TERM: Lazy<Fields> = Lazy::new(|| {
+static FIELDS_SORTABLE_TERM: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
         Field::new(
             SortableTermField::Type.name(),
@@ -83,7 +82,7 @@ const FIELDS_SORTABLE_TERM: Lazy<Fields> = Lazy::new(|| {
     ])
 });
 
-pub struct SortableTerm {}
+pub struct SortableTerm;
 
 impl SortableTerm {
     pub fn fields() -> Fields {

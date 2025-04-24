@@ -3,11 +3,17 @@ use datamodel::{Boolean, RdfOpError, TermRef};
 use std::cmp::Ordering;
 
 #[derive(Debug)]
-pub struct EqRdfOp {}
+pub struct EqRdfOp;
+
+impl Default for EqRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl EqRdfOp {
     pub fn new() -> Self {
-        Self {}
+        Self
     }
 }
 
@@ -25,8 +31,7 @@ impl ScalarBinaryRdfOp for EqRdfOp {
             // Same term are also equal.
             (TermRef::TypedLiteral(l), TermRef::TypedLiteral(r)) if l == r => Ok(true.into()),
             // Cannot say anything about unsupported typed literals that are not the same term.
-            (TermRef::TypedLiteral(_), _) => Err(RdfOpError),
-            (_, TermRef::TypedLiteral(_)) => Err(RdfOpError),
+            (_, TermRef::TypedLiteral(_)) | (TermRef::TypedLiteral(_), _) => Err(RdfOpError),
             // For numerics, compare values.
             (TermRef::NumericLiteral(lhs), TermRef::NumericLiteral(rhs)) => {
                 Ok((lhs.partial_cmp(&rhs) == Some(Ordering::Equal)).into())

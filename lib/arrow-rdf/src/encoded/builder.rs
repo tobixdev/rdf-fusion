@@ -33,8 +33,8 @@ pub struct EncRdfTermBuilder {
     null_builder: NullBuilder,
 }
 
-impl EncRdfTermBuilder {
-    pub fn new() -> Self {
+impl Default for EncRdfTermBuilder {
+    fn default() -> Self {
         Self {
             type_ids: Vec::new(),
             offsets: Vec::new(),
@@ -57,24 +57,27 @@ impl EncRdfTermBuilder {
             null_builder: NullBuilder::new(),
         }
     }
+}
 
+impl EncRdfTermBuilder {
     pub fn append_decoded_term(&mut self, value: &DecodedTerm) -> Result<(), ArrowError> {
-        Ok(match value {
+        match value {
             DecodedTerm::NamedNode(nn) => self.append_named_node(nn.as_str())?,
             DecodedTerm::BlankNode(bnode) => self.append_blank_node(bnode.as_str())?,
             DecodedTerm::Literal(literal) => match self.append_literal(literal) {
-                Ok(_) => (),
+                Ok(()) => (),
                 Err(LiteralEncodingError::Arrow(error)) => return Err(error),
                 Err(LiteralEncodingError::ParsingError(_)) => {
                     self.append_typed_literal(literal.value(), literal.datatype().as_str())?
                 }
             },
             _ => unimplemented!(),
-        })
+        };
+        Ok(())
     }
 
     fn append_literal(&mut self, literal: &Literal) -> Result<(), LiteralEncodingError> {
-        Ok(match literal.datatype() {
+        match literal.datatype() {
             xsd::BOOLEAN => self.append_boolean(literal.value().parse()?)?,
             xsd::FLOAT => self.append_float(literal.value().parse()?)?,
             xsd::DOUBLE => self.append_double(literal.value().parse()?)?,
@@ -83,7 +86,8 @@ impl EncRdfTermBuilder {
             rdf::LANG_STRING => self.append_string(literal.value(), literal.language())?,
             xsd::STRING => self.append_string(literal.value(), None)?,
             _ => self.append_typed_literal(literal.value(), literal.datatype().as_str())?,
-        })
+        };
+        Ok(())
     }
 
     pub fn append_boolean(&mut self, value: bool) -> AResult<()> {

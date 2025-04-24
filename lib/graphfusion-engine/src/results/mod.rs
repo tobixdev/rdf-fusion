@@ -204,7 +204,7 @@ pub fn query_result_for_iterator(
 ) -> Result<QueryResults, QuerySolutionsToStreamError> {
     let mut builders = Vec::new();
     for _ in 0..variables.len() {
-        builders.push(EncRdfTermBuilder::new())
+        builders.push(EncRdfTermBuilder::default())
     }
 
     let mut count = 0;

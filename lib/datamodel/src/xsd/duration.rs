@@ -132,9 +132,8 @@ impl Duration {
 
     /// [op:add-yearMonthDurations](https://www.w3.org/TR/xpath-functions-31/#func-add-yearMonthDurations) and [op:add-dayTimeDurations](https://www.w3.org/TR/xpath-functions-31/#func-add-dayTimeDurations)
     ///
-    /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
+    /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    #[must_use]
     pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
         Self::construct(
@@ -146,9 +145,8 @@ impl Duration {
 
     /// [op:subtract-yearMonthDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDurations) and [op:subtract-dayTimeDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDurations)
     ///
-    /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
+    /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    #[must_use]
     pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
         Self::construct(
@@ -160,7 +158,7 @@ impl Duration {
 
     /// Unary negation.
     ///
-    /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
+    /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
     pub fn checked_neg(self) -> RdfOpResult<Self> {
         Ok(Self {
@@ -363,7 +361,7 @@ impl YearMonthDuration {
 
     /// [op:add-yearMonthDurations](https://www.w3.org/TR/xpath-functions-31/#func-add-yearMonthDurations)
     ///
-    /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
+    /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
     pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
@@ -374,7 +372,7 @@ impl YearMonthDuration {
 
     /// [op:subtract-yearMonthDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDurations)
     ///
-    /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
+    /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
     pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
@@ -385,7 +383,7 @@ impl YearMonthDuration {
 
     /// Unary negation.
     ///
-    /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
+    /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
     pub fn checked_neg(self) -> RdfOpResult<Self> {
         Ok(Self {
@@ -558,7 +556,7 @@ impl DayTimeDuration {
 
     /// [op:add-dayTimeDurations](https://www.w3.org/TR/xpath-functions-31/#func-add-dayTimeDurations)
     ///
-    /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
+    /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
     pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
@@ -569,7 +567,7 @@ impl DayTimeDuration {
 
     /// [op:subtract-dayTimeDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDurations)
     ///
-    /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
+    /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
     pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
         let rhs = rhs.into();
@@ -580,7 +578,7 @@ impl DayTimeDuration {
 
     /// Unary negation.
     ///
-    /// Returns `None` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
+    /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
     pub fn checked_neg(self) -> RdfOpResult<Self> {
         Ok(Self {
@@ -1217,19 +1215,19 @@ mod tests {
     fn add() -> Result<(), ParseDurationError> {
         assert_eq!(
             Duration::from_str("P2Y11M")?.checked_add(Duration::from_str("P3Y3M")?),
-            Some(Duration::from_str("P6Y2M")?)
+            Ok(Duration::from_str("P6Y2M")?)
         );
         assert_eq!(
             Duration::from_str("P2DT12H5M")?.checked_add(Duration::from_str("P5DT12H")?),
-            Some(Duration::from_str("P8DT5M")?)
+            Ok(Duration::from_str("P8DT5M")?)
         );
         assert_eq!(
             Duration::from_str("P1M2D")?.checked_add(Duration::from_str("-P3D")?),
-            None
+            Err(RdfOpError)
         );
         assert_eq!(
             Duration::from_str("P1M2D")?.checked_add(Duration::from_str("-P2M")?),
-            None
+            Err(RdfOpError)
         );
         Ok(())
     }
@@ -1238,19 +1236,19 @@ mod tests {
     fn sub() -> Result<(), ParseDurationError> {
         assert_eq!(
             Duration::from_str("P2Y11M")?.checked_sub(Duration::from_str("P3Y3M")?),
-            Some(Duration::from_str("-P4M")?)
+            Ok(Duration::from_str("-P4M")?)
         );
         assert_eq!(
             Duration::from_str("P2DT12H")?.checked_sub(Duration::from_str("P1DT10H30M")?),
-            Some(Duration::from_str("P1DT1H30M")?)
+            Ok(Duration::from_str("P1DT1H30M")?)
         );
         assert_eq!(
             Duration::from_str("P1M2D")?.checked_sub(Duration::from_str("P3D")?),
-            None
+            Err(RdfOpError)
         );
         assert_eq!(
             Duration::from_str("P1M2D")?.checked_sub(Duration::from_str("P2M")?),
-            None
+            Err(RdfOpError)
         );
         Ok(())
     }

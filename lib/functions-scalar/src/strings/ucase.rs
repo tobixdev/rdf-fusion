@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
-pub struct UCaseRdfOp {}
+pub struct UCaseRdfOp;
+
+impl Default for UCaseRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl UCaseRdfOp {
     pub fn new() -> Self {

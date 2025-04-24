@@ -38,7 +38,7 @@ where
     TUdf::Arg<'data>: FromEncodedTerm<'data>,
     TUdf::Result<'data>: WriteEncTerm,
 {
-    let value = TUdf::Arg::from_enc_scalar(&value);
+    let value = TUdf::Arg::from_enc_scalar(value);
     let result = match value {
         Ok(value) => udf.evaluate(value),
         Err(_) => udf.evaluate_error(),
@@ -67,8 +67,7 @@ where
     }
 
     let results = (0..values.len())
-        .into_iter()
-        .map(|i| TermRef::from_enc_array(values, i).and_then(|term| TUdf::Arg::from_term(term)))
+        .map(|i| TermRef::from_enc_array(values, i).and_then(TUdf::Arg::from_term))
         .map(|v| match v {
             Ok(value) => udf.evaluate(value),
             Err(_) => udf.evaluate_error(),

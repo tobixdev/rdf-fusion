@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
-pub struct EncodeForUriRdfOp {}
+pub struct EncodeForUriRdfOp;
+
+impl Default for EncodeForUriRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl EncodeForUriRdfOp {
     pub fn new() -> Self {

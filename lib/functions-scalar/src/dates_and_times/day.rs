@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{DateTime, Integer};
 
 #[derive(Debug)]
-pub struct DayRdfOp {}
+pub struct DayRdfOp;
+
+impl Default for DayRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl DayRdfOp {
     pub fn new() -> Self {

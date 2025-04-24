@@ -93,7 +93,7 @@ impl UserDefinedLogicalNodeCore for PatternNode {
         let patterns = self
             .patterns
             .iter()
-            .map(|p| format_pattern(p))
+            .map(format_pattern)
             .collect::<Vec<_>>()
             .join(", ");
         write!(f, "Pattern: {patterns}",)
@@ -106,7 +106,7 @@ impl UserDefinedLogicalNodeCore for PatternNode {
     ) -> datafusion::common::Result<Self> {
         assert_eq!(inputs.len(), 1, "input size inconsistent");
         assert_eq!(exprs.len(), 0, "expression size inconsistent");
-        Ok(Self::try_new(inputs[0].clone(), self.patterns.clone())?)
+        Self::try_new(inputs[0].clone(), self.patterns.clone())
     }
 }
 

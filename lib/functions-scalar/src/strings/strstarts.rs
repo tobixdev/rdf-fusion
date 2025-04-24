@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarBinaryRdfOp};
 use datamodel::{Boolean, CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
-pub struct StrStartsRdfOp {}
+pub struct StrStartsRdfOp;
+
+impl Default for StrStartsRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl StrStartsRdfOp {
     pub fn new() -> Self {
@@ -17,10 +23,10 @@ impl ScalarBinaryRdfOp for StrStartsRdfOp {
 
     fn evaluate<'data>(
         &self,
-        arg_lhs: Self::ArgLhs<'data>,
-        arg_rhs: Self::ArgRhs<'data>,
+        lhs: Self::ArgLhs<'data>,
+        rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        let args = CompatibleStringArgs::try_from(arg_lhs, arg_rhs)?;
+        let args = CompatibleStringArgs::try_from(lhs, rhs)?;
         Ok(args.lhs.starts_with(args.rhs).into())
     }
 }

@@ -13,7 +13,6 @@ datafusion.workspace = true
 datamodel.workspace = true
 futures.workspace = true
 graphfusion-logical.workspace = true
-once_cell.workspace = true
 
 [lints]
 workspace = true

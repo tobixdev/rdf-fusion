@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarBinaryRdfOp, ScalarTernaryRdfOp};
 use datamodel::{Integer, StringLiteralRef};
 
 #[derive(Debug)]
-pub struct SubStrRdfOp {}
+pub struct SubStrRdfOp;
+
+impl Default for SubStrRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SubStrRdfOp {
     pub fn new() -> Self {
@@ -17,10 +23,10 @@ impl ScalarBinaryRdfOp for SubStrRdfOp {
 
     fn evaluate<'data>(
         &self,
-        source: Self::ArgLhs<'data>,
-        starting_loc: Self::ArgRhs<'data>,
+        lhs: Self::ArgLhs<'data>,
+        rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        evaluate_substr(source, starting_loc, None)
+        evaluate_substr(lhs, rhs, None)
     }
 }
 
@@ -32,11 +38,11 @@ impl ScalarTernaryRdfOp for SubStrRdfOp {
 
     fn evaluate<'data>(
         &self,
-        source: Self::Arg0<'data>,
-        starting_loc: Self::Arg1<'data>,
-        length: Self::Arg2<'data>,
+        arg0: Self::Arg0<'data>,
+        arg1: Self::Arg1<'data>,
+        arg2: Self::Arg2<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        evaluate_substr(source, starting_loc, Some(length))
+        evaluate_substr(arg0, arg1, Some(arg2))
     }
 }
 
@@ -48,8 +54,7 @@ fn evaluate_substr(
     let index = usize::try_from(starting_loc.as_i64()).map_err(|_| ())?;
     let length = length
         .map(|l| usize::try_from(l.as_i64()).map_err(|_| ()))
-        .transpose()
-        .map_err(|_| ())?;
+        .transpose()?;
 
     // We want to slice on char indices, not byte indices
     let mut start_iter = source

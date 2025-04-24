@@ -3,7 +3,13 @@ use datamodel::Numeric;
 use std::ops::Neg;
 
 #[derive(Debug)]
-pub struct UnaryMinusRdfOp {}
+pub struct UnaryMinusRdfOp;
+
+impl Default for UnaryMinusRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl UnaryMinusRdfOp {
     pub fn new() -> Self {

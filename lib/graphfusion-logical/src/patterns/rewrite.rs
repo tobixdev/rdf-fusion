@@ -23,30 +23,25 @@ impl OptimizerRule for PatternToProjectionRule {
         plan: LogicalPlan,
         _config: &dyn OptimizerConfig,
     ) -> DFResult<Transformed<LogicalPlan>> {
-        self.rewrite(plan)
-    }
-}
+        plan.transform(|plan| {
+            let new_plan = match &plan {
+                LogicalPlan::Extension(Extension { node }) => {
+                    if let Some(node) = node.as_any().downcast_ref::<PatternNode>() {
+                        let plan = node.input().clone();
 
-impl PatternToProjectionRule {
-    fn rewrite(&self, plan: LogicalPlan) -> DFResult<Transformed<LogicalPlan>> {
-        Ok(plan.transform(|plan| {
-            let new_plan = match plan {
-                LogicalPlan::Extension(Extension { node })
-                    if node.as_any().downcast_ref::<PatternNode>().is_some() =>
-                {
-                    let node = node.as_any().downcast_ref::<PatternNode>().unwrap();
-                    let plan = node.input().clone();
+                        let plan = filter_by_values(plan.into(), node.patterns())?;
+                        let plan = filter_same_variable(plan, node.patterns())?;
+                        let plan = project_to_variables(plan, node.patterns())?;
 
-                    let plan = filter_by_values(plan.into(), node.patterns())?;
-                    let plan = filter_same_variable(plan, node.patterns())?;
-                    let plan = project_to_variables(plan, node.patterns())?;
-
-                    Transformed::yes(plan.build()?)
+                        Transformed::yes(plan.build()?)
+                    } else {
+                        Transformed::no(plan)
+                    }
                 }
                 _ => Transformed::no(plan),
             };
             Ok(new_plan)
-        })?)
+        })
     }
 }
 
@@ -64,7 +59,7 @@ fn filter_by_values(
         .iter()
         .zip(pattern.iter())
         .filter_map(|(c, p)| value_pattern_to_filter_expr(c, p))
-        .reduce(|lhs, rhs| and(lhs, rhs));
+        .reduce(and);
 
     let Some(filter) = filter else {
         return Ok(plan);
@@ -102,20 +97,17 @@ fn filter_same_variable(
 
     let column_patterns = plan.schema().columns().into_iter().zip(pattern.iter());
     for (column, pattern) in column_patterns {
-        match pattern_to_variable_name(pattern) {
-            Some(variable) => {
-                if !mappings.contains_key(&variable) {
-                    mappings.insert(variable.clone(), Vec::new());
-                }
-                mappings.get_mut(&variable).unwrap().push(column.clone());
+        if let Some(variable) = pattern_to_variable_name(pattern) {
+            if !mappings.contains_key(&variable) {
+                mappings.insert(variable.clone(), Vec::new());
             }
-            None => {}
+            mappings.get_mut(&variable).unwrap().push(column.clone());
         }
     }
 
     let mut result_plan = plan;
     for value in mappings.into_values() {
-        let columns = value.into_iter().map(|v| col(v)).collect::<Vec<_>>();
+        let columns = value.into_iter().map(col).collect::<Vec<_>>();
         let constraint = columns
             .iter()
             .zip(columns.iter().skip(1))
@@ -123,7 +115,7 @@ fn filter_same_variable(
                 ENC_EFFECTIVE_BOOLEAN_VALUE
                     .call(vec![ENC_SAME_TERM.call(vec![a.clone(), b.clone()])])
             })
-            .reduce(|a, b| a.and(b));
+            .reduce(Expr::and);
         result_plan = match constraint {
             Some(constraint) => result_plan.filter(constraint)?,
             _ => result_plan,

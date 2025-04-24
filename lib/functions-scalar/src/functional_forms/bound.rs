@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarUnaryRdfOp};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
-pub struct BoundRdfOp {}
+pub struct BoundRdfOp;
+
+impl Default for BoundRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl BoundRdfOp {
     pub fn new() -> Self {

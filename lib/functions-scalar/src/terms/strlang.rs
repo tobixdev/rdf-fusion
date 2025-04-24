@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarBinaryRdfOp};
 use datamodel::{OwnedStringLiteral, SimpleLiteralRef};
 
 #[derive(Debug)]
-pub struct StrLangRdfOp {}
+pub struct StrLangRdfOp;
+
+impl Default for StrLangRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl StrLangRdfOp {
     pub fn new() -> Self {

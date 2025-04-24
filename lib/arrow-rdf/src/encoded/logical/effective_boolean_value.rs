@@ -16,6 +16,12 @@ pub struct EncEffectiveBooleanValue {
     signature: Signature,
 }
 
+impl Default for EncEffectiveBooleanValue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EncEffectiveBooleanValue {
     pub fn new() -> Self {
         Self {
@@ -56,7 +62,6 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
             ColumnarValue::Array(array) => {
                 let array = as_enc_term_array(array.as_ref())?;
                 let result = (0..args.number_rows)
-                    .into_iter()
                     .map(|i| TermRef::from_enc_array(array, i).and_then(evaluate).ok())
                     .collect::<BooleanArray>();
                 Ok(ColumnarValue::Array(Arc::new(result)))
@@ -75,8 +80,8 @@ fn evaluate(value: TermRef<'_>) -> RdfOpResult<bool> {
         TermRef::NumericLiteral(value) => match value {
             Numeric::Int(value) => value != Int::from(0),
             Numeric::Integer(value) => value != Integer::from(0),
-            Numeric::Float(value) => value != Float::from(0f32),
-            Numeric::Double(value) => value != Double::from(0f64),
+            Numeric::Float(value) => value != Float::from(0_f32),
+            Numeric::Double(value) => value != Double::from(0_f64),
             Numeric::Decimal(value) => value != Decimal::from(0),
         },
         TermRef::SimpleLiteral(value) => !value.is_empty(),

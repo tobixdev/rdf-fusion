@@ -54,7 +54,7 @@ impl ScalarUDFImpl for EncBooleanAsRdfTerm {
         // Performance could be optimized here
         let arg = arg.to_array(args.number_rows)?;
         let arg = as_boolean_array(&arg);
-        let mut builder = EncRdfTermBuilder::new();
+        let mut builder = EncRdfTermBuilder::default();
         for i in 0..args.number_rows {
             if arg.is_null(i) {
                 builder.append_null()?;

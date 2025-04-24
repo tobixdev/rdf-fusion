@@ -3,23 +3,22 @@ use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::{EncTerm, FromEncodedTerm};
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{Array, ArrayRef};
-use datafusion::logical_expr::{create_udaf, Volatility};
+use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
 use datamodel::{RdfOpError, RdfOpResult, Term, TermRef};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
-pub const ENC_MAX: once_cell::unsync::Lazy<datafusion::logical_expr::AggregateUDF> =
-    once_cell::unsync::Lazy::new(|| {
-        create_udaf(
-            "enc_max",
-            vec![EncTerm::data_type()],
-            Arc::new(EncTerm::data_type()),
-            Volatility::Immutable,
-            Arc::new(|_| Ok(Box::new(SparqlMax::new()))),
-            Arc::new(vec![EncTerm::data_type()]),
-        )
-    });
+pub static ENC_MAX: LazyLock<AggregateUDF> = LazyLock::new(|| {
+    create_udaf(
+        "enc_max",
+        vec![EncTerm::data_type()],
+        Arc::new(EncTerm::data_type()),
+        Volatility::Immutable,
+        Arc::new(|_| Ok(Box::new(SparqlMax::new()))),
+        Arc::new(vec![EncTerm::data_type()]),
+    )
+});
 
 #[derive(Debug)]
 struct SparqlMax {
@@ -49,14 +48,12 @@ impl Accumulator for SparqlMax {
             let value = TermRef::from_enc_array(arr, i);
 
             if !self.executed_once {
-                self.max = value.map(|t| t.to_owned());
+                self.max = value.map(TermRef::into_owned);
                 self.executed_once = true;
-            } else {
-                if let Ok(min) = self.max.as_ref() {
-                    if let Ok(value) = value {
-                        if min.as_ref() < value {
-                            self.max = Ok(value.to_owned());
-                        }
+            } else if let Ok(min) = self.max.as_ref() {
+                if let Ok(value) = value {
+                    if min.as_ref() < value {
+                        self.max = Ok(value.into_owned());
                     }
                 }
             }

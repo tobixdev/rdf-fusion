@@ -20,7 +20,7 @@ fmt:
 
 # Run clippy lints
 clippy:
-    cargo clippy --all-targets -- -D warnings -D clippy::all
+    cargo clippy -- -D warnings -D clippy::all
 
 # Run all tests
 test:

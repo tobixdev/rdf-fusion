@@ -4,24 +4,23 @@ use crate::encoded::{EncTerm, FromEncodedTerm};
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::{DataType, Int64Type};
-use datafusion::logical_expr::{create_udaf, Volatility};
+use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
 use datamodel::{Decimal, Integer, Numeric, NumericPair, RdfOpError, RdfOpResult};
 use std::ops::Div;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
-pub const ENC_AVG: once_cell::unsync::Lazy<datafusion::logical_expr::AggregateUDF> =
-    once_cell::unsync::Lazy::new(|| {
-        create_udaf(
-            "enc_avg",
-            vec![EncTerm::data_type()],
-            Arc::new(EncTerm::data_type()),
-            Volatility::Immutable,
-            Arc::new(|_| Ok(Box::new(SparqlAvg::new()))),
-            Arc::new(vec![EncTerm::data_type(), DataType::Int64]),
-        )
-    });
+pub static ENC_AVG: LazyLock<AggregateUDF> = LazyLock::new(|| {
+    create_udaf(
+        "enc_avg",
+        vec![EncTerm::data_type()],
+        Arc::new(EncTerm::data_type()),
+        Volatility::Immutable,
+        Arc::new(|_| Ok(Box::new(SparqlAvg::new()))),
+        Arc::new(vec![EncTerm::data_type(), DataType::Int64]),
+    )
+});
 
 #[derive(Debug)]
 struct SparqlAvg {

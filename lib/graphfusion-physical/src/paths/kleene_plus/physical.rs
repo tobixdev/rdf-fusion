@@ -308,7 +308,7 @@ impl KleenePlusClosureStream {
                 exec_datafusion_err!("Could not obtain end value from inner paths.")
             })?;
 
-            let path_tuple = (start.to_owned(), end.to_owned());
+            let path_tuple = (start.into_owned(), end.into_owned());
             self.initial_paths_map
                 .entry(graph.into_owned())
                 .or_default()
@@ -316,8 +316,8 @@ impl KleenePlusClosureStream {
 
             let path = Path {
                 graph: graph.into_owned(),
-                start: start.to_owned(),
-                end: end.to_owned(),
+                start: start.into_owned(),
+                end: end.into_owned(),
             };
 
             self.all_paths.insert(path.clone()); // All inner paths are part of the closure.
@@ -369,9 +369,9 @@ impl KleenePlusClosureStream {
 
     /// Creates a [RecordBatch] from the internal state of `self`.
     fn create_output_batch(&self) -> DFResult<RecordBatch> {
-        let mut graph_builder = EncRdfTermBuilder::new();
-        let mut start_builder = EncRdfTermBuilder::new();
-        let mut end_builder = EncRdfTermBuilder::new();
+        let mut graph_builder = EncRdfTermBuilder::default();
+        let mut start_builder = EncRdfTermBuilder::default();
+        let mut end_builder = EncRdfTermBuilder::default();
 
         for path in self.all_paths.iter() {
             match &path.graph {

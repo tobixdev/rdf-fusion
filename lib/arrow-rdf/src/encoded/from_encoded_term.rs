@@ -35,16 +35,13 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     }
                     EncTermField::String => match inner_value.as_ref() {
                         ScalarValue::Struct(struct_array) => {
-                            match struct_array.column(1).is_null(0) {
-                                true => TermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(
-                                    scalar,
-                                )?),
-                                false => TermRef::LanguageStringLiteral(
-                                    LanguageStringRef::from_enc_scalar(scalar)?,
-                                ),
-                            }
+                            if struct_array.column(1).is_null(0) { TermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(
+                                scalar,
+                            )?) } else { TermRef::LanguageStringLiteral(
+                                LanguageStringRef::from_enc_scalar(scalar)?,
+                            ) }
                         }
-                        _ => Err(RdfOpError)?,
+                        _ => return Err(RdfOpError),
                     },
                     EncTermField::Boolean => {
                         TermRef::BooleanLiteral(Boolean::from_enc_scalar(scalar)?)
@@ -67,7 +64,7 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     EncTermField::TypedLiteral => {
                         TermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
                     }
-                    EncTermField::Null => Err(RdfOpError)?,
+                    EncTermField::Null => return Err(RdfOpError),
                 })
             }
             _ => Err(RdfOpError),
@@ -88,21 +85,17 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
             EncTermField::BlankNode => TermRef::BlankNode(
                 BlankNodeRef::from_enc_array(array, index).expect("EncTermField checked"),
             ),
-            EncTermField::String => match array
+            EncTermField::String => if array
                 .child(field.type_id())
                 .as_struct()
                 .column(1)
-                .is_null(offset)
-            {
-                true => TermRef::SimpleLiteral(
-                    SimpleLiteralRef::from_enc_array(array, index)
-                        .expect("EncTermField and null checked"),
-                ),
-                false => TermRef::LanguageStringLiteral(
-                    LanguageStringRef::from_enc_array(array, index)
-                        .expect("EncTermField and null checked"),
-                ),
-            },
+                .is_null(offset) { TermRef::SimpleLiteral(
+                SimpleLiteralRef::from_enc_array(array, index)
+                    .expect("EncTermField and null checked"),
+            ) } else { TermRef::LanguageStringLiteral(
+                LanguageStringRef::from_enc_array(array, index)
+                    .expect("EncTermField and null checked"),
+            ) },
             EncTermField::Boolean => TermRef::BooleanLiteral(
                 Boolean::from_enc_array(array, index).expect("EncTermField checked"),
             ),
@@ -149,7 +142,7 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
             EncTermField::TypedLiteral => TermRef::TypedLiteral(
                 TypedLiteralRef::from_enc_array(array, index).expect("EncTermField checked"),
             ),
-            EncTermField::Null => Err(RdfOpError)?,
+            EncTermField::Null => return Err(RdfOpError),
         })
     }
 }
@@ -203,13 +196,10 @@ impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
         }
 
         match scalar.as_ref() {
-            ScalarValue::Struct(value) => match value.column(1).is_null(0) {
-                true => Err(RdfOpError),
-                false => Ok(Self {
-                    value: value.column(0).as_string::<i32>().value(0),
-                    language: value.column(1).as_string::<i32>().value(0),
-                }),
-            },
+            ScalarValue::Struct(value) => if value.column(1).is_null(0) { Err(RdfOpError) } else { Ok(Self {
+                value: value.column(0).as_string::<i32>().value(0),
+                language: value.column(1).as_string::<i32>().value(0),
+            }) },
             _ => Err(RdfOpError),
         }
     }
@@ -322,12 +312,9 @@ impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
         }
 
         match scalar.as_ref() {
-            ScalarValue::Struct(value) => match value.column(1).is_null(0) {
-                true => Ok(Self {
-                    value: value.column(0).as_string::<i32>().value(0),
-                }),
-                false => Err(RdfOpError),
-            },
+            ScalarValue::Struct(value) => if value.column(1).is_null(0) { Ok(Self {
+                value: value.column(0).as_string::<i32>().value(0),
+            }) } else { Err(RdfOpError) },
             _ => Err(RdfOpError),
         }
     }
@@ -417,13 +404,10 @@ impl<'data> FromEncodedTerm<'data> for TypedLiteralRef<'data> {
         }
 
         match scalar.as_ref() {
-            ScalarValue::Struct(value) => match value.column(1).is_null(0) {
-                true => Err(RdfOpError),
-                false => Ok(Self {
-                    value: value.column(0).as_string::<i32>().value(0),
-                    literal_type: value.column(1).as_string::<i32>().value(0),
-                }),
-            },
+            ScalarValue::Struct(value) => if value.column(1).is_null(0) { Err(RdfOpError) } else { Ok(Self {
+                value: value.column(0).as_string::<i32>().value(0),
+                literal_type: value.column(1).as_string::<i32>().value(0),
+            }) },
             _ => Err(RdfOpError),
         }
     }

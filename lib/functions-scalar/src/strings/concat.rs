@@ -2,7 +2,13 @@ use crate::{RdfOpResult, ScalarNAryRdfOp};
 use datamodel::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
-pub struct ConcatRdfOp {}
+pub struct ConcatRdfOp;
+
+impl Default for ConcatRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ConcatRdfOp {
     pub fn new() -> Self {
@@ -26,7 +32,7 @@ impl ScalarNAryRdfOp for ConcatRdfOp {
             } else {
                 language = Some(arg.1)
             }
-            result += &arg.0;
+            result += arg.0;
         }
 
         Ok(OwnedStringLiteral(

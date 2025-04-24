@@ -4,9 +4,15 @@ use regex::{Regex, RegexBuilder};
 use std::borrow::Cow;
 
 #[derive(Debug)]
-pub struct RegexRdfOp {}
+pub struct RegexRdfOp;
 
 // TODO: Support pre-compiled regex if not a variable
+
+impl Default for RegexRdfOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl RegexRdfOp {
     pub fn new() -> Self {
@@ -21,11 +27,11 @@ impl ScalarBinaryRdfOp for RegexRdfOp {
 
     fn evaluate<'data>(
         &self,
-        text: Self::ArgLhs<'data>,
-        pattern: Self::ArgRhs<'data>,
+        lhs: Self::ArgLhs<'data>,
+        rhs: Self::ArgRhs<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        let regex = compile_pattern(&pattern.value, None).ok_or(())?;
-        Ok(regex.is_match(&text.0).into())
+        let regex = compile_pattern(rhs.value, None).ok_or(())?;
+        Ok(regex.is_match(lhs.0).into())
     }
 }
 
@@ -37,12 +43,12 @@ impl ScalarTernaryRdfOp for RegexRdfOp {
 
     fn evaluate<'data>(
         &self,
-        text: Self::Arg0<'data>,
-        pattern: Self::Arg1<'data>,
-        flags: Self::Arg2<'data>,
+        arg0: Self::Arg0<'data>,
+        arg1: Self::Arg1<'data>,
+        arg2: Self::Arg2<'data>,
     ) -> RdfOpResult<Self::Result<'data>> {
-        let regex = compile_pattern(&pattern.value, Some(flags.value)).ok_or(())?;
-        Ok(regex.is_match(&text.0).into())
+        let regex = compile_pattern(arg1.value, Some(arg2.value)).ok_or(())?;
+        Ok(regex.is_match(arg0.0).into())
     }
 }
 

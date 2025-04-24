@@ -131,7 +131,7 @@ where
     <T as FromStr>::Err: std::fmt::Display,
 {
     let value = value.parse::<T>().map_err(|inner| {
-        DataFusionError::Execution(format!("Could not parse primitive: {}", inner))
+        DataFusionError::Execution(format!("Could not parse primitive: {inner}"))
     })?;
     Ok(value.into_scalar_value()?)
 }
@@ -141,7 +141,7 @@ fn handle_generic_literal(literal: LiteralRef<'_>) -> DFResult<ScalarValue> {
     let datatype = literal.datatype().as_str();
     let arrays: Vec<ArrayRef> = vec![
         Arc::new(StringArray::from(vec![value])),
-        Arc::new(StringArray::from(vec![datatype.to_string()])),
+        Arc::new(StringArray::from(vec![datatype.to_owned()])),
     ];
     let structs = StructArray::new(EncTerm::typed_literal_fields(), arrays, None);
     let scalar_value = ScalarValue::Struct(Arc::new(structs));
