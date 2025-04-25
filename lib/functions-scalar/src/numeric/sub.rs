@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ThinResult};
-use datamodel::{Numeric, NumericPair};
+use model::{Numeric, NumericPair};
 
 #[derive(Debug)]
 pub struct SubRdfOp;

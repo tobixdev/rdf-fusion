@@ -4,12 +4,12 @@ use datafusion::arrow::datatypes::{
     DataType, Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
 };
 use datafusion::common::ScalarValue;
-use datamodel::{
+use model::{BlankNodeRef, GraphNameRef, NamedNodeRef};
+use model::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
     LanguageStringRef, Numeric, SimpleLiteralRef, StringLiteralRef, TermRef, ThinError, ThinResult,
     Time, Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration,
 };
-use oxrdf::{BlankNodeRef, GraphNameRef, NamedNodeRef};
 use std::ops::Not;
 
 pub trait FromEncodedTerm<'data> {

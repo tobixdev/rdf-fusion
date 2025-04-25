@@ -16,7 +16,7 @@ pub use numeric::*;
 pub use strings::*;
 pub use terms::*;
 
-use datamodel::{RdfValueRef, ThinError, ThinResult};
+use model::{RdfValueRef, ThinError, ThinResult};
 
 pub trait ScalarNullaryRdfOp {
     type Result<'data>;

@@ -1,5 +1,5 @@
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
-use datamodel::{Decimal, ThinError};
+use model::{Decimal, ThinError};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;

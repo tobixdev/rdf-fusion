@@ -2,15 +2,13 @@
 members = [
     "cli",
     "lib/arrow-rdf",
-    "lib/datamodel",
+    "lib/model",
     "lib/functions-scalar",
     "lib/graphfusion-engine",
     "lib/graphfusion-logical",
     "lib/graphfusion-physical",
     "lib/graphfusion-store",
     "lib/graphfusion",
-    "lib/sparesults",
-    "lib/spargebra",
     "testsuite"
 ]
 resolver = "2"
@@ -64,23 +62,20 @@ uuid = "1.14.0"
 zstd = ">=0.12, <0.14"
 
 # Upstream Oxigraph dependencies
-oxsdatatypes = "0.2.1"
-oxiri = { version = "0.2.8" }
-oxrdf = { version = "0.2.3", features = ["rdf-star", "oxsdatatypes"] }
-oxttl = { version = "0.1.4", features = ["rdf-star"] }
-oxrdfio = { version = "0.1.4", features = ["rdf-star"] }
+oxttl = "0.1.4"
+oxrdfio = "0.1.4"
+sparesults = "0.2.4"
+spargebra = "0.3.5"
 
 # Internal dependencies
 arrow-rdf = { version = "=0.1.0", path = "lib/arrow-rdf" }
-datamodel = { version = "=0.1.0", path = "lib/datamodel" }
+model = { version = "=0.1.0", path = "lib/model" }
 functions-scalar = { version = "=0.1.0", path = "lib/functions-scalar" }
 graphfusion-engine = { version = "=0.1.0", path = "lib/graphfusion-engine" }
 graphfusion-logical = { version = "=0.1.0", path = "lib/graphfusion-logical" }
 graphfusion-physical = { version = "=0.1.0", path = "lib/graphfusion-physical" }
 graphfusion-store = { version = "=0.1.0", path = "lib/graphfusion-store" }
 graphfusion = { version = "=0.1.0", path = "lib/graphfusion" }
-spargebra = { version = "=0.1.0", path = "lib/spargebra" }
-sparesults = { version = "=0.1.0", path = "lib/sparesults" }
 
 [workspace.lints.rust]
 absolute_paths_not_starting_with_crate = "warn"

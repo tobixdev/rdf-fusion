@@ -1,5 +1,5 @@
 use crate::{ScalarNAryRdfOp, ThinResult};
-use datamodel::{OwnedStringLiteral, StringLiteralRef};
+use model::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct ConcatRdfOp;

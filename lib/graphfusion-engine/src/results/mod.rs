@@ -5,7 +5,7 @@ use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 use datafusion::physical_plan::memory::MemoryStream;
 use futures::StreamExt;
-use oxrdf::{Variable, VariableRef};
+use model::{Variable, VariableRef};
 use oxrdfio::{RdfFormat, RdfSerializer};
 use sparesults::{
     QueryResultsFormat, QueryResultsParseError, QueryResultsParser, QueryResultsSerializer,
@@ -210,8 +210,7 @@ pub fn query_result_for_iterator(
     let mut count = 0;
     for solution in solutions {
         count += 1;
-        let solution =
-            solution.map_err(QuerySolutionsToStreamError::QuerySolutionSource)?;
+        let solution = solution.map_err(QuerySolutionsToStreamError::QuerySolutionSource)?;
         for (idx, term) in solution.values().iter().enumerate() {
             let builder = &mut builders[idx];
             match term {

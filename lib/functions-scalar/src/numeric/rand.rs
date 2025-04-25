@@ -1,5 +1,5 @@
 use crate::{ScalarNullaryRdfOp, ThinResult};
-use datamodel::Double;
+use model::Double;
 use rand::random;
 
 #[derive(Debug)]

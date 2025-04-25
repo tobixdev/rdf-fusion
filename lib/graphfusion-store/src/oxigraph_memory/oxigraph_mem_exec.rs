@@ -15,9 +15,9 @@ use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
 };
-use datamodel::{Date, DateTime, DayTimeDuration, Decimal, Duration, Time, YearMonthDuration};
 use futures::Stream;
-use oxrdf::vocab::xsd;
+use model::vocab::xsd;
+use model::{Date, DateTime, DayTimeDuration, Decimal, Duration, Time, YearMonthDuration};
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -349,8 +349,6 @@ fn encode_term(
             let duration = DayTimeDuration::from_be_bytes(v.to_be_bytes());
             builder.append_duration(None, Some(duration))
         }
-        #[allow(clippy::unimplemented, reason = "Not production ready")]
-        EncodedTerm::Triple(_) => unimplemented!("Encode Triple"),
     }
 }
 

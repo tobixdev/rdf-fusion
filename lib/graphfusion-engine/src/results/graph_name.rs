@@ -1,5 +1,5 @@
 use crate::error::StorageError;
-use oxrdf::NamedOrBlankNode;
+use model::NamedOrBlankNode;
 
 /// An iterator returning the graph names contained in a [`Store`].
 pub struct GraphNameStream;

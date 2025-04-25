@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ScalarTernaryRdfOp, ThinResult};
-use datamodel::{Boolean, SimpleLiteralRef, StringLiteralRef, ThinError};
+use model::{Boolean, SimpleLiteralRef, StringLiteralRef, ThinError};
 use regex::{Regex, RegexBuilder};
 use std::borrow::Cow;
 

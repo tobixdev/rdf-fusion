@@ -7,7 +7,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datamodel::{Decimal, Double, Float, Int, Integer, Numeric, TermRef, ThinError, ThinResult};
+use model::{Decimal, Double, Float, Int, Integer, Numeric, TermRef, ThinError, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 

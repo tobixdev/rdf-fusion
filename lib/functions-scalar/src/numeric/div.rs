@@ -1,5 +1,5 @@
 use crate::ScalarBinaryRdfOp;
-use datamodel::{Decimal, Numeric, NumericPair, ThinResult};
+use model::{Decimal, Numeric, NumericPair, ThinResult};
 
 #[derive(Debug)]
 pub struct DivRdfOp;

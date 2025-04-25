@@ -1,5 +1,5 @@
 use crate::{ScalarNAryRdfOp, ThinResult};
-use datamodel::{TermRef, ThinError};
+use model::{TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct CoalesceRdfOp;

@@ -1,7 +1,7 @@
 use crate::as_enc_term_array;
 use crate::encoded::from_encoded_term::FromEncodedTerm;
 use datafusion::logical_expr::ColumnarValue;
-use datamodel::{ThinError, ThinResult};
+use model::{ThinError, ThinResult};
 
 mod dispatch_binary;
 mod dispatch_n_ary;

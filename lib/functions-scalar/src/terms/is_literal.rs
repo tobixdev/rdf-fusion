@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{Boolean, TermRef};
+use model::{Boolean, TermRef};
 
 #[derive(Debug)]
 pub struct IsLiteralRdfOp;

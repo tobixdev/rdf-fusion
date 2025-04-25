@@ -10,7 +10,7 @@ rust-version.workspace = true
 arrow-rdf.workspace = true
 async-trait.workspace = true
 datafusion.workspace = true
-datamodel.workspace = true
+model.workspace = true
 futures.workspace = true
 graphfusion-logical.workspace = true
 

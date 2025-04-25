@@ -1,7 +1,6 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{Numeric, TermRef, ThinError};
-use oxrdf::vocab::{rdf, xsd};
-use oxrdf::NamedNodeRef;
+use model::{NamedNodeRef, Numeric, TermRef, ThinError};
+use model::vocab::{rdf, xsd};
 
 #[derive(Debug)]
 pub struct DatatypeRdfOp;

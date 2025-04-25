@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{DateTime, OwnedStringLiteral};
+use model::{DateTime, OwnedStringLiteral};
 
 #[derive(Debug)]
 pub struct TzRdfOp;

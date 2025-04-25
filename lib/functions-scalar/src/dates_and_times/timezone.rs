@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{DateTime, DayTimeDuration, ThinError};
+use model::{DateTime, DayTimeDuration, ThinError};
 
 #[derive(Debug)]
 pub struct TimezoneRdfOp;

@@ -7,7 +7,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datamodel::{TermRef, ThinResult};
+use model::{TermRef, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -115,7 +115,7 @@ mod tests {
     use crate::{as_enc_term_array, DFResult};
     use datafusion::arrow::array::{Array, AsArray};
     use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
-    use datamodel::{Date, DayTimeDuration, TermRef, Timestamp, YearMonthDuration};
+    use model::{Date, DayTimeDuration, TermRef, Timestamp, YearMonthDuration};
     use oxrdf::vocab::xsd;
     use std::sync::Arc;
 

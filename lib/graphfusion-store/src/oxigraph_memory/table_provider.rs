@@ -9,7 +9,7 @@ use crate::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
 use arrow_rdf::encoded::ENC_QUAD_SCHEMA;
 use datafusion::physical_plan::ExecutionPlan;
 use graphfusion_engine::error::StorageError;
-use oxrdf::{Quad, QuadRef};
+use model::{Quad, QuadRef};
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};

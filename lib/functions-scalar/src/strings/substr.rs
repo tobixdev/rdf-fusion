@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ScalarTernaryRdfOp, ThinResult};
-use datamodel::{Integer, StringLiteralRef, ThinError};
+use model::{Integer, StringLiteralRef, ThinError};
 
 #[derive(Debug)]
 pub struct SubStrRdfOp;

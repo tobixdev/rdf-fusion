@@ -1,6 +1,6 @@
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::sparql::error::EvaluationError;
-use oxiri::IriParseError;
+use model::IriParseError;
 use oxrdfio::{RdfFormat, RdfParseError};
 use std::io;
 

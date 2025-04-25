@@ -1,5 +1,5 @@
 use crate::{ScalarNullaryRdfOp, ThinResult};
-use datamodel::OwnedStringLiteral;
+use model::OwnedStringLiteral;
 use uuid::Uuid;
 
 #[derive(Debug)]

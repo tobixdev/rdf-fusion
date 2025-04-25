@@ -13,7 +13,7 @@ fuzz_target!(|data: sparql_smith::Update| {
     let disk_store = DISK_STORE.get_or_init(|| {
         #[cfg(feature = "storage")]
         {
-            Store::open(temp_dir().join("oxigraph-fuzz-update")).unwrap()
+            Store::open(temp_dir().join("graphfusion-fuzz-update")).unwrap()
         }
         #[cfg(not(feature = "storage"))]
         {

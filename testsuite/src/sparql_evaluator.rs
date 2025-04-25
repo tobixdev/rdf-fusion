@@ -75,7 +75,7 @@ pub async fn sparql_evaluate_negative_result_syntax_test(
 }
 
 pub async fn sparql_evaluate_evaluation_test(test: &Test) -> Result<()> {
-    let store = Store::new().await?;
+    let store = Store::new()?;
     if let Some(data) = &test.data {
         load_to_store(data, &store, GraphName::DefaultGraph).await?;
     }
@@ -83,7 +83,7 @@ pub async fn sparql_evaluate_evaluation_test(test: &Test) -> Result<()> {
         load_to_store(value, &store, name.clone()).await?;
     }
     let query_file = test.query.as_deref().context("No action found")?;
-    let options = QueryOptions::default();
+    let options = QueryOptions;
     let query = Query::parse(&read_file_to_string(query_file)?, Some(query_file))
         .context("Failure to parse query")?;
 
@@ -152,7 +152,7 @@ pub fn sparql_evaluate_negative_update_syntax_test(test: &Test) -> Result<()> {
 }
 
 pub async fn sparql_evaluate_update_evaluation_test(test: &Test) -> Result<()> {
-    let store = Store::new().await?;
+    let store = Store::new()?;
     if let Some(data) = &test.data {
         load_to_store(data, &store, GraphName::DefaultGraph).await?;
     }
@@ -160,7 +160,7 @@ pub async fn sparql_evaluate_update_evaluation_test(test: &Test) -> Result<()> {
         load_to_store(value, &store, name.clone()).await?;
     }
 
-    let result_store = Store::new().await?;
+    let result_store = Store::new()?;
     if let Some(data) = &test.result {
         load_to_store(data, &result_store, GraphName::DefaultGraph).await?;
     }
@@ -258,7 +258,7 @@ async fn to_graph(result: QueryResults, with_order: bool) -> Result<Graph> {
                     graph.insert(TripleRef::new(
                         &solution_id,
                         rs::INDEX,
-                        &Literal::from((i + 1) as i128),
+                        &Literal::from(i128::from(i + 1)),
                     ));
                 }
                 i += 1;
@@ -368,7 +368,7 @@ impl StaticQueryResults {
 
     async fn from_graph(graph: &Graph) -> Result<Self> {
         // Hack to normalize literals
-        let store = Store::new().await?;
+        let store = Store::new()?;
         for t in graph {
             store.insert(t.in_graph(GraphNameRef::DefaultGraph)).await?;
         }

@@ -1,4 +1,4 @@
-use datamodel::ThinError;
+use model::ThinError;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum SortableTermType {

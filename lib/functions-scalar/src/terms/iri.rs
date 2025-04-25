@@ -1,7 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{TermRef, ThinError};
-use oxiri::Iri;
-use oxrdf::NamedNode;
+use model::{Iri, NamedNode, TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct IriRdfOp {

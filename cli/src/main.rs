@@ -1,24 +1,20 @@
 #![allow(clippy::print_stderr, clippy::cast_precision_loss, clippy::use_debug)]
 use crate::cli::{Args, Command};
 use crate::service_description::{generate_service_description, EndpointKind};
-use anyhow::{bail, ensure, Context};
+use anyhow::{bail, Context};
 use clap::Parser;
-use flate2::read::MultiGzDecoder;
+use graphfusion::error::LoaderError;
 use graphfusion::io::{RdfFormat, RdfParser, RdfSerializer};
-use graphfusion::model::{
-    GraphName, GraphNameRef, IriParseError, NamedNode, NamedNodeRef, NamedOrBlankNode,
-};
-use graphfusion::sparql::results::{QueryResultsFormat, QueryResultsSerializer};
-use graphfusion::sparql::{LoaderError, Query, QueryOptions, QueryResults, Update};
-use graphfusion::store::{BulkLoader, Store};
+use graphfusion::model::{GraphName, GraphNameRef, Iri, IriParseError, NamedNode, NamedOrBlankNode};
+use graphfusion::results::{QueryResultsFormat, QueryResultsSerializer};
+use graphfusion::sparql::{Query, QueryOptions, QueryResults, Update};
+use graphfusion::store::Store;
 use oxhttp::model::{Body, HeaderName, HeaderValue, Method, Request, Response, Status};
 use oxhttp::Server;
-use oxiri::Iri;
 use rand::random;
-use rayon_core::ThreadPoolBuilder;
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::cmp::{max, min};
+use std::cmp::min;
 #[cfg(target_os = "linux")]
 use std::env;
 use std::ffi::OsStr;
@@ -31,8 +27,8 @@ use std::path::Path;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::thread::available_parallelism;
-use std::time::{Duration, Instant};
-use std::{fmt, fs, str};
+use std::time::Duration;
+use std::{fmt, str};
 use url::form_urlencoded;
 
 mod cli;
@@ -50,383 +46,10 @@ pub fn main() -> anyhow::Result<()> {
     let matches = Args::parse();
     match matches.command {
         Command::Serve {
-            location,
             bind,
             cors,
             union_default_graph,
-        } => serve(
-            if let Some(location) = location {
-                Store::open(location)
-            } else {
-                Store::new()
-            }?,
-            &bind,
-            false,
-            cors,
-            union_default_graph,
-        ),
-        Command::ServeReadOnly {
-            location,
-            bind,
-            cors,
-            union_default_graph,
-        } => serve(
-            Store::open_read_only(location)?,
-            &bind,
-            true,
-            cors,
-            union_default_graph,
-        ),
-        Command::Backup {
-            location,
-            destination,
-        } => {
-            let store = Store::open_read_only(location)?;
-            store.backup(destination)?;
-            Ok(())
-        }
-        Command::Load {
-            location,
-            file,
-            lenient,
-            format,
-            base,
-            graph,
-        } => {
-            let store = Store::open(location)?;
-            let format = if let Some(format) = format {
-                Some(rdf_format_from_name(&format)?)
-            } else {
-                None
-            };
-            let graph = if let Some(iri) = &graph {
-                Some(
-                    NamedNode::new(iri)
-                        .with_context(|| format!("The target graph name {iri} is invalid"))?,
-                )
-            } else {
-                None
-            };
-            #[allow(clippy::cast_precision_loss)]
-            if file.is_empty() {
-                // We read from stdin
-                let start = Instant::now();
-                let mut loader = store.bulk_loader().on_progress(move |size| {
-                    let elapsed = start.elapsed();
-                    eprintln!(
-                        "{size} triples loaded in {}s ({} t/s)",
-                        elapsed.as_secs(),
-                        ((size as f64) / elapsed.as_secs_f64()).round()
-                    )
-                });
-                if lenient {
-                    loader = loader.on_parse_error(move |e| {
-                        eprintln!("Parsing error: {e}");
-                        Ok(())
-                    })
-                }
-                bulk_load(
-                    &loader,
-                    stdin().lock(),
-                    format.context("The --format option must be set when loading from stdin")?,
-                    base.as_deref(),
-                    graph,
-                    lenient,
-                )
-            } else {
-                ThreadPoolBuilder::new()
-                    .num_threads(max(1, available_parallelism()?.get() / 2))
-                    .thread_name(|i| format!("Oxigraph bulk loader thread {i}"))
-                    .build()?
-                    .scope(|s| {
-                        for file in file {
-                            let store = store.clone();
-                            let graph = graph.clone();
-                            let base = base.clone();
-                            s.spawn(move |_| {
-                                let f = file.clone();
-                                let start = Instant::now();
-                                let mut loader = store.bulk_loader().on_progress(move |size| {
-                                    let elapsed = start.elapsed();
-                                    eprintln!(
-                                        "{} triples loaded in {}s ({} t/s) from {}",
-                                        size,
-                                        elapsed.as_secs(),
-                                        ((size as f64) / elapsed.as_secs_f64()).round(),
-                                        f.display()
-                                    )
-                                });
-                                if lenient {
-                                    let f = file.clone();
-                                    loader = loader.on_parse_error(move |e| {
-                                        eprintln!("Parsing error on file {}: {}", f.display(), e);
-                                        Ok(())
-                                    })
-                                }
-                                let fp = match File::open(&file) {
-                                    Ok(fp) => fp,
-                                    Err(error) => {
-                                        eprintln!(
-                                            "Error while opening file {}: {}",
-                                            file.display(),
-                                            error
-                                        );
-                                        return;
-                                    }
-                                };
-                                if let Err(error) = {
-                                    if file.extension().is_some_and(|e| e == OsStr::new("gz")) {
-                                        bulk_load(
-                                            &loader,
-                                            MultiGzDecoder::new(fp),
-                                            format.unwrap_or_else(|| {
-                                                rdf_format_from_path(&file.with_extension(""))
-                                                    .unwrap()
-                                            }),
-                                            base.as_deref(),
-                                            graph,
-                                            lenient,
-                                        )
-                                    } else {
-                                        bulk_load(
-                                            &loader,
-                                            fp,
-                                            format.unwrap_or_else(|| {
-                                                rdf_format_from_path(&file).unwrap()
-                                            }),
-                                            base.as_deref(),
-                                            graph,
-                                            lenient,
-                                        )
-                                    }
-                                } {
-                                    eprintln!(
-                                        "Error while loading file {}: {}",
-                                        file.display(),
-                                        error
-                                    )
-                                    // TODO: hard fail
-                                }
-                            })
-                        }
-                    });
-                store.flush()?;
-                Ok(())
-            }
-        }
-        Command::Dump {
-            location,
-            file,
-            format,
-            graph,
-        } => {
-            let store = Store::open_read_only(location)?;
-            let format = if let Some(format) = format {
-                rdf_format_from_name(&format)?
-            } else if let Some(file) = &file {
-                rdf_format_from_path(file)?
-            } else {
-                bail!("The --format option must be set when writing to stdout")
-            };
-            let graph = if let Some(graph) = &graph {
-                Some(if graph.eq_ignore_ascii_case("default") {
-                    GraphNameRef::DefaultGraph
-                } else {
-                    NamedNodeRef::new(graph)
-                        .with_context(|| format!("The target graph name {graph} is invalid"))?
-                        .into()
-                })
-            } else {
-                None
-            };
-            if let Some(file) = file {
-                close_file_writer(dump(
-                    &store,
-                    BufWriter::new(File::create(file)?),
-                    format,
-                    graph,
-                )?)?;
-            } else {
-                dump(&store, stdout().lock(), format, graph)?.flush()?;
-            }
-            Ok(())
-        }
-        Command::Query {
-            location,
-            query,
-            query_file,
-            query_base,
-            results_file,
-            results_format,
-            explain,
-            explain_file,
-            stats,
-            union_default_graph,
-        } => {
-            let query = if let Some(query) = query {
-                query
-            } else if let Some(query_file) = query_file {
-                fs::read_to_string(&query_file).with_context(|| {
-                    format!("Not able to read query file {}", query_file.display())
-                })?
-            } else {
-                io::read_to_string(stdin().lock())?
-            };
-            let mut query = Query::parse(&query, query_base.as_deref())?;
-            if union_default_graph {
-                query.dataset_mut().set_default_graph_as_union();
-            }
-            let store = Store::open_read_only(location)?;
-            let (results, explanation) =
-                store.explain_query_opt(query, default_query_options(), stats)?;
-            let print_result = (|| {
-                match results? {
-                    QueryResults::Solutions(solutions) => {
-                        let format = if let Some(name) = results_format {
-                            if let Some(format) = QueryResultsFormat::from_extension(&name) {
-                                format
-                            } else if let Some(format) = QueryResultsFormat::from_media_type(&name)
-                            {
-                                format
-                            } else {
-                                bail!("The file format '{name}' is unknown")
-                            }
-                        } else if let Some(results_file) = &results_file {
-                            format_from_path(results_file, |ext| {
-                                QueryResultsFormat::from_extension(ext).with_context(|| {
-                                    format!("The file extension '{ext}' is unknown")
-                                })
-                            })?
-                        } else {
-                            bail!("The --results-format option must be set when writing to stdout")
-                        };
-                        if let Some(results_file) = results_file {
-                            let mut serializer = QueryResultsSerializer::from_format(format)
-                                .serialize_solutions_to_writer(
-                                    BufWriter::new(File::create(results_file)?),
-                                    solutions.variables().to_vec(),
-                                )?;
-                            for solution in solutions {
-                                serializer.serialize(&solution?)?;
-                            }
-                            close_file_writer(serializer.finish()?)?;
-                        } else {
-                            let mut serializer = QueryResultsSerializer::from_format(format)
-                                .serialize_solutions_to_writer(
-                                    stdout().lock(),
-                                    solutions.variables().to_vec(),
-                                )?;
-                            for solution in solutions {
-                                serializer.serialize(&solution?)?;
-                            }
-                            serializer.finish()?.flush()?;
-                        }
-                    }
-                    QueryResults::Boolean(result) => {
-                        let format = if let Some(name) = results_format {
-                            if let Some(format) = QueryResultsFormat::from_extension(&name) {
-                                format
-                            } else if let Some(format) = QueryResultsFormat::from_media_type(&name)
-                            {
-                                format
-                            } else {
-                                bail!("The file format '{name}' is unknown")
-                            }
-                        } else if let Some(results_file) = &results_file {
-                            format_from_path(results_file, |ext| {
-                                QueryResultsFormat::from_extension(ext).with_context(|| {
-                                    format!("The file extension '{ext}' is unknown")
-                                })
-                            })?
-                        } else {
-                            bail!("The --results-format option must be set when writing to stdout")
-                        };
-                        if let Some(results_file) = results_file {
-                            close_file_writer(
-                                QueryResultsSerializer::from_format(format)
-                                    .serialize_boolean_to_writer(
-                                        BufWriter::new(File::create(results_file)?),
-                                        result,
-                                    )?,
-                            )?;
-                        } else {
-                            QueryResultsSerializer::from_format(format)
-                                .serialize_boolean_to_writer(stdout().lock(), result)?
-                                .flush()?;
-                        }
-                    }
-                    QueryResults::Graph(triples) => {
-                        let format = if let Some(name) = &results_format {
-                            rdf_format_from_name(name)
-                        } else if let Some(results_file) = &results_file {
-                            rdf_format_from_path(results_file)
-                        } else {
-                            bail!("The --results-format option must be set when writing to stdout")
-                        }?;
-                        let serializer = RdfSerializer::from_format(format);
-                        if let Some(results_file) = results_file {
-                            let mut serializer =
-                                serializer.for_writer(BufWriter::new(File::create(results_file)?));
-                            for triple in triples {
-                                serializer.serialize_triple(triple?.as_ref())?;
-                            }
-                            close_file_writer(serializer.finish()?)?;
-                        } else {
-                            let mut serializer = serializer.for_writer(stdout().lock());
-                            for triple in triples {
-                                serializer.serialize_triple(triple?.as_ref())?;
-                            }
-                            serializer.finish()?.flush()?;
-                        }
-                    }
-                }
-                Ok(())
-            })();
-            if let Some(explain_file) = explain_file {
-                let mut file = BufWriter::new(File::create(&explain_file)?);
-                match explain_file
-                    .extension()
-                    .and_then(OsStr::to_str) {
-                    Some("json") => {
-                        explanation.write_in_json(&mut file)?;
-                    },
-                    Some("txt") => {
-                        write!(file, "{explanation:?}")?;
-                    },
-                    _ => bail!("The given explanation file {} must have an extension that is .json or .txt", explain_file.display())
-                }
-                close_file_writer(file)?;
-            } else if explain || stats {
-                eprintln!("{explanation:#?}");
-            }
-            print_result
-        }
-        Command::Update {
-            location,
-            update,
-            update_file,
-            update_base,
-        } => {
-            let update = if let Some(update) = update {
-                update
-            } else if let Some(update_file) = update_file {
-                fs::read_to_string(&update_file).with_context(|| {
-                    format!("Not able to read update file {}", update_file.display())
-                })?
-            } else {
-                io::read_to_string(stdin().lock())?
-            };
-            let update = Update::parse(&update, update_base.as_deref())?;
-            let store = Store::open(location)?;
-            store.update_opt(update, default_query_options())?;
-            store.flush()?;
-            Ok(())
-        }
-        Command::Optimize { location } => {
-            let store = Store::open(location)?;
-            store.optimize()?;
-            Ok(())
-        }
+        } => serve(Store::new()?, &bind, false, cors, union_default_graph),
         Command::Convert {
             from_file,
             from_format,
@@ -528,47 +151,6 @@ pub fn main() -> anyhow::Result<()> {
             Ok(())
         }
     }
-}
-
-fn bulk_load(
-    loader: &BulkLoader,
-    reader: impl Read,
-    format: RdfFormat,
-    base_iri: Option<&str>,
-    to_graph_name: Option<NamedNode>,
-    lenient: bool,
-) -> anyhow::Result<()> {
-    let mut parser = RdfParser::from_format(format);
-    if let Some(to_graph_name) = to_graph_name {
-        parser = parser.with_default_graph(to_graph_name);
-    }
-    if let Some(base_iri) = base_iri {
-        parser = parser
-            .with_base_iri(base_iri)
-            .with_context(|| format!("Invalid base IRI {base_iri}"))?;
-    }
-    if lenient {
-        parser = parser.unchecked();
-    }
-    loader.load_from_reader(parser, reader)?;
-    Ok(())
-}
-
-fn dump<W: Write>(
-    store: &Store,
-    writer: W,
-    format: RdfFormat,
-    from_graph_name: Option<GraphNameRef<'_>>,
-) -> anyhow::Result<W> {
-    ensure!(
-        format.supports_datasets() || from_graph_name.is_some(),
-        "The --graph option is required when writing a format not supporting datasets like NTriples, Turtle or RDF/XML. Use --graph \"default\" to dump only the default graph."
-    );
-    Ok(if let Some(from_graph_name) = from_graph_name {
-        store.dump_graph_to_writer(from_graph_name, format, writer)
-    } else {
-        store.dump_to_writer(format, writer)
-    }?)
 }
 
 fn do_convert<R: Read, W: Write>(
@@ -1230,12 +812,7 @@ fn evaluate_sparql_query(
 }
 
 fn default_query_options() -> QueryOptions {
-    let mut options = QueryOptions::default();
-    #[cfg(feature = "geosparql")]
-    {
-        options = register_geosparql_functions(options);
-    }
-    options
+    QueryOptions
 }
 
 fn configure_and_evaluate_sparql_update(
@@ -1523,12 +1100,11 @@ fn web_load_graph(
     if let Some(base_iri) = base_iri {
         parser = parser.with_base_iri(base_iri).map_err(bad_request)?;
     }
-    if url_query_parameter(request, "no_transaction").is_some() {
-        web_bulk_loader(store, request).load_from_reader(parser, request.body_mut())
-    } else {
-        store.load_from_reader(parser, request.body_mut())
-    }
-    .map_err(loader_to_http_error)
+
+    store
+        .load_from_reader(parser, request.body_mut())
+        .await
+        .map_err(loader_to_http_error)
 }
 
 fn web_load_dataset(
@@ -1540,32 +1116,11 @@ fn web_load_dataset(
     if url_query_parameter(request, "lenient").is_some() {
         parser = parser.unchecked();
     }
-    if url_query_parameter(request, "no_transaction").is_some() {
-        web_bulk_loader(store, request).load_from_reader(parser, request.body_mut())
-    } else {
-        store.load_from_reader(parser, request.body_mut())
-    }
-    .map_err(loader_to_http_error)
-}
 
-fn web_bulk_loader(store: &Store, request: &Request) -> BulkLoader {
-    let start = Instant::now();
-    let mut loader = store.bulk_loader().on_progress(move |size| {
-        let elapsed = start.elapsed();
-        eprintln!(
-            "{} triples loaded in {}s ({} t/s)",
-            size,
-            elapsed.as_secs(),
-            ((size as f64) / elapsed.as_secs_f64()).round()
-        )
-    });
-    if url_query_parameter(request, "lenient").is_some() {
-        loader = loader.on_parse_error(move |e| {
-            eprintln!("Parsing error: {e}");
-            Ok(())
-        })
-    }
-    loader
+    store
+        .load_from_reader(parser, request.body_mut())
+        .await
+        .map_err(loader_to_http_error)
 }
 
 fn error(status: Status, message: impl fmt::Display) -> Response {
@@ -1716,7 +1271,7 @@ mod tests {
         command
             .arg("run")
             .arg("--bin")
-            .arg("oxigraph")
+            .arg("graphfusion")
             .arg("--no-default-features");
         #[cfg(feature = "geosparql")]
         command.arg("--features").arg("geosparql");

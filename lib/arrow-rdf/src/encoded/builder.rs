@@ -8,9 +8,9 @@ use datafusion::arrow::array::{
 };
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
-use datamodel::{BlankNode, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration};
-use datamodel::{Decimal, DecodedTerm, Double, Float, Int, Integer, Iri, Literal};
-use oxrdf::vocab::{rdf, xsd};
+use model::vocab::{rdf, xsd};
+use model::{BlankNode, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration};
+use model::{Decimal, DecodedTerm, Double, Float, Int, Integer, Iri, Literal};
 use std::sync::Arc;
 
 pub struct EncRdfTermBuilder {
@@ -44,10 +44,7 @@ impl Default for EncRdfTermBuilder {
             boolean_builder: BooleanBuilder::with_capacity(0),
             float_builder: Float32Builder::with_capacity(0),
             double_builder: Float64Builder::with_capacity(0),
-            #[allow(
-                clippy::expect_used,
-                reason = "PRECISION and SCALE are fixed"
-            )]
+            #[allow(clippy::expect_used, reason = "PRECISION and SCALE are fixed")]
             decimal_builder: Decimal128Builder::with_capacity(0)
                 .with_precision_and_scale(Decimal::PRECISION, Decimal::SCALE)
                 .expect("PRECISION and SCALE fixed"),
@@ -75,8 +72,6 @@ impl EncRdfTermBuilder {
                     self.append_typed_literal(literal.value(), literal.datatype().as_str())?
                 }
             },
-            #[allow(clippy::unimplemented, reason = "Not production code")]
-            DecodedTerm::Triple(_) => unimplemented!(),
         };
         Ok(())
     }

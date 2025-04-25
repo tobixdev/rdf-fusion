@@ -15,9 +15,9 @@ use datafusion::datasource::DefaultTableSource;
 use datafusion::logical_expr::{col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
-use oxrdf::NamedNode;
+use model::NamedNode;
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::NamedNodePattern;
+use spargebra::term::{NamedNodePattern, TermPattern};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -59,7 +59,7 @@ impl PathToJoinsRule {
 
     fn rewrite_path_node(&self, node: &PathNode) -> DFResult<LogicalPlan> {
         let query = self.rewrite_property_path_expression(node.graph().as_ref(), node.path())?;
-        let graph_pattern = node.graph().as_ref().map(|p| p.clone().into_term_pattern());
+        let graph_pattern = node.graph().as_ref().map(|p| TermPattern::from(p.clone()));
 
         Ok(match graph_pattern {
             None => LogicalPlan::Extension(Extension {

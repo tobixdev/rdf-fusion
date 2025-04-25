@@ -24,8 +24,8 @@ use datafusion::logical_expr::{
 use datafusion::prelude::{and, col};
 use graphfusion_logical::paths::PathNode;
 use graphfusion_logical::patterns::PatternNode;
-use oxiri::Iri;
-use oxrdf::{GraphName, NamedOrBlankNode, Variable};
+use model::Iri;
+use model::{GraphName, NamedOrBlankNode, Variable};
 use spargebra::algebra::{
     AggregateExpression, AggregateFunction, Expression, GraphPattern, OrderExpression,
     PropertyPathExpression,
@@ -152,14 +152,14 @@ impl GraphPatternRewriter {
             .graph
             .as_ref()
             .filter(|_| !state.graph_is_out_of_scope)
-            .map(|nn| nn.clone().into_term_pattern());
+            .map(|nn| TermPattern::from(nn.clone()));
 
         match graph_pattern {
             None => {
                 let plan = plan.project([col(COL_SUBJECT), col(COL_PREDICATE), col(COL_OBJECT)])?;
                 let patterns = vec![
                     pattern.subject.clone(),
-                    pattern.predicate.clone().into_term_pattern(),
+                    TermPattern::from(pattern.predicate.clone()),
                     pattern.object.clone(),
                 ];
                 Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
@@ -170,7 +170,7 @@ impl GraphPatternRewriter {
                 let patterns = vec![
                     graph_pattern,
                     pattern.subject.clone(),
-                    pattern.predicate.clone().into_term_pattern(),
+                    TermPattern::from(pattern.predicate.clone()),
                     pattern.object.clone(),
                 ];
                 Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
@@ -673,8 +673,6 @@ fn encode_solution(terms: &[Option<GroundTerm>]) -> DFResult<Vec<Expr>> {
                 Some(GroundTerm::NamedNode(nn)) => lit(encode_scalar_named_node(nn.as_ref())),
                 Some(GroundTerm::Literal(literal)) => lit(encode_scalar_literal(literal.as_ref())?),
                 None => lit(encode_scalar_null()),
-                #[allow(clippy::unimplemented, reason = "Not production ready")]
-                _ => unimplemented!("encoding values"),
             })
         })
         .collect()
@@ -910,8 +908,9 @@ fn create_distinct_on_expr(
 fn create_initial_columns_from_sort(sort_exprs: &[OrderExpression]) -> DFResult<Vec<String>> {
     sort_exprs
         .iter()
-        .map(|sort_expr| match sort_expr.expression() {
-            Expression::Variable(var) => Ok(var.as_str().to_owned()),
+        .map(|sort_expr| match sort_expr {
+            OrderExpression::Asc(Expression::Variable(var))
+            | OrderExpression::Desc(Expression::Variable(var)) => Ok(var.as_str().to_owned()),
             _ => plan_err!(
                 "Expression {} not supported for ORDER BY in combination with DISTINCT.",
                 sort_expr

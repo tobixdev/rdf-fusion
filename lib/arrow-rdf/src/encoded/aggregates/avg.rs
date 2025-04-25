@@ -8,7 +8,7 @@ use datafusion::common::exec_datafusion_err;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use datamodel::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
+use model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
 use std::ops::Div;
 use std::sync::{Arc, LazyLock};
 

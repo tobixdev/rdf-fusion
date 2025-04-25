@@ -17,15 +17,15 @@ use arrow_rdf::encoded::{
     ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID, ENC_SUB, ENC_SUBSTR_BINARY, ENC_SUBSTR_TERNARY,
     ENC_TIMEZONE, ENC_TZ, ENC_UCASE, ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID, ENC_YEAR,
 };
-use datafusion::common::{internal_err, not_impl_err, plan_err, Column, DFSchema, Spans};
+use datafusion::common::{internal_err, plan_err, Column, DFSchema, Spans};
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, ScalarUDF, Subquery};
 use datafusion::prelude::{and, exists};
-use datamodel::DateTime;
-use oxiri::Iri;
-use oxrdf::vocab::xsd;
-use oxrdf::{Literal, NamedNode};
+use model::vocab::xsd;
+use model::DateTime;
+use model::Iri;
+use model::{Literal, NamedNode};
 use spargebra::algebra::{Expression, Function, GraphPattern};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -181,7 +181,6 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             Function::Sha512 => Ok(ENC_SHA512.call(args)),
             // Custom
             Function::Custom(nn) => self.rewrite_custom_function_call(nn, args),
-            _ => not_impl_err!("rewrite_function_call: {:?}", function),
         }
     }
 

@@ -113,7 +113,6 @@ impl Hash for EncodedTerm {
             Self::DurationLiteral(value) => value.hash(state),
             Self::YearMonthDurationLiteral(value) => value.hash(state),
             Self::DayTimeDurationLiteral(value) => value.hash(state),
-            Self::Triple(value) => value.hash(state),
         }
     }
 }

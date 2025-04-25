@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{OwnedStringLiteral, TermRef, ThinError};
+use model::{OwnedStringLiteral, TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct AsStringRdfOp;

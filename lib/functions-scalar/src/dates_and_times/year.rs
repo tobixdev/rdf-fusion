@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{DateTime, Integer};
+use model::{DateTime, Integer};
 
 #[derive(Debug)]
 pub struct YearRdfOp;

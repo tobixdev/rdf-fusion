@@ -127,7 +127,6 @@ fn format_pattern(pattern: &TermPattern) -> String {
         TermPattern::NamedNode(nn) => nn.to_string(),
         TermPattern::BlankNode(bnode) => bnode.to_string(),
         TermPattern::Literal(v) => v.value().to_owned(),
-        TermPattern::Triple(_) => unreachable!(),
         TermPattern::Variable(v) => v.to_string(),
     }
 }

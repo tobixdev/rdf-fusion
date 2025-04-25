@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     let complete_dir = out_dir.join("complete");
     create_dir_all(&complete_dir)?;
     for shell in Shell::value_variants() {
-        clap_complete::generate_to(*shell, &mut app, "oxigraph", &complete_dir)?;
+        clap_complete::generate_to(*shell, &mut app, "graphfusion", &complete_dir)?;
     }
 
     let man_dir = out_dir.join("man");

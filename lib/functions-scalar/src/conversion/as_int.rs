@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{Int, Numeric, TermRef, ThinError};
+use model::{Int, Numeric, TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct AsIntRdfOp;

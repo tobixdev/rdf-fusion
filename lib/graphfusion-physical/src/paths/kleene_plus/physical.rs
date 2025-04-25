@@ -13,7 +13,7 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, ExecutionPlanProperties, PlanProperties,
     RecordBatchStream,
 };
-use datamodel::{GraphName, GraphNameRef, Term, TermRef};
+use model::{GraphName, GraphNameRef, Term, TermRef};
 use futures::{Stream, StreamExt};
 use graphfusion_logical::paths::PATH_TABLE_SCHEMA;
 use std::any::Any;

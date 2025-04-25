@@ -1,6 +1,6 @@
 use crate::strings::regex::compile_pattern;
 use crate::{ScalarQuaternaryRdfOp, ScalarTernaryRdfOp, ThinResult};
-use datamodel::{OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef};
+use model::{OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef};
 use std::borrow::Cow;
 
 #[derive(Debug)]

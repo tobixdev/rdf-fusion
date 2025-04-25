@@ -4,12 +4,12 @@ use crate::DFResult;
 use datafusion::arrow::array::{ArrayRef, StringArray, StructArray};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::{DataFusionError, ScalarValue};
-use datamodel::{
+use model::vocab::{rdf, xsd};
+use model::{
     BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, DecodedTermRef, Double,
     Duration, Float, GraphNameRef, Int, Integer, LiteralRef, NamedNodeRef, SubjectRef, Time,
     YearMonthDuration,
 };
-use oxrdf::vocab::{rdf, xsd};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -25,8 +25,6 @@ pub fn encode_scalar_subject(subject: SubjectRef<'_>) -> ScalarValue {
     match subject {
         SubjectRef::NamedNode(nn) => encode_scalar_named_node(nn),
         SubjectRef::BlankNode(bnode) => encode_scalar_blank_node(bnode),
-        #[allow(clippy::unimplemented, reason = "not production ready")]
-        SubjectRef::Triple(_) => unimplemented!(),
     }
 }
 
@@ -39,8 +37,6 @@ pub fn encode_scalar_term(object: DecodedTermRef<'_>) -> DFResult<ScalarValue> {
         DecodedTermRef::NamedNode(nn) => Ok(encode_scalar_named_node(nn)),
         DecodedTermRef::BlankNode(bnode) => Ok(encode_scalar_blank_node(bnode)),
         DecodedTermRef::Literal(lit) => encode_scalar_literal(lit),
-        #[allow(clippy::unimplemented, reason = "not production ready")]
-        DecodedTermRef::Triple(_) => unimplemented!(),
     }
 }
 

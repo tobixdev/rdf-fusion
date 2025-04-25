@@ -7,10 +7,8 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-datamodel.workspace = true
+model.workspace = true
 hex.workspace = true
-oxiri.workspace = true
-oxrdf.workspace = true
 md-5.workspace = true
 rand.workspace = true
 regex.workspace = true

@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ThinResult};
-use datamodel::{Boolean, TermRef};
+use model::{Boolean, TermRef};
 
 #[derive(Debug)]
 pub struct SameTermRdfOp;

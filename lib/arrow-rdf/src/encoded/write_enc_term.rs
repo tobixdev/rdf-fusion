@@ -2,12 +2,12 @@ use crate::encoded::EncRdfTermBuilder;
 use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::common::{exec_err, ScalarValue};
-use datamodel::{
+use model::{BlankNode, BlankNodeRef, NamedNode, NamedNodeRef};
+use model::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
     LanguageStringRef, Numeric, OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef, TermRef,
     ThinError, ThinResult, Time, TypedLiteralRef, YearMonthDuration,
 };
-use oxrdf::{BlankNode, BlankNodeRef, NamedNode, NamedNodeRef};
 
 pub trait WriteEncTerm {
     fn into_scalar_value(self) -> DFResult<ScalarValue>

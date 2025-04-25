@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{Integer, StringLiteralRef};
+use model::{Integer, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct StrLenRdfOp;

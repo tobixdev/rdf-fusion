@@ -2,7 +2,7 @@
 //!
 //! The root type for SPARQL queries is [`Query`] and the root type for updates is [`Update`].
 
-use oxrdf::{GraphName, NamedOrBlankNode};
+use model::{GraphName, NamedOrBlankNode};
 use spargebra::GraphUpdateOperation;
 use std::fmt;
 use std::str::FromStr;

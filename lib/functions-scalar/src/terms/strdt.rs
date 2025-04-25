@@ -1,6 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ThinResult};
-use datamodel::{SimpleLiteralRef, TypedLiteralRef};
-use oxrdf::NamedNodeRef;
+use model::{NamedNodeRef, SimpleLiteralRef, TypedLiteralRef};
 
 #[derive(Debug)]
 pub struct StrDtRdfOp;

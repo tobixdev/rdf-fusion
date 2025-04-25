@@ -8,7 +8,7 @@ use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datamodel::{Numeric, TermRef, ThinResult};
+use model::{Numeric, TermRef, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 

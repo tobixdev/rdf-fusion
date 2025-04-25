@@ -1,7 +1,7 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::EvaluationError;
 use futures::{Stream, StreamExt};
-use oxrdf::{BlankNode, Graph, Term, Triple};
+use model::{BlankNode, DecodedTerm, Graph, Triple};
 use sparesults::QuerySolution;
 use spargebra::term::{TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};
@@ -87,9 +87,7 @@ impl QueryTripleStream {
                 // We allocate new blank nodes for each solution,
                 // triples with blank nodes are likely to be new.
                 let new_triple = triple.subject.is_blank_node()
-                    || triple.subject.is_triple()
                     || triple.object.is_blank_node()
-                    || triple.object.is_triple()
                     || self.already_emitted_results.insert(triple.clone());
                 if new_triple {
                     self.buffered_results.push(Ok(triple));
@@ -107,33 +105,17 @@ fn get_triple_template_value(
     selector: &TermPattern,
     tuple: &QuerySolution,
     bnodes: &mut HashMap<BlankNode, BlankNode>,
-) -> Option<Term> {
+) -> Option<DecodedTerm> {
     match selector {
-        TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
+        TermPattern::NamedNode(nn) => Some(DecodedTerm::NamedNode(nn.clone())),
         TermPattern::BlankNode(bnode) => {
             if !bnodes.contains_key(bnode) {
                 bnodes.insert(bnode.clone(), BlankNode::default());
             }
-            Some(Term::BlankNode(bnodes[bnode].clone()))
+            Some(DecodedTerm::BlankNode(bnodes[bnode].clone()))
         }
-        TermPattern::Literal(term) => Some(Term::Literal(term.clone())),
+        TermPattern::Literal(term) => Some(DecodedTerm::Literal(term.clone())),
         TermPattern::Variable(v) => tuple.get(v).cloned(),
-        TermPattern::Triple(triple) => Some(
-            Triple {
-                subject: get_triple_template_value(&triple.subject, tuple, bnodes)?
-                    .try_into()
-                    .ok()?,
-                predicate: get_triple_template_value(
-                    &TermPattern::from(triple.predicate.clone()),
-                    tuple,
-                    bnodes,
-                )?
-                .try_into()
-                .ok()?,
-                object: get_triple_template_value(&triple.object, tuple, bnodes)?,
-            }
-            .into(),
-        ),
     }
 }
 

@@ -6,8 +6,8 @@ use crate::sparql::{
 };
 use arrow_rdf::TABLE_QUADS;
 use datafusion::prelude::{DataFrame, SessionContext};
-use oxiri::Iri;
-use oxrdf::Variable;
+use model::Iri;
+use model::Variable;
 use spargebra::algebra::GraphPattern;
 use std::sync::Arc;
 

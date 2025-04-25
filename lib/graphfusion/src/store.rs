@@ -37,8 +37,9 @@ use graphfusion_engine::sparql::{
 };
 use graphfusion_engine::TripleStore;
 use graphfusion_store::MemoryTripleStore;
-use oxrdf::{
-    GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef, Variable,
+use model::{
+    DecodedTermRef, GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
+    Variable,
 };
 use std::io::{Read, Write};
 use std::sync::{Arc, LazyLock};
@@ -192,7 +193,7 @@ impl Store {
         let query = query.try_into();
         match query {
             Ok(query) => self.inner.execute_query(&query, options).await,
-            Err(err) => Err(err.into())
+            Err(err) => Err(err.into()),
         }
     }
 
@@ -221,7 +222,7 @@ impl Store {
         &self,
         subject: Option<SubjectRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
-        object: Option<TermRef<'_>>,
+        object: Option<DecodedTermRef<'_>>,
         graph_name: Option<GraphNameRef<'_>>,
     ) -> Result<QuadStream, EvaluationError> {
         let record_batch_stream = self
@@ -318,8 +319,8 @@ impl Store {
     /// assert!(!store.is_empty()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn is_empty(&self) -> Result<bool, StorageError> {
         unimplemented!()
     }
@@ -342,8 +343,8 @@ impl Store {
     /// assert!(store.contains(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn update(
         &self,
         _update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
@@ -368,8 +369,8 @@ impl Store {
     /// )?;
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn update_opt(
         &self,
         _update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
@@ -461,8 +462,8 @@ impl Store {
     /// <div class="warning">
     ///
     /// This operation uses a memory heavy transaction internally, use the [`bulk_loader`](Store::bulk_loader) if you plan to add ten of millions of triples.</div>
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn extend(
         &self,
         _quads: impl IntoIterator<Item = impl Into<Quad>>,
@@ -582,8 +583,8 @@ impl Store {
     /// );
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn named_graphs(&self) -> GraphNameStream {
         unimplemented!()
     }
@@ -601,8 +602,8 @@ impl Store {
     /// assert!(store.contains_named_graph(&ex)?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn contains_named_graph<'a>(
         &self,
         _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
@@ -629,8 +630,8 @@ impl Store {
     /// );
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn insert_named_graph<'a>(
         &self,
         _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
@@ -656,8 +657,8 @@ impl Store {
     /// assert_eq!(1, store.named_graphs().count());
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn clear_graph<'a>(
         &self,
         _graph_name: impl Into<GraphNameRef<'a>>,
@@ -685,8 +686,8 @@ impl Store {
     /// assert_eq!(0, store.named_graphs().count());
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn remove_named_graph<'a>(
         &self,
         _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
@@ -711,15 +712,15 @@ impl Store {
     /// assert!(store.is_empty()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    #[allow(clippy::unimplemented, reason="Not production ready")]
-    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn clear(&self) -> Result<(), StorageError> {
         unimplemented!()
     }
 
     /// Validates that all the store invariants held in the data
-    #[allow(clippy::unused_self, reason="Not implemented")]
-    #[allow(clippy::unnecessary_wraps, reason="Not implemented")]
+    #[allow(clippy::unused_self, reason = "Not implemented")]
+    #[allow(clippy::unnecessary_wraps, reason = "Not implemented")]
     #[doc(hidden)]
     pub fn validate(&self) -> Result<(), StorageError> {
         // TODO: Is there anything we should do here?

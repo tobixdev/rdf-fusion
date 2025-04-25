@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{SimpleLiteralRef, TermRef, ThinError};
+use model::{SimpleLiteralRef, TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct LangRdfOp;

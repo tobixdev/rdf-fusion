@@ -75,8 +75,6 @@ fn value_pattern_to_filter_expr(column: &Column, pattern: &TermPattern) -> Optio
         TermPattern::NamedNode(nn) => Some(encode_scalar_named_node(nn.as_ref())),
         TermPattern::Literal(lit) => Some(encode_scalar_literal(lit.as_ref()).unwrap()),
         TermPattern::BlankNode(_) | TermPattern::Variable(_) => None,
-        #[allow(clippy::unimplemented, reason = "not production ready")]
-        TermPattern::Triple(_) => unimplemented!(),
     }?;
 
     Some(ENC_AS_NATIVE_BOOLEAN.call(vec![

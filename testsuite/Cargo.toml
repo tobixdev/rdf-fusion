@@ -15,7 +15,6 @@ anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 graphfusion.workspace = true
-oxrdf.workspace = true
 oxttl.workspace = true
 sparesults.workspace = true
 text-diff.workspace = true

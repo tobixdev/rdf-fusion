@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ThinResult};
-use datamodel::{Boolean, TermRef, ThinError};
+use model::{Boolean, TermRef, ThinError};
 use std::cmp::Ordering;
 
 #[derive(Debug)]

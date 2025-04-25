@@ -17,13 +17,10 @@ use graphfusion::io::RdfFormat;
 use sparesults::QueryResultsFormat;
 use time::OffsetDateTime;
 
-pub struct TestEvaluator {}
+#[derive(Debug, Default)]
+pub struct TestEvaluator;
 
 impl TestEvaluator {
-    pub fn new() -> Self {
-        Self {}
-    }
-
     pub async fn evaluate(
         &self,
         manifest: impl Iterator<Item = Result<Test>> + Send + 'static,
@@ -71,10 +68,10 @@ async fn handle_test(test: Test) -> Result<()> {
         "http://www.w3.org/ns/rdftest#TestNQuadsNegativeSyntax" => {
             parser_evaluate_negative_syntax_test(&test, RdfFormat::NQuads)
         }
-        "http://www.w3.org/ns/rdftest#TestTurtleNegativeSyntax" => {
+        "http://www.w3.org/ns/rdftest#TestTurtleNegativeSyntax" | "http://www.w3.org/ns/rdftest#TestTurtleNegativeEval" => {
             parser_evaluate_negative_syntax_test(&test, RdfFormat::Turtle)
         }
-        "http://www.w3.org/ns/rdftest#TestTrigNegativeSyntax" => {
+        "http://www.w3.org/ns/rdftest#TestTrigNegativeSyntax" | "http://www.w3.org/ns/rdftest#TestTrigNegativeEval" => {
             parser_evaluate_negative_syntax_test(&test, RdfFormat::TriG)
         }
         "http://www.w3.org/ns/rdftest#TestXMLNegativeSyntax" => {
@@ -95,20 +92,21 @@ async fn handle_test(test: Test) -> Result<()> {
         "https://w3c.github.io/N3/tests/test.n3#TestN3Eval" => {
             parser_evaluate_n3_eval_test(&test, false)
         }
-        "http://www.w3.org/ns/rdftest#TestTurtleNegativeEval" => {
-            parser_evaluate_negative_syntax_test(&test, RdfFormat::Turtle)
-        }
-        "http://www.w3.org/ns/rdftest#TestTrigNegativeEval" => {
-            parser_evaluate_negative_syntax_test(&test, RdfFormat::TriG)
-        }
         "http://www.w3.org/ns/rdftest#TestNTriplesPositiveC14N" => {
             parser_evaluate_positive_c14n_test(&test, RdfFormat::NTriples)
         }
+        #[allow(clippy::todo)]
         "https://w3c.github.io/rdf-canon/tests/vocab#RDFC10EvalTest" => {
-            parser_evaluate_positive_syntax_test(&test, RdfFormat::NQuads)
-        } //TODO: not a proper implementation!
-        "https://w3c.github.io/rdf-canon/tests/vocab#RDFC10NegativeEvalTest" => Ok(()), //TODO: not a proper implementation!
-        "https://w3c.github.io/rdf-canon/tests/vocab#RDFC10MapTest" => Ok(()), //TODO: not a proper implementation!
+            todo!("https://w3c.github.io/rdf-canon/tests/vocab#RDFC10EvalTest")
+        }
+        #[allow(clippy::todo)]
+        "https://w3c.github.io/rdf-canon/tests/vocab#RDFC10NegativeEvalTest" => {
+            todo!("https://w3c.github.io/rdf-canon/tests/vocab#RDFC10NegativeEvalTest")
+        }
+        #[allow(clippy::todo)]
+        "https://w3c.github.io/rdf-canon/tests/vocab#RDFC10MapTest" => {
+            todo!("https://w3c.github.io/rdf-canon/tests/vocab#RDFC10MapTest")
+        }
         "https://github.com/oxigraph/oxigraph/tests#TestNTripleRecovery" => {
             parser_evaluate_eval_test(&test, RdfFormat::NTriples, true, false)
         }
@@ -126,16 +124,12 @@ async fn handle_test(test: Test) -> Result<()> {
         }
 
         // == SPARQL Tests ==
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#PositiveSyntaxTest" => {
+        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#PositiveSyntaxTest"
+        | "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#PositiveSyntaxTest11" => {
             sparql_evaluate_positive_syntax_test(&test)
         }
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#PositiveSyntaxTest11" => {
-            sparql_evaluate_positive_syntax_test(&test)
-        }
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#NegativeSyntaxTest" => {
-            sparql_evaluate_negative_syntax_test(&test)
-        }
-        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#NegativeSyntaxTest11" => {
+        "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#NegativeSyntaxTest"
+        | "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#NegativeSyntaxTest11" => {
             sparql_evaluate_negative_syntax_test(&test)
         }
         "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#QueryEvaluationTest" => {

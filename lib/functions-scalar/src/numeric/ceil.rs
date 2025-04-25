@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::Numeric;
+use model::Numeric;
 
 #[derive(Debug)]
 pub struct CeilRdfOp;

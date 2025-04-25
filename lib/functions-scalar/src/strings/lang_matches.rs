@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ThinResult};
-use datamodel::{Boolean, SimpleLiteralRef};
+use model::{Boolean, SimpleLiteralRef};
 
 #[derive(Debug)]
 pub struct LangMatchesRdfOp;

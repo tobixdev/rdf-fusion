@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{DateTime, TermRef, ThinError};
+use model::{DateTime, TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct AsDateTimeRdfOp;

@@ -215,7 +215,7 @@ struct TempDir(PathBuf);
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 impl Default for TempDir {
     fn default() -> Self {
-        Self(temp_dir().join(format!("oxigraph-test-{}", random::<u128>())))
+        Self(temp_dir().join(format!("graphfusion-test-{}", random::<u128>())))
     }
 }
 

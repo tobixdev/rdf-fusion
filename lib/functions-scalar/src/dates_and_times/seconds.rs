@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{DateTime, Decimal};
+use model::{DateTime, Decimal};
 
 #[derive(Debug)]
 pub struct SecondsRdfOp;

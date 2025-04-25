@@ -1,6 +1,5 @@
 use crate::{ScalarNullaryRdfOp, ScalarUnaryRdfOp, ThinResult};
-use datamodel::{BlankNodeRef, SimpleLiteralRef};
-use oxrdf::BlankNode;
+use model::{BlankNode, BlankNodeRef, SimpleLiteralRef};
 
 #[derive(Debug)]
 pub struct BNodeRdfOp;

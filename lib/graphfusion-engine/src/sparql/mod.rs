@@ -6,14 +6,13 @@ mod algebra;
 pub mod error;
 mod eval;
 mod explanation;
-mod model;
 mod rewriting;
 
 pub use crate::results::{QueryResults, QuerySolution, QuerySolutionStream, QueryTripleStream};
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};
 pub use crate::sparql::explanation::QueryExplanation;
 pub use eval::evaluate_query;
-pub use oxrdf::{Variable, VariableNameParseError};
+pub use model::{Variable, VariableNameParseError};
 pub use spargebra::SparqlSyntaxError;
 
 /// Options for SPARQL query evaluation.

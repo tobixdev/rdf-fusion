@@ -7,7 +7,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use datamodel::StringLiteralRef;
+use model::StringLiteralRef;
 use std::sync::Arc;
 
 pub fn enc_group_concat(separator: impl Into<String>) -> AggregateUDF {

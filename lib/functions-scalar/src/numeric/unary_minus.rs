@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::Numeric;
+use model::Numeric;
 use std::ops::Neg;
 
 #[derive(Debug)]

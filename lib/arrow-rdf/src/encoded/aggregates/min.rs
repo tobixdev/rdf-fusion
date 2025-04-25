@@ -6,7 +6,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use datamodel::{Term, TermRef, ThinError, ThinResult};
+use model::{Term, TermRef, ThinError, ThinResult};
 use std::sync::{Arc, LazyLock};
 
 pub static ENC_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {

@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ThinResult};
-use datamodel::{CompatibleStringArgs, StringLiteralRef};
+use model::{CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct StrAfterRdfOp;

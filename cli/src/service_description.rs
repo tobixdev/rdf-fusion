@@ -1,7 +1,7 @@
 use graphfusion::io::{RdfFormat, RdfSerializer};
 use graphfusion::model::vocab::rdf;
 use graphfusion::model::{BlankNode, NamedNodeRef, TripleRef};
-use graphfusion::sparql::results::QueryResultsFormat;
+use graphfusion::results::QueryResultsFormat;
 
 mod sd {
     use graphfusion::model::NamedNodeRef;

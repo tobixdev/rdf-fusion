@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use datamodel::{OwnedStringLiteral, SimpleLiteralRef};
+use model::{OwnedStringLiteral, SimpleLiteralRef};
 use md5::{Digest, Md5};
 
 #[derive(Debug)]

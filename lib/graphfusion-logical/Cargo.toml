@@ -9,8 +9,8 @@ rust-version.workspace = true
 [dependencies]
 arrow-rdf.workspace = true
 datafusion.workspace = true
-oxrdf.workspace = true
-spargebra = { workspace = true, features = ["rdf-star"] }
+model.workspace = true
+spargebra.workspace = true
 
 [lints]
 workspace = true

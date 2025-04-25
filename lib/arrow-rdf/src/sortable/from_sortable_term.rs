@@ -3,12 +3,12 @@ use crate::sortable::term_type::SortableTermType;
 use crate::sortable::SortableTermField;
 use datafusion::arrow::array::{Array, AsArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
-use datamodel::{
+use model::{BlankNodeRef, NamedNodeRef};
+use model::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
     LanguageStringRef, Numeric, SimpleLiteralRef, TermRef, ThinError, ThinResult, Time,
     TypedLiteralRef, YearMonthDuration,
 };
-use oxrdf::{BlankNodeRef, NamedNodeRef};
 
 pub trait FromSortableTerm<'data> {
     fn from_sortable_array(array: &'data StructArray, index: usize) -> ThinResult<Self>

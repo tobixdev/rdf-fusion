@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ThinResult};
-use datamodel::{Boolean, CompatibleStringArgs, StringLiteralRef};
+use model::{Boolean, CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct ContainsRdfOp;

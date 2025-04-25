@@ -1,7 +1,7 @@
 use crate::ScalarBinaryRdfOp;
 use crate::ThinResult;
-use datamodel::Boolean;
-use datamodel::TermRef;
+use model::Boolean;
+use model::TermRef;
 
 macro_rules! create_binary_cmp_udf {
     ($STRUCT: ident, $OP: tt) => {
@@ -61,7 +61,7 @@ create_binary_cmp_udf!(LessOrEqualRdfOp, <=);
 mod tests {
     use crate::comparison::generic::LessThanRdfOp;
     use crate::ScalarBinaryRdfOp;
-    use datamodel::{Numeric, TermRef};
+    use model::{Numeric, TermRef};
 
     #[test]
     fn test_lth_int_with_float() {

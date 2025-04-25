@@ -1,5 +1,5 @@
 [package]
-name = "oxigraph-fuzz"
+name = "graphfusion-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2021"
@@ -12,8 +12,8 @@ anyhow = "1.0.72"
 libfuzzer-sys = "0.4"
 sparql-smith = "0.1.0-alpha.9"
 graphfusion = { path = "../lib/graphfusion", default-features = false }
-sparesults = { path = "../lib/sparesults", features = ["rdf-star"] }
-spargebra = { path = "../lib/spargebra", features = ["rdf-star", "sep-0006"] }
+sparesults = { path = "../lib/sparesults" }
+spargebra = { path = "../lib/spargebra", features = ["sep-0006"] }
 
 [profile.release]
 codegen-units = 1

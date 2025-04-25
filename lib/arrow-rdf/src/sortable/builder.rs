@@ -4,11 +4,11 @@ use crate::sortable::{SortableTerm, SortableTermField};
 use datafusion::arrow::array::{
     BinaryBuilder, Float64Builder, StructArray, StructBuilder, UInt8Builder,
 };
-use datamodel::{
+use model::{BlankNodeRef, NamedNodeRef};
+use model::{
     Boolean, Date, DateTime, DayTimeDuration, Double, Duration, Integer, Numeric, Time,
     YearMonthDuration,
 };
-use oxrdf::{BlankNodeRef, NamedNodeRef};
 
 pub struct SortableTermBuilder {
     builder: StructBuilder,

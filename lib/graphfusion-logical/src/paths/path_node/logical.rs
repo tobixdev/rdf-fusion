@@ -118,7 +118,7 @@ fn compute_schema(
     let patterns = match graph {
         None => vec![subject.clone(), object.clone()],
         Some(graph) => vec![
-            graph.clone().into_term_pattern(),
+            TermPattern::from(graph.clone()),
             subject.clone(),
             object.clone(),
         ],

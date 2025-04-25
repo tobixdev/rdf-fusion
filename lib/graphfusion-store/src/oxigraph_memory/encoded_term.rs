@@ -2,19 +2,14 @@ use crate::oxigraph_memory::encoder::{
     parse_boolean_str, parse_date_str, parse_date_time_str, parse_day_time_duration_str,
     parse_decimal_str, parse_double_str, parse_duration_str, parse_float_str, parse_g_day_str,
     parse_g_month_day_str, parse_g_month_str, parse_g_year_month_str, parse_g_year_str,
-    parse_integer_str, parse_time_str, parse_year_month_duration_str, EncodedTriple,
+    parse_integer_str, parse_time_str, parse_year_month_duration_str,
 };
 use crate::oxigraph_memory::hash::StrHash;
 use crate::oxigraph_memory::small_string::SmallString;
-use oxrdf::{
-    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef, SubjectRef, TermRef,
-    TripleRef,
+use model::{
+    BlankNodeRef, DecodedTermRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef,
+    SubjectRef,
 };
-use oxsdatatypes::{
-    Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, GDay, GMonth,
-    GMonthDay, GYear, GYearMonth, Integer, Time, YearMonthDuration,
-};
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum EncodedTerm {
@@ -57,23 +52,22 @@ pub enum EncodedTerm {
         value_id: StrHash,
         datatype_id: StrHash,
     },
-    BooleanLiteral(Boolean),
-    FloatLiteral(Float),
-    DoubleLiteral(Double),
-    IntegerLiteral(Integer),
-    DecimalLiteral(Decimal),
-    DateTimeLiteral(DateTime),
-    TimeLiteral(Time),
-    DateLiteral(Date),
-    GYearMonthLiteral(GYearMonth),
-    GYearLiteral(GYear),
-    GMonthDayLiteral(GMonthDay),
-    GDayLiteral(GDay),
-    GMonthLiteral(GMonth),
-    DurationLiteral(Duration),
-    YearMonthDurationLiteral(YearMonthDuration),
-    DayTimeDurationLiteral(DayTimeDuration),
-    Triple(Arc<EncodedTriple>),
+    BooleanLiteral(oxsdatatypes::Boolean),
+    FloatLiteral(oxsdatatypes::Float),
+    DoubleLiteral(oxsdatatypes::Double),
+    IntegerLiteral(oxsdatatypes::Integer),
+    DecimalLiteral(oxsdatatypes::Decimal),
+    DateTimeLiteral(oxsdatatypes::DateTime),
+    TimeLiteral(oxsdatatypes::Time),
+    DateLiteral(oxsdatatypes::Date),
+    GYearMonthLiteral(oxsdatatypes::GYearMonth),
+    GYearLiteral(oxsdatatypes::GYear),
+    GMonthDayLiteral(oxsdatatypes::GMonthDay),
+    GDayLiteral(oxsdatatypes::GDay),
+    GMonthLiteral(oxsdatatypes::GMonth),
+    DurationLiteral(oxsdatatypes::Duration),
+    YearMonthDurationLiteral(oxsdatatypes::YearMonthDuration),
+    DayTimeDurationLiteral(oxsdatatypes::DayTimeDuration),
 }
 
 impl PartialEq for EncodedTerm {
@@ -179,7 +173,6 @@ impl PartialEq for EncodedTerm {
             (Self::DayTimeDurationLiteral(a), Self::DayTimeDurationLiteral(b)) => {
                 a.is_identical_with(*b)
             }
-            (Self::Triple(a), Self::Triple(b)) => a == b,
             (_, _) => false,
         }
     }
@@ -241,10 +234,6 @@ impl EncodedTerm {
     pub fn is_default_graph(&self) -> bool {
         matches!(self, Self::DefaultGraph)
     }
-
-    pub fn is_triple(&self) -> bool {
-        matches!(self, Self::Triple { .. })
-    }
 }
 
 impl From<bool> for EncodedTerm {
@@ -283,8 +272,8 @@ impl From<f32> for EncodedTerm {
     }
 }
 
-impl From<Float> for EncodedTerm {
-    fn from(value: Float) -> Self {
+impl From<oxsdatatypes::Float> for EncodedTerm {
+    fn from(value: oxsdatatypes::Float) -> Self {
         Self::FloatLiteral(value)
     }
 }
@@ -295,99 +284,93 @@ impl From<f64> for EncodedTerm {
     }
 }
 
-impl From<Boolean> for EncodedTerm {
-    fn from(value: Boolean) -> Self {
+impl From<oxsdatatypes::Boolean> for EncodedTerm {
+    fn from(value: oxsdatatypes::Boolean) -> Self {
         Self::BooleanLiteral(value)
     }
 }
 
-impl From<Double> for EncodedTerm {
-    fn from(value: Double) -> Self {
+impl From<oxsdatatypes::Double> for EncodedTerm {
+    fn from(value: oxsdatatypes::Double) -> Self {
         Self::DoubleLiteral(value)
     }
 }
 
-impl From<Integer> for EncodedTerm {
-    fn from(value: Integer) -> Self {
+impl From<oxsdatatypes::Integer> for EncodedTerm {
+    fn from(value: oxsdatatypes::Integer) -> Self {
         Self::IntegerLiteral(value)
     }
 }
 
-impl From<Decimal> for EncodedTerm {
-    fn from(value: Decimal) -> Self {
+impl From<oxsdatatypes::Decimal> for EncodedTerm {
+    fn from(value: oxsdatatypes::Decimal) -> Self {
         Self::DecimalLiteral(value)
     }
 }
 
-impl From<DateTime> for EncodedTerm {
-    fn from(value: DateTime) -> Self {
+impl From<oxsdatatypes::DateTime> for EncodedTerm {
+    fn from(value: oxsdatatypes::DateTime) -> Self {
         Self::DateTimeLiteral(value)
     }
 }
 
-impl From<Time> for EncodedTerm {
-    fn from(value: Time) -> Self {
+impl From<oxsdatatypes::Time> for EncodedTerm {
+    fn from(value: oxsdatatypes::Time) -> Self {
         Self::TimeLiteral(value)
     }
 }
 
-impl From<Date> for EncodedTerm {
-    fn from(value: Date) -> Self {
+impl From<oxsdatatypes::Date> for EncodedTerm {
+    fn from(value: oxsdatatypes::Date) -> Self {
         Self::DateLiteral(value)
     }
 }
 
-impl From<GMonthDay> for EncodedTerm {
-    fn from(value: GMonthDay) -> Self {
+impl From<oxsdatatypes::GMonthDay> for EncodedTerm {
+    fn from(value: oxsdatatypes::GMonthDay) -> Self {
         Self::GMonthDayLiteral(value)
     }
 }
 
-impl From<GDay> for EncodedTerm {
-    fn from(value: GDay) -> Self {
+impl From<oxsdatatypes::GDay> for EncodedTerm {
+    fn from(value: oxsdatatypes::GDay) -> Self {
         Self::GDayLiteral(value)
     }
 }
 
-impl From<GMonth> for EncodedTerm {
-    fn from(value: GMonth) -> Self {
+impl From<oxsdatatypes::GMonth> for EncodedTerm {
+    fn from(value: oxsdatatypes::GMonth) -> Self {
         Self::GMonthLiteral(value)
     }
 }
 
-impl From<GYearMonth> for EncodedTerm {
-    fn from(value: GYearMonth) -> Self {
+impl From<oxsdatatypes::GYearMonth> for EncodedTerm {
+    fn from(value: oxsdatatypes::GYearMonth) -> Self {
         Self::GYearMonthLiteral(value)
     }
 }
 
-impl From<GYear> for EncodedTerm {
-    fn from(value: GYear) -> Self {
+impl From<oxsdatatypes::GYear> for EncodedTerm {
+    fn from(value: oxsdatatypes::GYear) -> Self {
         Self::GYearLiteral(value)
     }
 }
 
-impl From<Duration> for EncodedTerm {
-    fn from(value: Duration) -> Self {
+impl From<oxsdatatypes::Duration> for EncodedTerm {
+    fn from(value: oxsdatatypes::Duration) -> Self {
         Self::DurationLiteral(value)
     }
 }
 
-impl From<YearMonthDuration> for EncodedTerm {
-    fn from(value: YearMonthDuration) -> Self {
+impl From<oxsdatatypes::YearMonthDuration> for EncodedTerm {
+    fn from(value: oxsdatatypes::YearMonthDuration) -> Self {
         Self::YearMonthDurationLiteral(value)
     }
 }
 
-impl From<DayTimeDuration> for EncodedTerm {
-    fn from(value: DayTimeDuration) -> Self {
+impl From<oxsdatatypes::DayTimeDuration> for EncodedTerm {
+    fn from(value: oxsdatatypes::DayTimeDuration) -> Self {
         Self::DayTimeDurationLiteral(value)
-    }
-}
-
-impl From<EncodedTriple> for EncodedTerm {
-    fn from(value: EncodedTriple) -> Self {
-        Self::Triple(Arc::new(value))
     }
 }
 
@@ -524,18 +507,16 @@ impl From<SubjectRef<'_>> for EncodedTerm {
         match term {
             SubjectRef::NamedNode(named_node) => named_node.into(),
             SubjectRef::BlankNode(blank_node) => blank_node.into(),
-            SubjectRef::Triple(triple) => triple.as_ref().into(),
         }
     }
 }
 
-impl From<TermRef<'_>> for EncodedTerm {
-    fn from(term: TermRef<'_>) -> Self {
+impl From<DecodedTermRef<'_>> for EncodedTerm {
+    fn from(term: DecodedTermRef<'_>) -> Self {
         match term {
-            TermRef::NamedNode(named_node) => named_node.into(),
-            TermRef::BlankNode(blank_node) => blank_node.into(),
-            TermRef::Literal(literal) => literal.into(),
-            TermRef::Triple(triple) => triple.as_ref().into(),
+            DecodedTermRef::NamedNode(named_node) => named_node.into(),
+            DecodedTermRef::BlankNode(blank_node) => blank_node.into(),
+            DecodedTermRef::Literal(literal) => literal.into(),
         }
     }
 }
@@ -547,11 +528,5 @@ impl From<GraphNameRef<'_>> for EncodedTerm {
             GraphNameRef::BlankNode(blank_node) => blank_node.into(),
             GraphNameRef::DefaultGraph => Self::DefaultGraph,
         }
-    }
-}
-
-impl From<TripleRef<'_>> for EncodedTerm {
-    fn from(triple: TripleRef<'_>) -> Self {
-        Self::Triple(Arc::new(triple.into()))
     }
 }
