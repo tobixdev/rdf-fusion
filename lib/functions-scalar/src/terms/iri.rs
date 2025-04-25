@@ -1,5 +1,5 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{RdfOpError, TermRef};
+use crate::{ScalarUnaryRdfOp, ThinResult};
+use datamodel::{TermRef, ThinError};
 use oxiri::Iri;
 use oxrdf::NamedNode;
 
@@ -18,18 +18,18 @@ impl ScalarUnaryRdfOp for IriRdfOp {
     type Arg<'data> = TermRef<'data>;
     type Result<'data> = NamedNode;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         match value {
             TermRef::NamedNode(named_node) => Ok(named_node.into_owned()),
             TermRef::SimpleLiteral(simple_literal) => {
                 let resolving_result = if let Some(base_iri) = &self.base_iri {
-                    base_iri.resolve(simple_literal.value).map_err(|_| ())?
+                    base_iri.resolve(simple_literal.value)?
                 } else {
-                    Iri::parse(simple_literal.value.to_owned()).map_err(|_| ())?
+                    Iri::parse(simple_literal.value.to_owned())?
                 };
                 Ok(NamedNode::from(resolving_result))
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }

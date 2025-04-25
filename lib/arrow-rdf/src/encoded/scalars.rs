@@ -25,7 +25,8 @@ pub fn encode_scalar_subject(subject: SubjectRef<'_>) -> ScalarValue {
     match subject {
         SubjectRef::NamedNode(nn) => encode_scalar_named_node(nn),
         SubjectRef::BlankNode(bnode) => encode_scalar_blank_node(bnode),
-        _ => unimplemented!(),
+        #[allow(clippy::unimplemented, reason = "not production ready")]
+        SubjectRef::Triple(_) => unimplemented!(),
     }
 }
 
@@ -38,6 +39,7 @@ pub fn encode_scalar_term(object: DecodedTermRef<'_>) -> DFResult<ScalarValue> {
         DecodedTermRef::NamedNode(nn) => Ok(encode_scalar_named_node(nn)),
         DecodedTermRef::BlankNode(bnode) => Ok(encode_scalar_blank_node(bnode)),
         DecodedTermRef::Literal(lit) => encode_scalar_literal(lit),
+        #[allow(clippy::unimplemented, reason = "not production ready")]
         DecodedTermRef::Triple(_) => unimplemented!(),
     }
 }
@@ -46,7 +48,7 @@ pub fn encode_scalar_literal(literal: LiteralRef<'_>) -> DFResult<ScalarValue> {
     if let Some(value) = try_specialize_literal(literal) {
         return value;
     }
-    handle_generic_literal(literal)
+    Ok(handle_generic_literal(literal))
 }
 
 pub fn encode_string(value: String) -> ScalarValue {
@@ -90,7 +92,7 @@ fn try_specialize_literal(literal: LiteralRef<'_>) -> Option<DFResult<ScalarValu
     let datatype = literal.datatype();
     // TODO: Move these constants to the datamodel
     match datatype {
-        xsd::STRING | rdf::LANG_STRING => Some(specialize_string(literal, value)),
+        xsd::STRING | rdf::LANG_STRING => Some(Ok(specialize_string(literal, value))),
         xsd::BOOLEAN => Some(specialize_parsable::<Boolean>(value)),
         xsd::FLOAT => Some(specialize_parsable::<Float>(value)),
         xsd::DECIMAL => Some(specialize_parsable::<Decimal>(value)),
@@ -107,7 +109,7 @@ fn try_specialize_literal(literal: LiteralRef<'_>) -> Option<DFResult<ScalarValu
     }
 }
 
-fn specialize_string(literal: LiteralRef<'_>, value: &str) -> DFResult<ScalarValue> {
+fn specialize_string(literal: LiteralRef<'_>, value: &str) -> ScalarValue {
     let language = literal.language().map(String::from);
     let arrays: Vec<ArrayRef> = vec![
         Arc::new(StringArray::from(vec![value])),
@@ -117,11 +119,11 @@ fn specialize_string(literal: LiteralRef<'_>, value: &str) -> DFResult<ScalarVal
     let structs = StructArray::new(EncTerm::string_fields(), arrays, None);
     let scalar_value = ScalarValue::Struct(Arc::new(structs));
 
-    Ok(ScalarValue::Union(
+    ScalarValue::Union(
         Some((EncTermField::String.type_id(), Box::new(scalar_value))),
         EncTerm::term_fields(),
         UnionMode::Dense,
-    ))
+    )
 }
 
 fn specialize_parsable<T>(value: &str) -> DFResult<ScalarValue>
@@ -133,10 +135,10 @@ where
     let value = value.parse::<T>().map_err(|inner| {
         DataFusionError::Execution(format!("Could not parse primitive: {inner}"))
     })?;
-    Ok(value.into_scalar_value()?)
+    value.into_scalar_value()
 }
 
-fn handle_generic_literal(literal: LiteralRef<'_>) -> DFResult<ScalarValue> {
+fn handle_generic_literal(literal: LiteralRef<'_>) -> ScalarValue {
     let value = literal.value();
     let datatype = literal.datatype().as_str();
     let arrays: Vec<ArrayRef> = vec![
@@ -145,9 +147,9 @@ fn handle_generic_literal(literal: LiteralRef<'_>) -> DFResult<ScalarValue> {
     ];
     let structs = StructArray::new(EncTerm::typed_literal_fields(), arrays, None);
     let scalar_value = ScalarValue::Struct(Arc::new(structs));
-    Ok(ScalarValue::Union(
+    ScalarValue::Union(
         Some((EncTermField::TypedLiteral.type_id(), Box::new(scalar_value))),
         EncTerm::term_fields().clone(),
         UnionMode::Dense,
-    ))
+    )
 }

@@ -1,9 +1,8 @@
-use crate::error::StorageError;
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::EvaluationError;
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use futures::{ready, Stream, StreamExt};
-use oxrdf::{GraphName, NamedNode, Quad, Subject, Term};
+use oxrdf::{GraphName, NamedNode, Quad, Subject, Term, Variable};
 use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -26,7 +25,7 @@ impl QuadStream {
         let variables = inner
             .variables()
             .iter()
-            .map(|v| v.as_str())
+            .map(Variable::as_str)
             .collect::<Vec<&str>>();
         if !matches!(
             variables.as_slice(),
@@ -41,16 +40,22 @@ impl QuadStream {
 impl Stream for QuadStream {
     type Item = Result<Quad, EvaluationError>;
 
-    fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let inner_poll = ready!(self.inner.poll_next_unpin(ctx));
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let inner_poll = ready!(self.inner.poll_next_unpin(cx));
         match inner_poll {
             None => Poll::Ready(None),
-            Some(inner_result) => Poll::Ready(Some(inner_result.and_then(to_quad))),
+            Some(inner_result) => {
+                Poll::Ready(Some(inner_result.and_then(|solution| to_quad(&solution))))
+            }
         }
     }
 }
 
-fn to_quad(solution: QuerySolution) -> Result<Quad, EvaluationError> {
+#[allow(
+    clippy::expect_used,
+    reason = "Schema already checked in QuadStream::try_new"
+)]
+fn to_quad(solution: &QuerySolution) -> Result<Quad, EvaluationError> {
     let graph_name = to_graph_name(solution.get(COL_GRAPH))?;
     let subject = to_subject(
         solution
@@ -69,31 +74,25 @@ fn to_quad(solution: QuerySolution) -> Result<Quad, EvaluationError> {
 }
 
 fn to_graph_name(term: Option<&Term>) -> Result<GraphName, EvaluationError> {
-    Ok(match term {
-        None => GraphName::DefaultGraph,
-        Some(Term::NamedNode(n)) => GraphName::from(n.clone()),
-        Some(Term::BlankNode(n)) => GraphName::from(n.clone()),
-        _ => {
-            unimplemented!("Proper error handling")
-        }
-    })
+    match term {
+        None => Ok(GraphName::DefaultGraph),
+        Some(Term::NamedNode(n)) => Ok(GraphName::from(n.clone())),
+        Some(Term::BlankNode(n)) => Ok(GraphName::from(n.clone())),
+        _ => EvaluationError::internal("Predicate has invalid value in quads.".into()),
+    }
 }
 
 fn to_subject(term: Term) -> Result<Subject, EvaluationError> {
-    Ok(match term {
-        Term::NamedNode(n) => Subject::from(n),
-        Term::BlankNode(n) => Subject::from(n),
-        _ => {
-            unimplemented!("Proper error handling")
-        }
-    })
+    match term {
+        Term::NamedNode(n) => Ok(Subject::from(n)),
+        Term::BlankNode(n) => Ok(Subject::from(n)),
+        _ => EvaluationError::internal("Predicate has invalid value in quads.".into()),
+    }
 }
 
-fn to_predicate(term: Term) -> Result<NamedNode, StorageError> {
-    Ok(match term {
-        Term::NamedNode(n) => NamedNode::from(n),
-        _ => {
-            unimplemented!("Proper error handling")
-        }
-    })
+fn to_predicate(term: Term) -> Result<NamedNode, EvaluationError> {
+    match term {
+        Term::NamedNode(n) => Ok(n),
+        _ => EvaluationError::internal("Predicate has invalid value in quads.".to_owned()),
+    }
 }

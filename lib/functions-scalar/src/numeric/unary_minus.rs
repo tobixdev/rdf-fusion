@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
+use crate::{ScalarUnaryRdfOp, ThinResult};
 use datamodel::Numeric;
 use std::ops::Neg;
 
@@ -21,7 +21,7 @@ impl ScalarUnaryRdfOp for UnaryMinusRdfOp {
     type Arg<'data> = Numeric;
     type Result<'data> = Numeric;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         match value {
             Numeric::Int(value) => value.checked_neg().map(Numeric::Int),
             Numeric::Integer(value) => value.checked_neg().map(Numeric::Integer),

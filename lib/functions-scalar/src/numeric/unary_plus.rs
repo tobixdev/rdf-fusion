@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
+use crate::{ScalarUnaryRdfOp, ThinResult};
 use datamodel::Numeric;
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl ScalarUnaryRdfOp for UnaryPlusRdfOp {
     type Arg<'data> = Numeric;
     type Result<'data> = Numeric;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         Ok(value)
     }
 }

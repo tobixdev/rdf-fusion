@@ -1,5 +1,5 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{Decimal, Numeric, RdfOpError, TermRef};
+use crate::{ScalarUnaryRdfOp, ThinResult};
+use datamodel::{Decimal, Numeric, TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct AsDecimalRdfOp;
@@ -20,7 +20,7 @@ impl ScalarUnaryRdfOp for AsDecimalRdfOp {
     type Arg<'data> = TermRef<'data>;
     type Result<'data> = Decimal;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let converted = match value {
             TermRef::BooleanLiteral(v) => Decimal::from(v),
             TermRef::SimpleLiteral(v) => v.value.parse()?,
@@ -31,7 +31,7 @@ impl ScalarUnaryRdfOp for AsDecimalRdfOp {
                 Numeric::Double(v) => Decimal::try_from(v)?,
                 Numeric::Decimal(v) => v,
             },
-            _ => return Err(RdfOpError),
+            _ => return ThinError::expected(),
         };
         Ok(converted)
     }

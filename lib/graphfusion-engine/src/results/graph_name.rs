@@ -2,15 +2,17 @@ use crate::error::StorageError;
 use oxrdf::NamedOrBlankNode;
 
 /// An iterator returning the graph names contained in a [`Store`].
-pub struct GraphNameStream {}
+pub struct GraphNameStream;
 
 impl Iterator for GraphNameStream {
     type Item = Result<NamedOrBlankNode, StorageError>;
 
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
     fn next(&mut self) -> Option<Self::Item> {
         unimplemented!()
     }
 
+    #[allow(clippy::unimplemented, reason = "Not production ready")]
     fn size_hint(&self) -> (usize, Option<usize>) {
         unimplemented!()
     }

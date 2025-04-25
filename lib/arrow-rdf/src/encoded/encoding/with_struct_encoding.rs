@@ -7,7 +7,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datamodel::{RdfOpResult, TermRef};
+use datamodel::{TermRef, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -58,14 +58,13 @@ impl ScalarUDFImpl for EncWithSortableEncoding {
         match &args.args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_union_array(array);
-                let values = (0..args.number_rows)
-                    .map(|i| TermRef::from_enc_array(array, i));
-                let result = into_struct_enc(values)?;
+                let values = (0..args.number_rows).map(|i| TermRef::from_enc_array(array, i));
+                let result = into_struct_enc(values);
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
                 let term = TermRef::from_enc_scalar(scalar);
-                let result = into_struct_enc([term])?;
+                let result = into_struct_enc([term]);
                 Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(
                     &result, 0,
                 )?))
@@ -75,8 +74,8 @@ impl ScalarUDFImpl for EncWithSortableEncoding {
 }
 
 fn into_struct_enc<'data>(
-    terms: impl IntoIterator<Item = RdfOpResult<TermRef<'data>>>,
-) -> DFResult<StructArray> {
+    terms: impl IntoIterator<Item = ThinResult<TermRef<'data>>>,
+) -> StructArray {
     let terms_iter = terms.into_iter();
 
     let (_, size_upper_bound) = terms_iter.size_hint();
@@ -88,9 +87,7 @@ fn into_struct_enc<'data>(
                 TermRef::NamedNode(v) => builder.append_named_node(v),
                 TermRef::BlankNode(v) => builder.append_blank_node(v),
                 TermRef::BooleanLiteral(v) => builder.append_boolean(v),
-                TermRef::NumericLiteral(v) => {
-                    builder.append_numeric(v, v.to_be_bytes().as_ref())
-                }
+                TermRef::NumericLiteral(v) => builder.append_numeric(v, v.to_be_bytes().as_ref()),
                 TermRef::SimpleLiteral(v) => builder.append_string(v.value, None),
                 TermRef::LanguageStringLiteral(v) => {
                     builder.append_string(v.value, Some(v.language))
@@ -108,7 +105,7 @@ fn into_struct_enc<'data>(
         }
     }
 
-    Ok(builder.finish())
+    builder.finish()
 }
 
 #[cfg(test)]

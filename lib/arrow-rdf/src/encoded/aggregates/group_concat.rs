@@ -54,7 +54,7 @@ impl Accumulator for SparqlGroupConcat {
             return Ok(());
         }
 
-        let arr = as_enc_term_array(&values[0]).expect("Type constraint.");
+        let arr = as_enc_term_array(&values[0])?;
 
         let mut value_exists = self.value.is_some();
         let mut value = self.value.take().unwrap_or_default();
@@ -93,7 +93,7 @@ impl Accumulator for SparqlGroupConcat {
 
         let value = self.value.as_deref().unwrap_or("");
         let literal = StringLiteralRef(value, self.language.as_deref());
-        Ok(literal.into_scalar_value()?)
+        literal.into_scalar_value()
     }
 
     fn size(&self) -> usize {
@@ -109,9 +109,8 @@ impl Accumulator for SparqlGroupConcat {
         ])
     }
 
+    #[allow(clippy::missing_asserts_for_indexing)]
     fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
-        assert_eq!(states.len(), 4);
-        
         let error = states[0].as_boolean().iter().any(|e| e == Some(true));
         if error {
             self.error = true;

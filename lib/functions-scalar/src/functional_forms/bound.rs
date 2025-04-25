@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
+use crate::{ScalarUnaryRdfOp, ThinResult};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
@@ -20,11 +20,11 @@ impl ScalarUnaryRdfOp for BoundRdfOp {
     type Arg<'data> = TermRef<'data>;
     type Result<'data> = Boolean;
 
-    fn evaluate<'data>(&self, _: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, _: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         Ok(true.into())
     }
 
-    fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate_error<'data>(&self) -> ThinResult<Self::Result<'data>> {
         Ok(false.into())
     }
 }

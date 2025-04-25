@@ -6,7 +6,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use datamodel::{RdfOpError, RdfOpResult, Term, TermRef};
+use datamodel::{Term, TermRef, ThinError, ThinResult};
 use std::sync::{Arc, LazyLock};
 
 pub static ENC_MAX: LazyLock<AggregateUDF> = LazyLock::new(|| {
@@ -22,14 +22,14 @@ pub static ENC_MAX: LazyLock<AggregateUDF> = LazyLock::new(|| {
 
 #[derive(Debug)]
 struct SparqlMax {
-    max: RdfOpResult<Term>,
+    max: ThinResult<Term>,
     executed_once: bool,
 }
 
 impl SparqlMax {
     pub fn new() -> Self {
         SparqlMax {
-            max: Err(RdfOpError),
+            max: ThinError::expected(),
             executed_once: false,
         }
     }
@@ -42,7 +42,7 @@ impl Accumulator for SparqlMax {
         }
         // TODO: Can we stop once we error?
 
-        let arr = as_enc_term_array(&values[0]).expect("Type constraint.");
+        let arr = as_enc_term_array(&values[0])?;
 
         for i in 0..arr.len() {
             let value = TermRef::from_enc_array(arr, i);

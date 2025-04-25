@@ -3,7 +3,7 @@ use crate::algebra::*;
 use crate::query::*;
 use crate::term::*;
 use crate::update::*;
-use datamodel::RdfOpError;
+use datamodel::ThinError;
 use oxilangtag::LanguageTag;
 use oxiri::{Iri, IriParseError};
 use oxrdf::vocab::{rdf, xsd};
@@ -1147,10 +1147,10 @@ parser! {
         rule QuadPattern() -> Vec<QuadPattern> = "{" _ q:Quads() _ "}" { q }
 
         rule QuadData() -> Vec<Quad> = "{" _ q:Quads() _ "}" {?
-            q.into_iter().map(Quad::try_from).collect::<Result<Vec<_>, RdfOpError>>().map_err(|_| "Variables are not allowed in INSERT DATA")
+            q.into_iter().map(Quad::try_from).collect::<Result<Vec<_>, ThinError >>().map_err(|_| "Variables are not allowed in INSERT DATA")
         }
         rule GroundQuadData() -> Vec<GroundQuad> = "{" _ q:Quads() _ "}" {?
-            q.into_iter().map(|q| GroundQuad::try_from(Quad::try_from(q)?)).collect::<Result<Vec<_>, RdfOpError>>().map_err(|_| "Variables and blank nodes are not allowed in DELETE DATA")
+            q.into_iter().map(|q| GroundQuad::try_from(Quad::try_from(q)?)).collect::<Result<Vec<_>, ThinError >>().map_err(|_| "Variables and blank nodes are not allowed in DELETE DATA")
         }
 
         rule Quads() -> Vec<QuadPattern> = q:(Quads_TriplesTemplate() / Quads_QuadsNotTriples()) ** (_) {

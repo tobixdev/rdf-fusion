@@ -5,9 +5,9 @@ use crate::encoded::EncTermField;
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{Array, AsArray, BooleanArray};
 use datafusion::arrow::buffer::ScalarBuffer;
-use datafusion::common::{DataFusionError, ScalarValue};
+use datafusion::common::{exec_datafusion_err, exec_err, DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use datamodel::{Boolean, RdfOpError, RdfValueRef, TermRef};
+use datamodel::{Boolean, RdfValueRef, TermRef, ThinError};
 use functions_scalar::ScalarUnaryRdfOp;
 
 pub fn dispatch_unary<'data, TUdf>(
@@ -41,12 +41,16 @@ where
     let value = TUdf::Arg::from_enc_scalar(value);
     let result = match value {
         Ok(value) => udf.evaluate(value),
-        Err(_) => udf.evaluate_error(),
+        Err(ThinError::Expected) => udf.evaluate_error(),
+        Err(ThinError::InternalError(error)) => {
+            return exec_err!("InternalError in UDF: {}", error)
+        }
     };
-    let result = result
-        .and_then(|value| value.into_scalar_value().map_err(|_| RdfOpError))
-        .unwrap_or(encode_scalar_null());
-    Ok(ColumnarValue::Scalar(result))
+    let result = match result {
+        Ok(result) => result.into_scalar_value(),
+        Err(_) => Ok(encode_scalar_null()),
+    };
+    Ok(ColumnarValue::Scalar(result?))
 }
 
 fn dispatch_unary_array<'data, TUdf>(
@@ -58,11 +62,13 @@ where
     TUdf::Arg<'data>: FromEncodedTerm<'data>,
     TUdf::Result<'data>: WriteEncTerm,
 {
-    let values = as_enc_term_array(values).expect("RDF term array expected");
+    let values = as_enc_term_array(values)?;
 
     let booleans = values.child(EncTermField::Boolean.type_id()).as_boolean();
     if values.len() == booleans.len() {
-        let offsets = values.offsets().expect("Always dense");
+        let offsets = values.offsets().ok_or(exec_datafusion_err!(
+            "RDF term array should always have offsets."
+        ))?;
         return dispatch_unary_array_boolean(udf, offsets, booleans);
     }
 
@@ -70,7 +76,8 @@ where
         .map(|i| TermRef::from_enc_array(values, i).and_then(TUdf::Arg::from_term))
         .map(|v| match v {
             Ok(value) => udf.evaluate(value),
-            Err(_) => udf.evaluate_error(),
+            Err(ThinError::Expected) => udf.evaluate_error(),
+            Err(internal_err) => Err(internal_err),
         });
     let result = TUdf::Result::iter_into_array(results)?;
     Ok(ColumnarValue::Array(result))
@@ -87,6 +94,7 @@ where
     TUdf::Arg<'data>: FromEncodedTerm<'data>,
     TUdf::Result<'data>: WriteEncTerm,
 {
+    #[allow(clippy::cast_sign_loss, reason = "Offset is always positive")]
     let results = offsets
         .iter()
         .map(|o| values.value(*o as usize))

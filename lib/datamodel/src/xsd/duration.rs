@@ -1,4 +1,4 @@
-use crate::{DateTime, Decimal, RdfOpError, RdfOpResult, RdfValueRef, TermRef};
+use crate::{DateTime, Decimal, RdfValueRef, TermRef, ThinError, ThinResult};
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
@@ -134,33 +134,33 @@ impl Duration {
     ///
     /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_add(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         let rhs = rhs.into();
         Self::construct(
             self.year_month.checked_add(rhs.year_month)?,
             self.day_time.checked_add(rhs.day_time)?,
         )
-        .map_err(|_| RdfOpError)
+        .map_err(|_| ThinError::Expected)
     }
 
     /// [op:subtract-yearMonthDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDurations) and [op:subtract-dayTimeDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDurations)
     ///
     /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         let rhs = rhs.into();
         Self::construct(
             self.year_month.checked_sub(rhs.year_month)?,
             self.day_time.checked_sub(rhs.day_time)?,
         )
-        .map_err(|_| RdfOpError)
+        .map_err(|_| ThinError::Expected)
     }
 
     /// Unary negation.
     ///
     /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_neg(self) -> RdfOpResult<Self> {
+    pub fn checked_neg(self) -> ThinResult<Self> {
         Ok(Self {
             year_month: self.year_month.checked_neg()?,
             day_time: self.day_time.checked_neg()?,
@@ -176,13 +176,13 @@ impl Duration {
 }
 
 impl RdfValueRef<'_> for Duration {
-    fn from_term(term: TermRef<'_>) -> RdfOpResult<Self>
+    fn from_term(term: TermRef<'_>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
             TermRef::DurationLiteral(inner) => Ok(inner),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
@@ -363,10 +363,13 @@ impl YearMonthDuration {
     ///
     /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_add(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         let rhs = rhs.into();
         Ok(Self {
-            months: self.months.checked_add(rhs.months).ok_or(RdfOpError)?,
+            months: self
+                .months
+                .checked_add(rhs.months)
+                .ok_or(ThinError::Expected)?,
         })
     }
 
@@ -374,10 +377,13 @@ impl YearMonthDuration {
     ///
     /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         let rhs = rhs.into();
         Ok(Self {
-            months: self.months.checked_sub(rhs.months).ok_or(RdfOpError)?,
+            months: self
+                .months
+                .checked_sub(rhs.months)
+                .ok_or(ThinError::Expected)?,
         })
     }
 
@@ -385,9 +391,9 @@ impl YearMonthDuration {
     ///
     /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_neg(self) -> RdfOpResult<Self> {
+    pub fn checked_neg(self) -> ThinResult<Self> {
         Ok(Self {
-            months: self.months.checked_neg().ok_or(RdfOpError)?,
+            months: self.months.checked_neg().ok_or(ThinError::Expected)?,
         })
     }
 
@@ -558,7 +564,7 @@ impl DayTimeDuration {
     ///
     /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_add(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         let rhs = rhs.into();
         Ok(Self {
             seconds: self.seconds.checked_add(rhs.seconds)?,
@@ -569,7 +575,7 @@ impl DayTimeDuration {
     ///
     /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         let rhs = rhs.into();
         Ok(Self {
             seconds: self.seconds.checked_sub(rhs.seconds)?,
@@ -580,7 +586,7 @@ impl DayTimeDuration {
     ///
     /// Returns `Err` in case of overflow ([`FODT0002`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0002)).
     #[inline]
-    pub fn checked_neg(self) -> RdfOpResult<Self> {
+    pub fn checked_neg(self) -> ThinResult<Self> {
         Ok(Self {
             seconds: self.seconds.checked_neg()?,
         })
@@ -1223,11 +1229,11 @@ mod tests {
         );
         assert_eq!(
             Duration::from_str("P1M2D")?.checked_add(Duration::from_str("-P3D")?),
-            Err(RdfOpError)
+            ThinError::expected()
         );
         assert_eq!(
             Duration::from_str("P1M2D")?.checked_add(Duration::from_str("-P2M")?),
-            Err(RdfOpError)
+            ThinError::expected()
         );
         Ok(())
     }
@@ -1244,11 +1250,11 @@ mod tests {
         );
         assert_eq!(
             Duration::from_str("P1M2D")?.checked_sub(Duration::from_str("P3D")?),
-            Err(RdfOpError)
+            ThinError::expected()
         );
         assert_eq!(
             Duration::from_str("P1M2D")?.checked_sub(Duration::from_str("P2M")?),
-            Err(RdfOpError)
+            ThinError::expected()
         );
         Ok(())
     }

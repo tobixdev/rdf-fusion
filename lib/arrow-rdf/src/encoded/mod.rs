@@ -12,12 +12,12 @@ mod logical;
 mod query_evaluation;
 mod write_enc_term;
 
-use std::sync::LazyLock;
 use crate::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 pub use builder::EncRdfTermBuilder;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 pub use from_encoded_term::FromEncodedTerm;
 pub use model::*;
+use std::sync::LazyLock;
 
 // Functions
 pub use aggregates::*;

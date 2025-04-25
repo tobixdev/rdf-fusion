@@ -114,9 +114,7 @@ fn get_triple_template_value(
             if !bnodes.contains_key(bnode) {
                 bnodes.insert(bnode.clone(), BlankNode::default());
             }
-            Some(Term::BlankNode(
-                bnodes.get(bnode).expect("Ensured by insert").clone(),
-            ))
+            Some(Term::BlankNode(bnodes[bnode].clone()))
         }
         TermPattern::Literal(term) => Some(Term::Literal(term.clone())),
         TermPattern::Variable(v) => tuple.get(v).cloned(),

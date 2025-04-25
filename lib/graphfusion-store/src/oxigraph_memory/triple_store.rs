@@ -29,19 +29,19 @@ pub struct MemoryTripleStore {
 }
 
 impl MemoryTripleStore {
-    pub async fn new() -> Result<Self, StorageError> {
+    pub fn new() -> Result<Self, StorageError> {
         let triples_table: Arc<dyn TableProvider> = Arc::new(OxigraphMemTable::new());
 
         let state = SessionStateBuilder::new()
-            .with_query_planner(Arc::new(GraphFusionPlanner::new()))
+            .with_query_planner(Arc::new(GraphFusionPlanner))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
             .with_optimizer_rule(Arc::new(PathToJoinsRule::new(Arc::clone(&triples_table))))
-            .with_optimizer_rule(Arc::new(PatternToProjectionRule::default()))
+            .with_optimizer_rule(Arc::new(PatternToProjectionRule))
             .build();
         let ctx = SessionContext::from(state);
 
         ctx.register_table("quads", Arc::clone(&triples_table))
-            .map_err(|e| StorageError::from(e))?;
+            .map_err(StorageError::from)?;
         Ok(MemoryTripleStore { ctx })
     }
 

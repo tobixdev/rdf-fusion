@@ -1,5 +1,5 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{OwnedStringLiteral, RdfOpError, TermRef};
+use crate::{ScalarUnaryRdfOp, ThinResult};
+use datamodel::{OwnedStringLiteral, TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct AsStringRdfOp;
@@ -20,10 +20,10 @@ impl ScalarUnaryRdfOp for AsStringRdfOp {
     type Arg<'data> = TermRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let converted = match value {
             TermRef::NamedNode(value) => value.as_str().to_owned(),
-            TermRef::BlankNode(_) => return Err(RdfOpError),
+            TermRef::BlankNode(_) => return ThinError::expected(),
             TermRef::BooleanLiteral(value) => value.to_string(),
             TermRef::NumericLiteral(value) => value.format_value(),
             TermRef::SimpleLiteral(value) => value.value.to_owned(),

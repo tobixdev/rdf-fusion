@@ -1,5 +1,5 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{DateTime, RdfOpError, TermRef};
+use crate::{ScalarUnaryRdfOp, ThinResult};
+use datamodel::{DateTime, TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct AsDateTimeRdfOp;
@@ -20,11 +20,11 @@ impl ScalarUnaryRdfOp for AsDateTimeRdfOp {
     type Arg<'data> = TermRef<'data>;
     type Result<'data> = DateTime;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let converted = match value {
-            TermRef::SimpleLiteral(v) => v.value.parse().map_err(|_| ())?,
+            TermRef::SimpleLiteral(v) => v.value.parse()?,
             TermRef::DateTimeLiteral(v) => v,
-            _ => return Err(RdfOpError),
+            _ => return ThinError::expected(),
         };
         Ok(converted)
     }

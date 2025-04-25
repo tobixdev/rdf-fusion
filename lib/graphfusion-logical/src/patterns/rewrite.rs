@@ -11,7 +11,7 @@ use spargebra::term::TermPattern;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Default)]
-pub struct PatternToProjectionRule {}
+pub struct PatternToProjectionRule;
 
 impl OptimizerRule for PatternToProjectionRule {
     fn name(&self) -> &str {
@@ -73,9 +73,9 @@ fn filter_by_values(
 fn value_pattern_to_filter_expr(column: &Column, pattern: &TermPattern) -> Option<Expr> {
     let scalar = match pattern {
         TermPattern::NamedNode(nn) => Some(encode_scalar_named_node(nn.as_ref())),
-        TermPattern::BlankNode(_) => None,
         TermPattern::Literal(lit) => Some(encode_scalar_literal(lit.as_ref()).unwrap()),
-        TermPattern::Variable(_) => None,
+        TermPattern::BlankNode(_) | TermPattern::Variable(_) => None,
+        #[allow(clippy::unimplemented, reason = "not production ready")]
         TermPattern::Triple(_) => unimplemented!(),
     }?;
 

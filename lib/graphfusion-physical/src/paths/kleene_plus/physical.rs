@@ -63,7 +63,7 @@ impl KleenePlusClosureExec {
 
         // Define execution properties
         let plan_properties = PlanProperties::new(
-            EquivalenceProperties::new(inner.schema().clone()),
+            EquivalenceProperties::new(inner.schema()),
             Partitioning::UnknownPartitioning(1), // Computation requires all data in one partition
             EmissionType::Final,                  // Emits results only after full computation
             Boundedness::Bounded,                 // Assumes the closure computation terminates
@@ -105,7 +105,7 @@ impl ExecutionPlan for KleenePlusClosureExec {
         }
 
         let exec =
-            KleenePlusClosureExec::try_new(children[0].clone(), self.allow_cross_graph_paths)?;
+            KleenePlusClosureExec::try_new(Arc::clone(&children[0]), self.allow_cross_graph_paths)?;
         Ok(Arc::new(exec))
     }
 
@@ -123,17 +123,17 @@ impl ExecutionPlan for KleenePlusClosureExec {
 
         let partition_count = self.inner.output_partitioning().partition_count();
         let all_partitions = (0..partition_count)
-            .map(|i| self.inner.execute(i, context.clone()))
+            .map(|i| self.inner.execute(i, Arc::clone(&context)))
             .collect::<DFResult<Vec<_>>>()?;
         let schema = self.schema();
         let input_stream = RecordBatchStreamAdapter::new(
-            schema.clone(),
+            Arc::clone(&schema),
             futures::stream::select_all(all_partitions),
         );
 
         Ok(Box::pin(KleenePlusClosureStream::new(
             Box::pin(input_stream),
-            schema.clone(),
+            Arc::clone(&schema),
             self.allow_cross_graph_paths,
         )))
     }
@@ -191,24 +191,7 @@ impl KleenePlusClosureStream {
             current_delta: Vec::new(),
         }
     }
-}
 
-impl RecordBatchStream for KleenePlusClosureStream {
-    fn schema(&self) -> SchemaRef {
-        self.schema.clone()
-    }
-}
-
-impl Stream for KleenePlusClosureStream {
-    type Item = DFResult<RecordBatch>;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.get_mut();
-        this.poll_inner(cx)
-    }
-}
-
-impl KleenePlusClosureStream {
     fn poll_inner(
         &mut self,
         cx: &mut Context<'_>,
@@ -222,7 +205,6 @@ impl KleenePlusClosureStream {
                                 self.state = KleenePlusPathStreamState::Error;
                                 return Poll::Ready(Some(Err(e)));
                             }
-                            continue;
                         }
                         Some(Err(e)) => {
                             self.state = KleenePlusPathStreamState::Error;
@@ -230,7 +212,6 @@ impl KleenePlusClosureStream {
                         }
                         None => {
                             self.state = KleenePlusPathStreamState::Computing;
-                            continue;
                         }
                     }
                 }
@@ -244,7 +225,7 @@ impl KleenePlusClosureStream {
                     // Compute one iteration of the closure
                     let mut next_delta = Vec::new();
 
-                    for current_path in self.current_delta.iter() {
+                    for current_path in &self.current_delta {
                         if self.allow_cross_graph_paths {
                             Self::compute_new_cross_graph_paths(
                                 &self.initial_paths_map,
@@ -292,7 +273,7 @@ impl KleenePlusClosureStream {
     /// Collects the inner paths of a single [RecordBatch].
     ///
     /// This adds all inner paths to the `initial_paths_map`, `all_paths`, and the `current_delta`.
-    fn collect_next_batch(self: &mut Self, batch: &RecordBatch) -> DFResult<()> {
+    fn collect_next_batch(&mut self, batch: &RecordBatch) -> DFResult<()> {
         let graph_names = as_enc_term_array(batch.column(0))?;
         let starts = as_enc_term_array(batch.column(1))?;
         let ends = as_enc_term_array(batch.column(2))?;
@@ -337,7 +318,7 @@ impl KleenePlusClosureStream {
                 initial_paths_map,
                 all_paths,
                 next_delta,
-                &graph,
+                graph,
                 current_path,
             );
         }
@@ -373,7 +354,7 @@ impl KleenePlusClosureStream {
         let mut start_builder = EncRdfTermBuilder::default();
         let mut end_builder = EncRdfTermBuilder::default();
 
-        for path in self.all_paths.iter() {
+        for path in &self.all_paths {
             match &path.graph {
                 GraphName::NamedNode(named) => graph_builder.append_named_node(named.as_str())?,
                 GraphName::BlankNode(bnode) => graph_builder.append_blank_node(bnode.as_str())?,
@@ -389,10 +370,25 @@ impl KleenePlusClosureStream {
 
         let options = RecordBatchOptions::new().with_row_count(Some(self.all_paths.len()));
         RecordBatch::try_new_with_options(
-            self.schema.clone(),
+            Arc::clone(&self.schema),
             vec![graph_array, start_array, end_array],
             &options,
         )
         .map_err(Into::into)
+    }
+}
+
+impl RecordBatchStream for KleenePlusClosureStream {
+    fn schema(&self) -> SchemaRef {
+        Arc::clone(&self.schema)
+    }
+}
+
+impl Stream for KleenePlusClosureStream {
+    type Item = DFResult<RecordBatch>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        this.poll_inner(cx)
     }
 }

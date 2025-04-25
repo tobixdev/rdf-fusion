@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
+use crate::{ScalarUnaryRdfOp, ThinResult};
 use datamodel::{Integer, StringLiteralRef};
 
 #[derive(Debug)]
@@ -20,8 +20,8 @@ impl ScalarUnaryRdfOp for StrLenRdfOp {
     type Arg<'data> = StringLiteralRef<'data>;
     type Result<'data> = Integer;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
-        let value: i64 = value.len().try_into().map_err(|_| ())?;
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
+        let value: i64 = value.len().try_into()?;
         Ok(value.into())
     }
 }

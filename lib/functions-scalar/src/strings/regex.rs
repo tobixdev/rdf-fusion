@@ -1,5 +1,5 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp, ScalarTernaryRdfOp};
-use datamodel::{Boolean, SimpleLiteralRef, StringLiteralRef};
+use crate::{ScalarBinaryRdfOp, ScalarTernaryRdfOp, ThinResult};
+use datamodel::{Boolean, SimpleLiteralRef, StringLiteralRef, ThinError};
 use regex::{Regex, RegexBuilder};
 use std::borrow::Cow;
 
@@ -29,8 +29,8 @@ impl ScalarBinaryRdfOp for RegexRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
-        let regex = compile_pattern(rhs.value, None).ok_or(())?;
+    ) -> ThinResult<Self::Result<'data>> {
+        let regex = compile_pattern(rhs.value, None)?;
         Ok(regex.is_match(lhs.0).into())
     }
 }
@@ -46,13 +46,13 @@ impl ScalarTernaryRdfOp for RegexRdfOp {
         arg0: Self::Arg0<'data>,
         arg1: Self::Arg1<'data>,
         arg2: Self::Arg2<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
-        let regex = compile_pattern(arg1.value, Some(arg2.value)).ok_or(())?;
+    ) -> ThinResult<Self::Result<'data>> {
+        let regex = compile_pattern(arg1.value, Some(arg2.value))?;
         Ok(regex.is_match(arg0.0).into())
     }
 }
 
-pub(super) fn compile_pattern(pattern: &str, flags: Option<&str>) -> Option<Regex> {
+pub(super) fn compile_pattern(pattern: &str, flags: Option<&str>) -> ThinResult<Regex> {
     const REGEX_SIZE_LIMIT: usize = 1_000_000;
 
     let mut pattern = Cow::Borrowed(pattern);
@@ -76,9 +76,9 @@ pub(super) fn compile_pattern(pattern: &str, flags: Option<&str>) -> Option<Rege
             'x' => {
                 regex_builder.ignore_whitespace(true);
             }
-            'q' => (),        // Already supported
-            _ => return None, // invalid option
+            'q' => (),                         // Already supported
+            _ => return ThinError::expected(), // invalid option
         }
     }
-    regex_builder.build().ok()
+    regex_builder.build().map_err(|_| ThinError::Expected)
 }

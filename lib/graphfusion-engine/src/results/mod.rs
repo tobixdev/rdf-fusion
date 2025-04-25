@@ -211,11 +211,9 @@ pub fn query_result_for_iterator(
     for solution in solutions {
         count += 1;
         let solution =
-            solution.map_err(|err| QuerySolutionsToStreamError::QuerySolutionSource(err))?;
+            solution.map_err(QuerySolutionsToStreamError::QuerySolutionSource)?;
         for (idx, term) in solution.values().iter().enumerate() {
-            let builder = builders
-                .get_mut(idx)
-                .expect("Initialized with enough builders");
+            let builder = &mut builders[idx];
             match term {
                 Some(term) => builder.append_decoded_term(term)?,
                 None => builder.append_null()?,
@@ -229,12 +227,12 @@ pub fn query_result_for_iterator(
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()
-        .map(|builder| builder.finish())
+        .map(EncRdfTermBuilder::finish)
         .collect::<Result<Vec<_>, DataFusionError>>()?;
 
     let schema = SchemaRef::new(Schema::new(fields));
     let options = RecordBatchOptions::new().with_row_count(Some(count));
-    let record_batch = RecordBatch::try_new_with_options(schema.clone(), columns, &options)?;
+    let record_batch = RecordBatch::try_new_with_options(Arc::clone(&schema), columns, &options)?;
     let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
     let stream = QuerySolutionStream::new(variables, Box::pin(record_batch_stream));
     Ok(QueryResults::Solutions(stream))

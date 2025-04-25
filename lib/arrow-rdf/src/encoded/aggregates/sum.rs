@@ -6,7 +6,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use datamodel::{Integer, Numeric, NumericPair, RdfOpResult};
+use datamodel::{Integer, Numeric, NumericPair, ThinResult};
 use std::sync::{Arc, LazyLock};
 
 pub static ENC_SUM: LazyLock<AggregateUDF> = LazyLock::new(|| {
@@ -22,7 +22,7 @@ pub static ENC_SUM: LazyLock<AggregateUDF> = LazyLock::new(|| {
 
 #[derive(Debug)]
 struct SparqlSum {
-    sum: RdfOpResult<Numeric>,
+    sum: ThinResult<Numeric>,
 }
 
 impl SparqlSum {

@@ -2,11 +2,11 @@ use crate::encoded::dispatch::dispatch_binary;
 use crate::encoded::{EncTerm, EncTermField};
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::ScalarValue;
+use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datamodel::{Boolean, RdfOpResult, TermRef};
+use datamodel::{Boolean, TermRef, ThinResult};
 use functions_scalar::ScalarBinaryRdfOp;
 use std::any::Any;
 use std::sync::Arc;
@@ -36,7 +36,7 @@ impl ScalarBinaryRdfOp for EncIsCompatible {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         let is_compatible = match (lhs, rhs) {
             (TermRef::BlankNode(lhs), TermRef::BlankNode(rhs)) => lhs == rhs,
             (TermRef::NamedNode(lhs), TermRef::NamedNode(rhs)) => lhs == rhs,
@@ -52,7 +52,7 @@ impl ScalarBinaryRdfOp for EncIsCompatible {
         Ok(is_compatible.into())
     }
 
-    fn evaluate_error<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate_error<'data>(&self) -> ThinResult<Self::Result<'data>> {
         // At least one side is an error, therefore the terms are compatible.
         Ok(true.into())
     }
@@ -90,7 +90,7 @@ impl ScalarUDFImpl for EncIsCompatible {
             ColumnarValue::Scalar(ScalarValue::Union(Some((_, scalar)), _, _)) => {
                 Ok(ColumnarValue::Scalar(*scalar))
             }
-            _ => unreachable!("Unexpected result"),
+            ColumnarValue::Scalar(_) => exec_err!("Unexpected non-union Scalar"),
         }
     }
 }

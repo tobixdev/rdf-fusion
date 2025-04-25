@@ -10,7 +10,7 @@ use arrow_rdf::encoded::{
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, JoinType};
+use datafusion::common::{plan_datafusion_err, Column, JoinType};
 use datafusion::datasource::DefaultTableSource;
 use datafusion::logical_expr::{col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
@@ -36,7 +36,19 @@ impl OptimizerRule for PathToJoinsRule {
         plan: LogicalPlan,
         _config: &dyn OptimizerConfig,
     ) -> DFResult<Transformed<LogicalPlan>> {
-        self.rewrite(plan)
+        plan.transform(|plan| {
+            let new_plan = match &plan {
+                LogicalPlan::Extension(Extension { node }) => {
+                    if let Some(node) = node.as_any().downcast_ref::<PathNode>() {
+                        Transformed::yes(self.rewrite_path_node(node)?)
+                    } else {
+                        Transformed::no(plan)
+                    }
+                }
+                _ => Transformed::no(plan),
+            };
+            Ok(new_plan)
+        })
     }
 }
 
@@ -45,39 +57,23 @@ impl PathToJoinsRule {
         Self { quads_table }
     }
 
-    fn rewrite(&self, plan: LogicalPlan) -> DFResult<Transformed<LogicalPlan>> {
-        plan.transform(|plan| {
-            let new_plan = match plan {
-                LogicalPlan::Extension(Extension { node })
-                    if node.as_any().downcast_ref::<PathNode>().is_some() =>
-                {
-                    let node = node.as_any().downcast_ref::<PathNode>().unwrap();
+    fn rewrite_path_node(&self, node: &PathNode) -> DFResult<LogicalPlan> {
+        let query = self.rewrite_property_path_expression(node.graph().as_ref(), node.path())?;
+        let graph_pattern = node.graph().as_ref().map(|p| p.clone().into_term_pattern());
 
-                    let query =
-                        self.rewrite_property_path_expression(node.graph().as_ref(), node.path())?;
-                    let graph_pattern =
-                        node.graph().as_ref().map(|p| p.clone().into_term_pattern());
-
-                    let pattern_node = match graph_pattern {
-                        None => LogicalPlan::Extension(Extension {
-                            node: Arc::new(PatternNode::try_new(
-                                query.project([col(COL_SOURCE), col(COL_TARGET)])?.build()?,
-                                vec![node.subject().clone(), node.object().clone()],
-                            )?),
-                        }),
-                        Some(graph_pattern) => LogicalPlan::Extension(Extension {
-                            node: Arc::new(PatternNode::try_new(
-                                query.build()?,
-                                vec![graph_pattern, node.subject().clone(), node.object().clone()],
-                            )?),
-                        }),
-                    };
-
-                    Transformed::yes(pattern_node)
-                }
-                _ => Transformed::no(plan),
-            };
-            Ok(new_plan)
+        Ok(match graph_pattern {
+            None => LogicalPlan::Extension(Extension {
+                node: Arc::new(PatternNode::try_new(
+                    query.project([col(COL_SOURCE), col(COL_TARGET)])?.build()?,
+                    vec![node.subject().clone(), node.object().clone()],
+                )?),
+            }),
+            Some(graph_pattern) => LogicalPlan::Extension(Extension {
+                node: Arc::new(PatternNode::try_new(
+                    query.build()?,
+                    vec![graph_pattern, node.subject().clone(), node.object().clone()],
+                )?),
+            }),
         })
     }
 
@@ -124,7 +120,7 @@ impl PathToJoinsRule {
     fn rewrite_negated_property_set(
         &self,
         graph: Option<&NamedNodePattern>,
-        nodes: &Vec<NamedNode>,
+        nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
         let test_expression = nodes
             .iter()
@@ -134,7 +130,9 @@ impl PathToJoinsRule {
                     .call(vec![ENC_SAME_TERM.call(vec![col(COL_PREDICATE), expr])])
             })
             .reduce(or)
-            .expect("There must be at least one element in the negated property set.");
+            .ok_or(plan_datafusion_err!(
+                "The negated property set must not be empty"
+            ))?;
 
         let paths = self.scan_quads(graph, Some(not(test_expression)))?;
         make_distinct(paths)

@@ -1,48 +1,63 @@
 use crate::{
-    DateTimeOverflowError, ParseDecimalError, TooLargeForDecimalError, TooLargeForIntError,
-    TooLargeForIntegerError,
+    DateTimeOverflowError, OppositeSignInDurationComponentsError, ParseDateTimeError,
+    ParseDecimalError, TooLargeForDecimalError, TooLargeForIntError, TooLargeForIntegerError,
 };
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
-use std::num::{ParseFloatError, ParseIntError};
+use oxiri::IriParseError;
+use oxrdf::BlankNodeIdParseError;
+use std::fmt::Debug;
+use std::num::{ParseFloatError, ParseIntError, TryFromIntError};
+use std::str::ParseBoolError;
+use std::string::FromUtf8Error;
+use thiserror::Error;
 
-/// A light-weight result for RDF operations.
-pub type RdfOpResult<T> = Result<T, RdfOpError>;
+/// A light-weight result, mainly used for SPARQL operations.
+pub type ThinResult<T> = Result<T, ThinError>;
 
-/// An empty error type for RDF operations. We do not want to add details to the error, as they are
-/// all encoded as NULLs in the solution sequence.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct RdfOpError;
-
-impl Debug for RdfOpError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RdfOpError")
-    }
+/// A thin error type that indicates whether an issue is expected (e.g., a SPARQL error) or if this
+/// error is unexpected and should not happen (i.e., programming errors).
+#[derive(Clone, Copy, Debug, Default, Error, PartialEq, Eq)]
+pub enum ThinError {
+    #[default]
+    #[error("Expected error")]
+    Expected,
+    #[error("An internal error occurred. This is most likely a bug in GraphFusion. Reason: {0}")]
+    InternalError(&'static str),
 }
 
-impl Display for RdfOpError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RdfOpError")
+impl ThinError {
+    /// Creates an expected error. This should be used for fallible operations, such as SPARQL
+    /// operations that can return an error.
+    pub fn expected<T>() -> ThinResult<T> {
+        Err(ThinError::Expected)
+    }
+
+    /// Creates an internal error. This should be used if an error likely indicates a bug.
+    pub fn internal_error<T>(expected: &'static str) -> ThinResult<T> {
+        Err(ThinError::InternalError(expected))
     }
 }
-
-impl Error for RdfOpError {}
 
 macro_rules! implement_from {
     ($t:ty) => {
-        impl From<$t> for RdfOpError {
+        impl From<$t> for ThinError {
             fn from(_: $t) -> Self {
-                RdfOpError
+                ThinError::Expected
             }
         }
     };
 }
 
-implement_from!(());
-implement_from!(ParseDecimalError);
 implement_from!(TooLargeForDecimalError);
 implement_from!(TooLargeForIntegerError);
 implement_from!(TooLargeForIntError);
+implement_from!(ParseBoolError);
 implement_from!(ParseIntError);
 implement_from!(ParseFloatError);
+implement_from!(ParseDecimalError);
+implement_from!(ParseDateTimeError);
+implement_from!(BlankNodeIdParseError);
+implement_from!(IriParseError);
+implement_from!(TryFromIntError);
 implement_from!(DateTimeOverflowError);
+implement_from!(OppositeSignInDurationComponentsError);
+implement_from!(FromUtf8Error);

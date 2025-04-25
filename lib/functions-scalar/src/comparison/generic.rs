@@ -1,5 +1,5 @@
-use crate::RdfOpResult;
 use crate::ScalarBinaryRdfOp;
+use crate::ThinResult;
 use datamodel::Boolean;
 use datamodel::TermRef;
 
@@ -30,7 +30,7 @@ macro_rules! create_binary_cmp_udf {
                 &self,
                 lhs: Self::ArgLhs<'data>,
                 rhs: Self::ArgRhs<'data>,
-            ) -> RdfOpResult<Self::Result<'data>> {
+            ) -> ThinResult<Self::Result<'data>> {
                 let result = match (lhs, rhs) {
                     (TermRef::NamedNode(l), TermRef::NamedNode(r)) => l $OP r,
                     (TermRef::BooleanLiteral(l), TermRef::BooleanLiteral(r)) => l $OP r,

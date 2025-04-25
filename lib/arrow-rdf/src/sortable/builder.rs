@@ -165,6 +165,7 @@ impl SortableTermBuilder {
             .field_builder::<UInt8Builder>(SortableTermField::Type.index())
             .unwrap()
             .append_value(sort_type.as_u8());
+        #[allow(clippy::cast_sign_loss, reason = "EncTermType cannot be negative.")]
         self.builder
             .field_builder::<UInt8Builder>(SortableTermField::EncTermType.index())
             .unwrap()

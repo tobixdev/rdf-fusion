@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
+use crate::{ScalarUnaryRdfOp, ThinResult};
 use datamodel::{DateTime, Integer};
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl ScalarUnaryRdfOp for DayRdfOp {
     type Arg<'data> = DateTime;
     type Result<'data> = Integer;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         Ok(value.day().into())
     }
 }

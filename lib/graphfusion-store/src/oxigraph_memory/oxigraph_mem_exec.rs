@@ -31,16 +31,16 @@ pub struct OxigraphMemExec {
 }
 
 impl OxigraphMemExec {
-    pub fn new(storage: Arc<OxigraphMemoryStorage>, projection: Option<Vec<usize>>) -> Self {
+    pub fn new(storage: &OxigraphMemoryStorage, projection: Option<Vec<usize>>) -> Self {
         let projection = projection.unwrap_or((0..ENC_QUAD_SCHEMA.fields.len()).collect());
         let new_fields: Vec<_> = projection
             .iter()
-            .map(|i| ENC_QUAD_SCHEMA.fields.get(*i).unwrap().clone())
+            .map(|i| Arc::clone(ENC_QUAD_SCHEMA.fields.get(*i).unwrap()))
             .collect();
         let schema = SchemaRef::new(Schema::new(new_fields));
 
         let plan_properties = PlanProperties::new(
-            EquivalenceProperties::new(schema.clone()),
+            EquivalenceProperties::new(Arc::clone(&schema)),
             Partitioning::UnknownPartitioning(1),
             EmissionType::Final,
             Boundedness::Bounded,
@@ -101,8 +101,8 @@ impl ExecutionPlan for OxigraphMemExec {
             return internal_err!("OxigraphMemExec partition must be 1");
         }
         Ok(Box::pin(OxigraphMemStream::new(
-            self.reader.clone(),
-            self.schema().clone(),
+            Arc::clone(&self.reader),
+            self.schema(),
             context.session_config().batch_size(),
         )))
     }
@@ -136,10 +136,10 @@ impl Stream for OxigraphMemStream {
         _ctx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         let mut rb_builder =
-            RdfQuadsRecordBatchBuilder::new(self.storage.clone(), self.schema.clone());
+            RdfQuadsRecordBatchBuilder::new(Arc::clone(&self.storage), Arc::clone(&self.schema));
 
         while let Some(quad) = self.iterator.next() {
-            let result = rb_builder.encode_quad(quad);
+            let result = rb_builder.encode_quad(&quad);
             if let Err(err) = result {
                 return Poll::Ready(Some(Err(DataFusionError::External(Box::new(err)))));
             }
@@ -160,10 +160,11 @@ impl Stream for OxigraphMemStream {
 
 impl RecordBatchStream for OxigraphMemStream {
     fn schema(&self) -> SchemaRef {
-        self.schema.clone()
+        Arc::clone(&self.schema)
     }
 }
 
+#[allow(clippy::struct_excessive_bools)]
 struct RdfQuadsRecordBatchBuilder {
     reader: Arc<MemoryStorageReader>,
     schema: SchemaRef,
@@ -203,18 +204,18 @@ impl RdfQuadsRecordBatchBuilder {
         self.count
     }
 
-    fn encode_quad(&mut self, quad: EncodedQuad) -> AResult<()> {
+    fn encode_quad(&mut self, quad: &EncodedQuad) -> AResult<()> {
         if self.project_graph {
-            encode_term(&self.reader, &mut self.graph, quad.graph_name)?;
+            encode_term(&self.reader, &mut self.graph, &quad.graph_name)?;
         }
         if self.project_subject {
-            encode_term(&self.reader, &mut self.subject, quad.subject)?;
+            encode_term(&self.reader, &mut self.subject, &quad.subject)?;
         }
         if self.project_predicate {
-            encode_term(&self.reader, &mut self.predicate, quad.predicate)?;
+            encode_term(&self.reader, &mut self.predicate, &quad.predicate)?;
         }
         if self.project_object {
-            encode_term(&self.reader, &mut self.object, quad.object)?;
+            encode_term(&self.reader, &mut self.object, &quad.object)?;
         }
         self.count += 1;
         Ok(())
@@ -241,7 +242,7 @@ impl RdfQuadsRecordBatchBuilder {
 
         let options = RecordBatchOptions::default().with_row_count(Some(self.count));
         let record_batch =
-            RecordBatch::try_new_with_options(self.schema.clone(), fields, &options)?;
+            RecordBatch::try_new_with_options(Arc::clone(&self.schema), fields, &options)?;
         Ok(Some(record_batch))
     }
 }
@@ -249,53 +250,54 @@ impl RdfQuadsRecordBatchBuilder {
 fn encode_term(
     reader: &MemoryStorageReader,
     builder: &mut EncRdfTermBuilder,
-    term: EncodedTerm,
+    term: &EncodedTerm,
 ) -> AResult<()> {
     match term {
         EncodedTerm::DefaultGraph => builder.append_null(),
         EncodedTerm::NamedNode { iri_id } => {
-            let string = load_string(reader, &iri_id)?;
+            let string = load_string(reader, iri_id)?;
             builder.append_named_node(&string)
         }
         EncodedTerm::NumericalBlankNode { id } => {
-            let id = u128::from_be_bytes(id);
+            let id = u128::from_be_bytes(*id);
             let mut id_str = [0; 32];
             write!(&mut id_str[..], "{id:032x}")?;
+            #[allow(clippy::expect_used, reason = "Cannot fail.")]
             let value = std::str::from_utf8(id_str.as_ref()).expect("Always valid");
             builder.append_blank_node(value)
         }
-        EncodedTerm::SmallBlankNode(value) => builder.append_blank_node(&value),
+        EncodedTerm::SmallBlankNode(value) => builder.append_blank_node(value),
         EncodedTerm::BigBlankNode { id_id } => {
-            let string = load_string(reader, &id_id)?;
+            let string = load_string(reader, id_id)?;
             builder.append_blank_node(&string)
         }
-        EncodedTerm::SmallStringLiteral(str) => builder.append_string(&str, None),
+        EncodedTerm::SmallStringLiteral(str) => builder.append_string(str, None),
         EncodedTerm::BigStringLiteral { value_id } => {
-            let string = load_string(reader, &value_id)?;
+            let string = load_string(reader, value_id)?;
             builder.append_string(&string, None)
         }
         EncodedTerm::SmallSmallLangStringLiteral { value, language } => {
             builder.append_string(value.as_str(), Some(language.as_str()))
         }
         EncodedTerm::SmallBigLangStringLiteral { value, language_id } => {
-            let language = load_string(reader, &language_id)?;
-            builder.append_string(&value, Some(language.as_str()))
+            let language = load_string(reader, language_id)?;
+            builder.append_string(value, Some(language.as_str()))
         }
         EncodedTerm::BigSmallLangStringLiteral { value_id, language } => {
-            let value = load_string(reader, &value_id)?;
+            let value = load_string(reader, value_id)?;
             builder.append_string(&value, Some(language.as_str()))
         }
         EncodedTerm::BigBigLangStringLiteral {
             value_id,
             language_id,
         } => {
-            let value = load_string(reader, &value_id)?;
-            let language = load_string(reader, &language_id)?;
+            let value = load_string(reader, value_id)?;
+            let language = load_string(reader, language_id)?;
             builder.append_string(&value, Some(language.as_str()))
         }
         EncodedTerm::SmallTypedLiteral { value, datatype_id } => {
-            let datatype = load_string(reader, &datatype_id)?;
-            append_typed_literal(builder, &value, &datatype)
+            let datatype = load_string(reader, datatype_id)?;
+            append_typed_literal(builder, value, &datatype)
         }
         EncodedTerm::IntegerLiteral(integer) => {
             let value = i64::from_be_bytes(integer.to_be_bytes());
@@ -305,13 +307,13 @@ fn encode_term(
             value_id,
             datatype_id,
         } => {
-            let value = load_string(reader, &value_id)?;
-            let datatype = load_string(reader, &datatype_id)?;
+            let value = load_string(reader, value_id)?;
+            let datatype = load_string(reader, datatype_id)?;
             append_typed_literal(builder, &value, &datatype)
         }
-        EncodedTerm::BooleanLiteral(v) => builder.append_boolean(v.into()),
-        EncodedTerm::FloatLiteral(v) => builder.append_float(f32::from(v).into()),
-        EncodedTerm::DoubleLiteral(v) => builder.append_double(f64::from(v).into()),
+        EncodedTerm::BooleanLiteral(v) => builder.append_boolean((*v).into()),
+        EncodedTerm::FloatLiteral(v) => builder.append_float(f32::from(*v).into()),
+        EncodedTerm::DoubleLiteral(v) => builder.append_double(f64::from(*v).into()),
         EncodedTerm::DecimalLiteral(v) => {
             builder.append_decimal(Decimal::from_be_bytes(v.to_be_bytes()))
         }
@@ -347,6 +349,7 @@ fn encode_term(
             let duration = DayTimeDuration::from_be_bytes(v.to_be_bytes());
             builder.append_duration(None, Some(duration))
         }
+        #[allow(clippy::unimplemented, reason = "Not production ready")]
         EncodedTerm::Triple(_) => unimplemented!("Encode Triple"),
     }
 }
@@ -386,13 +389,13 @@ fn append_typed_literal(
         _ => {}
     }
 
-    builder.append_typed_literal(&value, &datatype)
+    builder.append_typed_literal(value, datatype)
 }
 
 fn load_string(reader: &MemoryStorageReader, str_id: &StrHash) -> DFResult<String> {
     // TODO: use different error
     reader
-        .get_str(&str_id)
+        .get_str(str_id)
         .map_err(|e| DataFusionError::External(Box::new(e)))?
         .ok_or(DataFusionError::Internal(String::from(
             "Could not find string in storage",

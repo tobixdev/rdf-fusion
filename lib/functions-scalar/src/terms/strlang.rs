@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp};
+use crate::{ScalarBinaryRdfOp, ThinResult};
 use datamodel::{OwnedStringLiteral, SimpleLiteralRef};
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ impl ScalarBinaryRdfOp for StrLangRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         Ok(OwnedStringLiteral::new(
             lhs.value.to_owned(),
             Some(rhs.value.to_owned().to_ascii_lowercase()),

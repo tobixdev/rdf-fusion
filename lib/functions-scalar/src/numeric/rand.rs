@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarNullaryRdfOp};
+use crate::{ScalarNullaryRdfOp, ThinResult};
 use datamodel::Double;
 use rand::random;
 
@@ -20,7 +20,7 @@ impl RandRdfOp {
 impl ScalarNullaryRdfOp for RandRdfOp {
     type Result<'data> = Double;
 
-    fn evaluate<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self) -> ThinResult<Self::Result<'data>> {
         Ok(random::<f64>().into())
     }
 }

@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp};
+use crate::{ScalarBinaryRdfOp, ThinResult};
 use datamodel::{Boolean, SimpleLiteralRef};
 
 #[derive(Debug)]
@@ -25,15 +25,11 @@ impl ScalarBinaryRdfOp for LangMatchesRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         let matches = if rhs.value == "*" {
             !lhs.value.is_empty()
         } else {
-            !ZipLongest::new(
-                rhs.value.split('-'),
-                lhs.value.split('-'),
-            )
-            .any(|parts| match parts {
+            !ZipLongest::new(rhs.value.split('-'), lhs.value.split('-')).any(|parts| match parts {
                 (Some(range_subtag), Some(language_subtag)) => {
                     !range_subtag.eq_ignore_ascii_case(language_subtag)
                 }

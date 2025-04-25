@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarNullaryRdfOp};
+use crate::{ScalarNullaryRdfOp, ThinResult};
 use datamodel::OwnedStringLiteral;
 use uuid::Uuid;
 
@@ -20,7 +20,7 @@ impl StrUuidRdfOp {
 impl ScalarNullaryRdfOp for StrUuidRdfOp {
     type Result<'data> = OwnedStringLiteral;
 
-    fn evaluate<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self) -> ThinResult<Self::Result<'data>> {
         let result = Uuid::new_v4().to_string();
         Ok(OwnedStringLiteral(result, None))
     }

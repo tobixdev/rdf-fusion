@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
+use crate::{ScalarUnaryRdfOp, ThinResult};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl ScalarUnaryRdfOp for IsBlankRdfOp {
     type Arg<'data> = TermRef<'data>;
     type Result<'data> = Boolean;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let result = matches!(value, TermRef::BlankNode(_));
         Ok(result.into())
     }

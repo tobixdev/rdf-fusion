@@ -5,7 +5,6 @@ use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::Array;
 use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use datamodel::RdfOpError;
 use functions_scalar::ScalarBinaryRdfOp;
 
 pub fn dispatch_binary<'data, TUdf>(
@@ -50,8 +49,8 @@ where
     TUdf::ArgRhs<'data>: FromEncodedTerm<'data>,
     TUdf::Result<'data>: WriteEncTerm,
 {
-    let lhs = as_enc_term_array(lhs).expect("RDF term");
-    let rhs = as_enc_term_array(rhs).expect("RDF term");
+    let lhs = as_enc_term_array(lhs)?;
+    let rhs = as_enc_term_array(rhs)?;
 
     let results = (0..number_of_rows).map(|i| {
         let arg0 = TUdf::ArgLhs::from_enc_array(lhs, i);
@@ -78,11 +77,12 @@ where
     TUdf::Result<'data>: WriteEncTerm,
 {
     let lhs_value = TUdf::ArgLhs::from_enc_scalar(lhs);
-    let lhs_value = if let Ok(value) = lhs_value { value } else {
-        let result = udf
-            .evaluate_error()
-            .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
-            .unwrap_or(encode_scalar_null());
+    let Ok(lhs_value) = lhs_value else {
+        let result = udf.evaluate_error();
+        let result = match result {
+            Ok(value) => value.into_scalar_value()?,
+            Err(_) => encode_scalar_null(),
+        };
         return Ok(ColumnarValue::Scalar(result));
     };
 
@@ -111,11 +111,12 @@ where
     TUdf::Result<'data>: WriteEncTerm,
 {
     let rhs_value = TUdf::ArgRhs::from_enc_scalar(rhs);
-    let rhs_value = if let Ok(value) = rhs_value { value } else {
-        let result = udf
-            .evaluate_error()
-            .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
-            .unwrap_or(encode_scalar_null());
+    let Ok(rhs_value) = rhs_value else {
+        let result = udf.evaluate_error();
+        let result = match result {
+            Ok(value) => value.into_scalar_value()?,
+            Err(_) => encode_scalar_null(),
+        };
         return Ok(ColumnarValue::Scalar(result));
     };
 
@@ -146,14 +147,14 @@ where
     let rhs = TUdf::ArgRhs::from_enc_scalar(rhs);
 
     let result = match (lhs, rhs) {
-        (Ok(lhs), Ok(rhs)) => udf
-            .evaluate(lhs, rhs)
-            .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
-            .unwrap_or(encode_scalar_null()),
-        _ => udf
-            .evaluate_error()
-            .and_then(|v| v.into_scalar_value().map_err(|_| RdfOpError))
-            .unwrap_or(encode_scalar_null()),
+        (Ok(lhs), Ok(rhs)) => match udf.evaluate(lhs, rhs) {
+            Ok(result) => result.into_scalar_value(),
+            Err(_) => Ok(encode_scalar_null()),
+        },
+        _ => match udf.evaluate_error() {
+            Ok(result) => result.into_scalar_value(),
+            Err(_) => Ok(encode_scalar_null()),
+        },
     };
-    Ok(ColumnarValue::Scalar(result))
+    Ok(ColumnarValue::Scalar(result?))
 }

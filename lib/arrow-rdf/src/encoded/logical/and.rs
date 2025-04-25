@@ -58,8 +58,7 @@ impl ScalarUDFImpl for EncAnd {
 
             let result = match (lhs, rhs) {
                 (Some(lhs), Some(rhs)) => Some(lhs && rhs),
-                (Some(false), _) => Some(false),
-                (_, Some(false)) => Some(false),
+                (Some(false), _) | (_, Some(false)) => Some(false),
                 _ => None,
             };
             builder.append_option(result)

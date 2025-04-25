@@ -1,5 +1,5 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp};
-use datamodel::{Boolean, RdfOpError, TermRef};
+use crate::{ScalarBinaryRdfOp, ThinResult};
+use datamodel::{Boolean, TermRef, ThinError};
 use std::cmp::Ordering;
 
 #[derive(Debug)]
@@ -26,12 +26,12 @@ impl ScalarBinaryRdfOp for EqRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         match (lhs, rhs) {
             // Same term are also equal.
             (TermRef::TypedLiteral(l), TermRef::TypedLiteral(r)) if l == r => Ok(true.into()),
             // Cannot say anything about unsupported typed literals that are not the same term.
-            (_, TermRef::TypedLiteral(_)) | (TermRef::TypedLiteral(_), _) => Err(RdfOpError),
+            (_, TermRef::TypedLiteral(_)) | (TermRef::TypedLiteral(_), _) => ThinError::expected(),
             // For numerics, compare values.
             (TermRef::NumericLiteral(lhs), TermRef::NumericLiteral(rhs)) => {
                 Ok((lhs.partial_cmp(&rhs) == Some(Ordering::Equal)).into())

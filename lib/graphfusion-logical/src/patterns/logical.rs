@@ -23,7 +23,7 @@ impl PatternNode {
             return plan_err!("Patterns must match the number of column of inner.");
         }
 
-        let schema = Self::compute_schema(&patterns);
+        let schema = Self::compute_schema(&patterns)?;
         Ok(Self {
             input,
             patterns,
@@ -31,7 +31,7 @@ impl PatternNode {
         })
     }
 
-    pub(crate) fn compute_schema(patterns: &Vec<TermPattern>) -> DFSchemaRef {
+    pub(crate) fn compute_schema(patterns: &Vec<TermPattern>) -> DFResult<DFSchemaRef> {
         let mut fields = Vec::new();
         for pattern in patterns {
             match pattern_to_variable_name(pattern) {
@@ -48,7 +48,10 @@ impl PatternNode {
             .into_iter()
             .map(|name| Field::new(name, EncTerm::data_type(), true))
             .collect::<Fields>();
-        Arc::new(DFSchema::from_unqualified_fields(fields, HashMap::new()).expect("Names correct"))
+        Ok(Arc::new(DFSchema::from_unqualified_fields(
+            fields,
+            HashMap::new(),
+        )?))
     }
 
     pub fn input(&self) -> &LogicalPlan {
@@ -104,8 +107,17 @@ impl UserDefinedLogicalNodeCore for PatternNode {
         exprs: Vec<Expr>,
         inputs: Vec<LogicalPlan>,
     ) -> datafusion::common::Result<Self> {
-        assert_eq!(inputs.len(), 1, "input size inconsistent");
-        assert_eq!(exprs.len(), 0, "expression size inconsistent");
+        if inputs.len() != 1 {
+            return plan_err!(
+                "PatternNode must have exactly one input, got {}",
+                inputs.len()
+            );
+        }
+
+        if !exprs.is_empty() {
+            return plan_err!("PatternNode must have no expressions");
+        }
+
         Self::try_new(inputs[0].clone(), self.patterns.clone())
     }
 }

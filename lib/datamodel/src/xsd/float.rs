@@ -1,4 +1,4 @@
-use crate::{Boolean, Double, Int, Integer, Numeric, RdfOpError, RdfOpResult, RdfValueRef, TermRef};
+use crate::{Boolean, Double, Int, Integer, Numeric, RdfValueRef, TermRef, ThinError, ThinResult};
 use std::cmp::Ordering;
 use std::fmt;
 use std::num::ParseFloatError;
@@ -90,13 +90,13 @@ impl Float {
 }
 
 impl RdfValueRef<'_> for Float {
-    fn from_term(term: TermRef<'_>) -> RdfOpResult<Self>
+    fn from_term(term: TermRef<'_>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
             TermRef::NumericLiteral(Numeric::Float(inner)) => Ok(inner),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }

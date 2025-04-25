@@ -63,7 +63,7 @@ impl TableProvider for OxigraphMemTable {
         _filters: &[Expr],
         _limit: Option<usize>,
     ) -> datafusion::common::Result<Arc<dyn ExecutionPlan>> {
-        let exec = OxigraphMemExec::new(self.storage.clone(), projection.cloned());
+        let exec = OxigraphMemExec::new(&self.storage, projection.cloned());
         Ok(Arc::new(exec))
     }
 }

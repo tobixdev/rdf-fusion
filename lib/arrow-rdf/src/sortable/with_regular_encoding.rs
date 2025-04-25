@@ -8,7 +8,7 @@ use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datamodel::{Numeric, RdfOpResult, TermRef};
+use datamodel::{Numeric, TermRef, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -56,16 +56,14 @@ impl ScalarUDFImpl for EncWithRegularEncoding {
         match &args.args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_struct_array(array);
-                let values = (0..args.number_rows)
-                    .map(|i| TermRef::from_sortable_array(array, i));
+                let values = (0..args.number_rows).map(|i| TermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
                 let array = scalar.to_array_of_size(args.number_rows)?;
                 let array = as_struct_array(&array);
-                let values = (0..args.number_rows)
-                    .map(|i| TermRef::from_sortable_array(array, i));
+                let values = (0..args.number_rows).map(|i| TermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
@@ -74,7 +72,7 @@ impl ScalarUDFImpl for EncWithRegularEncoding {
 }
 
 fn into_regular_enc<'data>(
-    terms: impl IntoIterator<Item = RdfOpResult<TermRef<'data>>>,
+    terms: impl IntoIterator<Item = ThinResult<TermRef<'data>>>,
 ) -> DFResult<ArrayRef> {
     let terms_iter = terms.into_iter();
     let mut builder = EncRdfTermBuilder::default();

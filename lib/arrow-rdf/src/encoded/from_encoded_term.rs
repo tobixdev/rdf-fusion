@@ -4,28 +4,32 @@ use datafusion::arrow::datatypes::{
     DataType, Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
 };
 use datafusion::common::ScalarValue;
-use datamodel::{Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer, LanguageStringRef, Numeric, RdfOpError, RdfOpResult, SimpleLiteralRef, StringLiteralRef, TermRef, Time, Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration};
+use datamodel::{
+    Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
+    LanguageStringRef, Numeric, SimpleLiteralRef, StringLiteralRef, TermRef, ThinError, ThinResult,
+    Time, Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration,
+};
 use oxrdf::{BlankNodeRef, GraphNameRef, NamedNodeRef};
 use std::ops::Not;
 
 pub trait FromEncodedTerm<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized;
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self>
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> ThinResult<Self>
     where
         Self: Sized;
 }
 
 impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match scalar {
             ScalarValue::Union(Some((type_id, inner_value)), _, _) => {
-                let type_id = EncTermField::try_from(*type_id).map_err(|_| ())?;
+                let type_id = EncTermField::try_from(*type_id)?;
                 Ok(match type_id {
                     EncTermField::NamedNode => {
                         TermRef::NamedNode(NamedNodeRef::from_enc_scalar(scalar)?)
@@ -35,13 +39,15 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     }
                     EncTermField::String => match inner_value.as_ref() {
                         ScalarValue::Struct(struct_array) => {
-                            if struct_array.column(1).is_null(0) { TermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(
-                                scalar,
-                            )?) } else { TermRef::LanguageStringLiteral(
-                                LanguageStringRef::from_enc_scalar(scalar)?,
-                            ) }
+                            if struct_array.column(1).is_null(0) {
+                                TermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(scalar)?)
+                            } else {
+                                TermRef::LanguageStringLiteral(LanguageStringRef::from_enc_scalar(
+                                    scalar,
+                                )?)
+                            }
                         }
-                        _ => return Err(RdfOpError),
+                        _ => return ThinError::expected(),
                     },
                     EncTermField::Boolean => {
                         TermRef::BooleanLiteral(Boolean::from_enc_scalar(scalar)?)
@@ -64,57 +70,54 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     EncTermField::TypedLiteral => {
                         TermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
                     }
-                    EncTermField::Null => return Err(RdfOpError),
+                    EncTermField::Null => return ThinError::expected(),
                 })
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self>
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> ThinResult<Self>
     where
         Self: Sized,
     {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         Ok(match field {
-            EncTermField::NamedNode => TermRef::NamedNode(
-                NamedNodeRef::from_enc_array(array, index).expect("EncTermField checked"),
-            ),
-            EncTermField::BlankNode => TermRef::BlankNode(
-                BlankNodeRef::from_enc_array(array, index).expect("EncTermField checked"),
-            ),
-            EncTermField::String => if array
-                .child(field.type_id())
-                .as_struct()
-                .column(1)
-                .is_null(offset) { TermRef::SimpleLiteral(
-                SimpleLiteralRef::from_enc_array(array, index)
-                    .expect("EncTermField and null checked"),
-            ) } else { TermRef::LanguageStringLiteral(
-                LanguageStringRef::from_enc_array(array, index)
-                    .expect("EncTermField and null checked"),
-            ) },
-            EncTermField::Boolean => TermRef::BooleanLiteral(
-                Boolean::from_enc_array(array, index).expect("EncTermField checked"),
-            ),
+            EncTermField::NamedNode => {
+                TermRef::NamedNode(NamedNodeRef::from_enc_array(array, index)?)
+            }
+            EncTermField::BlankNode => {
+                TermRef::BlankNode(BlankNodeRef::from_enc_array(array, index)?)
+            }
+            EncTermField::String => {
+                if array
+                    .child(field.type_id())
+                    .as_struct()
+                    .column(1)
+                    .is_null(offset)
+                {
+                    TermRef::SimpleLiteral(SimpleLiteralRef::from_enc_array(array, index)?)
+                } else {
+                    TermRef::LanguageStringLiteral(LanguageStringRef::from_enc_array(array, index)?)
+                }
+            }
+            EncTermField::Boolean => {
+                TermRef::BooleanLiteral(Boolean::from_enc_array(array, index)?)
+            }
             EncTermField::Float
             | EncTermField::Double
             | EncTermField::Decimal
             | EncTermField::Int
-            | EncTermField::Integer => TermRef::NumericLiteral(
-                Numeric::from_enc_array(array, index).expect("EncTermField checked"),
-            ),
-            EncTermField::DateTime => TermRef::DateTimeLiteral(
-                DateTime::from_enc_array(array, index).expect("EncTermField checked"),
-            ),
-            EncTermField::Time => TermRef::TimeLiteral(
-                Time::from_enc_array(array, index).expect("EncTermField checked"),
-            ),
-            EncTermField::Date => TermRef::DateLiteral(
-                Date::from_enc_array(array, index).expect("EncTermField checked"),
-            ),
+            | EncTermField::Integer => {
+                TermRef::NumericLiteral(Numeric::from_enc_array(array, index)?)
+            }
+            EncTermField::DateTime => {
+                TermRef::DateTimeLiteral(DateTime::from_enc_array(array, index)?)
+            }
+            EncTermField::Time => TermRef::TimeLiteral(Time::from_enc_array(array, index)?),
+            EncTermField::Date => TermRef::DateLiteral(Date::from_enc_array(array, index)?),
             EncTermField::Duration => {
                 let year_month_is_null = array
                     .child(field.type_id())
@@ -139,35 +142,35 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     _ => unreachable!("Unexpected encoding"),
                 }
             }
-            EncTermField::TypedLiteral => TermRef::TypedLiteral(
-                TypedLiteralRef::from_enc_array(array, index).expect("EncTermField checked"),
-            ),
-            EncTermField::Null => return Err(RdfOpError),
+            EncTermField::TypedLiteral => {
+                TermRef::TypedLiteral(TypedLiteralRef::from_enc_array(array, index)?)
+            }
+            EncTermField::Null => return ThinError::expected(),
         })
     }
 }
 
 impl<'data> FromEncodedTerm<'data> for BlankNodeRef<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::BlankNode.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
             ScalarValue::Utf8(Some(value)) => Ok(Self::new_unchecked(value.as_str())),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -177,35 +180,41 @@ impl<'data> FromEncodedTerm<'data> for BlankNodeRef<'data> {
                     .as_string::<i32>()
                     .value(offset),
             )),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::String.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
-            ScalarValue::Struct(value) => if value.column(1).is_null(0) { Err(RdfOpError) } else { Ok(Self {
-                value: value.column(0).as_string::<i32>().value(0),
-                language: value.column(1).as_string::<i32>().value(0),
-            }) },
-            _ => Err(RdfOpError),
+            ScalarValue::Struct(value) => {
+                if value.column(1).is_null(0) {
+                    ThinError::expected()
+                } else {
+                    Ok(Self {
+                        value: value.column(0).as_string::<i32>().value(0),
+                        language: value.column(1).as_string::<i32>().value(0),
+                    })
+                }
+            }
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -214,7 +223,7 @@ impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
                 let values = array.column(0).as_string::<i32>();
                 let language = array.column(1).as_string::<i32>();
                 if language.is_null(offset) {
-                    return Err(RdfOpError);
+                    return ThinError::expected();
                 }
 
                 Ok(Self {
@@ -222,32 +231,32 @@ impl<'data> FromEncodedTerm<'data> for LanguageStringRef<'data> {
                     language: language.value(offset),
                 })
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl<'data> FromEncodedTerm<'data> for NamedNodeRef<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::NamedNode.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
             ScalarValue::Utf8(Some(value)) => Ok(Self::new_unchecked(value.as_str())),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -257,21 +266,21 @@ impl<'data> FromEncodedTerm<'data> for NamedNodeRef<'data> {
                     .as_string::<i32>()
                     .value(offset),
             )),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl<'data> FromEncodedTerm<'data> for GraphNameRef<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
-        match EncTermField::try_from(*type_id).expect("Fixed encoding") {
+        match EncTermField::try_from(*type_id)? {
             EncTermField::Null => Ok(GraphNameRef::DefaultGraph),
             EncTermField::NamedNode => {
                 NamedNodeRef::from_enc_scalar(scalar).map(GraphNameRef::NamedNode)
@@ -279,12 +288,12 @@ impl<'data> FromEncodedTerm<'data> for GraphNameRef<'data> {
             EncTermField::BlankNode => {
                 BlankNodeRef::from_enc_scalar(scalar).map(GraphNameRef::BlankNode)
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         match field {
             EncTermField::Null => Ok(GraphNameRef::DefaultGraph),
             EncTermField::NamedNode => {
@@ -293,34 +302,40 @@ impl<'data> FromEncodedTerm<'data> for GraphNameRef<'data> {
             EncTermField::BlankNode => {
                 BlankNodeRef::from_enc_array(array, index).map(GraphNameRef::BlankNode)
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::String.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
-            ScalarValue::Struct(value) => if value.column(1).is_null(0) { Ok(Self {
-                value: value.column(0).as_string::<i32>().value(0),
-            }) } else { Err(RdfOpError) },
-            _ => Err(RdfOpError),
+            ScalarValue::Struct(value) => {
+                if value.column(1).is_null(0) {
+                    Ok(Self {
+                        value: value.column(0).as_string::<i32>().value(0),
+                    })
+                } else {
+                    ThinError::expected()
+                }
+            }
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -329,28 +344,28 @@ impl<'data> FromEncodedTerm<'data> for SimpleLiteralRef<'data> {
                 let values = array.column(0).as_string::<i32>();
                 let language = array.column(1).as_string::<i32>();
                 if !language.is_null(offset) {
-                    return Err(RdfOpError);
+                    return ThinError::expected();
                 }
 
                 Ok(Self {
                     value: values.value(offset),
                 })
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::String.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
@@ -363,12 +378,12 @@ impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
                     Ok(Self(value_arr.value(0), Some(language_arr.value(0))))
                 }
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -385,35 +400,41 @@ impl<'data> FromEncodedTerm<'data> for StringLiteralRef<'data> {
                     ))
                 }
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl<'data> FromEncodedTerm<'data> for TypedLiteralRef<'data> {
-    fn from_enc_scalar(scalar: &'data ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::TypedLiteral.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
-            ScalarValue::Struct(value) => if value.column(1).is_null(0) { Err(RdfOpError) } else { Ok(Self {
-                value: value.column(0).as_string::<i32>().value(0),
-                literal_type: value.column(1).as_string::<i32>().value(0),
-            }) },
-            _ => Err(RdfOpError),
+            ScalarValue::Struct(value) => {
+                if value.column(1).is_null(0) {
+                    ThinError::expected()
+                } else {
+                    Ok(Self {
+                        value: value.column(0).as_string::<i32>().value(0),
+                        literal_type: value.column(1).as_string::<i32>().value(0),
+                    })
+                }
+            }
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'data UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'data UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -426,32 +447,32 @@ impl<'data> FromEncodedTerm<'data> for TypedLiteralRef<'data> {
                     literal_type: datatypes.value(offset),
                 })
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for Boolean {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::Boolean.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
             ScalarValue::Boolean(Some(value)) => Ok(Self::from(*value)),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -460,34 +481,34 @@ impl FromEncodedTerm<'_> for Boolean {
                 .as_boolean()
                 .value(offset)
                 .into()),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for Decimal {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::Decimal.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
             ScalarValue::Decimal128(Some(value), _, _) => {
                 Ok(Decimal::from_be_bytes(value.to_be_bytes()))
             }
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -498,32 +519,32 @@ impl FromEncodedTerm<'_> for Decimal {
                     .value(offset)
                     .to_be_bytes(),
             )),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for Double {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::Double.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
             ScalarValue::Float64(Some(value)) => Ok((*value).into()),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -532,32 +553,32 @@ impl FromEncodedTerm<'_> for Double {
                 .as_primitive::<Float64Type>()
                 .value(offset)
                 .into()),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for Float {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::Float.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
             ScalarValue::Float32(Some(value)) => Ok((*value).into()),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -566,32 +587,32 @@ impl FromEncodedTerm<'_> for Float {
                 .as_primitive::<Float32Type>()
                 .value(offset)
                 .into()),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for Int {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::Int.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
             ScalarValue::Int32(Some(value)) => Ok(Self::new(*value)),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -600,33 +621,33 @@ impl FromEncodedTerm<'_> for Int {
                 .as_primitive::<Int32Type>()
                 .value(offset)
                 .into()),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for Integer {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::Int.type_id() && *type_id != EncTermField::Integer.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         match scalar.as_ref() {
             ScalarValue::Int32(Some(value)) => Ok((*value).into()),
             ScalarValue::Int64(Some(value)) => Ok((*value).into()),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         let offset = array.value_offset(index);
 
         match field {
@@ -640,126 +661,122 @@ impl FromEncodedTerm<'_> for Integer {
                 .as_primitive::<Int64Type>()
                 .value(offset)
                 .into()),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for Numeric {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
-        let field = EncTermField::try_from(*type_id).expect("Fixed encoding");
+        let field = EncTermField::try_from(*type_id)?;
         match field {
             EncTermField::Int => Ok(Self::Int(Int::from_enc_scalar(scalar)?)),
             EncTermField::Integer => Ok(Self::Integer(Integer::from_enc_scalar(scalar)?)),
             EncTermField::Float => Ok(Self::Float(Float::from_enc_scalar(scalar)?)),
             EncTermField::Double => Ok(Self::Double(Double::from_enc_scalar(scalar)?)),
             EncTermField::Decimal => Ok(Self::Decimal(Decimal::from_enc_scalar(scalar)?)),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         match field {
             EncTermField::Int => Ok(Self::Int(Int::from_enc_array(array, index)?)),
             EncTermField::Integer => Ok(Self::Integer(Integer::from_enc_array(array, index)?)),
             EncTermField::Float => Ok(Self::Float(Float::from_enc_array(array, index)?)),
             EncTermField::Double => Ok(Self::Double(Double::from_enc_array(array, index)?)),
             EncTermField::Decimal => Ok(Self::Decimal(Decimal::from_enc_array(array, index)?)),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for Duration {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match get_duration_encoding_scalar(scalar)? {
-            (Some(year_month), Some(day_time)) => {
-                Ok(Duration::new(year_month, day_time).map_err(|_| ())?)
-            }
-            _ => Err(RdfOpError),
+            (Some(year_month), Some(day_time)) => Ok(Duration::new(year_month, day_time)?),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
         match get_duration_encoding_array(array, index)? {
-            (Some(year_month), Some(day_time)) => {
-                Ok(Duration::new(year_month, day_time).map_err(|_| ())?)
-            }
-            _ => Err(RdfOpError),
+            (Some(year_month), Some(day_time)) => Ok(Duration::new(year_month, day_time)?),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for YearMonthDuration {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match get_duration_encoding_scalar(scalar)? {
             (Some(year_month), None) => Ok(YearMonthDuration::new(year_month)),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
         match get_duration_encoding_array(array, index)? {
             (Some(year_month), None) => Ok(YearMonthDuration::new(year_month)),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for DayTimeDuration {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match get_duration_encoding_scalar(scalar)? {
             (None, Some(day_time)) => Ok(DayTimeDuration::new(day_time)),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
         match get_duration_encoding_array(array, index)? {
             (None, Some(day_time)) => Ok(DayTimeDuration::new(day_time)),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
 
 impl FromEncodedTerm<'_> for DateTime {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::DateTime.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         let timestamp = Timestamp::from_enc_scalar(scalar)?;
         Ok(DateTime::new(timestamp))
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         if field != EncTermField::DateTime {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         let timestamp = Timestamp::from_enc_array(array, index)?;
@@ -768,26 +785,26 @@ impl FromEncodedTerm<'_> for DateTime {
 }
 
 impl FromEncodedTerm<'_> for Time {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::Time.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         let timestamp = Timestamp::from_enc_scalar(scalar)?;
         Ok(Time::new(timestamp))
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         if field != EncTermField::Time {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         let timestamp = Timestamp::from_enc_array(array, index)?;
@@ -796,26 +813,26 @@ impl FromEncodedTerm<'_> for Time {
 }
 
 impl FromEncodedTerm<'_> for Date {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((type_id, _)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if *type_id != EncTermField::Date.type_id() {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         let timestamp = Timestamp::from_enc_scalar(scalar)?;
         Ok(Date::new(timestamp))
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
+        let field = EncTermField::try_from(array.type_id(index))?;
         if field != EncTermField::Date {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         let timestamp = Timestamp::from_enc_array(array, index)?;
@@ -824,16 +841,16 @@ impl FromEncodedTerm<'_> for Date {
 }
 
 impl FromEncodedTerm<'_> for Timestamp {
-    fn from_enc_scalar(scalar: &'_ ScalarValue) -> RdfOpResult<Self>
+    fn from_enc_scalar(scalar: &'_ ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
     {
         let ScalarValue::Union(Some((_, value)), _, _) = scalar else {
-            return Err(RdfOpError);
+            return ThinError::expected();
         };
 
         if value.data_type() != DataType::Struct(EncTerm::timestamp_fields()) {
-            return Err(RdfOpError);
+            return ThinError::expected();
         }
 
         let ScalarValue::Struct(struct_array) = value.as_ref() else {
@@ -852,10 +869,13 @@ impl FromEncodedTerm<'_> for Timestamp {
         ))
     }
 
-    fn from_enc_array(array: &'_ UnionArray, index: usize) -> RdfOpResult<Self> {
+    fn from_enc_array(array: &'_ UnionArray, index: usize) -> ThinResult<Self> {
         let offset = array.value_offset(index);
-        let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
-        let struct_array = array.child(field.type_id()).as_struct_opt().ok_or(())?;
+        let field = EncTermField::try_from(array.type_id(index))?;
+        let struct_array = array
+            .child(field.type_id())
+            .as_struct_opt()
+            .ok_or(ThinError::Expected)?;
 
         let value_array = struct_array.column(0).as_primitive::<Decimal128Type>();
         let offset_array = struct_array.column(1).as_primitive::<Int16Type>();
@@ -872,18 +892,18 @@ impl FromEncodedTerm<'_> for Timestamp {
 
 fn get_duration_encoding_scalar(
     scalar: &ScalarValue,
-) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
+) -> ThinResult<(Option<i64>, Option<Decimal>)> {
     let ScalarValue::Union(Some((type_id, scalar)), _, _) = scalar else {
-        return Err(RdfOpError);
+        return ThinError::expected();
     };
 
-    let field = EncTermField::try_from(*type_id).expect("Fixed encoding");
+    let field = EncTermField::try_from(*type_id)?;
     if field != EncTermField::Duration {
-        return Err(RdfOpError);
+        return ThinError::expected();
     }
 
     let ScalarValue::Struct(struct_array) = scalar.as_ref() else {
-        return Err(RdfOpError);
+        return ThinError::expected();
     };
 
     let year_month_array = struct_array.as_ref().column(0).as_primitive::<Int64Type>();
@@ -906,10 +926,10 @@ fn get_duration_encoding_scalar(
 fn get_duration_encoding_array(
     array: &'_ UnionArray,
     index: usize,
-) -> RdfOpResult<(Option<i64>, Option<Decimal>)> {
-    let field = EncTermField::try_from(array.type_id(index)).expect("Fixed encoding");
+) -> ThinResult<(Option<i64>, Option<Decimal>)> {
+    let field = EncTermField::try_from(array.type_id(index))?;
     if field != EncTermField::Duration {
-        return Err(RdfOpError);
+        return ThinError::expected();
     }
 
     let offset = array.value_offset(index);

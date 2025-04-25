@@ -1,5 +1,5 @@
 use crate::strings::regex::compile_pattern;
-use crate::{RdfOpResult, ScalarQuaternaryRdfOp, ScalarTernaryRdfOp};
+use crate::{ScalarQuaternaryRdfOp, ScalarTernaryRdfOp, ThinResult};
 use datamodel::{OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef};
 use std::borrow::Cow;
 
@@ -31,8 +31,8 @@ impl ScalarTernaryRdfOp for ReplaceRdfOp {
         arg0: Self::Arg0<'data>,
         arg1: Self::Arg1<'data>,
         arg2: Self::Arg2<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
-        let regex = compile_pattern(arg1.value, None).ok_or(())?;
+    ) -> ThinResult<Self::Result<'data>> {
+        let regex = compile_pattern(arg1.value, None)?;
 
         let result = match regex.replace_all(arg0.0, arg2.value) {
             Cow::Owned(replaced) => replaced,
@@ -56,8 +56,8 @@ impl ScalarQuaternaryRdfOp for ReplaceRdfOp {
         arg1: Self::Arg1<'data>,
         arg2: Self::Arg2<'data>,
         arg3: Self::Arg3<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
-        let regex = compile_pattern(arg1.value, Some(arg3.value)).ok_or(())?;
+    ) -> ThinResult<Self::Result<'data>> {
+        let regex = compile_pattern(arg1.value, Some(arg3.value))?;
 
         let result = match regex.replace_all(arg0.0, arg2.value) {
             Cow::Owned(replaced) => replaced,

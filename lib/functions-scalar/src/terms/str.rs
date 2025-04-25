@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
+use crate::{ScalarUnaryRdfOp, ThinResult};
 use datamodel::{OwnedStringLiteral, TermRef};
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl ScalarUnaryRdfOp for StrRdfOp {
     type Arg<'data> = TermRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let result = match value {
             TermRef::NamedNode(value) => value.as_str().to_owned(),
             TermRef::BlankNode(value) => value.as_str().to_owned(),

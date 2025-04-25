@@ -86,16 +86,13 @@ impl UserDefinedLogicalNodeCore for KleenePlusClosureNode {
         write!(f, "KleenePlusPath:",)
     }
 
-    fn with_exprs_and_inputs(
-        &self,
-        exprs: Vec<Expr>,
-        mut inputs: Vec<LogicalPlan>,
-    ) -> DFResult<Self> {
-        assert_eq!(inputs.len(), 1, "input size inconsistent");
-        assert_eq!(exprs.len(), 0, "expression size inconsistent");
-        Self::try_new(
-            inputs.pop().unwrap(),
-            self.allow_cross_graph_paths(),
-        )
+    fn with_exprs_and_inputs(&self, exprs: Vec<Expr>, inputs: Vec<LogicalPlan>) -> DFResult<Self> {
+        if inputs.len() != 1 {
+            return plan_err!("Expected 1 input but got {}", inputs.len());
+        }
+        if !exprs.is_empty() {
+            return plan_err!("Expected 0 expressions but got {}", exprs.len());
+        }
+        Self::try_new(inputs[0].clone(), self.allow_cross_graph_paths())
     }
 }

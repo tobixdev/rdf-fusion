@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp};
+use crate::{ScalarBinaryRdfOp, ThinResult};
 use datamodel::{Boolean, CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ impl ScalarBinaryRdfOp for StrEndsRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         let args = CompatibleStringArgs::try_from(lhs, rhs)?;
         Ok(args.lhs.ends_with(args.rhs).into())
     }

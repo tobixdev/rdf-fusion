@@ -7,7 +7,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use datamodel::{Decimal, Double, Float, Int, Integer, Numeric, RdfOpError, RdfOpResult, TermRef};
+use datamodel::{Decimal, Double, Float, Int, Integer, Numeric, TermRef, ThinError, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -74,7 +74,7 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
     }
 }
 
-fn evaluate(value: TermRef<'_>) -> RdfOpResult<bool> {
+fn evaluate(value: TermRef<'_>) -> ThinResult<bool> {
     let result = match value {
         TermRef::BooleanLiteral(value) => value.as_bool(),
         TermRef::NumericLiteral(value) => match value {
@@ -85,7 +85,7 @@ fn evaluate(value: TermRef<'_>) -> RdfOpResult<bool> {
             Numeric::Decimal(value) => value != Decimal::from(0),
         },
         TermRef::SimpleLiteral(value) => !value.is_empty(),
-        _ => return Err(RdfOpError),
+        _ => return ThinError::expected(),
     };
     Ok(result)
 }

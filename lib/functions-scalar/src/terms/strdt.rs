@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp};
+use crate::{ScalarBinaryRdfOp, ThinResult};
 use datamodel::{SimpleLiteralRef, TypedLiteralRef};
 use oxrdf::NamedNodeRef;
 
@@ -26,7 +26,7 @@ impl ScalarBinaryRdfOp for StrDtRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         Ok(TypedLiteralRef {
             value: lhs.value,
             literal_type: rhs.as_str(),

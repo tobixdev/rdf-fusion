@@ -3,11 +3,12 @@ use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::{EncTerm, FromEncodedTerm};
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
-use datafusion::arrow::datatypes::{DataType, Int64Type};
+use datafusion::arrow::datatypes::{DataType, UInt64Type};
+use datafusion::common::exec_datafusion_err;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
+use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use datafusion::{error::Result, physical_plan::Accumulator};
-use datamodel::{Decimal, Integer, Numeric, NumericPair, RdfOpError, RdfOpResult};
+use datamodel::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
 use std::ops::Div;
 use std::sync::{Arc, LazyLock};
 
@@ -24,8 +25,8 @@ pub static ENC_AVG: LazyLock<AggregateUDF> = LazyLock::new(|| {
 
 #[derive(Debug)]
 struct SparqlAvg {
-    sum: RdfOpResult<Numeric>,
-    count: i64,
+    sum: ThinResult<Numeric>,
+    count: u64,
 }
 
 impl SparqlAvg {
@@ -38,13 +39,15 @@ impl SparqlAvg {
 }
 
 impl Accumulator for SparqlAvg {
-    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> DFResult<()> {
         if values.is_empty() || self.sum.is_err() {
             return Ok(());
         }
-        let arr = as_enc_term_array(&values[0]).expect("Type constraint.");
+        let arr = as_enc_term_array(&values[0])?;
+        let arr_len =
+            u64::try_from(arr.len()).map_err(|_| exec_datafusion_err!("Array was too large."))?;
+        self.count += arr_len;
 
-        self.count += arr.len() as i64;
         for i in 0..arr.len() {
             let value = Numeric::from_enc_array(arr, i);
             if let Ok(sum) = self.sum {
@@ -61,7 +64,7 @@ impl Accumulator for SparqlAvg {
                         }
                     };
                 } else {
-                    self.sum = Err(RdfOpError);
+                    self.sum = ThinError::expected();
                 }
             }
         }
@@ -71,15 +74,17 @@ impl Accumulator for SparqlAvg {
 
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         if self.count == 0 {
-            return Ok(Integer::from(self.count).into_scalar_value()?);
+            let count = i64::try_from(self.count)
+                .map_err(|_| exec_datafusion_err!("Count too large for current xsd::Integer"))?;
+            return Integer::from(count).into_scalar_value();
         }
 
-        if self.sum.is_err() {
+        let Ok(sum) = self.sum else {
             return Ok(encode_scalar_null());
-        }
+        };
 
         let count = Numeric::Decimal(Decimal::from(self.count));
-        let result = match NumericPair::with_casts_from(self.sum.unwrap(), count) {
+        let result = match NumericPair::with_casts_from(sum, count) {
             NumericPair::Int(_, _) => unreachable!("Starts with Integer"),
             NumericPair::Integer(lhs, rhs) => lhs
                 .checked_div(rhs)
@@ -104,12 +109,13 @@ impl Accumulator for SparqlAvg {
             Ok(value) => value.into_scalar_value()?,
             Err(_) => encode_scalar_null(),
         };
-        Ok(vec![value, ScalarValue::Int64(Some(self.count))])
+        Ok(vec![value, ScalarValue::UInt64(Some(self.count))])
     }
 
-    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
-        let arr = as_enc_term_array(&states[0]).expect("Type constraint.");
-        let counts = states[1].as_primitive::<Int64Type>();
+    #[allow(clippy::missing_asserts_for_indexing)]
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> DFResult<()> {
+        let arr = as_enc_term_array(&states[0])?;
+        let counts = states[1].as_primitive::<UInt64Type>();
         for i in 0..arr.len() {
             let value = Numeric::from_enc_array(arr, i);
             if let Ok(sum) = self.sum {
@@ -126,7 +132,7 @@ impl Accumulator for SparqlAvg {
                         }
                     };
                 } else {
-                    self.sum = Err(RdfOpError);
+                    self.sum = ThinError::expected();
                 }
             }
             self.count += counts.value(i);

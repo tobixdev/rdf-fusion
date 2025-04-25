@@ -4,44 +4,43 @@ use crate::encoded::{EncTerm, FromEncodedTerm};
 use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
+use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use datafusion::{error::Result, physical_plan::Accumulator};
-use datamodel::{RdfOpError, RdfOpResult, Term, TermRef};
+use datamodel::{Term, TermRef, ThinError, ThinResult};
 use std::sync::{Arc, LazyLock};
 
-pub const ENC_MIN: LazyLock<AggregateUDF> =
-    LazyLock::new(|| {
-        create_udaf(
-            "enc_min",
-            vec![EncTerm::data_type()],
-            Arc::new(EncTerm::data_type()),
-            Volatility::Immutable,
-            Arc::new(|_| Ok(Box::new(SparqlMin::new()))),
-            Arc::new(vec![EncTerm::data_type()]),
-        )
-    });
+pub static ENC_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
+    create_udaf(
+        "enc_min",
+        vec![EncTerm::data_type()],
+        Arc::new(EncTerm::data_type()),
+        Volatility::Immutable,
+        Arc::new(|_| Ok(Box::new(SparqlMin::new()))),
+        Arc::new(vec![EncTerm::data_type()]),
+    )
+});
 
 #[derive(Debug)]
 struct SparqlMin {
-    min: RdfOpResult<Term>,
+    min: ThinResult<Term>,
     executed_once: bool,
 }
 
 impl SparqlMin {
     pub fn new() -> Self {
         SparqlMin {
-            min: Err(RdfOpError),
+            min: ThinError::expected(),
             executed_once: false,
         }
     }
 }
 
 impl Accumulator for SparqlMin {
-    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> DFResult<()> {
         if values.is_empty() {
             return Ok(());
         }
-        let arr = as_enc_term_array(&values[0]).expect("Type constraint.");
+        let arr = as_enc_term_array(&values[0])?;
 
         // TODO: Can we stop once we error?
 
@@ -83,7 +82,7 @@ impl Accumulator for SparqlMin {
         Ok(vec![value])
     }
 
-    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> DFResult<()> {
         self.update_batch(states)
     }
 }

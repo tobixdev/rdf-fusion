@@ -50,7 +50,7 @@ pub async fn evaluate_query(
             let count = dataframe.limit(0, Some(1))?.count().await?;
             Ok((QueryResults::Boolean(count > 0), None))
         }
-        _ => Err(EvaluationError::NotImplemented(String::from(
+        spargebra::Query::Describe { .. } => Err(EvaluationError::NotImplemented(String::from(
             "Query form not implemented",
         ))),
     }
@@ -70,12 +70,13 @@ async fn create_dataframe(
     Ok(DataFrame::new(ctx.state(), logical_plan))
 }
 
+#[allow(clippy::expect_used)]
 fn create_variables(data_frame: &DataFrame) -> Arc<[Variable]> {
     data_frame
         .schema()
         .fields()
         .iter()
-        .map(|f| Variable::new(f.name()).expect("Variables should be created correctly."))
+        .map(|f| Variable::new(f.name()).expect("Variables already checked."))
         .collect::<Vec<_>>()
         .into()
 }

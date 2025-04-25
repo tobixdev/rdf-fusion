@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp};
+use crate::{ScalarBinaryRdfOp, ThinResult};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ impl ScalarBinaryRdfOp for SameTermRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         let result = match (lhs, rhs) {
             (TermRef::NamedNode(l), TermRef::NamedNode(r)) => l == r,
             (TermRef::BlankNode(l), TermRef::BlankNode(r)) => l == r,

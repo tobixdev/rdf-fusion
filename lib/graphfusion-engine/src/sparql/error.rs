@@ -88,14 +88,13 @@ pub enum EvaluationError {
     Engine(DataFusionError),
     #[error("A feature has not yet been implemented: {0}")]
     NotImplemented(String),
-    #[doc(hidden)]
-    #[error(transparent)]
-    Unexpected(Box<dyn Error + Send + Sync>),
+    #[error("An internal error that likely indicates towards a bug in GraphFusion: {0}")]
+    InternalError(String),
 }
 
 impl EvaluationError {
-    pub fn unexpected(e: impl Error + Send + Sync + 'static) -> Self {
-        EvaluationError::Unexpected(Box::new(e))
+    pub fn internal<T>(cause: String) -> Result<T, Self> {
+        Err(EvaluationError::InternalError(cause))
     }
 }
 
@@ -111,10 +110,10 @@ impl From<SparqlEvaluationError> for EvaluationError {
         match error {
             SparqlEvaluationError::Dataset(error) => match error.downcast() {
                 Ok(error) => Self::Storage(*error),
-                Err(error) => Self::Unexpected(error),
+                Err(error) => Self::InternalError(error.to_string()),
             },
             SparqlEvaluationError::Service(error) => Self::Service(error),
-            SparqlEvaluationError::UnexpectedDefaultGraph => todo!("Integrate error"),
+            #[allow(clippy::todo, reason = "Not production ready")]
             _ => todo!("Integrate error"),
         }
     }

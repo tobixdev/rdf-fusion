@@ -1,6 +1,5 @@
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
-use datafusion::common::{exec_err, DataFusionError};
-use datamodel::Decimal;
+use datamodel::{Decimal, ThinError};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
@@ -119,6 +118,11 @@ static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
             false,
         ),
     ];
+
+    #[allow(
+        clippy::cast_possible_truncation,
+        reason = "We know the length of the fields"
+    )]
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
 });
 
@@ -179,11 +183,11 @@ pub enum EncTermField {
 }
 
 impl EncTermField {
-    pub fn type_id(&self) -> i8 {
+    pub fn type_id(self) -> i8 {
         self.into()
     }
 
-    pub fn name(&self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             EncTermField::Null => "null",
             EncTermField::NamedNode => "named_node",
@@ -203,11 +207,10 @@ impl EncTermField {
         }
     }
 
-    pub fn data_type(&self) -> DataType {
+    pub fn data_type(self) -> DataType {
         match self {
             EncTermField::Null => DataType::Null,
-            EncTermField::NamedNode => DataType::Utf8,
-            EncTermField::BlankNode => DataType::Utf8,
+            EncTermField::NamedNode | EncTermField::BlankNode => DataType::Utf8,
             EncTermField::String => DataType::Struct(FIELDS_STRING.clone()),
             EncTermField::Boolean => DataType::Boolean,
             EncTermField::Float => DataType::Float32,
@@ -215,19 +218,16 @@ impl EncTermField {
             EncTermField::Decimal => DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
             EncTermField::Int => DataType::Int32,
             EncTermField::Integer => DataType::Int64,
-            EncTermField::DateTime => DataType::Struct(FIELDS_TIMESTAMP.clone()),
-            EncTermField::Time => DataType::Struct(FIELDS_TIMESTAMP.clone()),
-            EncTermField::Date => DataType::Struct(FIELDS_TIMESTAMP.clone()),
+            EncTermField::DateTime | EncTermField::Time | EncTermField::Date => {
+                DataType::Struct(FIELDS_TIMESTAMP.clone())
+            }
             EncTermField::Duration => DataType::Struct(FIELDS_DURATION.clone()),
             EncTermField::TypedLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
         }
     }
 
-    pub fn is_literal(&self) -> bool {
-        match self {
-            EncTermField::NamedNode | EncTermField::BlankNode => false,
-            _ => true,
-        }
+    pub fn is_literal(self) -> bool {
+        matches!(self, EncTermField::NamedNode | EncTermField::BlankNode)
     }
 }
 
@@ -238,7 +238,7 @@ impl Display for EncTermField {
 }
 
 impl TryFrom<i8> for EncTermField {
-    type Error = DataFusionError;
+    type Error = ThinError;
 
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -257,13 +257,25 @@ impl TryFrom<i8> for EncTermField {
             12 => EncTermField::Date,
             13 => EncTermField::Duration,
             14 => EncTermField::TypedLiteral,
-            _ => return exec_err!("Unexpected type_id for encoded RDF Term"),
+            _ => return ThinError::internal_error("Unexpected type_id for encoded RDF Term"),
         })
     }
 }
 
-impl From<&EncTermField> for i8 {
-    fn from(value: &EncTermField) -> Self {
+impl TryFrom<u8> for EncTermField {
+    type Error = ThinError;
+
+    #[allow(
+        clippy::cast_possible_wrap,
+        reason = "Self::try_from will catch any overflow as EncTermField does not have that many variants"
+    )]
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Self::try_from(value as i8)
+    }
+}
+
+impl From<EncTermField> for i8 {
+    fn from(value: EncTermField) -> Self {
         match value {
             EncTermField::Null => 0,
             EncTermField::NamedNode => 1,

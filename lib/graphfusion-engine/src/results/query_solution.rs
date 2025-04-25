@@ -86,7 +86,8 @@ impl QuerySolutionStream {
                         self.poll_inner(ctx)
                     }
                     Some(batch) => {
-                        self.current = Some(to_query_solution(self.variables.clone(), &batch?)?);
+                        let query_solution = to_query_solution(&self.variables, &batch?)?;
+                        self.current = Some(query_solution);
                         self.poll_inner(ctx)
                     }
                 }
@@ -101,13 +102,13 @@ impl Stream for QuerySolutionStream {
     type Item = Result<QuerySolution, EvaluationError>;
 
     #[inline]
-    fn poll_next(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.poll_inner(ctx)
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.poll_inner(cx)
     }
 }
 
 fn to_query_solution(
-    variables: Arc<[Variable]>,
+    variables: &Arc<[Variable]>,
     batch: &RecordBatch,
 ) -> Result<<Vec<QuerySolution> as IntoIterator>::IntoIter, EvaluationError> {
     // TODO: error handling
@@ -116,15 +117,17 @@ fn to_query_solution(
     let mut result = Vec::new();
     for i in 0..batch.num_rows() {
         let mut terms = Vec::new();
-        for field in schema.fields().iter() {
+        for field in schema.fields() {
             let column = batch
                 .column_by_name(field.name())
-                .expect("Schema must match")
+                .ok_or(EvaluationError::InternalError(
+                    "Field was not present in result.".into(),
+                ))?
                 .as_union();
             let term = to_term(column, i);
             terms.push(term);
         }
-        result.push((variables.clone(), terms).into())
+        result.push((Arc::clone(variables), terms).into())
     }
 
     Ok(result.into_iter())

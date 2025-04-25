@@ -44,9 +44,13 @@ impl Default for EncRdfTermBuilder {
             boolean_builder: BooleanBuilder::with_capacity(0),
             float_builder: Float32Builder::with_capacity(0),
             double_builder: Float64Builder::with_capacity(0),
+            #[allow(
+                clippy::expect_used,
+                reason = "PRECISION and SCALE are fixed"
+            )]
             decimal_builder: Decimal128Builder::with_capacity(0)
                 .with_precision_and_scale(Decimal::PRECISION, Decimal::SCALE)
-                .expect("Precision and scale fixed"),
+                .expect("PRECISION and SCALE fixed"),
             int32_builder: Int32Builder::with_capacity(0),
             integer_builder: Int64Builder::with_capacity(0),
             date_time_builder: StructBuilder::from_fields(EncTerm::timestamp_fields(), 0),
@@ -71,7 +75,8 @@ impl EncRdfTermBuilder {
                     self.append_typed_literal(literal.value(), literal.datatype().as_str())?
                 }
             },
-            _ => unimplemented!(),
+            #[allow(clippy::unimplemented, reason = "Not production code")]
+            DecodedTerm::Triple(_) => unimplemented!(),
         };
         Ok(())
     }
@@ -91,8 +96,7 @@ impl EncRdfTermBuilder {
     }
 
     pub fn append_boolean(&mut self, value: bool) -> AResult<()> {
-        self.type_ids.push(EncTermField::Boolean.type_id());
-        self.offsets.push(self.boolean_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::Boolean, self.boolean_builder.len())?;
         self.boolean_builder.append_value(value);
         Ok(())
     }
@@ -104,8 +108,7 @@ impl EncRdfTermBuilder {
             )));
         }
 
-        self.type_ids.push(EncTermField::NamedNode.type_id());
-        self.offsets.push(self.named_node_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::NamedNode, self.named_node_builder.len())?;
         self.named_node_builder.append_value(value);
         Ok(())
     }
@@ -116,9 +119,7 @@ impl EncRdfTermBuilder {
                 "Invalid BlankNode id",
             )));
         }
-
-        self.type_ids.push(EncTermField::BlankNode.type_id());
-        self.offsets.push(self.blank_node_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::BlankNode, self.blank_node_builder.len())?;
         self.blank_node_builder.append_value(value);
         Ok(())
     }
@@ -130,18 +131,21 @@ impl EncRdfTermBuilder {
             )));
         }
 
-        self.type_ids.push(EncTermField::String.type_id());
-        self.offsets.push(self.string_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::String, self.string_builder.len())?;
 
         self.string_builder
             .field_builder::<StringBuilder>(0)
-            .unwrap()
+            .ok_or(ArrowError::ComputeError(
+                "Invalid builder access".to_owned(),
+            ))?
             .append_value(value);
 
         let language_builder = self
             .string_builder
             .field_builder::<StringBuilder>(1)
-            .unwrap();
+            .ok_or(ArrowError::ComputeError(
+                "Invalid builder access".to_owned(),
+            ))?;
         if let Some(language) = language {
             language_builder.append_value(language);
         } else {
@@ -153,57 +157,49 @@ impl EncRdfTermBuilder {
     }
 
     pub fn append_date_time(&mut self, value: DateTime) -> AResult<()> {
-        self.type_ids.push(EncTermField::DateTime.type_id());
-        self.offsets.push(self.date_time_builder.len() as i32);
-        append_timestamp(&mut self.date_time_builder, value.timestamp())?;
+        self.append_type_id_and_offset(EncTermField::DateTime, self.date_time_builder.len())?;
+        append_timestamp(&mut self.date_time_builder, value.timestamp());
         Ok(())
     }
 
     pub fn append_time(&mut self, value: Time) -> AResult<()> {
-        self.type_ids.push(EncTermField::Time.type_id());
-        self.offsets.push(self.time_builder.len() as i32);
-        append_timestamp(&mut self.time_builder, value.timestamp())?;
+        self.append_type_id_and_offset(EncTermField::Time, self.time_builder.len())?;
+        append_timestamp(&mut self.time_builder, value.timestamp());
         Ok(())
     }
 
     pub fn append_date(&mut self, value: Date) -> AResult<()> {
-        self.type_ids.push(EncTermField::Date.type_id());
-        self.offsets.push(self.date_builder.len() as i32);
-        append_timestamp(&mut self.date_builder, value.timestamp())?;
+        self.append_type_id_and_offset(EncTermField::Date, self.date_builder.len())?;
+        append_timestamp(&mut self.date_builder, value.timestamp());
         Ok(())
     }
 
     pub fn append_int(&mut self, int: Int) -> AResult<()> {
-        self.type_ids.push(EncTermField::Int.type_id());
-        self.offsets.push(self.int32_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::Int, self.int32_builder.len())?;
         self.int32_builder.append_value(int.into());
         Ok(())
     }
 
     pub fn append_integer(&mut self, integer: Integer) -> AResult<()> {
-        self.type_ids.push(EncTermField::Integer.type_id());
-        self.offsets.push(self.integer_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::Integer, self.integer_builder.len())?;
         self.integer_builder.append_value(integer.into());
         Ok(())
     }
 
     pub fn append_float(&mut self, value: Float) -> AResult<()> {
-        self.type_ids.push(EncTermField::Float.type_id());
-        self.offsets.push(self.float_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::Float, self.float_builder.len())?;
         self.float_builder.append_value(value.into());
         Ok(())
     }
 
     pub fn append_double(&mut self, value: Double) -> AResult<()> {
-        self.type_ids.push(EncTermField::Double.type_id());
-        self.offsets.push(self.double_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::Double, self.double_builder.len())?;
         self.double_builder.append_value(value.into());
         Ok(())
     }
 
     pub fn append_decimal(&mut self, value: Decimal) -> AResult<()> {
-        self.type_ids.push(EncTermField::Decimal.type_id());
-        self.offsets.push(self.decimal_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::Decimal, self.decimal_builder.len())?;
         self.decimal_builder
             .append_value(i128::from_be_bytes(value.to_be_bytes()));
         Ok(())
@@ -220,13 +216,13 @@ impl EncRdfTermBuilder {
             )));
         }
 
-        self.type_ids.push(EncTermField::Duration.type_id());
-        self.offsets.push(self.duration_builder.len() as i32);
-
+        self.append_type_id_and_offset(EncTermField::Duration, self.duration_builder.len())?;
         let year_month_builder = self
             .duration_builder
             .field_builder::<Int64Builder>(0)
-            .unwrap();
+            .ok_or(ArrowError::ComputeError(
+                "Invalid builder access".to_owned(),
+            ))?;
         if let Some(year_month) = year_month {
             year_month_builder.append_value(year_month.as_i64());
         } else {
@@ -236,7 +232,9 @@ impl EncRdfTermBuilder {
         let day_time_builder = self
             .duration_builder
             .field_builder::<Decimal128Builder>(1)
-            .unwrap();
+            .ok_or(ArrowError::ComputeError(
+                "Invalid builder access".to_owned(),
+            ))?;
         if let Some(day_time) = day_time {
             let day_time = i128::from_be_bytes(day_time.as_seconds().to_be_bytes());
             day_time_builder.append_value(day_time);
@@ -256,23 +254,28 @@ impl EncRdfTermBuilder {
             )));
         }
 
-        self.type_ids.push(EncTermField::TypedLiteral.type_id());
-        self.offsets.push(self.typed_literal_builder.len() as i32);
+        self.append_type_id_and_offset(
+            EncTermField::TypedLiteral,
+            self.typed_literal_builder.len(),
+        )?;
         self.typed_literal_builder
             .field_builder::<StringBuilder>(0)
-            .unwrap()
+            .ok_or(ArrowError::ComputeError(
+                "Invalid builder access".to_owned(),
+            ))?
             .append_value(value);
         self.typed_literal_builder
             .field_builder::<StringBuilder>(1)
-            .unwrap()
+            .ok_or(ArrowError::ComputeError(
+                "Invalid builder access".to_owned(),
+            ))?
             .append_value(datatype);
         self.typed_literal_builder.append(true);
         Ok(())
     }
 
     pub fn append_null(&mut self) -> AResult<()> {
-        self.type_ids.push(EncTermField::Null.type_id());
-        self.offsets.push(self.null_builder.len() as i32);
+        self.append_type_id_and_offset(EncTermField::Null, self.null_builder.len())?;
         self.null_builder.append_null();
         Ok(())
     }
@@ -301,9 +304,18 @@ impl EncRdfTermBuilder {
             ],
         )?))
     }
+
+    fn append_type_id_and_offset(&mut self, field: EncTermField, offset: usize) -> AResult<()> {
+        let offset = i32::try_from(offset).map_err(|_| {
+            ArrowError::ArithmeticOverflow("Field {} of union got too large.".to_owned())
+        })?;
+        self.type_ids.push(field.type_id());
+        self.offsets.push(offset);
+        Ok(())
+    }
 }
 
-fn append_timestamp(builder: &mut StructBuilder, value: Timestamp) -> AResult<()> {
+fn append_timestamp(builder: &mut StructBuilder, value: Timestamp) {
     builder
         .field_builder::<Decimal128Builder>(0)
         .unwrap()
@@ -316,6 +328,4 @@ fn append_timestamp(builder: &mut StructBuilder, value: Timestamp) -> AResult<()
         offset_builder.append_null();
     }
     builder.append(true);
-
-    Ok(())
 }

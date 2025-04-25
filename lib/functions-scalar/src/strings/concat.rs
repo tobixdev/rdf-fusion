@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarNAryRdfOp};
+use crate::{ScalarNAryRdfOp, ThinResult};
 use datamodel::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl ScalarNAryRdfOp for ConcatRdfOp {
     type Args<'data> = StringLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 
-    fn evaluate<'data>(&self, args: &[Self::Args<'data>]) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, args: &[Self::Args<'data>]) -> ThinResult<Self::Result<'data>> {
         let mut result = String::default();
         let mut language = None;
 

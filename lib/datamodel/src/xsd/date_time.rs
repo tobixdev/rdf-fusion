@@ -2,7 +2,7 @@
 
 use crate::xsd::decimal::Decimal;
 use crate::xsd::duration::{DayTimeDuration, Duration, YearMonthDuration};
-use crate::{RdfOpError, RdfOpResult, RdfValueRef, TermRef};
+use crate::{RdfValueRef, TermRef, ThinError, ThinResult};
 use std::cmp::{min, Ordering};
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -150,7 +150,7 @@ impl DateTime {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<DayTimeDuration> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> ThinResult<DayTimeDuration> {
         self.timestamp.checked_sub(rhs.into().timestamp)
     }
 
@@ -161,7 +161,7 @@ impl DateTime {
     pub fn checked_add_year_month_duration(
         self,
         rhs: impl Into<YearMonthDuration>,
-    ) -> RdfOpResult<Self> {
+    ) -> ThinResult<Self> {
         self.checked_add_duration(Duration::from(rhs.into()))
     }
 
@@ -169,7 +169,7 @@ impl DateTime {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_add_day_time_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
+    pub fn checked_add_day_time_duration(self, rhs: impl Into<Duration>) -> ThinResult<Self> {
         let rhs = rhs.into();
         Ok(Self {
             timestamp: self.timestamp.checked_add_seconds(rhs.all_seconds())?,
@@ -180,7 +180,7 @@ impl DateTime {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
+    pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> ThinResult<Self> {
         let rhs = rhs.into();
         if let Ok(rhs) = DayTimeDuration::try_from(rhs) {
             self.checked_add_day_time_duration(rhs)
@@ -201,7 +201,7 @@ impl DateTime {
     pub fn checked_sub_year_month_duration(
         self,
         rhs: impl Into<YearMonthDuration>,
-    ) -> RdfOpResult<Self> {
+    ) -> ThinResult<Self> {
         self.checked_sub_duration(Duration::from(rhs.into()))
     }
 
@@ -212,7 +212,7 @@ impl DateTime {
     pub fn checked_sub_day_time_duration(
         self,
         rhs: impl Into<DayTimeDuration>,
-    ) -> RdfOpResult<Self> {
+    ) -> ThinResult<Self> {
         let rhs = rhs.into();
         Ok(Self {
             timestamp: self.timestamp.checked_sub_seconds(rhs.as_seconds())?,
@@ -223,7 +223,7 @@ impl DateTime {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_sub_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
+    pub fn checked_sub_duration(self, rhs: impl Into<Duration>) -> ThinResult<Self> {
         let rhs = rhs.into();
         if let Ok(rhs) = DayTimeDuration::try_from(rhs) {
             self.checked_sub_day_time_duration(rhs)
@@ -241,7 +241,7 @@ impl DateTime {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
+    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> ThinResult<Self> {
         Ok(Self {
             timestamp: self.timestamp.adjust(timezone_offset)?,
         })
@@ -256,13 +256,13 @@ impl DateTime {
 }
 
 impl RdfValueRef<'_> for DateTime {
-    fn from_term(term: TermRef<'_>) -> RdfOpResult<Self>
+    fn from_term(term: TermRef<'_>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
             TermRef::DateTimeLiteral(value) => Ok(value),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
@@ -439,7 +439,7 @@ impl Time {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<DayTimeDuration> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> ThinResult<DayTimeDuration> {
         self.timestamp.checked_sub(rhs.into().timestamp)
     }
 
@@ -450,7 +450,7 @@ impl Time {
     pub fn checked_add_day_time_duration(
         self,
         rhs: impl Into<DayTimeDuration>,
-    ) -> RdfOpResult<Self> {
+    ) -> ThinResult<Self> {
         self.checked_add_duration(Duration::from(rhs.into()))
     }
 
@@ -458,7 +458,7 @@ impl Time {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
+    pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> ThinResult<Self> {
         Ok(DateTime::from_seven_property_model(
             1972,
             12,
@@ -479,7 +479,7 @@ impl Time {
     pub fn checked_sub_day_time_duration(
         self,
         rhs: impl Into<DayTimeDuration>,
-    ) -> RdfOpResult<Self> {
+    ) -> ThinResult<Self> {
         self.checked_sub_duration(Duration::from(rhs.into()))
     }
 
@@ -487,7 +487,7 @@ impl Time {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_sub_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
+    pub fn checked_sub_duration(self, rhs: impl Into<Duration>) -> ThinResult<Self> {
         Ok(DateTime::from_seven_property_model(
             1972,
             12,
@@ -503,7 +503,7 @@ impl Time {
 
     // [fn:adjust-time-to-timezone](https://www.w3.org/TR/xpath-functions-31/#func-adjust-time-to-timezone)
     #[inline]
-    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
+    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> ThinResult<Self> {
         Ok(DateTime::from_seven_property_model(
             1972,
             12,
@@ -681,7 +681,7 @@ impl Date {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<DayTimeDuration> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> ThinResult<DayTimeDuration> {
         self.timestamp.checked_sub(rhs.into().timestamp)
     }
 
@@ -692,7 +692,7 @@ impl Date {
     pub fn checked_add_year_month_duration(
         self,
         rhs: impl Into<YearMonthDuration>,
-    ) -> RdfOpResult<Self> {
+    ) -> ThinResult<Self> {
         self.checked_add_duration(Duration::from(rhs.into()))
     }
 
@@ -703,7 +703,7 @@ impl Date {
     pub fn checked_add_day_time_duration(
         self,
         rhs: impl Into<DayTimeDuration>,
-    ) -> RdfOpResult<Self> {
+    ) -> ThinResult<Self> {
         self.checked_add_duration(Duration::from(rhs.into()))
     }
 
@@ -711,11 +711,11 @@ impl Date {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
+    pub fn checked_add_duration(self, rhs: impl Into<Duration>) -> ThinResult<Self> {
         DateTime::try_from(self)?
             .checked_add_duration(rhs)?
             .try_into()
-            .map_err(|_| RdfOpError)
+            .map_err(|_| ThinError::Expected)
     }
 
     /// [op:subtract-yearMonthDuration-from-date](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDuration-from-date)
@@ -725,7 +725,7 @@ impl Date {
     pub fn checked_sub_year_month_duration(
         self,
         rhs: impl Into<YearMonthDuration>,
-    ) -> RdfOpResult<Self> {
+    ) -> ThinResult<Self> {
         self.checked_sub_duration(Duration::from(rhs.into()))
     }
 
@@ -736,22 +736,22 @@ impl Date {
     pub fn checked_sub_day_time_duration(
         self,
         rhs: impl Into<DayTimeDuration>,
-    ) -> RdfOpResult<Self> {
+    ) -> ThinResult<Self> {
         self.checked_sub_duration(Duration::from(rhs.into()))
     }
 
     /// [op:subtract-yearMonthDuration-from-date](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDuration-from-date) and [op:subtract-dayTimeDuration-from-date](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDuration-from-date)
     #[inline]
-    pub fn checked_sub_duration(self, rhs: impl Into<Duration>) -> RdfOpResult<Self> {
+    pub fn checked_sub_duration(self, rhs: impl Into<Duration>) -> ThinResult<Self> {
         DateTime::try_from(self)?
             .checked_sub_duration(rhs)?
             .try_into()
-            .map_err(|_| RdfOpError)
+            .map_err(|_| ThinError::Expected)
     }
 
     // [fn:adjust-date-to-timezone](https://www.w3.org/TR/xpath-functions-31/#func-adjust-date-to-timezone)
     #[inline]
-    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
+    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> ThinResult<Self> {
         DateTime::from_seven_property_model(
             self.year(),
             self.month(),
@@ -763,7 +763,7 @@ impl Date {
         )?
         .adjust(timezone_offset)?
         .try_into()
-        .map_err(|_| RdfOpError)
+        .map_err(|_| ThinError::Expected)
     }
 
     /// Checks if the two values are [identical](https://www.w3.org/TR/xmlschema11-2/#identity).
@@ -886,7 +886,7 @@ impl GYearMonth {
     }
 
     #[inline]
-    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
+    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> ThinResult<Self> {
         Ok(Self {
             timestamp: self.timestamp.adjust(timezone_offset)?,
         })
@@ -1020,7 +1020,7 @@ impl GYear {
     }
 
     #[inline]
-    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
+    pub fn adjust(self, timezone_offset: Option<TimezoneOffset>) -> ThinResult<Self> {
         Ok(Self {
             timestamp: self.timestamp.adjust(timezone_offset)?,
         })
@@ -1154,7 +1154,7 @@ impl GMonthDay {
     }
 
     #[inline]
-    pub fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
+    pub fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> ThinResult<Self> {
         Ok(Self {
             timestamp: self.timestamp.adjust(timezone_offset)?,
         })
@@ -1270,7 +1270,7 @@ impl GMonth {
     }
 
     #[inline]
-    pub fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
+    pub fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> ThinResult<Self> {
         Ok(Self {
             timestamp: self.timestamp.adjust(timezone_offset)?,
         })
@@ -1398,7 +1398,7 @@ impl GDay {
     }
 
     #[inline]
-    pub fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
+    pub fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> ThinResult<Self> {
         Ok(Self {
             timestamp: self.timestamp.adjust(timezone_offset)?,
         })
@@ -1834,7 +1834,7 @@ impl Timestamp {
     }
 
     #[inline]
-    fn checked_add_seconds(&self, seconds: impl Into<Decimal>) -> RdfOpResult<Self> {
+    fn checked_add_seconds(&self, seconds: impl Into<Decimal>) -> ThinResult<Self> {
         Ok(Self {
             value: self.value.checked_add(seconds.into())?,
             timezone_offset: self.timezone_offset,
@@ -1842,17 +1842,17 @@ impl Timestamp {
     }
 
     #[inline]
-    fn checked_sub(&self, rhs: Self) -> RdfOpResult<DayTimeDuration> {
+    fn checked_sub(&self, rhs: Self) -> ThinResult<DayTimeDuration> {
         match (self.timezone_offset, rhs.timezone_offset) {
             (Some(_), Some(_)) | (None, None) => {
                 Ok(DayTimeDuration::new(self.value.checked_sub(rhs.value)?))
             }
-            _ => Err(RdfOpError), // TODO: implicit timezone
+            _ => ThinError::expected(), // TODO: implicit timezone
         }
     }
 
     #[inline]
-    fn checked_sub_seconds(&self, seconds: Decimal) -> RdfOpResult<Self> {
+    fn checked_sub_seconds(&self, seconds: Decimal) -> ThinResult<Self> {
         Ok(Self {
             value: self.value.checked_sub(seconds)?,
             timezone_offset: self.timezone_offset,
@@ -1860,7 +1860,7 @@ impl Timestamp {
     }
 
     #[inline]
-    fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> RdfOpResult<Self> {
+    fn adjust(&self, timezone_offset: Option<TimezoneOffset>) -> ThinResult<Self> {
         Ok(if let Some(from_timezone) = self.timezone_offset {
             if let Some(to_timezone) = timezone_offset {
                 Self {
@@ -2005,7 +2005,7 @@ fn days_in_month(y: Option<i64>, m: u8) -> u8 {
 fn date_time_plus_duration(
     du: Duration,
     dt: &DateTimeSevenPropertyModel,
-) -> RdfOpResult<DateTimeSevenPropertyModel> {
+) -> ThinResult<DateTimeSevenPropertyModel> {
     let yr = dt.year.unwrap_or(1);
     let mo = dt.month.unwrap_or(1);
     let da = dt.day.unwrap_or(1);
@@ -2014,12 +2014,13 @@ fn date_time_plus_duration(
     let se = dt.second.unwrap_or_default();
     let mo = i64::from(mo)
         .checked_add(du.all_months())
-        .ok_or(RdfOpError)?;
-    let (yr, mo) = normalize_month(yr, mo).ok_or(RdfOpError)?;
+        .ok_or(ThinError::Expected)?;
+    let (yr, mo) = normalize_month(yr, mo).ok_or(ThinError::Expected)?;
     let da = min(da, days_in_month(Some(yr), mo));
     let se = se.checked_add(du.all_seconds())?;
     let (yr, mo, da, hr, mi, se) =
-        normalize_second(yr, mo.into(), da.into(), hr.into(), mi.into(), se).ok_or(RdfOpError)?;
+        normalize_second(yr, mo.into(), da.into(), hr.into(), mi.into(), se)
+            .ok_or(ThinError::Expected)?;
 
     Ok(DateTimeSevenPropertyModel {
         year: dt.year.map(|_| yr),
@@ -2033,7 +2034,7 @@ fn date_time_plus_duration(
 }
 
 /// The [timeOnTimeline](https://www.w3.org/TR/xmlschema11-2/#vp-dt-timeOnTimeline) function
-fn time_on_timeline(props: &DateTimeSevenPropertyModel) -> RdfOpResult<Decimal> {
+fn time_on_timeline(props: &DateTimeSevenPropertyModel) -> ThinResult<Decimal> {
     let yr = props.year.map_or(1971, |y| y - 1);
     let mo = props.month.unwrap_or(12);
     let da = props

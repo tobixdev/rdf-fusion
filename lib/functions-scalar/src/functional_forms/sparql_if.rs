@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarTernaryRdfOp};
+use crate::{ScalarTernaryRdfOp, ThinResult};
 use datamodel::{Boolean, TermRef};
 
 #[derive(Debug)]
@@ -27,16 +27,20 @@ impl ScalarTernaryRdfOp for IfRdfOp {
         arg0: Self::Arg0<'data>,
         arg1: Self::Arg1<'data>,
         arg2: Self::Arg2<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         Ok(if arg0.as_bool() { arg1 } else { arg2 })
     }
 
     fn evaluate_error<'data>(
         &self,
-        arg0: RdfOpResult<Self::Arg0<'data>>,
-        arg1: RdfOpResult<Self::Arg1<'data>>,
-        arg2: RdfOpResult<Self::Arg2<'data>>,
-    ) -> RdfOpResult<Self::Result<'data>> {
-        if arg0?.as_bool() { arg1 } else { arg2 }
+        arg0: ThinResult<Self::Arg0<'data>>,
+        arg1: ThinResult<Self::Arg1<'data>>,
+        arg2: ThinResult<Self::Arg2<'data>>,
+    ) -> ThinResult<Self::Result<'data>> {
+        if arg0?.as_bool() {
+            arg1
+        } else {
+            arg2
+        }
     }
 }

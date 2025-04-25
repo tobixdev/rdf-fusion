@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
+use crate::{ScalarUnaryRdfOp, ThinResult};
 use datamodel::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl ScalarUnaryRdfOp for EncodeForUriRdfOp {
     type Arg<'data> = StringLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         // Based on oxigraph/lib/spareval/src/eval.rs
         // Maybe we can use a library in the future?
         let mut result = Vec::with_capacity(value.0.len());
@@ -47,7 +47,7 @@ impl ScalarUnaryRdfOp for EncodeForUriRdfOp {
             }
         }
 
-        let result = String::from_utf8(result).map_err(|_| ())?;
+        let result = String::from_utf8(result)?;
         Ok(OwnedStringLiteral::new(result, None))
     }
 }

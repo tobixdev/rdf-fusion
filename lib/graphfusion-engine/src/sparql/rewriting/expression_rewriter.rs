@@ -102,7 +102,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     /// Rewrites a SPARQL function call.
     ///
     /// We assume here that the length of `args` matches the expected number of arguments.
-    fn rewrite_function_call(&self, function: &Function, args: &Vec<Expression>) -> DFResult<Expr> {
+    fn rewrite_function_call(&self, function: &Function, args: &[Expression]) -> DFResult<Expr> {
         let args = args
             .iter()
             .map(|e| self.rewrite(e))
@@ -186,6 +186,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     }
 
     /// Rewrites a custom SPARQL function call
+    #[allow(clippy::unused_self)]
     fn rewrite_custom_function_call(
         &self,
         function: &NamedNode,
@@ -223,7 +224,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     /// the `=` is used.
     ///
     /// https://www.w3.org/TR/sparql11-query/#func-in
-    fn rewrite_in(&self, lhs: &Expression, rhs: &Vec<Expression>) -> DFResult<Expr> {
+    fn rewrite_in(&self, lhs: &Expression, rhs: &[Expression]) -> DFResult<Expr> {
         let lhs = self.rewrite(lhs)?;
         let expressions = rhs
             .iter()
@@ -234,11 +235,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .collect::<DFResult<Vec<_>>>()?;
 
         let false_literal = Literal::from(false);
-        let result = expressions
-            .into_iter()
-            .reduce(|lhs, rhs| or(lhs, rhs))
-            .map(|expr| ENC_BOOLEAN_AS_RDF_TERM.call(vec![expr]))
-            .unwrap_or(lit(encode_scalar_literal(false_literal.as_ref())?));
+        let result = expressions.into_iter().reduce(or).map_or(
+            lit(encode_scalar_literal(false_literal.as_ref())?),
+            |expr| ENC_BOOLEAN_AS_RDF_TERM.call(vec![expr]),
+        );
 
         Ok(result)
     }
@@ -251,13 +251,13 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .schema
             .columns()
             .into_iter()
-            .map(|c| c.name().to_string())
+            .map(|c| c.name().to_owned())
             .collect();
         let inner_keys: HashSet<_> = inner
             .schema()
             .columns()
             .into_iter()
-            .map(|c| c.name().to_string())
+            .map(|c| c.name().to_owned())
             .collect();
 
         // TODO: Is there a better way to check for this?
@@ -289,10 +289,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .map(|k| {
                 ENC_IS_COMPATIBLE.call(vec![
                     Expr::OuterReferenceColumn(EncTerm::data_type(), Column::new_unqualified(k)),
-                    Expr::from(Column::new_unqualified(format!("__inner__{}", k))),
+                    Expr::from(Column::new_unqualified(format!("__inner__{k}"))),
                 ])
             })
-            .reduce(|lhs, rhs| and(lhs, rhs))
+            .reduce(and)
             .unwrap_or(lit(true));
 
         let subquery = Arc::new(projected_inner.filter(compatible_filter)?.build()?);
@@ -325,7 +325,7 @@ fn logical_expression(
     let connective_impl = match operator {
         Operator::And => &ENC_AND,
         Operator::Or => &ENC_OR,
-        _ => plan_err!("Unsupported logical expression: {}", &operator)?,
+        _ => return plan_err!("Unsupported logical expression: {}", &operator),
     };
     let booleans = connective_impl.call(vec![lhs, rhs]);
     Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![booleans]))
@@ -334,7 +334,7 @@ fn logical_expression(
 fn unary_udf(
     rewriter: &ExpressionRewriter<'_>,
     udf: &ScalarUDF,
-    value: &Box<Expression>,
+    value: &Expression,
 ) -> DFResult<Expr> {
     let value = rewriter.rewrite(value)?;
     Ok(udf.call(vec![value]))

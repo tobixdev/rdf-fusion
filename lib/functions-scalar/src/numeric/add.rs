@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp};
+use crate::{ScalarBinaryRdfOp, ThinResult};
 use datamodel::{Numeric, NumericPair};
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ impl ScalarBinaryRdfOp for AddRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         match NumericPair::with_casts_from(lhs, rhs) {
             NumericPair::Int(lhs, rhs) => lhs.checked_add(rhs).map(Numeric::Int),
             NumericPair::Integer(lhs, rhs) => lhs.checked_add(rhs).map(Numeric::Integer),

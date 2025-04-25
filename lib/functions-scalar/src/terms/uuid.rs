@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarNullaryRdfOp};
+use crate::{ScalarNullaryRdfOp, ThinResult};
 use oxrdf::NamedNode;
 use uuid::Uuid;
 
@@ -20,7 +20,7 @@ impl UuidRdfOp {
 impl ScalarNullaryRdfOp for UuidRdfOp {
     type Result<'data> = NamedNode;
 
-    fn evaluate<'data>(&self) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self) -> ThinResult<Self::Result<'data>> {
         let formatted = format!("urn:uuid:{}", Uuid::new_v4());
         Ok(NamedNode::new_unchecked(formatted))
     }

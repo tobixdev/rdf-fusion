@@ -1,5 +1,5 @@
-use crate::{RdfOpResult, ScalarBinaryRdfOp, ScalarTernaryRdfOp};
-use datamodel::{Integer, StringLiteralRef};
+use crate::{ScalarBinaryRdfOp, ScalarTernaryRdfOp, ThinResult};
+use datamodel::{Integer, StringLiteralRef, ThinError};
 
 #[derive(Debug)]
 pub struct SubStrRdfOp;
@@ -25,7 +25,7 @@ impl ScalarBinaryRdfOp for SubStrRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         evaluate_substr(lhs, rhs, None)
     }
 }
@@ -41,7 +41,7 @@ impl ScalarTernaryRdfOp for SubStrRdfOp {
         arg0: Self::Arg0<'data>,
         arg1: Self::Arg1<'data>,
         arg2: Self::Arg2<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         evaluate_substr(arg0, arg1, Some(arg2))
     }
 }
@@ -50,17 +50,15 @@ fn evaluate_substr(
     source: StringLiteralRef<'_>,
     starting_loc: Integer,
     length: Option<Integer>,
-) -> RdfOpResult<StringLiteralRef<'_>> {
-    let index = usize::try_from(starting_loc.as_i64()).map_err(|_| ())?;
-    let length = length
-        .map(|l| usize::try_from(l.as_i64()).map_err(|_| ()))
-        .transpose()?;
+) -> ThinResult<StringLiteralRef<'_>> {
+    let index = usize::try_from(starting_loc.as_i64())?;
+    let length = length.map(|l| usize::try_from(l.as_i64())).transpose()?;
 
     // We want to slice on char indices, not byte indices
     let mut start_iter = source
         .0
         .char_indices()
-        .skip(index.checked_sub(1).ok_or(())?)
+        .skip(index.checked_sub(1).ok_or(ThinError::Expected)?)
         .peekable();
     let result = if let Some((start_position, _)) = start_iter.peek().copied() {
         if let Some(length) = length {

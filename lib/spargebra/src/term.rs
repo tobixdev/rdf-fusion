@@ -1,6 +1,6 @@
 //! Data structures for [RDF 1.1 Concepts](https://www.w3.org/TR/rdf11-concepts/) like IRI, literal or triples.
 
-use datamodel::RdfOpError;
+use datamodel::ThinError;
 pub use oxrdf::{BlankNode, Literal, NamedNode, Subject, Term, Triple, Variable};
 use std::fmt;
 use std::fmt::Write;
@@ -46,13 +46,13 @@ impl From<GroundTriple> for GroundSubject {
 }
 
 impl TryFrom<Subject> for GroundSubject {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(subject: Subject) -> Result<Self, Self::Error> {
         match subject {
             Subject::NamedNode(t) => Ok(t.into()),
-            Subject::BlankNode(_) => Err(RdfOpError),
+            Subject::BlankNode(_) => ThinError::expected(),
             #[cfg(feature = "rdf-star")]
             Subject::Triple(t) => Ok(GroundTriple::try_from(*t)?.into()),
         }
@@ -70,13 +70,13 @@ impl From<GroundSubject> for Subject {
 }
 
 impl TryFrom<GroundTerm> for GroundSubject {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(term: GroundTerm) -> Result<Self, Self::Error> {
         match term {
             GroundTerm::NamedNode(t) => Ok(t.into()),
-            GroundTerm::Literal(_) => Err(RdfOpError),
+            GroundTerm::Literal(_) => ThinError::expected(),
             #[cfg(feature = "rdf-star")]
             GroundTerm::Triple(t) => Ok((*t).into()),
         }
@@ -133,13 +133,13 @@ impl From<GroundTriple> for GroundTerm {
 }
 
 impl TryFrom<Term> for GroundTerm {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(term: Term) -> Result<Self, Self::Error> {
         match term {
             Term::NamedNode(t) => Ok(t.into()),
-            Term::BlankNode(_) => Err(RdfOpError),
+            Term::BlankNode(_) => ThinError::expected(),
             Term::Literal(t) => Ok(t.into()),
             #[cfg(feature = "rdf-star")]
             Term::Triple(t) => Ok(GroundTriple::try_from(*t)?.into()),
@@ -192,7 +192,7 @@ impl fmt::Display for GroundTriple {
 }
 
 impl TryFrom<Triple> for GroundTriple {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(triple: Triple) -> Result<Self, Self::Error> {
@@ -253,14 +253,14 @@ impl From<NamedNode> for GraphName {
 }
 
 impl TryFrom<GraphNamePattern> for GraphName {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(pattern: GraphNamePattern) -> Result<Self, Self::Error> {
         match pattern {
             GraphNamePattern::NamedNode(t) => Ok(t.into()),
             GraphNamePattern::DefaultGraph => Ok(Self::DefaultGraph),
-            GraphNamePattern::Variable(_) => Err(RdfOpError),
+            GraphNamePattern::Variable(_) => ThinError::expected(),
         }
     }
 }
@@ -327,7 +327,7 @@ impl fmt::Display for Quad {
 }
 
 impl TryFrom<QuadPattern> for Quad {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(quad: QuadPattern) -> Result<Self, Self::Error> {
@@ -402,7 +402,7 @@ impl fmt::Display for GroundQuad {
 }
 
 impl TryFrom<Quad> for GroundQuad {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(quad: Quad) -> Result<Self, Self::Error> {
@@ -464,13 +464,13 @@ impl From<Variable> for NamedNodePattern {
 }
 
 impl TryFrom<NamedNodePattern> for NamedNode {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(pattern: NamedNodePattern) -> Result<Self, Self::Error> {
         match pattern {
             NamedNodePattern::NamedNode(t) => Ok(t),
-            NamedNodePattern::Variable(_) => Err(RdfOpError),
+            NamedNodePattern::Variable(_) => ThinError::expected(),
         }
     }
 }
@@ -598,7 +598,7 @@ impl From<GroundTermPattern> for TermPattern {
 }
 
 impl TryFrom<TermPattern> for Subject {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(term: TermPattern) -> Result<Self, Self::Error> {
@@ -607,13 +607,13 @@ impl TryFrom<TermPattern> for Subject {
             TermPattern::BlankNode(t) => Ok(t.into()),
             #[cfg(feature = "rdf-star")]
             TermPattern::Triple(t) => Ok(Triple::try_from(*t)?.into()),
-            TermPattern::Literal(_) | TermPattern::Variable(_) => Err(RdfOpError),
+            TermPattern::Literal(_) | TermPattern::Variable(_) => ThinError::expected(),
         }
     }
 }
 
 impl TryFrom<TermPattern> for Term {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(pattern: TermPattern) -> Result<Self, Self::Error> {
@@ -623,7 +623,7 @@ impl TryFrom<TermPattern> for Term {
             TermPattern::Literal(t) => Ok(t.into()),
             #[cfg(feature = "rdf-star")]
             TermPattern::Triple(t) => Ok(Triple::try_from(*t)?.into()),
-            TermPattern::Variable(_) => Err(RdfOpError),
+            TermPattern::Variable(_) => ThinError::expected(),
         }
     }
 }
@@ -725,13 +725,13 @@ impl From<NamedNodePattern> for GroundTermPattern {
 }
 
 impl TryFrom<TermPattern> for GroundTermPattern {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(pattern: TermPattern) -> Result<Self, Self::Error> {
         Ok(match pattern {
             TermPattern::NamedNode(named_node) => named_node.into(),
-            TermPattern::BlankNode(_) => return Err(RdfOpError),
+            TermPattern::BlankNode(_) => return ThinError::expected(),
             TermPattern::Literal(literal) => literal.into(),
             #[cfg(feature = "rdf-star")]
             TermPattern::Triple(triple) => GroundTriplePattern::try_from(*triple)?.into(),
@@ -867,7 +867,7 @@ impl From<GroundTriplePattern> for TriplePattern {
 }
 
 impl TryFrom<TriplePattern> for Triple {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(triple: TriplePattern) -> Result<Self, Self::Error> {
@@ -920,7 +920,7 @@ impl From<GroundTriple> for GroundTriplePattern {
 }
 
 impl TryFrom<TriplePattern> for GroundTriplePattern {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(triple: TriplePattern) -> Result<Self, Self::Error> {
@@ -1039,7 +1039,7 @@ impl fmt::Display for GroundQuadPattern {
 }
 
 impl TryFrom<QuadPattern> for GroundQuadPattern {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     #[inline]
     fn try_from(pattern: QuadPattern) -> Result<Self, Self::Error> {

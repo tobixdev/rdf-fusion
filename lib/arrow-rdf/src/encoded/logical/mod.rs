@@ -1,8 +1,8 @@
-use std::sync::LazyLock;
 use crate::encoded::effective_boolean_value::EncEffectiveBooleanValue;
 use crate::encoded::logical::and::EncAnd;
 use crate::encoded::logical::or::EncOr;
 use datafusion::logical_expr::ScalarUDF;
+use std::sync::LazyLock;
 
 mod and;
 pub mod effective_boolean_value;

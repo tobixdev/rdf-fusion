@@ -1,5 +1,5 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
-use datamodel::{DateTime, DayTimeDuration};
+use crate::{ScalarUnaryRdfOp, ThinResult};
+use datamodel::{DateTime, DayTimeDuration, ThinError};
 
 #[derive(Debug)]
 pub struct TimezoneRdfOp;
@@ -20,7 +20,7 @@ impl ScalarUnaryRdfOp for TimezoneRdfOp {
     type Arg<'data> = DateTime;
     type Result<'data> = DayTimeDuration;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
-        Ok(value.timezone().ok_or(())?)
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
+        value.timezone().ok_or(ThinError::Expected)
     }
 }

@@ -13,7 +13,7 @@ use arrow_rdf::sortable::{SortableTerm, ENC_WITH_REGULAR_ENCODING};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{not_impl_err, plan_err, Column, DFSchema, JoinType};
+use datafusion::common::{not_impl_err, plan_datafusion_err, plan_err, Column, DFSchema, JoinType};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
 use datafusion::functions_aggregate::count::{count, count_distinct, count_udaf};
 use datafusion::functions_aggregate::first_last::first_value;
@@ -60,7 +60,7 @@ impl GraphPatternRewriter {
 
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
         let plan = self.rewrite_graph_pattern(pattern)?;
-        Ok(plan.build()?)
+        plan.build()
     }
 
     fn rewrite_graph_pattern(&self, pattern: &GraphPattern) -> DFResult<LogicalPlanBuilder> {
@@ -87,7 +87,7 @@ impl GraphPatternRewriter {
             GraphPattern::Values {
                 variables,
                 bindings,
-            } => self.rewrite_values(variables, bindings),
+            } => rewrite_values(variables, bindings),
             GraphPattern::Join { left, right } => self.rewrite_join(left, right),
             GraphPattern::LeftJoin {
                 left,
@@ -121,13 +121,13 @@ impl GraphPatternRewriter {
                 variables,
                 aggregates,
             } => self.rewrite_group(inner, variables, aggregates),
-            pattern => not_impl_err!("rewrite_graph_pattern: {:?}", pattern),
+            _ => not_impl_err!("rewrite_graph_pattern: {:?}", pattern),
         }
     }
 
     /// Rewrites a basic graph pattern into multiple scans of the quads table and joins them
     /// together.
-    fn rewrite_bgp(&self, patterns: &Vec<TriplePattern>) -> DFResult<LogicalPlanBuilder> {
+    fn rewrite_bgp(&self, patterns: &[TriplePattern]) -> DFResult<LogicalPlanBuilder> {
         patterns
             .iter()
             .map(|p| self.rewrite_triple_pattern(p))
@@ -184,7 +184,7 @@ impl GraphPatternRewriter {
     fn rewrite_project(
         &self,
         inner: &GraphPattern,
-        variables: &Vec<Variable>,
+        variables: &[Variable],
     ) -> DFResult<LogicalPlanBuilder> {
         self.rewrite_graph_pattern(inner)?.project(
             variables
@@ -196,7 +196,7 @@ impl GraphPatternRewriter {
     /// Checks whether a potential variable in the GRAPH pattern goes out of scope. This is the case
     /// if it either already is out of scope or if the variable is not projected to the outer
     /// query.
-    fn graph_variable_goes_out_of_scope(&self, variables: &Vec<Variable>) -> bool {
+    fn graph_variable_goes_out_of_scope(&self, variables: &[Variable]) -> bool {
         let state = self.state.borrow();
         state
             .graph
@@ -204,7 +204,7 @@ impl GraphPatternRewriter {
             .filter(|_| !state.graph_is_out_of_scope)
             .filter(|p| match p {
                 NamedNodePattern::Variable(v) => !variables.contains(v),
-                _ => false,
+                NamedNodePattern::NamedNode(_) => false,
             })
             .is_some()
     }
@@ -244,33 +244,6 @@ impl GraphPatternRewriter {
         );
 
         inner.project(new_exprs)
-    }
-
-    /// Creates a logical node that holds the given VALUES as encoded RDF terms
-    fn rewrite_values(
-        &self,
-        variables: &Vec<Variable>,
-        bindings: &Vec<Vec<Option<GroundTerm>>>,
-    ) -> DFResult<LogicalPlanBuilder> {
-        if bindings.is_empty() {
-            return Ok(LogicalPlanBuilder::empty(true));
-        }
-
-        let values = bindings
-            .iter()
-            .map(|solution| encode_solution(solution))
-            .collect::<DFResult<Vec<_>>>()?;
-        let values = LogicalPlanBuilder::values(values)?;
-
-        let projections: Vec<_> = values
-            .schema()
-            .columns()
-            .iter()
-            .zip(variables.iter())
-            .map(|(column, variable)| Expr::from(column.clone()).alias(variable.as_str()))
-            .collect();
-
-        values.project(projections)
     }
 
     /// Creates a logical join node for the two graph patterns.
@@ -341,7 +314,7 @@ impl GraphPatternRewriter {
     fn rewrite_order_by(
         &self,
         inner: &GraphPattern,
-        expression: &Vec<OrderExpression>,
+        expression: &[OrderExpression],
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_graph_pattern(inner)?;
         let sort_exprs = expression
@@ -361,7 +334,7 @@ impl GraphPatternRewriter {
         let rhs = self.rewrite_graph_pattern(right)?;
 
         let mut new_schema = lhs.schema().as_ref().clone();
-        new_schema.merge(&rhs.schema().as_ref());
+        new_schema.merge(rhs.schema().as_ref());
 
         let lhs_projections = new_schema
             .columns()
@@ -421,13 +394,13 @@ impl GraphPatternRewriter {
             .schema()
             .columns()
             .into_iter()
-            .map(|c| c.name().to_string())
+            .map(|c| c.name().to_owned())
             .collect();
         let rhs_keys: HashSet<_> = rhs
             .schema()
             .columns()
             .into_iter()
-            .map(|c| c.name().to_string())
+            .map(|c| c.name().to_owned())
             .collect();
 
         let overlapping_keys = lhs_keys
@@ -458,7 +431,9 @@ impl GraphPatternRewriter {
                 )
             })
             .reduce(Expr::or)
-            .expect("There must be at least one overlapping key");
+            .ok_or(plan_datafusion_err!(
+                "There must be at least one overlapping key"
+            ))?;
         join_filters.push(any_both_not_null);
 
         let filter_expr = join_filters.into_iter().reduce(Expr::and);
@@ -482,8 +457,8 @@ impl GraphPatternRewriter {
     fn rewrite_group(
         &self,
         inner: &GraphPattern,
-        variables: &Vec<Variable>,
-        aggregates: &Vec<(Variable, AggregateExpression)>,
+        variables: &[Variable],
+        aggregates: &[(Variable, AggregateExpression)],
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_graph_pattern(inner)?;
         let expression_rewriter =
@@ -614,7 +589,7 @@ impl GraphPatternRewriter {
                     AggregateFunction::GroupConcat { separator } => Expr::AggregateFunction(
                         datafusion::logical_expr::expr::AggregateFunction::new_udf(
                             Arc::new(enc_group_concat(
-                                separator.as_ref().map(|s| s.as_str()).unwrap_or(" "),
+                                separator.as_ref().map_or(" ", |s| s.as_str()),
                             )),
                             vec![expr],
                             *distinct,
@@ -645,16 +620,17 @@ struct RewritingState {
 
 impl RewritingState {
     /// Returns a new state like `self` but with the current graph set to `graph`.
+    #[allow(clippy::unused_self)]
     fn with_graph(&self, graph: NamedNodePattern) -> RewritingState {
         RewritingState {
             graph: Some(graph),
             graph_is_out_of_scope: false,
-            ..*self
         }
     }
 
     /// Returns a new state like `self` but where [RewritingState::graph_is_out_of_scope] is set to
     /// `true`.
+    #[allow(clippy::unused_self)]
     fn with_graph_variable_going_out_of_scope(&self) -> RewritingState {
         RewritingState {
             graph_is_out_of_scope: true,
@@ -663,7 +639,33 @@ impl RewritingState {
     }
 }
 
-fn encode_solution(terms: &Vec<Option<GroundTerm>>) -> DFResult<Vec<Expr>> {
+/// Creates a logical node that holds the given VALUES as encoded RDF terms
+fn rewrite_values(
+    variables: &[Variable],
+    bindings: &[Vec<Option<GroundTerm>>],
+) -> DFResult<LogicalPlanBuilder> {
+    if bindings.is_empty() {
+        return Ok(LogicalPlanBuilder::empty(true));
+    }
+
+    let values = bindings
+        .iter()
+        .map(|solution| encode_solution(solution))
+        .collect::<DFResult<Vec<_>>>()?;
+    let values = LogicalPlanBuilder::values(values)?;
+
+    let projections: Vec<_> = values
+        .schema()
+        .columns()
+        .iter()
+        .zip(variables.iter())
+        .map(|(column, variable)| Expr::from(column.clone()).alias(variable.as_str()))
+        .collect();
+
+    values.project(projections)
+}
+
+fn encode_solution(terms: &[Option<GroundTerm>]) -> DFResult<Vec<Expr>> {
     terms
         .iter()
         .map(|t| {
@@ -671,6 +673,7 @@ fn encode_solution(terms: &Vec<Option<GroundTerm>>) -> DFResult<Vec<Expr>> {
                 Some(GroundTerm::NamedNode(nn)) => lit(encode_scalar_named_node(nn.as_ref())),
                 Some(GroundTerm::Literal(literal)) => lit(encode_scalar_literal(literal.as_ref())?),
                 None => lit(encode_scalar_null()),
+                #[allow(clippy::unimplemented, reason = "Not production ready")]
                 _ => unimplemented!("encoding values"),
             })
         })
@@ -693,13 +696,13 @@ fn create_join(
         .schema()
         .columns()
         .into_iter()
-        .map(|c| c.name().to_string())
+        .map(|c| c.name().to_owned())
         .collect();
     let rhs_keys: HashSet<_> = rhs
         .schema()
         .columns()
         .into_iter()
-        .map(|c| c.name().to_string())
+        .map(|c| c.name().to_owned())
         .collect();
 
     // If both solutions are disjoint, we can use a cross join.
@@ -848,10 +851,10 @@ fn create_filter_for_named_graph(graphs: Option<&[NamedOrBlankNode]>) -> Expr {
 fn get_sort_expressions(graph_pattern: &GraphPattern) -> Option<&Vec<OrderExpression>> {
     match graph_pattern {
         GraphPattern::OrderBy { expression, .. } => Some(expression),
-        GraphPattern::Project { inner, .. } => get_sort_expressions(inner),
-        GraphPattern::Distinct { inner, .. } => get_sort_expressions(inner),
-        GraphPattern::Reduced { inner, .. } => get_sort_expressions(inner),
-        GraphPattern::Slice { inner, .. } => get_sort_expressions(inner),
+        GraphPattern::Project { inner, .. }
+        | GraphPattern::Distinct { inner, .. }
+        | GraphPattern::Slice { inner, .. }
+        | GraphPattern::Reduced { inner, .. } => get_sort_expressions(inner),
         _ => None,
     }
 }
@@ -883,7 +886,9 @@ fn create_distinct_on_expr(
             .columns()
             .into_iter()
             .find(|c| c.name() == on_expr)
-            .expect("Column must exist");
+            .ok_or(plan_datafusion_err!(
+                "Could not find column {on_expr} in schema {schema}"
+            ))?;
         on_exprs.push(column);
     }
 
@@ -902,7 +907,7 @@ fn create_distinct_on_expr(
 /// When creating a DISTINCT ON node, the initial `on_expr` expressions must match the given
 /// `sort_expr` (if they exist). This function creates these initial columns from the order
 /// expressions.
-fn create_initial_columns_from_sort(sort_exprs: &Vec<OrderExpression>) -> DFResult<Vec<String>> {
+fn create_initial_columns_from_sort(sort_exprs: &[OrderExpression]) -> DFResult<Vec<String>> {
     sort_exprs
         .iter()
         .map(|sort_expr| match sort_expr.expression() {
@@ -924,7 +929,9 @@ fn ensure_all_columns_are_rdf_terms(inner: LogicalPlanBuilder) -> DFResult<Logic
         .into_iter()
         .map(|f| {
             let column = Expr::from(Column::new_unqualified(f.name().as_str()));
-            if f.data_type() != &EncTerm::data_type() {
+            if f.data_type() == &EncTerm::data_type() {
+                Ok(column)
+            } else {
                 match f.data_type() {
                     DataType::Int64 => Ok(ENC_INT64_AS_RDF_TERM.call(vec![column]).alias(f.name())),
                     other => {
@@ -935,8 +942,6 @@ fn ensure_all_columns_are_rdf_terms(inner: LogicalPlanBuilder) -> DFResult<Logic
                         }
                     }
                 }
-            } else {
-                Ok(column)
             }
         })
         .collect::<DFResult<Vec<_>>>()?;

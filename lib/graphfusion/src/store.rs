@@ -95,8 +95,8 @@ pub struct Store {
 
 impl Store {
     /// New in-memory [`Store`].
-    pub async fn new() -> Result<Self, StorageError> {
-        let inner = Arc::new(MemoryTripleStore::new().await?);
+    pub fn new() -> Result<Self, StorageError> {
+        let inner = Arc::new(MemoryTripleStore::new()?);
         Ok(Self { inner })
     }
 
@@ -127,7 +127,7 @@ impl Store {
         &self,
         query: impl TryInto<Query, Error = impl Into<EvaluationError> + std::fmt::Debug>,
     ) -> Result<QueryResults, EvaluationError> {
-        self.query_opt(query, QueryOptions::default()).await
+        self.query_opt(query, QueryOptions).await
     }
 
     /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/) with some options.
@@ -190,10 +190,10 @@ impl Store {
         options: QueryOptions,
     ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
         let query = query.try_into();
-        if query.is_err() {
-            return Err(query.unwrap_err().into());
+        match query {
+            Ok(query) => self.inner.execute_query(&query, options).await,
+            Err(err) => Err(err.into())
         }
-        self.inner.execute_query(&query.unwrap(), options).await
     }
 
     /// Retrieves quads with a filter on each quad component
@@ -229,7 +229,7 @@ impl Store {
             .quads_for_pattern(graph_name, subject, predicate, object)
             .await?;
         let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
-        Ok(QuadStream::try_new(solution_stream).expect("Schema is guaranteed"))
+        QuadStream::try_new(solution_stream).map_err(EvaluationError::InternalError)
     }
 
     /// Returns all the quads contained in the store.
@@ -258,7 +258,7 @@ impl Store {
             .await
             .map_err(EvaluationError::from)?;
         let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
-        Ok(QuadStream::try_new(solution_stream).expect("Schema guaranteed by TripleStore"))
+        QuadStream::try_new(solution_stream).map_err(EvaluationError::InternalError)
     }
 
     /// Checks if this store contains a given quad.
@@ -318,6 +318,8 @@ impl Store {
     /// assert!(!store.is_empty()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn is_empty(&self) -> Result<bool, StorageError> {
         unimplemented!()
     }
@@ -340,6 +342,8 @@ impl Store {
     /// assert!(store.contains(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn update(
         &self,
         _update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
@@ -364,6 +368,8 @@ impl Store {
     /// )?;
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn update_opt(
         &self,
         _update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
@@ -447,7 +453,7 @@ impl Store {
             .load_quads(quad)
             .await
             .map(|inserted| inserted > 0)
-            .map_err(|err| StorageError::from(err))
+            .map_err(StorageError::from)
     }
 
     /// Adds atomically a set of quads to this store.
@@ -455,6 +461,8 @@ impl Store {
     /// <div class="warning">
     ///
     /// This operation uses a memory heavy transaction internally, use the [`bulk_loader`](Store::bulk_loader) if you plan to add ten of millions of triples.</div>
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn extend(
         &self,
         _quads: impl IntoIterator<Item = impl Into<Quad>>,
@@ -486,7 +494,7 @@ impl Store {
         self.inner
             .remove(quad.into())
             .await
-            .map_err(|err| StorageError::from(err))
+            .map_err(StorageError::from)
     }
 
     /// Dumps the store into a file.
@@ -574,6 +582,8 @@ impl Store {
     /// );
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn named_graphs(&self) -> GraphNameStream {
         unimplemented!()
     }
@@ -591,6 +601,8 @@ impl Store {
     /// assert!(store.contains_named_graph(&ex)?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn contains_named_graph<'a>(
         &self,
         _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
@@ -617,6 +629,8 @@ impl Store {
     /// );
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn insert_named_graph<'a>(
         &self,
         _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
@@ -642,6 +656,8 @@ impl Store {
     /// assert_eq!(1, store.named_graphs().count());
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn clear_graph<'a>(
         &self,
         _graph_name: impl Into<GraphNameRef<'a>>,
@@ -669,6 +685,8 @@ impl Store {
     /// assert_eq!(0, store.named_graphs().count());
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn remove_named_graph<'a>(
         &self,
         _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
@@ -693,11 +711,15 @@ impl Store {
     /// assert!(store.is_empty()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
+    #[allow(clippy::unimplemented, reason="Not production ready")]
+    #[allow(clippy::unused_self, reason="Not implemented")]
     pub fn clear(&self) -> Result<(), StorageError> {
         unimplemented!()
     }
 
     /// Validates that all the store invariants held in the data
+    #[allow(clippy::unused_self, reason="Not implemented")]
+    #[allow(clippy::unnecessary_wraps, reason="Not implemented")]
     #[doc(hidden)]
     pub fn validate(&self) -> Result<(), StorageError> {
         // TODO: Is there anything we should do here?

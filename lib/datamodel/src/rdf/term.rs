@@ -3,7 +3,7 @@ use crate::rdf::simple_literal::SimpleLiteral;
 use crate::rdf::typed_literal::TypedLiteral;
 use crate::{
     Boolean, Date, DateTime, DayTimeDuration, DecodedTerm, Duration, LanguageStringRef, Numeric,
-    RdfOpResult, RdfValueRef, SimpleLiteralRef, Time, TypedLiteralRef, YearMonthDuration,
+    RdfValueRef, SimpleLiteralRef, ThinResult, Time, TypedLiteralRef, YearMonthDuration,
 };
 use oxrdf::vocab::xsd;
 use oxrdf::{BlankNode, BlankNodeRef, Literal, NamedNode, NamedNodeRef};
@@ -132,7 +132,7 @@ impl TermRef<'_> {
 }
 
 impl<'data> RdfValueRef<'data> for TermRef<'data> {
-    fn from_term(term: TermRef<'data>) -> RdfOpResult<Self>
+    fn from_term(term: TermRef<'data>) -> ThinResult<Self>
     where
         Self: Sized,
     {

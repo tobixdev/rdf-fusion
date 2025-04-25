@@ -8,6 +8,7 @@ use datafusion::execution::SendableRecordBatchStream;
 use oxrdf::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 
 #[async_trait]
+#[allow(clippy::len_without_is_empty)]
 pub trait TripleStore {
     //
     // Querying

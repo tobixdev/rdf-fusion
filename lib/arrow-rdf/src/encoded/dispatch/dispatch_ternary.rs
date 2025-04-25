@@ -22,6 +22,10 @@ where
         return exec_err!("Unexpected number of arguments.");
     }
 
+    #[allow(
+        clippy::missing_asserts_for_indexing,
+        reason = "Already checked and not performance critical"
+    )]
     let results = (0..number_of_rows).map(|i| {
         let arg0 = borrow_value::<TUdf::Arg0<'data>>(&args[0], i);
         let arg1 = borrow_value::<TUdf::Arg1<'data>>(&args[1], i);

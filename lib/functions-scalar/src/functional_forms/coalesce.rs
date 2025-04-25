@@ -1,5 +1,5 @@
-use crate::{RdfOpResult, ScalarNAryRdfOp};
-use datamodel::{RdfOpError, TermRef};
+use crate::{ScalarNAryRdfOp, ThinResult};
+use datamodel::{TermRef, ThinError};
 
 #[derive(Debug)]
 pub struct CoalesceRdfOp;
@@ -20,16 +20,16 @@ impl ScalarNAryRdfOp for CoalesceRdfOp {
     type Args<'data> = TermRef<'data>;
     type Result<'data> = TermRef<'data>;
 
-    fn evaluate<'data>(&self, args: &[Self::Args<'data>]) -> RdfOpResult<Self::Result<'data>> {
-        args.first().copied().ok_or(RdfOpError)
+    fn evaluate<'data>(&self, args: &[Self::Args<'data>]) -> ThinResult<Self::Result<'data>> {
+        args.first().copied().ok_or(ThinError::Expected)
     }
 
     fn evaluate_error<'data>(
         &self,
-        args: &[RdfOpResult<Self::Args<'data>>],
-    ) -> RdfOpResult<Self::Result<'data>> {
+        args: &[ThinResult<Self::Args<'data>>],
+    ) -> ThinResult<Self::Result<'data>> {
         args.iter()
             .find_map(|arg| arg.ok())
-            .ok_or(RdfOpError)
+            .ok_or(ThinError::Expected)
     }
 }

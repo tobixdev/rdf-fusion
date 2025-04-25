@@ -1,5 +1,5 @@
 use crate::ScalarBinaryRdfOp;
-use datamodel::{Decimal, Numeric, NumericPair, RdfOpResult};
+use datamodel::{Decimal, Numeric, NumericPair, ThinResult};
 
 #[derive(Debug)]
 pub struct DivRdfOp;
@@ -25,7 +25,7 @@ impl ScalarBinaryRdfOp for DivRdfOp {
         &self,
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
-    ) -> RdfOpResult<Self::Result<'data>> {
+    ) -> ThinResult<Self::Result<'data>> {
         match NumericPair::with_casts_from(lhs, rhs) {
             NumericPair::Int(lhs, rhs) => Decimal::from(lhs).checked_div(rhs).map(Numeric::Decimal),
             NumericPair::Integer(lhs, rhs) => {

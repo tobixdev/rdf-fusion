@@ -1,4 +1,4 @@
-use crate::{RdfOpResult, ScalarUnaryRdfOp};
+use crate::{ScalarUnaryRdfOp, ThinResult};
 use datamodel::Numeric;
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl ScalarUnaryRdfOp for AbsRdfOp {
     type Arg<'data> = Numeric;
     type Result<'data> = Numeric;
 
-    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> RdfOpResult<Self::Result<'data>> {
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         match value {
             Numeric::Int(value) => value.checked_abs().map(Numeric::Int),
             Numeric::Integer(value) => Ok(Numeric::Integer(value.checked_abs()?)),

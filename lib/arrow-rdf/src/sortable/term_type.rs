@@ -1,5 +1,6 @@
-use datamodel::RdfOpError;
+use datamodel::ThinError;
 
+#[derive(Debug, Clone, Copy)]
 pub(super) enum SortableTermType {
     Null,
     BlankNodes,
@@ -17,7 +18,7 @@ pub(super) enum SortableTermType {
 }
 
 impl SortableTermType {
-    pub fn as_u8(&self) -> u8 {
+    pub fn as_u8(self) -> u8 {
         match self {
             SortableTermType::Null => 0,
             SortableTermType::BlankNodes => 1,
@@ -37,7 +38,7 @@ impl SortableTermType {
 }
 
 impl TryFrom<u8> for SortableTermType {
-    type Error = RdfOpError;
+    type Error = ThinError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let term_type = match value {
@@ -54,7 +55,7 @@ impl TryFrom<u8> for SortableTermType {
             10 => SortableTermType::YearMonthDuration,
             11 => SortableTermType::DayTimeDuration,
             12 => SortableTermType::UnsupportedLiteral,
-            _ => return Err(RdfOpError),
+            _ => return ThinError::internal_error("Invalid value for SortableTermType."),
         };
         Ok(term_type)
     }

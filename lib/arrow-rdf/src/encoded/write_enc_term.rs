@@ -1,30 +1,30 @@
 use crate::encoded::EncRdfTermBuilder;
-use crate::AResult;
+use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
-use datafusion::common::ScalarValue;
+use datafusion::common::{exec_err, ScalarValue};
 use datamodel::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageStringRef, Numeric, OwnedStringLiteral, RdfOpResult, SimpleLiteralRef,
-    StringLiteralRef, TermRef, Time, TypedLiteralRef, YearMonthDuration,
+    LanguageStringRef, Numeric, OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef, TermRef,
+    ThinError, ThinResult, Time, TypedLiteralRef, YearMonthDuration,
 };
 use oxrdf::{BlankNode, BlankNodeRef, NamedNode, NamedNodeRef};
 
 pub trait WriteEncTerm {
-    fn into_scalar_value(self) -> AResult<ScalarValue>
+    fn into_scalar_value(self) -> DFResult<ScalarValue>
     where
         Self: Sized,
     {
         let array = Self::iter_into_array([Ok(self)].into_iter())?;
-        Ok(ScalarValue::try_from_array(&array, 0)?)
+        ScalarValue::try_from_array(&array, 0)
     }
 
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized;
 }
 
 impl WriteEncTerm for Boolean {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -32,15 +32,18 @@ impl WriteEncTerm for Boolean {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_boolean(value.as_bool())?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for Float {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -48,15 +51,18 @@ impl WriteEncTerm for Float {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_float(value)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for Decimal {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -64,15 +70,18 @@ impl WriteEncTerm for Decimal {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_decimal(value)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for Double {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -80,15 +89,18 @@ impl WriteEncTerm for Double {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_double(value)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for Int {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -96,15 +108,18 @@ impl WriteEncTerm for Int {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_int(value)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for Integer {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -112,15 +127,18 @@ impl WriteEncTerm for Integer {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_integer(value)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for Numeric {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -132,15 +150,18 @@ impl WriteEncTerm for Numeric {
                 Ok(Numeric::Decimal(value)) => rdf_term_builder.append_decimal(value)?,
                 Ok(Numeric::Int(value)) => rdf_term_builder.append_int(value)?,
                 Ok(Numeric::Integer(value)) => rdf_term_builder.append_integer(value)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for SimpleLiteralRef<'_> {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -148,15 +169,18 @@ impl WriteEncTerm for SimpleLiteralRef<'_> {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_string(value.value, None)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for StringLiteralRef<'_> {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -164,32 +188,39 @@ impl WriteEncTerm for StringLiteralRef<'_> {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_string(value.0, value.1)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for OwnedStringLiteral {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
         let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
-                Ok(value) => rdf_term_builder
-                    .append_string(value.0.as_str(), value.1.as_deref())?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Ok(value) => {
+                    rdf_term_builder.append_string(value.0.as_str(), value.1.as_deref())?
+                }
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for LanguageStringRef<'_> {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -197,15 +228,18 @@ impl WriteEncTerm for LanguageStringRef<'_> {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_string(value.value, Some(value.language))?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for BlankNodeRef<'_> {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -213,15 +247,18 @@ impl WriteEncTerm for BlankNodeRef<'_> {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_blank_node(value.as_str())?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for BlankNode {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -229,15 +266,18 @@ impl WriteEncTerm for BlankNode {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_blank_node(value.as_str())?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for NamedNodeRef<'_> {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -245,15 +285,18 @@ impl WriteEncTerm for NamedNodeRef<'_> {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_named_node(value.as_str())?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for NamedNode {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -261,15 +304,18 @@ impl WriteEncTerm for NamedNode {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_named_node(value.as_str())?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for TermRef<'_> {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -320,15 +366,18 @@ impl WriteEncTerm for TermRef<'_> {
                 Ok(TermRef::TypedLiteral(value)) => {
                     rdf_term_builder.append_typed_literal(value.value, value.literal_type)?
                 }
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for DateTime {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -336,15 +385,18 @@ impl WriteEncTerm for DateTime {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_date_time(value)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for Time {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -352,15 +404,18 @@ impl WriteEncTerm for Time {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_time(value)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for Date {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -368,15 +423,18 @@ impl WriteEncTerm for Date {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_date(value)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for Duration {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -385,15 +443,18 @@ impl WriteEncTerm for Duration {
             match value {
                 Ok(value) => rdf_term_builder
                     .append_duration(Some(value.year_month()), Some(value.day_time()))?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for YearMonthDuration {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -401,15 +462,18 @@ impl WriteEncTerm for YearMonthDuration {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_duration(Some(value), None)?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for DayTimeDuration {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -417,15 +481,18 @@ impl WriteEncTerm for DayTimeDuration {
         for value in values {
             match value {
                 Ok(value) => rdf_term_builder.append_duration(None, Some(value))?,
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }
 
 impl WriteEncTerm for TypedLiteralRef<'_> {
-    fn iter_into_array(values: impl Iterator<Item = RdfOpResult<Self>>) -> AResult<ArrayRef>
+    fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
     {
@@ -435,9 +502,12 @@ impl WriteEncTerm for TypedLiteralRef<'_> {
                 Ok(value) => {
                     rdf_term_builder.append_typed_literal(value.value, value.literal_type)?
                 }
-                Err(_) => rdf_term_builder.append_null()?,
+                Err(ThinError::Expected) => rdf_term_builder.append_null()?,
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
             }
         }
-        Ok(rdf_term_builder.finish()?)
+        rdf_term_builder.finish()
     }
 }

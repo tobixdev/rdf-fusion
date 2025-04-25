@@ -7,14 +7,8 @@ use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::{DefaultPhysicalPlanner, PhysicalPlanner};
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GraphFusionPlanner;
-
-impl GraphFusionPlanner {
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 #[async_trait]
 impl QueryPlanner for GraphFusionPlanner {

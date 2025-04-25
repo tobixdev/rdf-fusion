@@ -1,5 +1,5 @@
 use crate::{
-    Boolean, Double, Float, Int, Integer, Numeric, RdfOpError, RdfOpResult, RdfValueRef, TermRef,
+    Boolean, Double, Float, Int, Integer, Numeric, RdfValueRef, TermRef, ThinError, ThinResult,
     TooLargeForIntError, TooLargeForIntegerError,
 };
 use std::fmt;
@@ -64,9 +64,12 @@ impl Decimal {
     ///
     /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    pub fn checked_add(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_add(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_add(rhs.into().value).ok_or(RdfOpError)?,
+            value: self
+                .value
+                .checked_add(rhs.into().value)
+                .ok_or(ThinError::Expected)?,
         })
     }
 
@@ -74,9 +77,12 @@ impl Decimal {
     ///
     /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    pub fn checked_sub(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_sub(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_sub(rhs.into().value).ok_or(RdfOpError)?,
+            value: self
+                .value
+                .checked_sub(rhs.into().value)
+                .ok_or(ThinError::Expected)?,
         })
     }
 
@@ -84,7 +90,7 @@ impl Decimal {
     ///
     /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    pub fn checked_mul(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_mul(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         // Idea: we shift right as much as possible to keep as much precision as possible
         // Do the multiplication and do the required left shift
         let mut left = self.value;
@@ -108,13 +114,13 @@ impl Decimal {
         // We do multiplication + shift
         let shift = (shift_left + shift_right)
             .checked_sub(DECIMAL_PART_DIGITS)
-            .ok_or(RdfOpError)?;
+            .ok_or(ThinError::Expected)?;
         Ok(Self {
             value: left
                 .checked_mul(right)
-                .ok_or(RdfOpError)?
-                .checked_mul(10_i128.checked_pow(shift).ok_or(RdfOpError)?)
-                .ok_or(RdfOpError)?,
+                .ok_or(ThinError::Expected)?
+                .checked_mul(10_i128.checked_pow(shift).ok_or(ThinError::Expected)?)
+                .ok_or(ThinError::Expected)?,
         })
     }
 
@@ -122,7 +128,7 @@ impl Decimal {
     ///
     /// Returns `Err` in case of division by 0 ([FOAR0001](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0001)) or overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    pub fn checked_div(self, rhs: impl Into<Self>) -> RdfOpResult<Self> {
+    pub fn checked_div(self, rhs: impl Into<Self>) -> ThinResult<Self> {
         // Idea: we shift the dividend left as much as possible to keep as much precision as possible
         // And we shift right the divisor as much as possible
         // Do the multiplication and do the required shift
@@ -146,13 +152,13 @@ impl Decimal {
         // We do division + shift
         let shift = (shift_left + shift_right)
             .checked_sub(DECIMAL_PART_DIGITS)
-            .ok_or(RdfOpError)?;
+            .ok_or(ThinError::Expected)?;
         Ok(Self {
             value: left
                 .checked_div(right)
-                .ok_or(RdfOpError)?
-                .checked_div(10_i128.checked_pow(shift).ok_or(RdfOpError)?)
-                .ok_or(RdfOpError)?,
+                .ok_or(ThinError::Expected)?
+                .checked_div(10_i128.checked_pow(shift).ok_or(ThinError::Expected)?)
+                .ok_or(ThinError::Expected)?,
         })
     }
 
@@ -182,9 +188,9 @@ impl Decimal {
     ///
     /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    pub fn checked_neg(self) -> RdfOpResult<Self> {
+    pub fn checked_neg(self) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_neg().ok_or(RdfOpError)?,
+            value: self.value.checked_neg().ok_or(ThinError::Expected)?,
         })
     }
 
@@ -192,9 +198,9 @@ impl Decimal {
     ///
     /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    pub fn checked_abs(self) -> RdfOpResult<Self> {
+    pub fn checked_abs(self) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_abs().ok_or(RdfOpError)?,
+            value: self.value.checked_abs().ok_or(ThinError::Expected)?,
         })
     }
 
@@ -202,7 +208,7 @@ impl Decimal {
     ///
     /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    pub fn checked_round(self) -> RdfOpResult<Self> {
+    pub fn checked_round(self) -> ThinResult<Self> {
         let value = self.value / DECIMAL_PART_POW_MINUS_ONE;
         Ok(Self {
             value: if value >= 0 {
@@ -211,7 +217,7 @@ impl Decimal {
                 value / 10 - i128::from(-value % 10 > 5)
             }
             .checked_mul(DECIMAL_PART_POW)
-            .ok_or(RdfOpError)?,
+            .ok_or(ThinError::Expected)?,
         })
     }
 
@@ -219,7 +225,7 @@ impl Decimal {
     ///
     /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    pub fn checked_ceil(self) -> RdfOpResult<Self> {
+    pub fn checked_ceil(self) -> ThinResult<Self> {
         Ok(Self {
             value: if self.value > 0 && self.value % DECIMAL_PART_POW != 0 {
                 self.value / DECIMAL_PART_POW + 1
@@ -227,7 +233,7 @@ impl Decimal {
                 self.value / DECIMAL_PART_POW
             }
             .checked_mul(DECIMAL_PART_POW)
-            .ok_or(RdfOpError)?,
+            .ok_or(ThinError::Expected)?,
         })
     }
 
@@ -235,7 +241,7 @@ impl Decimal {
     ///
     /// Returns `Err` in case of overflow ([FOAR0002](https://www.w3.org/TR/xpath-functions-31/#ERRFOAR0002)).
     #[inline]
-    pub fn checked_floor(self) -> RdfOpResult<Self> {
+    pub fn checked_floor(self) -> ThinResult<Self> {
         Ok(Self {
             value: if self.value >= 0 || self.value % DECIMAL_PART_POW == 0 {
                 self.value / DECIMAL_PART_POW
@@ -243,7 +249,7 @@ impl Decimal {
                 self.value / DECIMAL_PART_POW - 1
             }
             .checked_mul(DECIMAL_PART_POW)
-            .ok_or(RdfOpError)?,
+            .ok_or(ThinError::Expected)?,
         })
     }
 
@@ -274,13 +280,13 @@ impl Decimal {
 }
 
 impl RdfValueRef<'_> for Decimal {
-    fn from_term(term: TermRef<'_>) -> RdfOpResult<Self>
+    fn from_term(term: TermRef<'_>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
             TermRef::NumericLiteral(Numeric::Decimal(inner)) => Ok(inner),
-            _ => Err(RdfOpError),
+            _ => ThinError::expected(),
         }
     }
 }
@@ -785,19 +791,13 @@ mod tests {
         assert_eq!(Decimal::from(1).checked_mul(0), Ok(Decimal::from(0)));
         assert_eq!(Decimal::MAX.checked_mul(1), Ok(Decimal::MAX));
         assert_eq!(Decimal::MIN.checked_mul(1), Ok(Decimal::MIN));
-        assert_eq!(
-            Decimal::from(1).checked_mul(Decimal::MAX),
-            Ok(Decimal::MAX)
-        );
-        assert_eq!(
-            Decimal::from(1).checked_mul(Decimal::MIN),
-            Ok(Decimal::MIN)
-        );
+        assert_eq!(Decimal::from(1).checked_mul(Decimal::MAX), Ok(Decimal::MAX));
+        assert_eq!(Decimal::from(1).checked_mul(Decimal::MIN), Ok(Decimal::MIN));
         assert_eq!(
             Decimal::MAX.checked_mul(-1),
             Ok(Decimal::MIN.checked_add(Decimal::STEP).unwrap())
         );
-        assert_eq!(Decimal::MIN.checked_mul(-1), Err(RdfOpError));
+        assert_eq!(Decimal::MIN.checked_mul(-1), ThinError::expected());
         assert_eq!(
             Decimal::MIN
                 .checked_add(Decimal::STEP)
@@ -816,7 +816,7 @@ mod tests {
             Decimal::from(10).checked_div(100),
             Ok(Decimal::from_str("0.1")?)
         );
-        assert_eq!(Decimal::from(1).checked_div(0), Err(RdfOpError));
+        assert_eq!(Decimal::from(1).checked_div(0), ThinError::expected());
         assert_eq!(Decimal::from(0).checked_div(1), Ok(Decimal::from(0)));
         assert_eq!(Decimal::MAX.checked_div(1), Ok(Decimal::MAX));
         assert_eq!(Decimal::MIN.checked_div(1), Ok(Decimal::MIN));
@@ -824,7 +824,7 @@ mod tests {
             Decimal::MAX.checked_div(-1),
             Ok(Decimal::MIN.checked_add(Decimal::STEP).unwrap())
         );
-        assert_eq!(Decimal::MIN.checked_div(-1), Err(RdfOpError));
+        assert_eq!(Decimal::MIN.checked_div(-1), ThinError::expected());
         assert_eq!(
             Decimal::MIN
                 .checked_add(Decimal::STEP)
@@ -895,7 +895,7 @@ mod tests {
             Decimal::from_str("-2.5")?.checked_round(),
             Ok(Decimal::from(-2))
         );
-        assert_eq!(Decimal::MAX.checked_round(), Err(RdfOpError));
+        assert_eq!(Decimal::MAX.checked_round(), ThinError::expected());
         assert_eq!(
             Decimal::MAX
                 .checked_sub(Decimal::from_str("0.5")?)
@@ -903,7 +903,7 @@ mod tests {
                 .checked_round(),
             Ok(Decimal::from_str("170141183460469231731")?)
         );
-        assert_eq!(Decimal::MIN.checked_round(), Err(RdfOpError));
+        assert_eq!(Decimal::MIN.checked_round(), ThinError::expected());
         assert_eq!(
             Decimal::MIN
                 .checked_add(Decimal::from_str("0.5")?)
@@ -934,7 +934,7 @@ mod tests {
             Decimal::from(i64::MAX).checked_ceil(),
             Ok(Decimal::from(i64::MAX))
         );
-        assert_eq!(Decimal::MAX.checked_ceil(), Err(RdfOpError));
+        assert_eq!(Decimal::MAX.checked_ceil(), ThinError::expected());
         assert_eq!(
             Decimal::MAX
                 .checked_sub(Decimal::from(1))
@@ -973,7 +973,7 @@ mod tests {
             Decimal::MAX.checked_floor(),
             Ok(Decimal::from_str("170141183460469231731")?)
         );
-        assert_eq!(Decimal::MIN.checked_floor(), Err(RdfOpError));
+        assert_eq!(Decimal::MIN.checked_floor(), ThinError::expected());
         assert_eq!(
             Decimal::MIN
                 .checked_add(Decimal::from_str("1")?)

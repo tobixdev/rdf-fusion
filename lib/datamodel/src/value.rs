@@ -1,7 +1,7 @@
-use crate::{RdfOpResult, TermRef};
+use crate::{TermRef, ThinResult};
 
 pub trait RdfValueRef<'data>: Copy {
-    fn from_term(term: TermRef<'data>) -> RdfOpResult<Self>
+    fn from_term(term: TermRef<'data>) -> ThinResult<Self>
     where
         Self: Sized;
 }

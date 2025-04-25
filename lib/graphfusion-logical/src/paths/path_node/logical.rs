@@ -1,6 +1,6 @@
 use crate::patterns::PatternNode;
 use crate::DFResult;
-use datafusion::common::DFSchemaRef;
+use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{NamedNodePattern, TermPattern};
@@ -23,7 +23,7 @@ impl PathNode {
         path: PropertyPathExpression,
         object: TermPattern,
     ) -> DFResult<Self> {
-        let schema = compute_schema(graph.as_ref(), &subject, &object);
+        let schema = compute_schema(graph.as_ref(), &subject, &object)?;
         Ok(Self {
             graph,
             subject,
@@ -95,8 +95,12 @@ impl UserDefinedLogicalNodeCore for PathNode {
     }
 
     fn with_exprs_and_inputs(&self, exprs: Vec<Expr>, inputs: Vec<LogicalPlan>) -> DFResult<Self> {
-        assert_eq!(inputs.len(), 0, "input size inconsistent");
-        assert_eq!(exprs.len(), 0, "expression size inconsistent");
+        if !inputs.is_empty() {
+            return plan_err!("Expected 0 inputs but got {}", inputs.len());
+        }
+        if !exprs.is_empty() {
+            return plan_err!("Expected 0 expressions but got {}", exprs.len());
+        }
         Self::new(
             self.graph.clone(),
             self.subject.clone(),
@@ -110,7 +114,7 @@ fn compute_schema(
     graph: Option<&NamedNodePattern>,
     subject: &TermPattern,
     object: &TermPattern,
-) -> DFSchemaRef {
+) -> DFResult<DFSchemaRef> {
     let patterns = match graph {
         None => vec![subject.clone(), object.clone()],
         Some(graph) => vec![

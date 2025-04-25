@@ -34,18 +34,12 @@ pub use spargebra::SparqlSyntaxError;
 /// )?;
 /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
 /// ```
-#[derive(Clone)]
-pub struct QueryOptions {}
-
-impl Default for QueryOptions {
-    fn default() -> Self {
-        Self {}
-    }
-}
+#[derive(Clone, Default)]
+pub struct QueryOptions;
 
 /// Options for SPARQL update evaluation.
 #[derive(Clone, Default)]
-pub struct UpdateOptions {}
+pub struct UpdateOptions;
 
 impl From<QueryOptions> for UpdateOptions {
     #[inline]

@@ -135,9 +135,9 @@ macro_rules! make_n_ary_rdf_udf {
             $crate::encoded::dispatch::dispatch_n_ary,
             datafusion::logical_expr::TypeSignature::OneOf(vec![
                 datafusion::logical_expr::TypeSignature::Nullary,
-                datafusion::logical_expr::TypeSignature::Variadic(
-                    vec![$crate::EncTerm::data_type()]
-                )
+                datafusion::logical_expr::TypeSignature::Variadic(vec![
+                    $crate::EncTerm::data_type()
+                ])
             ])
         );
     };
