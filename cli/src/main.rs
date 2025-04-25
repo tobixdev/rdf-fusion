@@ -757,6 +757,7 @@ fn evaluate_sparql_query(
 
     let results = store
         .query_opt(query, default_query_options())
+        .await
         .map_err(internal_server_error)?;
     match results {
         QueryResults::Solutions(solutions) => {
