@@ -6,7 +6,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use model::{Boolean, TermRef, ThinResult};
+use model::{Boolean, InternalTermRef, ThinResult};
 use functions_scalar::ScalarBinaryRdfOp;
 use std::any::Any;
 use std::sync::Arc;
@@ -28,8 +28,8 @@ impl Default for EncIsCompatible {
 }
 
 impl ScalarBinaryRdfOp for EncIsCompatible {
-    type ArgLhs<'data> = TermRef<'data>;
-    type ArgRhs<'data> = TermRef<'data>;
+    type ArgLhs<'data> = InternalTermRef<'data>;
+    type ArgRhs<'data> = InternalTermRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(
@@ -38,15 +38,15 @@ impl ScalarBinaryRdfOp for EncIsCompatible {
         rhs: Self::ArgRhs<'data>,
     ) -> ThinResult<Self::Result<'data>> {
         let is_compatible = match (lhs, rhs) {
-            (TermRef::BlankNode(lhs), TermRef::BlankNode(rhs)) => lhs == rhs,
-            (TermRef::NamedNode(lhs), TermRef::NamedNode(rhs)) => lhs == rhs,
-            (TermRef::BooleanLiteral(lhs), TermRef::BooleanLiteral(rhs)) => lhs == rhs,
-            (TermRef::NumericLiteral(lhs), TermRef::NumericLiteral(rhs)) => lhs == rhs,
-            (TermRef::SimpleLiteral(lhs), TermRef::SimpleLiteral(rhs)) => lhs == rhs,
-            (TermRef::LanguageStringLiteral(lhs), TermRef::LanguageStringLiteral(rhs)) => {
+            (InternalTermRef::BlankNode(lhs), InternalTermRef::BlankNode(rhs)) => lhs == rhs,
+            (InternalTermRef::NamedNode(lhs), InternalTermRef::NamedNode(rhs)) => lhs == rhs,
+            (InternalTermRef::BooleanLiteral(lhs), InternalTermRef::BooleanLiteral(rhs)) => lhs == rhs,
+            (InternalTermRef::NumericLiteral(lhs), InternalTermRef::NumericLiteral(rhs)) => lhs == rhs,
+            (InternalTermRef::SimpleLiteral(lhs), InternalTermRef::SimpleLiteral(rhs)) => lhs == rhs,
+            (InternalTermRef::LanguageStringLiteral(lhs), InternalTermRef::LanguageStringLiteral(rhs)) => {
                 lhs == rhs
             }
-            (TermRef::TypedLiteral(lhs), TermRef::TypedLiteral(rhs)) => lhs == rhs,
+            (InternalTermRef::TypedLiteral(lhs), InternalTermRef::TypedLiteral(rhs)) => lhs == rhs,
             _ => false,
         };
         Ok(is_compatible.into())

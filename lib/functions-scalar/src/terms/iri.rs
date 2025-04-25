@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{Iri, NamedNode, TermRef, ThinError};
+use model::{Iri, NamedNode, InternalTermRef, ThinError};
 
 #[derive(Debug)]
 pub struct IriRdfOp {
@@ -13,13 +13,13 @@ impl IriRdfOp {
 }
 
 impl ScalarUnaryRdfOp for IriRdfOp {
-    type Arg<'data> = TermRef<'data>;
+    type Arg<'data> = InternalTermRef<'data>;
     type Result<'data> = NamedNode;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         match value {
-            TermRef::NamedNode(named_node) => Ok(named_node.into_owned()),
-            TermRef::SimpleLiteral(simple_literal) => {
+            InternalTermRef::NamedNode(named_node) => Ok(named_node.into_owned()),
+            InternalTermRef::SimpleLiteral(simple_literal) => {
                 let resolving_result = if let Some(base_iri) = &self.base_iri {
                     base_iri.resolve(simple_literal.value)?
                 } else {

@@ -1,4 +1,4 @@
-use crate::{RdfValueRef, TermRef, ThinError, ThinResult};
+use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
 
 #[derive(Clone, PartialEq, Eq, Debug, PartialOrd, Ord, Hash)]
 pub struct SimpleLiteral {
@@ -33,12 +33,12 @@ impl<'value> SimpleLiteralRef<'value> {
 }
 
 impl<'data> RdfValueRef<'data> for SimpleLiteralRef<'data> {
-    fn from_term(term: TermRef<'data>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'data>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::SimpleLiteral(inner) => Ok(inner),
+            InternalTermRef::SimpleLiteral(inner) => Ok(inner),
             _ => ThinError::expected(),
         }
     }

@@ -7,7 +7,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use model::{TermRef, ThinResult};
+use model::{InternalTermRef, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -58,12 +58,12 @@ impl ScalarUDFImpl for EncWithSortableEncoding {
         match &args.args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_union_array(array);
-                let values = (0..args.number_rows).map(|i| TermRef::from_enc_array(array, i));
+                let values = (0..args.number_rows).map(|i| InternalTermRef::from_enc_array(array, i));
                 let result = into_struct_enc(values);
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
-                let term = TermRef::from_enc_scalar(scalar);
+                let term = InternalTermRef::from_enc_scalar(scalar);
                 let result = into_struct_enc([term]);
                 Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(
                     &result, 0,
@@ -74,7 +74,7 @@ impl ScalarUDFImpl for EncWithSortableEncoding {
 }
 
 fn into_struct_enc<'data>(
-    terms: impl IntoIterator<Item = ThinResult<TermRef<'data>>>,
+    terms: impl IntoIterator<Item = ThinResult<InternalTermRef<'data>>>,
 ) -> StructArray {
     let terms_iter = terms.into_iter();
 
@@ -84,21 +84,21 @@ fn into_struct_enc<'data>(
     for term in terms_iter {
         if let Ok(term) = term {
             match term {
-                TermRef::NamedNode(v) => builder.append_named_node(v),
-                TermRef::BlankNode(v) => builder.append_blank_node(v),
-                TermRef::BooleanLiteral(v) => builder.append_boolean(v),
-                TermRef::NumericLiteral(v) => builder.append_numeric(v, v.to_be_bytes().as_ref()),
-                TermRef::SimpleLiteral(v) => builder.append_string(v.value, None),
-                TermRef::LanguageStringLiteral(v) => {
+                InternalTermRef::NamedNode(v) => builder.append_named_node(v),
+                InternalTermRef::BlankNode(v) => builder.append_blank_node(v),
+                InternalTermRef::BooleanLiteral(v) => builder.append_boolean(v),
+                InternalTermRef::NumericLiteral(v) => builder.append_numeric(v, v.to_be_bytes().as_ref()),
+                InternalTermRef::SimpleLiteral(v) => builder.append_string(v.value, None),
+                InternalTermRef::LanguageStringLiteral(v) => {
                     builder.append_string(v.value, Some(v.language))
                 }
-                TermRef::DateTimeLiteral(v) => builder.append_date_time(v),
-                TermRef::TimeLiteral(v) => builder.append_time(v),
-                TermRef::DateLiteral(v) => builder.append_date(v),
-                TermRef::DurationLiteral(v) => builder.append_duration(v),
-                TermRef::YearMonthDurationLiteral(v) => builder.append_year_month_duration(v),
-                TermRef::DayTimeDurationLiteral(v) => builder.append_day_time_duration(v),
-                TermRef::TypedLiteral(v) => builder.append_literal(v.value, v.literal_type),
+                InternalTermRef::DateTimeLiteral(v) => builder.append_date_time(v),
+                InternalTermRef::TimeLiteral(v) => builder.append_time(v),
+                InternalTermRef::DateLiteral(v) => builder.append_date(v),
+                InternalTermRef::DurationLiteral(v) => builder.append_duration(v),
+                InternalTermRef::YearMonthDurationLiteral(v) => builder.append_year_month_duration(v),
+                InternalTermRef::DayTimeDurationLiteral(v) => builder.append_day_time_duration(v),
+                InternalTermRef::TypedLiteral(v) => builder.append_literal(v.value, v.literal_type),
             }
         } else {
             builder.append_null()
@@ -115,7 +115,7 @@ mod tests {
     use crate::{as_enc_term_array, DFResult};
     use datafusion::arrow::array::{Array, AsArray};
     use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
-    use model::{Date, DayTimeDuration, TermRef, Timestamp, YearMonthDuration};
+    use model::{Date, DayTimeDuration, InternalTermRef, Timestamp, YearMonthDuration};
     use oxrdf::vocab::xsd;
     use std::sync::Arc;
 
@@ -155,8 +155,8 @@ mod tests {
         let expected_array = as_enc_term_array(&test_array)?;
         let result = result.as_struct();
         for i in 0..number_of_rows {
-            let expected = TermRef::from_enc_array(expected_array, i);
-            let actual = TermRef::from_sortable_array(result, i);
+            let expected = InternalTermRef::from_enc_array(expected_array, i);
+            let actual = InternalTermRef::from_sortable_array(result, i);
             assert_eq!(expected, actual);
         }
 

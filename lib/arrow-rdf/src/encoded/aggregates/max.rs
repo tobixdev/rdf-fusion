@@ -6,7 +6,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use model::{Term, TermRef, ThinError, ThinResult};
+use model::{InternalTerm, InternalTermRef, ThinError, ThinResult};
 use std::sync::{Arc, LazyLock};
 
 pub static ENC_MAX: LazyLock<AggregateUDF> = LazyLock::new(|| {
@@ -22,7 +22,7 @@ pub static ENC_MAX: LazyLock<AggregateUDF> = LazyLock::new(|| {
 
 #[derive(Debug)]
 struct SparqlMax {
-    max: ThinResult<Term>,
+    max: ThinResult<InternalTerm>,
     executed_once: bool,
 }
 
@@ -45,10 +45,10 @@ impl Accumulator for SparqlMax {
         let arr = as_enc_term_array(&values[0])?;
 
         for i in 0..arr.len() {
-            let value = TermRef::from_enc_array(arr, i);
+            let value = InternalTermRef::from_enc_array(arr, i);
 
             if !self.executed_once {
-                self.max = value.map(TermRef::into_owned);
+                self.max = value.map(InternalTermRef::into_owned);
                 self.executed_once = true;
             } else if let Ok(min) = self.max.as_ref() {
                 if let Ok(value) = value {

@@ -1,4 +1,4 @@
-use crate::{DateTime, Decimal, RdfValueRef, TermRef, ThinError, ThinResult};
+use crate::{DateTime, Decimal, RdfValueRef, InternalTermRef, ThinError, ThinResult};
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
@@ -176,12 +176,12 @@ impl Duration {
 }
 
 impl RdfValueRef<'_> for Duration {
-    fn from_term(term: TermRef<'_>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::DurationLiteral(inner) => Ok(inner),
+            InternalTermRef::DurationLiteral(inner) => Ok(inner),
             _ => ThinError::expected(),
         }
     }

@@ -7,7 +7,7 @@ use datafusion::common::ScalarValue;
 use model::{BlankNodeRef, GraphNameRef, NamedNodeRef};
 use model::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageStringRef, Numeric, SimpleLiteralRef, StringLiteralRef, TermRef, ThinError, ThinResult,
+    LanguageStringRef, Numeric, SimpleLiteralRef, StringLiteralRef, InternalTermRef, ThinError, ThinResult,
     Time, Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration,
 };
 use std::ops::Not;
@@ -22,7 +22,7 @@ pub trait FromEncodedTerm<'data> {
         Self: Sized;
 }
 
-impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
+impl<'data> FromEncodedTerm<'data> for InternalTermRef<'data> {
     fn from_enc_scalar(scalar: &'data ScalarValue) -> ThinResult<Self>
     where
         Self: Sized,
@@ -32,17 +32,17 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                 let type_id = EncTermField::try_from(*type_id)?;
                 Ok(match type_id {
                     EncTermField::NamedNode => {
-                        TermRef::NamedNode(NamedNodeRef::from_enc_scalar(scalar)?)
+                        InternalTermRef::NamedNode(NamedNodeRef::from_enc_scalar(scalar)?)
                     }
                     EncTermField::BlankNode => {
-                        TermRef::BlankNode(BlankNodeRef::from_enc_scalar(scalar)?)
+                        InternalTermRef::BlankNode(BlankNodeRef::from_enc_scalar(scalar)?)
                     }
                     EncTermField::String => match inner_value.as_ref() {
                         ScalarValue::Struct(struct_array) => {
                             if struct_array.column(1).is_null(0) {
-                                TermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(scalar)?)
+                                InternalTermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(scalar)?)
                             } else {
-                                TermRef::LanguageStringLiteral(LanguageStringRef::from_enc_scalar(
+                                InternalTermRef::LanguageStringLiteral(LanguageStringRef::from_enc_scalar(
                                     scalar,
                                 )?)
                             }
@@ -50,25 +50,25 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                         _ => return ThinError::expected(),
                     },
                     EncTermField::Boolean => {
-                        TermRef::BooleanLiteral(Boolean::from_enc_scalar(scalar)?)
+                        InternalTermRef::BooleanLiteral(Boolean::from_enc_scalar(scalar)?)
                     }
                     EncTermField::Float
                     | EncTermField::Double
                     | EncTermField::Decimal
                     | EncTermField::Int
                     | EncTermField::Integer => {
-                        TermRef::NumericLiteral(Numeric::from_enc_scalar(scalar)?)
+                        InternalTermRef::NumericLiteral(Numeric::from_enc_scalar(scalar)?)
                     }
                     EncTermField::Duration => {
-                        TermRef::DurationLiteral(Duration::from_enc_scalar(scalar)?)
+                        InternalTermRef::DurationLiteral(Duration::from_enc_scalar(scalar)?)
                     }
                     EncTermField::DateTime => {
-                        TermRef::DateTimeLiteral(DateTime::from_enc_scalar(scalar)?)
+                        InternalTermRef::DateTimeLiteral(DateTime::from_enc_scalar(scalar)?)
                     }
-                    EncTermField::Time => TermRef::TimeLiteral(Time::from_enc_scalar(scalar)?),
-                    EncTermField::Date => TermRef::DateLiteral(Date::from_enc_scalar(scalar)?),
+                    EncTermField::Time => InternalTermRef::TimeLiteral(Time::from_enc_scalar(scalar)?),
+                    EncTermField::Date => InternalTermRef::DateLiteral(Date::from_enc_scalar(scalar)?),
                     EncTermField::TypedLiteral => {
-                        TermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
+                        InternalTermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
                     }
                     EncTermField::Null => return ThinError::expected(),
                 })
@@ -86,10 +86,10 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
 
         Ok(match field {
             EncTermField::NamedNode => {
-                TermRef::NamedNode(NamedNodeRef::from_enc_array(array, index)?)
+                InternalTermRef::NamedNode(NamedNodeRef::from_enc_array(array, index)?)
             }
             EncTermField::BlankNode => {
-                TermRef::BlankNode(BlankNodeRef::from_enc_array(array, index)?)
+                InternalTermRef::BlankNode(BlankNodeRef::from_enc_array(array, index)?)
             }
             EncTermField::String => {
                 if array
@@ -98,26 +98,26 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     .column(1)
                     .is_null(offset)
                 {
-                    TermRef::SimpleLiteral(SimpleLiteralRef::from_enc_array(array, index)?)
+                    InternalTermRef::SimpleLiteral(SimpleLiteralRef::from_enc_array(array, index)?)
                 } else {
-                    TermRef::LanguageStringLiteral(LanguageStringRef::from_enc_array(array, index)?)
+                    InternalTermRef::LanguageStringLiteral(LanguageStringRef::from_enc_array(array, index)?)
                 }
             }
             EncTermField::Boolean => {
-                TermRef::BooleanLiteral(Boolean::from_enc_array(array, index)?)
+                InternalTermRef::BooleanLiteral(Boolean::from_enc_array(array, index)?)
             }
             EncTermField::Float
             | EncTermField::Double
             | EncTermField::Decimal
             | EncTermField::Int
             | EncTermField::Integer => {
-                TermRef::NumericLiteral(Numeric::from_enc_array(array, index)?)
+                InternalTermRef::NumericLiteral(Numeric::from_enc_array(array, index)?)
             }
             EncTermField::DateTime => {
-                TermRef::DateTimeLiteral(DateTime::from_enc_array(array, index)?)
+                InternalTermRef::DateTimeLiteral(DateTime::from_enc_array(array, index)?)
             }
-            EncTermField::Time => TermRef::TimeLiteral(Time::from_enc_array(array, index)?),
-            EncTermField::Date => TermRef::DateLiteral(Date::from_enc_array(array, index)?),
+            EncTermField::Time => InternalTermRef::TimeLiteral(Time::from_enc_array(array, index)?),
+            EncTermField::Date => InternalTermRef::DateLiteral(Date::from_enc_array(array, index)?),
             EncTermField::Duration => {
                 let year_month_is_null = array
                     .child(field.type_id())
@@ -131,19 +131,19 @@ impl<'data> FromEncodedTerm<'data> for TermRef<'data> {
                     .is_null(offset);
                 match (year_month_is_null, day_time_is_null) {
                     (false, false) => {
-                        TermRef::DurationLiteral(Duration::from_enc_array(array, index)?)
+                        InternalTermRef::DurationLiteral(Duration::from_enc_array(array, index)?)
                     }
-                    (false, true) => TermRef::YearMonthDurationLiteral(
+                    (false, true) => InternalTermRef::YearMonthDurationLiteral(
                         YearMonthDuration::from_enc_array(array, index)?,
                     ),
-                    (true, false) => TermRef::DayTimeDurationLiteral(
+                    (true, false) => InternalTermRef::DayTimeDurationLiteral(
                         DayTimeDuration::from_enc_array(array, index)?,
                     ),
                     _ => unreachable!("Unexpected encoding"),
                 }
             }
             EncTermField::TypedLiteral => {
-                TermRef::TypedLiteral(TypedLiteralRef::from_enc_array(array, index)?)
+                InternalTermRef::TypedLiteral(TypedLiteralRef::from_enc_array(array, index)?)
             }
             EncTermField::Null => return ThinError::expected(),
         })

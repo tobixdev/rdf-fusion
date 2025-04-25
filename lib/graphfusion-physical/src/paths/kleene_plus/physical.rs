@@ -13,7 +13,7 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, ExecutionPlanProperties, PlanProperties,
     RecordBatchStream,
 };
-use model::{GraphName, GraphNameRef, Term, TermRef};
+use model::{GraphName, GraphNameRef, InternalTerm, InternalTermRef};
 use futures::{Stream, StreamExt};
 use graphfusion_logical::paths::PATH_TABLE_SCHEMA;
 use std::any::Any;
@@ -28,8 +28,8 @@ use std::task::{ready, Context, Poll};
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 struct Path {
     graph: GraphName,
-    start: Term,
-    end: Term,
+    start: InternalTerm,
+    end: InternalTerm,
 }
 
 /// Represents a Kleene-plus path closure execution plan. This plan computes the Kleene-plus closure
@@ -155,7 +155,7 @@ struct KleenePlusClosureStream {
     allow_cross_graph_paths: bool,
 
     // State
-    initial_paths_map: HashMap<GraphName, HashSet<(Term, Term)>>,
+    initial_paths_map: HashMap<GraphName, HashSet<(InternalTerm, InternalTerm)>>,
     all_paths: HashSet<Path>,
     current_delta: Vec<Path>,
 }
@@ -282,10 +282,10 @@ impl KleenePlusClosureStream {
             let graph = GraphNameRef::from_enc_array(graph_names, i).map_err(|_| {
                 exec_datafusion_err!("Could not obtain graph value from inner paths.")
             })?;
-            let start = TermRef::from_enc_array(starts, i).map_err(|_| {
+            let start = InternalTermRef::from_enc_array(starts, i).map_err(|_| {
                 exec_datafusion_err!("Could not obtain start value from inner paths.")
             })?;
-            let end = TermRef::from_enc_array(ends, i).map_err(|_| {
+            let end = InternalTermRef::from_enc_array(ends, i).map_err(|_| {
                 exec_datafusion_err!("Could not obtain end value from inner paths.")
             })?;
 
@@ -308,7 +308,7 @@ impl KleenePlusClosureStream {
     }
 
     fn compute_new_cross_graph_paths(
-        initial_paths_map: &HashMap<GraphName, HashSet<(Term, Term)>>,
+        initial_paths_map: &HashMap<GraphName, HashSet<(InternalTerm, InternalTerm)>>,
         all_paths: &mut HashSet<Path>,
         next_delta: &mut Vec<Path>,
         current_path: &Path,
@@ -325,7 +325,7 @@ impl KleenePlusClosureStream {
     }
 
     fn compute_new_single_graph_paths(
-        initial_paths_map: &HashMap<GraphName, HashSet<(Term, Term)>>,
+        initial_paths_map: &HashMap<GraphName, HashSet<(InternalTerm, InternalTerm)>>,
         all_paths: &mut HashSet<Path>,
         next_delta: &mut Vec<Path>,
         graph_name: &GraphName,

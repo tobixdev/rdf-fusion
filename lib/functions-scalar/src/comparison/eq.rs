@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ThinResult};
-use model::{Boolean, TermRef, ThinError};
+use model::{Boolean, InternalTermRef, ThinError};
 use std::cmp::Ordering;
 
 #[derive(Debug)]
@@ -18,8 +18,8 @@ impl EqRdfOp {
 }
 
 impl ScalarBinaryRdfOp for EqRdfOp {
-    type ArgLhs<'data> = TermRef<'data>;
-    type ArgRhs<'data> = TermRef<'data>;
+    type ArgLhs<'data> = InternalTermRef<'data>;
+    type ArgRhs<'data> = InternalTermRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(
@@ -29,27 +29,27 @@ impl ScalarBinaryRdfOp for EqRdfOp {
     ) -> ThinResult<Self::Result<'data>> {
         match (lhs, rhs) {
             // Same term are also equal.
-            (TermRef::TypedLiteral(l), TermRef::TypedLiteral(r)) if l == r => Ok(true.into()),
+            (InternalTermRef::TypedLiteral(l), InternalTermRef::TypedLiteral(r)) if l == r => Ok(true.into()),
             // Cannot say anything about unsupported typed literals that are not the same term.
-            (_, TermRef::TypedLiteral(_)) | (TermRef::TypedLiteral(_), _) => ThinError::expected(),
+            (_, InternalTermRef::TypedLiteral(_)) | (InternalTermRef::TypedLiteral(_), _) => ThinError::expected(),
             // For numerics, compare values.
-            (TermRef::NumericLiteral(lhs), TermRef::NumericLiteral(rhs)) => {
+            (InternalTermRef::NumericLiteral(lhs), InternalTermRef::NumericLiteral(rhs)) => {
                 Ok((lhs.partial_cmp(&rhs) == Some(Ordering::Equal)).into())
             }
             // For dates & times, compare values.
-            (TermRef::DateTimeLiteral(lhs), TermRef::DateTimeLiteral(rhs)) => {
+            (InternalTermRef::DateTimeLiteral(lhs), InternalTermRef::DateTimeLiteral(rhs)) => {
                 Ok((lhs == rhs).into())
             }
-            (TermRef::DateLiteral(lhs), TermRef::DateLiteral(rhs)) => Ok((lhs == rhs).into()),
-            (TermRef::TimeLiteral(lhs), TermRef::TimeLiteral(rhs)) => Ok((lhs == rhs).into()),
+            (InternalTermRef::DateLiteral(lhs), InternalTermRef::DateLiteral(rhs)) => Ok((lhs == rhs).into()),
+            (InternalTermRef::TimeLiteral(lhs), InternalTermRef::TimeLiteral(rhs)) => Ok((lhs == rhs).into()),
             // For durations, compare values.
-            (TermRef::DurationLiteral(lhs), TermRef::DurationLiteral(rhs)) => {
+            (InternalTermRef::DurationLiteral(lhs), InternalTermRef::DurationLiteral(rhs)) => {
                 Ok((lhs == rhs).into())
             }
-            (TermRef::YearMonthDurationLiteral(lhs), TermRef::YearMonthDurationLiteral(rhs)) => {
+            (InternalTermRef::YearMonthDurationLiteral(lhs), InternalTermRef::YearMonthDurationLiteral(rhs)) => {
                 Ok((lhs == rhs).into())
             }
-            (TermRef::DayTimeDurationLiteral(lhs), TermRef::DayTimeDurationLiteral(rhs)) => {
+            (InternalTermRef::DayTimeDurationLiteral(lhs), InternalTermRef::DayTimeDurationLiteral(rhs)) => {
                 Ok((lhs == rhs).into())
             }
             // Otherwise compare for equality.

@@ -10,7 +10,7 @@ use oxrdf::{BlankNode, BlankNodeRef, Literal, NamedNode, NamedNodeRef};
 use std::cmp::Ordering;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub enum Term {
+pub enum InternalTerm {
     NamedNode(NamedNode),
     BlankNode(BlankNode),
     BooleanLiteral(Boolean),
@@ -26,28 +26,28 @@ pub enum Term {
     TypedLiteral(TypedLiteral),
 }
 
-impl Term {
-    pub fn as_ref(&self) -> TermRef<'_> {
+impl InternalTerm {
+    pub fn as_ref(&self) -> InternalTermRef<'_> {
         match self {
-            Term::NamedNode(inner) => TermRef::NamedNode(inner.as_ref()),
-            Term::BlankNode(inner) => TermRef::BlankNode(inner.as_ref()),
-            Term::BooleanLiteral(inner) => TermRef::BooleanLiteral(*inner),
-            Term::NumericLiteral(inner) => TermRef::NumericLiteral(*inner),
-            Term::SimpleLiteral(inner) => TermRef::SimpleLiteral(inner.as_ref()),
-            Term::LanguageStringLiteral(inner) => TermRef::LanguageStringLiteral(inner.as_ref()),
-            Term::DateTimeLiteral(inner) => TermRef::DateTimeLiteral(*inner),
-            Term::TimeLiteral(inner) => TermRef::TimeLiteral(*inner),
-            Term::DateLiteral(inner) => TermRef::DateLiteral(*inner),
-            Term::DurationLiteral(inner) => TermRef::DurationLiteral(*inner),
-            Term::YearMonthDurationLiteral(inner) => TermRef::YearMonthDurationLiteral(*inner),
-            Term::DayTimeDurationLiteral(inner) => TermRef::DayTimeDurationLiteral(*inner),
-            Term::TypedLiteral(inner) => TermRef::TypedLiteral(inner.as_ref()),
+            InternalTerm::NamedNode(inner) => InternalTermRef::NamedNode(inner.as_ref()),
+            InternalTerm::BlankNode(inner) => InternalTermRef::BlankNode(inner.as_ref()),
+            InternalTerm::BooleanLiteral(inner) => InternalTermRef::BooleanLiteral(*inner),
+            InternalTerm::NumericLiteral(inner) => InternalTermRef::NumericLiteral(*inner),
+            InternalTerm::SimpleLiteral(inner) => InternalTermRef::SimpleLiteral(inner.as_ref()),
+            InternalTerm::LanguageStringLiteral(inner) => InternalTermRef::LanguageStringLiteral(inner.as_ref()),
+            InternalTerm::DateTimeLiteral(inner) => InternalTermRef::DateTimeLiteral(*inner),
+            InternalTerm::TimeLiteral(inner) => InternalTermRef::TimeLiteral(*inner),
+            InternalTerm::DateLiteral(inner) => InternalTermRef::DateLiteral(*inner),
+            InternalTerm::DurationLiteral(inner) => InternalTermRef::DurationLiteral(*inner),
+            InternalTerm::YearMonthDurationLiteral(inner) => InternalTermRef::YearMonthDurationLiteral(*inner),
+            InternalTerm::DayTimeDurationLiteral(inner) => InternalTermRef::DayTimeDurationLiteral(*inner),
+            InternalTerm::TypedLiteral(inner) => InternalTermRef::TypedLiteral(inner.as_ref()),
         }
     }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum TermRef<'value> {
+pub enum InternalTermRef<'value> {
     NamedNode(NamedNodeRef<'value>),
     BlankNode(BlankNodeRef<'value>),
     BooleanLiteral(Boolean),
@@ -63,14 +63,14 @@ pub enum TermRef<'value> {
     TypedLiteral(TypedLiteralRef<'value>),
 }
 
-impl TermRef<'_> {
+impl InternalTermRef<'_> {
     /// Returns an owned decoded term.
     pub fn into_decoded(self) -> DecodedTerm {
         match self {
-            TermRef::NamedNode(value) => DecodedTerm::NamedNode(value.into_owned()),
-            TermRef::BlankNode(value) => DecodedTerm::BlankNode(value.into_owned()),
-            TermRef::BooleanLiteral(value) => DecodedTerm::Literal(Literal::from(value.as_bool())),
-            TermRef::NumericLiteral(value) => match value {
+            InternalTermRef::NamedNode(value) => DecodedTerm::NamedNode(value.into_owned()),
+            InternalTermRef::BlankNode(value) => DecodedTerm::BlankNode(value.into_owned()),
+            InternalTermRef::BooleanLiteral(value) => DecodedTerm::Literal(Literal::from(value.as_bool())),
+            InternalTermRef::NumericLiteral(value) => match value {
                 Numeric::Int(value) => DecodedTerm::Literal(Literal::from(i32::from(value))),
                 Numeric::Integer(value) => DecodedTerm::Literal(Literal::from(i64::from(value))),
                 Numeric::Float(value) => DecodedTerm::Literal(Literal::from(f32::from(value))),
@@ -80,59 +80,59 @@ impl TermRef<'_> {
                     xsd::DECIMAL,
                 )),
             },
-            TermRef::SimpleLiteral(value) => DecodedTerm::Literal(Literal::from(value.value)),
-            TermRef::LanguageStringLiteral(value) => DecodedTerm::Literal(
+            InternalTermRef::SimpleLiteral(value) => DecodedTerm::Literal(Literal::from(value.value)),
+            InternalTermRef::LanguageStringLiteral(value) => DecodedTerm::Literal(
                 Literal::new_language_tagged_literal_unchecked(value.value, value.language),
             ),
-            TermRef::DateTimeLiteral(value) => DecodedTerm::Literal(Literal::new_typed_literal(
+            InternalTermRef::DateTimeLiteral(value) => DecodedTerm::Literal(Literal::new_typed_literal(
                 value.to_string(),
                 xsd::DATE_TIME,
             )),
-            TermRef::TimeLiteral(value) => {
+            InternalTermRef::TimeLiteral(value) => {
                 DecodedTerm::Literal(Literal::new_typed_literal(value.to_string(), xsd::TIME))
             }
-            TermRef::DateLiteral(value) => {
+            InternalTermRef::DateLiteral(value) => {
                 DecodedTerm::Literal(Literal::new_typed_literal(value.to_string(), xsd::DATE))
             }
-            TermRef::DurationLiteral(value) => {
+            InternalTermRef::DurationLiteral(value) => {
                 DecodedTerm::Literal(Literal::new_typed_literal(value.to_string(), xsd::DURATION))
             }
-            TermRef::YearMonthDurationLiteral(value) => DecodedTerm::Literal(
+            InternalTermRef::YearMonthDurationLiteral(value) => DecodedTerm::Literal(
                 Literal::new_typed_literal(value.to_string(), xsd::YEAR_MONTH_DURATION),
             ),
-            TermRef::DayTimeDurationLiteral(value) => DecodedTerm::Literal(
+            InternalTermRef::DayTimeDurationLiteral(value) => DecodedTerm::Literal(
                 Literal::new_typed_literal(value.to_string(), xsd::DAY_TIME_DURATION),
             ),
-            TermRef::TypedLiteral(value) => DecodedTerm::Literal(Literal::new_typed_literal(
+            InternalTermRef::TypedLiteral(value) => DecodedTerm::Literal(Literal::new_typed_literal(
                 value.value,
                 NamedNodeRef::new_unchecked(value.literal_type),
             )),
         }
     }
 
-    pub fn into_owned(self) -> Term {
+    pub fn into_owned(self) -> InternalTerm {
         match self {
-            TermRef::NamedNode(inner) => Term::NamedNode(inner.into_owned()),
-            TermRef::BlankNode(inner) => Term::BlankNode(inner.into_owned()),
-            TermRef::BooleanLiteral(inner) => Term::BooleanLiteral(inner),
-            TermRef::NumericLiteral(inner) => Term::NumericLiteral(inner),
-            TermRef::SimpleLiteral(inner) => Term::SimpleLiteral(inner.into_owned()),
-            TermRef::LanguageStringLiteral(inner) => {
-                Term::LanguageStringLiteral(inner.into_owned())
+            InternalTermRef::NamedNode(inner) => InternalTerm::NamedNode(inner.into_owned()),
+            InternalTermRef::BlankNode(inner) => InternalTerm::BlankNode(inner.into_owned()),
+            InternalTermRef::BooleanLiteral(inner) => InternalTerm::BooleanLiteral(inner),
+            InternalTermRef::NumericLiteral(inner) => InternalTerm::NumericLiteral(inner),
+            InternalTermRef::SimpleLiteral(inner) => InternalTerm::SimpleLiteral(inner.into_owned()),
+            InternalTermRef::LanguageStringLiteral(inner) => {
+                InternalTerm::LanguageStringLiteral(inner.into_owned())
             }
-            TermRef::DateTimeLiteral(inner) => Term::DateTimeLiteral(inner),
-            TermRef::TimeLiteral(inner) => Term::TimeLiteral(inner),
-            TermRef::DateLiteral(inner) => Term::DateLiteral(inner),
-            TermRef::DurationLiteral(inner) => Term::DurationLiteral(inner),
-            TermRef::YearMonthDurationLiteral(inner) => Term::YearMonthDurationLiteral(inner),
-            TermRef::DayTimeDurationLiteral(inner) => Term::DayTimeDurationLiteral(inner),
-            TermRef::TypedLiteral(inner) => Term::TypedLiteral(inner.into_owned()),
+            InternalTermRef::DateTimeLiteral(inner) => InternalTerm::DateTimeLiteral(inner),
+            InternalTermRef::TimeLiteral(inner) => InternalTerm::TimeLiteral(inner),
+            InternalTermRef::DateLiteral(inner) => InternalTerm::DateLiteral(inner),
+            InternalTermRef::DurationLiteral(inner) => InternalTerm::DurationLiteral(inner),
+            InternalTermRef::YearMonthDurationLiteral(inner) => InternalTerm::YearMonthDurationLiteral(inner),
+            InternalTermRef::DayTimeDurationLiteral(inner) => InternalTerm::DayTimeDurationLiteral(inner),
+            InternalTermRef::TypedLiteral(inner) => InternalTerm::TypedLiteral(inner.into_owned()),
         }
     }
 }
 
-impl<'data> RdfValueRef<'data> for TermRef<'data> {
-    fn from_term(term: TermRef<'data>) -> ThinResult<Self>
+impl<'data> RdfValueRef<'data> for InternalTermRef<'data> {
+    fn from_term(term: InternalTermRef<'data>) -> ThinResult<Self>
     where
         Self: Sized,
     {
@@ -140,86 +140,86 @@ impl<'data> RdfValueRef<'data> for TermRef<'data> {
     }
 }
 
-impl PartialOrd for TermRef<'_> {
+impl PartialOrd for InternalTermRef<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match *self {
-            TermRef::BlankNode(a) => Some(match other {
-                TermRef::BlankNode(b) => a.as_str().cmp(b.as_str()),
+            InternalTermRef::BlankNode(a) => Some(match other {
+                InternalTermRef::BlankNode(b) => a.as_str().cmp(b.as_str()),
                 _ => Ordering::Less,
             }),
-            TermRef::NamedNode(a) => Some(match other {
-                TermRef::BlankNode(_) => Ordering::Greater,
-                TermRef::NamedNode(b) => a.as_str().cmp(b.as_str()),
+            InternalTermRef::NamedNode(a) => Some(match other {
+                InternalTermRef::BlankNode(_) => Ordering::Greater,
+                InternalTermRef::NamedNode(b) => a.as_str().cmp(b.as_str()),
                 _ => Ordering::Less,
             }),
             a => match other {
-                TermRef::NamedNode(_) | TermRef::BlankNode(_) => Some(Ordering::Greater),
+                InternalTermRef::NamedNode(_) | InternalTermRef::BlankNode(_) => Some(Ordering::Greater),
                 _ => partial_cmp_literals(a, *other),
             },
         }
     }
 }
 
-fn partial_cmp_literals(a: TermRef<'_>, b: TermRef<'_>) -> Option<Ordering> {
+fn partial_cmp_literals(a: InternalTermRef<'_>, b: InternalTermRef<'_>) -> Option<Ordering> {
     match a {
-        TermRef::SimpleLiteral(a) => {
-            if let TermRef::SimpleLiteral(b) = b {
+        InternalTermRef::SimpleLiteral(a) => {
+            if let InternalTermRef::SimpleLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermRef::LanguageStringLiteral(a) => {
-            if let TermRef::LanguageStringLiteral(b) = b {
+        InternalTermRef::LanguageStringLiteral(a) => {
+            if let InternalTermRef::LanguageStringLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermRef::NumericLiteral(a) => {
-            if let TermRef::NumericLiteral(b) = b {
+        InternalTermRef::NumericLiteral(a) => {
+            if let InternalTermRef::NumericLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermRef::DateTimeLiteral(a) => {
-            if let TermRef::DateTimeLiteral(b) = b {
+        InternalTermRef::DateTimeLiteral(a) => {
+            if let InternalTermRef::DateTimeLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermRef::TimeLiteral(a) => {
-            if let TermRef::TimeLiteral(b) = b {
+        InternalTermRef::TimeLiteral(a) => {
+            if let InternalTermRef::TimeLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermRef::DateLiteral(a) => {
-            if let TermRef::DateLiteral(b) = b {
+        InternalTermRef::DateLiteral(a) => {
+            if let InternalTermRef::DateLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermRef::DurationLiteral(a) => match b {
-            TermRef::DurationLiteral(b) => a.partial_cmp(&b),
-            TermRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
-            TermRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
+        InternalTermRef::DurationLiteral(a) => match b {
+            InternalTermRef::DurationLiteral(b) => a.partial_cmp(&b),
+            InternalTermRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
+            InternalTermRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
             _ => None,
         },
-        TermRef::YearMonthDurationLiteral(a) => match b {
-            TermRef::DurationLiteral(b) => a.partial_cmp(&b),
-            TermRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
-            TermRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
+        InternalTermRef::YearMonthDurationLiteral(a) => match b {
+            InternalTermRef::DurationLiteral(b) => a.partial_cmp(&b),
+            InternalTermRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
+            InternalTermRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
             _ => None,
         },
-        TermRef::DayTimeDurationLiteral(a) => match b {
-            TermRef::DurationLiteral(b) => a.partial_cmp(&b),
-            TermRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
-            TermRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
+        InternalTermRef::DayTimeDurationLiteral(a) => match b {
+            InternalTermRef::DurationLiteral(b) => a.partial_cmp(&b),
+            InternalTermRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
+            InternalTermRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
             _ => None,
         },
         _ => None,

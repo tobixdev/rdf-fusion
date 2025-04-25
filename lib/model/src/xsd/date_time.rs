@@ -2,7 +2,7 @@
 
 use crate::xsd::decimal::Decimal;
 use crate::xsd::duration::{DayTimeDuration, Duration, YearMonthDuration};
-use crate::{RdfValueRef, TermRef, ThinError, ThinResult};
+use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
 use std::cmp::{min, Ordering};
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -256,12 +256,12 @@ impl DateTime {
 }
 
 impl RdfValueRef<'_> for DateTime {
-    fn from_term(term: TermRef<'_>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::DateTimeLiteral(value) => Ok(value),
+            InternalTermRef::DateTimeLiteral(value) => Ok(value),
             _ => ThinError::expected(),
         }
     }

@@ -1,13 +1,13 @@
-use crate::{RdfValueRef, TermRef, ThinError, ThinResult};
+use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
 use oxrdf::NamedNodeRef;
 
 impl<'data> RdfValueRef<'data> for NamedNodeRef<'data> {
-    fn from_term(term: TermRef<'data>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'data>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::NamedNode(inner) => Ok(inner),
+            InternalTermRef::NamedNode(inner) => Ok(inner),
             _ => ThinError::expected(),
         }
     }

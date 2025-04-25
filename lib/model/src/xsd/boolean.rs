@@ -2,7 +2,7 @@ use crate::xsd::decimal::Decimal;
 use crate::xsd::double::Double;
 use crate::xsd::float::Float;
 use crate::xsd::integer::Integer;
-use crate::{Int, RdfValueRef, TermRef, ThinError, ThinResult};
+use crate::{Int, RdfValueRef, InternalTermRef, ThinError, ThinResult};
 use std::fmt;
 use std::str::{FromStr, ParseBoolError};
 
@@ -42,12 +42,12 @@ impl Boolean {
 }
 
 impl RdfValueRef<'_> for Boolean {
-    fn from_term(term: TermRef<'_>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::BooleanLiteral(inner) => Ok(inner),
+            InternalTermRef::BooleanLiteral(inner) => Ok(inner),
             _ => ThinError::expected(),
         }
     }

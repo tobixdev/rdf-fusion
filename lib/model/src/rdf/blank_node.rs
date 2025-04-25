@@ -1,13 +1,13 @@
-use crate::{RdfValueRef, TermRef, ThinError, ThinResult};
+use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
 use oxrdf::BlankNodeRef;
 
 impl<'data> RdfValueRef<'data> for BlankNodeRef<'data> {
-    fn from_term(term: TermRef<'data>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'data>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::BlankNode(inner) => Ok(inner),
+            InternalTermRef::BlankNode(inner) => Ok(inner),
             _ => ThinError::expected(),
         }
     }

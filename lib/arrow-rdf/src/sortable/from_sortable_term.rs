@@ -6,7 +6,7 @@ use datafusion::arrow::datatypes::UInt8Type;
 use model::{BlankNodeRef, NamedNodeRef};
 use model::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageStringRef, Numeric, SimpleLiteralRef, TermRef, ThinError, ThinResult, Time,
+    LanguageStringRef, Numeric, SimpleLiteralRef, InternalTermRef, ThinError, ThinResult, Time,
     TypedLiteralRef, YearMonthDuration,
 };
 
@@ -16,7 +16,7 @@ pub trait FromSortableTerm<'data> {
         Self: Sized;
 }
 
-impl<'data> FromSortableTerm<'data> for TermRef<'data> {
+impl<'data> FromSortableTerm<'data> for InternalTermRef<'data> {
     fn from_sortable_array(array: &'data StructArray, index: usize) -> ThinResult<Self>
     where
         Self: Sized,
@@ -35,60 +35,60 @@ impl<'data> FromSortableTerm<'data> for TermRef<'data> {
         let result = match enc_term_field {
             EncTermField::Null => return ThinError::expected(),
             EncTermField::NamedNode => {
-                TermRef::NamedNode(NamedNodeRef::from_sortable_array(array, index)?)
+                InternalTermRef::NamedNode(NamedNodeRef::from_sortable_array(array, index)?)
             }
             EncTermField::BlankNode => {
-                TermRef::BlankNode(BlankNodeRef::from_sortable_array(array, index)?)
+                InternalTermRef::BlankNode(BlankNodeRef::from_sortable_array(array, index)?)
             }
             EncTermField::String => {
                 if array
                     .column(SortableTermField::AdditionalBytes.index())
                     .is_null(index)
                 {
-                    TermRef::SimpleLiteral(SimpleLiteralRef::from_sortable_array(array, index)?)
+                    InternalTermRef::SimpleLiteral(SimpleLiteralRef::from_sortable_array(array, index)?)
                 } else {
-                    TermRef::LanguageStringLiteral(LanguageStringRef::from_sortable_array(
+                    InternalTermRef::LanguageStringLiteral(LanguageStringRef::from_sortable_array(
                         array, index,
                     )?)
                 }
             }
             EncTermField::Boolean => {
-                TermRef::BooleanLiteral(Boolean::from_sortable_array(array, index)?)
+                InternalTermRef::BooleanLiteral(Boolean::from_sortable_array(array, index)?)
             }
             EncTermField::Float => {
-                TermRef::NumericLiteral(Numeric::Float(Float::from_sortable_array(array, index)?))
+                InternalTermRef::NumericLiteral(Numeric::Float(Float::from_sortable_array(array, index)?))
             }
             EncTermField::Double => {
-                TermRef::NumericLiteral(Numeric::Double(Double::from_sortable_array(array, index)?))
+                InternalTermRef::NumericLiteral(Numeric::Double(Double::from_sortable_array(array, index)?))
             }
-            EncTermField::Decimal => TermRef::NumericLiteral(Numeric::Decimal(
+            EncTermField::Decimal => InternalTermRef::NumericLiteral(Numeric::Decimal(
                 Decimal::from_sortable_array(array, index)?,
             )),
             EncTermField::Int => {
-                TermRef::NumericLiteral(Numeric::Int(Int::from_sortable_array(array, index)?))
+                InternalTermRef::NumericLiteral(Numeric::Int(Int::from_sortable_array(array, index)?))
             }
-            EncTermField::Integer => TermRef::NumericLiteral(Numeric::Integer(
+            EncTermField::Integer => InternalTermRef::NumericLiteral(Numeric::Integer(
                 Integer::from_sortable_array(array, index)?,
             )),
             EncTermField::DateTime => {
-                TermRef::DateTimeLiteral(DateTime::from_sortable_array(array, index)?)
+                InternalTermRef::DateTimeLiteral(DateTime::from_sortable_array(array, index)?)
             }
-            EncTermField::Time => TermRef::TimeLiteral(Time::from_sortable_array(array, index)?),
-            EncTermField::Date => TermRef::DateLiteral(Date::from_sortable_array(array, index)?),
+            EncTermField::Time => InternalTermRef::TimeLiteral(Time::from_sortable_array(array, index)?),
+            EncTermField::Date => InternalTermRef::DateLiteral(Date::from_sortable_array(array, index)?),
             EncTermField::Duration => match sortable_term_type {
                 SortableTermType::Duration => {
-                    TermRef::DurationLiteral(Duration::from_sortable_array(array, index)?)
+                    InternalTermRef::DurationLiteral(Duration::from_sortable_array(array, index)?)
                 }
-                SortableTermType::YearMonthDuration => TermRef::YearMonthDurationLiteral(
+                SortableTermType::YearMonthDuration => InternalTermRef::YearMonthDurationLiteral(
                     YearMonthDuration::from_sortable_array(array, index)?,
                 ),
-                SortableTermType::DayTimeDuration => TermRef::DayTimeDurationLiteral(
+                SortableTermType::DayTimeDuration => InternalTermRef::DayTimeDurationLiteral(
                     DayTimeDuration::from_sortable_array(array, index)?,
                 ),
                 _ => unreachable!("Cannot not have EncTermField::Duration"),
             },
             EncTermField::TypedLiteral => {
-                TermRef::TypedLiteral(TypedLiteralRef::from_sortable_array(array, index)?)
+                InternalTermRef::TypedLiteral(TypedLiteralRef::from_sortable_array(array, index)?)
             }
         };
         Ok(result)

@@ -1,5 +1,5 @@
 use crate::{ScalarTernaryRdfOp, ThinResult};
-use model::{Boolean, TermRef};
+use model::{Boolean, InternalTermRef};
 
 #[derive(Debug)]
 pub struct IfRdfOp;
@@ -18,9 +18,9 @@ impl IfRdfOp {
 
 impl ScalarTernaryRdfOp for IfRdfOp {
     type Arg0<'data> = Boolean;
-    type Arg1<'data> = TermRef<'data>;
-    type Arg2<'data> = TermRef<'data>;
-    type Result<'data> = TermRef<'data>;
+    type Arg1<'data> = InternalTermRef<'data>;
+    type Arg2<'data> = InternalTermRef<'data>;
+    type Result<'data> = InternalTermRef<'data>;
 
     fn evaluate<'data>(
         &self,

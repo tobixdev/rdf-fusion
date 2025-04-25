@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{Boolean, TermRef};
+use model::{Boolean, InternalTermRef};
 
 #[derive(Debug)]
 pub struct IsBlankRdfOp;
@@ -17,11 +17,11 @@ impl IsBlankRdfOp {
 }
 
 impl ScalarUnaryRdfOp for IsBlankRdfOp {
-    type Arg<'data> = TermRef<'data>;
+    type Arg<'data> = InternalTermRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
-        let result = matches!(value, TermRef::BlankNode(_));
+        let result = matches!(value, InternalTermRef::BlankNode(_));
         Ok(result.into())
     }
 }

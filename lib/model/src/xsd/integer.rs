@@ -1,5 +1,5 @@
 use crate::{
-    Boolean, Decimal, Double, Float, Int, Numeric, RdfValueRef, TermRef, ThinError, ThinResult,
+    Boolean, Decimal, Double, Float, Int, Numeric, RdfValueRef, InternalTermRef, ThinError, ThinResult,
 };
 use std::fmt;
 use std::num::ParseIntError;
@@ -158,12 +158,12 @@ impl Integer {
 }
 
 impl RdfValueRef<'_> for Integer {
-    fn from_term(term: TermRef<'_>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::NumericLiteral(Numeric::Integer(inner)) => Ok(inner),
+            InternalTermRef::NumericLiteral(Numeric::Integer(inner)) => Ok(inner),
             _ => ThinError::expected(),
         }
     }

@@ -1,4 +1,4 @@
-use crate::{RdfValueRef, TermRef, ThinError, ThinResult};
+use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
 use std::cmp::Ordering;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
@@ -47,12 +47,12 @@ impl PartialOrd for LanguageStringRef<'_> {
 }
 
 impl<'data> RdfValueRef<'data> for LanguageStringRef<'data> {
-    fn from_term(term: TermRef<'data>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'data>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::LanguageStringLiteral(inner) => Ok(inner),
+            InternalTermRef::LanguageStringLiteral(inner) => Ok(inner),
             _ => ThinError::expected(),
         }
     }

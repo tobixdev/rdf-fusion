@@ -5,7 +5,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use model::{BlankNode, BlankNodeRef, NamedNode, NamedNodeRef};
 use model::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageStringRef, Numeric, OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef, TermRef,
+    LanguageStringRef, Numeric, OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef, InternalTermRef,
     ThinError, ThinResult, Time, TypedLiteralRef, YearMonthDuration,
 };
 
@@ -314,7 +314,7 @@ impl WriteEncTerm for NamedNode {
     }
 }
 
-impl WriteEncTerm for TermRef<'_> {
+impl WriteEncTerm for InternalTermRef<'_> {
     fn iter_into_array(values: impl Iterator<Item = ThinResult<Self>>) -> DFResult<ArrayRef>
     where
         Self: Sized,
@@ -322,48 +322,48 @@ impl WriteEncTerm for TermRef<'_> {
         let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
-                Ok(TermRef::NamedNode(value)) => {
+                Ok(InternalTermRef::NamedNode(value)) => {
                     rdf_term_builder.append_named_node(value.as_str())?
                 }
-                Ok(TermRef::BlankNode(value)) => {
+                Ok(InternalTermRef::BlankNode(value)) => {
                     rdf_term_builder.append_blank_node(value.as_str())?
                 }
-                Ok(TermRef::BooleanLiteral(value)) => {
+                Ok(InternalTermRef::BooleanLiteral(value)) => {
                     rdf_term_builder.append_boolean(value.as_bool())?
                 }
-                Ok(TermRef::NumericLiteral(Numeric::Float(value))) => {
+                Ok(InternalTermRef::NumericLiteral(Numeric::Float(value))) => {
                     rdf_term_builder.append_float(value)?
                 }
-                Ok(TermRef::NumericLiteral(Numeric::Double(value))) => {
+                Ok(InternalTermRef::NumericLiteral(Numeric::Double(value))) => {
                     rdf_term_builder.append_double(value)?
                 }
-                Ok(TermRef::NumericLiteral(Numeric::Decimal(value))) => {
+                Ok(InternalTermRef::NumericLiteral(Numeric::Decimal(value))) => {
                     rdf_term_builder.append_decimal(value)?
                 }
-                Ok(TermRef::NumericLiteral(Numeric::Int(value))) => {
+                Ok(InternalTermRef::NumericLiteral(Numeric::Int(value))) => {
                     rdf_term_builder.append_int(value)?
                 }
-                Ok(TermRef::NumericLiteral(Numeric::Integer(value))) => {
+                Ok(InternalTermRef::NumericLiteral(Numeric::Integer(value))) => {
                     rdf_term_builder.append_integer(value)?
                 }
-                Ok(TermRef::SimpleLiteral(value)) => {
+                Ok(InternalTermRef::SimpleLiteral(value)) => {
                     rdf_term_builder.append_string(value.value, None)?
                 }
-                Ok(TermRef::LanguageStringLiteral(value)) => {
+                Ok(InternalTermRef::LanguageStringLiteral(value)) => {
                     rdf_term_builder.append_string(value.value, Some(value.language))?
                 }
-                Ok(TermRef::DateTimeLiteral(value)) => rdf_term_builder.append_date_time(value)?,
-                Ok(TermRef::TimeLiteral(value)) => rdf_term_builder.append_time(value)?,
-                Ok(TermRef::DateLiteral(value)) => rdf_term_builder.append_date(value)?,
-                Ok(TermRef::DurationLiteral(value)) => rdf_term_builder
+                Ok(InternalTermRef::DateTimeLiteral(value)) => rdf_term_builder.append_date_time(value)?,
+                Ok(InternalTermRef::TimeLiteral(value)) => rdf_term_builder.append_time(value)?,
+                Ok(InternalTermRef::DateLiteral(value)) => rdf_term_builder.append_date(value)?,
+                Ok(InternalTermRef::DurationLiteral(value)) => rdf_term_builder
                     .append_duration(Some(value.year_month()), Some(value.day_time()))?,
-                Ok(TermRef::YearMonthDurationLiteral(value)) => {
+                Ok(InternalTermRef::YearMonthDurationLiteral(value)) => {
                     rdf_term_builder.append_duration(Some(value), None)?
                 }
-                Ok(TermRef::DayTimeDurationLiteral(value)) => {
+                Ok(InternalTermRef::DayTimeDurationLiteral(value)) => {
                     rdf_term_builder.append_duration(None, Some(value))?
                 }
-                Ok(TermRef::TypedLiteral(value)) => {
+                Ok(InternalTermRef::TypedLiteral(value)) => {
                     rdf_term_builder.append_typed_literal(value.value, value.literal_type)?
                 }
                 Err(ThinError::Expected) => rdf_term_builder.append_null()?,

@@ -8,7 +8,7 @@ use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use model::{Numeric, TermRef, ThinResult};
+use model::{Numeric, InternalTermRef, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -56,14 +56,14 @@ impl ScalarUDFImpl for EncWithRegularEncoding {
         match &args.args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_struct_array(array);
-                let values = (0..args.number_rows).map(|i| TermRef::from_sortable_array(array, i));
+                let values = (0..args.number_rows).map(|i| InternalTermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
                 let array = scalar.to_array_of_size(args.number_rows)?;
                 let array = as_struct_array(&array);
-                let values = (0..args.number_rows).map(|i| TermRef::from_sortable_array(array, i));
+                let values = (0..args.number_rows).map(|i| InternalTermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
@@ -72,7 +72,7 @@ impl ScalarUDFImpl for EncWithRegularEncoding {
 }
 
 fn into_regular_enc<'data>(
-    terms: impl IntoIterator<Item = ThinResult<TermRef<'data>>>,
+    terms: impl IntoIterator<Item = ThinResult<InternalTermRef<'data>>>,
 ) -> DFResult<ArrayRef> {
     let terms_iter = terms.into_iter();
     let mut builder = EncRdfTermBuilder::default();
@@ -80,29 +80,29 @@ fn into_regular_enc<'data>(
     for term in terms_iter {
         if let Ok(term) = term {
             match term {
-                TermRef::NamedNode(v) => builder.append_named_node(v.as_str())?,
-                TermRef::BlankNode(v) => builder.append_blank_node(v.as_str())?,
-                TermRef::BooleanLiteral(v) => builder.append_boolean(v.as_bool())?,
-                TermRef::NumericLiteral(v) => match v {
+                InternalTermRef::NamedNode(v) => builder.append_named_node(v.as_str())?,
+                InternalTermRef::BlankNode(v) => builder.append_blank_node(v.as_str())?,
+                InternalTermRef::BooleanLiteral(v) => builder.append_boolean(v.as_bool())?,
+                InternalTermRef::NumericLiteral(v) => match v {
                     Numeric::Int(v) => builder.append_int(v)?,
                     Numeric::Integer(v) => builder.append_integer(v)?,
                     Numeric::Float(v) => builder.append_float(v)?,
                     Numeric::Double(v) => builder.append_double(v)?,
                     Numeric::Decimal(v) => builder.append_decimal(v)?,
                 },
-                TermRef::SimpleLiteral(v) => builder.append_string(v.value, None)?,
-                TermRef::LanguageStringLiteral(v) => {
+                InternalTermRef::SimpleLiteral(v) => builder.append_string(v.value, None)?,
+                InternalTermRef::LanguageStringLiteral(v) => {
                     builder.append_string(v.value, Some(v.language))?
                 }
-                TermRef::DateTimeLiteral(v) => builder.append_date_time(v)?,
-                TermRef::TimeLiteral(v) => builder.append_time(v)?,
-                TermRef::DateLiteral(v) => builder.append_date(v)?,
-                TermRef::DurationLiteral(v) => {
+                InternalTermRef::DateTimeLiteral(v) => builder.append_date_time(v)?,
+                InternalTermRef::TimeLiteral(v) => builder.append_time(v)?,
+                InternalTermRef::DateLiteral(v) => builder.append_date(v)?,
+                InternalTermRef::DurationLiteral(v) => {
                     builder.append_duration(Some(v.year_month()), Some(v.day_time()))?
                 }
-                TermRef::YearMonthDurationLiteral(v) => builder.append_duration(Some(v), None)?,
-                TermRef::DayTimeDurationLiteral(v) => builder.append_duration(None, Some(v))?,
-                TermRef::TypedLiteral(v) => {
+                InternalTermRef::YearMonthDurationLiteral(v) => builder.append_duration(Some(v), None)?,
+                InternalTermRef::DayTimeDurationLiteral(v) => builder.append_duration(None, Some(v))?,
+                InternalTermRef::TypedLiteral(v) => {
                     builder.append_typed_literal(v.value, v.literal_type)?
                 }
             }

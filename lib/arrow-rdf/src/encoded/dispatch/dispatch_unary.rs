@@ -7,7 +7,7 @@ use datafusion::arrow::array::{Array, AsArray, BooleanArray};
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::common::{exec_datafusion_err, exec_err, DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use model::{Boolean, RdfValueRef, TermRef, ThinError};
+use model::{Boolean, RdfValueRef, InternalTermRef, ThinError};
 use functions_scalar::ScalarUnaryRdfOp;
 
 pub fn dispatch_unary<'data, TUdf>(
@@ -73,7 +73,7 @@ where
     }
 
     let results = (0..values.len())
-        .map(|i| TermRef::from_enc_array(values, i).and_then(TUdf::Arg::from_term))
+        .map(|i| InternalTermRef::from_enc_array(values, i).and_then(TUdf::Arg::from_term))
         .map(|v| match v {
             Ok(value) => udf.evaluate(value),
             Err(ThinError::Expected) => udf.evaluate_error(),
@@ -98,7 +98,7 @@ where
     let results = offsets
         .iter()
         .map(|o| values.value(*o as usize))
-        .map(|v| TUdf::Arg::from_term(TermRef::BooleanLiteral(Boolean::from(v))))
+        .map(|v| TUdf::Arg::from_term(InternalTermRef::BooleanLiteral(Boolean::from(v))))
         .map(|v| udf.evaluate(v?));
     let result = TUdf::Result::iter_into_array(results)?;
     Ok(ColumnarValue::Array(result))

@@ -1,4 +1,4 @@
-use crate::{RdfValueRef, TermRef, ThinError, ThinResult};
+use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
 use oxrdf::vocab::xsd;
 use std::cmp::Ordering;
 use std::collections::HashSet;
@@ -78,12 +78,12 @@ impl Ord for TypedLiteralRef<'_> {
 }
 
 impl<'data> RdfValueRef<'data> for TypedLiteralRef<'data> {
-    fn from_term(term: TermRef<'data>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'data>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::TypedLiteral(inner) => Ok(inner),
+            InternalTermRef::TypedLiteral(inner) => Ok(inner),
             _ => ThinError::expected(),
         }
     }

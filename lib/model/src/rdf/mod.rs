@@ -13,6 +13,6 @@ pub use simple_literal::SimpleLiteralRef;
 pub use string_literal::CompatibleStringArgs;
 pub use string_literal::OwnedStringLiteral;
 pub use string_literal::StringLiteralRef;
-pub use term::Term;
-pub use term::TermRef;
+pub use term::InternalTerm;
+pub use term::InternalTermRef;
 pub use typed_literal::TypedLiteralRef;

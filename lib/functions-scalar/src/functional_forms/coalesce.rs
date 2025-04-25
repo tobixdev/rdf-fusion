@@ -1,5 +1,5 @@
 use crate::{ScalarNAryRdfOp, ThinResult};
-use model::{TermRef, ThinError};
+use model::{InternalTermRef, ThinError};
 
 #[derive(Debug)]
 pub struct CoalesceRdfOp;
@@ -17,8 +17,8 @@ impl CoalesceRdfOp {
 }
 
 impl ScalarNAryRdfOp for CoalesceRdfOp {
-    type Args<'data> = TermRef<'data>;
-    type Result<'data> = TermRef<'data>;
+    type Args<'data> = InternalTermRef<'data>;
+    type Result<'data> = InternalTermRef<'data>;
 
     fn evaluate<'data>(&self, args: &[Self::Args<'data>]) -> ThinResult<Self::Result<'data>> {
         args.first().copied().ok_or(ThinError::Expected)

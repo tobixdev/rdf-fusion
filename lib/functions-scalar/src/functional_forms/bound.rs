@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{Boolean, TermRef};
+use model::{Boolean, InternalTermRef};
 
 #[derive(Debug)]
 pub struct BoundRdfOp;
@@ -17,7 +17,7 @@ impl BoundRdfOp {
 }
 
 impl ScalarUnaryRdfOp for BoundRdfOp {
-    type Arg<'data> = TermRef<'data>;
+    type Arg<'data> = InternalTermRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, _: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {

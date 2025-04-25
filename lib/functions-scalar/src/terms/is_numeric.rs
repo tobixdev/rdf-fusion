@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{Boolean, TermRef};
+use model::{Boolean, InternalTermRef};
 
 #[derive(Debug)]
 pub struct IsNumericRdfOp;
@@ -17,13 +17,13 @@ impl IsNumericRdfOp {
 }
 
 impl ScalarUnaryRdfOp for IsNumericRdfOp {
-    type Arg<'data> = TermRef<'data>;
+    type Arg<'data> = InternalTermRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let result = match value {
-            TermRef::NumericLiteral(_) => true,
-            TermRef::TypedLiteral(literal) => literal.is_numeric(),
+            InternalTermRef::NumericLiteral(_) => true,
+            InternalTermRef::TypedLiteral(literal) => literal.is_numeric(),
             _ => false,
         };
         Ok(result.into())

@@ -6,7 +6,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use model::{Term, TermRef, ThinError, ThinResult};
+use model::{InternalTerm, InternalTermRef, ThinError, ThinResult};
 use std::sync::{Arc, LazyLock};
 
 pub static ENC_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
@@ -22,7 +22,7 @@ pub static ENC_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
 
 #[derive(Debug)]
 struct SparqlMin {
-    min: ThinResult<Term>,
+    min: ThinResult<InternalTerm>,
     executed_once: bool,
 }
 
@@ -45,10 +45,10 @@ impl Accumulator for SparqlMin {
         // TODO: Can we stop once we error?
 
         for i in 0..arr.len() {
-            let value = TermRef::from_enc_array(arr, i);
+            let value = InternalTermRef::from_enc_array(arr, i);
 
             if !self.executed_once {
-                self.min = value.map(TermRef::into_owned);
+                self.min = value.map(InternalTermRef::into_owned);
                 self.executed_once = true;
             } else if let Ok(min) = self.min.as_ref() {
                 if let Ok(value) = value {

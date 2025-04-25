@@ -1,5 +1,5 @@
 use crate::{ScalarBinaryRdfOp, ThinResult};
-use model::{Boolean, TermRef};
+use model::{Boolean, InternalTermRef};
 
 #[derive(Debug)]
 pub struct SameTermRdfOp;
@@ -17,8 +17,8 @@ impl SameTermRdfOp {
 }
 
 impl ScalarBinaryRdfOp for SameTermRdfOp {
-    type ArgLhs<'data> = TermRef<'data>;
-    type ArgRhs<'data> = TermRef<'data>;
+    type ArgLhs<'data> = InternalTermRef<'data>;
+    type ArgRhs<'data> = InternalTermRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(
@@ -27,19 +27,19 @@ impl ScalarBinaryRdfOp for SameTermRdfOp {
         rhs: Self::ArgRhs<'data>,
     ) -> ThinResult<Self::Result<'data>> {
         let result = match (lhs, rhs) {
-            (TermRef::NamedNode(l), TermRef::NamedNode(r)) => l == r,
-            (TermRef::BlankNode(l), TermRef::BlankNode(r)) => l == r,
-            (TermRef::BooleanLiteral(l), TermRef::BooleanLiteral(r)) => l == r,
-            (TermRef::NumericLiteral(l), TermRef::NumericLiteral(r)) => l == r,
-            (TermRef::SimpleLiteral(l), TermRef::SimpleLiteral(r)) => l == r,
-            (TermRef::LanguageStringLiteral(l), TermRef::LanguageStringLiteral(r)) => l == r,
-            (TermRef::DateTimeLiteral(l), TermRef::DateTimeLiteral(r)) => l == r,
-            (TermRef::DateLiteral(l), TermRef::DateLiteral(r)) => l == r,
-            (TermRef::TimeLiteral(l), TermRef::TimeLiteral(r)) => l == r,
-            (TermRef::DurationLiteral(l), TermRef::DurationLiteral(r)) => l == r,
-            (TermRef::YearMonthDurationLiteral(l), TermRef::YearMonthDurationLiteral(r)) => l == r,
-            (TermRef::DayTimeDurationLiteral(l), TermRef::DayTimeDurationLiteral(r)) => l == r,
-            (TermRef::TypedLiteral(l), TermRef::TypedLiteral(r)) => l == r,
+            (InternalTermRef::NamedNode(l), InternalTermRef::NamedNode(r)) => l == r,
+            (InternalTermRef::BlankNode(l), InternalTermRef::BlankNode(r)) => l == r,
+            (InternalTermRef::BooleanLiteral(l), InternalTermRef::BooleanLiteral(r)) => l == r,
+            (InternalTermRef::NumericLiteral(l), InternalTermRef::NumericLiteral(r)) => l == r,
+            (InternalTermRef::SimpleLiteral(l), InternalTermRef::SimpleLiteral(r)) => l == r,
+            (InternalTermRef::LanguageStringLiteral(l), InternalTermRef::LanguageStringLiteral(r)) => l == r,
+            (InternalTermRef::DateTimeLiteral(l), InternalTermRef::DateTimeLiteral(r)) => l == r,
+            (InternalTermRef::DateLiteral(l), InternalTermRef::DateLiteral(r)) => l == r,
+            (InternalTermRef::TimeLiteral(l), InternalTermRef::TimeLiteral(r)) => l == r,
+            (InternalTermRef::DurationLiteral(l), InternalTermRef::DurationLiteral(r)) => l == r,
+            (InternalTermRef::YearMonthDurationLiteral(l), InternalTermRef::YearMonthDurationLiteral(r)) => l == r,
+            (InternalTermRef::DayTimeDurationLiteral(l), InternalTermRef::DayTimeDurationLiteral(r)) => l == r,
+            (InternalTermRef::TypedLiteral(l), InternalTermRef::TypedLiteral(r)) => l == r,
             _ => false,
         };
         Ok(result.into())

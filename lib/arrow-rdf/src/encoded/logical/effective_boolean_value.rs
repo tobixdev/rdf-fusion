@@ -7,7 +7,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use model::{Decimal, Double, Float, Int, Integer, Numeric, TermRef, ThinError, ThinResult};
+use model::{Decimal, Double, Float, Int, Integer, Numeric, InternalTermRef, ThinError, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -62,29 +62,29 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
             ColumnarValue::Array(array) => {
                 let array = as_enc_term_array(array.as_ref())?;
                 let result = (0..args.number_rows)
-                    .map(|i| TermRef::from_enc_array(array, i).and_then(evaluate).ok())
+                    .map(|i| InternalTermRef::from_enc_array(array, i).and_then(evaluate).ok())
                     .collect::<BooleanArray>();
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
-                let result = TermRef::from_enc_scalar(scalar).and_then(evaluate).ok();
+                let result = InternalTermRef::from_enc_scalar(scalar).and_then(evaluate).ok();
                 Ok(ColumnarValue::Scalar(ScalarValue::Boolean(result)))
             }
         }
     }
 }
 
-fn evaluate(value: TermRef<'_>) -> ThinResult<bool> {
+fn evaluate(value: InternalTermRef<'_>) -> ThinResult<bool> {
     let result = match value {
-        TermRef::BooleanLiteral(value) => value.as_bool(),
-        TermRef::NumericLiteral(value) => match value {
+        InternalTermRef::BooleanLiteral(value) => value.as_bool(),
+        InternalTermRef::NumericLiteral(value) => match value {
             Numeric::Int(value) => value != Int::from(0),
             Numeric::Integer(value) => value != Integer::from(0),
             Numeric::Float(value) => value != Float::from(0_f32),
             Numeric::Double(value) => value != Double::from(0_f64),
             Numeric::Decimal(value) => value != Decimal::from(0),
         },
-        TermRef::SimpleLiteral(value) => !value.is_empty(),
+        InternalTermRef::SimpleLiteral(value) => !value.is_empty(),
         _ => return ThinError::expected(),
     };
     Ok(result)

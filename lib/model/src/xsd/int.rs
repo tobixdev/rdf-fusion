@@ -1,6 +1,6 @@
 use crate::xsd::double::Double;
 use crate::{
-    Boolean, Decimal, Float, Integer, Numeric, RdfValueRef, TermRef, ThinError, ThinResult,
+    Boolean, Decimal, Float, Integer, Numeric, RdfValueRef, InternalTermRef, ThinError, ThinResult,
 };
 use std::fmt;
 use std::num::ParseIntError;
@@ -156,12 +156,12 @@ impl Int {
 }
 
 impl RdfValueRef<'_> for Int {
-    fn from_term(term: TermRef<'_>) -> ThinResult<Self>
+    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
     where
         Self: Sized,
     {
         match term {
-            TermRef::NumericLiteral(Numeric::Int(inner)) => Ok(inner),
+            InternalTermRef::NumericLiteral(Numeric::Int(inner)) => Ok(inner),
             _ => ThinError::expected(),
         }
     }
