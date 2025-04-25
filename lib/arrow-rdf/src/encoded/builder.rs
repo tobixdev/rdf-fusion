@@ -10,7 +10,7 @@ use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use model::vocab::{rdf, xsd};
 use model::{BlankNode, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration};
-use model::{Decimal, DecodedTerm, Double, Float, Int, Integer, Iri, Literal};
+use model::{Decimal, Term, Double, Float, Int, Integer, Iri, Literal};
 use std::sync::Arc;
 
 pub struct EncRdfTermBuilder {
@@ -61,11 +61,11 @@ impl Default for EncRdfTermBuilder {
 }
 
 impl EncRdfTermBuilder {
-    pub fn append_decoded_term(&mut self, value: &DecodedTerm) -> Result<(), ArrowError> {
+    pub fn append_decoded_term(&mut self, value: &Term) -> Result<(), ArrowError> {
         match value {
-            DecodedTerm::NamedNode(nn) => self.append_named_node(nn.as_str())?,
-            DecodedTerm::BlankNode(bnode) => self.append_blank_node(bnode.as_str())?,
-            DecodedTerm::Literal(literal) => match self.append_literal(literal) {
+            Term::NamedNode(nn) => self.append_named_node(nn.as_str())?,
+            Term::BlankNode(bnode) => self.append_blank_node(bnode.as_str())?,
+            Term::Literal(literal) => match self.append_literal(literal) {
                 Ok(()) => (),
                 Err(LiteralEncodingError::Arrow(error)) => return Err(error),
                 Err(LiteralEncodingError::ParsingError(_)) => {

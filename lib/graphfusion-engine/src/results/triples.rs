@@ -1,7 +1,7 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::EvaluationError;
 use futures::{Stream, StreamExt};
-use model::{BlankNode, DecodedTerm, Graph, Triple};
+use model::{BlankNode, Term, Graph, Triple};
 use sparesults::QuerySolution;
 use spargebra::term::{TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};
@@ -105,16 +105,16 @@ fn get_triple_template_value(
     selector: &TermPattern,
     tuple: &QuerySolution,
     bnodes: &mut HashMap<BlankNode, BlankNode>,
-) -> Option<DecodedTerm> {
+) -> Option<Term> {
     match selector {
-        TermPattern::NamedNode(nn) => Some(DecodedTerm::NamedNode(nn.clone())),
+        TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
         TermPattern::BlankNode(bnode) => {
             if !bnodes.contains_key(bnode) {
                 bnodes.insert(bnode.clone(), BlankNode::default());
             }
-            Some(DecodedTerm::BlankNode(bnodes[bnode].clone()))
+            Some(Term::BlankNode(bnodes[bnode].clone()))
         }
-        TermPattern::Literal(term) => Some(DecodedTerm::Literal(term.clone())),
+        TermPattern::Literal(term) => Some(Term::Literal(term.clone())),
         TermPattern::Variable(v) => tuple.get(v).cloned(),
     }
 }

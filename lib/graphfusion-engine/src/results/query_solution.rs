@@ -4,7 +4,7 @@ use datafusion::arrow::array::{AsArray, RecordBatch, UnionArray};
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use model::Variable;
-use model::{DecodedTerm, InternalTermRef};
+use model::{Term, InternalTermRef};
 pub use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -133,7 +133,7 @@ fn to_query_solution(
     Ok(result.into_iter())
 }
 
-fn to_term(objects: &UnionArray, i: usize) -> Option<DecodedTerm> {
+fn to_term(objects: &UnionArray, i: usize) -> Option<Term> {
     match InternalTermRef::from_enc_array(objects, i) {
         Ok(value) => Some(value.into_decoded()),
         Err(_) => None,

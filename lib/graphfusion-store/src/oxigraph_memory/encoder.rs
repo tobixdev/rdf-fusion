@@ -3,8 +3,8 @@
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::hash::StrHash;
 use graphfusion_engine::error::{CorruptionError, StorageError};
-use model::DecodedTerm;
-use model::DecodedTermRef;
+use model::Term;
+use model::TermRef;
 use model::{BlankNode, GraphName, Literal, NamedNode, Quad, QuadRef, Subject};
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -50,24 +50,24 @@ pub trait StrLookup {
 }
 
 pub fn insert_term<F: FnMut(&StrHash, &str) -> Result<(), StorageError>>(
-    term: DecodedTermRef<'_>,
+    term: TermRef<'_>,
     encoded: &EncodedTerm,
     insert_str: &mut F,
 ) -> Result<(), StorageError> {
     match term {
-        DecodedTermRef::NamedNode(node) => {
+        TermRef::NamedNode(node) => {
             if let EncodedTerm::NamedNode { iri_id } = encoded {
                 insert_str(iri_id, node.as_str())
             } else {
                 Err(err_from_encoded_term(encoded, &term).into())
             }
         }
-        DecodedTermRef::BlankNode(node) => match encoded {
+        TermRef::BlankNode(node) => match encoded {
             EncodedTerm::BigBlankNode { id_id } => insert_str(id_id, node.as_str()),
             EncodedTerm::SmallBlankNode(..) | EncodedTerm::NumericalBlankNode { .. } => Ok(()),
             _ => Err(err_from_encoded_term(encoded, &term).into()),
         },
-        DecodedTermRef::Literal(literal) => match encoded {
+        TermRef::Literal(literal) => match encoded {
             EncodedTerm::BigStringLiteral { value_id }
             | EncodedTerm::BigSmallLangStringLiteral { value_id, .. } => {
                 insert_str(value_id, literal.value())
@@ -191,13 +191,13 @@ pub fn parse_day_time_duration_str(value: &str) -> Option<EncodedTerm> {
 }
 
 pub trait Decoder: StrLookup {
-    fn decode_term(&self, encoded: &EncodedTerm) -> Result<DecodedTerm, StorageError>;
+    fn decode_term(&self, encoded: &EncodedTerm) -> Result<Term, StorageError>;
 
     fn decode_subject(&self, encoded: &EncodedTerm) -> Result<Subject, StorageError> {
         match self.decode_term(encoded)? {
-            DecodedTerm::NamedNode(named_node) => Ok(named_node.into()),
-            DecodedTerm::BlankNode(blank_node) => Ok(blank_node.into()),
-            DecodedTerm::Literal(_) => Err(CorruptionError::msg(
+            Term::NamedNode(named_node) => Ok(named_node.into()),
+            Term::BlankNode(blank_node) => Ok(blank_node.into()),
+            Term::Literal(_) => Err(CorruptionError::msg(
                 "A literal has been found instead of a subject node",
             )
             .into()),
@@ -206,12 +206,12 @@ pub trait Decoder: StrLookup {
 
     fn decode_named_node(&self, encoded: &EncodedTerm) -> Result<NamedNode, StorageError> {
         match self.decode_term(encoded)? {
-            DecodedTerm::NamedNode(named_node) => Ok(named_node),
-            DecodedTerm::BlankNode(_) => Err(CorruptionError::msg(
+            Term::NamedNode(named_node) => Ok(named_node),
+            Term::BlankNode(_) => Err(CorruptionError::msg(
                 "A blank node has been found instead of a named node",
             )
             .into()),
-            DecodedTerm::Literal(_) => {
+            Term::Literal(_) => {
                 Err(CorruptionError::msg("A literal has been found instead of a named node").into())
             }
         }
@@ -226,9 +226,9 @@ pub trait Decoder: StrLookup {
                 GraphName::DefaultGraph
             } else {
                 match self.decode_term(&encoded.graph_name)? {
-                    DecodedTerm::NamedNode(named_node) => named_node.into(),
-                    DecodedTerm::BlankNode(blank_node) => blank_node.into(),
-                    DecodedTerm::Literal(_) => {
+                    Term::NamedNode(named_node) => named_node.into(),
+                    Term::BlankNode(blank_node) => blank_node.into(),
+                    Term::Literal(_) => {
                         return Err(
                             CorruptionError::msg("A literal is not a valid graph name").into()
                         )
@@ -240,7 +240,7 @@ pub trait Decoder: StrLookup {
 }
 
 impl<S: StrLookup> Decoder for S {
-    fn decode_term(&self, encoded: &EncodedTerm) -> Result<DecodedTerm, StorageError> {
+    fn decode_term(&self, encoded: &EncodedTerm) -> Result<Term, StorageError> {
         match encoded {
             EncodedTerm::DefaultGraph => {
                 Err(CorruptionError::msg("The default graph tag is not a valid term").into())
@@ -329,7 +329,7 @@ fn get_required_str<L: StrLookup>(lookup: &L, id: &StrHash) -> Result<String, St
     })?)
 }
 
-fn err_from_encoded_term(encoded: &EncodedTerm, term: &DecodedTermRef<'_>) -> CorruptionError {
+fn err_from_encoded_term(encoded: &EncodedTerm, term: &TermRef<'_>) -> CorruptionError {
     // TODO: eventually use a dedicated error enum value
     CorruptionError::msg(format!("Invalid term encoding {encoded:?} for {term}"))
 }

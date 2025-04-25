@@ -5,7 +5,7 @@ use crate::DFResult;
 use async_trait::async_trait;
 use datafusion::common::DataFusionError;
 use datafusion::execution::SendableRecordBatchStream;
-use model::{DecodedTermRef, GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef};
+use model::{TermRef, GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef};
 
 #[async_trait]
 #[allow(clippy::len_without_is_empty)]
@@ -21,7 +21,7 @@ pub trait TripleStore {
         graph_name: Option<GraphNameRef<'_>>,
         subject: Option<SubjectRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
-        object: Option<DecodedTermRef<'_>>,
+        object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream>;
 
     async fn execute_query(

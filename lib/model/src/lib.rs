@@ -11,10 +11,9 @@ pub use xsd::*;
 
 // Re-export some oxrdf types.
 pub use oxiri::Iri;
-pub use oxrdf::Term as DecodedTerm;
-pub use oxrdf::TermRef as DecodedTermRef;
 pub use oxrdf::{
     BlankNode, BlankNodeRef, Graph, GraphName, GraphNameRef, IriParseError, Literal, LiteralRef,
     NamedNode, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, Subject,
-    SubjectRef, TermParseError, Triple, TripleRef, Variable, VariableNameParseError, VariableRef,
+    SubjectRef, Term, TermParseError, TermRef, Triple, TripleRef, Variable, VariableNameParseError,
+    VariableRef,
 };

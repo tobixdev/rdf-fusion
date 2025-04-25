@@ -20,7 +20,7 @@ use graphfusion_engine::TripleStore;
 use graphfusion_logical::paths::PathToJoinsRule;
 use graphfusion_logical::patterns::PatternToProjectionRule;
 use graphfusion_physical::GraphFusionPlanner;
-use model::{DecodedTermRef, GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef};
+use model::{TermRef, GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -50,7 +50,7 @@ impl MemoryTripleStore {
         graph_name: Option<GraphNameRef<'_>>,
         subject: Option<SubjectRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
-        object: Option<DecodedTermRef<'_>>,
+        object: Option<TermRef<'_>>,
     ) -> DFResult<LogicalPlan> {
         let quads = self.ctx.table(TABLE_QUADS).await?;
 
@@ -112,7 +112,7 @@ impl TripleStore for MemoryTripleStore {
         graph_name: Option<GraphNameRef<'_>>,
         subject: Option<SubjectRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
-        object: Option<DecodedTermRef<'_>>,
+        object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
         let pattern_plan = self
             .match_pattern(graph_name, subject, predicate, object)

@@ -1,7 +1,7 @@
 use crate::error::StorageError;
 use crate::sparql::SparqlSyntaxError;
 use datafusion::error::DataFusionError;
-use model::{NamedNode, DecodedTerm};
+use model::{NamedNode, Term};
 use oxrdfio::RdfParseError;
 use sparesults::QueryResultsParseError;
 use std::convert::Infallible;
@@ -26,7 +26,7 @@ pub enum SparqlEvaluationError {
     UnboundService,
     /// Invalid service name
     #[error("{0} is not a valid service name")]
-    InvalidServiceName(DecodedTerm),
+    InvalidServiceName(Term),
     /// The given `SERVICE` is not supported
     #[error("The service {0} is not supported")]
     UnsupportedService(NamedNode),

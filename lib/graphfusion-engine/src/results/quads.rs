@@ -2,7 +2,7 @@ use crate::results::QuerySolutionStream;
 use crate::sparql::error::EvaluationError;
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use futures::{ready, Stream, StreamExt};
-use model::{DecodedTerm, GraphName, NamedNode, Quad, Subject, Variable};
+use model::{Term, GraphName, NamedNode, Quad, Subject, Variable};
 use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -73,26 +73,26 @@ fn to_quad(solution: &QuerySolution) -> Result<Quad, EvaluationError> {
     Ok(Quad::new(subject, predicate, object, graph_name))
 }
 
-fn to_graph_name(term: Option<&DecodedTerm>) -> Result<GraphName, EvaluationError> {
+fn to_graph_name(term: Option<&Term>) -> Result<GraphName, EvaluationError> {
     match term {
         None => Ok(GraphName::DefaultGraph),
-        Some(DecodedTerm::NamedNode(n)) => Ok(GraphName::from(n.clone())),
-        Some(DecodedTerm::BlankNode(n)) => Ok(GraphName::from(n.clone())),
+        Some(Term::NamedNode(n)) => Ok(GraphName::from(n.clone())),
+        Some(Term::BlankNode(n)) => Ok(GraphName::from(n.clone())),
         _ => EvaluationError::internal("Predicate has invalid value in quads.".into()),
     }
 }
 
-fn to_subject(term: DecodedTerm) -> Result<Subject, EvaluationError> {
+fn to_subject(term: Term) -> Result<Subject, EvaluationError> {
     match term {
-        DecodedTerm::NamedNode(n) => Ok(Subject::from(n)),
-        DecodedTerm::BlankNode(n) => Ok(Subject::from(n)),
+        Term::NamedNode(n) => Ok(Subject::from(n)),
+        Term::BlankNode(n) => Ok(Subject::from(n)),
         _ => EvaluationError::internal("Predicate has invalid value in quads.".into()),
     }
 }
 
-fn to_predicate(term: DecodedTerm) -> Result<NamedNode, EvaluationError> {
+fn to_predicate(term: Term) -> Result<NamedNode, EvaluationError> {
     match term {
-        DecodedTerm::NamedNode(n) => Ok(n),
+        Term::NamedNode(n) => Ok(n),
         _ => EvaluationError::internal("Predicate has invalid value in quads.".to_owned()),
     }
 }

@@ -2,8 +2,8 @@ use crate::rdf::language_string::LanguageString;
 use crate::rdf::simple_literal::SimpleLiteral;
 use crate::rdf::typed_literal::TypedLiteral;
 use crate::{
-    Boolean, Date, DateTime, DayTimeDuration, DecodedTerm, Duration, LanguageStringRef, Numeric,
-    RdfValueRef, SimpleLiteralRef, ThinResult, Time, TypedLiteralRef, YearMonthDuration,
+    Boolean, Date, DateTime, DayTimeDuration, Duration, LanguageStringRef, Numeric, RdfValueRef,
+    SimpleLiteralRef, Term, ThinResult, Time, TypedLiteralRef, YearMonthDuration,
 };
 use oxrdf::vocab::xsd;
 use oxrdf::{BlankNode, BlankNodeRef, Literal, NamedNode, NamedNodeRef};
@@ -34,13 +34,19 @@ impl InternalTerm {
             InternalTerm::BooleanLiteral(inner) => InternalTermRef::BooleanLiteral(*inner),
             InternalTerm::NumericLiteral(inner) => InternalTermRef::NumericLiteral(*inner),
             InternalTerm::SimpleLiteral(inner) => InternalTermRef::SimpleLiteral(inner.as_ref()),
-            InternalTerm::LanguageStringLiteral(inner) => InternalTermRef::LanguageStringLiteral(inner.as_ref()),
+            InternalTerm::LanguageStringLiteral(inner) => {
+                InternalTermRef::LanguageStringLiteral(inner.as_ref())
+            }
             InternalTerm::DateTimeLiteral(inner) => InternalTermRef::DateTimeLiteral(*inner),
             InternalTerm::TimeLiteral(inner) => InternalTermRef::TimeLiteral(*inner),
             InternalTerm::DateLiteral(inner) => InternalTermRef::DateLiteral(*inner),
             InternalTerm::DurationLiteral(inner) => InternalTermRef::DurationLiteral(*inner),
-            InternalTerm::YearMonthDurationLiteral(inner) => InternalTermRef::YearMonthDurationLiteral(*inner),
-            InternalTerm::DayTimeDurationLiteral(inner) => InternalTermRef::DayTimeDurationLiteral(*inner),
+            InternalTerm::YearMonthDurationLiteral(inner) => {
+                InternalTermRef::YearMonthDurationLiteral(*inner)
+            }
+            InternalTerm::DayTimeDurationLiteral(inner) => {
+                InternalTermRef::DayTimeDurationLiteral(*inner)
+            }
             InternalTerm::TypedLiteral(inner) => InternalTermRef::TypedLiteral(inner.as_ref()),
         }
     }
@@ -65,45 +71,44 @@ pub enum InternalTermRef<'value> {
 
 impl InternalTermRef<'_> {
     /// Returns an owned decoded term.
-    pub fn into_decoded(self) -> DecodedTerm {
+    pub fn into_decoded(self) -> Term {
         match self {
-            InternalTermRef::NamedNode(value) => DecodedTerm::NamedNode(value.into_owned()),
-            InternalTermRef::BlankNode(value) => DecodedTerm::BlankNode(value.into_owned()),
-            InternalTermRef::BooleanLiteral(value) => DecodedTerm::Literal(Literal::from(value.as_bool())),
+            InternalTermRef::NamedNode(value) => Term::NamedNode(value.into_owned()),
+            InternalTermRef::BlankNode(value) => Term::BlankNode(value.into_owned()),
+            InternalTermRef::BooleanLiteral(value) => Term::Literal(Literal::from(value.as_bool())),
             InternalTermRef::NumericLiteral(value) => match value {
-                Numeric::Int(value) => DecodedTerm::Literal(Literal::from(i32::from(value))),
-                Numeric::Integer(value) => DecodedTerm::Literal(Literal::from(i64::from(value))),
-                Numeric::Float(value) => DecodedTerm::Literal(Literal::from(f32::from(value))),
-                Numeric::Double(value) => DecodedTerm::Literal(Literal::from(f64::from(value))),
-                Numeric::Decimal(value) => DecodedTerm::Literal(Literal::new_typed_literal(
-                    value.to_string(),
-                    xsd::DECIMAL,
-                )),
+                Numeric::Int(value) => Term::Literal(Literal::from(i32::from(value))),
+                Numeric::Integer(value) => Term::Literal(Literal::from(i64::from(value))),
+                Numeric::Float(value) => Term::Literal(Literal::from(f32::from(value))),
+                Numeric::Double(value) => Term::Literal(Literal::from(f64::from(value))),
+                Numeric::Decimal(value) => {
+                    Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::DECIMAL))
+                }
             },
-            InternalTermRef::SimpleLiteral(value) => DecodedTerm::Literal(Literal::from(value.value)),
-            InternalTermRef::LanguageStringLiteral(value) => DecodedTerm::Literal(
+            InternalTermRef::SimpleLiteral(value) => Term::Literal(Literal::from(value.value)),
+            InternalTermRef::LanguageStringLiteral(value) => Term::Literal(
                 Literal::new_language_tagged_literal_unchecked(value.value, value.language),
             ),
-            InternalTermRef::DateTimeLiteral(value) => DecodedTerm::Literal(Literal::new_typed_literal(
+            InternalTermRef::DateTimeLiteral(value) => Term::Literal(Literal::new_typed_literal(
                 value.to_string(),
                 xsd::DATE_TIME,
             )),
             InternalTermRef::TimeLiteral(value) => {
-                DecodedTerm::Literal(Literal::new_typed_literal(value.to_string(), xsd::TIME))
+                Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::TIME))
             }
             InternalTermRef::DateLiteral(value) => {
-                DecodedTerm::Literal(Literal::new_typed_literal(value.to_string(), xsd::DATE))
+                Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::DATE))
             }
             InternalTermRef::DurationLiteral(value) => {
-                DecodedTerm::Literal(Literal::new_typed_literal(value.to_string(), xsd::DURATION))
+                Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::DURATION))
             }
-            InternalTermRef::YearMonthDurationLiteral(value) => DecodedTerm::Literal(
+            InternalTermRef::YearMonthDurationLiteral(value) => Term::Literal(
                 Literal::new_typed_literal(value.to_string(), xsd::YEAR_MONTH_DURATION),
             ),
-            InternalTermRef::DayTimeDurationLiteral(value) => DecodedTerm::Literal(
+            InternalTermRef::DayTimeDurationLiteral(value) => Term::Literal(
                 Literal::new_typed_literal(value.to_string(), xsd::DAY_TIME_DURATION),
             ),
-            InternalTermRef::TypedLiteral(value) => DecodedTerm::Literal(Literal::new_typed_literal(
+            InternalTermRef::TypedLiteral(value) => Term::Literal(Literal::new_typed_literal(
                 value.value,
                 NamedNodeRef::new_unchecked(value.literal_type),
             )),
@@ -116,7 +121,9 @@ impl InternalTermRef<'_> {
             InternalTermRef::BlankNode(inner) => InternalTerm::BlankNode(inner.into_owned()),
             InternalTermRef::BooleanLiteral(inner) => InternalTerm::BooleanLiteral(inner),
             InternalTermRef::NumericLiteral(inner) => InternalTerm::NumericLiteral(inner),
-            InternalTermRef::SimpleLiteral(inner) => InternalTerm::SimpleLiteral(inner.into_owned()),
+            InternalTermRef::SimpleLiteral(inner) => {
+                InternalTerm::SimpleLiteral(inner.into_owned())
+            }
             InternalTermRef::LanguageStringLiteral(inner) => {
                 InternalTerm::LanguageStringLiteral(inner.into_owned())
             }
@@ -124,8 +131,12 @@ impl InternalTermRef<'_> {
             InternalTermRef::TimeLiteral(inner) => InternalTerm::TimeLiteral(inner),
             InternalTermRef::DateLiteral(inner) => InternalTerm::DateLiteral(inner),
             InternalTermRef::DurationLiteral(inner) => InternalTerm::DurationLiteral(inner),
-            InternalTermRef::YearMonthDurationLiteral(inner) => InternalTerm::YearMonthDurationLiteral(inner),
-            InternalTermRef::DayTimeDurationLiteral(inner) => InternalTerm::DayTimeDurationLiteral(inner),
+            InternalTermRef::YearMonthDurationLiteral(inner) => {
+                InternalTerm::YearMonthDurationLiteral(inner)
+            }
+            InternalTermRef::DayTimeDurationLiteral(inner) => {
+                InternalTerm::DayTimeDurationLiteral(inner)
+            }
             InternalTermRef::TypedLiteral(inner) => InternalTerm::TypedLiteral(inner.into_owned()),
         }
     }
@@ -153,7 +164,9 @@ impl PartialOrd for InternalTermRef<'_> {
                 _ => Ordering::Less,
             }),
             a => match other {
-                InternalTermRef::NamedNode(_) | InternalTermRef::BlankNode(_) => Some(Ordering::Greater),
+                InternalTermRef::NamedNode(_) | InternalTermRef::BlankNode(_) => {
+                    Some(Ordering::Greater)
+                }
                 _ => partial_cmp_literals(a, *other),
             },
         }

@@ -7,7 +7,7 @@ use crate::oxigraph_memory::encoder::{
 use crate::oxigraph_memory::hash::StrHash;
 use crate::oxigraph_memory::small_string::SmallString;
 use model::{
-    BlankNodeRef, DecodedTermRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef,
+    BlankNodeRef, TermRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef,
     SubjectRef,
 };
 
@@ -511,12 +511,12 @@ impl From<SubjectRef<'_>> for EncodedTerm {
     }
 }
 
-impl From<DecodedTermRef<'_>> for EncodedTerm {
-    fn from(term: DecodedTermRef<'_>) -> Self {
+impl From<TermRef<'_>> for EncodedTerm {
+    fn from(term: TermRef<'_>) -> Self {
         match term {
-            DecodedTermRef::NamedNode(named_node) => named_node.into(),
-            DecodedTermRef::BlankNode(blank_node) => blank_node.into(),
-            DecodedTermRef::Literal(literal) => literal.into(),
+            TermRef::NamedNode(named_node) => named_node.into(),
+            TermRef::BlankNode(blank_node) => blank_node.into(),
+            TermRef::Literal(literal) => literal.into(),
         }
     }
 }

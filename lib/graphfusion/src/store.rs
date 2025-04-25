@@ -38,7 +38,7 @@ use graphfusion_engine::sparql::{
 use graphfusion_engine::TripleStore;
 use graphfusion_store::MemoryTripleStore;
 use model::{
-    DecodedTermRef, GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
+    TermRef, GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
     Variable,
 };
 use std::io::{Read, Write};
@@ -222,7 +222,7 @@ impl Store {
         &self,
         subject: Option<SubjectRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
-        object: Option<DecodedTermRef<'_>>,
+        object: Option<TermRef<'_>>,
         graph_name: Option<GraphNameRef<'_>>,
     ) -> Result<QuadStream, EvaluationError> {
         let record_batch_stream = self

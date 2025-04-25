@@ -7,7 +7,7 @@ use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use graphfusion_engine::error::{CorruptionError, StorageError};
-use model::{DecodedTermRef, Quad};
+use model::{TermRef, Quad};
 use model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
 use std::borrow::Borrow;
@@ -602,7 +602,7 @@ impl MemoryStorageWriter<'_> {
         added
     }
 
-    fn insert_term(&self, term: DecodedTermRef<'_>, encoded: &EncodedTerm) {
+    fn insert_term(&self, term: TermRef<'_>, encoded: &EncodedTerm) {
         insert_term(term, encoded, &mut |key, value| {
             self.insert_str(key, value);
             Ok(())

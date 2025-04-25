@@ -6,7 +6,7 @@ use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::{DataFusionError, ScalarValue};
 use model::vocab::{rdf, xsd};
 use model::{
-    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, DecodedTermRef, Double,
+    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, TermRef, Double,
     Duration, Float, GraphNameRef, Int, Integer, LiteralRef, NamedNodeRef, SubjectRef, Time,
     YearMonthDuration,
 };
@@ -32,11 +32,11 @@ pub fn encode_scalar_predicate(predicate: NamedNodeRef<'_>) -> ScalarValue {
     encode_scalar_named_node(predicate)
 }
 
-pub fn encode_scalar_term(object: DecodedTermRef<'_>) -> DFResult<ScalarValue> {
+pub fn encode_scalar_term(object: TermRef<'_>) -> DFResult<ScalarValue> {
     match object {
-        DecodedTermRef::NamedNode(nn) => Ok(encode_scalar_named_node(nn)),
-        DecodedTermRef::BlankNode(bnode) => Ok(encode_scalar_blank_node(bnode)),
-        DecodedTermRef::Literal(lit) => encode_scalar_literal(lit),
+        TermRef::NamedNode(nn) => Ok(encode_scalar_named_node(nn)),
+        TermRef::BlankNode(bnode) => Ok(encode_scalar_blank_node(bnode)),
+        TermRef::Literal(lit) => encode_scalar_literal(lit),
     }
 }
 
