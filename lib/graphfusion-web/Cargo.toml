@@ -1,0 +1,23 @@
+[package]
+name = "graphfusion-web"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+axum = "0.8.3"
+headers = "0.4.0"
+headers-accept = "0.1.4"
+mediatype = "0.19.20"
+serde = { version = "1.0.219", features = ["derive"] }
+thiserror.workspace = true
+tower-http = { version = "0.6.2", features = ["cors"] }
+
+graphfusion.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+
+[lints]
+workspace = true

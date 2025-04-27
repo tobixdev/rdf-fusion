@@ -14,7 +14,7 @@ use datafusion::logical_expr::{col, lit, AggregateUDF, LogicalPlan};
 use datafusion::prelude::{DataFrame, SessionContext};
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::QueryResults;
-use graphfusion_engine::sparql::error::EvaluationError;
+use graphfusion_engine::sparql::error::QueryEvaluationError;
 use graphfusion_engine::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions};
 use graphfusion_engine::TripleStore;
 use graphfusion_logical::paths::PathToJoinsRule;
@@ -127,7 +127,7 @@ impl TripleStore for MemoryTripleStore {
         &self,
         query: &Query,
         options: QueryOptions,
-    ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
+    ) -> Result<(QueryResults, Option<QueryExplanation>), QueryEvaluationError> {
         evaluate_query(&self.ctx, query, options).await
     }
 

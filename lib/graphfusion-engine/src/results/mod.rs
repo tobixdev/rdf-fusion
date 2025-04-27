@@ -20,7 +20,7 @@ mod quads;
 mod query_solution;
 mod triples;
 
-use crate::sparql::error::EvaluationError;
+use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
@@ -33,7 +33,8 @@ pub enum QueryResults {
     Solutions(QuerySolutionStream),
     /// Result of a [ASK](https://www.w3.org/TR/sparql11-query/#ask) query.
     Boolean(bool),
-    /// Results of a [CONSTRUCT](https://www.w3.org/TR/sparql11-query/#construct) or [DESCRIBE](https://www.w3.org/TR/sparql11-query/#describe) query.
+    /// Results of a [CONSTRUCT](https://www.w3.org/TR/sparql11-query/#construct) or
+    /// [DESCRIBE](https://www.w3.org/TR/sparql11-query/#describe) query.
     Graph(QueryTripleStream),
 }
 
@@ -71,18 +72,18 @@ impl QueryResults {
         self,
         writer: W,
         format: QueryResultsFormat,
-    ) -> Result<W, EvaluationError> {
+    ) -> Result<W, QueryEvaluationError> {
         let serializer = QueryResultsSerializer::from_format(format);
         match self {
             Self::Boolean(value) => serializer.serialize_boolean_to_writer(writer, value),
             Self::Solutions(mut solutions) => {
                 let mut serializer = serializer
                     .serialize_solutions_to_writer(writer, solutions.variables().to_vec())
-                    .map_err(EvaluationError::ResultsSerialization)?;
+                    .map_err(QueryEvaluationError::ResultsSerialization)?;
                 while let Some(solution) = solutions.next().await {
                     serializer
                         .serialize(&solution?)
-                        .map_err(EvaluationError::ResultsSerialization)?;
+                        .map_err(QueryEvaluationError::ResultsSerialization)?;
                 }
                 serializer.finish()
             }
@@ -95,7 +96,7 @@ impl QueryResults {
                         writer,
                         vec![s.into_owned(), p.into_owned(), o.into_owned()],
                     )
-                    .map_err(EvaluationError::ResultsSerialization)?;
+                    .map_err(QueryEvaluationError::ResultsSerialization)?;
 
                 while let Some(triple) = triples.next().await {
                     let triple = triple?;
@@ -105,13 +106,13 @@ impl QueryResults {
                             (p, &triple.predicate.into()),
                             (o, &triple.object),
                         ])
-                        .map_err(EvaluationError::ResultsSerialization)?;
+                        .map_err(QueryEvaluationError::ResultsSerialization)?;
                 }
 
                 serializer.finish()
             }
         }
-        .map_err(EvaluationError::ResultsSerialization)
+        .map_err(QueryEvaluationError::ResultsSerialization)
     }
 
     /// Writes the graph query results.
@@ -144,21 +145,21 @@ impl QueryResults {
         self,
         writer: W,
         format: impl Into<RdfFormat>,
-    ) -> Result<W, EvaluationError> {
+    ) -> Result<W, QueryEvaluationError> {
         if let Self::Graph(mut triples) = self {
             let mut serializer = RdfSerializer::from_format(format.into()).for_writer(writer);
 
             while let Some(triple) = triples.next().await {
                 serializer
                     .serialize_triple(&triple?)
-                    .map_err(EvaluationError::ResultsSerialization)?;
+                    .map_err(QueryEvaluationError::ResultsSerialization)?;
             }
 
             serializer
                 .finish()
-                .map_err(EvaluationError::ResultsSerialization)
+                .map_err(QueryEvaluationError::ResultsSerialization)
         } else {
-            Err(EvaluationError::NotAGraph)
+            Err(QueryEvaluationError::NotAGraph)
         }
     }
 }

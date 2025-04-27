@@ -1,5 +1,5 @@
 use crate::results::QuerySolutionStream;
-use crate::sparql::error::EvaluationError;
+use crate::sparql::error::QueryEvaluationError;
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use futures::{ready, Stream, StreamExt};
 use model::{Term, GraphName, NamedNode, Quad, Subject, Variable};
@@ -13,7 +13,7 @@ pub struct QuadStream {
 }
 
 impl QuadStream {
-    pub async fn try_collect(mut self) -> Result<Vec<Quad>, EvaluationError> {
+    pub async fn try_collect(mut self) -> Result<Vec<Quad>, QueryEvaluationError> {
         let mut result = Vec::new();
         while let Some(element) = self.next().await {
             result.push(element?);
@@ -38,7 +38,7 @@ impl QuadStream {
 }
 
 impl Stream for QuadStream {
-    type Item = Result<Quad, EvaluationError>;
+    type Item = Result<Quad, QueryEvaluationError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let inner_poll = ready!(self.inner.poll_next_unpin(cx));
@@ -55,7 +55,7 @@ impl Stream for QuadStream {
     clippy::expect_used,
     reason = "Schema already checked in QuadStream::try_new"
 )]
-fn to_quad(solution: &QuerySolution) -> Result<Quad, EvaluationError> {
+fn to_quad(solution: &QuerySolution) -> Result<Quad, QueryEvaluationError> {
     let graph_name = to_graph_name(solution.get(COL_GRAPH))?;
     let subject = to_subject(
         solution
@@ -73,26 +73,26 @@ fn to_quad(solution: &QuerySolution) -> Result<Quad, EvaluationError> {
     Ok(Quad::new(subject, predicate, object, graph_name))
 }
 
-fn to_graph_name(term: Option<&Term>) -> Result<GraphName, EvaluationError> {
+fn to_graph_name(term: Option<&Term>) -> Result<GraphName, QueryEvaluationError> {
     match term {
         None => Ok(GraphName::DefaultGraph),
         Some(Term::NamedNode(n)) => Ok(GraphName::from(n.clone())),
         Some(Term::BlankNode(n)) => Ok(GraphName::from(n.clone())),
-        _ => EvaluationError::internal("Predicate has invalid value in quads.".into()),
+        _ => QueryEvaluationError::internal("Predicate has invalid value in quads.".into()),
     }
 }
 
-fn to_subject(term: Term) -> Result<Subject, EvaluationError> {
+fn to_subject(term: Term) -> Result<Subject, QueryEvaluationError> {
     match term {
         Term::NamedNode(n) => Ok(Subject::from(n)),
         Term::BlankNode(n) => Ok(Subject::from(n)),
-        _ => EvaluationError::internal("Predicate has invalid value in quads.".into()),
+        _ => QueryEvaluationError::internal("Predicate has invalid value in quads.".into()),
     }
 }
 
-fn to_predicate(term: Term) -> Result<NamedNode, EvaluationError> {
+fn to_predicate(term: Term) -> Result<NamedNode, QueryEvaluationError> {
     match term {
         Term::NamedNode(n) => Ok(n),
-        _ => EvaluationError::internal("Predicate has invalid value in quads.".to_owned()),
+        _ => QueryEvaluationError::internal("Predicate has invalid value in quads.".to_owned()),
     }
 }

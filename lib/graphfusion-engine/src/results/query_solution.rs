@@ -1,4 +1,4 @@
-use crate::sparql::error::EvaluationError;
+use crate::sparql::error::QueryEvaluationError;
 use arrow_rdf::encoded::FromEncodedTerm;
 use datafusion::arrow::array::{AsArray, RecordBatch, UnionArray};
 use datafusion::execution::SendableRecordBatchStream;
@@ -64,7 +64,7 @@ impl QuerySolutionStream {
     fn poll_inner(
         &mut self,
         ctx: &mut Context<'_>,
-    ) -> Poll<Option<Result<QuerySolution, EvaluationError>>> {
+    ) -> Poll<Option<Result<QuerySolution, QueryEvaluationError>>> {
         match (&mut self.inner, &mut self.current) {
             // Still entries from the current batch to return
             (_, Some(iter)) => {
@@ -99,7 +99,7 @@ impl QuerySolutionStream {
 }
 
 impl Stream for QuerySolutionStream {
-    type Item = Result<QuerySolution, EvaluationError>;
+    type Item = Result<QuerySolution, QueryEvaluationError>;
 
     #[inline]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -110,7 +110,7 @@ impl Stream for QuerySolutionStream {
 fn to_query_solution(
     variables: &Arc<[Variable]>,
     batch: &RecordBatch,
-) -> Result<<Vec<QuerySolution> as IntoIterator>::IntoIter, EvaluationError> {
+) -> Result<<Vec<QuerySolution> as IntoIterator>::IntoIter, QueryEvaluationError> {
     // TODO: error handling
 
     let schema = batch.schema();
@@ -120,7 +120,7 @@ fn to_query_solution(
         for field in schema.fields() {
             let column = batch
                 .column_by_name(field.name())
-                .ok_or(EvaluationError::InternalError(
+                .ok_or(QueryEvaluationError::InternalError(
                     "Field was not present in result.".into(),
                 ))?
                 .as_union();

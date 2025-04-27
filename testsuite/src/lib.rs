@@ -14,7 +14,7 @@ use anyhow::Result;
 
 #[allow(clippy::panic_in_result_fn)]
 pub async fn check_testsuite(manifest_url: &str, ignored_tests: &[&str]) -> Result<()> {
-    let evaluator = TestEvaluator::new();
+    let evaluator = TestEvaluator::default();
     let manifest = TestManifest::new([manifest_url]);
     let results = evaluator.evaluate(manifest).await?;
     let test_count = results.len();

@@ -1,3 +1,6 @@
+use axum::http::header::CONTENT_TYPE;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use graphfusion::io::{RdfFormat, RdfSerializer};
 use graphfusion::model::vocab::rdf;
 use graphfusion::model::{BlankNode, NamedNodeRef, TripleRef};
@@ -50,11 +53,27 @@ pub enum EndpointKind {
     Update,
 }
 
+pub struct ServiceDescription {
+    format: RdfFormat,
+    description: String,
+}
+
+impl IntoResponse for ServiceDescription {
+    fn into_response(self) -> Response {
+        (
+            StatusCode::OK,
+            [(CONTENT_TYPE, self.format.media_type().to_string())],
+            self.description,
+        )
+            .into_response()
+    }
+}
+
 pub fn generate_service_description(
     format: RdfFormat,
     kind: EndpointKind,
     union_default_graph: bool,
-) -> Vec<u8> {
+) -> ServiceDescription {
     let mut graph = Vec::new();
     let root = BlankNode::default();
     graph.push(TripleRef::new(&root, rdf::TYPE, sd::SERVICE));
@@ -103,18 +122,6 @@ pub fn generate_service_description(
             ));
         }
     }
-    #[cfg(any(
-        feature = "native-tls",
-        feature = "rustls-native",
-        feature = "rustls-webpki"
-    ))]
-    if kind == EndpointKind::Query {
-        graph.push(TripleRef::new(
-            &root,
-            sd::FEATURE,
-            sd::BASIC_FEDERATED_QUERY,
-        ));
-    }
     if kind == EndpointKind::Update {
         graph.push(TripleRef::new(&root, sd::FEATURE, sd::EMPTY_GRAPHS));
     }
@@ -134,5 +141,10 @@ pub fn generate_service_description(
     for t in graph {
         serializer.serialize_triple(t).unwrap();
     }
-    serializer.finish().unwrap()
+
+    let description = String::from_utf8(serializer.finish().unwrap()).unwrap();
+    ServiceDescription {
+        format,
+        description,
+    }
 }

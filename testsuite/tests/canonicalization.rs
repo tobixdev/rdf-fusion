@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use anyhow::Result;
-use oxigraph_testsuite::check_testsuite;
+use graphfusion_testsuite::check_testsuite;
 
 #[tokio::test]
 async fn rdf_canon_w3c_testsuite() -> Result<()> {

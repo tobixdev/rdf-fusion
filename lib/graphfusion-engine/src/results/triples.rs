@@ -1,5 +1,5 @@
 use crate::results::QuerySolutionStream;
-use crate::sparql::error::EvaluationError;
+use crate::sparql::error::QueryEvaluationError;
 use futures::{Stream, StreamExt};
 use model::{BlankNode, Term, Graph, Triple};
 use sparesults::QuerySolution;
@@ -26,7 +26,7 @@ pub struct QueryTripleStream {
     template: Vec<TriplePattern>,
     inner: QuerySolutionStream,
 
-    buffered_results: Vec<Result<Triple, EvaluationError>>,
+    buffered_results: Vec<Result<Triple, QueryEvaluationError>>,
     already_emitted_results: HashSet<Triple>,
     bnodes: HashMap<BlankNode, BlankNode>,
 }
@@ -42,7 +42,7 @@ impl QueryTripleStream {
         }
     }
 
-    pub async fn collect_as_graph(&mut self) -> Result<Graph, EvaluationError> {
+    pub async fn collect_as_graph(&mut self) -> Result<Graph, QueryEvaluationError> {
         let mut graph = Graph::new();
         while let Some(triple) = self.next().await {
             let triple = triple?;
@@ -54,7 +54,7 @@ impl QueryTripleStream {
     fn poll_inner(
         &mut self,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Triple, EvaluationError>>> {
+    ) -> Poll<Option<Result<Triple, QueryEvaluationError>>> {
         // If we have buffered results, use them
         if let Some(result) = self.buffered_results.pop() {
             return Poll::Ready(Some(result));
@@ -120,7 +120,7 @@ fn get_triple_template_value(
 }
 
 impl Stream for QueryTripleStream {
-    type Item = Result<Triple, EvaluationError>;
+    type Item = Result<Triple, QueryEvaluationError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.poll_inner(cx)

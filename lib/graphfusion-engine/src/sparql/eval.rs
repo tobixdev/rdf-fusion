@@ -1,4 +1,4 @@
-use crate::sparql::error::EvaluationError;
+use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::sparql::{
     Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream,
@@ -15,7 +15,7 @@ pub async fn evaluate_query(
     ctx: &SessionContext,
     query: &Query,
     _options: QueryOptions,
-) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
+) -> Result<(QueryResults, Option<QueryExplanation>), QueryEvaluationError> {
     match &query.inner {
         spargebra::Query::Select {
             pattern, base_iri, ..
@@ -50,7 +50,7 @@ pub async fn evaluate_query(
             let count = dataframe.limit(0, Some(1))?.count().await?;
             Ok((QueryResults::Boolean(count > 0), None))
         }
-        spargebra::Query::Describe { .. } => Err(EvaluationError::NotImplemented(String::from(
+        spargebra::Query::Describe { .. } => Err(QueryEvaluationError::NotImplemented(String::from(
             "Query form not implemented",
         ))),
     }
@@ -61,7 +61,7 @@ async fn create_dataframe(
     dataset: &QueryDataset,
     pattern: &GraphPattern,
     base_iri: &Option<Iri<String>>,
-) -> Result<DataFrame, EvaluationError> {
+) -> Result<DataFrame, QueryEvaluationError> {
     let quads = ctx.table_provider(TABLE_QUADS).await?;
     let logical_plan = GraphPatternRewriter::new(dataset.clone(), base_iri.clone(), quads)
         .rewrite(pattern)

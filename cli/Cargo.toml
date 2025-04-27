@@ -6,10 +6,9 @@ license.workspace = true
 readme = "README.md"
 keywords = ["RDF", "SPARQL", "graph-database", "database"]
 categories = ["command-line-utilities", "database"]
-repository = "https://github.com/oxigraph/oxigraph/tree/main/cli"
-homepage = "https://oxigraph.org/cli/"
+repository = "https://github.com/tobixdev/graphfusion/tree/main/cli"
 description = """
-Oxigraph CLI tool and SPARQL HTTP server
+GraphFusion CLI tool and SPARQL HTTP server
 """
 edition.workspace = true
 rust-version.workspace = true
@@ -28,11 +27,9 @@ rustls-webpki = ["graphfusion/http-client-rustls-webpki"]
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
-flate2.workspace = true
-oxhttp = { workspace = true, features = ["flate2"] }
 graphfusion.workspace = true
-rand.workspace = true
-url.workspace = true
+graphfusion-web.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 assert_cmd.workspace = true

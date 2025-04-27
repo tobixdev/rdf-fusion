@@ -3,8 +3,8 @@ use crate::manifest::Test;
 use crate::report::{dataset_diff, format_diff};
 use anyhow::{bail, ensure, Context, Result};
 use graphfusion::io::RdfFormat;
-use oxrdf::dataset::CanonicalizationAlgorithm;
-use oxrdf::{BlankNode, Dataset, Quad};
+use graphfusion::model::dataset::CanonicalizationAlgorithm;
+use graphfusion::model::{BlankNode, Dataset, Quad};
 use oxttl::n3::{N3Quad, N3Term};
 
 pub fn parser_evaluate_positive_syntax_test(test: &Test, format: RdfFormat) -> Result<()> {
@@ -109,7 +109,6 @@ fn n3_to_dataset(quads: Vec<N3Quad>) -> Dataset {
                 subject: match q.subject {
                     N3Term::NamedNode(n) => n.into(),
                     N3Term::BlankNode(n) => n.into(),
-                    N3Term::Triple(n) => n.into(),
                     N3Term::Literal(_) => return None,
                     N3Term::Variable(v) => BlankNode::new_unchecked(v.into_string()).into(),
                 },
@@ -120,7 +119,6 @@ fn n3_to_dataset(quads: Vec<N3Quad>) -> Dataset {
                 object: match q.object {
                     N3Term::NamedNode(n) => n.into(),
                     N3Term::BlankNode(n) => n.into(),
-                    N3Term::Triple(n) => n.into(),
                     N3Term::Literal(n) => n.into(),
                     N3Term::Variable(v) => BlankNode::new_unchecked(v.into_string()).into(),
                 },

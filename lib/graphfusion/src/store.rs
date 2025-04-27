@@ -31,7 +31,7 @@ use crate::io::{RdfParser, RdfSerializer};
 use futures::StreamExt;
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::{GraphNameStream, QuadStream, QuerySolutionStream};
-use graphfusion_engine::sparql::error::EvaluationError;
+use graphfusion_engine::sparql::error::QueryEvaluationError;
 use graphfusion_engine::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
@@ -126,8 +126,8 @@ impl Store {
     /// ```
     pub async fn query(
         &self,
-        query: impl TryInto<Query, Error = impl Into<EvaluationError> + std::fmt::Debug>,
-    ) -> Result<QueryResults, EvaluationError> {
+        query: impl TryInto<Query, Error = impl Into<QueryEvaluationError> + std::fmt::Debug>,
+    ) -> Result<QueryResults, QueryEvaluationError> {
         self.query_opt(query, QueryOptions).await
     }
 
@@ -156,9 +156,9 @@ impl Store {
     /// ```
     pub async fn query_opt(
         &self,
-        query: impl TryInto<Query, Error = impl Into<EvaluationError> + std::fmt::Debug>,
+        query: impl TryInto<Query, Error = impl Into<QueryEvaluationError> + std::fmt::Debug>,
         options: QueryOptions,
-    ) -> Result<QueryResults, EvaluationError> {
+    ) -> Result<QueryResults, QueryEvaluationError> {
         self.explain_query_opt(query, options).await.map(|(r, _)| r)
     }
 
@@ -187,9 +187,9 @@ impl Store {
     /// ```
     pub async fn explain_query_opt(
         &self,
-        query: impl TryInto<Query, Error = impl Into<EvaluationError> + std::fmt::Debug>,
+        query: impl TryInto<Query, Error = impl Into<QueryEvaluationError> + std::fmt::Debug>,
         options: QueryOptions,
-    ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError> {
+    ) -> Result<(QueryResults, Option<QueryExplanation>), QueryEvaluationError> {
         let query = query.try_into();
         match query {
             Ok(query) => self.inner.execute_query(&query, options).await,
@@ -224,13 +224,13 @@ impl Store {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
         graph_name: Option<GraphNameRef<'_>>,
-    ) -> Result<QuadStream, EvaluationError> {
+    ) -> Result<QuadStream, QueryEvaluationError> {
         let record_batch_stream = self
             .inner
             .quads_for_pattern(graph_name, subject, predicate, object)
             .await?;
         let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
-        QuadStream::try_new(solution_stream).map_err(EvaluationError::InternalError)
+        QuadStream::try_new(solution_stream).map_err(QueryEvaluationError::InternalError)
     }
 
     /// Returns all the quads contained in the store.
@@ -252,14 +252,14 @@ impl Store {
     /// assert_eq!(vec![quad], results);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub async fn stream(&self) -> Result<QuadStream, EvaluationError> {
+    pub async fn stream(&self) -> Result<QuadStream, QueryEvaluationError> {
         let record_batch_stream = self
             .inner
             .quads_for_pattern(None, None, None, None)
             .await
-            .map_err(EvaluationError::from)?;
+            .map_err(QueryEvaluationError::from)?;
         let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
-        QuadStream::try_new(solution_stream).map_err(EvaluationError::InternalError)
+        QuadStream::try_new(solution_stream).map_err(QueryEvaluationError::InternalError)
     }
 
     /// Checks if this store contains a given quad.
@@ -347,8 +347,8 @@ impl Store {
     #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn update(
         &self,
-        _update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
-    ) -> Result<(), EvaluationError> {
+        _update: impl TryInto<Update, Error = impl Into<QueryEvaluationError>>,
+    ) -> Result<(), QueryEvaluationError> {
         unimplemented!()
     }
 
@@ -373,9 +373,9 @@ impl Store {
     #[allow(clippy::unused_self, reason = "Not implemented")]
     pub fn update_opt(
         &self,
-        _update: impl TryInto<Update, Error = impl Into<EvaluationError>>,
+        _update: impl TryInto<Update, Error = impl Into<QueryEvaluationError>>,
         _options: impl Into<UpdateOptions>,
-    ) -> Result<(), EvaluationError> {
+    ) -> Result<(), QueryEvaluationError> {
         unimplemented!()
     }
 
@@ -741,7 +741,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn store() -> Result<(), EvaluationError> {
+    async fn store() -> Result<(), QueryEvaluationError> {
         let main_s = Subject::from(BlankNode::default());
         let main_p = NamedNode::new("http://example.com").unwrap();
         let main_o = Term::from(Literal::from(1));

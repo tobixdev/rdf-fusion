@@ -1,5 +1,5 @@
 use graphfusion_engine::error::StorageError;
-use graphfusion_engine::sparql::error::EvaluationError;
+use graphfusion_engine::sparql::error::QueryEvaluationError;
 use model::IriParseError;
 use oxrdfio::{RdfFormat, RdfParseError};
 use std::io;
@@ -45,7 +45,7 @@ pub enum SerializerError {
     Io(#[from] io::Error),
     /// An error raised during accessing the quads in the [`Store`](crate::store::Store).
     #[error(transparent)]
-    Evaluation(#[from] EvaluationError),
+    Evaluation(#[from] QueryEvaluationError),
     /// A format compatible with [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset) is required.
     #[error("A RDF format supporting datasets was expected, {0} found")]
     DatasetFormatExpected(RdfFormat),

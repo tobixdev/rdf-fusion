@@ -1,5 +1,5 @@
 use anyhow::Result;
-use oxrdf::{Dataset, NamedNode};
+use graphfusion::model::{Dataset, NamedNode};
 use std::fmt::Write;
 use text_diff::{diff, Difference};
 use time::format_description::well_known::Rfc3339;

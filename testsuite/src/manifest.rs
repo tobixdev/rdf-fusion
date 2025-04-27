@@ -1,8 +1,8 @@
 use crate::files::{guess_rdf_format, load_to_graph};
 use crate::vocab::*;
 use anyhow::{bail, Context, Result};
-use oxrdf::vocab::{rdf, rdfs};
-use oxrdf::{Graph, NamedNode, SubjectRef, Term, TermRef, TripleRef};
+use graphfusion::model::vocab::{rdf, rdfs};
+use graphfusion::model::{Graph, NamedNode, SubjectRef, Term, TermRef, TripleRef};
 use std::collections::VecDeque;
 use std::fmt;
 

@@ -44,7 +44,7 @@ impl From<Infallible> for SparqlEvaluationError {
 /// A SPARQL evaluation error.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
-pub enum EvaluationError {
+pub enum QueryEvaluationError {
     /// An error in SPARQL parsing.
     #[error(transparent)]
     Parsing(#[from] SparqlSyntaxError),
@@ -92,20 +92,20 @@ pub enum EvaluationError {
     InternalError(String),
 }
 
-impl EvaluationError {
+impl QueryEvaluationError {
     pub fn internal<T>(cause: String) -> Result<T, Self> {
-        Err(EvaluationError::InternalError(cause))
+        Err(QueryEvaluationError::InternalError(cause))
     }
 }
 
-impl From<Infallible> for EvaluationError {
+impl From<Infallible> for QueryEvaluationError {
     #[inline]
     fn from(error: Infallible) -> Self {
         match error {}
     }
 }
 
-impl From<SparqlEvaluationError> for EvaluationError {
+impl From<SparqlEvaluationError> for QueryEvaluationError {
     fn from(error: SparqlEvaluationError) -> Self {
         match error {
             SparqlEvaluationError::Dataset(error) => match error.downcast() {
@@ -119,7 +119,7 @@ impl From<SparqlEvaluationError> for EvaluationError {
     }
 }
 
-impl From<DataFusionError> for EvaluationError {
+impl From<DataFusionError> for QueryEvaluationError {
     fn from(error: DataFusionError) -> Self {
         Self::Engine(error)
     }

@@ -1,5 +1,5 @@
 use crate::results::QueryResults;
-use crate::sparql::error::EvaluationError;
+use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{Query, QueryExplanation, QueryOptions};
 use crate::DFResult;
 use async_trait::async_trait;
@@ -28,7 +28,7 @@ pub trait TripleStore {
         &self,
         query: &Query,
         options: QueryOptions,
-    ) -> Result<(QueryResults, Option<QueryExplanation>), EvaluationError>;
+    ) -> Result<(QueryResults, Option<QueryExplanation>), QueryEvaluationError>;
 
     //
     // Loading

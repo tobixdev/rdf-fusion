@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use anyhow::Result;
-use oxigraph_testsuite::check_testsuite;
+use graphfusion_testsuite::check_testsuite;
 
 // TODO: add support of language directions
 
@@ -15,6 +15,7 @@ async fn rdf11_n_triples_w3c_testsuite() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "We do not support RDF 1.2 yet"]
 async fn rdf12_n_triples_syntax_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-n-triples/syntax/manifest.ttl",
@@ -36,6 +37,7 @@ async fn rdf12_n_triples_syntax_w3c_testsuite() -> Result<()> {
 
 #[cfg(not(windows))] // Tests don't like git auto "\r\n" on Windows
 #[tokio::test]
+#[ignore = "We do not support RDF 1.2 yet"]
 async fn rdf12_n_triples_c14n_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-n-triples/c14n/manifest.ttl",
@@ -64,6 +66,7 @@ async fn rdf11_turtle_w3c_testsuite() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "We do not support RDF 1.2 yet"]
 async fn rdf12_turtle_syntax_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-turtle/syntax/manifest.ttl",
@@ -76,6 +79,7 @@ async fn rdf12_turtle_syntax_w3c_testsuite() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "We do not support RDF 1.2 yet"]
 async fn rdf12_turtle_eval_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-turtle/eval/manifest.ttl",

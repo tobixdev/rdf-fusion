@@ -9,8 +9,8 @@ members = [
     "lib/graphfusion-physical",
     "lib/graphfusion-store",
     "lib/graphfusion",
-    "testsuite"
-]
+    "lib/graphfusion-web",
+    "testsuite"]
 resolver = "2"
 
 [workspace.package]
@@ -76,6 +76,7 @@ graphfusion-logical = { version = "=0.1.0", path = "lib/graphfusion-logical" }
 graphfusion-physical = { version = "=0.1.0", path = "lib/graphfusion-physical" }
 graphfusion-store = { version = "=0.1.0", path = "lib/graphfusion-store" }
 graphfusion = { version = "=0.1.0", path = "lib/graphfusion" }
+graphfusion-web = { version = "=0.1.0", path = "lib/graphfusion-web" }
 
 [workspace.lints.rust]
 absolute_paths_not_starting_with_crate = "warn"

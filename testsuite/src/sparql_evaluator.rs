@@ -7,9 +7,9 @@ use futures::StreamExt;
 use graphfusion::io::RdfParser;
 use graphfusion::store::Store;
 use graphfusion::{Query, QueryOptions, QueryResults, Update};
-use oxrdf::dataset::CanonicalizationAlgorithm;
-use oxrdf::vocab::*;
-use oxrdf::*;
+use graphfusion::model::dataset::CanonicalizationAlgorithm;
+use graphfusion::model::vocab::*;
+use graphfusion::model::*;
 use sparesults::QueryResultsFormat;
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -334,17 +334,6 @@ fn compare_terms<'a>(
     match (expected, actual) {
         (TermRef::BlankNode(expected), TermRef::BlankNode(actual)) => {
             expected == *bnode_map.entry(actual).or_insert(expected)
-        }
-        (TermRef::Triple(expected), TermRef::Triple(actual)) => {
-            compare_terms(
-                expected.subject.as_ref().into(),
-                actual.subject.as_ref().into(),
-                bnode_map,
-            ) && compare_terms(
-                expected.predicate.as_ref().into(),
-                actual.predicate.as_ref().into(),
-                bnode_map,
-            ) && compare_terms(expected.object.as_ref(), actual.object.as_ref(), bnode_map)
         }
         (expected, actual) => expected == actual,
     }

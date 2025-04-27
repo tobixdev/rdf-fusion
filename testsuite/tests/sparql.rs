@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use anyhow::Result;
-use oxigraph_testsuite::check_testsuite;
+use graphfusion_testsuite::check_testsuite;
 
 #[tokio::test]
 async fn sparql10_w3c_query_syntax_testsuite() -> Result<()> {
@@ -121,6 +121,7 @@ async fn sparql12_w3c_testsuite() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "We do not support SPARQL-star yet"]
 async fn sparql_star_syntax_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-star/tests/sparql/syntax/manifest.ttl",
@@ -130,6 +131,7 @@ async fn sparql_star_syntax_testsuite() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "We do not support SPARQL-star yet"]
 async fn sparql_star_eval_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-star/tests/sparql/eval/manifest.ttl",

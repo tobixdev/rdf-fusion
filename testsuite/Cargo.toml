@@ -1,10 +1,10 @@
 [package]
-name = "oxigraph-testsuite"
+name = "graphfusion-testsuite"
 version = "0.0.0"
 authors.workspace = true
 license.workspace = true
 description = """
-Implementation of W3C testsuites for Oxigraph
+Implementation of testsuites for GraphFusion
 """
 edition.workspace = true
 rust-version.workspace = true
