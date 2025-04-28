@@ -1,6 +1,6 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{NamedNodeRef, Numeric, InternalTermRef, ThinError};
 use model::vocab::{rdf, xsd};
+use model::{InternalTermRef, NamedNodeRef, Numeric, ThinError};
 
 #[derive(Debug)]
 pub struct DatatypeRdfOp;
@@ -23,7 +23,9 @@ impl ScalarUnaryRdfOp for DatatypeRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let datatype = match value {
-            InternalTermRef::BlankNode(_) | InternalTermRef::NamedNode(_) => return ThinError::expected(),
+            InternalTermRef::BlankNode(_) | InternalTermRef::NamedNode(_) => {
+                return ThinError::expected()
+            }
             InternalTermRef::SimpleLiteral(_) => xsd::STRING,
             InternalTermRef::NumericLiteral(value) => match value {
                 Numeric::Int(_) => xsd::INT,

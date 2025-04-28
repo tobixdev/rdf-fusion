@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{SimpleLiteralRef, InternalTermRef, ThinError};
+use model::{InternalTermRef, SimpleLiteralRef, ThinError};
 
 #[derive(Debug)]
 pub struct LangRdfOp;
@@ -22,7 +22,9 @@ impl ScalarUnaryRdfOp for LangRdfOp {
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let result = match value {
-            InternalTermRef::NamedNode(_) | InternalTermRef::BlankNode(_) => return ThinError::expected(),
+            InternalTermRef::NamedNode(_) | InternalTermRef::BlankNode(_) => {
+                return ThinError::expected()
+            }
             InternalTermRef::LanguageStringLiteral(value) => value.language,
             _ => "",
         };

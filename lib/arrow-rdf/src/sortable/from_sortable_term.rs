@@ -6,7 +6,7 @@ use datafusion::arrow::datatypes::UInt8Type;
 use model::{BlankNodeRef, NamedNodeRef};
 use model::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageStringRef, Numeric, SimpleLiteralRef, InternalTermRef, ThinError, ThinResult, Time,
+    InternalTermRef, LanguageStringRef, Numeric, SimpleLiteralRef, ThinError, ThinResult, Time,
     TypedLiteralRef, YearMonthDuration,
 };
 
@@ -45,7 +45,9 @@ impl<'data> FromSortableTerm<'data> for InternalTermRef<'data> {
                     .column(SortableTermField::AdditionalBytes.index())
                     .is_null(index)
                 {
-                    InternalTermRef::SimpleLiteral(SimpleLiteralRef::from_sortable_array(array, index)?)
+                    InternalTermRef::SimpleLiteral(SimpleLiteralRef::from_sortable_array(
+                        array, index,
+                    )?)
                 } else {
                     InternalTermRef::LanguageStringLiteral(LanguageStringRef::from_sortable_array(
                         array, index,
@@ -55,26 +57,30 @@ impl<'data> FromSortableTerm<'data> for InternalTermRef<'data> {
             EncTermField::Boolean => {
                 InternalTermRef::BooleanLiteral(Boolean::from_sortable_array(array, index)?)
             }
-            EncTermField::Float => {
-                InternalTermRef::NumericLiteral(Numeric::Float(Float::from_sortable_array(array, index)?))
-            }
-            EncTermField::Double => {
-                InternalTermRef::NumericLiteral(Numeric::Double(Double::from_sortable_array(array, index)?))
-            }
+            EncTermField::Float => InternalTermRef::NumericLiteral(Numeric::Float(
+                Float::from_sortable_array(array, index)?,
+            )),
+            EncTermField::Double => InternalTermRef::NumericLiteral(Numeric::Double(
+                Double::from_sortable_array(array, index)?,
+            )),
             EncTermField::Decimal => InternalTermRef::NumericLiteral(Numeric::Decimal(
                 Decimal::from_sortable_array(array, index)?,
             )),
-            EncTermField::Int => {
-                InternalTermRef::NumericLiteral(Numeric::Int(Int::from_sortable_array(array, index)?))
-            }
+            EncTermField::Int => InternalTermRef::NumericLiteral(Numeric::Int(
+                Int::from_sortable_array(array, index)?,
+            )),
             EncTermField::Integer => InternalTermRef::NumericLiteral(Numeric::Integer(
                 Integer::from_sortable_array(array, index)?,
             )),
             EncTermField::DateTime => {
                 InternalTermRef::DateTimeLiteral(DateTime::from_sortable_array(array, index)?)
             }
-            EncTermField::Time => InternalTermRef::TimeLiteral(Time::from_sortable_array(array, index)?),
-            EncTermField::Date => InternalTermRef::DateLiteral(Date::from_sortable_array(array, index)?),
+            EncTermField::Time => {
+                InternalTermRef::TimeLiteral(Time::from_sortable_array(array, index)?)
+            }
+            EncTermField::Date => {
+                InternalTermRef::DateLiteral(Date::from_sortable_array(array, index)?)
+            }
             EncTermField::Duration => match sortable_term_type {
                 SortableTermType::Duration => {
                     InternalTermRef::DurationLiteral(Duration::from_sortable_array(array, index)?)

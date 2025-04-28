@@ -12,7 +12,7 @@ impl From<QueryResults> for QueryResultsResponse {
 }
 
 impl IntoResponse for QueryResultsResponse {
-    #[allow(clippy::todo, reason="No production code yet")]
+    #[allow(clippy::todo, reason = "No production code yet")]
     fn into_response(self) -> Response {
         todo!()
     }

@@ -1,4 +1,6 @@
-use crate::{Boolean, Double, Int, Integer, Numeric, RdfValueRef, InternalTermRef, ThinError, ThinResult};
+use crate::{
+    Boolean, Double, Int, Integer, InternalTermRef, Numeric, RdfValueRef, ThinError, ThinResult,
+};
 use std::cmp::Ordering;
 use std::fmt;
 use std::num::ParseFloatError;

@@ -2,7 +2,7 @@
 
 use crate::xsd::decimal::Decimal;
 use crate::xsd::duration::{DayTimeDuration, Duration, YearMonthDuration};
-use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
+use crate::{InternalTermRef, RdfValueRef, ThinError, ThinResult};
 use std::cmp::{min, Ordering};
 use std::fmt;
 use std::hash::{Hash, Hasher};

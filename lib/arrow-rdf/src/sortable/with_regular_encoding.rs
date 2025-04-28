@@ -8,7 +8,7 @@ use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use model::{Numeric, InternalTermRef, ThinResult};
+use model::{InternalTermRef, Numeric, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -56,14 +56,16 @@ impl ScalarUDFImpl for EncWithRegularEncoding {
         match &args.args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_struct_array(array);
-                let values = (0..args.number_rows).map(|i| InternalTermRef::from_sortable_array(array, i));
+                let values =
+                    (0..args.number_rows).map(|i| InternalTermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
                 let array = scalar.to_array_of_size(args.number_rows)?;
                 let array = as_struct_array(&array);
-                let values = (0..args.number_rows).map(|i| InternalTermRef::from_sortable_array(array, i));
+                let values =
+                    (0..args.number_rows).map(|i| InternalTermRef::from_sortable_array(array, i));
                 let result = into_regular_enc(values)?;
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
@@ -100,8 +102,12 @@ fn into_regular_enc<'data>(
                 InternalTermRef::DurationLiteral(v) => {
                     builder.append_duration(Some(v.year_month()), Some(v.day_time()))?
                 }
-                InternalTermRef::YearMonthDurationLiteral(v) => builder.append_duration(Some(v), None)?,
-                InternalTermRef::DayTimeDurationLiteral(v) => builder.append_duration(None, Some(v))?,
+                InternalTermRef::YearMonthDurationLiteral(v) => {
+                    builder.append_duration(Some(v), None)?
+                }
+                InternalTermRef::DayTimeDurationLiteral(v) => {
+                    builder.append_duration(None, Some(v))?
+                }
                 InternalTermRef::TypedLiteral(v) => {
                     builder.append_typed_literal(v.value, v.literal_type)?
                 }

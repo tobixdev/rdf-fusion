@@ -1,6 +1,6 @@
 use crate::xsd::double::Double;
 use crate::{
-    Boolean, Decimal, Float, Integer, Numeric, RdfValueRef, InternalTermRef, ThinError, ThinResult,
+    Boolean, Decimal, Float, Integer, InternalTermRef, Numeric, RdfValueRef, ThinError, ThinResult,
 };
 use std::fmt;
 use std::num::ParseIntError;

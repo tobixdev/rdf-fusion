@@ -21,7 +21,10 @@ impl ScalarUnaryRdfOp for IsLiteralRdfOp {
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
-        let result = matches!(value, InternalTermRef::NamedNode(_) | InternalTermRef::BlankNode(_));
+        let result = matches!(
+            value,
+            InternalTermRef::NamedNode(_) | InternalTermRef::BlankNode(_)
+        );
         Ok(result.into())
     }
 }

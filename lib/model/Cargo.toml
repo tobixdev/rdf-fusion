@@ -9,8 +9,8 @@ rust-version.workspace = true
 [dependencies]
 # Dependencies to oxigraph's data model. We re-export them in this crate if we rely on it. To avoid any other crates
 # accidentally depending directly on oxiraph's data model, we do not include it in the workspace.
-oxsdatatypes = "0.2.1"
-oxiri = "0.2.8"
+oxsdatatypes = "0.2.2"
+oxiri = "0.2.11"
 oxrdf = { version = "0.2.4", features = ["oxsdatatypes"] }
 
 # Regular Dependencies

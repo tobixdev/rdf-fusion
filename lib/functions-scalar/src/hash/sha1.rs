@@ -1,6 +1,6 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{OwnedStringLiteral, SimpleLiteralRef};
 use md5::Digest;
+use model::{OwnedStringLiteral, SimpleLiteralRef};
 use sha1::Sha1;
 
 #[derive(Debug)]

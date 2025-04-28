@@ -7,8 +7,7 @@ use crate::oxigraph_memory::encoder::{
 use crate::oxigraph_memory::hash::StrHash;
 use crate::oxigraph_memory::small_string::SmallString;
 use model::{
-    BlankNodeRef, TermRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef,
-    SubjectRef,
+    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef, SubjectRef, TermRef,
 };
 
 #[derive(Debug, Clone)]

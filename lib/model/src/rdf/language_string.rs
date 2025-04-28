@@ -1,4 +1,4 @@
-use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
+use crate::{InternalTermRef, RdfValueRef, ThinError, ThinResult};
 use std::cmp::Ordering;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]

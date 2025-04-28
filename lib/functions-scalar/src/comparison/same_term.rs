@@ -32,13 +32,22 @@ impl ScalarBinaryRdfOp for SameTermRdfOp {
             (InternalTermRef::BooleanLiteral(l), InternalTermRef::BooleanLiteral(r)) => l == r,
             (InternalTermRef::NumericLiteral(l), InternalTermRef::NumericLiteral(r)) => l == r,
             (InternalTermRef::SimpleLiteral(l), InternalTermRef::SimpleLiteral(r)) => l == r,
-            (InternalTermRef::LanguageStringLiteral(l), InternalTermRef::LanguageStringLiteral(r)) => l == r,
+            (
+                InternalTermRef::LanguageStringLiteral(l),
+                InternalTermRef::LanguageStringLiteral(r),
+            ) => l == r,
             (InternalTermRef::DateTimeLiteral(l), InternalTermRef::DateTimeLiteral(r)) => l == r,
             (InternalTermRef::DateLiteral(l), InternalTermRef::DateLiteral(r)) => l == r,
             (InternalTermRef::TimeLiteral(l), InternalTermRef::TimeLiteral(r)) => l == r,
             (InternalTermRef::DurationLiteral(l), InternalTermRef::DurationLiteral(r)) => l == r,
-            (InternalTermRef::YearMonthDurationLiteral(l), InternalTermRef::YearMonthDurationLiteral(r)) => l == r,
-            (InternalTermRef::DayTimeDurationLiteral(l), InternalTermRef::DayTimeDurationLiteral(r)) => l == r,
+            (
+                InternalTermRef::YearMonthDurationLiteral(l),
+                InternalTermRef::YearMonthDurationLiteral(r),
+            ) => l == r,
+            (
+                InternalTermRef::DayTimeDurationLiteral(l),
+                InternalTermRef::DayTimeDurationLiteral(r),
+            ) => l == r,
             (InternalTermRef::TypedLiteral(l), InternalTermRef::TypedLiteral(r)) => l == r,
             _ => false,
         };

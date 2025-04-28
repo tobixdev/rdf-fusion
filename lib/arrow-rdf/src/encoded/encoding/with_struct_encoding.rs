@@ -115,9 +115,9 @@ fn into_struct_enc<'data>(
 
 #[cfg(test)]
 mod tests {
+    use crate::as_enc_term_array;
     use crate::encoded::{EncRdfTermBuilder, FromEncodedTerm};
     use crate::sortable::FromSortableTerm;
-    use crate::as_enc_term_array;
     use datafusion::arrow::array::{Array, AsArray};
     use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
     use model::vocab::xsd;

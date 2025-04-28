@@ -6,8 +6,8 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use model::{Boolean, InternalTermRef, ThinResult};
 use functions_scalar::ScalarBinaryRdfOp;
+use model::{Boolean, InternalTermRef, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -40,12 +40,19 @@ impl ScalarBinaryRdfOp for EncIsCompatible {
         let is_compatible = match (lhs, rhs) {
             (InternalTermRef::BlankNode(lhs), InternalTermRef::BlankNode(rhs)) => lhs == rhs,
             (InternalTermRef::NamedNode(lhs), InternalTermRef::NamedNode(rhs)) => lhs == rhs,
-            (InternalTermRef::BooleanLiteral(lhs), InternalTermRef::BooleanLiteral(rhs)) => lhs == rhs,
-            (InternalTermRef::NumericLiteral(lhs), InternalTermRef::NumericLiteral(rhs)) => lhs == rhs,
-            (InternalTermRef::SimpleLiteral(lhs), InternalTermRef::SimpleLiteral(rhs)) => lhs == rhs,
-            (InternalTermRef::LanguageStringLiteral(lhs), InternalTermRef::LanguageStringLiteral(rhs)) => {
+            (InternalTermRef::BooleanLiteral(lhs), InternalTermRef::BooleanLiteral(rhs)) => {
                 lhs == rhs
             }
+            (InternalTermRef::NumericLiteral(lhs), InternalTermRef::NumericLiteral(rhs)) => {
+                lhs == rhs
+            }
+            (InternalTermRef::SimpleLiteral(lhs), InternalTermRef::SimpleLiteral(rhs)) => {
+                lhs == rhs
+            }
+            (
+                InternalTermRef::LanguageStringLiteral(lhs),
+                InternalTermRef::LanguageStringLiteral(rhs),
+            ) => lhs == rhs,
             (InternalTermRef::TypedLiteral(lhs), InternalTermRef::TypedLiteral(rhs)) => lhs == rhs,
             _ => false,
         };

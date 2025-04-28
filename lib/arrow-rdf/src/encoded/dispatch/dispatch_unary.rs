@@ -7,8 +7,8 @@ use datafusion::arrow::array::{Array, AsArray, BooleanArray};
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::common::{exec_datafusion_err, exec_err, DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use model::{Boolean, RdfValueRef, InternalTermRef, ThinError};
 use functions_scalar::ScalarUnaryRdfOp;
+use model::{Boolean, InternalTermRef, RdfValueRef, ThinError};
 
 pub fn dispatch_unary<'data, TUdf>(
     udf: &TUdf,

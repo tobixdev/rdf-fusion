@@ -4,7 +4,7 @@ use datafusion::arrow::array::{AsArray, RecordBatch, UnionArray};
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use model::Variable;
-use model::{Term, InternalTermRef};
+use model::{InternalTermRef, Term};
 pub use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::sync::Arc;

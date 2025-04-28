@@ -1,5 +1,6 @@
 use crate::{
-    Boolean, Decimal, Double, Float, Int, Numeric, RdfValueRef, InternalTermRef, ThinError, ThinResult,
+    Boolean, Decimal, Double, Float, Int, InternalTermRef, Numeric, RdfValueRef, ThinError,
+    ThinResult,
 };
 use std::fmt;
 use std::num::ParseIntError;

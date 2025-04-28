@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{Decimal, Numeric, InternalTermRef, ThinError};
+use model::{Decimal, InternalTermRef, Numeric, ThinError};
 
 #[derive(Debug)]
 pub struct AsDecimalRdfOp;

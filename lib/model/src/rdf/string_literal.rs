@@ -1,4 +1,4 @@
-use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
+use crate::{InternalTermRef, RdfValueRef, ThinError, ThinResult};
 use std::cmp::Ordering;
 
 /// https://www.w3.org/TR/sparql11-query/#func-string

@@ -1,7 +1,7 @@
 #![allow(clippy::print_stderr)]
 
 use anyhow::Result;
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use graphfusion_testsuite::files::read_file;
 use graphfusion_testsuite::manifest::TestManifest;
 use std::io::Read;

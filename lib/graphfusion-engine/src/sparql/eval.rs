@@ -50,9 +50,9 @@ pub async fn evaluate_query(
             let count = dataframe.limit(0, Some(1))?.count().await?;
             Ok((QueryResults::Boolean(count > 0), None))
         }
-        spargebra::Query::Describe { .. } => Err(QueryEvaluationError::NotImplemented(String::from(
-            "Query form not implemented",
-        ))),
+        spargebra::Query::Describe { .. } => Err(QueryEvaluationError::NotImplemented(
+            String::from("Query form not implemented"),
+        )),
     }
 }
 

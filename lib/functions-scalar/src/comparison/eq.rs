@@ -29,9 +29,13 @@ impl ScalarBinaryRdfOp for EqRdfOp {
     ) -> ThinResult<Self::Result<'data>> {
         match (lhs, rhs) {
             // Same term are also equal.
-            (InternalTermRef::TypedLiteral(l), InternalTermRef::TypedLiteral(r)) if l == r => Ok(true.into()),
+            (InternalTermRef::TypedLiteral(l), InternalTermRef::TypedLiteral(r)) if l == r => {
+                Ok(true.into())
+            }
             // Cannot say anything about unsupported typed literals that are not the same term.
-            (_, InternalTermRef::TypedLiteral(_)) | (InternalTermRef::TypedLiteral(_), _) => ThinError::expected(),
+            (_, InternalTermRef::TypedLiteral(_)) | (InternalTermRef::TypedLiteral(_), _) => {
+                ThinError::expected()
+            }
             // For numerics, compare values.
             (InternalTermRef::NumericLiteral(lhs), InternalTermRef::NumericLiteral(rhs)) => {
                 Ok((lhs.partial_cmp(&rhs) == Some(Ordering::Equal)).into())
@@ -40,18 +44,24 @@ impl ScalarBinaryRdfOp for EqRdfOp {
             (InternalTermRef::DateTimeLiteral(lhs), InternalTermRef::DateTimeLiteral(rhs)) => {
                 Ok((lhs == rhs).into())
             }
-            (InternalTermRef::DateLiteral(lhs), InternalTermRef::DateLiteral(rhs)) => Ok((lhs == rhs).into()),
-            (InternalTermRef::TimeLiteral(lhs), InternalTermRef::TimeLiteral(rhs)) => Ok((lhs == rhs).into()),
+            (InternalTermRef::DateLiteral(lhs), InternalTermRef::DateLiteral(rhs)) => {
+                Ok((lhs == rhs).into())
+            }
+            (InternalTermRef::TimeLiteral(lhs), InternalTermRef::TimeLiteral(rhs)) => {
+                Ok((lhs == rhs).into())
+            }
             // For durations, compare values.
             (InternalTermRef::DurationLiteral(lhs), InternalTermRef::DurationLiteral(rhs)) => {
                 Ok((lhs == rhs).into())
             }
-            (InternalTermRef::YearMonthDurationLiteral(lhs), InternalTermRef::YearMonthDurationLiteral(rhs)) => {
-                Ok((lhs == rhs).into())
-            }
-            (InternalTermRef::DayTimeDurationLiteral(lhs), InternalTermRef::DayTimeDurationLiteral(rhs)) => {
-                Ok((lhs == rhs).into())
-            }
+            (
+                InternalTermRef::YearMonthDurationLiteral(lhs),
+                InternalTermRef::YearMonthDurationLiteral(rhs),
+            ) => Ok((lhs == rhs).into()),
+            (
+                InternalTermRef::DayTimeDurationLiteral(lhs),
+                InternalTermRef::DayTimeDurationLiteral(rhs),
+            ) => Ok((lhs == rhs).into()),
             // Otherwise compare for equality.
             _ => Ok((lhs == rhs).into()),
         }

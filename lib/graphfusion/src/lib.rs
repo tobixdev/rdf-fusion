@@ -7,9 +7,9 @@
 
 pub mod error;
 pub mod io;
-pub mod store;
 pub mod model;
 pub mod results;
 pub mod sparql;
+pub mod store;
 
 pub use graphfusion_engine::sparql::*;

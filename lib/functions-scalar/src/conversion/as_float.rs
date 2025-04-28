@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{Float, Numeric, InternalTermRef, ThinError};
+use model::{Float, InternalTermRef, Numeric, ThinError};
 
 #[derive(Debug)]
 pub struct AsFloatRdfOp;
@@ -40,7 +40,7 @@ impl ScalarUnaryRdfOp for AsFloatRdfOp {
 #[cfg(test)]
 mod tests {
     use crate::{AsFloatRdfOp, ScalarUnaryRdfOp};
-    use model::{Numeric, InternalTermRef};
+    use model::{InternalTermRef, Numeric};
 
     #[test]
     fn test_enc_as_float() {

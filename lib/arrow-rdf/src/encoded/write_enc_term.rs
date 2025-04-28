@@ -5,8 +5,8 @@ use datafusion::common::{exec_err, ScalarValue};
 use model::{BlankNode, BlankNodeRef, NamedNode, NamedNodeRef};
 use model::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageStringRef, Numeric, OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef, InternalTermRef,
-    ThinError, ThinResult, Time, TypedLiteralRef, YearMonthDuration,
+    InternalTermRef, LanguageStringRef, Numeric, OwnedStringLiteral, SimpleLiteralRef,
+    StringLiteralRef, ThinError, ThinResult, Time, TypedLiteralRef, YearMonthDuration,
 };
 
 pub trait WriteEncTerm {
@@ -352,7 +352,9 @@ impl WriteEncTerm for InternalTermRef<'_> {
                 Ok(InternalTermRef::LanguageStringLiteral(value)) => {
                     rdf_term_builder.append_string(value.value, Some(value.language))?
                 }
-                Ok(InternalTermRef::DateTimeLiteral(value)) => rdf_term_builder.append_date_time(value)?,
+                Ok(InternalTermRef::DateTimeLiteral(value)) => {
+                    rdf_term_builder.append_date_time(value)?
+                }
                 Ok(InternalTermRef::TimeLiteral(value)) => rdf_term_builder.append_time(value)?,
                 Ok(InternalTermRef::DateLiteral(value)) => rdf_term_builder.append_date(value)?,
                 Ok(InternalTermRef::DurationLiteral(value)) => rdf_term_builder

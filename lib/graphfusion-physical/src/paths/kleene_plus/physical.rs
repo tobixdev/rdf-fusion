@@ -13,9 +13,9 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, ExecutionPlanProperties, PlanProperties,
     RecordBatchStream,
 };
-use model::{GraphName, GraphNameRef, InternalTerm, InternalTermRef};
 use futures::{Stream, StreamExt};
 use graphfusion_logical::paths::PATH_TABLE_SCHEMA;
+use model::{GraphName, GraphNameRef, InternalTerm, InternalTermRef};
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Formatter;

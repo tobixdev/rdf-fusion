@@ -46,7 +46,7 @@ pub async fn serve(config: ServerConfig) -> anyhow::Result<()> {
 #[derive(Clone)]
 struct AppState {
     store: Store,
-    #[allow(unused, reason="Not yet implemented")]
+    #[allow(unused, reason = "Not yet implemented")]
     read_only: bool,
     union_default_graph: bool,
 }

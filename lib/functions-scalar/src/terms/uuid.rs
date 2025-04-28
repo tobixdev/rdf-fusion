@@ -1,6 +1,6 @@
 use crate::{ScalarNullaryRdfOp, ThinResult};
-use uuid::Uuid;
 use model::NamedNode;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct UuidRdfOp;

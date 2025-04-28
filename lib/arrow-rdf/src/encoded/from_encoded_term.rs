@@ -7,8 +7,8 @@ use datafusion::common::ScalarValue;
 use model::{BlankNodeRef, GraphNameRef, NamedNodeRef};
 use model::{
     Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageStringRef, Numeric, SimpleLiteralRef, StringLiteralRef, InternalTermRef, ThinError, ThinResult,
-    Time, Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration,
+    InternalTermRef, LanguageStringRef, Numeric, SimpleLiteralRef, StringLiteralRef, ThinError,
+    ThinResult, Time, Timestamp, TimezoneOffset, TypedLiteralRef, YearMonthDuration,
 };
 use std::ops::Not;
 
@@ -40,11 +40,13 @@ impl<'data> FromEncodedTerm<'data> for InternalTermRef<'data> {
                     EncTermField::String => match inner_value.as_ref() {
                         ScalarValue::Struct(struct_array) => {
                             if struct_array.column(1).is_null(0) {
-                                InternalTermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(scalar)?)
-                            } else {
-                                InternalTermRef::LanguageStringLiteral(LanguageStringRef::from_enc_scalar(
+                                InternalTermRef::SimpleLiteral(SimpleLiteralRef::from_enc_scalar(
                                     scalar,
                                 )?)
+                            } else {
+                                InternalTermRef::LanguageStringLiteral(
+                                    LanguageStringRef::from_enc_scalar(scalar)?,
+                                )
                             }
                         }
                         _ => return ThinError::expected(),
@@ -65,8 +67,12 @@ impl<'data> FromEncodedTerm<'data> for InternalTermRef<'data> {
                     EncTermField::DateTime => {
                         InternalTermRef::DateTimeLiteral(DateTime::from_enc_scalar(scalar)?)
                     }
-                    EncTermField::Time => InternalTermRef::TimeLiteral(Time::from_enc_scalar(scalar)?),
-                    EncTermField::Date => InternalTermRef::DateLiteral(Date::from_enc_scalar(scalar)?),
+                    EncTermField::Time => {
+                        InternalTermRef::TimeLiteral(Time::from_enc_scalar(scalar)?)
+                    }
+                    EncTermField::Date => {
+                        InternalTermRef::DateLiteral(Date::from_enc_scalar(scalar)?)
+                    }
                     EncTermField::TypedLiteral => {
                         InternalTermRef::TypedLiteral(TypedLiteralRef::from_enc_scalar(scalar)?)
                     }
@@ -100,7 +106,9 @@ impl<'data> FromEncodedTerm<'data> for InternalTermRef<'data> {
                 {
                     InternalTermRef::SimpleLiteral(SimpleLiteralRef::from_enc_array(array, index)?)
                 } else {
-                    InternalTermRef::LanguageStringLiteral(LanguageStringRef::from_enc_array(array, index)?)
+                    InternalTermRef::LanguageStringLiteral(LanguageStringRef::from_enc_array(
+                        array, index,
+                    )?)
                 }
             }
             EncTermField::Boolean => {

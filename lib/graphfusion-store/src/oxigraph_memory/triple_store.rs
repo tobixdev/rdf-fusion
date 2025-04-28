@@ -20,7 +20,7 @@ use graphfusion_engine::TripleStore;
 use graphfusion_logical::paths::PathToJoinsRule;
 use graphfusion_logical::patterns::PatternToProjectionRule;
 use graphfusion_physical::GraphFusionPlanner;
-use model::{TermRef, GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef};
+use model::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
 
 #[derive(Clone)]

@@ -1,4 +1,4 @@
-use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
+use crate::{InternalTermRef, RdfValueRef, ThinError, ThinResult};
 
 #[derive(Clone, PartialEq, Eq, Debug, PartialOrd, Ord, Hash)]
 pub struct SimpleLiteral {

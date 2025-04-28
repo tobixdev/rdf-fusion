@@ -38,8 +38,7 @@ use graphfusion_engine::sparql::{
 use graphfusion_engine::TripleStore;
 use graphfusion_store::MemoryTripleStore;
 use model::{
-    TermRef, GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
-    Variable,
+    GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef, Variable,
 };
 use std::io::{Read, Write};
 use std::sync::{Arc, LazyLock};

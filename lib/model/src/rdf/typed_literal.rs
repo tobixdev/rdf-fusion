@@ -1,4 +1,4 @@
-use crate::{RdfValueRef, InternalTermRef, ThinError, ThinResult};
+use crate::{InternalTermRef, RdfValueRef, ThinError, ThinResult};
 use oxrdf::vocab::xsd;
 use std::cmp::Ordering;
 use std::collections::HashSet;

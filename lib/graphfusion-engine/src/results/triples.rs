@@ -1,7 +1,7 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::QueryEvaluationError;
 use futures::{Stream, StreamExt};
-use model::{BlankNode, Term, Graph, Triple};
+use model::{BlankNode, Graph, Term, Triple};
 use sparesults::QuerySolution;
 use spargebra::term::{TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};

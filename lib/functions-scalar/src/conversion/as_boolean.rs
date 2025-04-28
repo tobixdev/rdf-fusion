@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{Boolean, Numeric, InternalTermRef, ThinError};
+use model::{Boolean, InternalTermRef, Numeric, ThinError};
 
 #[derive(Debug)]
 pub struct AsBooleanRdfOp;

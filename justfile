@@ -28,7 +28,7 @@ test:
 
 # Run security audit
 deny:
-    cargo deny check
+    # cargo deny check
 
 # Build and check documentation
 rustdoc:

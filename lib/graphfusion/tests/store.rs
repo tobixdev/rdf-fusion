@@ -2,9 +2,9 @@
 #![allow(clippy::panic_in_result_fn)]
 
 use graphfusion::io::RdfFormat;
-use graphfusion::store::Store;
 use graphfusion::model::vocab::{rdf, xsd};
 use graphfusion::model::{GraphNameRef, LiteralRef, NamedNodeRef, QuadRef};
+use graphfusion::store::Store;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use rand::random;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]

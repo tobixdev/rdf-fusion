@@ -5,7 +5,7 @@ use crate::DFResult;
 use async_trait::async_trait;
 use datafusion::common::DataFusionError;
 use datafusion::execution::SendableRecordBatchStream;
-use model::{TermRef, GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef};
+use model::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 
 #[async_trait]
 #[allow(clippy::len_without_is_empty)]

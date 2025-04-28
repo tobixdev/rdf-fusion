@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{Iri, NamedNode, InternalTermRef, ThinError};
+use model::{InternalTermRef, Iri, NamedNode, ThinError};
 
 #[derive(Debug)]
 pub struct IriRdfOp {

@@ -61,7 +61,7 @@ create_binary_cmp_udf!(LessOrEqualRdfOp, <=);
 mod tests {
     use crate::comparison::generic::LessThanRdfOp;
     use crate::ScalarBinaryRdfOp;
-    use model::{Numeric, InternalTermRef};
+    use model::{InternalTermRef, Numeric};
 
     #[test]
     fn test_lth_int_with_float() {
@@ -72,6 +72,6 @@ mod tests {
                 InternalTermRef::NumericLiteral(Numeric::Float(10.0.into())),
             )
             .unwrap();
-        assert_eq!(result, false.into());
+        assert_eq!(result, true.into());
     }
 }

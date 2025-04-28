@@ -1,5 +1,5 @@
 use crate::{ScalarUnaryRdfOp, ThinResult};
-use model::{OwnedStringLiteral, InternalTermRef};
+use model::{InternalTermRef, OwnedStringLiteral};
 
 #[derive(Debug)]
 pub struct StrRdfOp;

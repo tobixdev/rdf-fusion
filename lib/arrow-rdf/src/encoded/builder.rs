@@ -10,7 +10,7 @@ use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use model::vocab::{rdf, xsd};
 use model::{BlankNode, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration};
-use model::{Decimal, Term, Double, Float, Int, Integer, Iri, Literal};
+use model::{Decimal, Double, Float, Int, Integer, Iri, Literal, Term};
 use std::sync::Arc;
 
 pub struct EncRdfTermBuilder {

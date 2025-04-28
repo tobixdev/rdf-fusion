@@ -2,7 +2,7 @@ use crate::xsd::decimal::Decimal;
 use crate::xsd::double::Double;
 use crate::xsd::float::Float;
 use crate::xsd::integer::Integer;
-use crate::{Int, RdfValueRef, InternalTermRef, ThinError, ThinResult};
+use crate::{Int, InternalTermRef, RdfValueRef, ThinError, ThinResult};
 use std::cmp::Ordering;
 use std::hash::Hash;
 

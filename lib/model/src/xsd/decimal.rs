@@ -1,6 +1,6 @@
 use crate::{
-    Boolean, Double, Float, Int, Integer, Numeric, RdfValueRef, InternalTermRef, ThinError, ThinResult,
-    TooLargeForIntError, TooLargeForIntegerError,
+    Boolean, Double, Float, Int, Integer, InternalTermRef, Numeric, RdfValueRef, ThinError,
+    ThinResult, TooLargeForIntError, TooLargeForIntegerError,
 };
 use std::fmt;
 use std::fmt::Write;

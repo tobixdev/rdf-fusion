@@ -6,8 +6,8 @@ use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::{DataFusionError, ScalarValue};
 use model::vocab::{rdf, xsd};
 use model::{
-    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, TermRef, Double,
-    Duration, Float, GraphNameRef, Int, Integer, LiteralRef, NamedNodeRef, SubjectRef, Time,
+    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float,
+    GraphNameRef, Int, Integer, LiteralRef, NamedNodeRef, SubjectRef, TermRef, Time,
     YearMonthDuration,
 };
 use std::str::FromStr;

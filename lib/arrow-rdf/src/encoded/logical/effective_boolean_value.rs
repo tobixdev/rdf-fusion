@@ -7,7 +7,9 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use model::{Decimal, Double, Float, Int, Integer, Numeric, InternalTermRef, ThinError, ThinResult};
+use model::{
+    Decimal, Double, Float, Int, Integer, InternalTermRef, Numeric, ThinError, ThinResult,
+};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -62,12 +64,18 @@ impl ScalarUDFImpl for EncEffectiveBooleanValue {
             ColumnarValue::Array(array) => {
                 let array = as_enc_term_array(array.as_ref())?;
                 let result = (0..args.number_rows)
-                    .map(|i| InternalTermRef::from_enc_array(array, i).and_then(evaluate).ok())
+                    .map(|i| {
+                        InternalTermRef::from_enc_array(array, i)
+                            .and_then(evaluate)
+                            .ok()
+                    })
                     .collect::<BooleanArray>();
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
-                let result = InternalTermRef::from_enc_scalar(scalar).and_then(evaluate).ok();
+                let result = InternalTermRef::from_enc_scalar(scalar)
+                    .and_then(evaluate)
+                    .ok();
                 Ok(ColumnarValue::Scalar(ScalarValue::Boolean(result)))
             }
         }

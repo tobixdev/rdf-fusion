@@ -1,4 +1,4 @@
-use crate::{DateTime, Decimal, RdfValueRef, InternalTermRef, ThinError, ThinResult};
+use crate::{DateTime, Decimal, InternalTermRef, RdfValueRef, ThinError, ThinResult};
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;

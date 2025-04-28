@@ -68,10 +68,12 @@ async fn handle_test(test: Test) -> Result<()> {
         "http://www.w3.org/ns/rdftest#TestNQuadsNegativeSyntax" => {
             parser_evaluate_negative_syntax_test(&test, RdfFormat::NQuads)
         }
-        "http://www.w3.org/ns/rdftest#TestTurtleNegativeSyntax" | "http://www.w3.org/ns/rdftest#TestTurtleNegativeEval" => {
+        "http://www.w3.org/ns/rdftest#TestTurtleNegativeSyntax"
+        | "http://www.w3.org/ns/rdftest#TestTurtleNegativeEval" => {
             parser_evaluate_negative_syntax_test(&test, RdfFormat::Turtle)
         }
-        "http://www.w3.org/ns/rdftest#TestTrigNegativeSyntax" | "http://www.w3.org/ns/rdftest#TestTrigNegativeEval" => {
+        "http://www.w3.org/ns/rdftest#TestTrigNegativeSyntax"
+        | "http://www.w3.org/ns/rdftest#TestTrigNegativeEval" => {
             parser_evaluate_negative_syntax_test(&test, RdfFormat::TriG)
         }
         "http://www.w3.org/ns/rdftest#TestXMLNegativeSyntax" => {
