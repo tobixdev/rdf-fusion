@@ -35,8 +35,8 @@ use graphfusion_engine::sparql::error::QueryEvaluationError;
 use graphfusion_engine::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use graphfusion_engine::TripleStore;
-use graphfusion_store::MemoryTripleStore;
+use graphfusion_engine::QuadStorage;
+use graphfusion_storage::MemoryQuadStorage;
 use model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef, Variable,
 };
@@ -90,13 +90,13 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// ```
 #[derive(Clone)]
 pub struct Store {
-    inner: Arc<dyn TripleStore + Send + Sync>,
+    inner: Arc<dyn QuadStorage + Send + Sync>,
 }
 
 impl Store {
     /// New in-memory [`Store`].
     pub fn new() -> Result<Self, StorageError> {
-        let inner = Arc::new(MemoryTripleStore::new()?);
+        let inner = Arc::new(MemoryQuadStorage::new()?);
         Ok(Self { inner })
     }
 

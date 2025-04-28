@@ -1912,7 +1912,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.15",
  "graphfusion-engine",
- "graphfusion-store",
+ "graphfusion-storage",
  "js-sys",
  "libc",
  "model",
@@ -1982,7 +1982,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "graphfusion-store"
+name = "graphfusion-storage"
 version = "0.1.0"
 dependencies = [
  "arrow-rdf",

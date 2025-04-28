@@ -16,7 +16,7 @@ use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::QueryResults;
 use graphfusion_engine::sparql::error::QueryEvaluationError;
 use graphfusion_engine::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions};
-use graphfusion_engine::TripleStore;
+use graphfusion_engine::QuadStorage;
 use graphfusion_logical::paths::PathToJoinsRule;
 use graphfusion_logical::patterns::PatternToProjectionRule;
 use graphfusion_physical::GraphFusionPlanner;
@@ -24,11 +24,11 @@ use model::{GraphNameRef, NamedNodeRef, Quad, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct MemoryTripleStore {
+pub struct MemoryQuadStorage {
     ctx: SessionContext,
 }
 
-impl MemoryTripleStore {
+impl MemoryQuadStorage {
     pub fn new() -> Result<Self, StorageError> {
         let triples_table: Arc<dyn TableProvider> = Arc::new(OxigraphMemTable::new());
 
@@ -42,7 +42,7 @@ impl MemoryTripleStore {
 
         ctx.register_table("quads", Arc::clone(&triples_table))
             .map_err(StorageError::from)?;
-        Ok(MemoryTripleStore { ctx })
+        Ok(MemoryQuadStorage { ctx })
     }
 
     pub async fn match_pattern(
@@ -83,7 +83,7 @@ impl MemoryTripleStore {
 }
 
 #[async_trait]
-impl TripleStore for MemoryTripleStore {
+impl QuadStorage for MemoryQuadStorage {
     //
     // Querying
     //

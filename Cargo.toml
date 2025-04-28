@@ -7,7 +7,7 @@ members = [
     "lib/graphfusion-engine",
     "lib/graphfusion-logical",
     "lib/graphfusion-physical",
-    "lib/graphfusion-store",
+    "lib/graphfusion-storage",
     "lib/graphfusion",
     "lib/graphfusion-web",
     "testsuite"]
@@ -65,7 +65,7 @@ functions-scalar = { version = "=0.1.0", path = "lib/functions-scalar" }
 graphfusion-engine = { version = "=0.1.0", path = "lib/graphfusion-engine" }
 graphfusion-logical = { version = "=0.1.0", path = "lib/graphfusion-logical" }
 graphfusion-physical = { version = "=0.1.0", path = "lib/graphfusion-physical" }
-graphfusion-store = { version = "=0.1.0", path = "lib/graphfusion-store" }
+graphfusion-storage = { version = "=0.1.0", path = "lib/graphfusion-storage" }
 graphfusion = { version = "=0.1.0", path = "lib/graphfusion" }
 graphfusion-web = { version = "=0.1.0", path = "lib/graphfusion-web" }
 
