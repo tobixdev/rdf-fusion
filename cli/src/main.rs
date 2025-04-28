@@ -22,7 +22,7 @@ pub async fn main() -> anyhow::Result<()> {
             bind,
             cors,
             union_default_graph,
-        } => serve(Store::new()?, &bind, false, cors, union_default_graph).await,
+        } => serve(Store::new(), &bind, false, cors, union_default_graph).await,
         Command::Convert {
             from_file,
             from_format,

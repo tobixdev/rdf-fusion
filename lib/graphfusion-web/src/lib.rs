@@ -1,7 +1,6 @@
 use crate::sparql::create_sparql_routes;
 use axum::response::Redirect;
 use axum::{routing::get, Router};
-use graphfusion::store::Store;
 use std::net::SocketAddr;
 use std::str::FromStr;
 
@@ -12,6 +11,7 @@ mod sparql;
 
 use crate::app::create_app_routes;
 pub use config::ServerConfig;
+use graphfusion::store::Store;
 
 // TODO: proper logging
 #[allow(clippy::print_stdout)]

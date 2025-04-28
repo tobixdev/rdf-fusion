@@ -27,19 +27,19 @@
 //! ```
 
 use crate::error::{LoaderError, SerializerError};
-use crate::io::{RdfParser, RdfSerializer};
+use crate::sparql::error::QueryEvaluationError;
 use futures::StreamExt;
 use graphfusion_engine::error::StorageError;
 use graphfusion_engine::results::{GraphNameStream, QuadStream, QuerySolutionStream};
-use graphfusion_engine::sparql::error::QueryEvaluationError;
 use graphfusion_engine::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use graphfusion_engine::QuadStorage;
+use graphfusion_engine::GraphFusionInstance;
 use graphfusion_storage::MemoryQuadStorage;
 use model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef, Variable,
 };
+use oxrdfio::{RdfParser, RdfSerializer};
 use std::io::{Read, Write};
 use std::sync::{Arc, LazyLock};
 
@@ -90,14 +90,23 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// ```
 #[derive(Clone)]
 pub struct Store {
-    inner: Arc<dyn QuadStorage + Send + Sync>,
+    engine: GraphFusionInstance,
+}
+
+impl Default for Store {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Store {
-    /// New in-memory [`Store`].
-    pub fn new() -> Result<Self, StorageError> {
-        let inner = Arc::new(MemoryQuadStorage::new()?);
-        Ok(Self { inner })
+    /// Creates a [Store] with a [OxigraphMemoryStorage] as backing storage.
+    #[allow(clippy::expect_used)]
+    pub fn new() -> Store {
+        let storage = MemoryQuadStorage::new("memory_quads");
+        let engine = GraphFusionInstance::new_with_storage(Arc::new(storage))
+            .expect("Name of the storage is OK");
+        Self { engine }
     }
 
     /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/).
@@ -191,7 +200,7 @@ impl Store {
     ) -> Result<(QueryResults, Option<QueryExplanation>), QueryEvaluationError> {
         let query = query.try_into();
         match query {
-            Ok(query) => self.inner.execute_query(&query, options).await,
+            Ok(query) => self.engine.execute_query(&query, options).await,
             Err(err) => Err(err.into()),
         }
     }
@@ -225,7 +234,7 @@ impl Store {
         graph_name: Option<GraphNameRef<'_>>,
     ) -> Result<QuadStream, QueryEvaluationError> {
         let record_batch_stream = self
-            .inner
+            .engine
             .quads_for_pattern(graph_name, subject, predicate, object)
             .await?;
         let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
@@ -253,7 +262,7 @@ impl Store {
     /// ```
     pub async fn stream(&self) -> Result<QuadStream, QueryEvaluationError> {
         let record_batch_stream = self
-            .inner
+            .engine
             .quads_for_pattern(None, None, None, None)
             .await
             .map_err(QueryEvaluationError::from)?;
@@ -278,9 +287,15 @@ impl Store {
     /// assert!(store.contains(quad)?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub async fn contains<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
+    pub async fn contains<'a>(
+        &self,
+        quad: impl Into<QuadRef<'a>>,
+    ) -> Result<bool, QueryEvaluationError> {
         let quad = quad.into();
-        self.inner.contains(&quad).await.map_err(StorageError::from)
+        self.engine
+            .contains(&quad)
+            .await
+            .map_err(QueryEvaluationError::from)
     }
 
     /// Returns the number of quads in the store.
@@ -299,8 +314,8 @@ impl Store {
     /// assert_eq!(2, store.len()?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
-    pub async fn len(&self) -> Result<usize, StorageError> {
-        self.inner.len().await.map_err(StorageError::from)
+    pub async fn len(&self) -> Result<usize, QueryEvaluationError> {
+        self.engine.len().await.map_err(QueryEvaluationError::from)
     }
 
     /// Returns if the store is empty.
@@ -320,7 +335,7 @@ impl Store {
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
     #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn is_empty(&self) -> Result<bool, StorageError> {
+    pub fn is_empty(&self) -> Result<bool, QueryEvaluationError> {
         unimplemented!()
     }
 
@@ -421,7 +436,8 @@ impl Store {
             .rename_blank_nodes()
             .for_reader(reader)
             .collect::<Result<Vec<_>, _>>()?;
-        self.inner
+        self.engine
+            .storage()
             .load_quads(quads)
             .await
             .map(|_| ())
@@ -449,7 +465,8 @@ impl Store {
     /// ```
     pub async fn insert<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
         let quad = vec![quad.into().into_owned()];
-        self.inner
+        self.engine
+            .storage()
             .load_quads(quad)
             .await
             .map(|inserted| inserted > 0)
@@ -491,7 +508,8 @@ impl Store {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn remove<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
-        self.inner
+        self.engine
+            .storage()
             .remove(quad.into())
             .await
             .map_err(StorageError::from)
@@ -790,7 +808,7 @@ mod tests {
             ),
         ];
 
-        let store = Store::new()?;
+        let store = Store::new();
         for t in &default_quads {
             assert!(store.insert(t).await?);
         }

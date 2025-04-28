@@ -38,14 +38,18 @@ impl From<LoaderError> for io::Error {
 }
 
 /// An error raised while writing a file from a [`Store`](crate::store::Store).
+
 #[derive(Debug, thiserror::Error)]
+
 pub enum SerializerError {
     /// An error raised while writing the content.
     #[error(transparent)]
     Io(#[from] io::Error),
+
     /// An error raised during accessing the quads in the [`Store`](crate::store::Store).
     #[error(transparent)]
     Evaluation(#[from] QueryEvaluationError),
+
     /// A format compatible with [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset) is required.
     #[error("A RDF format supporting datasets was expected, {0} found")]
     DatasetFormatExpected(RdfFormat),

@@ -1,10 +1,9 @@
-use crate::patterns::pattern_to_variable_name;
+use crate::patterns::pattern_element::PatternNodeElement;
 use crate::DFResult;
 use arrow_rdf::encoded::EncTerm;
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use spargebra::term::TermPattern;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
@@ -13,17 +12,23 @@ use std::sync::Arc;
 #[derive(PartialEq, Eq, Hash)]
 pub struct PatternNode {
     input: LogicalPlan,
-    patterns: Vec<TermPattern>,
+    patterns: Vec<PatternNodeElement>,
     schema: DFSchemaRef,
 }
 
 impl PatternNode {
-    pub fn try_new(input: LogicalPlan, patterns: Vec<TermPattern>) -> DFResult<Self> {
+    /// Creates a new [PatternNode].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the length of the input schema does not match the length of the
+    /// patterns.
+    pub fn try_new(input: LogicalPlan, patterns: Vec<PatternNodeElement>) -> DFResult<Self> {
         if input.schema().columns().len() != patterns.len() {
             return plan_err!("Patterns must match the number of column of inner.");
         }
 
-        let schema = Self::compute_schema(&patterns)?;
+        let schema = PatternNode::compute_schema(&patterns)?;
         Ok(Self {
             input,
             patterns,
@@ -31,10 +36,10 @@ impl PatternNode {
         })
     }
 
-    pub(crate) fn compute_schema(patterns: &Vec<TermPattern>) -> DFResult<DFSchemaRef> {
+    pub(crate) fn compute_schema(patterns: &[PatternNodeElement]) -> DFResult<DFSchemaRef> {
         let mut fields = Vec::new();
         for pattern in patterns {
-            match pattern_to_variable_name(pattern) {
+            match pattern.variable_name() {
                 None => {}
                 Some(variable) => {
                     if !fields.contains(&variable) {
@@ -58,7 +63,7 @@ impl PatternNode {
         &self.input
     }
 
-    pub fn patterns(&self) -> &[TermPattern] {
+    pub fn patterns(&self) -> &[PatternNodeElement] {
         &self.patterns
     }
 }
@@ -96,7 +101,7 @@ impl UserDefinedLogicalNodeCore for PatternNode {
         let patterns = self
             .patterns
             .iter()
-            .map(format_pattern)
+            .map(ToString::to_string)
             .collect::<Vec<_>>()
             .join(", ");
         write!(f, "Pattern: {patterns}",)
@@ -119,14 +124,5 @@ impl UserDefinedLogicalNodeCore for PatternNode {
         }
 
         Self::try_new(inputs[0].clone(), self.patterns.clone())
-    }
-}
-
-fn format_pattern(pattern: &TermPattern) -> String {
-    match pattern {
-        TermPattern::NamedNode(nn) => nn.to_string(),
-        TermPattern::BlankNode(bnode) => bnode.to_string(),
-        TermPattern::Literal(v) => v.value().to_owned(),
-        TermPattern::Variable(v) => v.to_string(),
     }
 }

@@ -3,9 +3,9 @@ mod encoded_term;
 mod encoder;
 mod hash;
 mod oxigraph_mem_exec;
+mod quad_storage;
 mod small_string;
 mod store;
 mod table_provider;
-mod quad_storage;
 
 pub use quad_storage::MemoryQuadStorage;

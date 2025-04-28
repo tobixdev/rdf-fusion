@@ -1,13 +1,12 @@
-use crate::patterns::{pattern_to_variable_name, PatternNode};
+use crate::patterns::pattern_element::PatternNodeElement;
+use crate::patterns::PatternNode;
 use crate::DFResult;
-use arrow_rdf::encoded::scalars::{encode_scalar_literal, encode_scalar_named_node};
-use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM};
+use arrow_rdf::encoded::{ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::Column;
-use datafusion::logical_expr::{and, col, lit, Extension, LogicalPlan, LogicalPlanBuilder};
+use datafusion::common::DFSchema;
+use datafusion::logical_expr::{and, col, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
-use spargebra::term::TermPattern;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Default)]
@@ -27,10 +26,13 @@ impl OptimizerRule for PatternToProjectionRule {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<PatternNode>() {
-                        let plan = node.input().clone();
+                        let plan = LogicalPlanBuilder::from(node.input().clone());
 
-                        let plan = filter_by_values(plan.into(), node.patterns())?;
-                        let plan = filter_same_variable(plan, node.patterns())?;
+                        let filter = compute_filters_for_pattern(node);
+                        let plan = match filter {
+                            None => plan,
+                            Some(filter) => plan.filter(filter)?,
+                        };
                         let plan = project_to_variables(plan, node.patterns())?;
 
                         Transformed::yes(plan.build()?)
@@ -45,41 +47,27 @@ impl OptimizerRule for PatternToProjectionRule {
     }
 }
 
+/// Computes the filters that will be applied for a given [PatternNode]. Callers can use this
+/// function to only apply the filters of a pattern and ignore any projections to variables.
+pub fn compute_filters_for_pattern(node: &PatternNode) -> Option<Expr> {
+    let filters = [
+        filter_by_values(node.input().schema(), node.patterns()),
+        filter_same_variable(node.input().schema(), node.patterns()),
+    ];
+    filters.into_iter().flatten().reduce(and)
+}
+
 /// Adds filter operations that constraints the solutions of patterns that use literals.
 ///
 /// For example, for the pattern `?a foaf:knows ?b` this functions adds a filter that ensures that
 /// the predicate is `foaf:knows`.
-fn filter_by_values(
-    plan: LogicalPlanBuilder,
-    pattern: &[TermPattern],
-) -> DFResult<LogicalPlanBuilder> {
-    let filter = plan
-        .schema()
+fn filter_by_values(schema: &DFSchema, pattern: &[PatternNodeElement]) -> Option<Expr> {
+    schema
         .columns()
         .iter()
         .zip(pattern.iter())
-        .filter_map(|(c, p)| value_pattern_to_filter_expr(c, p))
-        .reduce(and);
-
-    let Some(filter) = filter else {
-        return Ok(plan);
-    };
-
-    plan.filter(filter)
-}
-
-/// Returns a filter expression based on `column` (for the name) only if the given pattern is a
-/// value (e.g., named node).
-fn value_pattern_to_filter_expr(column: &Column, pattern: &TermPattern) -> Option<Expr> {
-    let scalar = match pattern {
-        TermPattern::NamedNode(nn) => Some(encode_scalar_named_node(nn.as_ref())),
-        TermPattern::Literal(lit) => Some(encode_scalar_literal(lit.as_ref()).unwrap()),
-        TermPattern::BlankNode(_) | TermPattern::Variable(_) => None,
-    }?;
-
-    Some(ENC_AS_NATIVE_BOOLEAN.call(vec![
-        ENC_SAME_TERM.call(vec![Expr::from(column.clone()), lit(scalar)]),
-    ]))
+        .filter_map(|(c, p)| p.filter_expression(c))
+        .reduce(and)
 }
 
 /// Adds filter operations that constraints the solutions of patterns that use the same variable
@@ -87,15 +75,12 @@ fn value_pattern_to_filter_expr(column: &Column, pattern: &TermPattern) -> Optio
 ///
 /// For example, for the pattern `?a ?a ?b` this functions adds a constraint that ensures that the
 /// subject is equal to the predicate.
-fn filter_same_variable(
-    plan: LogicalPlanBuilder,
-    pattern: &[TermPattern],
-) -> DFResult<LogicalPlanBuilder> {
+fn filter_same_variable(schema: &DFSchema, pattern: &[PatternNodeElement]) -> Option<Expr> {
     let mut mappings = HashMap::new();
 
-    let column_patterns = plan.schema().columns().into_iter().zip(pattern.iter());
+    let column_patterns = schema.columns().into_iter().zip(pattern.iter());
     for (column, pattern) in column_patterns {
-        if let Some(variable) = pattern_to_variable_name(pattern) {
+        if let Some(variable) = pattern.variable_name() {
             if !mappings.contains_key(&variable) {
                 mappings.insert(variable.clone(), Vec::new());
             }
@@ -103,7 +88,7 @@ fn filter_same_variable(
         }
     }
 
-    let mut result_plan = plan;
+    let mut constraints = Vec::new();
     for value in mappings.into_values() {
         let columns = value.into_iter().map(col).collect::<Vec<_>>();
         let constraint = columns
@@ -114,26 +99,25 @@ fn filter_same_variable(
                     .call(vec![ENC_SAME_TERM.call(vec![a.clone(), b.clone()])])
             })
             .reduce(Expr::and);
-        result_plan = match constraint {
-            Some(constraint) => result_plan.filter(constraint)?,
-            _ => result_plan,
+        if let Some(constraint) = constraint {
+            constraints.push(constraint);
         }
     }
 
-    Ok(result_plan)
+    constraints.into_iter().reduce(Expr::and)
 }
 
 /// Projects the inner columns to the variables.
 fn project_to_variables(
     plan: LogicalPlanBuilder,
-    patterns: &[TermPattern],
+    patterns: &[PatternNodeElement],
 ) -> DFResult<LogicalPlanBuilder> {
     let possible_projections = plan
         .schema()
         .columns()
         .into_iter()
         .zip(patterns.iter())
-        .filter_map(|(c, p)| pattern_to_variable_name(p).map(|vname| (c, vname)));
+        .filter_map(|(c, p)| p.variable_name().map(|vname| (c, vname)));
 
     let mut already_projected = HashSet::new();
     let mut projections = Vec::new();

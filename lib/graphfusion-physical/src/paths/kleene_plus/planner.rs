@@ -10,11 +10,11 @@ use graphfusion_logical::paths::KleenePlusClosureNode;
 use std::sync::Arc;
 
 /// Planner for KleenePlusPath nodes
-pub(crate) struct KleenePlusPathPlanner;
+pub struct KleenePlusPathPlanner;
 
-impl KleenePlusPathPlanner {
-    pub fn new() -> Self {
-        Self {}
+impl Default for KleenePlusPathPlanner {
+    fn default() -> Self {
+        Self
     }
 }
 

@@ -116,11 +116,11 @@ fn compute_schema(
     object: &TermPattern,
 ) -> DFResult<DFSchemaRef> {
     let patterns = match graph {
-        None => vec![subject.clone(), object.clone()],
+        None => vec![subject.clone().into(), object.clone().into()],
         Some(graph) => vec![
-            TermPattern::from(graph.clone()),
-            subject.clone(),
-            object.clone(),
+            graph.clone().into(),
+            subject.clone().into(),
+            object.clone().into(),
         ],
     };
     PatternNode::compute_schema(&patterns)

@@ -1,14 +1,8 @@
 mod logical;
+mod pattern_element;
 mod rewrite;
 
 pub use logical::PatternNode;
+pub use pattern_element::PatternNodeElement;
+pub use rewrite::compute_filters_for_pattern;
 pub use rewrite::PatternToProjectionRule;
-use spargebra::term::TermPattern;
-
-fn pattern_to_variable_name(pattern: &TermPattern) -> Option<String> {
-    match pattern {
-        TermPattern::BlankNode(bnode) => Some(format!("_:{}", bnode.as_ref().as_str())),
-        TermPattern::Variable(var) => Some(var.as_str().into()),
-        _ => None,
-    }
-}

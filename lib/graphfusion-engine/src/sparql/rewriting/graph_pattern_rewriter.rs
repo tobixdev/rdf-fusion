@@ -23,7 +23,7 @@ use datafusion::logical_expr::{
 };
 use datafusion::prelude::{and, col};
 use graphfusion_logical::paths::PathNode;
-use graphfusion_logical::patterns::PatternNode;
+use graphfusion_logical::patterns::{PatternNode, PatternNodeElement};
 use model::Iri;
 use model::{GraphName, NamedOrBlankNode, Variable};
 use spargebra::algebra::{
@@ -152,15 +152,15 @@ impl GraphPatternRewriter {
             .graph
             .as_ref()
             .filter(|_| !state.graph_is_out_of_scope)
-            .map(|nn| TermPattern::from(nn.clone()));
+            .map(|nn| PatternNodeElement::from(nn.clone()));
 
         match graph_pattern {
             None => {
                 let plan = plan.project([col(COL_SUBJECT), col(COL_PREDICATE), col(COL_OBJECT)])?;
                 let patterns = vec![
-                    pattern.subject.clone(),
-                    TermPattern::from(pattern.predicate.clone()),
-                    pattern.object.clone(),
+                    PatternNodeElement::from(pattern.subject.clone()),
+                    PatternNodeElement::from(pattern.predicate.clone()),
+                    PatternNodeElement::from(pattern.object.clone()),
                 ];
                 Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
                     node: Arc::new(PatternNode::try_new(plan.build()?, patterns)?),
@@ -169,9 +169,9 @@ impl GraphPatternRewriter {
             Some(graph_pattern) => {
                 let patterns = vec![
                     graph_pattern,
-                    pattern.subject.clone(),
-                    TermPattern::from(pattern.predicate.clone()),
-                    pattern.object.clone(),
+                    PatternNodeElement::from(pattern.subject.clone()),
+                    PatternNodeElement::from(pattern.predicate.clone()),
+                    PatternNodeElement::from(pattern.object.clone()),
                 ];
                 Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
                     node: Arc::new(PatternNode::try_new(plan.build()?, patterns)?),

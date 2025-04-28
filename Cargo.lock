@@ -1991,8 +1991,6 @@ dependencies = [
  "datafusion",
  "futures",
  "graphfusion-engine",
- "graphfusion-logical",
- "graphfusion-physical",
  "model",
  "oxsdatatypes",
  "rustc-hash",

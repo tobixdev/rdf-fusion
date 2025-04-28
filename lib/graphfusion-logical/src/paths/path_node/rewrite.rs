@@ -17,7 +17,7 @@ use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
 use model::NamedNode;
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{NamedNodePattern, TermPattern};
+use spargebra::term::NamedNodePattern;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -59,19 +59,22 @@ impl PathToJoinsRule {
 
     fn rewrite_path_node(&self, node: &PathNode) -> DFResult<LogicalPlan> {
         let query = self.rewrite_property_path_expression(node.graph().as_ref(), node.path())?;
-        let graph_pattern = node.graph().as_ref().map(|p| TermPattern::from(p.clone()));
 
-        Ok(match graph_pattern {
+        Ok(match node.graph() {
             None => LogicalPlan::Extension(Extension {
                 node: Arc::new(PatternNode::try_new(
                     query.project([col(COL_SOURCE), col(COL_TARGET)])?.build()?,
-                    vec![node.subject().clone(), node.object().clone()],
+                    vec![node.subject().clone().into(), node.object().clone().into()],
                 )?),
             }),
-            Some(graph_pattern) => LogicalPlan::Extension(Extension {
+            Some(graph) => LogicalPlan::Extension(Extension {
                 node: Arc::new(PatternNode::try_new(
                     query.build()?,
-                    vec![graph_pattern, node.subject().clone(), node.object().clone()],
+                    vec![
+                        graph.clone().into(),
+                        node.subject().clone().into(),
+                        node.object().clone().into(),
+                    ],
                 )?),
             }),
         })
