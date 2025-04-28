@@ -2,6 +2,7 @@ use axum::response::{IntoResponse, Response};
 use graphfusion::QueryResults;
 
 /// Wraps a [QueryResults] that can be converted into a [Response].
+#[allow(unused)]
 pub struct QueryResultsResponse(QueryResults);
 
 impl From<QueryResults> for QueryResultsResponse {
@@ -11,6 +12,7 @@ impl From<QueryResults> for QueryResultsResponse {
 }
 
 impl IntoResponse for QueryResultsResponse {
+    #[allow(clippy::todo, reason="No production code yet")]
     fn into_response(self) -> Response {
         todo!()
     }

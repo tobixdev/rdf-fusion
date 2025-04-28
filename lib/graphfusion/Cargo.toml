@@ -43,7 +43,7 @@ getrandom.workspace = true
 js-sys = { workspace = true, optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-codspeed-criterion-compat.workspace = true
+criterion.workspace = true
 oxhttp.workspace = true
 zstd.workspace = true
 

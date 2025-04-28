@@ -1,4 +1,10 @@
+use std::time::Duration;
 use graphfusion::store::Store;
+
+#[allow(unused, reason="Not yet implemented")]
+pub const MAX_SPARQL_BODY_SIZE: u64 = 1024 * 1024 * 128; // 128MB
+#[allow(unused, reason="Not yet implemented")]
+pub const HTTP_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Holds the configuration for a GraphFusion web server.
 pub struct ServerConfig {

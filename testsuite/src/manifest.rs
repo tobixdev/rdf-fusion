@@ -185,7 +185,7 @@ impl TestManifest {
                                     None
                                 }
                             }
-                            _ => None,
+                            TermRef::Literal(_) => None,
                         })
                         .collect::<Result<_, _>>()?;
                     let service_data = self
@@ -194,7 +194,7 @@ impl TestManifest {
                         .filter_map(|g| match g {
                             TermRef::NamedNode(g) => Some(g.into()),
                             TermRef::BlankNode(g) => Some(g.into()),
-                            _ => None,
+                            TermRef::Literal(_) => None,
                         })
                         .filter_map(|g: SubjectRef<'_>| {
                             if let (
@@ -260,7 +260,7 @@ impl TestManifest {
                                     None
                                 }
                             }
-                            _ => None,
+                            TermRef::Literal(_) => None,
                         })
                         .collect::<Result<_, _>>()?,
                 ),

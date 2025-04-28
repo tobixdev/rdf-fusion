@@ -22,7 +22,7 @@ impl IntoResponse for GraphFusionServerError {
             GraphFusionServerError::ContentNegotiation(msg) => (StatusCode::NOT_ACCEPTABLE, msg),
             GraphFusionServerError::ReadOnly => (
                 StatusCode::FORBIDDEN,
-                "Server is in read-only mode".to_string(),
+                "Server is in read-only mode".to_owned(),
             ),
             GraphFusionServerError::Internal(e) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())

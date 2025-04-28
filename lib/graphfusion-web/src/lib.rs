@@ -4,7 +4,6 @@ use axum::{routing::get, Router};
 use graphfusion::store::Store;
 use std::net::SocketAddr;
 use std::str::FromStr;
-use std::time::Duration;
 
 mod app;
 mod config;
@@ -14,9 +13,8 @@ mod sparql;
 use crate::app::create_app_routes;
 pub use config::ServerConfig;
 
-const MAX_SPARQL_BODY_SIZE: u64 = 1024 * 1024 * 128; // 128MB
-const HTTP_TIMEOUT: Duration = Duration::from_secs(60);
-
+// TODO: proper logging
+#[allow(clippy::print_stdout)]
 pub async fn serve(config: ServerConfig) -> anyhow::Result<()> {
     let addr = SocketAddr::from_str(&config.bind)?;
 
@@ -39,7 +37,7 @@ pub async fn serve(config: ServerConfig) -> anyhow::Result<()> {
         app
     };
 
-    println!("Listening on {}", addr);
+    println!("Listening on {addr}");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     Ok(axum::serve(listener, app).await?)
@@ -48,6 +46,7 @@ pub async fn serve(config: ServerConfig) -> anyhow::Result<()> {
 #[derive(Clone)]
 struct AppState {
     store: Store,
+    #[allow(unused, reason="Not yet implemented")]
     read_only: bool,
     union_default_graph: bool,
 }

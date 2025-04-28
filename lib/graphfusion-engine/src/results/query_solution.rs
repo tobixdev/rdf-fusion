@@ -146,7 +146,7 @@ mod tests {
     use super::*;
     use crate::results::query_result_for_iterator;
     use crate::sparql::QueryResults;
-    use oxrdf::{BlankNode, Literal, NamedNode, Triple};
+    use model::{BlankNode, Literal, NamedNode};
     use sparesults::QueryResultsFormat;
     use std::error::Error;
     use std::io::Cursor;
@@ -198,28 +198,29 @@ mod tests {
                     Some(Literal::from(1.33).into()),
                     Some(Literal::from(false).into()),
                 ],
-                vec![
-                    Some(
-                        Triple::new(
-                            NamedNode::new_unchecked("http://example.com/s"),
-                            NamedNode::new_unchecked("http://example.com/p"),
-                            Triple::new(
-                                NamedNode::new_unchecked("http://example.com/os"),
-                                NamedNode::new_unchecked("http://example.com/op"),
-                                NamedNode::new_unchecked("http://example.com/oo"),
-                            ),
-                        )
-                        .into(),
-                    ),
-                    None,
-                ],
+                // TODO #3: Quoted Triples
+                // vec![
+                //     Some(
+                //         Triple::new(
+                //             NamedNode::new_unchecked("http://example.com/s"),
+                //             NamedNode::new_unchecked("http://example.com/p"),
+                //             Triple::new(
+                //                 NamedNode::new_unchecked("http://example.com/os"),
+                //                 NamedNode::new_unchecked("http://example.com/op"),
+                //                 NamedNode::new_unchecked("http://example.com/oo"),
+                //             ),
+                //         )
+                //         .into(),
+                //     ),
+                //     None,
+                // ],
             ]
             .into_iter()
-            .map(|ts| Ok(QuerySolution::from((variables.clone(), ts))));
+            .map(|ts| Ok(QuerySolution::from((Arc::clone(&variables), ts))));
             let results = vec![
                 QueryResults::Boolean(true),
                 QueryResults::Boolean(false),
-                query_result_for_iterator(variables.clone(), terms)?,
+                query_result_for_iterator(Arc::clone(&variables), terms)?,
             ];
 
             for ex in results {

@@ -1,6 +1,7 @@
 #![allow(clippy::panic)]
 
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
+use futures::StreamExt;
 use graphfusion::io::{RdfFormat, RdfParser};
 use graphfusion::sparql::{Query, QueryOptions, QueryResults, Update};
 use graphfusion::store::Store;
@@ -11,6 +12,7 @@ use std::fs::{remove_dir_all, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::str;
+use tokio::runtime::Runtime;
 
 fn parse_nt(c: &mut Criterion) {
     let data = read_data("explore-1000.nt.zst");
@@ -59,47 +61,27 @@ fn store_load(c: &mut Criterion) {
     group.throughput(Throughput::Bytes(data.len() as u64));
     group.sample_size(10);
     group.bench_function("load BSBM explore 1000 in memory", |b| {
-        b.iter(|| {
+        b.to_async(Runtime::new().unwrap()).iter(|| async {
             let store = Store::new().unwrap();
-            do_load(&store, &data);
-        })
+            do_load(&store, &data).await;
+        });
     });
-    group.bench_function("load BSBM explore 1000 in on disk", |b| {
-        b.iter(|| {
-            let path = TempDir::default();
-            let store = Store::open(&path).unwrap();
-            do_load(&store, &data);
-        })
-    });
-    group.bench_function("load BSBM explore 1000 in memory with bulk load", |b| {
-        b.iter(|| {
-            let store = Store::new().unwrap();
-            do_bulk_load(&store, &data);
-        })
-    });
-    group.bench_function("load BSBM explore 1000 in on disk with bulk load", |b| {
-        b.iter(|| {
-            let path = TempDir::default();
-            let store = Store::open(&path).unwrap();
-            do_bulk_load(&store, &data);
-        })
-    });
+    // TODO #4: Persistent sotrage
+    // group.bench_function("load BSBM explore 1000 in on disk", |b| {
+    //     b.iter(|| {
+    //         let path = TempDir::default();
+    //         let store = Store::open(&path).unwrap();
+    //         do_load(&store, &data);
+    //     })
+    // });
 }
 
-fn do_load(store: &Store, data: &[u8]) {
-    store.load_from_reader(RdfFormat::NTriples, data).unwrap();
-    store.optimize().unwrap();
-}
-
-fn do_bulk_load(store: &Store, data: &[u8]) {
+async fn do_load(store: &Store, data: &[u8]) {
     store
-        .bulk_loader()
-        .load_from_reader(
-            RdfParser::from_format(RdfFormat::NTriples).unchecked(),
-            data,
-        )
+        .load_from_reader(RdfFormat::NTriples, data)
+        .await
         .unwrap();
-    store.optimize().unwrap();
+    // store.optimize().unwrap();
 }
 
 fn store_query_and_update(c: &mut Criterion) {
@@ -121,59 +103,68 @@ fn store_query_and_update(c: &mut Criterion) {
     group.throughput(Throughput::Elements(operations.len() as u64));
     group.sample_size(10);
 
-    {
-        let memory_store = Store::new().unwrap();
-        do_bulk_load(&memory_store, &data);
-        group.bench_function("BSBM explore 1000 query in memory", |b| {
-            b.iter(|| run_operation(&memory_store, &query_operations, true))
-        });
-        group.bench_function(
-            "BSBM explore 1000 query in memory without optimizations",
-            |b| b.iter(|| run_operation(&memory_store, &query_operations, false)),
-        );
-        group.bench_function("BSBM explore 1000 queryAndUpdate in memory", |b| {
-            b.iter(|| run_operation(&memory_store, &operations, true))
-        });
-        group.bench_function(
-            "BSBM explore 1000 queryAndUpdate in memory without optimizations",
-            |b| b.iter(|| run_operation(&memory_store, &operations, false)),
-        );
-    }
+    let runtime = Runtime::new().unwrap();
+    let memory_store = Store::new().unwrap();
+    runtime.block_on(do_load(&memory_store, &data));
+    group.bench_function("BSBM explore 1000 query in memory", |b| {
+        b.to_async(Runtime::new().unwrap())
+            .iter(|| run_operation(&memory_store, &query_operations, true))
+    });
+    group.bench_function(
+        "BSBM explore 1000 query in memory without optimizations",
+        |b| {
+            b.to_async(Runtime::new().unwrap())
+                .iter(|| run_operation(&memory_store, &query_operations, false))
+        },
+    );
+    group.bench_function("BSBM explore 1000 queryAndUpdate in memory", |b| {
+        b.to_async(Runtime::new().unwrap())
+            .iter(|| run_operation(&memory_store, &operations, true))
+    });
+    group.bench_function(
+        "BSBM explore 1000 queryAndUpdate in memory without optimizations",
+        |b| {
+            b.to_async(Runtime::new().unwrap())
+                .iter(|| run_operation(&memory_store, &operations, false))
+        },
+    );
 
-    {
-        let path = TempDir::default();
-        let disk_store = Store::open(&path).unwrap();
-        do_bulk_load(&disk_store, &data);
-        group.bench_function("BSBM explore 1000 query on disk", |b| {
-            b.iter(|| run_operation(&disk_store, &query_operations, true))
-        });
-        group.bench_function(
-            "BSBM explore 1000 query on disk without optimizations",
-            |b| b.iter(|| run_operation(&disk_store, &query_operations, false)),
-        );
-        group.bench_function("BSBM explore 1000 queryAndUpdate on disk", |b| {
-            b.iter(|| run_operation(&disk_store, &operations, true))
-        });
-        group.bench_function(
-            "BSBM explore 1000 queryAndUpdate on disk without optimizations",
-            |b| b.iter(|| run_operation(&disk_store, &operations, false)),
-        );
-    }
+    // TODO #4: Persistent sotrage
+    // {
+    //     let path = TempDir::default();
+    //     let disk_store = Store::open(&path).unwrap();
+    //     do_load(&disk_store, &data);
+    //     group.bench_function("BSBM explore 1000 query on disk", |b| {
+    //         b.iter(|| run_operation(&disk_store, &query_operations, true))
+    //     });
+    //     group.bench_function(
+    //         "BSBM explore 1000 query on disk without optimizations",
+    //         |b| b.iter(|| run_operation(&disk_store, &query_operations, false)),
+    //     );
+    //     group.bench_function("BSBM explore 1000 queryAndUpdate on disk", |b| {
+    //         b.iter(|| run_operation(&disk_store, &operations, true))
+    //     });
+    //     group.bench_function(
+    //         "BSBM explore 1000 queryAndUpdate on disk without optimizations",
+    //         |b| b.iter(|| run_operation(&disk_store, &operations, false)),
+    //     );
+    // }
 }
 
-fn run_operation(store: &Store, operations: &[Operation], with_opts: bool) {
-    let mut options = QueryOptions::default();
+async fn run_operation(store: &Store, operations: &[Operation], _with_opts: bool) {
+    let options = QueryOptions;
     for operation in operations {
         match operation {
-            Operation::Query(q) => match store.query_opt(q.clone(), options.clone()).unwrap() {
+            Operation::Query(q) => match store.query_opt(q.clone(), options.clone()).await.unwrap()
+            {
                 QueryResults::Boolean(_) => (),
-                QueryResults::Solutions(s) => {
-                    for s in s {
+                QueryResults::Solutions(mut s) => {
+                    while let Some(s) = s.next().await {
                         s.unwrap();
                     }
                 }
-                QueryResults::Graph(g) => {
-                    for t in g {
+                QueryResults::Graph(mut g) => {
+                    while let Some(t) = g.next().await {
                         t.unwrap();
                     }
                 }

@@ -16,7 +16,7 @@ struct Args {
 async fn main() -> Result<()> {
     let matches = Args::parse();
 
-    let evaluator = TestEvaluator::default();
+    let evaluator = TestEvaluator;
     let manifest = TestManifest::new(matches.manifest);
     let results = evaluator.evaluate(manifest).await?;
     print!("{}", build_report(results));

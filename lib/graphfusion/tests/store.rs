@@ -3,8 +3,8 @@
 
 use graphfusion::io::RdfFormat;
 use graphfusion::store::Store;
-use oxrdf::vocab::{rdf, xsd};
-use oxrdf::{GraphNameRef, LiteralRef, NamedNodeRef, QuadRef};
+use graphfusion::model::vocab::{rdf, xsd};
+use graphfusion::model::{GraphNameRef, LiteralRef, NamedNodeRef, QuadRef};
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use rand::random;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
@@ -14,8 +14,6 @@ use std::error::Error;
 use std::fs::remove_dir_all;
 #[cfg(all(not(target_family = "wasm"), feature = "storage"))]
 use std::path::{Path, PathBuf};
-#[cfg(all(target_os = "linux", feature = "storage"))]
-use std::process::Command;
 
 #[allow(clippy::non_ascii_literal)]
 const DATA: &str = r#"
@@ -105,7 +103,7 @@ fn quads(graph_name: impl Into<GraphNameRef<'static>>) -> Vec<QuadRef<'static>> 
 
 #[tokio::test]
 async fn test_load_graph() -> Result<(), Box<dyn Error>> {
-    let store = Store::new().await?;
+    let store = Store::new()?;
     store
         .load_from_reader(RdfFormat::Turtle, DATA.as_bytes())
         .await?;
@@ -118,7 +116,7 @@ async fn test_load_graph() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn test_load_dataset() -> Result<(), Box<dyn Error>> {
-    let store = Store::new().await?;
+    let store = Store::new()?;
     store
         .load_from_reader(RdfFormat::TriG, GRAPH_DATA.as_bytes())
         .await?;
@@ -133,7 +131,7 @@ async fn test_load_dataset() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn test_load_graph_generates_new_blank_nodes() -> Result<(), Box<dyn Error>> {
-    let store = Store::new().await?;
+    let store = Store::new()?;
     for _ in 0..2 {
         store
             .load_from_reader(
@@ -148,7 +146,7 @@ async fn test_load_graph_generates_new_blank_nodes() -> Result<(), Box<dyn Error
 
 #[tokio::test]
 async fn test_dump_graph() -> Result<(), Box<dyn Error>> {
-    let store = Store::new().await?;
+    let store = Store::new()?;
     for q in quads(GraphNameRef::DefaultGraph) {
         store.insert(q).await?;
     }
@@ -166,7 +164,7 @@ async fn test_dump_graph() -> Result<(), Box<dyn Error>> {
 
 #[tokio::test]
 async fn test_dump_dataset() -> Result<(), Box<dyn Error>> {
-    let store = Store::new().await?;
+    let store = Store::new()?;
     for q in quads(GraphNameRef::DefaultGraph) {
         store.insert(q).await?;
     }
@@ -187,25 +185,12 @@ async fn test_snapshot_isolation_iterator() -> Result<(), Box<dyn Error>> {
         NamedNodeRef::new("http://example.com/o")?,
         NamedNodeRef::new("http://www.wikidata.org/wiki/Special:EntityData/Q90")?,
     );
-    let store = Store::new().await?;
+    let store = Store::new()?;
     store.insert(quad).await?;
     let iter = store.stream().await.unwrap();
     store.remove(quad).await?;
     assert_eq!(iter.try_collect().await?, vec![quad.into_owned()]);
     store.validate()?;
-    Ok(())
-}
-
-#[cfg(all(target_os = "linux", feature = "storage"))]
-fn reset_dir(dir: &str) -> Result<(), Box<dyn Error>> {
-    assert!(Command::new("git")
-        .args(["clean", "-fX", dir])
-        .status()?
-        .success());
-    assert!(Command::new("git")
-        .args(["checkout", "HEAD", "--", dir])
-        .status()?
-        .success());
     Ok(())
 }
 

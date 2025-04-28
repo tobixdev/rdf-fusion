@@ -1030,7 +1030,7 @@ fn pop_boxed_slice<T: Copy>(slice: &[T]) -> Box<[T]> {
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
-    use oxrdf::NamedNodeRef;
+    use model::NamedNodeRef;
 
     #[test]
     fn test_range() {

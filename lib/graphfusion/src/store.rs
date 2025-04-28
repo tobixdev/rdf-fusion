@@ -732,7 +732,7 @@ impl Store {
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
-    use oxrdf::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
+    use model::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
 
     #[test]
     fn test_send_sync() {
@@ -791,7 +791,7 @@ mod tests {
             ),
         ];
 
-        let store = Store::new().await?;
+        let store = Store::new()?;
         for t in &default_quads {
             assert!(store.insert(t).await?);
         }

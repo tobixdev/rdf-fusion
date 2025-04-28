@@ -17,9 +17,6 @@ mod sd {
     );
     pub const ENDPOINT: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#endpoint");
-    pub const EXTENSION_FUNCTION: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
-        "http://www.w3.org/ns/sparql-service-description#extensionFunction",
-    );
     pub const FEATURE: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#feature");
     pub const RESULT_FORMAT: NamedNodeRef<'_> =
@@ -30,9 +27,6 @@ mod sd {
 
     pub const EMPTY_GRAPHS: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#EmptyGraphs");
-    pub const BASIC_FEDERATED_QUERY: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
-        "http://www.w3.org/ns/sparql-service-description#BasicFederatedQuery",
-    );
     pub const SPARQL_10_QUERY: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/ns/sparql-service-description#SPARQL10Query",
     );
@@ -62,7 +56,7 @@ impl IntoResponse for ServiceDescription {
     fn into_response(self) -> Response {
         (
             StatusCode::OK,
-            [(CONTENT_TYPE, self.format.media_type().to_string())],
+            [(CONTENT_TYPE, self.format.media_type().to_owned())],
             self.description,
         )
             .into_response()

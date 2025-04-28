@@ -19,7 +19,7 @@ pub async fn handle_query_get(
     format: RdfFormat,
     _query_format: QueryResultsFormat,
 ) -> Result<HandleQueryResponse, GraphFusionServerError> {
-    let Some(ref query) = query_params.query else {
+    let Some(query) = &query_params.query else {
         return Ok(generate_service_description(
             format,
             EndpointKind::Query,

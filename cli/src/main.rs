@@ -6,17 +6,11 @@ use graphfusion::io::{RdfFormat, RdfParser, RdfSerializer};
 use graphfusion::model::{GraphName, NamedNode};
 use graphfusion::store::Store;
 use graphfusion_web::ServerConfig;
-#[cfg(target_os = "linux")]
-use std::env;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, stdin, stdout, BufWriter, Read, Write};
-use std::net::ToSocketAddrs;
-#[cfg(target_os = "linux")]
-use std::os::unix::net::UnixDatagram;
 use std::path::Path;
 use std::str;
-use std::str::FromStr;
 
 mod cli;
 
@@ -242,14 +236,6 @@ fn close_file_writer(writer: BufWriter<File>) -> io::Result<()> {
     file.sync_all()
 }
 
-#[cfg(target_os = "linux")]
-fn systemd_notify_ready() -> io::Result<()> {
-    if let Some(path) = env::var_os("NOTIFY_SOCKET") {
-        UnixDatagram::unbound()?.send_to(b"READY=1", path)?;
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
@@ -257,7 +243,7 @@ mod tests {
     use anyhow::Result;
     use assert_cmd::Command;
     use assert_fs::prelude::*;
-    use assert_fs::{NamedTempFile, TempDir};
+    use assert_fs::NamedTempFile;
     use predicates::prelude::*;
 
     fn cli_command() -> Command {
@@ -269,32 +255,6 @@ mod tests {
             .arg("--no-default-features");
         command.arg("--");
         command
-    }
-
-    fn initialized_cli_store(data: &'static str) -> Result<TempDir> {
-        let store_dir = TempDir::new()?;
-        cli_command()
-            .arg("load")
-            .arg("--location")
-            .arg(store_dir.path())
-            .arg("--format")
-            .arg("trig")
-            .write_stdin(data)
-            .assert()
-            .success();
-        Ok(store_dir)
-    }
-
-    fn assert_cli_state(store_dir: &TempDir, data: &'static str) {
-        cli_command()
-            .arg("dump")
-            .arg("--location")
-            .arg(store_dir.path())
-            .arg("--format")
-            .arg("nq")
-            .assert()
-            .stdout(data)
-            .success();
     }
 
     #[test]

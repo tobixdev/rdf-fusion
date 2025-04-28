@@ -2,7 +2,7 @@ use crate::results::QuerySolutionStream;
 use crate::sparql::error::QueryEvaluationError;
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use futures::{ready, Stream, StreamExt};
-use model::{Term, GraphName, NamedNode, Quad, Subject, Variable};
+use model::{GraphName, NamedNode, Quad, Subject, Term, Variable};
 use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -86,7 +86,9 @@ fn to_subject(term: Term) -> Result<Subject, QueryEvaluationError> {
     match term {
         Term::NamedNode(n) => Ok(Subject::from(n)),
         Term::BlankNode(n) => Ok(Subject::from(n)),
-        _ => QueryEvaluationError::internal("Predicate has invalid value in quads.".into()),
+        Term::Literal(_) => {
+            QueryEvaluationError::internal("Predicate has invalid value in quads.".into())
+        }
     }
 }
 

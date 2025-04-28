@@ -22,7 +22,7 @@ time = { workspace = true, features = ["formatting"] }
 tokio.workspace = true
 
 [dev-dependencies]
-codspeed-criterion-compat.workspace = true
+criterion.workspace = true
 
 [lints]
 workspace = true

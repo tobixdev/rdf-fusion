@@ -1,11 +1,9 @@
 #![allow(clippy::print_stderr)]
 
 use anyhow::Result;
-use codspeed_criterion_compat::{
-    criterion_group, criterion_main, BenchmarkId, Criterion, Throughput,
-};
-use oxigraph_testsuite::files::read_file;
-use oxigraph_testsuite::manifest::TestManifest;
+use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
+use graphfusion_testsuite::files::read_file;
+use graphfusion_testsuite::manifest::TestManifest;
 use std::io::Read;
 
 fn test_data_from_testsuite(manifest_uri: String, include_tests_types: &[&str]) -> Result<Vec<u8>> {
