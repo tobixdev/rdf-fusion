@@ -1,8 +1,6 @@
-use arrow_rdf::encoded::scalars::{
-    encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
-};
+use arrow_rdf::encoded::scalars::{encode_scalar_literal, encode_scalar_named_node};
 use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_SAME_TERM};
-use datafusion::common::Column;
+use datafusion::common::{Column, ScalarValue};
 use datafusion::logical_expr::{lit, Expr};
 use model::{Literal, NamedNode};
 use spargebra::term::{BlankNode, GraphNamePattern, NamedNodePattern, TermPattern, Variable};
@@ -30,16 +28,20 @@ impl PatternNodeElement {
     /// Creates an [Expr] that filters `column` based on the contents of this element.
     #[allow(clippy::unwrap_in_result, reason = "TODO")]
     pub fn filter_expression(&self, column: &Column) -> Option<Expr> {
-        let scalar = match self {
-            PatternNodeElement::NamedNode(nn) => encode_scalar_named_node(nn.as_ref()),
-            PatternNodeElement::DefaultGraph => encode_scalar_null(),
-            PatternNodeElement::Literal(lit) => encode_scalar_literal(lit.as_ref()).unwrap(),
+        match self {
+            PatternNodeElement::NamedNode(nn) => {
+                filter_by_scalar(column, encode_scalar_named_node(nn.as_ref()))
+            }
+            PatternNodeElement::Literal(lit) => {
+                filter_by_scalar(column, encode_scalar_literal(lit.as_ref()).unwrap())
+            }
+            PatternNodeElement::BlankNode(_) => {
+                // A blank node indicates that this should be a non-default graph.
+                return Some(Expr::from(column.clone()).is_not_null());
+            }
+            PatternNodeElement::DefaultGraph => return Some(Expr::from(column.clone()).is_null()),
             _ => return None,
-        };
-
-        Some(ENC_AS_NATIVE_BOOLEAN.call(vec![
-            ENC_SAME_TERM.call(vec![Expr::from(column.clone()), lit(scalar)]),
-        ]))
+        }
     }
 
     /// Returns a reference to a possible variable.
@@ -93,4 +95,10 @@ impl From<GraphNamePattern> for PatternNodeElement {
             GraphNamePattern::Variable(var) => PatternNodeElement::Variable(var),
         }
     }
+}
+
+fn filter_by_scalar(column: &Column, scalar: ScalarValue) -> Option<Expr> {
+    Some(ENC_AS_NATIVE_BOOLEAN.call(vec![
+        ENC_SAME_TERM.call(vec![Expr::from(column.clone()), lit(scalar)]),
+    ]))
 }
