@@ -9,9 +9,7 @@ use datafusion::arrow::array::{
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use model::vocab::{rdf, xsd};
-use model::{
-    BlankNodeRef, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration,
-};
+use model::{BlankNodeRef, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration};
 use model::{Decimal, Double, Float, Int, Integer, Iri, Literal, Term};
 use std::sync::Arc;
 

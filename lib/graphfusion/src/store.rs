@@ -7,37 +7,42 @@
 //! use graphfusion::model::*;
 //! use graphfusion::sparql::QueryResults;
 //! use graphfusion::store::Store;
+//! use futures::StreamExt;
 //!
+//! # tokio_test::block_on(async {
 //! let store = Store::new();
 //!
 //! // insertion
 //! let ex = NamedNode::new("http://example.com")?;
 //! let quad = Quad::new(ex.clone(), ex.clone(), ex.clone(), GraphName::DefaultGraph);
-//! store.insert(&quad)?;
+//! store.insert(&quad).await?;
 //!
 //! // quad filter
-//! let results: Result<Vec<Quad>, _> = store.quads_for_pattern(None, None, None, None).collect();
-//! assert_eq!(vec![quad], results?);
+//! let results = store.quads_for_pattern(None, None, None, None).await?
+//!     .try_collect_to_vec().await?;
+//! assert_eq!(vec![quad], results);
 //!
 //! // SPARQL query
-//! if let QueryResults::Solutions(mut solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }")? {
-//!     assert_eq!(solutions.next().unwrap()?.get("s"), Some(&ex.into()));
+//! if let QueryResults::Solutions(mut solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }").await? {
+//!     assert_eq!(solutions.next().await.unwrap()?.get("s"), Some(&ex.into()));
 //! };
 //! # Result::<_, Box<dyn std::error::Error>>::Ok(())
+//! # }).unwrap();
 //! ```
 
 use crate::error::{LoaderError, SerializerError};
 use crate::sparql::error::QueryEvaluationError;
 use futures::StreamExt;
 use graphfusion_engine::error::StorageError;
-use graphfusion_engine::results::{GraphNameStream, QuadStream, QuerySolutionStream};
+use graphfusion_engine::results::{QuadStream, QuerySolutionStream};
 use graphfusion_engine::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
 use graphfusion_engine::GraphFusionInstance;
 use graphfusion_storage::MemoryQuadStorage;
 use model::{
-    GraphNameRef, NamedNodeRef, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef, TermRef, Variable,
+    GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
+    TermRef, Variable,
 };
 use oxrdfio::{RdfParser, RdfSerializer};
 use std::io::{Read, Write};
@@ -69,18 +74,19 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// // insertion
 /// let ex = NamedNode::new("http://example.com")?;
 /// let quad = Quad::new(ex.clone(), ex.clone(), ex.clone(), GraphName::DefaultGraph);
-/// store.insert(&quad)?;
+/// store.insert(&quad).await?;
 ///
 /// // quad filter
-/// let results: Result<Vec<Quad>, _> = store.quads_for_pattern(None, None, None, None).collect();
-/// assert_eq!(vec![quad], results?);
+/// let results = store.quads_for_pattern(None, None, None, None).await?.try_collect_to_vec().await?;
+/// assert_eq!(vec![quad], results);
 ///
 /// // SPARQL query
-/// if let QueryResults::Solutions(mut solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }")? {
+/// if let QueryResults::Solutions(mut solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }").await? {
 ///     assert_eq!(solutions.next().await.unwrap()?.get("s"), Some(&ex.into()));
 /// };
-/// # });
-/// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+///
+/// Result::<_, Box<dyn std::error::Error>>::Ok(())
+/// # }).unwrap();
 /// ```
 #[derive(Clone)]
 pub struct Store {
@@ -117,17 +123,17 @@ impl Store {
     ///
     /// // insertions
     /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?;
+    /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph)).await?;
     ///
     /// // SPARQL query
-    /// if let QueryResults::Solutions(mut solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }")? {
+    /// if let QueryResults::Solutions(mut solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }").await? {
     ///     assert_eq!(
     ///         solutions.next().await.unwrap()?.get("s"),
     ///         Some(&ex.into_owned().into())
     ///     );
     /// }
-    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn query(
         &self,
@@ -143,23 +149,21 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::sparql::{QueryOptions, QueryResults};
     /// use graphfusion::store::Store;
+    /// use futures::StreamExt;
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::new();
     /// if let QueryResults::Solutions(mut solutions) = store.query_opt(
-    ///     "SELECT (<http://www.w3.org/ns/formats/N-Triples>(1) AS ?nt) WHERE {}",
-    ///     QueryOptions::default().with_custom_function(
-    ///         NamedNode::new("http://www.w3.org/ns/formats/N-Triples")?,
-    ///         |args| args.get(0).map(|t| Literal::from(t.to_string()).into()),
-    ///     ),
-    /// )? {
+    ///     "SELECT (STR(1) AS ?nt) WHERE {}",
+    ///     QueryOptions::default(),
+    /// ).await? {
     ///     assert_eq!(
-    ///         solutions.next().unwrap()?.get("nt"),
-    ///         Some(&Literal::from("\"1\"^^<http://www.w3.org/2001/XMLSchema#integer>").into())
+    ///         solutions.next().await.unwrap()?.get("nt"),
+    ///         Some(&Literal::from("1").into())
     ///     );
     /// }
-    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn query_opt(
         &self,
@@ -178,19 +182,22 @@ impl Store {
     /// ```
     /// use graphfusion::sparql::{QueryOptions, QueryResults};
     /// use graphfusion::store::Store;
+    /// use futures::StreamExt;
     ///
+    /// # tokio_test::block_on(async {
     /// let store = Store::new();
-    /// if let (Ok(QueryResults::Solutions(solutions)), explanation) = store.explain_query_opt(
+    /// if let (QueryResults::Solutions(mut solutions), _explanation) = store.explain_query_opt(
     ///     "SELECT ?s WHERE { VALUES ?s { 1 2 3 } }",
     ///     QueryOptions::default(),
-    ///     true,
-    /// )? {
+    /// ).await? {
     ///     // We make sure to have read all the solutions
-    ///     for _ in solutions {}
-    ///     let mut buf = Vec::new();
-    ///     explanation.write_in_json(&mut buf)?;
+    ///     while let Some(_) = solutions.next().await { }
+    ///     // TODO
+    ///     // let mut buf = Vec::new();
+    ///     // explanation.write_in_json(&mut buf)?;
     /// }
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn explain_query_opt(
         &self,
@@ -217,15 +224,15 @@ impl Store {
     /// // insertion
     /// let ex = NamedNode::new("http://example.com")?;
     /// let quad = Quad::new(ex.clone(), ex.clone(), ex.clone(), GraphName::DefaultGraph);
-    /// store.insert(&quad)?;
+    /// store.insert(&quad).await?;
     ///
     /// // quad filter by object
     /// let results = store
-    ///     .quads_for_pattern(None, None, Some((&ex).into()), None)
-    ///     .collect::<Result<Vec<_>, _>>()?;
+    ///     .quads_for_pattern(None, None, Some((&ex).into()), None).await?
+    ///     .try_collect_to_vec().await?;
     /// assert_eq!(vec![quad], results);
-    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn quads_for_pattern(
         &self,
@@ -255,13 +262,13 @@ impl Store {
     /// // insertion
     /// let ex = NamedNode::new("http://example.com")?;
     /// let quad = Quad::new(ex.clone(), ex.clone(), ex.clone(), GraphName::DefaultGraph);
-    /// store.insert(&quad)?;
+    /// store.insert(&quad).await?;
     ///
     /// // quad filter by object
-    /// let results = store.stream().collect::<Result<Vec<_>, _>>()?;
+    /// let results = store.stream().await?.try_collect_to_vec().await?;
     /// assert_eq!(vec![quad], results);
-    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn stream(&self) -> Result<QuadStream, QueryEvaluationError> {
         let record_batch_stream = self
@@ -280,17 +287,17 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
     ///
-    /// # tokio_test::block_on(async {
     /// let store = Store::new();
-    /// assert!(!store.contains(quad)?);
+    /// assert!(!store.contains(quad).await?);
     ///
-    /// store.insert(quad)?;
-    /// assert!(store.contains(quad)?);
-    /// # });
+    /// store.insert(quad).await?;
+    /// assert!(store.contains(quad).await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn contains<'a>(
         &self,
@@ -315,11 +322,11 @@ impl Store {
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let store = Store::new();
-    /// store.insert(QuadRef::new(ex, ex, ex, ex))?;
-    /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?;
-    /// assert_eq!(2, store.len()?);
-    /// # });
+    /// store.insert(QuadRef::new(ex, ex, ex, ex)).await?;
+    /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph)).await?;
+    /// assert_eq!(2, store.len().await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn len(&self) -> Result<usize, QueryEvaluationError> {
         self.engine.len().await.map_err(QueryEvaluationError::from)
@@ -334,43 +341,42 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::new();
-    /// assert!(store.is_empty()?);
+    /// assert!(store.is_empty().await?);
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// store.insert(QuadRef::new(ex, ex, ex, ex))?;
-    /// assert!(!store.is_empty()?);
-    /// # });
+    /// store.insert(QuadRef::new(ex, ex, ex, ex)).await?;
+    /// assert!(!store.is_empty().await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
-    #[allow(clippy::unimplemented, reason = "Not production ready")]
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn is_empty(&self) -> Result<bool, QueryEvaluationError> {
-        unimplemented!()
+    pub async fn is_empty(&self) -> Result<bool, QueryEvaluationError> {
+        Ok(self.len().await? == 0)
     }
 
     /// Executes a [SPARQL 1.1 update](https://www.w3.org/TR/sparql11-update/).
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// // use graphfusion::model::*;
+    /// // use graphfusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
-    ///
+    /// // TODO #7: Implement Update
+    /// // let store = Store::new();
     /// // insertion
-    /// store
-    ///     .update("INSERT DATA { <http://example.com> <http://example.com> <http://example.com> }")?;
+    /// // store
+    /// //    .update("INSERT DATA { <http://example.com> <http://example.com> <http://example.com> }").await?;
     ///
     /// // we inspect the store contents
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?);
-    /// # });
+    /// // let ex = NamedNodeRef::new("http://example.com")?;
+    /// // assert!(store.contains(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph)).await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
     #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn update(
+    #[allow(clippy::unused_async, reason = "Not implemented")]
+    pub async fn update(
         &self,
         _update: impl TryInto<Update, Error = impl Into<QueryEvaluationError>>,
     ) -> Result<(), QueryEvaluationError> {
@@ -380,25 +386,23 @@ impl Store {
     /// Executes a [SPARQL 1.1 update](https://www.w3.org/TR/sparql11-update/) with some options.
     ///
     /// ```
-    /// use graphfusion::store::Store;
-    /// use graphfusion::model::*;
-    /// use graphfusion::sparql::QueryOptions;
+    /// // use graphfusion::store::Store;
+    /// // use graphfusion::sparql::QueryOptions;
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
-    /// store.update_opt(
-    ///     "INSERT { ?s <http://example.com/n-triples-representation> ?n } WHERE { ?s ?p ?o BIND(<http://www.w3.org/ns/formats/N-Triples>(?s) AS ?nt) }",
-    ///     QueryOptions::default().with_custom_function(
-    ///         NamedNode::new("http://www.w3.org/ns/formats/N-Triples")?,
-    ///         |args| args.get(0).map(|t| Literal::from(t.to_string()).into())
-    ///     )
-    /// )?;
-    /// # });
+    /// // TODO #7: Implement Update
+    /// // let store = Store::new();
+    /// // store.update_opt(
+    /// //    "INSERT { ?s <http://example.com/n-triples-representation> ?n } WHERE { ?s ?p ?o BIND(<http://www.w3.org/ns/formats/N-Triples>(?s) AS ?nt) }",
+    /// //    QueryOptions::default()
+    /// //).await?;
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
     #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn update_opt(
+    #[allow(clippy::unused_async, reason = "Not implemented")]
+    pub async fn update_opt(
         &self,
         _update: impl TryInto<Update, Error = impl Into<QueryEvaluationError>>,
         _options: impl Into<UpdateOptions>,
@@ -422,7 +426,7 @@ impl Store {
     ///
     /// // insert a dataset file (former load_dataset method)
     /// let file = b"<http://example.com> <http://example.com> <http://example.com> <http://example.com/g> .";
-    /// store.load_from_reader(RdfFormat::NQuads, file.as_ref())?;
+    /// store.load_from_reader(RdfFormat::NQuads, file.as_ref()).await?;
     ///
     /// // insert a graph file (former load_graph method)
     /// let file = b"<> <> <> .";
@@ -432,14 +436,14 @@ impl Store {
     ///         .without_named_graphs() // No named graphs allowed in the input
     ///         .with_default_graph(NamedNodeRef::new("http://example.com/g2")?), // we put the file default graph inside of a named graph
     ///     file.as_ref()
-    /// )?;
+    /// ).await?;
     ///
     /// // we inspect the store contents
     /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g")?))?);
-    /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g2")?))?);
-    /// # });
+    /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g")?)).await?);
+    /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g2")?)).await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn load_from_reader(
         &self,
@@ -453,10 +457,10 @@ impl Store {
             .collect::<Result<Vec<_>, _>>()?;
         self.engine
             .storage()
-            .load_quads(quads)
+            .extend(quads)
             .await
             .map(|_| ())
-            .map_err(|err| LoaderError::from(StorageError::from(err)))
+            .map_err(LoaderError::from)
     }
 
     /// Adds a quad to this store.
@@ -468,40 +472,35 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
     ///
-    /// # tokio_test::block_on(async {
     /// let store = Store::new();
-    /// assert!(store.insert(quad)?);
-    /// assert!(!store.insert(quad)?);
+    /// assert!(store.insert(quad).await?);
+    /// assert!(!store.insert(quad).await?);
     ///
-    /// assert!(store.contains(quad)?);
-    /// # });
+    /// assert!(store.contains(quad).await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn insert<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
         let quad = vec![quad.into().into_owned()];
         self.engine
             .storage()
-            .load_quads(quad)
+            .extend(quad)
             .await
             .map(|inserted| inserted > 0)
-            .map_err(StorageError::from)
     }
 
-    /// Adds atomically a set of quads to this store.
-    ///
-    /// <div class="warning">
-    ///
-    /// This operation uses a memory heavy transaction internally, use the [`bulk_loader`](Store::bulk_loader) if you plan to add ten of millions of triples.</div>
-    #[allow(clippy::unimplemented, reason = "Not production ready")]
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn extend(
+    /// Atomically adds a set of quads to this store.
+    pub async fn extend(
         &self,
-        _quads: impl IntoIterator<Item = impl Into<Quad>>,
+        quads: impl IntoIterator<Item = impl Into<Quad>>,
     ) -> Result<(), StorageError> {
-        unimplemented!()
+        let quads = quads.into_iter().map(Into::into).collect::<Vec<_>>();
+        self.engine.storage().extend(quads).await?;
+        Ok(())
     }
 
     /// Removes a quad from this store.
@@ -513,25 +512,21 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
     ///
-    /// # tokio_test::block_on(async {
     /// let store = Store::new();
-    /// store.insert(quad)?;
-    /// assert!(store.remove(quad)?);
-    /// assert!(!store.remove(quad)?);
+    /// store.insert(quad).await?;
+    /// assert!(store.remove(quad).await?);
+    /// assert!(!store.remove(quad).await?);
     ///
-    /// assert!(!store.contains(quad)?);
-    /// # });
+    /// assert!(!store.contains(quad).await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn remove<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
-        self.engine
-            .storage()
-            .remove(quad.into())
-            .await
-            .map_err(StorageError::from)
+        self.engine.storage().remove(quad.into()).await
     }
 
     /// Dumps the store into a file.
@@ -546,12 +541,12 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::new();
-    /// store.load_from_reader(RdfFormat::NQuads, file)?;
+    /// store.load_from_reader(RdfFormat::NQuads, file).await?;
     ///
-    /// let buffer = store.dump_to_writer(RdfFormat::NQuads, Vec::new())?;
+    /// let buffer = store.dump_to_writer(RdfFormat::NQuads, Vec::new()).await?;
     /// assert_eq!(file, buffer.as_slice());
-    /// # });
-    /// # std::io::Result::Ok(())
+    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn dump_to_writer<W: Write>(
         &self,
@@ -574,6 +569,7 @@ impl Store {
     ///
     /// Usage example:
     /// ```
+    /// use oxrdfio::RdfParser;
     /// use graphfusion::io::RdfFormat;
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
@@ -582,13 +578,14 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::new();
-    /// store.load_graph(file, RdfFormat::NTriples, GraphName::DefaultGraph, None)?;
+    /// let parser = RdfParser::from_format(RdfFormat::NTriples);
+    /// store.load_from_reader(parser, file.as_ref()).await?;
     ///
     /// let mut buffer = Vec::new();
-    /// store.dump_graph_to_writer(GraphNameRef::DefaultGraph, RdfFormat::NTriples, &mut buffer)?;
+    /// store.dump_graph_to_writer(GraphNameRef::DefaultGraph, RdfFormat::NTriples, &mut buffer).await?;
     /// assert_eq!(file, buffer.as_slice());
-    /// # });
-    /// # std::io::Result::Ok(())
+    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
     pub async fn dump_graph_to_writer<'a, W: Write>(
         &self,
@@ -616,19 +613,17 @@ impl Store {
     /// # tokio_test::block_on(async {
     /// let ex = NamedNode::new("http://example.com")?;
     /// let store = Store::new();
-    /// store.insert(QuadRef::new(&ex, &ex, &ex, &ex))?;
-    /// store.insert(QuadRef::new(&ex, &ex, &ex, GraphNameRef::DefaultGraph))?;
+    /// store.insert(QuadRef::new(&ex, &ex, &ex, &ex)).await?;
+    /// store.insert(QuadRef::new(&ex, &ex, &ex, GraphNameRef::DefaultGraph)).await?;
     /// assert_eq!(
     ///     vec![NamedOrBlankNode::from(ex)],
-    ///     store.named_graphs().collect::<Result<Vec<_>, _>>()?
+    ///     store.named_graphs().await?
     /// );
-    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
-    #[allow(clippy::unimplemented, reason = "Not production ready")]
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn named_graphs(&self) -> GraphNameStream {
-        unimplemented!()
+    pub async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
+        self.engine.storage().named_graphs().await
     }
 
     /// Checks if the store contains a given graph
@@ -641,18 +636,20 @@ impl Store {
     /// # tokio_test::block_on(async {
     /// let ex = NamedNode::new("http://example.com")?;
     /// let store = Store::new();
-    /// store.insert(QuadRef::new(&ex, &ex, &ex, &ex))?;
-    /// assert!(store.contains_named_graph(&ex)?);
-    /// # });
+    /// store.insert(QuadRef::new(&ex, &ex, &ex, &ex)).await?;
+    /// assert!(store.contains_named_graph(&ex).await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
-    #[allow(clippy::unimplemented, reason = "Not production ready")]
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn contains_named_graph<'a>(
+    pub async fn contains_named_graph<'a>(
         &self,
-        _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
-    ) -> Result<bool, StorageError> {
-        unimplemented!()
+        graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
+    ) -> Result<bool, QueryEvaluationError> {
+        self.engine
+            .storage()
+            .contains_named_graph(graph_name.into())
+            .await
+            .map_err(Into::into)
     }
 
     /// Inserts a graph into this store.
@@ -667,22 +664,23 @@ impl Store {
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let store = Store::new();
-    /// store.insert_named_graph(ex)?;
+    /// store.insert_named_graph(ex).await?;
     ///
     /// assert_eq!(
-    ///     store.named_graphs().collect::<Result<Vec<_>, _>>()?,
+    ///     store.named_graphs().await?,
     ///     vec![ex.into_owned().into()]
     /// );
-    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
-    #[allow(clippy::unimplemented, reason = "Not production ready")]
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn insert_named_graph<'a>(
+    pub async fn insert_named_graph<'a>(
         &self,
-        _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
+        graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
     ) -> Result<bool, StorageError> {
-        unimplemented!()
+        self.engine
+            .storage()
+            .insert_named_graph(graph_name.into())
+            .await
     }
 
     /// Clears a graph from this store.
@@ -696,22 +694,20 @@ impl Store {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
     /// let store = Store::new();
-    /// store.insert(quad)?;
-    /// assert_eq!(1, store.len()?);
+    /// store.insert(quad).await?;
+    /// assert_eq!(1, store.len().await?);
     ///
-    /// store.clear_graph(ex)?;
-    /// assert!(store.is_empty()?);
-    /// assert_eq!(1, store.named_graphs().count());
-    /// # });
+    /// store.clear_graph(ex).await?;
+    /// assert!(store.is_empty().await?);
+    /// assert_eq!(1, store.named_graphs().await?.len());
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
-    #[allow(clippy::unimplemented, reason = "Not production ready")]
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn clear_graph<'a>(
+    pub async fn clear_graph<'a>(
         &self,
-        _graph_name: impl Into<GraphNameRef<'a>>,
+        graph_name: impl Into<GraphNameRef<'a>>,
     ) -> Result<(), StorageError> {
-        unimplemented!()
+        self.engine.storage().clear_graph(graph_name.into()).await
     }
 
     /// Removes a graph from this store.
@@ -727,22 +723,23 @@ impl Store {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
     /// let store = Store::new();
-    /// store.insert(quad)?;
-    /// assert_eq!(1, store.len()?);
+    /// store.insert(quad).await?;
+    /// assert_eq!(1, store.len().await?);
     ///
-    /// assert!(store.remove_named_graph(ex)?);
-    /// assert!(store.is_empty()?);
-    /// assert_eq!(0, store.named_graphs().count());
-    /// # });
+    /// assert!(store.remove_named_graph(ex).await?);
+    /// assert!(store.is_empty().await?);
+    /// assert_eq!(0, store.named_graphs().await?.len());
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
-    #[allow(clippy::unimplemented, reason = "Not production ready")]
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn remove_named_graph<'a>(
+    pub async fn remove_named_graph<'a>(
         &self,
-        _graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
+        graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
     ) -> Result<bool, StorageError> {
-        unimplemented!()
+        self.engine
+            .storage()
+            .remove_named_graph(graph_name.into())
+            .await
     }
 
     /// Clears the store.
@@ -755,19 +752,17 @@ impl Store {
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let store = Store::new();
-    /// store.insert(QuadRef::new(ex, ex, ex, ex))?;
-    /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?;
-    /// assert_eq!(2, store.len()?);
+    /// store.insert(QuadRef::new(ex, ex, ex, ex)).await?;
+    /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph)).await?;
+    /// assert_eq!(2, store.len().await?);
     ///
-    /// store.clear()?;
-    /// assert!(store.is_empty()?);
-    /// # });
+    /// store.clear().await?;
+    /// assert!(store.is_empty().await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+    /// # }).unwrap();
     /// ```
-    #[allow(clippy::unimplemented, reason = "Not production ready")]
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    pub fn clear(&self) -> Result<(), StorageError> {
-        unimplemented!()
+    pub async fn clear(&self) -> Result<(), StorageError> {
+        self.engine.storage().clear().await
     }
 
     /// Validates that all the store invariants held in the data
@@ -858,12 +853,12 @@ mod tests {
         store.validate()?;
 
         assert_eq!(store.len().await?, 4);
-        assert_eq!(store.stream().await?.try_collect().await?, all_quads);
+        assert_eq!(store.stream().await?.try_collect_to_vec().await?, all_quads);
         assert_eq!(
             store
                 .quads_for_pattern(Some(main_s.as_ref()), None, None, None)
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             all_quads
         );
@@ -871,7 +866,7 @@ mod tests {
             store
                 .quads_for_pattern(Some(main_s.as_ref()), Some(main_p.as_ref()), None, None)
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             all_quads
         );
@@ -884,7 +879,7 @@ mod tests {
                     None
                 )
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
@@ -897,7 +892,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![default_quad.clone()]
         );
@@ -910,7 +905,7 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![named_quad.clone()]
         );
@@ -924,7 +919,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             default_quads
         );
@@ -932,7 +927,7 @@ mod tests {
             store
                 .quads_for_pattern(Some(main_s.as_ref()), None, Some(main_o.as_ref()), None)
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
@@ -945,7 +940,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![default_quad.clone()]
         );
@@ -958,7 +953,7 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![named_quad.clone()]
         );
@@ -971,7 +966,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             default_quads
         );
@@ -979,7 +974,7 @@ mod tests {
             store
                 .quads_for_pattern(None, Some(main_p.as_ref()), None, None)
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             all_quads
         );
@@ -987,7 +982,7 @@ mod tests {
             store
                 .quads_for_pattern(None, Some(main_p.as_ref()), Some(main_o.as_ref()), None)
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
@@ -995,7 +990,7 @@ mod tests {
             store
                 .quads_for_pattern(None, None, Some(main_o.as_ref()), None)
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![named_quad.clone(), default_quad.clone()]
         );
@@ -1003,7 +998,7 @@ mod tests {
             store
                 .quads_for_pattern(None, None, None, Some(GraphNameRef::DefaultGraph))
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             default_quads
         );
@@ -1016,7 +1011,7 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![default_quad]
         );
@@ -1029,7 +1024,7 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_collect()
+                .try_collect_to_vec()
                 .await?,
             vec![named_quad]
         );

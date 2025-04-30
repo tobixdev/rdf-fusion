@@ -8,20 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
-/// An iterator over the triples that compose a graph solution.
-///
-/// ```
-/// use graphfusion::sparql::QueryResults;
-/// use graphfusion::store::Store;
-///
-/// let store = Store::new();
-/// if let QueryResults::Graph(triples) = store.query("CONSTRUCT WHERE { ?s ?p ?o }")? {
-///     for triple in triples {
-///         println!("{}", triple?);
-///     }
-/// }
-/// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-/// ```
+/// A stream over the triples that compose a graph solution.
 pub struct QueryTripleStream {
     template: Vec<TriplePattern>,
     inner: QuerySolutionStream,

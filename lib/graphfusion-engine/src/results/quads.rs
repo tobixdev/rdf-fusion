@@ -13,7 +13,7 @@ pub struct QuadStream {
 }
 
 impl QuadStream {
-    pub async fn try_collect(mut self) -> Result<Vec<Quad>, QueryEvaluationError> {
+    pub async fn try_collect_to_vec(mut self) -> Result<Vec<Quad>, QueryEvaluationError> {
         let mut result = Vec::new();
         while let Some(element) = self.next().await {
             result.push(element?);

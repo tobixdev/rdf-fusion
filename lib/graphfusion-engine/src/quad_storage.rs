@@ -1,7 +1,7 @@
-use crate::DFResult;
+use crate::error::StorageError;
 use async_trait::async_trait;
 use datafusion::datasource::TableProvider;
-use model::{Quad, QuadRef};
+use model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
 use std::sync::Arc;
 
 #[async_trait]
@@ -16,8 +16,35 @@ pub trait QuadStorage: Send + Sync {
     fn table_provider(&self) -> Arc<dyn TableProvider>;
 
     /// Loads the given quads into the storage.
-    async fn load_quads(&self, quads: Vec<Quad>) -> DFResult<usize>;
+    async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError>;
+
+    /// Creates an empty named graph in the storage.
+    async fn insert_named_graph<'a>(
+        &self,
+        graph_name: NamedOrBlankNodeRef<'a>,
+    ) -> Result<bool, StorageError>;
+
+    /// Returns the list of named graphs in the storage.
+    async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError>;
+
+    /// Returns whether `graph_name` is a named graph in the storage.
+    async fn contains_named_graph<'a>(
+        &self,
+        graph_name: NamedOrBlankNodeRef<'a>,
+    ) -> Result<bool, StorageError>;
+
+    /// Clears the entire storage.
+    async fn clear(&self) -> Result<(), StorageError>;
+
+    /// Clears the entire graph.
+    async fn clear_graph<'a>(&self, graph_name: GraphNameRef<'a>) -> Result<(), StorageError>;
+
+    /// Removes the entire named graph from the storage.
+    async fn remove_named_graph(
+        &self,
+        graph_name: NamedOrBlankNodeRef<'_>,
+    ) -> Result<bool, StorageError>;
 
     /// Removes the given quad from the storage.
-    async fn remove<'a>(&self, quad: QuadRef<'_>) -> DFResult<bool>;
+    async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError>;
 }

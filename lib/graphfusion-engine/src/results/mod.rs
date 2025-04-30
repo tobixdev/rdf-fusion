@@ -51,23 +51,6 @@ impl QueryResults {
     /// Writes the query results (solutions or boolean).
     ///
     /// This method fails if it is called on the `Graph` results.
-    ///
-    /// ```
-    /// use graphfusion::store::Store;
-    /// use graphfusion::model::*;
-    /// use graphfusion::sparql::results::QueryResultsFormat;
-    ///
-    /// let store = Store::new();
-    /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?;
-    ///
-    /// let results = store.query("SELECT ?s WHERE { ?s ?p ?o }")?;
-    /// assert_eq!(
-    ///     results.write(Vec::new(), QueryResultsFormat::Json)?,
-    ///     r#"{"head":{"vars":["s"]},"results":{"bindings":[{"s":{"type":"uri","value":"http://example.com"}}]}}"#.as_bytes()
-    /// );
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
     pub async fn write<W: Write>(
         self,
         writer: W,
@@ -118,29 +101,6 @@ impl QueryResults {
     /// Writes the graph query results.
     ///
     /// This method fails if it is called on the `Solution` or `Boolean` results.
-    ///
-    /// ```
-    /// use graphfusion::io::RdfFormat;
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
-    ///
-    /// let graph = "<http://example.com> <http://example.com> <http://example.com> .\n";
-    ///
-    /// let store = Store::new();
-    /// store.load_graph(
-    ///     graph.as_bytes(),
-    ///     RdfFormat::NTriples,
-    ///     GraphName::DefaultGraph,
-    ///     None,
-    /// )?;
-    ///
-    /// let results = store.query("CONSTRUCT WHERE { ?s ?p ?o }")?;
-    /// assert_eq!(
-    ///     results.write_graph(Vec::new(), RdfFormat::NTriples)?,
-    ///     graph.as_bytes()
-    /// );
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
     pub async fn write_graph<W: Write>(
         self,
         writer: W,

@@ -8,8 +8,6 @@ use datafusion::logical_expr::Expr;
 use crate::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
 use arrow_rdf::encoded::ENC_QUAD_SCHEMA;
 use datafusion::physical_plan::ExecutionPlan;
-use graphfusion_engine::error::StorageError;
-use model::{Quad, QuadRef};
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -25,14 +23,8 @@ impl OxigraphMemTable {
         Self { storage }
     }
 
-    pub fn load_quads(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
-        self.storage
-            .bulk_loader()
-            .load(quads.into_iter().map(Result::<Quad, StorageError>::Ok))
-    }
-
-    pub fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
-        self.storage.transaction(|mut t| Ok(t.remove(quad)))
+    pub fn storage(&self) -> Arc<OxigraphMemoryStorage> {
+        Arc::clone(&self.storage)
     }
 }
 

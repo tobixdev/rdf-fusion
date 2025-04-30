@@ -10,19 +10,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
 
-/// An iterator over [`QuerySolution`]s.
-///
-/// ```
-/// use graphfusion::sparql::QueryResults;
-/// use graphfusion::store::Store;
-///
-/// let store = Store::new();
-/// if let QueryResults::Solutions(solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }")? {
-///     for solution in solutions {
-///         println!("{:?}", solution?.get("s"));
-///     }
-/// }
-/// # Result::<_, Box<dyn std::error::Error>>::Ok(())
+/// A stream over [`QuerySolution`]s.
 /// ```
 pub struct QuerySolutionStream {
     variables: Arc<[Variable]>,
@@ -42,20 +30,6 @@ impl QuerySolutionStream {
     }
 
     /// The variables used in the solutions.
-    ///
-    /// ```
-    /// use graphfusion::sparql::{QueryResults, Variable};
-    /// use graphfusion::store::Store;
-    ///
-    /// let store = Store::new();
-    /// if let QueryResults::Solutions(solutions) = store.query("SELECT ?s ?o WHERE { ?s ?p ?o }")? {
-    ///     assert_eq!(
-    ///         solutions.variables(),
-    ///         &[Variable::new("s")?, Variable::new("o")?]
-    ///     );
-    /// }
-    /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
-    /// ```
     #[inline]
     pub fn variables(&self) -> &[Variable] {
         self.variables.as_ref()

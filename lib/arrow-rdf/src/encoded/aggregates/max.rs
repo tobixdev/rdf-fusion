@@ -91,6 +91,7 @@ impl Accumulator for SparqlMax {
         Ok(vec![ScalarValue::Boolean(Some(self.executed_once)), value])
     }
 
+    #[allow(clippy::missing_asserts_for_indexing)]
     fn merge_batch(&mut self, states: &[ArrayRef]) -> DFResult<()> {
         if states.len() != 2 {
             return exec_err!("Unexpected number of states.");

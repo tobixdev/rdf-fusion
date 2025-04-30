@@ -121,10 +121,7 @@ mod tests {
     use datafusion::arrow::array::{Array, AsArray};
     use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
     use model::vocab::xsd;
-    use model::{
-        BlankNode, Date, DayTimeDuration, InternalTermRef, Timestamp,
-        YearMonthDuration,
-    };
+    use model::{BlankNode, Date, DayTimeDuration, InternalTermRef, Timestamp, YearMonthDuration};
     use std::sync::Arc;
 
     #[test]

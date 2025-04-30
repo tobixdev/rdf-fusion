@@ -127,7 +127,7 @@ pub async fn sparql_evaluate_evaluation_test(test: &Test) -> Result<()> {
         "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{:?}\n",
         results_diff(expected_results, actual_results),
         Query::parse(&read_file_to_string(query_file)?, Some(query_file))?,
-        store.stream().await?.try_collect().await?
+        store.stream().await?.try_collect_to_vec().await?
     );
     Ok(())
 }
@@ -175,11 +175,14 @@ pub async fn sparql_evaluate_update_evaluation_test(test: &Test) -> Result<()> {
     Update::parse(&update.to_string(), None)
         .with_context(|| format!("Failure to deserialize \"{update}\""))?;
 
-    store.update(update).context("Failure to execute update")?;
+    store
+        .update(update)
+        .await
+        .context("Failure to execute update")?;
     let mut store_dataset: Dataset = store
         .stream()
         .await?
-        .try_collect()
+        .try_collect_to_vec()
         .await?
         .into_iter()
         .collect();
@@ -187,7 +190,7 @@ pub async fn sparql_evaluate_update_evaluation_test(test: &Test) -> Result<()> {
     let mut result_store_dataset: Dataset = result_store
         .stream()
         .await?
-        .try_collect()
+        .try_collect_to_vec()
         .await?
         .into_iter()
         .collect();
@@ -363,7 +366,7 @@ impl StaticQueryResults {
         let mut graph = store
             .stream()
             .await?
-            .try_collect()
+            .try_collect_to_vec()
             .await?
             .into_iter()
             .map(|q| Ok(Triple::from(q)))
