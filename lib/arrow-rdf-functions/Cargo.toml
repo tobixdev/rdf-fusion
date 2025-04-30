@@ -1,5 +1,5 @@
 [package]
-name = "functions-scalar"
+name = "arrow-rdf-functions"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

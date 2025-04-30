@@ -5,7 +5,7 @@ use crate::{as_enc_term_array, DFResult};
 use datafusion::arrow::array::Array;
 use datafusion::common::{DataFusionError, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use functions_scalar::ScalarBinaryRdfOp;
+use arrow_rdf_functions::ScalarBinaryRdfOp;
 
 pub fn dispatch_binary<'data, TUdf>(
     udf: &TUdf,

@@ -3,7 +3,7 @@ mod from_sortable_term;
 mod term_type;
 mod with_regular_encoding;
 
-use crate::sortable::with_regular_encoding::EncWithRegularEncoding;
+use crate::sortable_encoding::with_regular_encoding::EncWithRegularEncoding;
 pub use builder::SortableTermBuilder;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::logical_expr::ScalarUDF;

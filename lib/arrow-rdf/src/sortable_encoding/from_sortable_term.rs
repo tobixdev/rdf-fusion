@@ -1,6 +1,6 @@
 use crate::value_encoding::RdfValueEncodingField;
-use crate::sortable::term_type::SortableTermType;
-use crate::sortable::SortableTermField;
+use crate::sortable_encoding::term_type::SortableTermType;
+use crate::sortable_encoding::SortableTermField;
 use datafusion::arrow::array::{Array, AsArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
 use model::{BlankNodeRef, NamedNodeRef};

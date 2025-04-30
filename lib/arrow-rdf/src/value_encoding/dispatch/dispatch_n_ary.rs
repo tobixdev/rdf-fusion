@@ -3,7 +3,7 @@ use crate::value_encoding::write_enc_term::WriteEncTerm;
 use crate::value_encoding::FromEncodedTerm;
 use crate::DFResult;
 use datafusion::logical_expr::ColumnarValue;
-use functions_scalar::ScalarNAryRdfOp;
+use arrow_rdf_functions::ScalarNAryRdfOp;
 
 pub fn dispatch_n_ary<'data, TUdf>(
     udf: &TUdf,

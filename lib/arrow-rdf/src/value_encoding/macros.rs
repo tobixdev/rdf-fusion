@@ -51,10 +51,10 @@ macro_rules! make_nullary_rdf_udf {
             ) -> datafusion::common::Result<datafusion::physical_plan::ColumnarValue> {
                 let results = (0..args.number_rows)
                     .into_iter()
-                    .map(|_| functions_scalar::ScalarNullaryRdfOp::evaluate(&self.implementation));
+                    .map(|_| arrow_rdf_functions::ScalarNullaryRdfOp::evaluate(&self.implementation));
 
                 let result =
-                    <$IMPL_TYPE as functions_scalar::ScalarNullaryRdfOp>::Result::iter_into_array(
+                    <$IMPL_TYPE as arrow_rdf_functions::ScalarNullaryRdfOp>::Result::iter_into_array(
                         results,
                     )?;
                 Ok(datafusion::physical_plan::ColumnarValue::Array(result))

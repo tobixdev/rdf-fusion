@@ -6,7 +6,7 @@ use crate::{
     make_ternary_rdf_udf, make_unary_rdf_udf,
 };
 use datafusion::logical_expr::{ScalarFunctionArgs, ScalarUDF};
-use functions_scalar::*;
+use arrow_rdf_functions::*;
 use model::Iri;
 
 // Comparison

@@ -7,9 +7,9 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+arrow-rdf-functions.workspace = true
 model.workspace = true
 datafusion.workspace = true
-functions-scalar.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 

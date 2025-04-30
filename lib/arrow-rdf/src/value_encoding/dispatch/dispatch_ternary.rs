@@ -4,7 +4,7 @@ use crate::value_encoding::write_enc_term::WriteEncTerm;
 use crate::DFResult;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::ColumnarValue;
-use functions_scalar::ScalarTernaryRdfOp;
+use arrow_rdf_functions::ScalarTernaryRdfOp;
 
 pub fn dispatch_ternary<'data, TUdf>(
     udf: &TUdf,

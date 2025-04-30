@@ -2,8 +2,8 @@
 members = [
     "cli",
     "lib/arrow-rdf",
+    "lib/arrow-rdf-functions",
     "lib/model",
-    "lib/functions-scalar",
     "lib/graphfusion-engine",
     "lib/graphfusion-logical",
     "lib/graphfusion-physical",
@@ -57,7 +57,7 @@ spargebra = "0.3.5"
 # Internal dependencies
 arrow-rdf = { version = "=0.1.0", path = "lib/arrow-rdf" }
 model = { version = "=0.1.0", path = "lib/model" }
-functions-scalar = { version = "=0.1.0", path = "lib/functions-scalar" }
+arrow-rdf-functions = { version = "=0.1.0", path = "lib/arrow-rdf-functions" }
 graphfusion-engine = { version = "=0.1.0", path = "lib/graphfusion-engine" }
 graphfusion-logical = { version = "=0.1.0", path = "lib/graphfusion-logical" }
 graphfusion-physical = { version = "=0.1.0", path = "lib/graphfusion-physical" }

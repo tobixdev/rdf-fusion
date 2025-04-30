@@ -6,7 +6,7 @@ use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use functions_scalar::ScalarBinaryRdfOp;
+use arrow_rdf_functions::ScalarBinaryRdfOp;
 use model::{Boolean, InternalTermRef, ThinResult};
 use std::any::Any;
 use std::sync::Arc;

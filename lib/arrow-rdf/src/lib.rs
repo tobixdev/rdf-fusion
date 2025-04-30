@@ -5,9 +5,9 @@ use datafusion::common::{downcast_value, internal_err};
 use datafusion::error::DataFusionError;
 // TODO: Make DataFusion integration optional and use regular Arrow Crate
 
-pub mod value_encoding;
 pub mod error;
-pub mod sortable;
+pub mod sortable_encoding;
+pub mod value_encoding;
 
 pub const TABLE_QUADS: &str = "quads";
 pub const COL_GRAPH: &str = "graph";

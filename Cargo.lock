@@ -314,10 +314,24 @@ dependencies = [
 name = "arrow-rdf"
 version = "0.1.0"
 dependencies = [
+ "arrow-rdf-functions",
  "datafusion",
- "functions-scalar",
  "model",
  "thiserror",
+ "uuid",
+]
+
+[[package]]
+name = "arrow-rdf-functions"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "md-5",
+ "model",
+ "rand",
+ "regex",
+ "sha1",
+ "sha2",
  "uuid",
 ]
 
@@ -1708,20 +1722,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "functions-scalar"
-version = "0.1.0"
-dependencies = [
- "hex",
- "md-5",
- "model",
- "rand",
- "regex",
- "sha1",
- "sha2",
- "uuid",
 ]
 
 [[package]]

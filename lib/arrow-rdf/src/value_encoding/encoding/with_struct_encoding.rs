@@ -1,5 +1,5 @@
 use crate::value_encoding::{FromEncodedTerm, RdfValueEncoding};
-use crate::sortable::{SortableTerm, SortableTermBuilder};
+use crate::sortable_encoding::{SortableTerm, SortableTermBuilder};
 use crate::DFResult;
 use datafusion::arrow::array::{as_union_array, StructArray};
 use datafusion::arrow::datatypes::DataType;
@@ -117,7 +117,7 @@ fn into_struct_enc<'data>(
 mod tests {
     use crate::as_enc_term_array;
     use crate::value_encoding::{EncRdfTermBuilder, FromEncodedTerm};
-    use crate::sortable::FromSortableTerm;
+    use crate::sortable_encoding::FromSortableTerm;
     use datafusion::arrow::array::{Array, AsArray};
     use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
     use model::vocab::xsd;

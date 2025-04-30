@@ -1,6 +1,6 @@
 use crate::value_encoding::RdfValueEncodingField;
-use crate::sortable::term_type::SortableTermType;
-use crate::sortable::{SortableTerm, SortableTermField};
+use crate::sortable_encoding::term_type::SortableTermType;
+use crate::sortable_encoding::{SortableTerm, SortableTermField};
 use datafusion::arrow::array::{
     BinaryBuilder, Float64Builder, StructArray, StructBuilder, UInt8Builder,
 };

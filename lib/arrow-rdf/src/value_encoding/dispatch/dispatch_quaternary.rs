@@ -4,7 +4,7 @@ use crate::value_encoding::write_enc_term::WriteEncTerm;
 use crate::DFResult;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::ColumnarValue;
-use functions_scalar::ScalarQuaternaryRdfOp;
+use arrow_rdf_functions::ScalarQuaternaryRdfOp;
 
 pub fn dispatch_quaternary<'data, TUdf>(
     udf: &TUdf,

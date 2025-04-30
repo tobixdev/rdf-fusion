@@ -9,7 +9,7 @@ use arrow_rdf::value_encoding::{
     ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_INT64_AS_RDF_TERM, ENC_IS_COMPATIBLE, ENC_MAX, ENC_MIN,
     ENC_SAME_TERM, ENC_SUM, ENC_WITH_SORTABLE_ENCODING,
 };
-use arrow_rdf::sortable::{SortableTerm, ENC_WITH_REGULAR_ENCODING};
+use arrow_rdf::sortable_encoding::{SortableTerm, ENC_WITH_REGULAR_ENCODING};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::tree_node::{Transformed, TreeNode};
