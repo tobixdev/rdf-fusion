@@ -2,7 +2,9 @@ use crate::encoded::scalars::{encode_scalar_null, encode_scalar_term};
 use crate::encoded::write_enc_term::WriteEncTerm;
 use crate::encoded::{EncTerm, FromEncodedTerm};
 use crate::{as_enc_term_array, DFResult};
-use datafusion::arrow::array::{Array, ArrayRef};
+use datafusion::arrow::array::{Array, ArrayRef, AsArray};
+use datafusion::arrow::datatypes::DataType;
+use datafusion::common::exec_err;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
@@ -16,21 +18,34 @@ pub static ENC_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
         Arc::new(EncTerm::data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlMin::new()))),
-        Arc::new(vec![EncTerm::data_type()]),
+        Arc::new(vec![DataType::Boolean, EncTerm::data_type()]),
     )
 });
 
 #[derive(Debug)]
 struct SparqlMin {
-    min: ThinResult<InternalTerm>,
     executed_once: bool,
+    min: ThinResult<InternalTerm>,
 }
 
 impl SparqlMin {
     pub fn new() -> Self {
         SparqlMin {
-            min: ThinError::expected(),
             executed_once: false,
+            min: ThinError::expected(),
+        }
+    }
+
+    fn on_new_value(&mut self, value: ThinResult<InternalTermRef<'_>>) {
+        if !self.executed_once {
+            self.min = value.map(InternalTermRef::into_owned);
+            self.executed_once = true;
+        } else if let Ok(min) = self.min.as_ref() {
+            if let Ok(value) = value {
+                if value < min.as_ref() {
+                    self.min = Ok(value.into_owned());
+                }
+            }
         }
     }
 }
@@ -40,23 +55,17 @@ impl Accumulator for SparqlMin {
         if values.is_empty() {
             return Ok(());
         }
-        let arr = as_enc_term_array(&values[0])?;
 
-        // TODO: Can we stop once we error?
+        // If we already have an error, we can simply stop doing anything.
+        if self.executed_once && self.min.is_err() {
+            return Ok(());
+        }
+
+        let arr = as_enc_term_array(&values[0])?;
 
         for i in 0..arr.len() {
             let value = InternalTermRef::from_enc_array(arr, i);
-
-            if !self.executed_once {
-                self.min = value.map(InternalTermRef::into_owned);
-                self.executed_once = true;
-            } else if let Ok(min) = self.min.as_ref() {
-                if let Ok(value) = value {
-                    if value < min.as_ref() {
-                        self.min = Ok(value.into_owned());
-                    }
-                }
-            }
+            self.on_new_value(value);
         }
 
         Ok(())
@@ -79,10 +88,23 @@ impl Accumulator for SparqlMin {
             Ok(value) => encode_scalar_term(value.into_decoded().as_ref())?,
             Err(_) => encode_scalar_null(),
         };
-        Ok(vec![value])
+        Ok(vec![ScalarValue::Boolean(Some(self.executed_once)), value])
     }
 
     fn merge_batch(&mut self, states: &[ArrayRef]) -> DFResult<()> {
-        self.update_batch(states)
+        if states.len() != 2 {
+            return exec_err!("Unexpected number of states.");
+        }
+
+        let executed_once = states[0].as_boolean();
+        let terms = as_enc_term_array(&states[1])?;
+        for i in 0..states[0].len() {
+            if executed_once.value(i) {
+                let value = InternalTermRef::from_enc_array(terms, i);
+                self.on_new_value(value);
+            }
+        }
+
+        Ok(())
     }
 }

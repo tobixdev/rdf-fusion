@@ -5,7 +5,6 @@ use futures::StreamExt;
 use graphfusion::io::{RdfFormat, RdfParser};
 use graphfusion::sparql::{Query, QueryOptions, QueryResults, Update};
 use graphfusion::store::Store;
-use oxhttp::model::{Method, Request, Status};
 use rand::random;
 use std::env::temp_dir;
 use std::fs::{remove_dir_all, File};

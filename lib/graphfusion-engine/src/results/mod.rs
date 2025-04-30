@@ -57,7 +57,7 @@ impl QueryResults {
     /// use graphfusion::model::*;
     /// use graphfusion::sparql::results::QueryResultsFormat;
     ///
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?;
     ///
@@ -126,7 +126,7 @@ impl QueryResults {
     ///
     /// let graph = "<http://example.com> <http://example.com> <http://example.com> .\n";
     ///
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// store.load_graph(
     ///     graph.as_bytes(),
     ///     RdfFormat::NTriples,

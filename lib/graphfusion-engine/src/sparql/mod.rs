@@ -26,7 +26,7 @@ pub use spargebra::SparqlSyntaxError;
 /// use graphfusion::sparql::QueryOptions;
 /// use graphfusion::store::Store;
 ///
-/// let store = Store::new()?;
+/// let store = Store::new();
 /// store.query_opt(
 ///     "SELECT * WHERE { SERVICE <https://query.wikidata.org/sparql> {} }",
 ///     QueryOptions::default().without_service_handler(),

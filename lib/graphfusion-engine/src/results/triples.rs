@@ -14,7 +14,7 @@ use std::task::{ready, Context, Poll};
 /// use graphfusion::sparql::QueryResults;
 /// use graphfusion::store::Store;
 ///
-/// let store = Store::new()?;
+/// let store = Store::new();
 /// if let QueryResults::Graph(triples) = store.query("CONSTRUCT WHERE { ?s ?p ?o }")? {
 ///     for triple in triples {
 ///         println!("{}", triple?);

@@ -8,7 +8,7 @@
 //! use graphfusion::sparql::QueryResults;
 //! use graphfusion::store::Store;
 //!
-//! let store = Store::new()?;
+//! let store = Store::new();
 //!
 //! // insertion
 //! let ex = NamedNode::new("http://example.com")?;
@@ -52,23 +52,19 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
     ])
 });
 
-/// An on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
-/// Allows to query and update it using SPARQL.
-/// It is based on the [RocksDB](https://rocksdb.org/) key-value store.
+/// An [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset) store.
 ///
-/// This store ensures the "repeatable read" isolation level: the store only exposes changes that have
-/// been "committed" (i.e. no partial writes) and the exposed state does not change for the complete duration
-/// of a read operation (e.g. a SPARQL query) or a read/write operation (e.g. a SPARQL update).
+/// The store can be updated and queried using [SPARQL](https://www.w3.org/TR/sparql11-query).
 ///
 /// Usage example:
 /// ```
 /// use graphfusion::model::*;
 /// use graphfusion::sparql::QueryResults;
 /// use graphfusion::store::Store;
-/// # use std::fs::remove_dir_all;
+/// use futures::StreamExt;
 ///
-/// # {
-/// let store = Store::open("example.db")?;
+/// # tokio_test::block_on(async {
+/// let store = Store::new();
 ///
 /// // insertion
 /// let ex = NamedNode::new("http://example.com")?;
@@ -81,11 +77,9 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 ///
 /// // SPARQL query
 /// if let QueryResults::Solutions(mut solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }")? {
-///     assert_eq!(solutions.next().unwrap()?.get("s"), Some(&ex.into()));
+///     assert_eq!(solutions.next().await.unwrap()?.get("s"), Some(&ex.into()));
 /// };
-/// #
-/// # };
-/// # remove_dir_all("example.db")?;
+/// # });
 /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
 /// ```
 #[derive(Clone)]
@@ -100,7 +94,7 @@ impl Default for Store {
 }
 
 impl Store {
-    /// Creates a [Store] with a [OxigraphMemoryStorage] as backing storage.
+    /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
     #[allow(clippy::expect_used)]
     pub fn new() -> Store {
         let storage = MemoryQuadStorage::new("memory_quads");
@@ -109,15 +103,17 @@ impl Store {
         Self { engine }
     }
 
-    /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/).
+    /// Executes a [SPARQL](https://www.w3.org/TR/sparql11-query/) query.
     ///
     /// Usage example:
     /// ```
     /// use graphfusion::model::*;
     /// use graphfusion::sparql::QueryResults;
     /// use graphfusion::store::Store;
+    /// use futures::StreamExt;
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     ///
     /// // insertions
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -126,10 +122,11 @@ impl Store {
     /// // SPARQL query
     /// if let QueryResults::Solutions(mut solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }")? {
     ///     assert_eq!(
-    ///         solutions.next().unwrap()?.get("s"),
+    ///         solutions.next().await.unwrap()?.get("s"),
     ///         Some(&ex.into_owned().into())
     ///     );
     /// }
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn query(
@@ -147,7 +144,8 @@ impl Store {
     /// use graphfusion::sparql::{QueryOptions, QueryResults};
     /// use graphfusion::store::Store;
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     /// if let QueryResults::Solutions(mut solutions) = store.query_opt(
     ///     "SELECT (<http://www.w3.org/ns/formats/N-Triples>(1) AS ?nt) WHERE {}",
     ///     QueryOptions::default().with_custom_function(
@@ -160,6 +158,7 @@ impl Store {
     ///         Some(&Literal::from("\"1\"^^<http://www.w3.org/2001/XMLSchema#integer>").into())
     ///     );
     /// }
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn query_opt(
@@ -180,7 +179,7 @@ impl Store {
     /// use graphfusion::sparql::{QueryOptions, QueryResults};
     /// use graphfusion::store::Store;
     ///
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// if let (Ok(QueryResults::Solutions(solutions)), explanation) = store.explain_query_opt(
     ///     "SELECT ?s WHERE { VALUES ?s { 1 2 3 } }",
     ///     QueryOptions::default(),
@@ -212,7 +211,8 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     ///
     /// // insertion
     /// let ex = NamedNode::new("http://example.com")?;
@@ -224,6 +224,7 @@ impl Store {
     ///     .quads_for_pattern(None, None, Some((&ex).into()), None)
     ///     .collect::<Result<Vec<_>, _>>()?;
     /// assert_eq!(vec![quad], results);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn quads_for_pattern(
@@ -248,7 +249,8 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     ///
     /// // insertion
     /// let ex = NamedNode::new("http://example.com")?;
@@ -256,8 +258,9 @@ impl Store {
     /// store.insert(&quad)?;
     ///
     /// // quad filter by object
-    /// let results = store.iter().collect::<Result<Vec<_>, _>>()?;
+    /// let results = store.stream().collect::<Result<Vec<_>, _>>()?;
     /// assert_eq!(vec![quad], results);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn stream(&self) -> Result<QuadStream, QueryEvaluationError> {
@@ -280,11 +283,13 @@ impl Store {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     /// assert!(!store.contains(quad)?);
     ///
     /// store.insert(quad)?;
     /// assert!(store.contains(quad)?);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn contains<'a>(
@@ -307,11 +312,13 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// store.insert(QuadRef::new(ex, ex, ex, ex))?;
     /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?;
     /// assert_eq!(2, store.len()?);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn len(&self) -> Result<usize, QueryEvaluationError> {
@@ -325,12 +332,14 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     /// assert!(store.is_empty()?);
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// store.insert(QuadRef::new(ex, ex, ex, ex))?;
     /// assert!(!store.is_empty()?);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
@@ -346,7 +355,8 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     ///
     /// // insertion
     /// store
@@ -355,6 +365,7 @@ impl Store {
     /// // we inspect the store contents
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// assert!(store.contains(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
@@ -373,7 +384,8 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::sparql::QueryOptions;
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     /// store.update_opt(
     ///     "INSERT { ?s <http://example.com/n-triples-representation> ?n } WHERE { ?s ?p ?o BIND(<http://www.w3.org/ns/formats/N-Triples>(?s) AS ?nt) }",
     ///     QueryOptions::default().with_custom_function(
@@ -381,6 +393,7 @@ impl Store {
     ///         |args| args.get(0).map(|t| Literal::from(t.to_string()).into())
     ///     )
     /// )?;
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
@@ -404,7 +417,8 @@ impl Store {
     /// use graphfusion::model::*;
     /// use oxrdfio::RdfParser;
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     ///
     /// // insert a dataset file (former load_dataset method)
     /// let file = b"<http://example.com> <http://example.com> <http://example.com> <http://example.com/g> .";
@@ -424,6 +438,7 @@ impl Store {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g")?))?);
     /// assert!(store.contains(QuadRef::new(ex, ex, ex, NamedNodeRef::new("http://example.com/g2")?))?);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn load_from_reader(
@@ -456,11 +471,13 @@ impl Store {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     /// assert!(store.insert(quad)?);
     /// assert!(!store.insert(quad)?);
     ///
     /// assert!(store.contains(quad)?);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn insert<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
@@ -499,12 +516,14 @@ impl Store {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     /// store.insert(quad)?;
     /// assert!(store.remove(quad)?);
     /// assert!(!store.remove(quad)?);
     ///
     /// assert!(!store.contains(quad)?);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     pub async fn remove<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
@@ -525,11 +544,13 @@ impl Store {
     ///     "<http://example.com> <http://example.com> <http://example.com> <http://example.com> .\n"
     ///         .as_bytes();
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     /// store.load_from_reader(RdfFormat::NQuads, file)?;
     ///
     /// let buffer = store.dump_to_writer(RdfFormat::NQuads, Vec::new())?;
     /// assert_eq!(file, buffer.as_slice());
+    /// # });
     /// # std::io::Result::Ok(())
     /// ```
     pub async fn dump_to_writer<W: Write>(
@@ -559,12 +580,14 @@ impl Store {
     ///
     /// let file = "<http://example.com> <http://example.com> <http://example.com> .\n".as_bytes();
     ///
-    /// let store = Store::new()?;
+    /// # tokio_test::block_on(async {
+    /// let store = Store::new();
     /// store.load_graph(file, RdfFormat::NTriples, GraphName::DefaultGraph, None)?;
     ///
     /// let mut buffer = Vec::new();
     /// store.dump_graph_to_writer(GraphNameRef::DefaultGraph, RdfFormat::NTriples, &mut buffer)?;
     /// assert_eq!(file, buffer.as_slice());
+    /// # });
     /// # std::io::Result::Ok(())
     /// ```
     pub async fn dump_graph_to_writer<'a, W: Write>(
@@ -590,14 +613,16 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNode::new("http://example.com")?;
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// store.insert(QuadRef::new(&ex, &ex, &ex, &ex))?;
     /// store.insert(QuadRef::new(&ex, &ex, &ex, GraphNameRef::DefaultGraph))?;
     /// assert_eq!(
     ///     vec![NamedOrBlankNode::from(ex)],
     ///     store.named_graphs().collect::<Result<Vec<_>, _>>()?
     /// );
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
@@ -613,10 +638,12 @@ impl Store {
     /// use graphfusion::model::{NamedNode, QuadRef};
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNode::new("http://example.com")?;
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// store.insert(QuadRef::new(&ex, &ex, &ex, &ex))?;
     /// assert!(store.contains_named_graph(&ex)?);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
@@ -637,14 +664,16 @@ impl Store {
     /// use graphfusion::model::NamedNodeRef;
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// store.insert_named_graph(ex)?;
     ///
     /// assert_eq!(
     ///     store.named_graphs().collect::<Result<Vec<_>, _>>()?,
     ///     vec![ex.into_owned().into()]
     /// );
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
@@ -663,15 +692,17 @@ impl Store {
     /// use graphfusion::model::{NamedNodeRef, QuadRef};
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// store.insert(quad)?;
     /// assert_eq!(1, store.len()?);
     ///
     /// store.clear_graph(ex)?;
     /// assert!(store.is_empty()?);
     /// assert_eq!(1, store.named_graphs().count());
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
@@ -692,15 +723,17 @@ impl Store {
     /// use graphfusion::model::{NamedNodeRef, QuadRef};
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// store.insert(quad)?;
     /// assert_eq!(1, store.len()?);
     ///
     /// assert!(store.remove_named_graph(ex)?);
     /// assert!(store.is_empty()?);
     /// assert_eq!(0, store.named_graphs().count());
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]
@@ -719,14 +752,16 @@ impl Store {
     /// use graphfusion::model::*;
     /// use graphfusion::store::Store;
     ///
+    /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// store.insert(QuadRef::new(ex, ex, ex, ex))?;
     /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph))?;
     /// assert_eq!(2, store.len()?);
     ///
     /// store.clear()?;
     /// assert!(store.is_empty()?);
+    /// # });
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[allow(clippy::unimplemented, reason = "Not production ready")]

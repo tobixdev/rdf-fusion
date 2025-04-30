@@ -16,7 +16,7 @@ use std::task::{ready, Context, Poll};
 /// use graphfusion::sparql::QueryResults;
 /// use graphfusion::store::Store;
 ///
-/// let store = Store::new()?;
+/// let store = Store::new();
 /// if let QueryResults::Solutions(solutions) = store.query("SELECT ?s WHERE { ?s ?p ?o }")? {
 ///     for solution in solutions {
 ///         println!("{:?}", solution?.get("s"));
@@ -47,7 +47,7 @@ impl QuerySolutionStream {
     /// use graphfusion::sparql::{QueryResults, Variable};
     /// use graphfusion::store::Store;
     ///
-    /// let store = Store::new()?;
+    /// let store = Store::new();
     /// if let QueryResults::Solutions(solutions) = store.query("SELECT ?s ?o WHERE { ?s ?p ?o }")? {
     ///     assert_eq!(
     ///         solutions.variables(),

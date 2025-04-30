@@ -5,15 +5,7 @@ use graphfusion::io::RdfFormat;
 use graphfusion::model::vocab::{rdf, xsd};
 use graphfusion::model::{GraphNameRef, LiteralRef, NamedNodeRef, QuadRef};
 use graphfusion::store::Store;
-#[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-use rand::random;
-#[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-use std::env::temp_dir;
 use std::error::Error;
-#[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-use std::fs::remove_dir_all;
-#[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-use std::path::{Path, PathBuf};
 
 #[allow(clippy::non_ascii_literal)]
 const DATA: &str = r#"
@@ -192,30 +184,4 @@ async fn test_snapshot_isolation_iterator() -> Result<(), Box<dyn Error>> {
     assert_eq!(iter.try_collect().await?, vec![quad.into_owned()]);
     store.validate()?;
     Ok(())
-}
-
-#[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-struct TempDir(PathBuf);
-
-#[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-impl Default for TempDir {
-    fn default() -> Self {
-        Self(temp_dir().join(format!("graphfusion-test-{}", random::<u128>())))
-    }
-}
-
-#[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-impl AsRef<Path> for TempDir {
-    fn as_ref(&self) -> &Path {
-        &self.0
-    }
-}
-
-#[cfg(all(not(target_family = "wasm"), feature = "storage"))]
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        if self.0.is_dir() {
-            remove_dir_all(&self.0).unwrap();
-        }
-    }
 }

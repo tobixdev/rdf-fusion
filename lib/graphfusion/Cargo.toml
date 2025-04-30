@@ -15,14 +15,6 @@ a SPARQL database and RDF toolkit
 edition.workspace = true
 rust-version.workspace = true
 
-[features]
-default = ["storage"]
-http-client = ["oxhttp"]
-http-client-native-tls = ["http-client", "oxhttp/native-tls"]
-http-client-rustls-webpki = ["http-client", "oxhttp/rustls-ring-webpki"]
-http-client-rustls-native = ["http-client", "oxhttp/rustls-ring-native"]
-storage = []
-
 [dependencies]
 model.workspace = true
 futures.workspace = true
@@ -34,18 +26,9 @@ thiserror.workspace = true
 tokio.workspace = true
 sparesults.workspace = true
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-libc.workspace = true
-oxhttp = { workspace = true, optional = true }
-
-[target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
-getrandom.workspace = true
-js-sys = { workspace = true, optional = true }
-
-[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+[dev-dependencies]
+tokio-test.workspace = true
 criterion.workspace = true
-oxhttp.workspace = true
-zstd.workspace = true
 
 [lints]
 workspace = true
