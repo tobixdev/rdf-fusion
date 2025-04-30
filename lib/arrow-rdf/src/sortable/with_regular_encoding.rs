@@ -83,7 +83,7 @@ fn into_regular_enc<'data>(
         if let Ok(term) = term {
             match term {
                 InternalTermRef::NamedNode(v) => builder.append_named_node(v.as_str())?,
-                InternalTermRef::BlankNode(v) => builder.append_blank_node(v.as_str())?,
+                InternalTermRef::BlankNode(v) => builder.append_blank_node(v)?,
                 InternalTermRef::BooleanLiteral(v) => builder.append_boolean(v.as_bool())?,
                 InternalTermRef::NumericLiteral(v) => match v {
                     Numeric::Int(v) => builder.append_int(v)?,

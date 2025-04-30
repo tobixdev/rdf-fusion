@@ -65,10 +65,9 @@ pub async fn sparql_evaluate_negative_result_syntax_test(
 ) -> Result<()> {
     let action_file = test.action.as_deref().context("No action found")?;
     let query_results = QueryResults::read(Cursor::new(read_file_to_string(action_file)?), format)
-        .map_err(Error::from)?;
-    let static_results = StaticQueryResults::from_query_results(query_results, true).await;
+        .map_err(Error::from);
     ensure!(
-        static_results.is_err(),
+        query_results.is_err(),
         "Oxigraph parses even if it should not."
     );
     Ok(())

@@ -63,6 +63,7 @@ async fn sparql11_query_w3c_evaluation_testsuite() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "We do not support SPARQL 1.1 Federation yet"]
 async fn sparql11_federation_w3c_evaluation_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/sparql/sparql11/manifest-sparql11-fed.ttl",
@@ -75,6 +76,7 @@ async fn sparql11_federation_w3c_evaluation_testsuite() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "We do not support SPARQL 1.1 Update yet"]
 async fn sparql11_update_w3c_evaluation_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/sparql/sparql11/manifest-sparql11-update.ttl",

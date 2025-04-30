@@ -19,7 +19,7 @@ pub static ENC_AVG: LazyLock<AggregateUDF> = LazyLock::new(|| {
         Arc::new(EncTerm::data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlAvg::new()))),
-        Arc::new(vec![EncTerm::data_type(), DataType::Int64]),
+        Arc::new(vec![EncTerm::data_type(), DataType::UInt64]),
     )
 });
 

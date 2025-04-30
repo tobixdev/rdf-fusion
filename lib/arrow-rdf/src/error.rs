@@ -7,7 +7,7 @@ use std::str::ParseBoolError;
 pub enum LiteralEncodingError {
     #[error("Error while writing to the arrow arrays.")]
     Arrow(#[from] ArrowError),
-    #[error("There was an error while obtaining the query solutions")]
+    #[error("There was an error while parsing the query solutions")]
     ParsingError(#[from] Box<dyn Error>),
 }
 

@@ -9,7 +9,9 @@ use datafusion::arrow::array::{
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use model::vocab::{rdf, xsd};
-use model::{BlankNode, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration};
+use model::{
+    BlankNodeRef, Date, DateTime, DayTimeDuration, Time, Timestamp, YearMonthDuration,
+};
 use model::{Decimal, Double, Float, Int, Integer, Iri, Literal, Term};
 use std::sync::Arc;
 
@@ -64,7 +66,7 @@ impl EncRdfTermBuilder {
     pub fn append_decoded_term(&mut self, value: &Term) -> Result<(), ArrowError> {
         match value {
             Term::NamedNode(nn) => self.append_named_node(nn.as_str())?,
-            Term::BlankNode(bnode) => self.append_blank_node(bnode.as_str())?,
+            Term::BlankNode(bnode) => self.append_blank_node(bnode.as_ref())?,
             Term::Literal(literal) => match self.append_literal(literal) {
                 Ok(()) => (),
                 Err(LiteralEncodingError::Arrow(error)) => return Err(error),
@@ -108,14 +110,9 @@ impl EncRdfTermBuilder {
         Ok(())
     }
 
-    pub fn append_blank_node(&mut self, value: &str) -> AResult<()> {
-        if BlankNode::new(value).is_err() {
-            return Err(ArrowError::InvalidArgumentError(String::from(
-                "Invalid BlankNode id",
-            )));
-        }
+    pub fn append_blank_node(&mut self, value: BlankNodeRef<'_>) -> AResult<()> {
         self.append_type_id_and_offset(EncTermField::BlankNode, self.blank_node_builder.len())?;
-        self.blank_node_builder.append_value(value);
+        self.blank_node_builder.append_value(value.as_str());
         Ok(())
     }
 

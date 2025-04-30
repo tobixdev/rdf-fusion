@@ -17,11 +17,13 @@ use datafusion::physical_plan::{
 };
 use futures::Stream;
 use model::vocab::xsd;
-use model::{Date, DateTime, DayTimeDuration, Decimal, Duration, Time, YearMonthDuration};
+use model::{
+    BlankNode, BlankNodeRef, Date, DateTime, DayTimeDuration, Decimal, Duration, Time,
+    YearMonthDuration,
+};
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
-use std::io::Write;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -260,16 +262,14 @@ fn encode_term(
         }
         EncodedTerm::NumericalBlankNode { id } => {
             let id = u128::from_be_bytes(*id);
-            let mut id_str = [0; 32];
-            write!(&mut id_str[..], "{id:032x}")?;
-            #[allow(clippy::expect_used, reason = "Cannot fail.")]
-            let value = std::str::from_utf8(id_str.as_ref()).expect("Always valid");
-            builder.append_blank_node(value)
+            builder.append_blank_node(BlankNode::new_from_unique_id(id).as_ref())
         }
-        EncodedTerm::SmallBlankNode(value) => builder.append_blank_node(value),
+        EncodedTerm::SmallBlankNode(value) => {
+            builder.append_blank_node(BlankNodeRef::new_unchecked(value.as_str()))
+        }
         EncodedTerm::BigBlankNode { id_id } => {
             let string = load_string(reader, id_id)?;
-            builder.append_blank_node(&string)
+            builder.append_blank_node(BlankNodeRef::new_unchecked(string.as_str()))
         }
         EncodedTerm::SmallStringLiteral(str) => builder.append_string(str, None),
         EncodedTerm::BigStringLiteral { value_id } => {

@@ -62,6 +62,15 @@ impl ScalarBinaryRdfOp for EqRdfOp {
                 InternalTermRef::DayTimeDurationLiteral(lhs),
                 InternalTermRef::DayTimeDurationLiteral(rhs),
             ) => Ok((lhs == rhs).into()),
+            // LanguageStringLiterals may not have a defined comparison.
+            (
+                InternalTermRef::LanguageStringLiteral(l),
+                InternalTermRef::LanguageStringLiteral(r),
+            ) => l
+                .partial_cmp(&r)
+                .map(|r| r == Ordering::Equal)
+                .map(Into::into)
+                .ok_or(ThinError::Expected),
             // Otherwise compare for equality.
             _ => Ok((lhs == rhs).into()),
         }

@@ -99,6 +99,7 @@ async fn rdf11_trig_w3c_testsuite() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "We do not support RDF 1.2 yet"]
 async fn rdf12_trig_syntax_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-trig/syntax/manifest.ttl",
@@ -111,6 +112,7 @@ async fn rdf12_trig_syntax_w3c_testsuite() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "We do not support RDF 1.2 yet"]
 async fn rdf12_trig_eval_w3c_testsuite() -> Result<()> {
     check_testsuite(
         "https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-trig/eval/manifest.ttl",

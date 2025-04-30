@@ -121,7 +121,10 @@ mod tests {
     use datafusion::arrow::array::{Array, AsArray};
     use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl};
     use model::vocab::xsd;
-    use model::{Date, DayTimeDuration, InternalTermRef, Timestamp, YearMonthDuration};
+    use model::{
+        BlankNode, Date, DayTimeDuration, InternalTermRef, Timestamp,
+        YearMonthDuration,
+    };
     use std::sync::Arc;
 
     #[test]
@@ -130,7 +133,9 @@ mod tests {
         test_data_builder
             .append_named_node("http://www.example.org/instance#a")
             .unwrap();
-        test_data_builder.append_blank_node("blank1").unwrap();
+        test_data_builder
+            .append_blank_node(BlankNode::new("blank1").unwrap().as_ref())
+            .unwrap();
         test_data_builder.append_boolean(true).unwrap();
         test_data_builder.append_int(1.into()).unwrap();
         test_data_builder.append_integer(2.into()).unwrap();

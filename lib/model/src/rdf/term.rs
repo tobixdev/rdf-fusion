@@ -52,7 +52,7 @@ impl InternalTerm {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum InternalTermRef<'value> {
     NamedNode(NamedNodeRef<'value>),
     BlankNode(BlankNodeRef<'value>),

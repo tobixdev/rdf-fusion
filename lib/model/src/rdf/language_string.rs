@@ -16,7 +16,7 @@ impl LanguageString {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct LanguageStringRef<'value> {
     pub value: &'value str,
     pub language: &'value str,

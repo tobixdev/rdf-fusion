@@ -246,7 +246,7 @@ impl WriteEncTerm for BlankNodeRef<'_> {
         let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
-                Ok(value) => rdf_term_builder.append_blank_node(value.as_str())?,
+                Ok(value) => rdf_term_builder.append_blank_node(value)?,
                 Err(ThinError::Expected) => rdf_term_builder.append_null()?,
                 Err(ThinError::InternalError(cause)) => {
                     return exec_err!("Internal error during RDF operation: {cause}")
@@ -265,7 +265,7 @@ impl WriteEncTerm for BlankNode {
         let mut rdf_term_builder = EncRdfTermBuilder::default();
         for value in values {
             match value {
-                Ok(value) => rdf_term_builder.append_blank_node(value.as_str())?,
+                Ok(value) => rdf_term_builder.append_blank_node(value.as_ref())?,
                 Err(ThinError::Expected) => rdf_term_builder.append_null()?,
                 Err(ThinError::InternalError(cause)) => {
                     return exec_err!("Internal error during RDF operation: {cause}")
@@ -326,7 +326,7 @@ impl WriteEncTerm for InternalTermRef<'_> {
                     rdf_term_builder.append_named_node(value.as_str())?
                 }
                 Ok(InternalTermRef::BlankNode(value)) => {
-                    rdf_term_builder.append_blank_node(value.as_str())?
+                    rdf_term_builder.append_blank_node(value)?
                 }
                 Ok(InternalTermRef::BooleanLiteral(value)) => {
                     rdf_term_builder.append_boolean(value.as_bool())?

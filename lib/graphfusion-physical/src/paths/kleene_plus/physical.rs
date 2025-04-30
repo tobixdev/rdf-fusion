@@ -357,7 +357,7 @@ impl KleenePlusClosureStream {
         for path in &self.all_paths {
             match &path.graph {
                 GraphName::NamedNode(named) => graph_builder.append_named_node(named.as_str())?,
-                GraphName::BlankNode(bnode) => graph_builder.append_blank_node(bnode.as_str())?,
+                GraphName::BlankNode(bnode) => graph_builder.append_blank_node(bnode.as_ref())?,
                 GraphName::DefaultGraph => graph_builder.append_null()?,
             }
             start_builder.append_decoded_term(&path.start.as_ref().into_decoded())?;
