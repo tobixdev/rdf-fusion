@@ -1,5 +1,5 @@
-use arrow_rdf::encoded::scalars::{encode_scalar_literal, encode_scalar_named_node};
-use arrow_rdf::encoded::{ENC_AS_NATIVE_BOOLEAN, ENC_SAME_TERM};
+use arrow_rdf::value_encoding::scalars::{encode_scalar_literal, encode_scalar_named_node};
+use arrow_rdf::value_encoding::{ENC_AS_NATIVE_BOOLEAN, ENC_SAME_TERM};
 use datafusion::common::{Column, ScalarValue};
 use datafusion::logical_expr::{lit, Expr};
 use model::{Literal, NamedNode};

@@ -1,4 +1,4 @@
-use arrow_rdf::encoded::{EncRdfTermBuilder, EncTerm};
+use arrow_rdf::value_encoding::{EncRdfTermBuilder, RdfValueEncoding};
 use datafusion::arrow::array::{RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
@@ -183,7 +183,7 @@ pub fn query_result_for_iterator(
 
     let fields = variables
         .iter()
-        .map(|v| Field::new(v.as_str(), EncTerm::data_type(), true))
+        .map(|v| Field::new(v.as_str(), RdfValueEncoding::data_type(), true))
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()

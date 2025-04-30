@@ -19,7 +19,7 @@ enum SortableTermField {
     Numeric,
     Bytes,
     AdditionalBytes,
-    EncTermType,
+    RdfTermType,
 }
 
 impl SortableTermField {
@@ -29,7 +29,7 @@ impl SortableTermField {
             SortableTermField::Numeric => "numeric",
             SortableTermField::Bytes => "bytes",
             SortableTermField::AdditionalBytes => "additional_bytes",
-            SortableTermField::EncTermType => "enc_term_type",
+            SortableTermField::RdfTermType => "enc_term_type",
         }
     }
 
@@ -39,7 +39,7 @@ impl SortableTermField {
             SortableTermField::Numeric => 1,
             SortableTermField::Bytes => 2,
             SortableTermField::AdditionalBytes => 3,
-            SortableTermField::EncTermType => 4,
+            SortableTermField::RdfTermType => 4,
         }
     }
 
@@ -47,7 +47,7 @@ impl SortableTermField {
         match self {
             SortableTermField::Numeric => DataType::Float64,
             SortableTermField::Bytes | SortableTermField::AdditionalBytes => DataType::Binary,
-            SortableTermField::EncTermType | SortableTermField::Type => DataType::UInt8,
+            SortableTermField::RdfTermType | SortableTermField::Type => DataType::UInt8,
         }
     }
 }
@@ -75,8 +75,8 @@ static FIELDS_SORTABLE_TERM: LazyLock<Fields> = LazyLock::new(|| {
             true,
         ),
         Field::new(
-            SortableTermField::EncTermType.name(),
-            SortableTermField::EncTermType.data_type(),
+            SortableTermField::RdfTermType.name(),
+            SortableTermField::RdfTermType.data_type(),
             false,
         ),
     ])

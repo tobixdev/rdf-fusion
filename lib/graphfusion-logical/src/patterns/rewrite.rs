@@ -1,7 +1,7 @@
 use crate::patterns::pattern_element::PatternNodeElement;
 use crate::patterns::PatternNode;
 use crate::DFResult;
-use arrow_rdf::encoded::{ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM};
+use arrow_rdf::value_encoding::{ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_SAME_TERM};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::DFSchema;
 use datafusion::logical_expr::{and, col, Extension, LogicalPlan, LogicalPlanBuilder};

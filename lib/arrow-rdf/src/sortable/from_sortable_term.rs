@@ -1,4 +1,4 @@
-use crate::encoded::EncTermField;
+use crate::value_encoding::RdfValueEncodingField;
 use crate::sortable::term_type::SortableTermType;
 use crate::sortable::SortableTermField;
 use datafusion::arrow::array::{Array, AsArray, StructArray};
@@ -22,10 +22,10 @@ impl<'data> FromSortableTerm<'data> for InternalTermRef<'data> {
         Self: Sized,
     {
         let enc_term_type = array
-            .column(SortableTermField::EncTermType.index())
+            .column(SortableTermField::RdfTermType.index())
             .as_primitive::<UInt8Type>()
             .value(index);
-        let enc_term_field = EncTermField::try_from(enc_term_type)?;
+        let enc_term_field = RdfValueEncodingField::try_from(enc_term_type)?;
 
         let sortable_type = array
             .column(SortableTermField::Type.index())
@@ -33,14 +33,14 @@ impl<'data> FromSortableTerm<'data> for InternalTermRef<'data> {
         let sortable_term_type = SortableTermType::try_from(sortable_type.value(index))?;
 
         let result = match enc_term_field {
-            EncTermField::Null => return ThinError::expected(),
-            EncTermField::NamedNode => {
+            RdfValueEncodingField::Null => return ThinError::expected(),
+            RdfValueEncodingField::NamedNode => {
                 InternalTermRef::NamedNode(NamedNodeRef::from_sortable_array(array, index)?)
             }
-            EncTermField::BlankNode => {
+            RdfValueEncodingField::BlankNode => {
                 InternalTermRef::BlankNode(BlankNodeRef::from_sortable_array(array, index)?)
             }
-            EncTermField::String => {
+            RdfValueEncodingField::String => {
                 if array
                     .column(SortableTermField::AdditionalBytes.index())
                     .is_null(index)
@@ -54,34 +54,34 @@ impl<'data> FromSortableTerm<'data> for InternalTermRef<'data> {
                     )?)
                 }
             }
-            EncTermField::Boolean => {
+            RdfValueEncodingField::Boolean => {
                 InternalTermRef::BooleanLiteral(Boolean::from_sortable_array(array, index)?)
             }
-            EncTermField::Float => InternalTermRef::NumericLiteral(Numeric::Float(
+            RdfValueEncodingField::Float => InternalTermRef::NumericLiteral(Numeric::Float(
                 Float::from_sortable_array(array, index)?,
             )),
-            EncTermField::Double => InternalTermRef::NumericLiteral(Numeric::Double(
+            RdfValueEncodingField::Double => InternalTermRef::NumericLiteral(Numeric::Double(
                 Double::from_sortable_array(array, index)?,
             )),
-            EncTermField::Decimal => InternalTermRef::NumericLiteral(Numeric::Decimal(
+            RdfValueEncodingField::Decimal => InternalTermRef::NumericLiteral(Numeric::Decimal(
                 Decimal::from_sortable_array(array, index)?,
             )),
-            EncTermField::Int => InternalTermRef::NumericLiteral(Numeric::Int(
+            RdfValueEncodingField::Int => InternalTermRef::NumericLiteral(Numeric::Int(
                 Int::from_sortable_array(array, index)?,
             )),
-            EncTermField::Integer => InternalTermRef::NumericLiteral(Numeric::Integer(
+            RdfValueEncodingField::Integer => InternalTermRef::NumericLiteral(Numeric::Integer(
                 Integer::from_sortable_array(array, index)?,
             )),
-            EncTermField::DateTime => {
+            RdfValueEncodingField::DateTime => {
                 InternalTermRef::DateTimeLiteral(DateTime::from_sortable_array(array, index)?)
             }
-            EncTermField::Time => {
+            RdfValueEncodingField::Time => {
                 InternalTermRef::TimeLiteral(Time::from_sortable_array(array, index)?)
             }
-            EncTermField::Date => {
+            RdfValueEncodingField::Date => {
                 InternalTermRef::DateLiteral(Date::from_sortable_array(array, index)?)
             }
-            EncTermField::Duration => match sortable_term_type {
+            RdfValueEncodingField::Duration => match sortable_term_type {
                 SortableTermType::Duration => {
                     InternalTermRef::DurationLiteral(Duration::from_sortable_array(array, index)?)
                 }
@@ -93,7 +93,7 @@ impl<'data> FromSortableTerm<'data> for InternalTermRef<'data> {
                 ),
                 _ => unreachable!("Cannot not have EncTermField::Duration"),
             },
-            EncTermField::TypedLiteral => {
+            RdfValueEncodingField::OtherTypedLiteral => {
                 InternalTermRef::TypedLiteral(TypedLiteralRef::from_sortable_array(array, index)?)
             }
         };
@@ -103,7 +103,7 @@ impl<'data> FromSortableTerm<'data> for InternalTermRef<'data> {
 
 impl<'data> FromSortableTerm<'data> for BlankNodeRef<'data> {
     fn from_sortable_array(array: &'data StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::BlankNode)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::BlankNode)?;
         let string = std::str::from_utf8(bytes)
             .map_err(|_| ThinError::InternalError("Invalid UTF8 'Bytes' for BlankNodeRef."))?;
         Ok(BlankNodeRef::new_unchecked(string))
@@ -112,7 +112,7 @@ impl<'data> FromSortableTerm<'data> for BlankNodeRef<'data> {
 
 impl<'data> FromSortableTerm<'data> for NamedNodeRef<'data> {
     fn from_sortable_array(array: &'data StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::NamedNode)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::NamedNode)?;
         let string = std::str::from_utf8(bytes)
             .map_err(|_| ThinError::InternalError("Invalid UTF8 'Bytes' for NamedNodeRef."))?;
         Ok(NamedNodeRef::new_unchecked(string))
@@ -128,7 +128,7 @@ impl<'data> FromSortableTerm<'data> for SimpleLiteralRef<'data> {
             return ThinError::expected();
         }
 
-        let bytes = try_obtain_bytes(array, index, EncTermField::String)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::String)?;
         let string = std::str::from_utf8(bytes)
             .map_err(|_| ThinError::InternalError("Invalid UTF8 'Bytes' for SimpleLiteralRef."))?;
         Ok(SimpleLiteralRef::new(string))
@@ -144,7 +144,7 @@ impl<'data> FromSortableTerm<'data> for LanguageStringRef<'data> {
             return ThinError::expected();
         }
 
-        let bytes = try_obtain_bytes(array, index, EncTermField::String)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::String)?;
         let string = std::str::from_utf8(bytes)
             .map_err(|_| ThinError::InternalError("Invalid UTF8 'Bytes' for LanguageStringRef."))?;
 
@@ -152,7 +152,7 @@ impl<'data> FromSortableTerm<'data> for LanguageStringRef<'data> {
             array,
             SortableTermField::AdditionalBytes,
             index,
-            EncTermField::String,
+            RdfValueEncodingField::String,
         )?;
         let additional_string = std::str::from_utf8(additional_bytes).map_err(|_| {
             ThinError::InternalError("Invalid UTF8 'AdditionalBytes' for LanguageStringRef.")
@@ -174,7 +174,7 @@ impl<'data> FromSortableTerm<'data> for TypedLiteralRef<'data> {
             return ThinError::expected();
         }
 
-        let bytes = try_obtain_bytes(array, index, EncTermField::TypedLiteral)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::OtherTypedLiteral)?;
         let string = std::str::from_utf8(bytes)
             .map_err(|_| ThinError::InternalError("Invalid UTF8 'Bytes' for TypedLiteralRef."))?;
 
@@ -182,7 +182,7 @@ impl<'data> FromSortableTerm<'data> for TypedLiteralRef<'data> {
             array,
             SortableTermField::AdditionalBytes,
             index,
-            EncTermField::TypedLiteral,
+            RdfValueEncodingField::OtherTypedLiteral,
         )?;
         let additional_string = std::str::from_utf8(additional_bytes).map_err(|_| {
             ThinError::InternalError("Invalid UTF8 'AdditionalBytes' for TypedLiteralRef.")
@@ -200,7 +200,7 @@ const BYTE_LENGTH_ERROR: ThinError =
 
 impl FromSortableTerm<'_> for Boolean {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Boolean)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Boolean)?;
         Ok(Boolean::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -209,7 +209,7 @@ impl FromSortableTerm<'_> for Boolean {
 
 impl FromSortableTerm<'_> for Decimal {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Decimal)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Decimal)?;
         Ok(Decimal::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -218,7 +218,7 @@ impl FromSortableTerm<'_> for Decimal {
 
 impl FromSortableTerm<'_> for Double {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Double)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Double)?;
         Ok(Double::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -227,7 +227,7 @@ impl FromSortableTerm<'_> for Double {
 
 impl FromSortableTerm<'_> for Float {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Float)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Float)?;
         Ok(Float::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -236,7 +236,7 @@ impl FromSortableTerm<'_> for Float {
 
 impl FromSortableTerm<'_> for Int {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Int)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Int)?;
         Ok(Int::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -245,7 +245,7 @@ impl FromSortableTerm<'_> for Int {
 
 impl FromSortableTerm<'_> for Integer {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Integer)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Integer)?;
         Ok(Integer::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -254,7 +254,7 @@ impl FromSortableTerm<'_> for Integer {
 
 impl FromSortableTerm<'_> for Duration {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Duration)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Duration)?;
         Ok(Duration::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -263,21 +263,21 @@ impl FromSortableTerm<'_> for Duration {
 
 impl FromSortableTerm<'_> for YearMonthDuration {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Duration)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Duration)?;
         Ok(Duration::from_be_bytes(bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?).year_month())
     }
 }
 
 impl FromSortableTerm<'_> for DayTimeDuration {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Duration)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Duration)?;
         Ok(Duration::from_be_bytes(bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?).day_time())
     }
 }
 
 impl FromSortableTerm<'_> for DateTime {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::DateTime)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::DateTime)?;
         Ok(DateTime::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -286,7 +286,7 @@ impl FromSortableTerm<'_> for DateTime {
 
 impl FromSortableTerm<'_> for Time {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Time)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Time)?;
         Ok(Time::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -295,7 +295,7 @@ impl FromSortableTerm<'_> for Time {
 
 impl FromSortableTerm<'_> for Date {
     fn from_sortable_array(array: &'_ StructArray, index: usize) -> ThinResult<Self> {
-        let bytes = try_obtain_bytes(array, index, EncTermField::Date)?;
+        let bytes = try_obtain_bytes(array, index, RdfValueEncodingField::Date)?;
         Ok(Date::from_be_bytes(
             bytes.try_into().map_err(|_| BYTE_LENGTH_ERROR)?,
         ))
@@ -305,7 +305,7 @@ impl FromSortableTerm<'_> for Date {
 fn try_obtain_bytes(
     array: &StructArray,
     index: usize,
-    expected_field: EncTermField,
+    expected_field: RdfValueEncodingField,
 ) -> ThinResult<&[u8]> {
     try_obtain_bytes_from_field(array, SortableTermField::Bytes, index, expected_field)
 }
@@ -314,15 +314,15 @@ fn try_obtain_bytes_from_field(
     array: &StructArray,
     field: SortableTermField,
     index: usize,
-    expected_field: EncTermField,
+    expected_field: RdfValueEncodingField,
 ) -> ThinResult<&[u8]> {
     let enc_term_type = array
-        .column(SortableTermField::EncTermType.index())
+        .column(SortableTermField::RdfTermType.index())
         .as_primitive::<UInt8Type>()
         .value(index);
     let enc_term_type = i8::try_from(enc_term_type)
         .map_err(|_| ThinError::InternalError("Could not convert EncTermType to i8."))?;
-    let enc_term_type = EncTermField::try_from(enc_term_type)?;
+    let enc_term_type = RdfValueEncodingField::try_from(enc_term_type)?;
 
     if enc_term_type != expected_field {
         return ThinError::expected();

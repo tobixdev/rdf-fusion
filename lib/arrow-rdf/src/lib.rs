@@ -1,11 +1,11 @@
-use crate::encoded::EncTerm;
+use crate::value_encoding::RdfValueEncoding;
 use datafusion::arrow::array::{Array, UnionArray};
 use datafusion::arrow::error::ArrowError;
 use datafusion::common::{downcast_value, internal_err};
 use datafusion::error::DataFusionError;
 // TODO: Make DataFusion integration optional and use regular Arrow Crate
 
-pub mod encoded;
+pub mod value_encoding;
 pub mod error;
 pub mod sortable;
 
@@ -20,7 +20,7 @@ type AResult<T> = Result<T, ArrowError>;
 
 // Downcast ArrayRef to Int64Array
 pub fn as_enc_term_array(array: &dyn Array) -> DFResult<&UnionArray> {
-    if *array.data_type() != EncTerm::data_type() {
+    if *array.data_type() != RdfValueEncoding::data_type() {
         return internal_err!("as_rdf_term_array expects a term type");
     }
     Ok(downcast_value!(array, UnionArray))

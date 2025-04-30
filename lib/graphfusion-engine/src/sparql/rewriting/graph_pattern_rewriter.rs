@@ -1,13 +1,13 @@
 use crate::sparql::rewriting::expression_rewriter::ExpressionRewriter;
 use crate::sparql::QueryDataset;
 use crate::DFResult;
-use arrow_rdf::encoded::scalars::{
+use arrow_rdf::value_encoding::scalars::{
     encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
-use arrow_rdf::encoded::{
-    enc_group_concat, EncTerm, ENC_AVG, ENC_BOUND, ENC_COALESCE, ENC_EFFECTIVE_BOOLEAN_VALUE,
-    ENC_INT64_AS_RDF_TERM, ENC_IS_COMPATIBLE, ENC_MAX, ENC_MIN, ENC_SAME_TERM, ENC_SUM,
-    ENC_WITH_SORTABLE_ENCODING,
+use arrow_rdf::value_encoding::{
+    enc_group_concat, RdfValueEncoding, ENC_AVG, ENC_BOUND, ENC_COALESCE,
+    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_INT64_AS_RDF_TERM, ENC_IS_COMPATIBLE, ENC_MAX, ENC_MIN,
+    ENC_SAME_TERM, ENC_SUM, ENC_WITH_SORTABLE_ENCODING,
 };
 use arrow_rdf::sortable::{SortableTerm, ENC_WITH_REGULAR_ENCODING};
 use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
@@ -928,7 +928,7 @@ fn ensure_all_columns_are_rdf_terms(inner: LogicalPlanBuilder) -> DFResult<Logic
         .into_iter()
         .map(|f| {
             let column = Expr::from(Column::new_unqualified(f.name().as_str()));
-            if f.data_type() == &EncTerm::data_type() {
+            if f.data_type() == &RdfValueEncoding::data_type() {
                 Ok(column)
             } else {
                 match f.data_type() {

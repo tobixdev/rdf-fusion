@@ -2,8 +2,8 @@ use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{PathNode, COL_SOURCE, COL_TARGET};
 use crate::patterns::PatternNode;
 use crate::DFResult;
-use arrow_rdf::encoded::scalars::{encode_scalar_named_node, encode_scalar_predicate};
-use arrow_rdf::encoded::{
+use arrow_rdf::value_encoding::scalars::{encode_scalar_named_node, encode_scalar_predicate};
+use arrow_rdf::value_encoding::{
     ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
     ENC_WITH_SORTABLE_ENCODING,
 };

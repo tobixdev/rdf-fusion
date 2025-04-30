@@ -1,6 +1,6 @@
 use crate::DFResult;
 use arrow_rdf::as_enc_term_array;
-use arrow_rdf::encoded::{EncRdfTermBuilder, FromEncodedTerm};
+use arrow_rdf::value_encoding::{EncRdfTermBuilder, FromEncodedTerm};
 use datafusion::arrow::array::RecordBatchOptions;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;

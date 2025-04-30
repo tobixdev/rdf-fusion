@@ -1,4 +1,4 @@
-use crate::encoded::EncTermField;
+use crate::value_encoding::RdfValueEncodingField;
 use crate::sortable::term_type::SortableTermType;
 use crate::sortable::{SortableTerm, SortableTermField};
 use datafusion::arrow::array::{
@@ -22,13 +22,19 @@ impl SortableTermBuilder {
     }
 
     pub fn append_null(&mut self) {
-        self.append(SortableTermType::Null, EncTermField::Null, None, &[], None)
+        self.append(
+            SortableTermType::Null,
+            RdfValueEncodingField::Null,
+            None,
+            &[],
+            None,
+        )
     }
 
     pub fn append_boolean(&mut self, value: Boolean) {
         self.append(
             SortableTermType::Boolean,
-            EncTermField::Boolean,
+            RdfValueEncodingField::Boolean,
             Some(value.into()),
             &value.to_be_bytes(),
             None,
@@ -37,11 +43,11 @@ impl SortableTermBuilder {
 
     pub fn append_numeric(&mut self, value: Numeric, original_be_bytes: &[u8]) {
         let field = match value {
-            Numeric::Int(_) => EncTermField::Int,
-            Numeric::Integer(_) => EncTermField::Integer,
-            Numeric::Float(_) => EncTermField::Float,
-            Numeric::Double(_) => EncTermField::Double,
-            Numeric::Decimal(_) => EncTermField::Decimal,
+            Numeric::Int(_) => RdfValueEncodingField::Int,
+            Numeric::Integer(_) => RdfValueEncodingField::Integer,
+            Numeric::Float(_) => RdfValueEncodingField::Float,
+            Numeric::Double(_) => RdfValueEncodingField::Double,
+            Numeric::Decimal(_) => RdfValueEncodingField::Decimal,
         };
         let value = Double::from(value);
         self.append(
@@ -56,7 +62,7 @@ impl SortableTermBuilder {
     pub fn append_blank_node(&mut self, value: BlankNodeRef<'_>) {
         self.append(
             SortableTermType::BlankNodes,
-            EncTermField::BlankNode,
+            RdfValueEncodingField::BlankNode,
             None,
             value.as_str().as_bytes(),
             None,
@@ -66,7 +72,7 @@ impl SortableTermBuilder {
     pub fn append_named_node(&mut self, value: NamedNodeRef<'_>) {
         self.append(
             SortableTermType::NamedNode,
-            EncTermField::NamedNode,
+            RdfValueEncodingField::NamedNode,
             None,
             value.as_str().as_bytes(),
             None,
@@ -76,7 +82,7 @@ impl SortableTermBuilder {
     pub fn append_string(&mut self, value: &str, language: Option<&str>) {
         self.append(
             SortableTermType::String,
-            EncTermField::String,
+            RdfValueEncodingField::String,
             None,
             value.as_bytes(),
             language.map(str::as_bytes),
@@ -86,7 +92,7 @@ impl SortableTermBuilder {
     pub(crate) fn append_date_time(&mut self, value: DateTime) {
         self.append(
             SortableTermType::DateTime,
-            EncTermField::DateTime,
+            RdfValueEncodingField::DateTime,
             Some(value.timestamp().value().into()),
             &value.to_be_bytes(),
             None,
@@ -96,7 +102,7 @@ impl SortableTermBuilder {
     pub(crate) fn append_time(&mut self, value: Time) {
         self.append(
             SortableTermType::Time,
-            EncTermField::Time,
+            RdfValueEncodingField::Time,
             Some(value.timestamp().value().into()),
             &value.to_be_bytes(),
             None,
@@ -106,7 +112,7 @@ impl SortableTermBuilder {
     pub(crate) fn append_date(&mut self, value: Date) {
         self.append(
             SortableTermType::Date,
-            EncTermField::Date,
+            RdfValueEncodingField::Date,
             Some(value.timestamp().value().into()),
             &value.to_be_bytes(),
             None,
@@ -116,7 +122,7 @@ impl SortableTermBuilder {
     pub(crate) fn append_duration(&mut self, value: Duration) {
         self.append(
             SortableTermType::Duration,
-            EncTermField::Duration,
+            RdfValueEncodingField::Duration,
             None, // Sort by bytes
             &value.to_be_bytes(),
             None,
@@ -126,7 +132,7 @@ impl SortableTermBuilder {
     pub(crate) fn append_year_month_duration(&mut self, value: YearMonthDuration) {
         self.append(
             SortableTermType::YearMonthDuration,
-            EncTermField::Duration,
+            RdfValueEncodingField::Duration,
             Some(Integer::from(value.as_i64()).into()),
             Duration::from(value).to_be_bytes().as_slice(),
             None,
@@ -136,7 +142,7 @@ impl SortableTermBuilder {
     pub(crate) fn append_day_time_duration(&mut self, value: DayTimeDuration) {
         self.append(
             SortableTermType::DayTimeDuration,
-            EncTermField::Duration,
+            RdfValueEncodingField::Duration,
             Some(value.as_seconds().into()),
             Duration::from(value).to_be_bytes().as_slice(),
             None,
@@ -146,7 +152,7 @@ impl SortableTermBuilder {
     pub fn append_literal(&mut self, value: &str, literal_type: &str) {
         self.append(
             SortableTermType::UnsupportedLiteral,
-            EncTermField::TypedLiteral,
+            RdfValueEncodingField::OtherTypedLiteral,
             None,
             value.as_bytes(),
             Some(literal_type.as_bytes()),
@@ -156,7 +162,7 @@ impl SortableTermBuilder {
     fn append(
         &mut self,
         sort_type: SortableTermType,
-        enc_type: EncTermField,
+        enc_type: RdfValueEncodingField,
         numeric: Option<Double>,
         bytes: &[u8],
         additional_bytes: Option<&[u8]>,
@@ -167,7 +173,7 @@ impl SortableTermBuilder {
             .append_value(sort_type.as_u8());
         #[allow(clippy::cast_sign_loss, reason = "EncTermType cannot be negative.")]
         self.builder
-            .field_builder::<UInt8Builder>(SortableTermField::EncTermType.index())
+            .field_builder::<UInt8Builder>(SortableTermField::RdfTermType.index())
             .unwrap()
             .append_value(enc_type.type_id() as u8);
 

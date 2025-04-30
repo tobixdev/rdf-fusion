@@ -1,4 +1,4 @@
-use crate::encoded::{EncRdfTermBuilder, EncTerm};
+use crate::value_encoding::{EncRdfTermBuilder, RdfValueEncoding};
 use crate::sortable::from_sortable_term::FromSortableTerm;
 use crate::sortable::SortableTerm;
 use crate::DFResult;
@@ -42,7 +42,7 @@ impl ScalarUDFImpl for EncWithRegularEncoding {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(EncTerm::data_type())
+        Ok(RdfValueEncoding::data_type())
     }
 
     fn invoke_with_args(

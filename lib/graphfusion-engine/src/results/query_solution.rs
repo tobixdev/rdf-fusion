@@ -1,5 +1,5 @@
 use crate::sparql::error::QueryEvaluationError;
-use arrow_rdf::encoded::FromEncodedTerm;
+use arrow_rdf::value_encoding::FromEncodedTerm;
 use datafusion::arrow::array::{AsArray, RecordBatch, UnionArray};
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
