@@ -29,18 +29,20 @@ impl PatternNodeElement {
     #[allow(clippy::unwrap_in_result, reason = "TODO")]
     pub fn filter_expression(&self, column: &Column) -> Option<Expr> {
         match self {
-            PatternNodeElement::NamedNode(nn) => {
-                filter_by_scalar(column, encode_scalar_named_node(nn.as_ref()))
-            }
-            PatternNodeElement::Literal(lit) => {
-                filter_by_scalar(column, encode_scalar_literal(lit.as_ref()).unwrap())
-            }
+            PatternNodeElement::NamedNode(nn) => Some(filter_by_scalar(
+                column,
+                encode_scalar_named_node(nn.as_ref()),
+            )),
+            PatternNodeElement::Literal(lit) => Some(filter_by_scalar(
+                column,
+                encode_scalar_literal(lit.as_ref()).unwrap(),
+            )),
             PatternNodeElement::BlankNode(_) => {
                 // A blank node indicates that this should be a non-default graph.
-                return Some(Expr::from(column.clone()).is_not_null());
+                Some(Expr::from(column.clone()).is_not_null())
             }
-            PatternNodeElement::DefaultGraph => return Some(Expr::from(column.clone()).is_null()),
-            _ => return None,
+            PatternNodeElement::DefaultGraph => Some(Expr::from(column.clone()).is_null()),
+            _ => None,
         }
     }
 
@@ -97,8 +99,8 @@ impl From<GraphNamePattern> for PatternNodeElement {
     }
 }
 
-fn filter_by_scalar(column: &Column, scalar: ScalarValue) -> Option<Expr> {
-    Some(ENC_AS_NATIVE_BOOLEAN.call(vec![
-        ENC_SAME_TERM.call(vec![Expr::from(column.clone()), lit(scalar)]),
-    ]))
+fn filter_by_scalar(column: &Column, scalar: ScalarValue) -> Expr {
+    ENC_AS_NATIVE_BOOLEAN.call(vec![
+        ENC_SAME_TERM.call(vec![Expr::from(column.clone()), lit(scalar)])
+    ])
 }
