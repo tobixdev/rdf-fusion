@@ -1,16 +1,17 @@
 [workspace]
 members = [
     "cli",
-    "lib/arrow-rdf",
-    "lib/arrow-rdf-functions",
     "lib/model",
+    "lib/graphfusion-encoding",
     "lib/graphfusion-engine",
+    "lib/graphfusion-functions",
+    "lib/graphfusion-functions-scalar",
     "lib/graphfusion-logical",
     "lib/graphfusion-physical",
     "lib/graphfusion-storage",
     "lib/graphfusion",
     "lib/graphfusion-web",
-    "testsuite"]
+    "testsuite", "lib/graphfusion-functions"]
 resolver = "2"
 
 [workspace.package]
@@ -55,10 +56,11 @@ sparesults = "0.2.4"
 spargebra = "0.3.5"
 
 # Internal dependencies
-arrow-rdf = { version = "=0.1.0", path = "lib/arrow-rdf" }
 model = { version = "=0.1.0", path = "lib/model" }
-arrow-rdf-functions = { version = "=0.1.0", path = "lib/arrow-rdf-functions" }
+graphfusion-encoding = { version = "=0.1.0", path = "lib/graphfusion-encoding" }
 graphfusion-engine = { version = "=0.1.0", path = "lib/graphfusion-engine" }
+graphfusion-functions = { version = "=0.1.0", path = "lib/graphfusion-functions" }
+graphfusion-functions-scalar = { version = "=0.1.0", path = "lib/graphfusion-functions-scalar" }
 graphfusion-logical = { version = "=0.1.0", path = "lib/graphfusion-logical" }
 graphfusion-physical = { version = "=0.1.0", path = "lib/graphfusion-physical" }
 graphfusion-storage = { version = "=0.1.0", path = "lib/graphfusion-storage" }

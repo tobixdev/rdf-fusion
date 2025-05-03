@@ -1,4 +1,4 @@
-use arrow_rdf::value_encoding::{EncRdfTermBuilder, RdfValueEncoding};
+use graphfusion_encoding::value_encoding::{RdfTermValueBuilder, RdfTermValueEncoding};
 use datafusion::arrow::array::{RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
@@ -165,7 +165,7 @@ pub fn query_result_for_iterator(
 ) -> Result<QueryResults, QuerySolutionsToStreamError> {
     let mut builders = Vec::new();
     for _ in 0..variables.len() {
-        builders.push(EncRdfTermBuilder::default())
+        builders.push(RdfTermValueBuilder::default())
     }
 
     let mut count = 0;
@@ -183,11 +183,11 @@ pub fn query_result_for_iterator(
 
     let fields = variables
         .iter()
-        .map(|v| Field::new(v.as_str(), RdfValueEncoding::data_type(), true))
+        .map(|v| Field::new(v.as_str(), RdfTermValueEncoding::datatype(), true))
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()
-        .map(EncRdfTermBuilder::finish)
+        .map(RdfTermValueBuilder::finish)
         .collect::<Result<Vec<_>, DataFusionError>>()?;
 
     let schema = SchemaRef::new(Schema::new(fields));

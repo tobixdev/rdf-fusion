@@ -1,6 +1,6 @@
 use crate::DFResult;
-use arrow_rdf::as_enc_term_array;
-use arrow_rdf::value_encoding::{EncRdfTermBuilder, FromEncodedTerm};
+use graphfusion_encoding::as_term_value_array;
+use graphfusion_encoding::value_encoding::{ValueArrayBuilder, FromArrowRdfTermValue};
 use datafusion::arrow::array::RecordBatchOptions;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -15,7 +15,7 @@ use datafusion::physical_plan::{
 };
 use futures::{Stream, StreamExt};
 use graphfusion_logical::paths::PATH_TABLE_SCHEMA;
-use model::{GraphName, GraphNameRef, InternalTerm, InternalTermRef};
+use model::{GraphName, GraphNameRef, InternalTerm, TermValueRef};
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Formatter;
@@ -274,18 +274,18 @@ impl KleenePlusClosureStream {
     ///
     /// This adds all inner paths to the `initial_paths_map`, `all_paths`, and the `current_delta`.
     fn collect_next_batch(&mut self, batch: &RecordBatch) -> DFResult<()> {
-        let graph_names = as_enc_term_array(batch.column(0))?;
-        let starts = as_enc_term_array(batch.column(1))?;
-        let ends = as_enc_term_array(batch.column(2))?;
+        let graph_names = as_term_value_array(batch.column(0))?;
+        let starts = as_term_value_array(batch.column(1))?;
+        let ends = as_term_value_array(batch.column(2))?;
 
         for i in 0..batch.num_rows() {
-            let graph = GraphNameRef::from_enc_array(graph_names, i).map_err(|_| {
+            let graph = GraphNameRef::from_array(graph_names, i).map_err(|_| {
                 exec_datafusion_err!("Could not obtain graph value from inner paths.")
             })?;
-            let start = InternalTermRef::from_enc_array(starts, i).map_err(|_| {
+            let start = TermValueRef::from_array(starts, i).map_err(|_| {
                 exec_datafusion_err!("Could not obtain start value from inner paths.")
             })?;
-            let end = InternalTermRef::from_enc_array(ends, i).map_err(|_| {
+            let end = TermValueRef::from_array(ends, i).map_err(|_| {
                 exec_datafusion_err!("Could not obtain end value from inner paths.")
             })?;
 
@@ -350,9 +350,9 @@ impl KleenePlusClosureStream {
 
     /// Creates a [RecordBatch] from the internal state of `self`.
     fn create_output_batch(&self) -> DFResult<RecordBatch> {
-        let mut graph_builder = EncRdfTermBuilder::default();
-        let mut start_builder = EncRdfTermBuilder::default();
-        let mut end_builder = EncRdfTermBuilder::default();
+        let mut graph_builder = ValueArrayBuilder::default();
+        let mut start_builder = ValueArrayBuilder::default();
+        let mut end_builder = ValueArrayBuilder::default();
 
         for path in &self.all_paths {
             match &path.graph {
@@ -360,8 +360,8 @@ impl KleenePlusClosureStream {
                 GraphName::BlankNode(bnode) => graph_builder.append_blank_node(bnode.as_ref())?,
                 GraphName::DefaultGraph => graph_builder.append_null()?,
             }
-            start_builder.append_decoded_term(&path.start.as_ref().into_decoded())?;
-            end_builder.append_decoded_term(&path.end.as_ref().into_decoded())?;
+            start_builder.append_term(&path.start.as_ref().into_decoded())?;
+            end_builder.append_term(&path.end.as_ref().into_decoded())?;
         }
 
         let graph_array = graph_builder.finish()?;

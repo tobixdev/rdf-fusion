@@ -1,6 +1,4 @@
-use crate::{
-    Boolean, Float, Int, Integer, InternalTermRef, Numeric, RdfValueRef, ThinError, ThinResult,
-};
+use crate::{Boolean, Float, Int, Integer, Numeric};
 use std::cmp::Ordering;
 use std::fmt;
 use std::num::ParseFloatError;
@@ -88,18 +86,6 @@ impl Double {
     #[must_use]
     pub fn is_identical_with(self, other: Self) -> bool {
         self.value.to_bits() == other.value.to_bits()
-    }
-}
-
-impl RdfValueRef<'_> for Double {
-    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
-    where
-        Self: Sized,
-    {
-        match term {
-            InternalTermRef::NumericLiteral(Numeric::Double(inner)) => Ok(inner),
-            _ => ThinError::expected(),
-        }
     }
 }
 

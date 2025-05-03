@@ -311,31 +311,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arrow-rdf"
-version = "0.1.0"
-dependencies = [
- "arrow-rdf-functions",
- "datafusion",
- "model",
- "thiserror",
- "uuid",
-]
-
-[[package]]
-name = "arrow-rdf-functions"
-version = "0.1.0"
-dependencies = [
- "hex",
- "md-5",
- "model",
- "rand",
- "regex",
- "sha1",
- "sha2",
- "uuid",
-]
-
-[[package]]
 name = "arrow-row"
 version = "55.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1925,10 +1900,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphfusion-encoding"
+version = "0.1.0"
+dependencies = [
+ "datafusion",
+ "graphfusion-functions-scalar",
+ "model",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "graphfusion-engine"
 version = "0.1.0"
 dependencies = [
- "arrow-rdf",
  "async-trait",
  "datafusion",
  "futures",
@@ -1943,11 +1928,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphfusion-functions"
+version = "0.1.0"
+dependencies = [
+ "datafusion",
+ "graphfusion-encoding",
+ "graphfusion-functions-scalar",
+ "model",
+ "thiserror",
+]
+
+[[package]]
+name = "graphfusion-functions-scalar"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "md-5",
+ "model",
+ "rand",
+ "regex",
+ "sha1",
+ "sha2",
+ "uuid",
+]
+
+[[package]]
 name = "graphfusion-logical"
 version = "0.1.0"
 dependencies = [
- "arrow-rdf",
  "datafusion",
+ "graphfusion-functions",
  "model",
  "spargebra",
 ]
@@ -1956,10 +1966,10 @@ dependencies = [
 name = "graphfusion-physical"
 version = "0.1.0"
 dependencies = [
- "arrow-rdf",
  "async-trait",
  "datafusion",
  "futures",
+ "graphfusion-encoding",
  "graphfusion-logical",
  "model",
 ]
@@ -1968,11 +1978,11 @@ dependencies = [
 name = "graphfusion-storage"
 version = "0.1.0"
 dependencies = [
- "arrow-rdf",
  "async-trait",
  "dashmap",
  "datafusion",
  "futures",
+ "graphfusion-encoding",
  "graphfusion-engine",
  "model",
  "oxsdatatypes",

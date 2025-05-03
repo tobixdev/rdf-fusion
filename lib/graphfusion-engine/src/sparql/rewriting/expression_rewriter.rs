@@ -1,10 +1,10 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::DFResult;
-use arrow_rdf::value_encoding::scalars::{
+use graphfusion_encoding::value_encoding::scalars::{
     encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
 };
-use arrow_rdf::value_encoding::{
-    enc_iri, RdfValueEncoding, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME,
+use graphfusion_encoding::value_encoding::{
+    enc_iri, RdfTermValueEncoding, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME,
     ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN,
     ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND,
     ENC_CEIL, ENC_COALESCE, ENC_CONCAT, ENC_CONTAINS, ENC_DATATYPE, ENC_DAY, ENC_DIV,
@@ -289,7 +289,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .map(|k| {
                 ENC_IS_COMPATIBLE.call(vec![
                     Expr::OuterReferenceColumn(
-                        RdfValueEncoding::data_type(),
+                        RdfTermValueEncoding::datatype(),
                         Column::new_unqualified(k),
                     ),
                     Expr::from(Column::new_unqualified(format!("__inner__{k}"))),

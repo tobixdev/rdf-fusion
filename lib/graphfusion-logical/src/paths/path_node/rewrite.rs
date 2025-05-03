@@ -2,12 +2,6 @@ use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{PathNode, COL_SOURCE, COL_TARGET};
 use crate::patterns::PatternNode;
 use crate::DFResult;
-use arrow_rdf::value_encoding::scalars::{encode_scalar_named_node, encode_scalar_predicate};
-use arrow_rdf::value_encoding::{
-    ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
-    ENC_WITH_SORTABLE_ENCODING,
-};
-use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, JoinType};
@@ -15,6 +9,14 @@ use datafusion::datasource::DefaultTableSource;
 use datafusion::logical_expr::{col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
+use graphfusion_encoding::value_encoding::scalars::{
+    encode_scalar_named_node, encode_scalar_predicate,
+};
+use graphfusion_encoding::value_encoding::{
+    ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
+    ENC_WITH_SORTABLE_ENCODING,
+};
+use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use model::NamedNode;
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::NamedNodePattern;

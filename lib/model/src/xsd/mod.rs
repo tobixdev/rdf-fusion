@@ -17,3 +17,25 @@ pub use float::*;
 pub use int::*;
 pub use integer::*;
 pub use numeric::*;
+use oxrdf::vocab::xsd;
+use oxrdf::NamedNodeRef;
+
+/// Checks if the datatype is a numeric datatype.
+pub fn is_numeric_datatype(datatype: NamedNodeRef<'_>) -> bool {
+    static NUMERIC_DATATYPES: &[NamedNodeRef<'_>; 13] = &[
+        xsd::INTEGER,
+        xsd::BYTE,
+        xsd::SHORT,
+        xsd::INT,
+        xsd::LONG,
+        xsd::UNSIGNED_BYTE,
+        xsd::UNSIGNED_SHORT,
+        xsd::UNSIGNED_INT,
+        xsd::UNSIGNED_LONG,
+        xsd::POSITIVE_INTEGER,
+        xsd::NEGATIVE_INTEGER,
+        xsd::NON_POSITIVE_INTEGER,
+        xsd::NON_NEGATIVE_INTEGER,
+    ];
+    NUMERIC_DATATYPES.contains(&datatype)
+}

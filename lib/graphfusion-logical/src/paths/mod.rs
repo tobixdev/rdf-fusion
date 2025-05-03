@@ -1,8 +1,8 @@
 mod kleene_plus;
 mod path_node;
 
-use arrow_rdf::value_encoding::RdfValueEncoding;
-use arrow_rdf::COL_GRAPH;
+use graphfusion_encoding::value_encoding::RdfTermValueEncoding;
+use graphfusion_encoding::COL_GRAPH;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
 pub use kleene_plus::*;
@@ -15,9 +15,9 @@ pub const COL_TARGET: &str = "_target";
 
 pub static PATH_TABLE_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {
     Arc::new(Schema::new(vec![
-        Field::new(COL_GRAPH, RdfValueEncoding::data_type(), true),
-        Field::new(COL_SOURCE, RdfValueEncoding::data_type(), true),
-        Field::new(COL_TARGET, RdfValueEncoding::data_type(), true),
+        Field::new(COL_GRAPH, RdfTermValueEncoding::datatype(), true),
+        Field::new(COL_SOURCE, RdfTermValueEncoding::datatype(), true),
+        Field::new(COL_TARGET, RdfTermValueEncoding::datatype(), true),
     ]))
 });
 

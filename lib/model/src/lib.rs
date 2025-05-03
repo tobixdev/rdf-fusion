@@ -1,12 +1,14 @@
 mod error;
 mod rdf;
-mod value;
+mod rdf_value;
+mod rdf_value_arg;
 pub mod vocab;
 mod xsd;
 
 pub use error::*;
 pub use rdf::*;
-pub use value::*;
+pub use rdf_value::*;
+pub use rdf_value_arg::*;
 pub use xsd::*;
 
 // Re-export some oxrdf types.

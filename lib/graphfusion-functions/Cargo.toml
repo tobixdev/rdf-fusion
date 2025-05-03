@@ -1,0 +1,17 @@
+[package]
+name = "graphfusion-functions"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+graphfusion-encoding.workspace = true
+graphfusion-functions-scalar.workspace = true
+model.workspace = true
+datafusion.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

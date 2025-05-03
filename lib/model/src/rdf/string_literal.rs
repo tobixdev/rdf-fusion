@@ -1,4 +1,4 @@
-use crate::{InternalTermRef, RdfValueRef, ThinError, ThinResult};
+use crate::{ThinError, ThinResult};
 use std::cmp::Ordering;
 
 /// https://www.w3.org/TR/sparql11-query/#func-string
@@ -73,20 +73,5 @@ impl<'data> CompatibleStringArgs<'data> {
             rhs: rhs.0,
             language: lhs.1,
         })
-    }
-}
-
-impl<'data> RdfValueRef<'data> for StringLiteralRef<'data> {
-    fn from_term(term: InternalTermRef<'data>) -> ThinResult<Self>
-    where
-        Self: Sized,
-    {
-        match term {
-            InternalTermRef::SimpleLiteral(inner) => Ok(StringLiteralRef(inner.value, None)),
-            InternalTermRef::LanguageStringLiteral(inner) => {
-                Ok(StringLiteralRef(inner.value, Some(inner.language)))
-            }
-            _ => ThinError::expected(),
-        }
     }
 }

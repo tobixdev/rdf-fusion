@@ -1,6 +1,6 @@
 use crate::patterns::pattern_element::PatternNodeElement;
 use crate::DFResult;
-use arrow_rdf::value_encoding::RdfValueEncoding;
+use graphfusion_encoding::value_encoding::RdfTermValueEncoding;
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
@@ -51,7 +51,7 @@ impl PatternNode {
 
         let fields = fields
             .into_iter()
-            .map(|name| Field::new(name, RdfValueEncoding::data_type(), true))
+            .map(|name| Field::new(name, RdfTermValueEncoding::datatype(), true))
             .collect::<Fields>();
         Ok(Arc::new(DFSchema::from_unqualified_fields(
             fields,

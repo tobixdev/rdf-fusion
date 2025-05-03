@@ -6,7 +6,7 @@ use datafusion::datasource::{TableProvider, TableType};
 use datafusion::logical_expr::Expr;
 
 use crate::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
-use arrow_rdf::value_encoding::ENC_QUAD_SCHEMA;
+use graphfusion_encoding::value_encoding::ENC_QUAD_SCHEMA;
 use datafusion::physical_plan::ExecutionPlan;
 use std::any::Any;
 use std::fmt;

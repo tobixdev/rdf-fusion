@@ -2,7 +2,7 @@ use crate::planner::GraphFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults};
 use crate::{DFResult, QuadStorage};
-use arrow_rdf::TABLE_QUADS;
+use graphfusion_encoding::TABLE_QUADS;
 use datafusion::dataframe::DataFrame;
 use datafusion::datasource::DefaultTableSource;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};

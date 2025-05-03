@@ -1,6 +1,6 @@
 use crate::{
-    Boolean, Double, Float, Int, Integer, InternalTermRef, Numeric, RdfValueRef, ThinError,
-    ThinResult, TooLargeForIntError, TooLargeForIntegerError,
+    Boolean, Double, Float, Int, Integer, ThinError, ThinResult, TooLargeForIntError,
+    TooLargeForIntegerError,
 };
 use std::fmt;
 use std::fmt::Write;
@@ -276,18 +276,6 @@ impl Decimal {
     #[must_use]
     pub const fn as_i128(self) -> i128 {
         self.value / DECIMAL_PART_POW
-    }
-}
-
-impl RdfValueRef<'_> for Decimal {
-    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
-    where
-        Self: Sized,
-    {
-        match term {
-            InternalTermRef::NumericLiteral(Numeric::Decimal(inner)) => Ok(inner),
-            _ => ThinError::expected(),
-        }
     }
 }
 

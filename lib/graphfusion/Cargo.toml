@@ -39,4 +39,3 @@ rustdoc-args = ["--cfg", "docsrs"]
 [[bench]]
 name = "store"
 harness = false
-required-features = ["storage"]

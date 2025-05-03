@@ -5,8 +5,8 @@ use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
 use crate::oxigraph_memory::hash::StrHash;
 use crate::{AResult, DFResult};
-use arrow_rdf::value_encoding::{EncRdfTermBuilder, ENC_QUAD_SCHEMA};
-use arrow_rdf::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use graphfusion_encoding::value_encoding::{ValueArrayBuilder, ENC_QUAD_SCHEMA};
+use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
@@ -170,10 +170,10 @@ impl RecordBatchStream for OxigraphMemStream {
 struct RdfQuadsRecordBatchBuilder {
     reader: Arc<MemoryStorageReader>,
     schema: SchemaRef,
-    graph: EncRdfTermBuilder,
-    subject: EncRdfTermBuilder,
-    predicate: EncRdfTermBuilder,
-    object: EncRdfTermBuilder,
+    graph: ValueArrayBuilder,
+    subject: ValueArrayBuilder,
+    predicate: ValueArrayBuilder,
+    object: ValueArrayBuilder,
     project_graph: bool,
     project_subject: bool,
     project_predicate: bool,
@@ -190,10 +190,10 @@ impl RdfQuadsRecordBatchBuilder {
         Self {
             reader,
             schema,
-            graph: EncRdfTermBuilder::default(),
-            subject: EncRdfTermBuilder::default(),
-            predicate: EncRdfTermBuilder::default(),
-            object: EncRdfTermBuilder::default(),
+            graph: ValueArrayBuilder::default(),
+            subject: ValueArrayBuilder::default(),
+            predicate: ValueArrayBuilder::default(),
+            object: ValueArrayBuilder::default(),
             project_graph,
             project_subject,
             project_predicate,
@@ -251,7 +251,7 @@ impl RdfQuadsRecordBatchBuilder {
 
 fn encode_term(
     reader: &MemoryStorageReader,
-    builder: &mut EncRdfTermBuilder,
+    builder: &mut ValueArrayBuilder,
     term: &EncodedTerm,
 ) -> AResult<()> {
     match term {
@@ -353,7 +353,7 @@ fn encode_term(
 }
 
 fn append_typed_literal(
-    builder: &mut EncRdfTermBuilder,
+    builder: &mut ValueArrayBuilder,
     value: &str,
     datatype: &str,
 ) -> AResult<()> {

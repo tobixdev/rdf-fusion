@@ -2,7 +2,7 @@
 
 use crate::xsd::decimal::Decimal;
 use crate::xsd::duration::{DayTimeDuration, Duration, YearMonthDuration};
-use crate::{InternalTermRef, RdfValueRef, ThinError, ThinResult};
+use crate::{ThinError, ThinResult};
 use std::cmp::{min, Ordering};
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -252,18 +252,6 @@ impl DateTime {
     #[must_use]
     pub fn is_identical_with(self, other: Self) -> bool {
         self.timestamp.is_identical_with(other.timestamp)
-    }
-}
-
-impl RdfValueRef<'_> for DateTime {
-    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
-    where
-        Self: Sized,
-    {
-        match term {
-            InternalTermRef::DateTimeLiteral(value) => Ok(value),
-            _ => ThinError::expected(),
-        }
     }
 }
 

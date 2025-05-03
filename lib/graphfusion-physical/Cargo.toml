@@ -7,7 +7,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-arrow-rdf.workspace = true
+graphfusion-encoding.workspace = true
 async-trait.workspace = true
 datafusion.workspace = true
 model.workspace = true

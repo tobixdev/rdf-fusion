@@ -9,10 +9,10 @@ rust-version.workspace = true
 [dependencies]
 # This should be removed in the future. Necessary for OxigraphMemory
 oxsdatatypes = "0.2.2"
-arrow-rdf.workspace = true
 async-trait.workspace = true
 model.workspace = true
 datafusion.workspace = true
+graphfusion-encoding.workspace = true
 graphfusion-engine.workspace = true
 dashmap.workspace = true
 futures.workspace = true

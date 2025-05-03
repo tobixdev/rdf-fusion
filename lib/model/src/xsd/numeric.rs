@@ -2,7 +2,7 @@ use crate::xsd::decimal::Decimal;
 use crate::xsd::double::Double;
 use crate::xsd::float::Float;
 use crate::xsd::integer::Integer;
-use crate::{Int, InternalTermRef, RdfValueRef, ThinError, ThinResult};
+use crate::Int;
 use std::cmp::Ordering;
 use std::hash::Hash;
 
@@ -35,18 +35,6 @@ impl Numeric {
             Numeric::Float(float) => float.to_be_bytes().into(),
             Numeric::Double(double) => double.to_be_bytes().into(),
             Numeric::Decimal(decimal) => decimal.to_be_bytes().into(),
-        }
-    }
-}
-
-impl RdfValueRef<'_> for Numeric {
-    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
-    where
-        Self: Sized,
-    {
-        match term {
-            InternalTermRef::NumericLiteral(inner) => Ok(inner),
-            _ => ThinError::expected(),
         }
     }
 }

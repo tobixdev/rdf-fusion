@@ -4,7 +4,7 @@ use crate::sparql::{
     Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream,
     QueryTripleStream,
 };
-use arrow_rdf::TABLE_QUADS;
+use graphfusion_encoding::TABLE_QUADS;
 use datafusion::prelude::{DataFrame, SessionContext};
 use model::Iri;
 use model::Variable;

@@ -1,4 +1,3 @@
-use crate::{InternalTermRef, RdfValueRef, ThinError, ThinResult};
 use std::cmp::Ordering;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
@@ -22,7 +21,13 @@ pub struct LanguageStringRef<'value> {
     pub language: &'value str,
 }
 
-impl LanguageStringRef<'_> {
+impl<'value> LanguageStringRef<'value> {
+    /// Creates a new [LanguageStringRef].
+    pub fn new(value: &'value str, language: &'value str) -> Self {
+        Self { value, language }
+    }
+
+    /// Returns whether the value of the langauge string is empty.
     pub fn is_empty(&self) -> bool {
         self.value.is_empty()
     }
@@ -42,18 +47,6 @@ impl PartialOrd for LanguageStringRef<'_> {
             self.value.partial_cmp(other.value)
         } else {
             None
-        }
-    }
-}
-
-impl<'data> RdfValueRef<'data> for LanguageStringRef<'data> {
-    fn from_term(term: InternalTermRef<'data>) -> ThinResult<Self>
-    where
-        Self: Sized,
-    {
-        match term {
-            InternalTermRef::LanguageStringLiteral(inner) => Ok(inner),
-            _ => ThinError::expected(),
         }
     }
 }
