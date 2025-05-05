@@ -1,13 +1,15 @@
-use crate::{EncodingArray, TermDecoder};
+use crate::encoding::{EncodingArray, TermDecoder};
+use crate::plain_term_encoding::{PlainTermEncoding, TermType};
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
 use model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
-use crate::plain_term_encoding::{PlainTermArray, TermType};
+
+pub struct TermRefPlainTermDecoder {}
 
 /// Extracts a sequence of term references from the given array.
-impl<'data> TermDecoder<'data, TermRef<'data>> for PlainTermArray {
-    fn decode_terms(&'data self) -> impl Iterator<Item = ThinResult<TermRef<'data>>> {
-        let array = self.array().as_struct();
+impl TermDecoder<PlainTermEncoding> for TermRefPlainTermDecoder {
+    fn decode_terms(array: & Self::Array) -> impl Iterator<Item = ThinResult<TermRef<'data>>> {
+        let array = array.array().as_struct();
 
         let term_type = array.column(0).as_primitive::<UInt8Type>();
 
@@ -16,6 +18,10 @@ impl<'data> TermDecoder<'data, TermRef<'data>> for PlainTermArray {
         let language = array.column(3).as_string::<i32>();
 
         (0..array.len()).map(|idx| extract_term(array, term_type, value, datatype, language, idx))
+    }
+
+    fn decode_term(array: &'data Self::Scalar) -> ThinResult<TermRef<'data>> {
+        todo!()
     }
 }
 

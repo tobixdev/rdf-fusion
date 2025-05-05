@@ -1,11 +1,14 @@
+use crate::encoding::TermEncoding;
 use crate::plain_term_encoding::scalar_encoder::PlainTermScalarEncoder;
 use crate::plain_term_encoding::{PlainTermArray, PlainTermScalar};
-use crate::{DFResult, TermEncoding};
+use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
+use datafusion::common::ScalarValue;
 use model::ThinError;
 use std::clone::Clone;
 use std::sync::LazyLock;
+use datafusion::logical_expr::ColumnarValue;
 
 static FIELDS_TYPE: LazyLock<Fields> = LazyLock::new(|| {
     let fields = vec![
@@ -28,10 +31,6 @@ impl PlainTermEncoding {
     pub fn fields() -> Fields {
         FIELDS_TYPE.clone()
     }
-
-    pub fn datatype() -> DataType {
-        DataType::Struct(Self::fields().clone())
-    }
 }
 
 impl TermEncoding for PlainTermEncoding {
@@ -39,8 +38,16 @@ impl TermEncoding for PlainTermEncoding {
     type Scalar = PlainTermScalar;
     type ScalarEncoder = PlainTermScalarEncoder;
 
+    fn data_type() -> DataType {
+        DataType::Struct(Self::fields().clone())
+    }
+
     fn try_new_array(array: ArrayRef) -> DFResult<Self::Array> {
         array.try_into()
+    }
+
+    fn try_new_scalar(scalar: ScalarValue) -> DFResult<Self::Scalar> {
+        scalar.try_into()
     }
 }
 

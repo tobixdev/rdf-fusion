@@ -1,6 +1,6 @@
 mod array;
 mod encoding;
-mod extract;
+mod term_decoder;
 mod scalar;
 mod scalar_encoder;
 

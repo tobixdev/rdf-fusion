@@ -1,6 +1,7 @@
 use crate::plain_term_encoding::PlainTermEncoding;
-use crate::{DFResult, EncodingScalar};
+use crate::{DFResult, TermEncoding};
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
+use crate::encoding::EncodingScalar;
 
 /// Represents an Arrow scalar with a [ValueEncoding].
 pub struct PlainTermScalar {
@@ -14,7 +15,7 @@ impl PlainTermScalar {
     ///
     /// Returns an error if the data type of `value` is unexpected.
     pub fn try_new(value: ScalarValue) -> DFResult<Self> {
-        if value.data_type() != PlainTermEncoding::datatype() {
+        if value.data_type() != PlainTermEncoding::data_type() {
             return exec_err!("Expected scalar value with value encoding, got {:?}", value);
         }
         Ok(Self::new_unchecked(value))

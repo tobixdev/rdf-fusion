@@ -1,16 +1,14 @@
 use crate::dispatcher::SparqlOpDispatcher;
 use crate::DFResult;
-use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::ColumnarValue;
-use datafusion::logical_expr::ScalarFunctionArgs;
-use datafusion::logical_expr_common::signature::Signature;
-use graphfusion_encoding::{FromArrow, ToArrow};
-use graphfusion_functions_scalar::SparqlOp;
+use graphfusion_encoding::value_encoding::TermValueEncoding;
+use graphfusion_encoding::EncodingArray;
+use graphfusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_functions_scalar::TernaryRdfTermValueOp;
 use graphfusion_functions_scalar::{CoalesceSparqlOp, ConcatSparqlOp, NAryRdfTermValueOp};
-use crate::scalar::borrow_value;
 
 macro_rules! impl_n_ary_rdf_value_op {
-    ($STRUCT_NAME: ident, $SPARQL_OP: ty) => {
+    ($ENCODING: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty) => {
         #[derive(Debug)]
         struct $STRUCT_NAME {
             signature: Signature,
@@ -27,7 +25,7 @@ macro_rules! impl_n_ary_rdf_value_op {
             }
 
             fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-                Ok(<$SPARQL_OP as NAryRdfTermValueOp>::Result::encoded_datatype())
+                Ok(<$ENCODING>::data_type())
             }
 
             fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
@@ -38,34 +36,44 @@ macro_rules! impl_n_ary_rdf_value_op {
 }
 
 // Functional Forms
-impl_n_ary_rdf_value_op!(CoalesceValueNAryDispatcher, CoalesceSparqlOp);
+impl_n_ary_rdf_value_op!(
+    TermValueEncoding,
+    CoalesceTermValueDispatcher,
+    CoalesceSparqlOp
+);
 
 // Strings
-impl_n_ary_rdf_value_op!(ConcatValueNAryDispatcher, ConcatSparqlOp);
+impl_n_ary_rdf_value_op!(
+    TermValueEncoding,
+    ConcatValueTermValueDispatcher,
+    ConcatSparqlOp
+);
 
-fn dispatch_n_ary<'data, TOp>(
+fn dispatch_n_ary<'data, TEncoding, TOp>(
     op: &TOp,
     args: &'data [ColumnarValue],
     number_of_rows: usize,
 ) -> DFResult<ColumnarValue>
 where
     TOp: NAryRdfTermValueOp,
-    TOp::Args<'data>: FromArrow<'data>,
-    TOp::Result<'data>: ToArrow,
+    TEncoding: TermEncoding,
+    TEncoding: TermDecoder<'data, TOp::Args<'data>>,
+    TEncoding: TermEncoder<'data, TOp::Result<'data>>,
 {
-    let results = (0..number_of_rows).map(|i| {
-        let args = args
-            .iter()
-            .map(|a| borrow_value::<TOp::Args<'data>>(a, i))
-            .collect::<Vec<_>>();
-
-        if args.iter().all(Result::is_ok) {
-            let args = args.into_iter().map(|arg| arg.unwrap()).collect::<Vec<_>>();
-            op.evaluate(args.as_slice())
-        } else {
-            op.evaluate_error(args.as_slice())
-        }
-    });
-    let result = TOp::Result::iter_into_array(results)?;
-    Ok(ColumnarValue::Array(result))
+    todo!()
+    // let results = (0..number_of_rows).map(|i| {
+    //     let args = args
+    //         .iter()
+    //         .map(|a| borrow_value::<TOp::Args<'data>>(a, i))
+    //         .collect::<Vec<_>>();
+    //
+    //     if args.iter().all(Result::is_ok) {
+    //         let args = args.into_iter().map(|arg| arg.unwrap()).collect::<Vec<_>>();
+    //         op.evaluate(args.as_slice())
+    //     } else {
+    //         op.evaluate_error(args.as_slice())
+    //     }
+    // });
+    // let result = TOp::Result::iter_into_array(results)?;
+    // Ok(ColumnarValue::Array(result))
 }

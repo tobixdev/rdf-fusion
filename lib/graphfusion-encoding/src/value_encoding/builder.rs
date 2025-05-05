@@ -10,8 +10,8 @@ use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use model::vocab::{rdf, xsd};
 use model::{
-    BlankNodeRef, Date, DateTime, DayTimeDuration, LiteralRef, TermRef, Time, Timestamp,
-    YearMonthDuration,
+    BlankNodeRef, Date, DateTime, DayTimeDuration, LiteralRef, NamedNodeRef, TermRef, Time,
+    Timestamp, YearMonthDuration,
 };
 use model::{Decimal, Double, Float, Int, Integer, Iri};
 use std::sync::Arc;
@@ -69,7 +69,7 @@ impl Default for ValueArrayBuilder {
 impl ValueArrayBuilder {
     pub fn append_term(&mut self, term: TermRef<'_>) -> Result<(), ArrowError> {
         match term {
-            TermRef::NamedNode(nn) => self.append_named_node(nn.as_str())?,
+            TermRef::NamedNode(nn) => self.append_named_node(nn)?,
             TermRef::BlankNode(bnode) => self.append_blank_node(bnode)?,
             TermRef::Literal(literal) => match self.append_literal(literal) {
                 Ok(()) => (),
@@ -100,18 +100,12 @@ impl ValueArrayBuilder {
         Ok(())
     }
 
-    pub fn append_named_node(&mut self, value: &str) -> AResult<()> {
-        if Iri::parse(value).is_err() {
-            return Err(ArrowError::InvalidArgumentError(String::from(
-                "Invalid IRI.",
-            )));
-        }
-
+    pub fn append_named_node(&mut self, value: NamedNodeRef<'_>) -> AResult<()> {
         self.append_type_id_and_offset(
             ValueEncodingField::NamedNode,
             self.named_node_builder.len(),
         )?;
-        self.named_node_builder.append_value(value);
+        self.named_node_builder.append_value(value.as_str());
         Ok(())
     }
 

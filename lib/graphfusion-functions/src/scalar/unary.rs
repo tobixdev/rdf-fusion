@@ -1,15 +1,13 @@
 use crate::dispatcher::SparqlOpDispatcher;
 use crate::DFResult;
-use datafusion::arrow::array::{Array, AsArray, BooleanArray};
-use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::exec_err;
 use datafusion::common::DataFusionError;
-use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use datafusion::logical_expr::ScalarFunctionArgs;
 use datafusion::logical_expr_common::signature::Signature;
-use graphfusion_encoding::value_encoding::{TermValueEncoding, ValueEncodingField};
-use graphfusion_encoding::{as_term_value_array, EncodingScalar, FromArrow, ScalarEncoder, TermEncoding, ToArrow};
+use graphfusion_encoding::value_encoding::TermValueEncoding;
+use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
     AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
@@ -21,11 +19,11 @@ use graphfusion_functions_scalar::{
     UnaryPlusSparqlOp, YearSparqlOp,
 };
 use graphfusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp, UnaryTermValueOp};
-use model::{Boolean, RdfTermValueArg, TermValueRef, ThinError};
+use model::ThinError;
 use std::fmt::Debug;
 
-macro_rules! impl_unary_rdf_value_op {
-    ($STRUCT_NAME: ident, $SPARQL_OP: ty) => {
+macro_rules! impl_unary_sparql_op {
+    ($ENCODING: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty) => {
         #[derive(Debug)]
         struct $STRUCT_NAME {
             signature: Signature,
@@ -42,13 +40,23 @@ macro_rules! impl_unary_rdf_value_op {
             }
 
             fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-                Ok(<$SPARQL_OP as UnaryTermValueOp>::Result::encoded_datatype())
+                Ok(<$ENCODING>::data_type())
             }
 
             fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
-                match &args.args.as_slice() {
-                    [ColumnarValue::Array(arg)] => dispatch_unary_array(&self.op, arg),
-                    [ColumnarValue::Scalar(arg)] => dispatch_unary_scalar(&self.op, arg),
+                match TryInto::<[_; 1]>::try_into(args.args) {
+                    Ok([ColumnarValue::Array(arg)]) => {
+                        dispatch_unary_array::<$ENCODING, $SPARQL_OP>(
+                            &self.op,
+                            &<$ENCODING>::try_new_array(arg)?,
+                        )
+                    }
+                    Ok([ColumnarValue::Scalar(arg)]) => {
+                        dispatch_unary_scalar::<$ENCODING, $SPARQL_OP>(
+                            &self.op,
+                            &<$ENCODING>::try_new_scalar(arg)?,
+                        )
+                    }
                     _ => Err(DataFusionError::Execution(String::from(
                         "Unexpected type combination.",
                     ))),
@@ -59,67 +67,175 @@ macro_rules! impl_unary_rdf_value_op {
 }
 
 // Conversion
-impl_unary_rdf_value_op!(AsBooleanValueUnaryDispatcher, AsBooleanSparqlOp);
-impl_unary_rdf_value_op!(AsDateTimeValueUnaryDispatcher, AsDateTimeSparqlOp);
-impl_unary_rdf_value_op!(AsDecimalValueUnaryDispatcher, AsDecimalSparqlOp);
-impl_unary_rdf_value_op!(AsDoubleValueUnaryDispatcher, AsDoubleSparqlOp);
-impl_unary_rdf_value_op!(AsFloatValueUnaryDispatcher, AsFloatSparqlOp);
-impl_unary_rdf_value_op!(AsIntValueUnaryDispatcher, AsIntSparqlOp);
-impl_unary_rdf_value_op!(AsIntegerValueUnaryDispatcher, AsIntegerSparqlOp);
-impl_unary_rdf_value_op!(AsStringValueUnaryDispatcher, AsStringSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    AsBooleanValueUnaryDispatcher,
+    AsBooleanSparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    AsDateTimeValueUnaryDispatcher,
+    AsDateTimeSparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    AsDecimalValueUnaryDispatcher,
+    AsDecimalSparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    AsDoubleValueUnaryDispatcher,
+    AsDoubleSparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    AsFloatValueUnaryDispatcher,
+    AsFloatSparqlOp
+);
+impl_unary_sparql_op!(TermValueEncoding, AsIntValueUnaryDispatcher, AsIntSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    AsIntegerValueUnaryDispatcher,
+    AsIntegerSparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    AsStringValueUnaryDispatcher,
+    AsStringSparqlOp
+);
 
 // Dates and Times
-impl_unary_rdf_value_op!(DayValueUnaryDispatcher, DaySparqlOp);
-impl_unary_rdf_value_op!(HoursValueUnaryDispatcher, HoursSparqlOp);
-impl_unary_rdf_value_op!(MinutesValueUnaryDispatcher, MinutesSparqlOp);
-impl_unary_rdf_value_op!(MonthValueUnaryDispatcher, MonthSparqlOp);
-impl_unary_rdf_value_op!(SecondsValueUnaryDispatcher, SecondsSparqlOp);
-impl_unary_rdf_value_op!(TimezoneValueUnaryDispatcher, TimezoneSparqlOp);
-impl_unary_rdf_value_op!(TzValueUnaryDispatcher, TzSparqlOp);
-impl_unary_rdf_value_op!(YearValueUnaryDispatcher, YearSparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, DayValueUnaryDispatcher, DaySparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, HoursValueUnaryDispatcher, HoursSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    MinutesValueUnaryDispatcher,
+    MinutesSparqlOp
+);
+impl_unary_sparql_op!(TermValueEncoding, MonthValueUnaryDispatcher, MonthSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    SecondsValueUnaryDispatcher,
+    SecondsSparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    TimezoneValueUnaryDispatcher,
+    TimezoneSparqlOp
+);
+impl_unary_sparql_op!(TermValueEncoding, TzValueUnaryDispatcher, TzSparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, YearValueUnaryDispatcher, YearSparqlOp);
 
 // Functional Form
-impl_unary_rdf_value_op!(BoundValueUnaryDispatcher, BoundSparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, BoundValueUnaryDispatcher, BoundSparqlOp);
 
 // Hashing
-impl_unary_rdf_value_op!(Md5ValueUnaryDispatcher, Md5SparqlOp);
-impl_unary_rdf_value_op!(Sha1ValueUnaryDispatcher, Sha1SparqlOp);
-impl_unary_rdf_value_op!(Sha256ValueUnaryDispatcher, Sha256SparqlOp);
-impl_unary_rdf_value_op!(Sha384ValueUnaryDispatcher, Sha384SparqlOp);
-impl_unary_rdf_value_op!(Sha512ValueUnaryDispatcher, Sha512SparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, Md5ValueUnaryDispatcher, Md5SparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, Sha1ValueUnaryDispatcher, Sha1SparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    Sha256ValueUnaryDispatcher,
+    Sha256SparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    Sha384ValueUnaryDispatcher,
+    Sha384SparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    Sha512ValueUnaryDispatcher,
+    Sha512SparqlOp
+);
 
 // Numeric
-impl_unary_rdf_value_op!(AbsValueUnaryDispatcher, AbsSparqlOp);
-impl_unary_rdf_value_op!(CeilValueUnaryDispatcher, CeilSparqlOp);
-impl_unary_rdf_value_op!(FloorValueUnaryDispatcher, FloorSparqlOp);
-impl_unary_rdf_value_op!(RoundValueUnaryDispatcher, RoundSparqlOp);
-impl_unary_rdf_value_op!(UnaryMinusValueUnaryDispatcher, UnaryMinusSparqlOp);
-impl_unary_rdf_value_op!(UnaryPlusValueUnaryDispatcher, UnaryPlusSparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, AbsValueUnaryDispatcher, AbsSparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, CeilValueUnaryDispatcher, CeilSparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, FloorValueUnaryDispatcher, FloorSparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, RoundValueUnaryDispatcher, RoundSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    UnaryMinusValueUnaryDispatcher,
+    UnaryMinusSparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    UnaryPlusValueUnaryDispatcher,
+    UnaryPlusSparqlOp
+);
 
 // Strings
-impl_unary_rdf_value_op!(EncodeForUriValueUnaryDispatcher, EncodeForUriSparqlOp);
-impl_unary_rdf_value_op!(LCaseValueUnaryDispatcher, LCaseSparqlOp);
-impl_unary_rdf_value_op!(StrLenValueUnaryDispatcher, StrLenSparqlOp);
-impl_unary_rdf_value_op!(UCaseValueUnaryDispatcher, UCaseSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    EncodeForUriValueUnaryDispatcher,
+    EncodeForUriSparqlOp
+);
+impl_unary_sparql_op!(TermValueEncoding, LCaseValueUnaryDispatcher, LCaseSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    StrLenValueUnaryDispatcher,
+    StrLenSparqlOp
+);
+impl_unary_sparql_op!(TermValueEncoding, UCaseValueUnaryDispatcher, UCaseSparqlOp);
 
 // Terms
-impl_unary_rdf_value_op!(BNodeValueUnaryDispatcher, BNodeSparqlOp);
-impl_unary_rdf_value_op!(DatatypeValueUnaryDispatcher, DatatypeSparqlOp);
-impl_unary_rdf_value_op!(IriValueUnaryDispatcher, IriSparqlOp);
-impl_unary_rdf_value_op!(IsBlankValueUnaryDispatcher, IsBlankSparqlOp);
-impl_unary_rdf_value_op!(IsIriValueUnaryDispatcher, IsIriSparqlOp);
-impl_unary_rdf_value_op!(IsLiteralValueUnaryDispatcher, IsLiteralSparqlOp);
-impl_unary_rdf_value_op!(IsNumericValueUnaryDispatcher, IsNumericSparqlOp);
-impl_unary_rdf_value_op!(LangValueUnaryDispatcher, LangSparqlOp);
-impl_unary_rdf_value_op!(StrValueUnaryDispatcher, StrSparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, BNodeValueUnaryDispatcher, BNodeSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    DatatypeValueUnaryDispatcher,
+    DatatypeSparqlOp
+);
+impl_unary_sparql_op!(TermValueEncoding, IriValueUnaryDispatcher, IriSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    IsBlankValueUnaryDispatcher,
+    IsBlankSparqlOp
+);
+impl_unary_sparql_op!(TermValueEncoding, IsIriValueUnaryDispatcher, IsIriSparqlOp);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    IsLiteralValueUnaryDispatcher,
+    IsLiteralSparqlOp
+);
+impl_unary_sparql_op!(
+    TermValueEncoding,
+    IsNumericValueUnaryDispatcher,
+    IsNumericSparqlOp
+);
+impl_unary_sparql_op!(TermValueEncoding, LangValueUnaryDispatcher, LangSparqlOp);
+impl_unary_sparql_op!(TermValueEncoding, StrValueUnaryDispatcher, StrSparqlOp);
 
-fn dispatch_unary_scalar<'data, TOp>(op: &TOp, value: &'data ScalarValue) -> DFResult<ColumnarValue>
+fn dispatch_unary_array<'data, TEncoding, TOp>(
+    op: &TOp,
+    values: &'data TEncoding::Array,
+) -> DFResult<ColumnarValue>
 where
     TOp: UnaryTermValueOp,
-    TOp::Arg<'data>: FromArrow<'data>,
-    TOp::Result<'data>: ToArrow,
+    TEncoding: TermEncoding,
+    TEncoding: TermDecoder<'data, TOp::Arg<'data>>,
+    TEncoding: TermEncoder<TOp::Result<'data>>,
 {
-    let value = TOp::Arg::from_scalar(value);
+    let results =
+        <TEncoding as TermDecoder<TOp::Arg<'data>>>::decode_terms(values).map(|v| match v {
+            Ok(value) => op.evaluate(value),
+            Err(ThinError::Expected) => op.evaluate_error(),
+            Err(internal_err) => Err(internal_err),
+        });
+    let result = <TEncoding as TermEncoder<TOp::Result<'data>>>::encode_terms(results)?;
+    Ok(ColumnarValue::Array(result.into_array()))
+}
+
+fn dispatch_unary_scalar<'data, TEncoding, TOp>(
+    op: &TOp,
+    value: &'data TEncoding::Scalar,
+) -> DFResult<ColumnarValue>
+where
+    TOp: UnaryTermValueOp,
+    TEncoding: TermEncoding,
+    TEncoding: TermDecoder<'data, TOp::Arg<'data>>,
+    TEncoding: TermEncoder<TOp::Result<'data>>,
+{
+    let value = <TEncoding as TermDecoder<TOp::Arg<'data>>>::decode_term(value);
     let result = match value {
         Ok(value) => op.evaluate(value),
         Err(ThinError::Expected) => op.evaluate_error(),
@@ -127,59 +243,6 @@ where
             return exec_err!("InternalError in UDF: {}", error)
         }
     };
-    let result = match result {
-        Ok(result) => result.into_scalar_value(),
-        Err(_) => Ok(<TermValueEncoding as TermEncoding>::ScalarEncoder::encode_scalar_null().into_scalar_value()),
-    };
-    Ok(ColumnarValue::Scalar(result?))
-}
-
-fn dispatch_unary_array<'data, TOp>(op: &TOp, values: &'data dyn Array) -> DFResult<ColumnarValue>
-where
-    TOp: UnaryTermValueOp,
-    TOp::Arg<'data>: FromArrow<'data>,
-    TOp::Result<'data>: ToArrow,
-{
-    let values = as_term_value_array(values)?;
-
-    let booleans = values
-        .child(ValueEncodingField::Boolean.type_id())
-        .as_boolean();
-    if values.len() == booleans.len() {
-        let offsets = values.offsets().ok_or(exec_datafusion_err!(
-            "RDF term array should always have offsets."
-        ))?;
-        return dispatch_unary_array_boolean(op, offsets, booleans);
-    }
-
-    let results = (0..values.len())
-        .map(|i| TermValueRef::from_array(values, i).and_then(TOp::Arg::try_from_value))
-        .map(|v| match v {
-            Ok(value) => op.evaluate(value),
-            Err(ThinError::Expected) => op.evaluate_error(),
-            Err(internal_err) => Err(internal_err),
-        });
-    let result = TOp::Result::iter_into_array(results)?;
-    Ok(ColumnarValue::Array(result))
-}
-
-#[inline(never)]
-fn dispatch_unary_array_boolean<'data, TOp>(
-    op: &TOp,
-    offsets: &ScalarBuffer<i32>,
-    values: &BooleanArray,
-) -> DFResult<ColumnarValue>
-where
-    TOp: UnaryTermValueOp,
-    TOp::Arg<'data>: FromArrow<'data>,
-    TOp::Result<'data>: ToArrow,
-{
-    #[allow(clippy::cast_sign_loss, reason = "Offset is always positive")]
-    let results = offsets
-        .iter()
-        .map(|o| values.value(*o as usize))
-        .map(|v| TOp::Arg::try_from_value(TermValueRef::BooleanLiteral(Boolean::from(v))))
-        .map(|v| op.evaluate(v?));
-    let result = TOp::Result::iter_into_array(results)?;
-    Ok(ColumnarValue::Array(result))
+    let result = <TEncoding as TermEncoder<TOp::Result<'data>>>::encode_term(result)?;
+    Ok(ColumnarValue::Scalar(result.into_scalar_value()))
 }

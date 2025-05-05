@@ -1,7 +1,6 @@
-use crate::value_encoding::array::{TermValueArray, TermValueArrayParts, TimestampParts};
-use crate::value_encoding::ValueEncodingField;
-use crate::EncodingArray;
-use crate::TermDecoder;
+use crate::encoding::{EncodingArray, TermDecoder};
+use crate::value_encoding::array::{TermValueArrayParts, TimestampParts};
+use crate::value_encoding::{TermValueEncoding, ValueEncodingField};
 use datafusion::arrow::array::Array;
 use model::{
     BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int,
@@ -12,22 +11,32 @@ use model::{
 use std::ops::Not;
 
 /// Extracts a sequence of term references from the given array.
-impl<'data> TermDecoder<'data, TermValueRef<'data>> for TermValueArray {
-    fn decode_terms(&'data self) -> impl Iterator<Item = ThinResult<TermValueRef<'data>>> {
-        let parts = self.parts_as_ref();
-        (0..self.array().len()).map(move |idx| extract_term_value(&parts, idx))
+impl<'data> TermDecoder<'data, TermValueRef<'data>> for TermValueEncoding {
+    fn decode_terms(
+        array: &'data Self::Array,
+    ) -> impl Iterator<Item = ThinResult<TermValueRef<'data>>> {
+        let parts = array.parts_as_ref();
+        (0..array.array().len()).map(move |idx| extract_term_value(&parts, idx))
+    }
+
+    fn decode_term(scalar: &'data Self::Scalar) -> ThinResult<TermValueRef<'data>> {
+        todo!()
     }
 }
 
 macro_rules! extract_from_term_value {
     ($TYPE: ty, $VARIANT: path) => {
-        impl<'data> TermDecoder<'data, $TYPE> for TermValueArray {
-            fn decode_terms(&'data self) -> impl Iterator<Item = ThinResult<$TYPE>> {
-                TermDecoder::<TermValueRef<'data>>::extract(self).map(|r| match r {
+        impl<'data> TermDecoder<'data, $TYPE> for TermValueEncoding {
+            fn decode_terms(array: &'data Self::Array) -> impl Iterator<Item = ThinResult<$TYPE>> {
+                <Self as TermDecoder<TermValueRef<'data>>>::decode_terms(array).map(|r| match r {
                     Ok($VARIANT(numeric)) => Ok(numeric),
                     Ok(_) => ThinError::expected(),
                     Err(err) => Err(err),
                 })
+            }
+
+            fn decode_term(array: &'data Self::Scalar) -> ThinResult<$TYPE> {
+                todo!()
             }
         }
     };
@@ -36,10 +45,15 @@ macro_rules! extract_from_term_value {
 extract_from_term_value!(NamedNodeRef<'data>, TermValueRef::NamedNode);
 extract_from_term_value!(Numeric, TermValueRef::NumericLiteral);
 extract_from_term_value!(SimpleLiteralRef<'data>, TermValueRef::SimpleLiteral);
+extract_from_term_value!(DateTime, TermValueRef::DateTimeLiteral);
+extract_from_term_value!(Date, TermValueRef::DateLiteral);
+extract_from_term_value!(Time, TermValueRef::TimeLiteral);
 
-impl<'data> TermDecoder<'data, StringLiteralRef<'data>> for TermValueArray {
-    fn decode_terms(&'data self) -> impl Iterator<Item = ThinResult<StringLiteralRef<'data>>> {
-        TermDecoder::<TermValueRef<'data>>::extract(self).map(|r| match r {
+impl<'data> TermDecoder<'data, StringLiteralRef<'data>> for TermValueEncoding {
+    fn decode_terms(
+        array: &'data Self::Array,
+    ) -> impl Iterator<Item = ThinResult<StringLiteralRef<'data>>> {
+        <Self as TermDecoder<TermValueRef<'data>>>::decode_terms(array).map(|r| match r {
             Ok(TermValueRef::SimpleLiteral(value)) => Ok(StringLiteralRef(value.value, None)),
             Ok(TermValueRef::LanguageStringLiteral(value)) => {
                 Ok(StringLiteralRef(value.value, Some(value.language)))
@@ -48,15 +62,23 @@ impl<'data> TermDecoder<'data, StringLiteralRef<'data>> for TermValueArray {
             Err(err) => Err(err),
         })
     }
+
+    fn decode_term(array: &'data Self::Scalar) -> ThinResult<StringLiteralRef<'data>> {
+        todo!()
+    }
 }
-impl<'data> TermDecoder<'data, Integer> for TermValueArray {
-    fn decode_terms(&'data self) -> impl Iterator<Item = ThinResult<Integer>> {
-        TermDecoder::<Numeric>::extract(self).map(|r| match r {
+impl<'data> TermDecoder<'data, Integer> for TermValueEncoding {
+    fn decode_terms(array: &'data Self::Array) -> impl Iterator<Item = ThinResult<Integer>> {
+        <Self as TermDecoder<Numeric>>::decode_terms(array).map(|r| match r {
             Ok(Numeric::Int(value)) => Ok(value.into()),
             Ok(Numeric::Integer(value)) => Ok(value),
             Ok(_) => ThinError::expected(),
             Err(err) => Err(err),
         })
+    }
+
+    fn decode_term(array: &'data Self::Scalar) -> ThinResult<Integer> {
+        todo!()
     }
 }
 

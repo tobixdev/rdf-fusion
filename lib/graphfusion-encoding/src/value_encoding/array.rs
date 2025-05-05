@@ -1,5 +1,4 @@
 use crate::value_encoding::{TermValueEncoding, ValueEncodingField};
-use crate::EncodingArray;
 use datafusion::arrow::array::{
     Array, ArrayRef, AsArray, BooleanArray, Decimal128Array, Float32Array, Float64Array,
     GenericStringArray, Int16Array, Int32Array, Int64Array, UnionArray,
@@ -8,6 +7,8 @@ use datafusion::arrow::datatypes::{
     Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
 };
 use datafusion::common::{exec_err, DataFusionError};
+use crate::encoding::EncodingArray;
+use crate::TermEncoding;
 
 /// Represents an Arrow array with a [TermValueEncoding].
 pub struct TermValueArray {
@@ -96,7 +97,7 @@ impl TryFrom<ArrayRef> for TermValueArray {
     type Error = DataFusionError;
 
     fn try_from(value: ArrayRef) -> Result<Self, Self::Error> {
-        if value.data_type() != &TermValueEncoding::datatype() {
+        if value.data_type() != &TermValueEncoding::data_type() {
             return exec_err!("Unexpected type when creating a value-encoded array");
         }
         Ok(Self { inner: value })
@@ -106,6 +107,10 @@ impl TryFrom<ArrayRef> for TermValueArray {
 impl EncodingArray for TermValueArray {
     fn array(&self) -> &ArrayRef {
         &self.inner
+    }
+
+    fn into_array(self) -> ArrayRef {
+        self.inner
     }
 }
 

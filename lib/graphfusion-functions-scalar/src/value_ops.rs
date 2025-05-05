@@ -71,7 +71,13 @@ pub trait QuaternaryRdfTermValueOp: SparqlOp {
         arg3: Self::Arg3<'data>,
     ) -> ThinResult<Self::Result<'data>>;
 
-    fn evaluate_error<'data>(&self) -> ThinResult<Self::Result<'data>> {
+    fn evaluate_error<'data>(
+        &self,
+        _arg0: ThinResult<Self::Arg0<'data>>,
+        _arg1: ThinResult<Self::Arg1<'data>>,
+        _arg2: ThinResult<Self::Arg2<'data>>,
+        _arg3: ThinResult<Self::Arg3<'data>>,
+    ) -> ThinResult<Self::Result<'data>> {
         ThinError::expected()
     }
 }
