@@ -13,7 +13,7 @@ use model::{
     BlankNodeRef, Date, DateTime, DayTimeDuration, LiteralRef, NamedNodeRef, TermRef, Time,
     Timestamp, YearMonthDuration,
 };
-use model::{Decimal, Double, Float, Int, Integer, Iri};
+use model::{Decimal, Double, Float, Int, Integer};
 use std::sync::Arc;
 
 pub struct ValueArrayBuilder {

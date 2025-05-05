@@ -115,9 +115,7 @@ impl TermValueRef<'_> {
             TermValueRef::BlankNode(inner) => RdfTermValue::BlankNode(inner.into_owned()),
             TermValueRef::BooleanLiteral(inner) => RdfTermValue::BooleanLiteral(inner),
             TermValueRef::NumericLiteral(inner) => RdfTermValue::NumericLiteral(inner),
-            TermValueRef::SimpleLiteral(inner) => {
-                RdfTermValue::SimpleLiteral(inner.into_owned())
-            }
+            TermValueRef::SimpleLiteral(inner) => RdfTermValue::SimpleLiteral(inner.into_owned()),
             TermValueRef::LanguageStringLiteral(inner) => {
                 RdfTermValue::LanguageStringLiteral(inner.into_owned())
             }
@@ -149,9 +147,7 @@ impl PartialOrd for TermValueRef<'_> {
                 _ => Ordering::Less,
             }),
             a => match other {
-                TermValueRef::NamedNode(_) | TermValueRef::BlankNode(_) => {
-                    Some(Ordering::Greater)
-                }
+                TermValueRef::NamedNode(_) | TermValueRef::BlankNode(_) => Some(Ordering::Greater),
                 _ => partial_cmp_literals(a, *other),
             },
         }
@@ -223,3 +219,19 @@ fn partial_cmp_literals(a: TermValueRef<'_>, b: TermValueRef<'_>) -> Option<Orde
         _ => None,
     }
 }
+
+macro_rules! impl_from {
+    ($TYPE: ty, $VARIANT: path) => {
+        impl<'data> From<$TYPE> for TermValueRef<'data> {
+            fn from(value: $TYPE) -> Self {
+                $VARIANT(value)
+            }
+        }
+    };
+}
+
+impl_from!(Boolean, TermValueRef::BooleanLiteral);
+impl_from!(Numeric, TermValueRef::NumericLiteral);
+impl_from!(SimpleLiteralRef<'data>, TermValueRef::SimpleLiteral);
+impl_from!(LanguageStringRef<'data>, TermValueRef::LanguageStringLiteral);
+impl_from!(LiteralRef<'data>, TermValueRef::OtherLiteral);

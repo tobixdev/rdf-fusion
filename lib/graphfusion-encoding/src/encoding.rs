@@ -3,7 +3,17 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use model::{RdfTermValue, ThinResult};
+use model::ThinResult;
+
+/// TODO
+pub type DefaultDecoder<TEncoding> = <TEncoding as TermEncoding>::DefaultDecoder;
+pub type DefaultDecoderTerm<'data, TEncoding> =
+    <DefaultDecoder<TEncoding> as TermDecoder<TEncoding>>::Term<'data>;
+
+/// TODO
+pub type DefaultEncoder<TEncoding> = <TEncoding as TermEncoding>::DefaultEncoder;
+pub type DefaultEncoderTerm<'data, TEncoding> =
+    <DefaultEncoder<TEncoding> as TermEncoder<TEncoding>>::Term<'data>;
 
 /// Represents an arrow [Array] with a specific Encoding.
 ///
@@ -33,12 +43,8 @@ pub trait EncodingScalar {
 pub trait TermEncoding {
     type Array: EncodingArray;
     type Scalar: EncodingScalar;
-    type DefaultEncoder: TermEncoder;
-    type DefaultDecoder: TermDecoder;
-
-    /// Returns an implementation of a [ScalarEncoder] for this [TermEncoding]. The encoder can be
-    /// used to encode RDF terms in scalars.
-    type ScalarEncoder: ScalarEncoder<Scalar = Self::Scalar>;
+    type DefaultEncoder: TermEncoder<Self>;
+    type DefaultDecoder: TermDecoder<Self>;
 
     /// Returns the [DataType] that is used for this encoding.
     fn data_type() -> DataType;
@@ -87,17 +93,16 @@ pub trait TermDecoder<TEncoding: TermEncoding + ?Sized> {
 }
 
 /// Allows encoding an iterator of a type into an [EncodingArray].
-pub trait TermEncoder<T>
-where
-    Self: TermEncoding,
-{
+pub trait TermEncoder<TEncoding: TermEncoding + ?Sized> {
     type Term<'data>;
 
     /// TODO
-    fn encode_terms(terms: impl IntoIterator<Item = ThinResult<T>>) -> DFResult<Self::Array>;
+    fn encode_terms<'data>(
+        terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
+    ) -> DFResult<TEncoding::Array>;
 
     /// TODO
-    fn encode_term(term: ThinResult<T>) -> DFResult<Self::Scalar>;
+    fn encode_term(term: ThinResult<Self::Term<'_>>) -> DFResult<TEncoding::Scalar>;
 }
 
 /// TODO
@@ -108,18 +113,73 @@ pub enum EncodingDatum<TEncoding: TermEncoding + ?Sized> {
     Scalar(TEncoding::Scalar, usize),
 }
 
+/// TODO
+pub struct DatumIterator<'a, TEncoding: TermEncoding + ?Sized, D: TermDecoder<TEncoding>> {
+    state: DatumIteratorState<'a, TEncoding, D>,
+}
+
+/// TODO
+enum DatumIteratorState<'a, TEncoding: TermEncoding + ?Sized, D: TermDecoder<TEncoding>> {
+    Array {
+        iter: Box<dyn Iterator<Item = ThinResult<D::Term<'a>>> + 'a>,
+    },
+    Scalar {
+        value: &'a TEncoding::Scalar,
+        remaining: usize,
+        _decoder: std::marker::PhantomData<D>,
+    },
+}
+
 impl<TEncoding: TermEncoding> EncodingDatum<TEncoding> {
-    pub fn boxed_iter<'data, TValue>(self) -> Box<dyn Iterator<Item = ThinResult<TValue>> + 'data>
+    /// Returns an iterator over the values in this datum.
+    pub fn iter<'a, D>(&'a self) -> DatumIterator<'a, TEncoding, D>
     where
-        TEncoding: TermDecoder<'data, TValue>,
-        TValue: Clone + 'data,
+        D: TermDecoder<TEncoding> + 'a,
     {
-        match self {
-            EncodingDatum::Array(array) => Box::new(TEncoding::decode_terms(&array)),
-            EncodingDatum::Scalar(value, len) => {
-                let value = TEncoding::decode_term(&value);
-                Box::new(std::iter::repeat(value).take(len))
+        let state = match self {
+            EncodingDatum::Array(array) => DatumIteratorState::Array {
+                iter: Box::new(D::decode_terms(array)),
+            },
+            EncodingDatum::Scalar(scalar, len) => DatumIteratorState::Scalar {
+                value: scalar,
+                remaining: *len,
+                _decoder: std::marker::PhantomData,
+            },
+        };
+        DatumIterator { state }
+    }
+}
+
+impl<'a, TEncoding: TermEncoding, D: TermDecoder<TEncoding>> Iterator
+    for DatumIterator<'a, TEncoding, D>
+{
+    type Item = ThinResult<D::Term<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &mut self.state {
+            DatumIteratorState::Array { iter } => iter.next(),
+            DatumIteratorState::Scalar {
+                value, remaining, ..
+            } => {
+                if *remaining == 0 {
+                    None
+                } else {
+                    *remaining -= 1;
+                    Some(D::decode_term(value))
+                }
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match &self.state {
+            DatumIteratorState::Array { iter } => iter.size_hint(),
+            DatumIteratorState::Scalar { remaining, .. } => (*remaining, Some(*remaining)),
+        }
+    }
+}
+
+impl<'a, TEncoding: TermEncoding, D: TermDecoder<TEncoding>> ExactSizeIterator
+    for DatumIterator<'a, TEncoding, D>
+{
 }

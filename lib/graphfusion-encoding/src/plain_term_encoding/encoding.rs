@@ -1,5 +1,6 @@
 use crate::encoding::TermEncoding;
-use crate::plain_term_encoding::scalar_encoder::PlainTermScalarEncoder;
+use crate::plain_term_encoding::term_decoder::PlainTermDefaultDecoder;
+use crate::plain_term_encoding::term_encoder::PlainTermDefaultEncoder;
 use crate::plain_term_encoding::{PlainTermArray, PlainTermScalar};
 use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
@@ -8,7 +9,6 @@ use datafusion::common::ScalarValue;
 use model::ThinError;
 use std::clone::Clone;
 use std::sync::LazyLock;
-use datafusion::logical_expr::ColumnarValue;
 
 static FIELDS_TYPE: LazyLock<Fields> = LazyLock::new(|| {
     let fields = vec![
@@ -36,7 +36,8 @@ impl PlainTermEncoding {
 impl TermEncoding for PlainTermEncoding {
     type Array = PlainTermArray;
     type Scalar = PlainTermScalar;
-    type ScalarEncoder = PlainTermScalarEncoder;
+    type DefaultEncoder = PlainTermDefaultEncoder;
+    type DefaultDecoder = PlainTermDefaultDecoder;
 
     fn data_type() -> DataType {
         DataType::Struct(Self::fields().clone())

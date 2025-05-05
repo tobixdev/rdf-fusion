@@ -1,8 +1,6 @@
 use crate::plain_term_encoding::PlainTermEncoding;
 use crate::value_encoding::TermValueEncoding;
-use datafusion::arrow::array::{Array, UnionArray};
 use datafusion::arrow::error::ArrowError;
-use datafusion::common::{downcast_value, internal_err};
 use datafusion::error::DataFusionError;
 
 mod encoding;

@@ -7,19 +7,19 @@ use datafusion::logical_expr::ColumnarValue;
 use datafusion::logical_expr::ScalarFunctionArgs;
 use datafusion::logical_expr_common::signature::Signature;
 use graphfusion_encoding::value_encoding::TermValueEncoding;
-use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_encoding::{DefaultDecoder, DefaultDecoderTerm, DefaultEncoder, DefaultEncoderTerm, EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
-    AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
-    DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp, HoursSparqlOp, IriSparqlOp,
-    IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LCaseSparqlOp,
-    LangSparqlOp, Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp, RoundSparqlOp, SecondsSparqlOp,
-    Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, SparqlOp, StrLenSparqlOp,
-    StrSparqlOp, TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp,
-    UnaryPlusSparqlOp, YearSparqlOp,
+    AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BinaryTermValueOp, BoundSparqlOp,
+    CeilSparqlOp, DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp,
+    HoursSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp,
+    IsNumericSparqlOp, LCaseSparqlOp, LangSparqlOp, Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp,
+    RoundSparqlOp, SecondsSparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp,
+    SparqlOp, StrLenSparqlOp, StrSparqlOp, TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp,
+    UnaryMinusSparqlOp, UnaryPlusSparqlOp, YearSparqlOp,
 };
 use graphfusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp, UnaryTermValueOp};
-use model::ThinError;
+use model::{RdfTermValueArg, ThinError};
 use std::fmt::Debug;
 
 macro_rules! impl_unary_sparql_op {
@@ -212,11 +212,11 @@ fn dispatch_unary_array<'data, TEncoding, TOp>(
 where
     TOp: UnaryTermValueOp,
     TEncoding: TermEncoding,
-    TEncoding: TermDecoder<'data, TOp::Arg<'data>>,
-    TEncoding: TermEncoder<TOp::Result<'data>>,
+    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
 {
-    let results =
-        <TEncoding as TermDecoder<TOp::Arg<'data>>>::decode_terms(values).map(|v| match v {
+    let results = <DefaultDecoder<TEncoding>>::decode_terms(values)
+        .map(|res| res.and_then(|term| TOp::Arg::try_from_value(term)))
+        .map(|v| match v {
             Ok(value) => op.evaluate(value),
             Err(ThinError::Expected) => op.evaluate_error(),
             Err(internal_err) => Err(internal_err),
@@ -232,10 +232,9 @@ fn dispatch_unary_scalar<'data, TEncoding, TOp>(
 where
     TOp: UnaryTermValueOp,
     TEncoding: TermEncoding,
-    TEncoding: TermDecoder<'data, TOp::Arg<'data>>,
-    TEncoding: TermEncoder<TOp::Result<'data>>,
+    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
 {
-    let value = <TEncoding as TermDecoder<TOp::Arg<'data>>>::decode_term(value);
+    let value = <DefaultDecoder<TEncoding>>::decode_term(value);
     let result = match value {
         Ok(value) => op.evaluate(value),
         Err(ThinError::Expected) => op.evaluate_error(),

@@ -4,7 +4,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::DataFusionError;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, Signature};
 use graphfusion_encoding::value_encoding::TermValueEncoding;
-use graphfusion_encoding::TermDecoder;
+use graphfusion_encoding::{DefaultDecoderTerm, DefaultEncoderTerm, TermDecoder};
 use graphfusion_encoding::{EncodingArray, EncodingScalar};
 use graphfusion_encoding::{TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::{
@@ -14,6 +14,7 @@ use graphfusion_functions_scalar::{
     StrBeforeSparqlOp, StrDtSparqlOp, StrEndsSparqlOp, StrLangSparqlOp, StrStartsSparqlOp,
     SubSparqlOp, SubStrSparqlOp,
 };
+use model::ThinError;
 
 macro_rules! impl_unary_rdf_value_op {
     ($ENCODING: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty) => {
@@ -163,18 +164,20 @@ fn dispatch_binary_array_array<'data, TEncoding, TOp>(
 where
     TOp: BinaryTermValueOp,
     TEncoding: TermEncoding,
-    TEncoding: TermDecoder<'data, TOp::ArgLhs<'data>>,
-    TEncoding: TermDecoder<'data, TOp::ArgRhs<'data>>,
-    TEncoding: TermEncoder<TOp::Result<'data>>,
+    TOp::ArgLhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
+    TOp::ArgRhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
+    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
 {
-    let lhs = <TEncoding as TermDecoder<TOp::ArgLhs<'data>>>::decode_terms(lhs);
-    let rhs = <TEncoding as TermDecoder<TOp::ArgRhs<'data>>>::decode_terms(rhs);
+    let lhs =
+        <TEncoding::DefaultDecoder>::decode_terms(lhs).map(|res| res.and_then(|t| t.try_into()));
+    let lhs =
+        <TEncoding::DefaultDecoder>::decode_terms(rhs).map(|res| res.and_then(|t| t.try_into()));
 
     let results = lhs.zip(rhs).map(|(lhs, rhs)| match (lhs, rhs) {
         (Ok(lhs), Ok(rhs)) => op.evaluate(lhs, rhs),
         _ => op.evaluate_error(lhs, rhs),
     });
-    let result = <TEncoding as TermEncoder<TOp::Result<'data>>>::encode_terms(results)?;
+    let result = <TEncoding::DefaultEncoder>::encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array()))
 }
 
@@ -186,9 +189,9 @@ fn dispatch_binary_scalar_array<'data, TEncoding, TOp>(
 where
     TOp: BinaryTermValueOp,
     TEncoding: TermEncoding,
-    TEncoding: TermDecoder<'data, TOp::ArgLhs<'data>>,
-    TEncoding: TermDecoder<'data, TOp::ArgRhs<'data>>,
-    TEncoding: TermEncoder<TOp::Result<'data>>,
+    TOp::ArgLhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
+    TOp::ArgRhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
+    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
 {
     let lhs_value = <TEncoding as TermDecoder<TOp::ArgLhs<'data>>>::decode_term(lhs);
 
@@ -211,9 +214,9 @@ fn dispatch_binary_array_scalar<'data, TEncoding, TOp>(
 where
     TOp: BinaryTermValueOp,
     TEncoding: TermEncoding,
-    TEncoding: TermDecoder<'data, TOp::ArgLhs<'data>>,
-    TEncoding: TermDecoder<'data, TOp::ArgRhs<'data>>,
-    TEncoding: TermEncoder<TOp::Result<'data>>,
+    TOp::ArgLhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
+    TOp::ArgRhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
+    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
 {
     let rhs_value = <TEncoding as TermDecoder<TOp::ArgRhs<'data>>>::decode_term(rhs);
 
@@ -236,9 +239,9 @@ fn dispatch_binary_scalar_scalar<'data, TEncoding, TOp>(
 where
     TOp: BinaryTermValueOp,
     TEncoding: TermEncoding,
-    TEncoding: TermDecoder<'data, TOp::ArgLhs<'data>>,
-    TEncoding: TermDecoder<'data, TOp::ArgRhs<'data>>,
-    TEncoding: TermEncoder<TOp::Result<'data>>,
+    TOp::ArgLhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
+    TOp::ArgRhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
+    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
 {
     let lhs = <TEncoding as TermDecoder<TOp::ArgLhs<'data>>>::decode_term(lhs);
     let rhs = <TEncoding as TermDecoder<TOp::ArgRhs<'data>>>::decode_term(rhs);

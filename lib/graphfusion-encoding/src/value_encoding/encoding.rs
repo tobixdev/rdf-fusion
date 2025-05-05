@@ -1,15 +1,16 @@
+use crate::encoding::TermEncoding;
 use crate::value_encoding::array::TermValueArray;
 use crate::value_encoding::scalar::TermValueScalar;
-use crate::value_encoding::scalar_encoder::TermValueScalarEncoder;
+use crate::value_encoding::term_decoders::DefaultTermValueDecoder;
+use crate::value_encoding::term_encoders::DefaultTermValueEncoder;
+use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
+use datafusion::common::ScalarValue;
 use model::{Decimal, ThinError};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
-use datafusion::common::ScalarValue;
-use crate::DFResult;
-use crate::encoding::TermEncoding;
 
 static FIELDS_STRING: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
@@ -164,7 +165,8 @@ impl TermValueEncoding {
 impl TermEncoding for TermValueEncoding {
     type Array = TermValueArray;
     type Scalar = TermValueScalar;
-    type ScalarEncoder = TermValueScalarEncoder;
+    type DefaultEncoder = DefaultTermValueEncoder;
+    type DefaultDecoder = DefaultTermValueDecoder;
 
     fn data_type() -> DataType {
         DataType::Union(Self::fields().clone(), UnionMode::Dense)
