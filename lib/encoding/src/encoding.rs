@@ -3,7 +3,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use graphfusion_model::ThinResult;
+use graphfusion_model::{ThinError, ThinResult};
 
 /// TODO
 pub type DefaultDecoder<TEncoding> = <TEncoding as TermEncoding>::DefaultDecoder;

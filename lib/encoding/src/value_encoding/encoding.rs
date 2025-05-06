@@ -1,8 +1,8 @@
 use crate::encoding::TermEncoding;
 use crate::value_encoding::array::TermValueArray;
 use crate::value_encoding::scalar::TermValueScalar;
-use crate::value_encoding::term_decoders::DefaultTermValueDecoder;
-use crate::value_encoding::term_encoders::DefaultTermValueEncoder;
+use crate::value_encoding::decoders::DefaultTermValueDecoder;
+use crate::value_encoding::encoders::DefaultTermValueEncoder;
 use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
@@ -134,6 +134,7 @@ static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
 });
 
+/// TODO
 pub struct TermValueEncoding;
 
 impl TermValueEncoding {

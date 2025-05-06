@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoder;
 use crate::plain_term_encoding::PlainTermEncoding;
 use crate::{DFResult, TermEncoding};
-use graphfusion_model::{TermRef, ThinResult};
+use graphfusion_model::{TermRef, ThinError, ThinResult};
 
 pub struct PlainTermDefaultEncoder;
 

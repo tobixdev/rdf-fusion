@@ -10,13 +10,13 @@ use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use graphfusion_model::vocab::{rdf, xsd};
 use graphfusion_model::{
-    BlankNodeRef, Date, DateTime, DayTimeDuration, LiteralRef, NamedNodeRef, TermRef, Time,
-    Timestamp, YearMonthDuration,
+    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, LiteralRef, NamedNodeRef, Numeric,
+    TermRef, Time, Timestamp, YearMonthDuration,
 };
 use graphfusion_model::{Decimal, Double, Float, Int, Integer};
 use std::sync::Arc;
 
-pub struct ValueArrayBuilder {
+pub struct TermValueArrayBuilder {
     type_ids: Vec<i8>,
     offsets: Vec<i32>,
     named_node_builder: StringBuilder,
@@ -36,7 +36,7 @@ pub struct ValueArrayBuilder {
     null_builder: NullBuilder,
 }
 
-impl Default for ValueArrayBuilder {
+impl Default for TermValueArrayBuilder {
     fn default() -> Self {
         Self {
             type_ids: Vec::new(),
@@ -66,7 +66,7 @@ impl Default for ValueArrayBuilder {
     }
 }
 
-impl ValueArrayBuilder {
+impl TermValueArrayBuilder {
     pub fn append_term(&mut self, term: TermRef<'_>) -> Result<(), ArrowError> {
         match term {
             TermRef::NamedNode(nn) => self.append_named_node(nn)?,
@@ -94,9 +94,9 @@ impl ValueArrayBuilder {
         Ok(())
     }
 
-    pub fn append_boolean(&mut self, value: bool) -> AResult<()> {
+    pub fn append_boolean(&mut self, value: Boolean) -> AResult<()> {
         self.append_type_id_and_offset(ValueEncodingField::Boolean, self.boolean_builder.len())?;
-        self.boolean_builder.append_value(value);
+        self.boolean_builder.append_value(value.as_bool());
         Ok(())
     }
 
@@ -197,6 +197,16 @@ impl ValueArrayBuilder {
         self.decimal_builder
             .append_value(i128::from_be_bytes(value.to_be_bytes()));
         Ok(())
+    }
+
+    pub fn append_numeric(&mut self, value: Numeric) -> AResult<()> {
+        match value {
+            Numeric::Int(value) => self.append_int(value),
+            Numeric::Integer(value) => self.append_integer(value),
+            Numeric::Float(value) => self.append_float(value),
+            Numeric::Double(value) => self.append_double(value),
+            Numeric::Decimal(value) => self.append_decimal(value),
+        }
     }
 
     pub fn append_duration(

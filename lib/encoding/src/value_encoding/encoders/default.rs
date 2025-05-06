@@ -1,5 +1,5 @@
 use crate::encoding::TermEncoder;
-use crate::value_encoding::{TermValueEncoding, ValueArrayBuilder};
+use crate::value_encoding::{TermValueArrayBuilder, TermValueEncoding};
 use crate::{DFResult, TermEncoding};
 use datafusion::common::exec_err;
 use graphfusion_model::{Numeric, TermValueRef, ThinError, ThinResult};
@@ -12,14 +12,12 @@ impl TermEncoder<TermValueEncoding> for DefaultTermValueEncoder {
     fn encode_terms<'data>(
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<<TermValueEncoding as TermEncoding>::Array> {
-        let mut value_builder = ValueArrayBuilder::default();
+        let mut value_builder = TermValueArrayBuilder::default();
         for value in terms {
             match value {
                 Ok(TermValueRef::NamedNode(value)) => value_builder.append_named_node(value)?,
                 Ok(TermValueRef::BlankNode(value)) => value_builder.append_blank_node(value)?,
-                Ok(TermValueRef::BooleanLiteral(value)) => {
-                    value_builder.append_boolean(value.as_bool())?
-                }
+                Ok(TermValueRef::BooleanLiteral(value)) => value_builder.append_boolean(value)?,
                 Ok(TermValueRef::NumericLiteral(Numeric::Float(value))) => {
                     value_builder.append_float(value)?
                 }

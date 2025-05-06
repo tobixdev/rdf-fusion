@@ -1,6 +1,6 @@
 use crate::scalar_encoder::ScalarEncoder;
 use crate::value_encoding::scalar::TermValueScalar;
-use crate::value_encoding::{ValueArrayBuilder, TermValueEncoding, ValueEncodingField};
+use crate::value_encoding::{TermValueArrayBuilder, TermValueEncoding, ValueEncodingField};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::ScalarValue;
 use graphfusion_model::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef};
@@ -57,7 +57,7 @@ impl ScalarEncoder for TermValueScalarEncoder {
     }
 
     fn encode_scalar_literal(literal: LiteralRef<'_>) -> Self::Scalar {
-        let mut builder = ValueArrayBuilder::default();
+        let mut builder = TermValueArrayBuilder::default();
         builder
             .append_literal(literal)
             .expect("Cannot become too long");

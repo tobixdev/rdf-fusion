@@ -1,6 +1,6 @@
 use crate::DFResult;
 use graphfusion_encoding::as_term_value_array;
-use graphfusion_encoding::value_encoding::{ValueArrayBuilder, FromArrowRdfTermValue};
+use graphfusion_encoding::value_encoding::{TermValueArrayBuilder, FromArrowRdfTermValue};
 use datafusion::arrow::array::RecordBatchOptions;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -350,9 +350,9 @@ impl KleenePlusClosureStream {
 
     /// Creates a [RecordBatch] from the internal state of `self`.
     fn create_output_batch(&self) -> DFResult<RecordBatch> {
-        let mut graph_builder = ValueArrayBuilder::default();
-        let mut start_builder = ValueArrayBuilder::default();
-        let mut end_builder = ValueArrayBuilder::default();
+        let mut graph_builder = TermValueArrayBuilder::default();
+        let mut start_builder = TermValueArrayBuilder::default();
+        let mut end_builder = TermValueArrayBuilder::default();
 
         for path in &self.all_paths {
             match &path.graph {

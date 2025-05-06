@@ -1,13 +1,13 @@
 mod array;
 mod builder;
+pub mod decoders;
+pub mod encoders;
 mod encoding;
 mod scalar;
 mod scalar_encoder;
-mod term_decoders;
-mod term_encoders;
 
 use crate::{TermEncoding, COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
-pub use builder::ValueArrayBuilder;
+pub use builder::TermValueArrayBuilder;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 pub use encoding::*;
 use std::sync::LazyLock;

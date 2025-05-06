@@ -5,7 +5,7 @@ use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
 use crate::oxigraph_memory::hash::StrHash;
 use crate::{AResult, DFResult};
-use graphfusion_encoding::value_encoding::{ValueArrayBuilder, ENC_QUAD_SCHEMA};
+use graphfusion_encoding::value_encoding::{TermValueArrayBuilder, ENC_QUAD_SCHEMA};
 use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
@@ -170,10 +170,10 @@ impl RecordBatchStream for OxigraphMemStream {
 struct RdfQuadsRecordBatchBuilder {
     reader: Arc<MemoryStorageReader>,
     schema: SchemaRef,
-    graph: ValueArrayBuilder,
-    subject: ValueArrayBuilder,
-    predicate: ValueArrayBuilder,
-    object: ValueArrayBuilder,
+    graph: TermValueArrayBuilder,
+    subject: TermValueArrayBuilder,
+    predicate: TermValueArrayBuilder,
+    object: TermValueArrayBuilder,
     project_graph: bool,
     project_subject: bool,
     project_predicate: bool,
@@ -190,10 +190,10 @@ impl RdfQuadsRecordBatchBuilder {
         Self {
             reader,
             schema,
-            graph: ValueArrayBuilder::default(),
-            subject: ValueArrayBuilder::default(),
-            predicate: ValueArrayBuilder::default(),
-            object: ValueArrayBuilder::default(),
+            graph: TermValueArrayBuilder::default(),
+            subject: TermValueArrayBuilder::default(),
+            predicate: TermValueArrayBuilder::default(),
+            object: TermValueArrayBuilder::default(),
             project_graph,
             project_subject,
             project_predicate,
@@ -251,7 +251,7 @@ impl RdfQuadsRecordBatchBuilder {
 
 fn encode_term(
     reader: &MemoryStorageReader,
-    builder: &mut ValueArrayBuilder,
+    builder: &mut TermValueArrayBuilder,
     term: &EncodedTerm,
 ) -> AResult<()> {
     match term {
@@ -353,7 +353,7 @@ fn encode_term(
 }
 
 fn append_typed_literal(
-    builder: &mut ValueArrayBuilder,
+    builder: &mut TermValueArrayBuilder,
     value: &str,
     datatype: &str,
 ) -> AResult<()> {

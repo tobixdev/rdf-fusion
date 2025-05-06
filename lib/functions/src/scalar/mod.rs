@@ -1,6 +1,6 @@
 mod binary;
-mod n_ary;
+#[macro_use]
 mod nullary;
 mod quaternary;
 mod ternary;
-mod unary;
+mod value_encoding;

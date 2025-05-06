@@ -1,8 +1,10 @@
 use crate::dispatcher::SparqlOpDispatcher;
 use crate::DFResult;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::ColumnarValue;
+use datafusion::logical_expr::ScalarFunctionArgs;
+use datafusion::logical_expr_common::signature::Signature;
 use graphfusion_encoding::value_encoding::TermValueEncoding;
-use graphfusion_encoding::EncodingArray;
 use graphfusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::TernaryRdfTermValueOp;
 use graphfusion_functions_scalar::{CoalesceSparqlOp, ConcatSparqlOp, NAryRdfTermValueOp};
@@ -49,7 +51,7 @@ impl_n_ary_rdf_value_op!(
     ConcatSparqlOp
 );
 
-fn dispatch_n_ary<'data, TEncoding, TOp>(
+fn dispatch_n_ary<'data, TOp>(
     op: &TOp,
     args: &'data [ColumnarValue],
     number_of_rows: usize,
