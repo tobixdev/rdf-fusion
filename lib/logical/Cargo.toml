@@ -1,0 +1,16 @@
+[package]
+name = "graphfusion-logical"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+graphfusion-functions.workspace = true
+datafusion.workspace = true
+graphfusion-model.workspace = true
+spargebra.workspace = true
+
+[lints]
+workspace = true

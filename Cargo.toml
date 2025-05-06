@@ -2,16 +2,16 @@
 members = [
     "cli",
     "lib/model",
-    "lib/graphfusion-encoding",
-    "lib/graphfusion-engine",
-    "lib/graphfusion-functions",
-    "lib/graphfusion-functions-scalar",
-    "lib/graphfusion-logical",
-    "lib/graphfusion-physical",
-    "lib/graphfusion-storage",
+    "lib/encoding",
+    "lib/engine",
+    "lib/functions",
+    "lib/functions-scalar",
+    "lib/logical",
+    "lib/physical",
+    "lib/storage",
     "lib/graphfusion",
-    "lib/graphfusion-web",
-    "testsuite", "lib/graphfusion-functions"]
+    "lib/web",
+    "testsuite", "lib/functions"]
 resolver = "2"
 
 [workspace.package]
@@ -56,16 +56,16 @@ sparesults = "0.2.4"
 spargebra = "0.3.5"
 
 # Internal dependencies
-model = { version = "=0.1.0", path = "lib/model" }
-graphfusion-encoding = { version = "=0.1.0", path = "lib/graphfusion-encoding" }
-graphfusion-engine = { version = "=0.1.0", path = "lib/graphfusion-engine" }
-graphfusion-functions = { version = "=0.1.0", path = "lib/graphfusion-functions" }
-graphfusion-functions-scalar = { version = "=0.1.0", path = "lib/graphfusion-functions-scalar" }
-graphfusion-logical = { version = "=0.1.0", path = "lib/graphfusion-logical" }
-graphfusion-physical = { version = "=0.1.0", path = "lib/graphfusion-physical" }
-graphfusion-storage = { version = "=0.1.0", path = "lib/graphfusion-storage" }
+graphfusion-model = { version = "=0.1.0", path = "lib/model" }
+graphfusion-encoding = { version = "=0.1.0", path = "lib/encoding" }
+graphfusion-engine = { version = "=0.1.0", path = "lib/engine" }
+graphfusion-functions = { version = "=0.1.0", path = "lib/functions" }
+graphfusion-functions-scalar = { version = "=0.1.0", path = "lib/functions-scalar" }
+graphfusion-logical = { version = "=0.1.0", path = "lib/logical" }
+graphfusion-physical = { version = "=0.1.0", path = "lib/physical" }
+graphfusion-storage = { version = "=0.1.0", path = "lib/storage" }
 graphfusion = { version = "=0.1.0", path = "lib/graphfusion" }
-graphfusion-web = { version = "=0.1.0", path = "lib/graphfusion-web" }
+graphfusion-web = { version = "=0.1.0", path = "lib/web" }
 
 [workspace.lints.rust]
 absolute_paths_not_starting_with_crate = "warn"

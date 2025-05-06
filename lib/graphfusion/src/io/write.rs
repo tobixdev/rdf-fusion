@@ -3,7 +3,7 @@
 //! Utilities to write RDF graphs and datasets.
 
 use crate::io::{DatasetFormat, GraphFormat};
-use model::{QuadRef, TripleRef};
+use graphfusion_model::{QuadRef, TripleRef};
 use oxrdfio::{RdfSerializer, WriterQuadSerializer};
 use std::io::{self, Write};
 

@@ -40,7 +40,7 @@ use graphfusion_engine::sparql::{
 };
 use graphfusion_engine::GraphFusionInstance;
 use graphfusion_storage::MemoryQuadStorage;
-use model::{
+use graphfusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
     TermRef, Variable,
 };
@@ -779,7 +779,7 @@ impl Store {
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
-    use model::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
+    use graphfusion_model::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
 
     #[test]
     fn test_send_sync() {

@@ -16,7 +16,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-model.workspace = true
+graphfusion-model.workspace = true
 futures.workspace = true
 graphfusion-engine.workspace = true
 graphfusion-storage.workspace = true

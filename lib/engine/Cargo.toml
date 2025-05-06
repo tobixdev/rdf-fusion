@@ -1,0 +1,23 @@
+[package]
+name = "graphfusion-engine"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+datafusion.workspace = true
+graphfusion-model.workspace = true
+futures.workspace = true
+graphfusion-logical.workspace = true
+graphfusion-physical.workspace = true
+oxrdfio.workspace = true
+spargebra.workspace = true
+sparesults.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true
