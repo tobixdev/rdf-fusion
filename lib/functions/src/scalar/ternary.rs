@@ -5,14 +5,24 @@ use datafusion::common::exec_err;
 use datafusion::logical_expr::ColumnarValue;
 use datafusion::logical_expr::ScalarFunctionArgs;
 use datafusion::logical_expr_common::signature::Signature;
-use graphfusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_encoding::value_encoding::decoders::{
+    BooleanTermValueDecoder, DefaultTermValueDecoder, IntegerTermValueDecoder,
+    SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
+};
+use graphfusion_encoding::value_encoding::encoders::{
+    BooleanTermValueEncoder, DefaultTermValueEncoder, OwnedStringLiteralTermValueEncoder,
+    StringLiteralRefTermValueEncoder,
+};
+use graphfusion_encoding::value_encoding::TermValueEncoding;
+use graphfusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::SparqlOp;
 use graphfusion_functions_scalar::{
     IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp, TernaryRdfTermValueOp,
 };
+use itertools::izip;
 
 macro_rules! impl_ternary_rdf_value_op {
-    ($STRUCT_NAME: ident, $SPARQL_OP: ty) => {
+    ($ENCODING: ty, $DECODER0: ty, $DECODER1: ty, $DECODER2: ty, $ENCODER: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty) => {
         #[derive(Debug)]
         struct $STRUCT_NAME {
             signature: Signature,
@@ -29,53 +39,87 @@ macro_rules! impl_ternary_rdf_value_op {
             }
 
             fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-                Ok(<$SPARQL_OP as TernaryRdfTermValueOp>::Result::encoded_datatype())
+                Ok(<$ENCODING>::data_type())
             }
 
             fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
-                dispatch_ternary(&self.op, &args.args, args.number_rows)
+                dispatch_ternary::<$ENCODING, $DECODER0, $DECODER1, $DECODER2, $ENCODER, $SPARQL_OP>(&self.op, &args.args, args.number_rows)
             }
         }
     };
 }
 
 // Functional Forms
-impl_ternary_rdf_value_op!(IfValueTernaryDispatcher, IfSparqlOp);
+impl_ternary_rdf_value_op!(
+    TermValueEncoding,
+    BooleanTermValueDecoder,
+    DefaultTermValueDecoder,
+    DefaultTermValueDecoder,
+    DefaultTermValueEncoder,
+    IfValueTernaryDispatcher,
+    IfSparqlOp
+);
 
 // Strings
-impl_ternary_rdf_value_op!(RegexValueTernaryDispatcher, RegexSparqlOp);
-impl_ternary_rdf_value_op!(ReplaceValueTernaryDispatcher, ReplaceSparqlOp);
-impl_ternary_rdf_value_op!(SubStrTernaryDispatcher, SubStrSparqlOp);
+impl_ternary_rdf_value_op!(
+    TermValueEncoding,
+    StringLiteralRefTermValueDecoder,
+    SimpleLiteralRefTermValueDecoder,
+    SimpleLiteralRefTermValueDecoder,
+    BooleanTermValueEncoder,
+    RegexValueTernaryDispatcher,
+    RegexSparqlOp
+);
+impl_ternary_rdf_value_op!(
+    TermValueEncoding,
+    StringLiteralRefTermValueDecoder,
+    SimpleLiteralRefTermValueDecoder,
+    SimpleLiteralRefTermValueDecoder,
+    OwnedStringLiteralTermValueEncoder,
+    ReplaceValueTernaryDispatcher,
+    ReplaceSparqlOp
+);
+impl_ternary_rdf_value_op!(
+    TermValueEncoding,
+    StringLiteralRefTermValueDecoder,
+    IntegerTermValueDecoder,
+    IntegerTermValueDecoder,
+    StringLiteralRefTermValueEncoder,
+    SubStrTernaryDispatcher,
+    SubStrSparqlOp
+);
 
-fn dispatch_ternary<'data, TEncoding, TOp>(
+pub(crate) fn dispatch_ternary<TEncoding, TDecoder0, TDecoder1, TDecoder2, TEncoder, TOp>(
     op: &TOp,
-    args: &'data [ColumnarValue],
+    args: &[ColumnarValue],
     number_of_rows: usize,
 ) -> DFResult<ColumnarValue>
 where
     TOp: TernaryRdfTermValueOp,
     TEncoding: TermEncoding,
-    TEncoding: TermDecoder<'data, TOp::Arg0<'data>>,
-    TEncoding: TermDecoder<'data, TOp::Arg1<'data>>,
-    TEncoding: TermDecoder<'data, TOp::Arg2<'data>>,
-    TEncoding: TermEncoder<'data, TOp::Result<'data>>,
+    TDecoder0: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg0<'a>>,
+    TDecoder1: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg1<'a>>,
+    TDecoder2: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg2<'a>>,
+    TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
 {
     if args.len() != 3 {
         return exec_err!("Unexpected number of arguments.");
     }
 
+    let arg0 = TEncoding::try_new_datum(args[0].clone(), number_of_rows)?;
+    let arg1 = TEncoding::try_new_datum(args[1].clone(), number_of_rows)?;
+    let arg2 = TEncoding::try_new_datum(args[2].clone(), number_of_rows)?;
 
-todo!()
-    // let arg0 = TermDecoder::decode_terms()
-    // let results = (0..number_of_rows).map(|i| {
-    //     let arg0 = borrow_value::<TOp::Arg0<'data>>(&args[0], i);
-    //     let arg1 = borrow_value::<TOp::Arg1<'data>>(&args[1], i);
-    //     let arg2 = borrow_value::<TOp::Arg2<'data>>(&args[2], i);
-    //     match (arg0, arg1, arg2) {
-    //         (Ok(arg0), Ok(arg1), Ok(arg2)) => op.evaluate(arg0, arg1, arg2),
-    //         _ => op.evaluate_error(arg0, arg1, arg2),
-    //     }
-    // });
-    // let result = TOp::Result::iter_into_array(results)?;
-    // Ok(ColumnarValue::Array(result))
+    let arg0 = arg0.term_iter::<TDecoder0>();
+    let arg1 = arg1.term_iter::<TDecoder1>();
+    let arg2 = arg2.term_iter::<TDecoder2>();
+
+    let results = izip!(arg0, arg1, arg2)
+        .map(|(arg0, arg1, arg2)| match (arg0, arg1, arg2) {
+            (Ok(arg0), Ok(arg1), Ok(arg2)) => op.evaluate(arg0, arg1, arg2),
+            _ => op.evaluate_error(arg0, arg1, arg2),
+        })
+        .collect::<Vec<_>>();
+    let result = TEncoder::encode_terms(results)?;
+    Ok(ColumnarValue::Array(result.into_array()))
 }

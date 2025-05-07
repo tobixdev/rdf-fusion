@@ -20,6 +20,8 @@ pub enum ThinError {
     #[default]
     #[error("Expected error")]
     Expected,
+    // TODO: After re-thinking, some should probably panic and some we should use a different type.
+    // It's too easy to forget handling the Not Expected error.
     #[error("An internal error occurred. This is most likely a bug in GraphFusion. Reason: {0}")]
     InternalError(&'static str),
 }

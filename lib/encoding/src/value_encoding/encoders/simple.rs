@@ -1,12 +1,15 @@
 use crate::value_encoding::TermValueArrayBuilder;
 
+use crate::error::LiteralEncodingError;
 use crate::DFResult;
 use crate::TermEncoder;
 use crate::TermEncoding;
 use crate::TermValueEncoding;
 use datafusion::common::exec_err;
-use graphfusion_model::{BlankNodeRef, NamedNodeRef, Numeric, SimpleLiteralRef, ThinResult};
 use graphfusion_model::{BlankNode, Double, NamedNode};
+use graphfusion_model::{
+    BlankNodeRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef, ThinResult,
+};
 use graphfusion_model::{
     Boolean, DateTime, DayTimeDuration, Decimal, Float, Int, Integer, OwnedStringLiteral, ThinError,
 };
@@ -85,6 +88,13 @@ make_simple_term_value_encoder!(
     }
 );
 make_simple_term_value_encoder!(
+    StringLiteralRefTermValueEncoder,
+    StringLiteralRef<'data>,
+    |builder: &mut TermValueArrayBuilder, value: StringLiteralRef<'data>| {
+        builder.append_string(value.0, value.1)
+    }
+);
+make_simple_term_value_encoder!(
     OwnedStringLiteralTermValueEncoder,
     OwnedStringLiteral,
     |builder: &mut TermValueArrayBuilder, value: OwnedStringLiteral| {
@@ -131,5 +141,17 @@ make_simple_term_value_encoder!(
     DayTimeDuration,
     |builder: &mut TermValueArrayBuilder, value: DayTimeDuration| {
         builder.append_duration(None, Some(value))
+    }
+);
+make_simple_term_value_encoder!(
+    LiteralRefTermValueEncoder,
+    LiteralRef<'data>,
+    |builder: &mut TermValueArrayBuilder, value: LiteralRef<'data>| {
+        let result = builder.append_literal(value);
+        match result {
+            Err(LiteralEncodingError::ParsingError(_)) => builder.append_null(),
+            Err(LiteralEncodingError::Arrow(arrow_error)) => return Err(arrow_error),
+            Ok(()) => Ok(()),
+        }
     }
 );

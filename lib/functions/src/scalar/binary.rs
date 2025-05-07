@@ -1,23 +1,13 @@
-use crate::dispatcher::SparqlOpDispatcher;
 use crate::DFResult;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::common::DataFusionError;
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, Signature};
-use graphfusion_encoding::value_encoding::TermValueEncoding;
-use graphfusion_encoding::{DefaultDecoderTerm, DefaultEncoderTerm, TermDecoder};
-use graphfusion_encoding::{EncodingArray, EncodingScalar};
+use datafusion::logical_expr::ColumnarValue;
+use graphfusion_encoding::EncodingArray;
+use graphfusion_encoding::{EncodingScalar, TermDecoder};
 use graphfusion_encoding::{TermEncoder, TermEncoding};
-use graphfusion_functions_scalar::{
-    AddSparqlOp, BinaryTermValueOp, ContainsSparqlOp, DivSparqlOp, EqSparqlOp,
-    GreaterOrEqualSparqlOp, GreaterThanSparqlOp, LangMatchesSparqlOp, LessOrEqualSparqlOp,
-    LessThanSparqlOp, MulSparqlOp, RegexSparqlOp, SameTermSparqlOp, SparqlOp, StrAfterSparqlOp,
-    StrBeforeSparqlOp, StrDtSparqlOp, StrEndsSparqlOp, StrLangSparqlOp, StrStartsSparqlOp,
-    SubSparqlOp, SubStrSparqlOp,
-};
-use graphfusion_model::ThinError;
+use graphfusion_functions_scalar::BinaryTermValueOp;
+use graphfusion_model::{ThinError, ThinResult};
 
-macro_rules! impl_unary_rdf_value_op {
-    ($ENCODING: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty) => {
+macro_rules! impl_binary_sparql_op {
+    ($ENCODING: ty, $LHS_DECODER: ty, $RHS_DECODER: ty, $ENCODER: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty) => {
         #[derive(Debug)]
         struct $STRUCT_NAME {
             signature: Signature,
@@ -40,28 +30,52 @@ macro_rules! impl_unary_rdf_value_op {
             fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
                 match args.args.as_slice() {
                     [ColumnarValue::Array(lhs), ColumnarValue::Array(rhs)] => {
-                        dispatch_binary_array_array::<$ENCODING, $SPARQL_OP>(
+                        crate::scalar::binary::dispatch_binary_array_array::<
+                            $ENCODING,
+                            $LHS_DECODER,
+                            $RHS_DECODER,
+                            $ENCODER,
+                            $SPARQL_OP,
+                        >(
                             &self.op,
                             &<$ENCODING>::try_new_array(lhs.clone())?,
                             &<$ENCODING>::try_new_array(rhs.clone())?,
                         )
                     }
                     [ColumnarValue::Scalar(lhs), ColumnarValue::Array(rhs)] => {
-                        dispatch_binary_scalar_array::<$ENCODING, $SPARQL_OP>(
+                        crate::scalar::binary::dispatch_binary_scalar_array::<
+                            $ENCODING,
+                            $LHS_DECODER,
+                            $RHS_DECODER,
+                            $ENCODER,
+                            $SPARQL_OP,
+                        >(
                             &self.op,
                             &<$ENCODING>::try_new_scalar(lhs.clone())?,
                             &<$ENCODING>::try_new_array(rhs.clone())?,
                         )
                     }
                     [ColumnarValue::Array(lhs), ColumnarValue::Scalar(rhs)] => {
-                        dispatch_binary_array_scalar::<$ENCODING, $SPARQL_OP>(
+                        crate::scalar::binary::dispatch_binary_array_scalar::<
+                            $ENCODING,
+                            $LHS_DECODER,
+                            $RHS_DECODER,
+                            $ENCODER,
+                            $SPARQL_OP,
+                        >(
                             &self.op,
                             &<$ENCODING>::try_new_array(lhs.clone())?,
                             &<$ENCODING>::try_new_scalar(rhs.clone())?,
                         )
                     }
                     [ColumnarValue::Scalar(lhs), ColumnarValue::Scalar(rhs)] => {
-                        dispatch_binary_scalar_scalar::<$ENCODING, $SPARQL_OP>(
+                        crate::scalar::binary::dispatch_binary_scalar_scalar::<
+                            $ENCODING,
+                            $LHS_DECODER,
+                            $RHS_DECODER,
+                            $ENCODER,
+                            $SPARQL_OP,
+                        >(
                             &self.op,
                             &<$ENCODING>::try_new_scalar(lhs.clone())?,
                             &<$ENCODING>::try_new_scalar(rhs.clone())?,
@@ -76,87 +90,14 @@ macro_rules! impl_unary_rdf_value_op {
     };
 }
 
-// Comparisons
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    SameTermValueBinaryDispatcher,
-    SameTermSparqlOp
-);
-impl_unary_rdf_value_op!(TermValueEncoding, EqValueBinaryDispatcher, EqSparqlOp);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    GreaterThanValueBinaryDispatcher,
-    GreaterThanSparqlOp
-);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    GreaterOrEqualValueBinaryDispatcher,
-    GreaterOrEqualSparqlOp
-);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    LessThanValueBinaryDispatcher,
-    LessThanSparqlOp
-);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    LessOrEqualValueBinaryDispatcher,
-    LessOrEqualSparqlOp
-);
-
-// Numeric
-impl_unary_rdf_value_op!(TermValueEncoding, AddValueBinaryDispatcher, AddSparqlOp);
-impl_unary_rdf_value_op!(TermValueEncoding, DivValueBinaryDispatcher, DivSparqlOp);
-impl_unary_rdf_value_op!(TermValueEncoding, MulValueBinaryDispatcher, MulSparqlOp);
-impl_unary_rdf_value_op!(TermValueEncoding, SubValueBinaryDispatcher, SubSparqlOp);
-
-// Strings
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    ContainsValueBinaryDispatcher,
-    ContainsSparqlOp
-);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    LangMatchesValueBinaryDispatcher,
-    LangMatchesSparqlOp
-);
-impl_unary_rdf_value_op!(TermValueEncoding, RegexValueBinaryDispatcher, RegexSparqlOp);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    StrAfterValueBinaryDispatcher,
-    StrAfterSparqlOp
-);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    StrBeforeValueBinaryDispatcher,
-    StrBeforeSparqlOp
-);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    StrEndsValueBinaryDispatcher,
-    StrEndsSparqlOp
-);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    StrStartsValueBinaryDispatcher,
-    StrStartsSparqlOp
-);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    SubStrValueBinaryDispatcher,
-    SubStrSparqlOp
-);
-
-// Terms
-impl_unary_rdf_value_op!(TermValueEncoding, SubDtValueBinaryDispatcher, StrDtSparqlOp);
-impl_unary_rdf_value_op!(
-    TermValueEncoding,
-    SubLangValueBinaryDispatcher,
-    StrLangSparqlOp
-);
-
-fn dispatch_binary_array_array<'data, TEncoding, TOp>(
+pub(crate) fn dispatch_binary_array_array<
+    'data,
+    TEncoding,
+    TLhsDecoder,
+    TRhsDecoder,
+    TEncoder,
+    TOp,
+>(
     op: &TOp,
     lhs: &'data TEncoding::Array,
     rhs: &'data TEncoding::Array,
@@ -164,97 +105,113 @@ fn dispatch_binary_array_array<'data, TEncoding, TOp>(
 where
     TOp: BinaryTermValueOp,
     TEncoding: TermEncoding,
-    TOp::ArgLhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
-    TOp::ArgRhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
-    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
+    TLhsDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::ArgLhs<'a>>,
+    TRhsDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::ArgRhs<'a>>,
+    TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
 {
-    let lhs =
-        <TEncoding::DefaultDecoder>::decode_terms(lhs).map(|res| res.and_then(|t| t.try_into()));
-    let lhs =
-        <TEncoding::DefaultDecoder>::decode_terms(rhs).map(|res| res.and_then(|t| t.try_into()));
+    let lhs = TLhsDecoder::decode_terms(lhs);
+    let rhs = TRhsDecoder::decode_terms(rhs);
 
-    let results = lhs.zip(rhs).map(|(lhs, rhs)| match (lhs, rhs) {
-        (Ok(lhs), Ok(rhs)) => op.evaluate(lhs, rhs),
+    let results = lhs
+        .zip(rhs)
+        .map(|(lhs_value, rhs_value)| apply_binary_op(op, lhs_value, rhs_value));
+    let result = TEncoder::encode_terms(results)?;
+    Ok(ColumnarValue::Array(result.into_array()))
+}
+
+pub(crate) fn dispatch_binary_scalar_array<
+    'data,
+    TEncoding,
+    TLhsDecoder,
+    TRhsDecoder,
+    TEncoder,
+    TOp,
+>(
+    op: &TOp,
+    lhs: &'data TEncoding::Scalar,
+    rhs: &'data TEncoding::Array,
+) -> DFResult<ColumnarValue>
+where
+    TOp: BinaryTermValueOp,
+    TEncoding: TermEncoding,
+    TLhsDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::ArgLhs<'a>>,
+    TRhsDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::ArgRhs<'a>>,
+    TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
+{
+    let lhs_value = TLhsDecoder::decode_term(lhs);
+
+    let results =
+        TRhsDecoder::decode_terms(rhs).map(|rhs_value| apply_binary_op(op, lhs_value, rhs_value));
+    let result = TEncoder::encode_terms(results)?;
+    Ok(ColumnarValue::Array(result.into_array()))
+}
+
+pub(crate) fn dispatch_binary_array_scalar<
+    'data,
+    TEncoding,
+    TLhsDecoder,
+    TRhsDecoder,
+    TEncoder,
+    TOp,
+>(
+    op: &TOp,
+    lhs: &'data TEncoding::Array,
+    rhs: &'data TEncoding::Scalar,
+) -> DFResult<ColumnarValue>
+where
+    TOp: BinaryTermValueOp,
+    TEncoding: TermEncoding,
+    TLhsDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::ArgLhs<'a>>,
+    TRhsDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::ArgRhs<'a>>,
+    TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
+{
+    let rhs_value = TRhsDecoder::decode_term(rhs);
+
+    let results =
+        TLhsDecoder::decode_terms(lhs).map(|lhs_value| apply_binary_op(op, lhs_value, rhs_value));
+    let result = TEncoder::encode_terms(results)?;
+    Ok(ColumnarValue::Array(result.into_array()))
+}
+
+pub(crate) fn dispatch_binary_scalar_scalar<
+    'data,
+    TEncoding,
+    TLhsDecoder,
+    TRhsDecoder,
+    TEncoder,
+    TOp,
+>(
+    op: &TOp,
+    lhs: &'data TEncoding::Scalar,
+    rhs: &'data TEncoding::Scalar,
+) -> DFResult<ColumnarValue>
+where
+    TOp: BinaryTermValueOp,
+    TEncoding: TermEncoding,
+    TLhsDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::ArgLhs<'a>>,
+    TRhsDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::ArgRhs<'a>>,
+    TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
+{
+    let lhs = TLhsDecoder::decode_term(lhs);
+    let rhs = TRhsDecoder::decode_term(rhs);
+
+    let result = apply_binary_op(op, lhs, rhs);
+    Ok(ColumnarValue::Scalar(
+        TEncoder::encode_term(result)?.into_scalar_value(),
+    ))
+}
+
+fn apply_binary_op<'a, TOp: BinaryTermValueOp>(
+    op: &TOp,
+    lhs: ThinResult<TOp::ArgLhs<'a>>,
+    rhs: ThinResult<TOp::ArgRhs<'a>>,
+) -> ThinResult<TOp::Result<'a>> {
+    match (lhs, rhs) {
+        (Ok(lhs_value), Ok(rhs_value)) => op.evaluate(lhs_value, rhs_value),
+        (Err(ThinError::InternalError(internal_err)), _)
+        | (_, Err(ThinError::InternalError(internal_err))) => {
+            ThinError::internal_error(internal_err)
+        }
         _ => op.evaluate_error(lhs, rhs),
-    });
-    let result = <TEncoding::DefaultEncoder>::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
-}
-
-fn dispatch_binary_scalar_array<'data, TEncoding, TOp>(
-    op: &TOp,
-    lhs: &'data TEncoding::Scalar,
-    rhs: &'data TEncoding::Array,
-) -> DFResult<ColumnarValue>
-where
-    TOp: BinaryTermValueOp,
-    TEncoding: TermEncoding,
-    TOp::ArgLhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
-    TOp::ArgRhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
-    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
-{
-    let lhs_value = <TEncoding as TermDecoder<TOp::ArgLhs<'data>>>::decode_term(lhs);
-
-    let results =
-        <TEncoding as TermDecoder<TOp::ArgRhs<'data>>>::decode_terms(rhs).map(|rhs_value| {
-            match (lhs_value, rhs_value) {
-                (Ok(lhs_value), Ok(rhs_value)) => op.evaluate(lhs_value, rhs_value),
-                _ => op.evaluate_error(lhs_value, rhs_value),
-            }
-        });
-    let result = <TEncoding as TermEncoder<TOp::Result<'data>>>::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
-}
-
-fn dispatch_binary_array_scalar<'data, TEncoding, TOp>(
-    op: &TOp,
-    lhs: &'data TEncoding::Array,
-    rhs: &'data TEncoding::Scalar,
-) -> DFResult<ColumnarValue>
-where
-    TOp: BinaryTermValueOp,
-    TEncoding: TermEncoding,
-    TOp::ArgLhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
-    TOp::ArgRhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
-    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
-{
-    let rhs_value = <TEncoding as TermDecoder<TOp::ArgRhs<'data>>>::decode_term(rhs);
-
-    let results =
-        <TEncoding as TermDecoder<TOp::ArgLhs<'data>>>::decode_terms(lhs).map(|lhs_value| {
-            match (lhs_value, rhs_value) {
-                (Ok(lhs_value), Ok(rhs_value)) => op.evaluate(lhs_value, rhs_value),
-                _ => op.evaluate_error(lhs_value, rhs_value),
-            }
-        });
-    let result = <TEncoding as TermEncoder<TOp::Result<'data>>>::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
-}
-
-fn dispatch_binary_scalar_scalar<'data, TEncoding, TOp>(
-    op: &TOp,
-    lhs: &'data TEncoding::Scalar,
-    rhs: &'data TEncoding::Scalar,
-) -> DFResult<ColumnarValue>
-where
-    TOp: BinaryTermValueOp,
-    TEncoding: TermEncoding,
-    TOp::ArgLhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
-    TOp::ArgRhs<'data>: TryFrom<DefaultDecoderTerm<'data, TEncoding>, Error = ThinError>,
-    TOp::Result<'data>: Into<DefaultEncoderTerm<'data, TEncoding>>,
-{
-    let lhs = <TEncoding as TermDecoder<TOp::ArgLhs<'data>>>::decode_term(lhs);
-    let rhs = <TEncoding as TermDecoder<TOp::ArgRhs<'data>>>::decode_term(rhs);
-
-    let result = match (lhs, rhs) {
-        (Ok(lhs), Ok(rhs)) => {
-            let result = op.evaluate(lhs, rhs);
-            <TEncoding as TermEncoder<TOp::Result<'data>>>::encode_term(result)
-        }
-        _ => {
-            let result = op.evaluate_error(lhs, rhs);
-            <TEncoding as TermEncoder<TOp::Result<'data>>>::encode_term(result)
-        }
-    };
-    Ok(ColumnarValue::Scalar(result?.into_scalar_value()))
+    }
 }

@@ -89,7 +89,7 @@ impl TermValueArrayBuilder {
             xsd::INT => self.append_int(literal.value().parse()?)?,
             rdf::LANG_STRING => self.append_string(literal.value(), literal.language())?,
             xsd::STRING => self.append_string(literal.value(), None)?,
-            _ => self.append_typed_literal(literal)?,
+            _ => self.append_other_literal(literal)?,
         };
         Ok(())
     }
@@ -251,13 +251,11 @@ impl TermValueArrayBuilder {
         Ok(())
     }
 
-    pub fn append_typed_literal(&mut self, literal: LiteralRef<'_>) -> AResult<()> {
-        if literal.datatype() == xsd::STRING {
-            return self.append_string(literal.value(), None);
-        } else if literal.datatype() == rdf::LANG_STRING {
-            return self.append_string(literal.value(), literal.language());
-        }
-
+    /// Appends a `literal` that is encoded in the [ValueEncodingField::OtherLiteral].
+    ///
+    /// *CAVEAT*: Only call this function if you're positive that there is no specialized encoding
+    /// for the data type of the `literal`. Otherwise, call [Self::append_literal].
+    pub fn append_other_literal(&mut self, literal: LiteralRef<'_>) -> AResult<()> {
         self.append_type_id_and_offset(
             ValueEncodingField::OtherLiteral,
             self.typed_literal_builder.len(),

@@ -1,5 +1,5 @@
 use crate::dispatcher::SparqlOpDispatcher;
-use crate::DFResult;
+use crate::{impl_unary_sparql_op, DFResult};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
 use datafusion::common::DataFusionError;
@@ -12,8 +12,8 @@ use graphfusion_encoding::value_encoding::decoders::{
 };
 use graphfusion_encoding::value_encoding::encoders::{
     BlankNodeRefTermValueEncoder, BooleanTermValueEncoder, DateTimeTermValueEncoder,
-    DayTimeDurationTermValueEncoder, DecimalTermValueEncoder,
-    DoubleTermValueEncoder, FloatTermValueEncoder, IntTermValueEncoder, IntegerTermValueEncoder,
+    DayTimeDurationTermValueEncoder, DecimalTermValueEncoder, DoubleTermValueEncoder,
+    FloatTermValueEncoder, IntTermValueEncoder, IntegerTermValueEncoder,
     NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder, NumericTermValueEncoder,
     OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
 };
@@ -21,61 +21,17 @@ use graphfusion_encoding::value_encoding::TermValueEncoding;
 use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
-    AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BinaryTermValueOp, BoundSparqlOp,
-    CeilSparqlOp, DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp,
-    HoursSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp,
-    IsNumericSparqlOp, LCaseSparqlOp, LangSparqlOp, Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp,
-    RoundSparqlOp, SecondsSparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp,
-    SparqlOp, StrLenSparqlOp, StrSparqlOp, TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp,
-    UnaryMinusSparqlOp, UnaryPlusSparqlOp, YearSparqlOp,
+    AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
+    DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp, HoursSparqlOp, IriSparqlOp,
+    IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LCaseSparqlOp,
+    LangSparqlOp, Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp, RoundSparqlOp, SecondsSparqlOp,
+    Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, SparqlOp, StrLenSparqlOp,
+    StrSparqlOp, TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp,
+    UnaryPlusSparqlOp, YearSparqlOp,
 };
 use graphfusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp, UnaryTermValueOp};
 use graphfusion_model::ThinError;
 use std::fmt::Debug;
-
-macro_rules! impl_unary_sparql_op {
-    ($ENCODING: ty, $DECODER: ty, $ENCODER: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty) => {
-        #[derive(Debug)]
-        struct $STRUCT_NAME {
-            signature: Signature,
-            op: $SPARQL_OP,
-        }
-
-        impl SparqlOpDispatcher for $STRUCT_NAME {
-            fn name(&self) -> &str {
-                self.op.name()
-            }
-
-            fn signature(&self) -> &Signature {
-                &self.signature
-            }
-
-            fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-                Ok(<$ENCODING>::data_type())
-            }
-
-            fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
-                match TryInto::<[_; 1]>::try_into(args.args) {
-                    Ok([ColumnarValue::Array(arg)]) => {
-                        dispatch_unary_array::<$ENCODING, $DECODER, $ENCODER, $SPARQL_OP>(
-                            &self.op,
-                            &<$ENCODING>::try_new_array(arg)?,
-                        )
-                    }
-                    Ok([ColumnarValue::Scalar(arg)]) => {
-                        dispatch_unary_scalar::<$ENCODING, $DECODER, $ENCODER, $SPARQL_OP>(
-                            &self.op,
-                            &<$ENCODING>::try_new_scalar(arg)?,
-                        )
-                    }
-                    _ => Err(DataFusionError::Execution(String::from(
-                        "Unexpected type combination.",
-                    ))),
-                }
-            }
-        }
-    };
-}
 
 // Conversion
 impl_unary_sparql_op!(
@@ -388,12 +344,11 @@ where
     TDecoder: TermDecoder<TEncoding, Term<'data> = TOp::Arg<'data>>,
     TEncoder: TermEncoder<TEncoding, Term<'data> = TOp::Result<'data>>,
 {
-    let results = <TDecoder>::decode_terms(values)
-        .map(|v| match v {
-            Ok(value) => op.evaluate(value),
-            Err(ThinError::Expected) => op.evaluate_error(),
-            Err(internal_err) => Err(internal_err),
-        });
+    let results = <TDecoder>::decode_terms(values).map(|v| match v {
+        Ok(value) => op.evaluate(value),
+        Err(ThinError::Expected) => op.evaluate_error(),
+        Err(internal_err) => Err(internal_err),
+    });
     let result = <TEncoder>::encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array()))
 }

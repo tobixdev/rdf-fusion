@@ -1935,6 +1935,7 @@ dependencies = [
  "graphfusion-encoding",
  "graphfusion-functions-scalar",
  "graphfusion-model",
+ "itertools 0.14.0",
  "thiserror",
 ]
 

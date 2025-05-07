@@ -53,7 +53,7 @@ impl TermEncoder<TermValueEncoding> for DefaultTermValueEncoder {
                     value_builder.append_duration(None, Some(value))?
                 }
                 Ok(TermValueRef::OtherLiteral(value)) => {
-                    value_builder.append_typed_literal(value)?
+                    value_builder.append_other_literal(value)?
                 }
                 Err(ThinError::Expected) => value_builder.append_null()?,
                 Err(ThinError::InternalError(cause)) => {

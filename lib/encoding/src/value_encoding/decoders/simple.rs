@@ -3,7 +3,10 @@ use crate::TermDecoder;
 use crate::TermEncoder;
 use crate::TermEncoding;
 use crate::TermValueEncoding;
-use graphfusion_model::{DateTime, Numeric, SimpleLiteralRef, StringLiteralRef, ThinError};
+use graphfusion_model::{
+    Boolean, DateTime, Integer, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef,
+    ThinError,
+};
 use graphfusion_model::{TermValueRef, ThinResult};
 
 #[macro_export]
@@ -30,11 +33,40 @@ macro_rules! make_simple_term_value_decoder {
     };
 }
 
+make_simple_term_value_decoder!(
+    NamedNodeRefTermValueDecoder,
+    NamedNodeRef<'data>,
+    |value: TermValueRef<'_>| {
+        match value {
+            TermValueRef::NamedNode(value) => Ok(value),
+            _ => ThinError::expected(),
+        }
+    }
+);
+
+make_simple_term_value_decoder!(BooleanTermValueDecoder, Boolean, |value: TermValueRef<
+    '_,
+>| {
+    match value {
+        TermValueRef::BooleanLiteral(value) => Ok(value),
+        _ => ThinError::expected(),
+    }
+});
+
 make_simple_term_value_decoder!(NumericTermValueDecoder, Numeric, |value: TermValueRef<
     '_,
 >| {
     match value {
         TermValueRef::NumericLiteral(value) => Ok(value),
+        _ => ThinError::expected(),
+    }
+});
+
+make_simple_term_value_decoder!(IntegerTermValueDecoder, Integer, |value: TermValueRef<
+    '_,
+>| {
+    match value {
+        TermValueRef::NumericLiteral(Numeric::Integer(value)) => Ok(value),
         _ => ThinError::expected(),
     }
 });

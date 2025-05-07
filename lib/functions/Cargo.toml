@@ -7,10 +7,11 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+datafusion.workspace = true
 graphfusion-encoding.workspace = true
 graphfusion-functions-scalar.workspace = true
 graphfusion-model.workspace = true
-datafusion.workspace = true
+itertools.workspace = true
 thiserror.workspace = true
 
 [lints]
