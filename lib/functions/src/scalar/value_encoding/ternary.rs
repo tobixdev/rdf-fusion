@@ -1,7 +1,7 @@
 use crate::dispatcher::SparqlOpDispatcher;
+use crate::scalar::ternary::dispatch_ternary;
 use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::exec_err;
 use datafusion::logical_expr::ColumnarValue;
 use datafusion::logical_expr::ScalarFunctionArgs;
 use datafusion::logical_expr_common::signature::Signature;
@@ -14,12 +14,11 @@ use graphfusion_encoding::value_encoding::encoders::{
     StringLiteralRefTermValueEncoder,
 };
 use graphfusion_encoding::value_encoding::TermValueEncoding;
-use graphfusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_encoding::TermEncoding;
 use graphfusion_functions_scalar::SparqlOp;
 use graphfusion_functions_scalar::{
-    IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp, TernaryRdfTermValueOp,
+    IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp,
 };
-use crate::scalar::ternary::dispatch_ternary;
 
 // Functional Forms
 impl_ternary_rdf_value_op!(
