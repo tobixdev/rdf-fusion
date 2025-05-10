@@ -1,6 +1,7 @@
 use datafusion::common::DataFusionError;
 use std::fmt::Display;
 
+pub(crate) mod aggregates;
 pub mod builtin;
 pub mod registry;
 pub(crate) mod scalar;

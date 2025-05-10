@@ -1,40 +1,24 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::DFResult;
-use graphfusion_encoding::value_encoding::scalars::{
-    encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
-};
-use graphfusion_encoding::value_encoding::{
-    enc_iri, RdfTermValueEncoding, ENC_ABS, ENC_ADD, ENC_AND, ENC_AS_BOOLEAN, ENC_AS_DATETIME,
-    ENC_AS_DECIMAL, ENC_AS_DOUBLE, ENC_AS_FLOAT, ENC_AS_INT, ENC_AS_INTEGER, ENC_AS_NATIVE_BOOLEAN,
-    ENC_AS_STRING, ENC_BNODE_NULLARY, ENC_BNODE_UNARY, ENC_BOOLEAN_AS_RDF_TERM, ENC_BOUND,
-    ENC_CEIL, ENC_COALESCE, ENC_CONCAT, ENC_CONTAINS, ENC_DATATYPE, ENC_DAY, ENC_DIV,
-    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_ENCODEFORURI, ENC_EQ, ENC_FLOOR, ENC_GREATER_OR_EQUAL,
-    ENC_GREATER_THAN, ENC_HOURS, ENC_IF, ENC_IS_BLANK, ENC_IS_COMPATIBLE, ENC_IS_IRI,
-    ENC_IS_LITERAL, ENC_IS_NUMERIC, ENC_LANG, ENC_LANGMATCHES, ENC_LCASE, ENC_LESS_OR_EQUAL,
-    ENC_LESS_THAN, ENC_MD5, ENC_MINUTES, ENC_MONTH, ENC_MUL, ENC_OR, ENC_RAND, ENC_REGEX_BINARY,
-    ENC_REGEX_TERNARY, ENC_REPLACE_QUATERNARY, ENC_REPLACE_TERNARY, ENC_ROUND, ENC_SAME_TERM,
-    ENC_SECONDS, ENC_SHA1, ENC_SHA256, ENC_SHA384, ENC_SHA512, ENC_STR, ENC_STRAFTER,
-    ENC_STRBEFORE, ENC_STRDT, ENC_STRENDS, ENC_STRLANG, ENC_STRLEN, ENC_STRSTARTS, ENC_STRUUID,
-    ENC_SUB, ENC_SUBSTR_BINARY, ENC_SUBSTR_TERNARY, ENC_TIMEZONE, ENC_TZ, ENC_UCASE,
-    ENC_UNARY_MINUS, ENC_UNARY_PLUS, ENC_UUID, ENC_YEAR,
-};
-use datafusion::common::{internal_err, plan_err, Column, DFSchema, Spans};
+use datafusion::common::{internal_err, plan_err, Column, Spans};
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
-use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, ScalarUDF, Subquery};
+use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
 use datafusion::prelude::{and, exists};
+use futures::StreamExt;
+use graphfusion_logical::GraphFusionExprBuilder;
 use graphfusion_model::vocab::xsd;
-use graphfusion_model::DateTime;
 use graphfusion_model::Iri;
+use graphfusion_model::{DateTime, TermRef};
 use graphfusion_model::{Literal, NamedNode};
 use spargebra::algebra::{Expression, Function, GraphPattern};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 pub(super) struct ExpressionRewriter<'rewriter> {
     graph_rewriter: &'rewriter GraphPatternRewriter,
     base_iri: Option<&'rewriter Iri<String>>,
-    schema: &'rewriter DFSchema,
+    expr_builder: GraphFusionExprBuilder<'rewriter>,
 }
 
 impl<'rewriter> ExpressionRewriter<'rewriter> {
@@ -42,52 +26,63 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     pub fn new(
         graph_rewriter: &'rewriter GraphPatternRewriter,
         base_iri: Option<&'rewriter Iri<String>>,
-        schema: &'rewriter DFSchema,
+        expr_builder: GraphFusionExprBuilder<'rewriter>,
     ) -> Self {
         Self {
             graph_rewriter,
             base_iri,
-            schema,
+            expr_builder,
         }
     }
 
     /// Rewrites an [Expression].
     pub fn rewrite(&self, expression: &Expression) -> DFResult<Expr> {
         match expression {
-            Expression::Bound(var) => {
-                Ok(ENC_BOUND.call(vec![Expr::from(Column::new_unqualified(var.as_str()))]))
+            Expression::Bound(var) => self.expr_builder.bound(var),
+            Expression::Not(inner) => self.expr_builder.not(self.rewrite(inner)?),
+            Expression::Equal(lhs, rhs) => self
+                .expr_builder
+                .equal(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::SameTerm(lhs, rhs) => self
+                .expr_builder
+                .same_term(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::Greater(lhs, rhs) => self
+                .expr_builder
+                .greater_than(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::GreaterOrEqual(lhs, rhs) => self
+                .expr_builder
+                .greater_or_equal(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::Less(lhs, rhs) => self
+                .expr_builder
+                .less_than(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::LessOrEqual(lhs, rhs) => self
+                .expr_builder
+                .less_or_equal(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::Literal(literal) => {
+                self.expr_builder.literal(TermRef::from(literal.as_ref()))
             }
-            Expression::Not(inner) => Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![Expr::Not(Box::new(
-                ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![self.rewrite(inner)?]),
-            ))])),
-            Expression::Equal(lhs, rhs) => binary_udf(self, &ENC_EQ, lhs, rhs),
-            Expression::SameTerm(lhs, rhs) => binary_udf(self, &ENC_SAME_TERM, lhs, rhs),
-            Expression::Greater(lhs, rhs) => binary_udf(self, &ENC_GREATER_THAN, lhs, rhs),
-            Expression::GreaterOrEqual(lhs, rhs) => {
-                binary_udf(self, &ENC_GREATER_OR_EQUAL, lhs, rhs)
-            }
-            Expression::Less(lhs, rhs) => binary_udf(self, &ENC_LESS_THAN, lhs, rhs),
-            Expression::LessOrEqual(lhs, rhs) => binary_udf(self, &ENC_LESS_OR_EQUAL, lhs, rhs),
-            Expression::Literal(literal) => Ok(lit(encode_scalar_literal(literal.as_ref())?)),
-            Expression::Variable(var) => {
-                let column = Column::new_unqualified(var.as_str());
-                if self.schema.has_column(&column) {
-                    Ok(Expr::from(column))
-                } else {
-                    Ok(lit(encode_scalar_null()))
-                }
-            }
+            Expression::Variable(var) => self.expr_builder.variable(var),
             Expression::FunctionCall(function, args) => self.rewrite_function_call(function, args),
-            Expression::NamedNode(nn) => Ok(lit(encode_scalar_named_node(nn.as_ref()))),
-            Expression::Or(lhs, rhs) => logical_expression(self, Operator::Or, lhs, rhs),
+            Expression::NamedNode(nn) => self.expr_builder.literal(TermRef::from(nn.as_ref())),
+            Expression::Or(lhs, rhs) => {
+                self.expr_builder.or(self.rewrite(lhs)?, self.rewrite(rhs)?)
+            }
             Expression::And(lhs, rhs) => logical_expression(self, Operator::And, lhs, rhs),
             Expression::In(lhs, rhs) => self.rewrite_in(lhs, rhs),
-            Expression::Add(lhs, rhs) => binary_udf(self, &ENC_ADD, lhs, rhs),
-            Expression::Subtract(lhs, rhs) => binary_udf(self, &ENC_SUB, lhs, rhs),
-            Expression::Multiply(lhs, rhs) => binary_udf(self, &ENC_MUL, lhs, rhs),
-            Expression::Divide(lhs, rhs) => binary_udf(self, &ENC_DIV, lhs, rhs),
-            Expression::UnaryPlus(value) => unary_udf(self, &ENC_UNARY_PLUS, value),
-            Expression::UnaryMinus(value) => unary_udf(self, &ENC_UNARY_MINUS, value),
+            Expression::Add(lhs, rhs) => self
+                .expr_builder
+                .add(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::Subtract(lhs, rhs) => self
+                .expr_builder
+                .sub(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::Multiply(lhs, rhs) => self
+                .expr_builder
+                .mul(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::Divide(lhs, rhs) => self
+                .expr_builder
+                .div(self.rewrite(lhs)?, self.rewrite(rhs)?),
+            Expression::UnaryPlus(value) => self.expr_builder.unary_plus(self.rewrite(value)?),
+            Expression::UnaryMinus(value) => self.expr_builder.unary_minus(self.rewrite(value)?),
             Expression::Exists(pattern) => self.rewrite_exists(pattern),
             Expression::If(test, if_true, if_false) => self.rewrite_if(test, if_true, if_false),
             Expression::Coalesce(args) => {
@@ -95,7 +90,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                     .iter()
                     .map(|arg| self.rewrite(arg))
                     .collect::<DFResult<Vec<_>>>()?;
-                Ok(ENC_COALESCE.call(args))
+                Ok(self.expr_builder.coalesce(args))
             }
         }
     }
@@ -110,76 +105,208 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .collect::<DFResult<Vec<_>>>()?;
         match function {
             // Functions on RDF Terms
-            Function::IsIri => Ok(ENC_IS_IRI.call(args)),
-            Function::IsBlank => Ok(ENC_IS_BLANK.call(args)),
-            Function::IsLiteral => Ok(ENC_IS_LITERAL.call(args)),
-            Function::IsNumeric => Ok(ENC_IS_NUMERIC.call(args)),
-            Function::Str => Ok(ENC_STR.call(args)),
-            Function::Lang => Ok(ENC_LANG.call(args)),
-            Function::Datatype => Ok(ENC_DATATYPE.call(args)),
-            Function::Iri => Ok(enc_iri(self.base_iri.cloned()).call(args)),
+            Function::IsIri => {
+                let arg = unary_args(args)?;
+                self.expr_builder.is_iri(arg)
+            }
+            Function::IsBlank => {
+                let arg = unary_args(args)?;
+                self.expr_builder.is_blank(arg)
+            }
+            Function::IsLiteral => {
+                let arg = unary_args(args)?;
+                self.expr_builder.is_literal(arg)
+            }
+            Function::IsNumeric => {
+                let arg = unary_args(args)?;
+                self.expr_builder.is_numeric(arg)
+            }
+            Function::Str => {
+                let arg = unary_args(args)?;
+                self.expr_builder.str(arg)
+            }
+            Function::Lang => {
+                let arg = unary_args(args)?;
+                self.expr_builder.lang(arg)
+            }
+            Function::Datatype => {
+                let arg = unary_args(args)?;
+                self.expr_builder.datatype(arg)
+            }
+            Function::Iri => {
+                let arg = unary_args(args)?;
+                self.expr_builder.iri(self.base_iri.clone(), arg)
+            }
             Function::BNode => match args.len() {
-                0 => Ok(ENC_BNODE_NULLARY.call(args)),
-                1 => Ok(ENC_BNODE_UNARY.call(args)),
+                0 => self.expr_builder.bnode(),
+                1 => {
+                    let arg = unary_args(args)?;
+                    self.expr_builder.bnode_from(arg)
+                }
                 _ => internal_err!("Unexpected arity for BNode"),
             },
-            Function::StrDt => Ok(ENC_STRDT.call(args)),
-            Function::StrLang => Ok(ENC_STRLANG.call(args)),
-            Function::Uuid => Ok(ENC_UUID.call(args)),
-            Function::StrUuid => Ok(ENC_STRUUID.call(args)),
+            Function::StrDt => {
+                let (lhs, rhs) = binary_args(args)?;
+                self.expr_builder.str_dt(lhs, rhs)
+            }
+            Function::StrLang => {
+                let arg = unary_args(args)?;
+                self.expr_builder.str_lang(arg)
+            }
+            Function::Uuid => self.expr_builder.uuid(),
+            Function::StrUuid => self.expr_builder.str_uuid(),
             // Strings
-            Function::StrLen => Ok(ENC_STRLEN.call(args)),
+            Function::StrLen => {
+                let arg = unary_args(args)?;
+                self.expr_builder.str_len(arg)
+            }
             Function::SubStr => Ok(match args.len() {
-                2 => ENC_SUBSTR_BINARY.call(args),
-                3 => ENC_SUBSTR_TERNARY.call(args),
+                2 => {
+                    let (lhs, rhs) = binary_args(args)?;
+                    self.expr_builder.substr(lhs, rhs)
+                }
+                3 => {
+                    let (arg0, arg1, arg2) = ternary_args(args)?;
+                    self.expr_builder.substr_with_length(arg0, arg1, arg2)
+                }
                 _ => unreachable!("Unexpected number of args"),
             }),
-            Function::UCase => Ok(ENC_UCASE.call(args)),
-            Function::LCase => Ok(ENC_LCASE.call(args)),
-            Function::StrStarts => Ok(ENC_STRSTARTS.call(args)),
-            Function::StrEnds => Ok(ENC_STRENDS.call(args)),
-            Function::Contains => Ok(ENC_CONTAINS.call(args)),
-            Function::StrBefore => Ok(ENC_STRBEFORE.call(args)),
-            Function::StrAfter => Ok(ENC_STRAFTER.call(args)),
-            Function::EncodeForUri => Ok(ENC_ENCODEFORURI.call(args)),
-            Function::Concat => Ok(ENC_CONCAT.call(args)),
-            Function::LangMatches => Ok(ENC_LANGMATCHES.call(args)),
+            Function::UCase => {
+                let arg = unary_args(args)?;
+                self.expr_builder.ucase(arg)
+            }
+            Function::LCase => {
+                let arg = unary_args(args)?;
+                self.expr_builder.lcase(arg)
+            }
+            Function::StrStarts => {
+                let (lhs, rhs) = binary_args(args)?;
+                self.expr_builder.str_starts(lhs, rhs)
+            }
+            Function::StrEnds => {
+                let (lhs, rhs) = binary_args(args)?;
+                self.expr_builder.str_ends(lhs, rhs)
+            }
+            Function::Contains => {
+                let (lhs, rhs) = binary_args(args)?;
+                self.expr_builder.contains(lhs, rhs)
+            }
+            Function::StrBefore => {
+                let (lhs, rhs) = binary_args(args)?;
+                self.expr_builder.str_before(lhs, rhs)
+            }
+            Function::StrAfter => {
+                let (lhs, rhs) = binary_args(args)?;
+                self.expr_builder.str_after(lhs, rhs)
+            }
+            Function::EncodeForUri => {
+                let arg = unary_args(args)?;
+                self.expr_builder.encode_for_uri(arg)
+            }
+            Function::Concat => self.expr_builder.concat(args),
+            Function::LangMatches => {
+                let (lhs, rhs) = binary_args(args)?;
+                self.expr_builder.lang_matches(lhs, rhs)
+            }
             Function::Regex => Ok(match args.len() {
-                2 => ENC_REGEX_BINARY.call(args),
-                3 => ENC_REGEX_TERNARY.call(args),
+                2 => {
+                    let (lhs, rhs) = binary_args(args)?;
+                    self.expr_builder.regex(lhs, rhs)
+                }
+                3 => {
+                    let (arg0, arg1, arg2) = ternary_args(args)?;
+                    self.expr_builder.regex_with_flags(arg0, arg1, arg2)
+                }
                 _ => unreachable!("Unexpected number of args"),
             }),
             Function::Replace => Ok(match args.len() {
-                3 => ENC_REPLACE_TERNARY.call(args),
-                4 => ENC_REPLACE_QUATERNARY.call(args),
+                3 => {
+                    let (arg0, arg1, arg2) = ternary_args(args)?;
+                    self.expr_builder.replace(arg0, arg1, arg2)
+                }
+                4 => {
+                    let (arg0, arg1, arg2, arg3) = quarternary_args(args)?;
+                    self.expr_builder.replace_with_flags(arg0, arg1, arg2, arg3)
+                }
                 _ => unreachable!("Unexpected number of args"),
             }),
             // Numeric
-            Function::Abs => Ok(ENC_ABS.call(args)),
-            Function::Round => Ok(ENC_ROUND.call(args)),
-            Function::Ceil => Ok(ENC_CEIL.call(args)),
-            Function::Floor => Ok(ENC_FLOOR.call(args)),
-            Function::Rand => Ok(ENC_RAND.call(args)),
+            Function::Abs => {
+                let arg = unary_args(args)?;
+                self.expr_builder.abs(arg)
+            }
+            Function::Round => {
+                let arg = unary_args(args)?;
+                self.expr_builder.round(arg)
+            }
+            Function::Ceil => {
+                let arg = unary_args(args)?;
+                self.expr_builder.ceil(arg)
+            }
+            Function::Floor => {
+                let arg = unary_args(args)?;
+                self.expr_builder.floor(arg)
+            }
+            Function::Rand => self.expr_builder.rand(),
             // Dates & Durations
-            Function::Year => Ok(ENC_YEAR.call(args)),
-            Function::Month => Ok(ENC_MONTH.call(args)),
-            Function::Day => Ok(ENC_DAY.call(args)),
-            Function::Hours => Ok(ENC_HOURS.call(args)),
-            Function::Minutes => Ok(ENC_MINUTES.call(args)),
-            Function::Seconds => Ok(ENC_SECONDS.call(args)),
-            Function::Timezone => Ok(ENC_TIMEZONE.call(args)),
-            Function::Tz => Ok(ENC_TZ.call(args)),
+            Function::Year => {
+                let arg = unary_args(args)?;
+                self.expr_builder.year(arg)
+            }
+            Function::Month => {
+                let arg = unary_args(args)?;
+                self.expr_builder.month(arg)
+            }
+            Function::Day => {
+                let arg = unary_args(args)?;
+                self.expr_builder.day(arg)
+            }
+            Function::Hours => {
+                let arg = unary_args(args)?;
+                self.expr_builder.hours(arg)
+            }
+            Function::Minutes => {
+                let arg = unary_args(args)?;
+                self.expr_builder.minutes(arg)
+            }
+            Function::Seconds => {
+                let arg = unary_args(args)?;
+                self.expr_builder.seconds(arg)
+            }
+            Function::Timezone => {
+                let arg = unary_args(args)?;
+                self.expr_builder.timezone(arg)
+            }
+            Function::Tz => {
+                let arg = unary_args(args)?;
+                self.expr_builder.tz(arg)
+            }
             Function::Now => {
                 let literal =
                     Literal::new_typed_literal(DateTime::now().to_string(), xsd::DATE_TIME);
-                Ok(lit(encode_scalar_literal(literal.as_ref())?))
+                self.expr_builder.literal(TermRef::from(literal.as_ref()))
             }
             // Hashing
-            Function::Md5 => Ok(ENC_MD5.call(args)),
-            Function::Sha1 => Ok(ENC_SHA1.call(args)),
-            Function::Sha256 => Ok(ENC_SHA256.call(args)),
-            Function::Sha384 => Ok(ENC_SHA384.call(args)),
-            Function::Sha512 => Ok(ENC_SHA512.call(args)),
+            Function::Md5 => {
+                let arg = unary_args(args)?;
+                self.expr_builder.md5(arg)
+            }
+            Function::Sha1 => {
+                let arg = unary_args(args)?;
+                self.expr_builder.sha1(arg)
+            }
+            Function::Sha256 => {
+                let arg = unary_args(args)?;
+                self.expr_builder.sha256(arg)
+            }
+            Function::Sha384 => {
+                let arg = unary_args(args)?;
+                self.expr_builder.sha384(arg)
+            }
+            Function::Sha512 => {
+                let arg = unary_args(args)?;
+                self.expr_builder.sha512(arg)
+            }
             // Custom
             Function::Custom(nn) => self.rewrite_custom_function_call(nn, args),
         }
@@ -192,26 +319,44 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         function: &NamedNode,
         args: Vec<Expr>,
     ) -> DFResult<Expr> {
-        let supported_conversion_functions = HashMap::from([
-            (xsd::BOOLEAN.as_str(), &ENC_AS_BOOLEAN),
-            (xsd::INT.as_str(), &ENC_AS_INT),
-            (xsd::INTEGER.as_str(), &ENC_AS_INTEGER),
-            (xsd::FLOAT.as_str(), &ENC_AS_FLOAT),
-            (xsd::DOUBLE.as_str(), &ENC_AS_DOUBLE),
-            (xsd::DECIMAL.as_str(), &ENC_AS_DECIMAL),
-            (xsd::DATE_TIME.as_str(), &ENC_AS_DATETIME),
-            (xsd::STRING.as_str(), &ENC_AS_STRING),
-        ]);
+        if function == &xsd::BOOLEAN {
+            let arg = unary_args(args)?;
+            return self.expr_builder.as_boolean(arg);
+        }
 
-        let supported_conversion = supported_conversion_functions.get(function.as_str());
-        if let Some(supported_conversion) = supported_conversion {
-            if args.len() != 1 {
-                return plan_err!(
-                    "Unsupported argument count for conversion function {}.",
-                    function.as_str()
-                );
-            }
-            return Ok(supported_conversion.call(args));
+        if function == &xsd::INT {
+            let arg = unary_args(args)?;
+            return self.expr_builder.as_int(arg);
+        }
+
+        if function == &xsd::INTEGER {
+            let arg = unary_args(args)?;
+            return self.expr_builder.as_integer(arg);
+        }
+
+        if function == &xsd::FLOAT {
+            let arg = unary_args(args)?;
+            return self.expr_builder.as_float(arg);
+        }
+
+        if function == &xsd::DOUBLE {
+            let arg = unary_args(args)?;
+            return self.expr_builder.as_double(arg);
+        }
+
+        if function == &xsd::DECIMAL {
+            let arg = unary_args(args)?;
+            return self.expr_builder.as_decimal(arg);
+        }
+
+        if function == &xsd::DATE_TIME {
+            let arg = unary_args(args)?;
+            return self.expr_builder.as_date_time(arg);
+        }
+
+        if function == &xsd::STRING {
+            let arg = unary_args(args)?;
+            return self.expr_builder.as_string(arg);
         }
 
         plan_err!("Custom Function {} is not supported.", function.as_str())
@@ -228,19 +373,17 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         let lhs = self.rewrite(lhs)?;
         let expressions = rhs
             .iter()
-            .map(|e| {
-                Ok(ENC_AS_NATIVE_BOOLEAN
-                    .call(vec![ENC_EQ.call(vec![lhs.clone(), self.rewrite(e)?])]))
-            })
+            .map(|e| self.expr_builder.equal(lhs.clone(), self.rewrite(e)?))
+            .map(|res| res.and_then(|e| self.expr_builder.native_boolean_as_term(e)))
             .collect::<DFResult<Vec<_>>>()?;
 
         let false_literal = Literal::from(false);
-        let result = expressions.into_iter().reduce(or).map_or(
-            lit(encode_scalar_literal(false_literal.as_ref())?),
-            |expr| ENC_BOOLEAN_AS_RDF_TERM.call(vec![expr]),
-        );
-
-        Ok(result)
+        expressions
+            .into_iter()
+            .reduce(or)
+            .map_or(self.expr_builder.literal(false_literal.as_ref()), |expr| {
+                self.expr_builder.native_boolean_as_term(expr)
+            })
     }
 
     /// Rewrites an EXISTS expression to a correlated subquery.
@@ -248,7 +391,8 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         let inner = LogicalPlanBuilder::new(self.graph_rewriter.rewrite(inner)?);
 
         let outer_keys: HashSet<_> = self
-            .schema
+            .expr_builder
+            .schema()
             .columns()
             .into_iter()
             .map(|c| c.name().to_owned())
@@ -270,9 +414,9 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                 outer_ref_columns: vec![],
                 spans: Spans(vec![]),
             };
-            return Ok(
-                ENC_BOOLEAN_AS_RDF_TERM.call(vec![Expr::ScalarSubquery(subquery).gt(lit(0))])
-            );
+            return self
+                .expr_builder
+                .native_boolean_as_term(Expr::ScalarSubquery(subquery).gt(lit(0)));
         }
 
         // TODO: Investigate why we need this renaming and cannot refer to the unqualified column
@@ -287,19 +431,20 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         let compatible_filter = outer_keys
             .intersection(&inner_keys)
             .map(|k| {
-                ENC_IS_COMPATIBLE.call(vec![
-                    Expr::OuterReferenceColumn(
-                        RdfTermValueEncoding::datatype(),
-                        Column::new_unqualified(k),
-                    ),
-                    Expr::from(Column::new_unqualified(format!("__inner__{k}"))),
-                ])
+                todo!("Rewrite EXISTS with compatible filter")
+                // self.expr_builder.is_compatible(
+                //     Expr::OuterReferenceColumn(
+                //         RdfTermValueEncoding::datatype(),
+                //         Column::new_unqualified(k),
+                //     ),
+                //     Expr::from(Column::new_unqualified(format!("__inner__{k}"))),
+                // )
             })
             .reduce(and)
             .unwrap_or(lit(true));
 
         let subquery = Arc::new(projected_inner.filter(compatible_filter)?.build()?);
-        Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![exists(subquery)]))
+        self.expr_builder.native_boolean_as_term(exists(subquery))
     }
 
     /// Rewrites an IF expression to a case expression.
@@ -312,7 +457,39 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         let test = self.rewrite(test)?;
         let if_true = self.rewrite(if_true)?;
         let if_false = self.rewrite(if_false)?;
-        Ok(ENC_IF.call(vec![test, if_true, if_false]))
+        Ok(self.expr_builder.sparql_if(vec![test, if_true, if_false]))
+    }
+}
+
+/// TODO
+fn unary_args(args: Vec<Expr>) -> DFResult<Expr> {
+    match TryInto::<[Expr; 1]>::try_into(args) {
+        Ok([expr]) => Ok(expr),
+        Err(_) => plan_err!("Unsupported argument list for unary function."),
+    }
+}
+
+/// TODO
+fn binary_args(args: Vec<Expr>) -> DFResult<(Expr, Expr)> {
+    match TryInto::<[Expr; 2]>::try_into(args) {
+        Ok([lhs, rhs]) => Ok((lhs, rhs)),
+        Err(_) => plan_err!("Unsupported argument list for unary function."),
+    }
+}
+
+/// TODO
+fn ternary_args(args: Vec<Expr>) -> DFResult<(Expr, Expr, Expr)> {
+    match TryInto::<[Expr; 3]>::try_into(args) {
+        Ok([arg0, arg1, arg2]) => Ok((arg0, arg1, arg2)),
+        Err(_) => plan_err!("Unsupported argument list for unary function."),
+    }
+}
+
+/// TODO
+fn quarternary_args(args: Vec<Expr>) -> DFResult<(Expr, Expr, Expr, Expr)> {
+    match TryInto::<[Expr; 4]>::try_into(args) {
+        Ok([arg0, arg1, arg2, arg3]) => Ok((arg0, arg1, arg2, arg3)),
+        Err(_) => plan_err!("Unsupported argument list for unary function."),
     }
 }
 
@@ -322,34 +499,17 @@ fn logical_expression(
     lhs: &Expression,
     rhs: &Expression,
 ) -> DFResult<Expr> {
-    let lhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite(lhs)?]);
-    let rhs = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![rewriter.rewrite(rhs)?]);
+    let lhs = rewriter
+        .expr_builder
+        .effective_boolean_value(rewriter.rewrite(lhs)?)?;
+    let rhs = rewriter
+        .expr_builder
+        .effective_boolean_value(rewriter.rewrite(rhs)?)?;
 
-    let connective_impl = match operator {
-        Operator::And => &ENC_AND,
-        Operator::Or => &ENC_OR,
+    let result = match operator {
+        Operator::And => rewriter.expr_builder.and(lhs, rhs)?,
+        Operator::Or => rewriter.expr_builder.or(lhs, rhs)?,
         _ => return plan_err!("Unsupported logical expression: {}", &operator),
     };
-    let booleans = connective_impl.call(vec![lhs, rhs]);
-    Ok(ENC_BOOLEAN_AS_RDF_TERM.call(vec![booleans]))
-}
-
-fn unary_udf(
-    rewriter: &ExpressionRewriter<'_>,
-    udf: &ScalarUDF,
-    value: &Expression,
-) -> DFResult<Expr> {
-    let value = rewriter.rewrite(value)?;
-    Ok(udf.call(vec![value]))
-}
-
-fn binary_udf(
-    rewriter: &ExpressionRewriter<'_>,
-    udf: &ScalarUDF,
-    lhs: &Expression,
-    rhs: &Expression,
-) -> DFResult<Expr> {
-    let lhs = rewriter.rewrite(lhs)?;
-    let rhs = rewriter.rewrite(rhs)?;
-    Ok(udf.call(vec![lhs, rhs]))
+    rewriter.expr_builder.native_boolean_as_term(result)
 }

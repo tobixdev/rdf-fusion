@@ -1,5 +1,5 @@
-use crate::sortable_encoding::term_type::SortableTermType;
-use crate::sortable_encoding::{SortableTerm, SortableTermField};
+use crate::sortable::term_type::SortableTermType;
+use crate::sortable::{SortableTerm, SortableTermField};
 use datafusion::arrow::array::{
     BinaryBuilder, Float64Builder, StructArray, StructBuilder, UInt8Builder,
 };
@@ -102,7 +102,11 @@ impl SortableTermBuilder {
     }
 
     pub fn append_literal(&mut self, literal: LiteralRef<'_>) {
-        self.append(SortableTermType::UnsupportedLiteral, None, literal.value().as_bytes())
+        self.append(
+            SortableTermType::UnsupportedLiteral,
+            None,
+            literal.value().as_bytes(),
+        )
     }
 
     fn append(&mut self, sort_type: SortableTermType, numeric: Option<Double>, bytes: &[u8]) {

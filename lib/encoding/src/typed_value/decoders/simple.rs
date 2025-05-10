@@ -1,4 +1,4 @@
-use crate::value_encoding::decoders::DefaultTypedValueDecoder;
+use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::TermDecoder;
 use crate::TermEncoder;
 use crate::TermEncoding;

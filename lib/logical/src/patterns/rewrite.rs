@@ -3,7 +3,6 @@ use crate::patterns::pattern_element::PatternNodeElement;
 use crate::patterns::PatternNode;
 use crate::DFResult;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::DFSchema;
 use datafusion::logical_expr::{and, col, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
@@ -60,11 +59,10 @@ impl OptimizerRule for PatternToProjectionRule {
 /// Computes the filters that will be applied for a given [PatternNode]. Callers can use this
 /// function to only apply the filters of a pattern and ignore any projections to variables.
 pub fn compute_filters_for_pattern(
-    registry: &GraphFusionBuiltinRegistryRef,
+    registry: &GraphFusionBuiltinRegistry,
     node: &PatternNode,
 ) -> DFResult<Option<Expr>> {
-    // TODO: The expr builder is usaully tmeporary and should only get a reference (not requiring aclone)
-    let expr_builder = GraphFusionExprBuilder::new(node.input().schema().clone(), registry.clone());
+    let expr_builder = GraphFusionExprBuilder::new(&node.input().schema(), registry);
     let filters = [
         filter_by_values(&expr_builder, node.patterns())?,
         filter_same_variable(&expr_builder, node.patterns())?,

@@ -7,8 +7,8 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
-use graphfusion_encoding::plain_term_encoding::decoders::DefaultPlainTermDecoder;
-use graphfusion_encoding::plain_term_encoding::PlainTermEncoding;
+use graphfusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
+use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::{EncodingName, TermDecoder, TermEncoding};
 use graphfusion_model::{Term, TermRef, ThinError, ThinResult};
 use std::any::Any;

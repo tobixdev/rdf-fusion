@@ -56,7 +56,7 @@ pub enum BuiltinName {
 
     // Comparison functions
     SameTerm,
-    Eq,
+    Equal,
     GreaterThan,
     GreaterOrEqual,
     LessThan,
@@ -137,7 +137,7 @@ impl fmt::Display for BuiltinName {
             Self::Regex => f.write_str("REGEX"),
             Self::If => f.write_str("IF"),
             Self::SameTerm => f.write_str("SAMETERM"),
-            Self::Eq => f.write_str("EQ"),
+            Self::Equal => f.write_str("EQ"),
             Self::GreaterThan => f.write_str("GT"),
             Self::GreaterOrEqual => f.write_str("GEQ"),
             Self::LessThan => f.write_str("LT"),

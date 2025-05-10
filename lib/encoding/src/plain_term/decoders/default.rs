@@ -1,5 +1,5 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::plain_term_encoding::{PlainTermEncoding, TermType};
+use crate::plain_term::{PlainTermEncoding, TermType};
 use crate::TermEncoding;
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;

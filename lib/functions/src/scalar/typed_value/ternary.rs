@@ -1,13 +1,13 @@
 use crate::builtin::BuiltinName;
-use graphfusion_encoding::value_encoding::decoders::{
+use graphfusion_encoding::typed_value::decoders::{
     BooleanTermValueDecoder, DefaultTypedValueDecoder, IntegerTermValueDecoder,
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
-use graphfusion_encoding::value_encoding::encoders::{
-    BooleanTermValueEncoder, DefaultTermValueEncoder, OwnedStringLiteralTermValueEncoder,
+use graphfusion_encoding::typed_value::encoders::{
+    BooleanTermValueEncoder, DefaultTypedValueEncoder, OwnedStringLiteralTermValueEncoder,
     StringLiteralRefTermValueEncoder,
 };
-use graphfusion_encoding::value_encoding::TypedValueEncoding;
+use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::TermEncoding;
 use graphfusion_functions_scalar::{IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp};
 
@@ -17,7 +17,7 @@ impl_ternary_sparql_op!(
     BooleanTermValueDecoder,
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
-    DefaultTermValueEncoder,
+    DefaultTypedValueEncoder,
     IfTypedValueFactory,
     IfSparqlOp,
     BuiltinName::If

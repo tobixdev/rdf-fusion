@@ -7,8 +7,8 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
-use graphfusion_encoding::value_encoding::decoders::DefaultTypedValueDecoder;
-use graphfusion_encoding::value_encoding::TypedValueEncoding;
+use graphfusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
+use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::{EncodingName, TermDecoder, TermEncoding};
 use graphfusion_model::{
     Decimal, Double, Float, Int, Integer, Numeric, Term, ThinError, ThinResult, TypedValueRef,

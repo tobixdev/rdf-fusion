@@ -1,8 +1,8 @@
-use graphfusion_encoding::value_encoding::decoders::{
+use graphfusion_encoding::typed_value::decoders::{
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
-use graphfusion_encoding::value_encoding::encoders::OwnedStringLiteralTermValueEncoder;
-use graphfusion_encoding::value_encoding::TypedValueEncoding;
+use graphfusion_encoding::typed_value::encoders::OwnedStringLiteralTermValueEncoder;
+use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::TermEncoding;
 use graphfusion_functions_scalar::ReplaceSparqlOp;
 use crate::builtin::BuiltinName;

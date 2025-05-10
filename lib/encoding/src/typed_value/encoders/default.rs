@@ -1,13 +1,13 @@
 use crate::encoding::TermEncoder;
-use crate::value_encoding::{TypedValueArrayBuilder, TypedValueEncoding};
+use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use crate::{DFResult, TermEncoding};
 use datafusion::common::exec_err;
-use graphfusion_model::{Numeric, TypedValueRef, ThinError, ThinResult};
+use graphfusion_model::{Numeric, ThinError, ThinResult, TypedValueRef};
 
 #[derive(Debug)]
-pub struct DefaultTermValueEncoder;
+pub struct DefaultTypedValueEncoder;
 
-impl TermEncoder<TypedValueEncoding> for DefaultTermValueEncoder {
+impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
     type Term<'data> = TypedValueRef<'data>;
 
     fn encode_terms<'data>(

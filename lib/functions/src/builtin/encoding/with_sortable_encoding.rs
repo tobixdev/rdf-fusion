@@ -1,6 +1,6 @@
 use crate::sortable_encoding::{SortableTerm, SortableTermBuilder};
 use crate::FromArrow;
-use crate::value_encoding::RdfTermValueEncoding;
+use crate::typed_value::RdfTermValueEncoding;
 use crate::DFResult;
 use datafusion::arrow::array::{as_union_array, StructArray};
 use datafusion::arrow::datatypes::DataType;

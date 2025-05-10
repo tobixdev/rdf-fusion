@@ -1,11 +1,11 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::plain_term_encoding::{PlainTermEncoding, TermType};
+use crate::plain_term::{PlainTermEncoding, TermType};
 use crate::TermEncoding;
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
 use datafusion::functions_aggregate::regr::regr_slope;
 use graphfusion_model::{
-    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, RdfTermValue, TermRef, ThinError,
+    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, TypedValue, TermRef, ThinError,
     ThinResult,
 };
 

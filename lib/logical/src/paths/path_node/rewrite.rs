@@ -20,7 +20,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct PathToJoinsRule {
     /// Used for creating expressions with GraphFusion builtins.
-    expr_builder: GraphFusionExprBuilder,
+    registry: GraphFusionBuiltinRegistryRef,
     // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
     quads_table: Arc<dyn TableProvider>,
 }
@@ -53,12 +53,11 @@ impl OptimizerRule for PathToJoinsRule {
 
 impl PathToJoinsRule {
     pub fn new(
-        builtins: GraphFusionBuiltinRegistryRef,
+        registry: GraphFusionBuiltinRegistryRef,
         quads_table: Arc<dyn TableProvider>,
     ) -> Self {
-        let expr_builder = GraphFusionExprBuilder::new(PATH_TABLE_DFSCHEMA.clone(), builtins);
         Self {
-            expr_builder,
+            registry,
             quads_table,
         }
     }
@@ -117,9 +116,9 @@ impl PathToJoinsRule {
         graph: Option<&NamedNodePattern>,
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
-        let filter = self
-            .expr_builder
-            .filter_by_scalar(col(COL_PREDICATE), TermRef::from(node.as_ref()))?;
+        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
+        let filter =
+            expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(node.as_ref()))?;
         self.scan_quads(graph, Some(filter))
     }
 
@@ -130,12 +129,10 @@ impl PathToJoinsRule {
         graph: Option<&NamedNodePattern>,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
+        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
         let test_expressions = nodes
             .iter()
-            .map(|nn| {
-                self.expr_builder
-                    .filter_by_scalar(col(COL_PREDICATE), TermRef::from(nn.as_ref()))
-            })
+            .map(|nn| expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(nn.as_ref())))
             .collect::<DFResult<Vec<Expr>>>()?;
         let test_expression =
             test_expressions
@@ -254,11 +251,11 @@ impl PathToJoinsRule {
         )?;
 
         // Apply graph filter if present
+        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
         let query = match graph {
             Some(NamedNodePattern::NamedNode(nn)) => {
-                let filter = self
-                    .expr_builder
-                    .filter_by_scalar(col(COL_GRAPH), TermRef::from(nn.as_ref()))?;
+                let filter =
+                    expr_builder.filter_by_scalar(col(COL_GRAPH), TermRef::from(nn.as_ref()))?;
                 query.filter(filter)?
             }
             _ => query,
@@ -288,14 +285,15 @@ impl PathToJoinsRule {
         lhs: LogicalPlanBuilder,
         rhs: LogicalPlanBuilder,
     ) -> DFResult<LogicalPlanBuilder> {
-        let path_join_expr = self.expr_builder.same_term(
+        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
+        let path_join_expr = expr_builder.same_term(
             Expr::from(Column::new(Some("lhs"), COL_TARGET)),
             Expr::from(Column::new(Some("rhs"), COL_SOURCE)),
         )?;
         let mut on_exprs = vec![path_join_expr];
 
         if graph.is_some() {
-            let graph_expr = self.expr_builder.same_term(
+            let graph_expr = expr_builder.same_term(
                 Expr::from(Column::new(Some("lhs"), COL_GRAPH)),
                 Expr::from(Column::new(Some("rhs"), COL_GRAPH)),
             )?;

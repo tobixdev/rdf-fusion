@@ -1,7 +1,9 @@
 extern crate core;
 
+mod expr_builder;
 pub mod paths;
 pub mod patterns;
-mod expr_builder;
+
+pub use expr_builder::GraphFusionExprBuilder;
 
 type DFResult<T> = datafusion::error::Result<T>;

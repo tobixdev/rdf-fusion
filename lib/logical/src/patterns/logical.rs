@@ -3,7 +3,7 @@ use crate::DFResult;
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use graphfusion_encoding::plain_term_encoding::PlainTermEncoding;
+use graphfusion_encoding::plain_term::PlainTermEncoding;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;

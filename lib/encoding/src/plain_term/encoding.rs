@@ -1,6 +1,6 @@
 use crate::encoding::TermEncoding;
-use crate::plain_term_encoding::encoders::DefaultPlainTermEncoder;
-use crate::plain_term_encoding::{PlainTermArray, PlainTermScalar};
+use crate::plain_term::encoders::DefaultPlainTermEncoder;
+use crate::plain_term::{PlainTermArray, PlainTermScalar};
 use crate::{DFResult, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};

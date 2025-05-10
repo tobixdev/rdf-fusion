@@ -1,4 +1,4 @@
-use crate::value_encoding::TypedValueArrayBuilder;
+use crate::typed_value::TypedValueArrayBuilder;
 
 use crate::error::LiteralEncodingError;
 use crate::DFResult;
@@ -128,7 +128,7 @@ make_simple_term_value_encoder!(
     |builder: &mut TypedValueArrayBuilder, value: Decimal| { builder.append_decimal(value) }
 );
 make_simple_term_value_encoder!(
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     Numeric,
     |builder: &mut TypedValueArrayBuilder, value: Numeric| { builder.append_numeric(value) }
 );

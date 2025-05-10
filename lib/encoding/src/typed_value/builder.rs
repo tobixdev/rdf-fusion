@@ -1,5 +1,5 @@
 use crate::error::LiteralEncodingError;
-use crate::value_encoding::{TypedValueEncoding, TypedValueEncodingField};
+use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use crate::AResult;
 use datafusion::arrow::array::{
     ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,

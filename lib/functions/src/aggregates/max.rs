@@ -1,31 +1,32 @@
-use crate::value_encoding::scalars::{encode_scalar_null, encode_scalar_term};
-use crate::value_encoding::RdfTermValueEncoding;
-use crate::{as_term_value_array, DFResult};
+use crate::DFResult;
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use graphfusion_model::{RdfTermValue, RdfTermValueRef, ThinError, ThinResult};
+use graphfusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
+use graphfusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
+use graphfusion_encoding::typed_value::TypedValueEncoding;
+use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::{Arc, LazyLock};
-use crate::{FromArrow, ToArrow};
 
 pub static ENC_MAX: LazyLock<AggregateUDF> = LazyLock::new(|| {
     create_udaf(
         "enc_max",
-        vec![RdfTermValueEncoding::datatype()],
-        Arc::new(RdfTermValueEncoding::datatype()),
+        vec![TypedValueEncoding::data_type()],
+        Arc::new(TypedValueEncoding::data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlMax::new()))),
-        Arc::new(vec![DataType::Boolean, RdfTermValueEncoding::datatype()]),
+        Arc::new(vec![DataType::Boolean, TypedValueEncoding::data_type()]),
     )
 });
 
 #[derive(Debug)]
 struct SparqlMax {
     executed_once: bool,
-    max: ThinResult<RdfTermValue>,
+    max: ThinResult<TypedValue>,
 }
 
 impl SparqlMax {
@@ -36,9 +37,9 @@ impl SparqlMax {
         }
     }
 
-    fn on_new_value(&mut self, value: ThinResult<RdfTermValueRef<'_>>) {
+    fn on_new_value(&mut self, value: ThinResult<TypedValueRef<'_>>) {
         if !self.executed_once {
-            self.max = value.map(RdfTermValueRef::into_owned);
+            self.max = value.map(TypedValueRef::into_owned);
             self.executed_once = true;
         } else if let Ok(min) = self.max.as_ref() {
             if let Ok(value) = value {
@@ -61,10 +62,9 @@ impl Accumulator for SparqlMax {
             return Ok(());
         }
 
-        let arr = as_term_value_array(&values[0])?;
+        let arr = TypedValueEncoding::try_new_array(Arc::clone(&values[0]))?;
 
-        for i in 0..arr.len() {
-            let value = RdfTermValueRef::from_array(arr, i);
+        for value in DefaultTypedValueDecoder::decode_terms(&arr) {
             self.on_new_value(value);
         }
 
@@ -73,10 +73,10 @@ impl Accumulator for SparqlMax {
 
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         let value = match self.max.as_ref() {
-            Ok(value) => value.as_ref().into_scalar_value()?,
-            Err(_) => encode_scalar_null(),
+            Ok(value) => DefaultTypedValueEncoder::encode_term(Ok(value.as_ref()))?,
+            Err(_) => DefaultTypedValueEncoder::encode_term(ThinError::expected())?,
         };
-        Ok(value)
+        Ok(value.into_scalar_value())
     }
 
     fn size(&self) -> usize {
@@ -85,10 +85,13 @@ impl Accumulator for SparqlMax {
 
     fn state(&mut self) -> DFResult<Vec<ScalarValue>> {
         let value = match self.max.as_ref().map(|v| v.as_ref()) {
-            Ok(value) => encode_scalar_term(value.into_decoded().as_ref())?,
-            Err(_) => encode_scalar_null(),
+            Ok(value) => DefaultTypedValueEncoder::encode_term(Ok(value))?,
+            Err(_) => DefaultTypedValueEncoder::encode_term(ThinError::expected())?,
         };
-        Ok(vec![ScalarValue::Boolean(Some(self.executed_once)), value])
+        Ok(vec![
+            ScalarValue::Boolean(Some(self.executed_once)),
+            value.into_scalar_value(),
+        ])
     }
 
     #[allow(clippy::missing_asserts_for_indexing)]
@@ -98,11 +101,12 @@ impl Accumulator for SparqlMax {
         }
 
         let executed_once = states[0].as_boolean();
-        let terms = as_term_value_array(&states[1])?;
-        for i in 0..states[0].len() {
-            if executed_once.value(i) {
-                let value = RdfTermValueRef::from_array(terms, i);
-                self.on_new_value(value);
+
+        let array = TypedValueEncoding::try_new_array(Arc::clone(&states[1]))?;
+        let terms = DefaultTypedValueDecoder::decode_terms(&array);
+        for (is_valid, term) in executed_once.iter().zip(terms) {
+            if is_valid == Some(true) {
+                self.on_new_value(term);
             }
         }
 

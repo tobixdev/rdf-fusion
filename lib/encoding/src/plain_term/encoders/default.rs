@@ -1,5 +1,5 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term_encoding::PlainTermEncoding;
+use crate::plain_term::PlainTermEncoding;
 use crate::{DFResult, TermEncoding};
 use graphfusion_model::{TermRef, ThinResult};
 

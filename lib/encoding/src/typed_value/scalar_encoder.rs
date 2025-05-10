@@ -1,6 +1,6 @@
 use crate::scalar_encoder::ScalarEncoder;
-use crate::value_encoding::scalar::TermValueScalar;
-use crate::value_encoding::{TypedValueArrayBuilder, TypedValueEncoding, TypedValueEncodingField};
+use crate::typed_value::scalar::TermValueScalar;
+use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding, TypedValueEncodingField};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::ScalarValue;
 use graphfusion_model::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef};

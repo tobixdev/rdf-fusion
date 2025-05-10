@@ -5,7 +5,7 @@ use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
 use crate::oxigraph_memory::hash::StrHash;
 use crate::{AResult, DFResult};
-use graphfusion_encoding::value_encoding::{TypedValueArrayBuilder, ENC_QUAD_SCHEMA};
+use graphfusion_encoding::typed_value::{TypedValueArrayBuilder, ENC_QUAD_SCHEMA};
 use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};

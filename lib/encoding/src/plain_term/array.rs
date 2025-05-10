@@ -1,4 +1,4 @@
-use crate::plain_term_encoding::PlainTermEncoding;
+use crate::plain_term::PlainTermEncoding;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::common::exec_err;
 use datafusion::error::DataFusionError;

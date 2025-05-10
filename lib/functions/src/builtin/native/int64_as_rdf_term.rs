@@ -8,7 +8,7 @@ use datafusion::logical_expr::{
 };
 use std::any::Any;
 use graphfusion_encoding::TermEncoding;
-use graphfusion_encoding::value_encoding::{TypedValueArrayBuilder, TypedValueEncoding};
+use graphfusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 
 #[derive(Debug)]
 pub struct EncInt64AsRdfTerm {

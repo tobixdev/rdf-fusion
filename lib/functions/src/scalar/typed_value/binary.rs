@@ -1,12 +1,12 @@
-use graphfusion_encoding::value_encoding::decoders::{
+use graphfusion_encoding::typed_value::decoders::{
     DefaultTypedValueDecoder, IntegerTermValueDecoder, NamedNodeRefTermValueDecoder,
     NumericTermValueDecoder, SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
-use graphfusion_encoding::value_encoding::encoders::{
-    BooleanTermValueEncoder, LiteralRefTermValueEncoder, NumericTermValueEncoder,
+use graphfusion_encoding::typed_value::encoders::{
+    BooleanTermValueEncoder, LiteralRefTermValueEncoder, NumericTypedValueEncoder,
     OwnedStringLiteralTermValueEncoder, StringLiteralRefTermValueEncoder,
 };
-use graphfusion_encoding::value_encoding::TypedValueEncoding;
+use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::TermEncoding;
 use graphfusion_functions_scalar::{
     AddSparqlOp, ContainsSparqlOp, DivSparqlOp, EqSparqlOp, GreaterOrEqualSparqlOp,
@@ -33,7 +33,7 @@ impl_binary_sparql_op!(
     BooleanTermValueEncoder,
     EqTypedValueFactory,
     EqSparqlOp,
-    BuiltinName::Eq
+    BuiltinName::Equal
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
@@ -77,7 +77,7 @@ impl_binary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     AddTypedValueFactory,
     AddSparqlOp,
     BuiltinName::Add
@@ -86,7 +86,7 @@ impl_binary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     DivTypedValueFactory,
     DivSparqlOp,
     BuiltinName::Div
@@ -95,7 +95,7 @@ impl_binary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     MulTypedValueFactory,
     MulSparqlOp,
     BuiltinName::Mul
@@ -104,7 +104,7 @@ impl_binary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     SubTypedValueFactory,
     SubSparqlOp,
     BuiltinName::Sub

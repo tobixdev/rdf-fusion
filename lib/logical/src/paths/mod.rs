@@ -3,7 +3,7 @@ mod path_node;
 
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
-use graphfusion_encoding::plain_term_encoding::PlainTermEncoding;
+use graphfusion_encoding::plain_term::PlainTermEncoding;
 pub use kleene_plus::*;
 pub use path_node::*;
 use std::clone::Clone;

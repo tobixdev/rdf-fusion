@@ -1,5 +1,5 @@
 use crate::encoding::EncodingArray;
-use crate::value_encoding::{TypedValueEncoding, TypedValueEncodingField};
+use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use crate::GraphFusionEncodedArray::Value;
 use crate::TermEncoding;
 use datafusion::arrow::array::{

@@ -10,6 +10,8 @@ use std::str::ParseBoolError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
+// TODO ThinResult = Option<T> in the future
+
 /// A light-weight result, mainly used for SPARQL operations.
 pub type ThinResult<T> = Result<T, ThinError>;
 

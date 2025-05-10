@@ -1,8 +1,8 @@
 use crate::encoding::TermEncoding;
-use crate::value_encoding::array::TermValueArray;
-use crate::value_encoding::scalar::TermValueScalar;
-use crate::value_encoding::decoders::DefaultTypedValueDecoder;
-use crate::value_encoding::encoders::DefaultTermValueEncoder;
+use crate::typed_value::array::TermValueArray;
+use crate::typed_value::scalar::TermValueScalar;
+use crate::typed_value::decoders::DefaultTypedValueDecoder;
+use crate::typed_value::encoders::DefaultTypedValueEncoder;
 use crate::{DFResult, EncodingName};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};

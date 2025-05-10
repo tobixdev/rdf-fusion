@@ -1,5 +1,5 @@
-use crate::plain_term_encoding::encoding::{PlainTermEncodingField, PlainTermType};
-use crate::plain_term_encoding::PlainTermEncoding;
+use crate::plain_term::encoding::{PlainTermEncodingField, PlainTermType};
+use crate::plain_term::PlainTermEncoding;
 use datafusion::arrow::array::{
     ArrayRef, BinaryBuilder, Float64Builder, StringBuilder, StructArray, StructBuilder,
     UInt8Builder,

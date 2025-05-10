@@ -3,18 +3,18 @@ use crate::scalar::unary::UnaryScalarUdfOp;
 use crate::{impl_unary_sparql_op, DFResult};
 use datafusion::common::exec_err;
 use datafusion::logical_expr::ScalarUDF;
-use graphfusion_encoding::value_encoding::decoders::{
+use graphfusion_encoding::typed_value::decoders::{
     DateTimeTermValueDecoder, DefaultTypedValueDecoder, NumericTermValueDecoder,
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
-use graphfusion_encoding::value_encoding::encoders::{
+use graphfusion_encoding::typed_value::encoders::{
     BlankNodeRefTermValueEncoder, BooleanTermValueEncoder, DateTimeTermValueEncoder,
     DayTimeDurationTermValueEncoder, DecimalTermValueEncoder, DoubleTermValueEncoder,
     FloatTermValueEncoder, IntTermValueEncoder, IntegerTermValueEncoder,
-    NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder, NumericTermValueEncoder,
+    NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder, NumericTypedValueEncoder,
     OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
 };
-use graphfusion_encoding::value_encoding::TypedValueEncoding;
+use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::{EncodingName, TermDecoder, TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
@@ -219,7 +219,7 @@ impl_unary_sparql_op!(
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     AbsTypedValueFactory,
     AbsSparqlOp,
     BuiltinName::Abs
@@ -227,7 +227,7 @@ impl_unary_sparql_op!(
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     CeilTypedValueFactory,
     CeilSparqlOp,
     BuiltinName::Ceil
@@ -235,7 +235,7 @@ impl_unary_sparql_op!(
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     FloorTypedValueFactory,
     FloorSparqlOp,
     BuiltinName::Floor
@@ -243,7 +243,7 @@ impl_unary_sparql_op!(
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     RoundTypedValueFactory,
     RoundSparqlOp,
     BuiltinName::Round
@@ -251,7 +251,7 @@ impl_unary_sparql_op!(
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     UnaryMinusTypedValueFactory,
     UnaryMinusSparqlOp,
     BuiltinName::UnaryMinus
@@ -259,7 +259,7 @@ impl_unary_sparql_op!(
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
-    NumericTermValueEncoder,
+    NumericTypedValueEncoder,
     UnaryPlusTypedValueFactory,
     UnaryPlusSparqlOp,
     BuiltinName::UnaryPlus

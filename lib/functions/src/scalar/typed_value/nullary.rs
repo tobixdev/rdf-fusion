@@ -1,9 +1,9 @@
 use crate::builtin::BuiltinName;
-use graphfusion_encoding::value_encoding::encoders::{
+use graphfusion_encoding::typed_value::encoders::{
     BlankNodeTermValueEncoder, DoubleTermValueEncoder, NamedNodeTermValueEncoder,
     OwnedStringLiteralTermValueEncoder,
 };
-use graphfusion_encoding::value_encoding::TypedValueEncoding;
+use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::TermEncoding;
 use graphfusion_functions_scalar::{BNodeSparqlOp, RandSparqlOp, StrUuidSparqlOp, UuidSparqlOp};
 

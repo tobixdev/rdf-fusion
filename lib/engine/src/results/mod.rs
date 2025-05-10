@@ -21,7 +21,7 @@ mod triples;
 
 use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
-use graphfusion_encoding::plain_term_encoding::{PlainTermArrayBuilder, PlainTermEncoding};
+use graphfusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
 pub use sparesults::QuerySolution;

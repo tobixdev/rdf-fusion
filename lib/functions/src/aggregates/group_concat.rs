@@ -1,21 +1,22 @@
-use crate::value_encoding::scalars::encode_scalar_null;
-use crate::value_encoding::RdfTermValueEncoding;
-use crate::{as_term_value_array, DFResult};
+use crate::DFResult;
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use graphfusion_model::StringLiteralRef;
+use graphfusion_encoding::typed_value::decoders::StringLiteralRefTermValueDecoder;
+use graphfusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
+use graphfusion_encoding::typed_value::TypedValueEncoding;
+use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_model::{StringLiteralRef, ThinError};
 use std::sync::Arc;
-use crate::{FromArrow, ToArrow};
 
 pub fn enc_group_concat(separator: impl Into<String>) -> AggregateUDF {
     let separator = separator.into();
     create_udaf(
         "enc_group_concat",
-        vec![RdfTermValueEncoding::datatype()],
-        Arc::new(RdfTermValueEncoding::datatype()),
+        vec![TypedValueEncoding::data_type()],
+        Arc::new(TypedValueEncoding::data_type()),
         Volatility::Immutable,
         Arc::new(move |_| Ok(Box::new(SparqlGroupConcat::new(separator.clone())))),
         Arc::new(vec![
@@ -54,13 +55,11 @@ impl Accumulator for SparqlGroupConcat {
             return Ok(());
         }
 
-        let arr = as_term_value_array(&values[0])?;
-
         let mut value_exists = self.value.is_some();
         let mut value = self.value.take().unwrap_or_default();
 
-        for i in 0..arr.len() {
-            let string = StringLiteralRef::from_array(arr, i);
+        let arr = TypedValueEncoding::try_new_array(values[0].clone())?;
+        for string in StringLiteralRefTermValueDecoder::decode_terms(&arr) {
             if let Ok(string) = string {
                 if value_exists {
                     value += self.separator.as_str();
@@ -88,12 +87,13 @@ impl Accumulator for SparqlGroupConcat {
 
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         if self.error {
-            return Ok(encode_scalar_null());
+            return StringLiteralRefTermValueEncoder::encode_term(ThinError::expected())
+                .map(|t| t.into_scalar_value());
         }
 
         let value = self.value.as_deref().unwrap_or("");
         let literal = StringLiteralRef(value, self.language.as_deref());
-        literal.into_scalar_value()
+        StringLiteralRefTermValueEncoder::encode_term(Ok(literal)).map(|t| t.into_scalar_value())
     }
 
     fn size(&self) -> usize {

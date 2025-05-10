@@ -1,6 +1,6 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::value_encoding::array::{TermValueArrayParts, TimestampParts};
-use crate::value_encoding::{TypedValueEncoding, TypedValueEncodingField};
+use crate::typed_value::array::{TermValueArrayParts, TimestampParts};
+use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use crate::TermEncoding;
 use datafusion::arrow::array::Array;
 use graphfusion_model::{

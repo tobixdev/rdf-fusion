@@ -4,7 +4,7 @@ use crate::DFResult;
 use datafusion::common::exec_err;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
-use graphfusion_encoding::plain_term_encoding::PlainTermEncoding;
+use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::{TermEncoding, COL_GRAPH};
 use graphfusion_model::{NamedOrBlankNode, Term, Variable};
 use std::pin::Pin;

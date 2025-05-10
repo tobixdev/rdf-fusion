@@ -1,29 +1,24 @@
 use crate::sparql::rewriting::expression_rewriter::ExpressionRewriter;
 use crate::sparql::QueryDataset;
 use crate::DFResult;
-use graphfusion_encoding::value_encoding::scalars::{
-    encode_scalar_blank_node, encode_scalar_literal, encode_scalar_named_node, encode_scalar_null,
-};
-use graphfusion_encoding::value_encoding::{
-    enc_group_concat, RdfTermValueEncoding, ENC_AVG, ENC_BOUND, ENC_COALESCE,
-    ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_INT64_AS_RDF_TERM, ENC_IS_COMPATIBLE, ENC_MAX, ENC_MIN,
-    ENC_SAME_TERM, ENC_SUM, ENC_WITH_SORTABLE_ENCODING,
-};
-use graphfusion_encoding::sortable_encoding::{SortableTerm, ENC_WITH_REGULAR_ENCODING};
-use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{not_impl_err, plan_datafusion_err, plan_err, Column, DFSchema, JoinType};
 use datafusion::datasource::{DefaultTableSource, TableProvider};
-use datafusion::functions_aggregate::count::{count, count_distinct, count_udaf};
+use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{
     lit, not, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
 };
 use datafusion::prelude::{and, col};
+use graphfusion_encoding::{
+    EncodingName, COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS,
+};
+use graphfusion_functions::registry::GraphFusionBuiltinRegistryRef;
 use graphfusion_logical::paths::PathNode;
 use graphfusion_logical::patterns::{PatternNode, PatternNodeElement};
+use graphfusion_logical::GraphFusionExprBuilder;
 use graphfusion_model::Iri;
 use graphfusion_model::{GraphName, NamedOrBlankNode, Variable};
 use spargebra::algebra::{
@@ -33,10 +28,10 @@ use spargebra::algebra::{
 use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::ops::Deref;
 use std::sync::Arc;
 
 pub struct GraphPatternRewriter {
+    registry: GraphFusionBuiltinRegistryRef,
     dataset: QueryDataset,
     base_iri: Option<Iri<String>>,
     // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
@@ -46,11 +41,13 @@ pub struct GraphPatternRewriter {
 
 impl GraphPatternRewriter {
     pub fn new(
+        registry: GraphFusionBuiltinRegistryRef,
         dataset: QueryDataset,
         base_iri: Option<Iri<String>>,
         quads_table: Arc<dyn TableProvider>,
     ) -> Self {
         Self {
+            registry,
             dataset,
             base_iri,
             quads_table,
@@ -216,8 +213,9 @@ impl GraphPatternRewriter {
         expression: &Expression,
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_graph_pattern(inner)?;
+        let expr_builder = GraphFusionExprBuilder::new(inner.schema(), &self.registry);
         let expression = self.rewrite_expression(inner.schema(), expression)?;
-        let expression = ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![expression]);
+        let expression = expr_builder.effective_boolean_value(expression)?;
         inner.filter(expression)
     }
 
@@ -413,13 +411,17 @@ impl GraphPatternRewriter {
         let lhs = lhs.alias("lhs")?;
         let rhs = rhs.alias("rhs")?;
 
+        let mut join_schema = lhs.schema().as_ref().clone();
+        join_schema.merge(rhs.schema());
+
+        let expr_builder = GraphFusionExprBuilder::new(&join_schema, &self.registry);
         let mut join_filters = Vec::new();
 
         for k in &overlapping_keys {
-            let expr = ENC_IS_COMPATIBLE.call(vec![
+            let expr = expr_builder.is_compatible(
                 Expr::from(Column::new(Some("lhs"), *k)),
                 Expr::from(Column::new(Some("rhs"), *k)),
-            ]);
+            )?;
             join_filters.push(expr);
         }
         let any_both_not_null = overlapping_keys
@@ -461,15 +463,20 @@ impl GraphPatternRewriter {
         aggregates: &[(Variable, AggregateExpression)],
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_graph_pattern(inner)?;
+        let expr_builder = GraphFusionExprBuilder::new(inner.schema(), &self.registry);
         let expression_rewriter =
-            ExpressionRewriter::new(self, self.base_iri.as_ref(), inner.schema());
+            ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder);
 
         let group_exprs = variables
             .iter()
             .map(|var| {
                 expression_rewriter
                     .rewrite(&Expression::Variable(var.clone()))
-                    .map(|e| ENC_WITH_SORTABLE_ENCODING.call(vec![e]).alias(var.as_str()))
+                    .map(|e| {
+                        expr_builder
+                            .with_encoding(e, EncodingName::PlainTerm)
+                            .alias(var.as_str())
+                    })
             })
             .collect::<DFResult<Vec<_>>>()?;
         let aggregate_exprs = aggregates
@@ -486,7 +493,9 @@ impl GraphPatternRewriter {
 
     /// Rewrites an [Expression].
     fn rewrite_expression(&self, schema: &DFSchema, expression: &Expression) -> DFResult<Expr> {
-        let expression_rewriter = ExpressionRewriter::new(self, self.base_iri.as_ref(), schema);
+        let expr_builder = GraphFusionExprBuilder::new(schema, &self.registry);
+        let expression_rewriter =
+            ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder);
         expression_rewriter.rewrite(expression)
     }
 
@@ -501,8 +510,9 @@ impl GraphPatternRewriter {
             OrderExpression::Asc(inner) => (true, expression_rewriter.rewrite(inner)?),
             OrderExpression::Desc(inner) => (false, expression_rewriter.rewrite(inner)?),
         };
-        Ok(ENC_WITH_SORTABLE_ENCODING
-            .call(vec![expression])
+        let expr_builder = GraphFusionExprBuilder::new(schema, &self.registry);
+        Ok(expr_builder
+            .with_encoding(expression, EncodingName::Sortable)?
             .sort(asc, true))
     }
 
@@ -512,7 +522,9 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &AggregateExpression,
     ) -> DFResult<Expr> {
-        let expression_rewriter = ExpressionRewriter::new(self, self.base_iri.as_ref(), schema);
+        let expr_builder = GraphFusionExprBuilder::new(schema, &self.registry);
+        let expression_rewriter =
+            ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder.clone());
         match expression {
             AggregateExpression::CountSolutions { distinct } => match distinct {
                 false => Ok(count(Expr::Literal(COUNT_STAR_EXPANSION))),
@@ -540,64 +552,17 @@ impl GraphPatternRewriter {
                 distinct,
             } => {
                 let expr = expression_rewriter.rewrite(expr)?;
+                let expr = expr_builder.with_encoding(expr, EncodingName::TypedValue)?;
                 let result = match name {
-                    AggregateFunction::Avg => Expr::AggregateFunction(
-                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
-                            Arc::new(ENC_AVG.deref().clone()),
-                            vec![expr],
-                            *distinct,
-                            None,
-                            None,
-                            None,
-                        ),
-                    ),
-                    AggregateFunction::Count => match distinct {
-                        false => count(expr),
-                        true => count_distinct(expr),
-                    },
-                    AggregateFunction::Max => Expr::AggregateFunction(
-                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
-                            Arc::new(ENC_MAX.deref().clone()),
-                            vec![expr],
-                            false, // DISTINCT doesn't change the result.
-                            None,
-                            None,
-                            None,
-                        ),
-                    ),
-                    AggregateFunction::Min => Expr::AggregateFunction(
-                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
-                            Arc::new(ENC_MIN.deref().clone()),
-                            vec![expr],
-                            false, // DISTINCT doesn't change the result.
-                            None,
-                            None,
-                            None,
-                        ),
-                    ),
-                    AggregateFunction::Sample => first_value(expr, None),
-                    AggregateFunction::Sum => Expr::AggregateFunction(
-                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
-                            Arc::new(ENC_SUM.deref().clone()),
-                            vec![expr],
-                            *distinct,
-                            None,
-                            None,
-                            None,
-                        ),
-                    ),
-                    AggregateFunction::GroupConcat { separator } => Expr::AggregateFunction(
-                        datafusion::logical_expr::expr::AggregateFunction::new_udf(
-                            Arc::new(enc_group_concat(
-                                separator.as_ref().map_or(" ", |s| s.as_str()),
-                            )),
-                            vec![expr],
-                            *distinct,
-                            None,
-                            None,
-                            None,
-                        ),
-                    ),
+                    AggregateFunction::Avg => expr_builder.avg(expr, *distinct),
+                    AggregateFunction::Count => expr_builder.count(expr, *distinct),
+                    AggregateFunction::Max => expr_builder.max(expr, *distinct),
+                    AggregateFunction::Min => expr_builder.min(expr, *distinct),
+                    AggregateFunction::Sample => expr_builder.sample(expr),
+                    AggregateFunction::Sum => expr_builder.sum(expr, *distinct),
+                    AggregateFunction::GroupConcat { separator } => {
+                        expr_builder.group_concat(expr, *distinct, separator.as_deref())
+                    }
                     AggregateFunction::Custom(name) => {
                         return plan_err!("Unsupported custom aggregate function: {name}");
                     }

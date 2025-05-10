@@ -1,14 +1,14 @@
-use crate::plain_term_encoding::PlainTermEncoding;
-use crate::value_encoding::TypedValueEncoding;
+use crate::plain_term::PlainTermEncoding;
+use crate::typed_value::TypedValueEncoding;
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 
 mod encoding;
 pub mod error;
-pub mod plain_term_encoding;
+pub mod plain_term;
 mod scalar_encoder;
-pub mod sortable_encoding;
-pub mod value_encoding;
+pub mod sortable;
+pub mod typed_value;
 
 pub use encoding::*;
 pub use scalar_encoder::ScalarEncoder;
