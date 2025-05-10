@@ -1,9 +1,11 @@
-use graphfusion_encoding::value_encoding::scalars::{encode_scalar_literal, encode_scalar_named_node};
-use graphfusion_encoding::value_encoding::{ENC_AS_NATIVE_BOOLEAN, ENC_SAME_TERM};
-use datafusion::common::{Column, ScalarValue};
-use datafusion::logical_expr::{lit, Expr};
+use crate::expr_builder::GraphFusionExprBuilder;
+use crate::DFResult;
+use datafusion::common::Column;
+use datafusion::logical_expr::Expr;
+use datafusion::prelude::col;
+use graphfusion_encoding::TermEncoding;
 use graphfusion_model::{Literal, NamedNode};
-use spargebra::term::{BlankNode, GraphNamePattern, NamedNodePattern, TermPattern, Variable};
+use spargebra::term::{BlankNode, GraphNamePattern, NamedNodePattern, Term, TermPattern, Variable};
 use std::fmt::{Display, Formatter};
 
 /// An element that can be part of a [PatternNode]. This enum is the union of all pattern variants.
@@ -27,23 +29,26 @@ pub enum PatternNodeElement {
 impl PatternNodeElement {
     /// Creates an [Expr] that filters `column` based on the contents of this element.
     #[allow(clippy::unwrap_in_result, reason = "TODO")]
-    pub fn filter_expression(&self, column: &Column) -> Option<Expr> {
-        match self {
-            PatternNodeElement::NamedNode(nn) => Some(filter_by_scalar(
-                column,
-                encode_scalar_named_node(nn.as_ref()),
-            )),
-            PatternNodeElement::Literal(lit) => Some(filter_by_scalar(
-                column,
-                encode_scalar_literal(lit.as_ref()).unwrap(),
-            )),
+    pub fn filter_expression(
+        &self,
+        factory: &GraphFusionExprBuilder,
+        column: &Column,
+    ) -> DFResult<Option<Expr>> {
+        let result = match self {
+            PatternNodeElement::NamedNode(nn) => Some(
+                factory.filter_by_scalar(col(column.clone()), Term::from(nn.clone()).as_ref())?,
+            ),
+            PatternNodeElement::Literal(lit) => Some(
+                factory.filter_by_scalar(col(column.clone()), Term::from(lit.clone()).as_ref())?,
+            ),
             PatternNodeElement::BlankNode(_) => {
                 // A blank node indicates that this should be a non-default graph.
                 Some(Expr::from(column.clone()).is_not_null())
             }
             PatternNodeElement::DefaultGraph => Some(Expr::from(column.clone()).is_null()),
             _ => None,
-        }
+        };
+        Ok(result)
     }
 
     /// Returns a reference to a possible variable.
@@ -97,10 +102,4 @@ impl From<GraphNamePattern> for PatternNodeElement {
             GraphNamePattern::Variable(var) => PatternNodeElement::Variable(var),
         }
     }
-}
-
-fn filter_by_scalar(column: &Column, scalar: ScalarValue) -> Expr {
-    ENC_AS_NATIVE_BOOLEAN.call(vec![
-        ENC_SAME_TERM.call(vec![Expr::from(column.clone()), lit(scalar)])
-    ])
 }

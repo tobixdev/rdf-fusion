@@ -18,7 +18,7 @@ impl_ternary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     DefaultTermValueEncoder,
-    IfValueTernaryDispatcher,
+    IfTypedValueFactory,
     IfSparqlOp,
     BuiltinName::If
 );
@@ -30,7 +30,7 @@ impl_ternary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    RegexValueTernaryDispatcher,
+    RegexTypedValueFactory,
     RegexSparqlOp,
     BuiltinName::Regex
 );
@@ -40,7 +40,7 @@ impl_ternary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    ReplaceValueTernaryDispatcher,
+    ReplaceTypedValueFactory,
     ReplaceSparqlOp,
     BuiltinName::Replace
 );

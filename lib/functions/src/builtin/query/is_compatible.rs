@@ -2,12 +2,12 @@ use crate::builtin::{BuiltinName, GraphFusionBuiltinFactory};
 use crate::DFResult;
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, plan_err, ScalarValue};
+use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
-use graphfusion_encoding::plain_term_encoding::decoders::PlainTermDefaultDecoder;
+use graphfusion_encoding::plain_term_encoding::decoders::DefaultPlainTermDecoder;
 use graphfusion_encoding::plain_term_encoding::PlainTermEncoding;
 use graphfusion_encoding::{EncodingName, TermDecoder, TermEncoding};
 use graphfusion_model::{Term, TermRef, ThinError, ThinResult};
@@ -102,8 +102,8 @@ pub(crate) fn dispatch_binary_array_array(
     lhs: &<PlainTermEncoding as TermEncoding>::Array,
     rhs: &<PlainTermEncoding as TermEncoding>::Array,
 ) -> DFResult<ColumnarValue> {
-    let lhs = PlainTermDefaultDecoder::decode_terms(lhs);
-    let rhs = PlainTermDefaultDecoder::decode_terms(rhs);
+    let lhs = DefaultPlainTermDecoder::decode_terms(lhs);
+    let rhs = DefaultPlainTermDecoder::decode_terms(rhs);
 
     let results = lhs
         .zip(rhs)
@@ -125,9 +125,9 @@ pub(crate) fn dispatch_binary_scalar_array(
     lhs: &<PlainTermEncoding as TermEncoding>::Scalar,
     rhs: &<PlainTermEncoding as TermEncoding>::Array,
 ) -> DFResult<ColumnarValue> {
-    let lhs_value = PlainTermDefaultDecoder::decode_term(lhs);
+    let lhs_value = DefaultPlainTermDecoder::decode_term(lhs);
 
-    let results = PlainTermDefaultDecoder::decode_terms(rhs)
+    let results = DefaultPlainTermDecoder::decode_terms(rhs)
         .map(|rhs_value| check_compatibility(lhs_value, rhs_value).map(|r| Some(r)))
         .collect::<Result<BooleanArray, ThinError>>();
 
@@ -146,9 +146,9 @@ pub(crate) fn dispatch_binary_array_scalar(
     lhs: &<PlainTermEncoding as TermEncoding>::Array,
     rhs: &<PlainTermEncoding as TermEncoding>::Scalar,
 ) -> DFResult<ColumnarValue> {
-    let rhs_value = PlainTermDefaultDecoder::decode_term(rhs);
+    let rhs_value = DefaultPlainTermDecoder::decode_term(rhs);
 
-    let results = PlainTermDefaultDecoder::decode_terms(lhs)
+    let results = DefaultPlainTermDecoder::decode_terms(lhs)
         .map(|lhs_value| check_compatibility(lhs_value, rhs_value).map(|r| Some(r)))
         .collect::<Result<BooleanArray, ThinError>>();
 
@@ -167,8 +167,8 @@ pub(crate) fn dispatch_binary_scalar_scalar(
     lhs: &<PlainTermEncoding as TermEncoding>::Scalar,
     rhs: &<PlainTermEncoding as TermEncoding>::Scalar,
 ) -> DFResult<ColumnarValue> {
-    let lhs = PlainTermDefaultDecoder::decode_term(lhs);
-    let rhs = PlainTermDefaultDecoder::decode_term(rhs);
+    let lhs = DefaultPlainTermDecoder::decode_term(lhs);
+    let rhs = DefaultPlainTermDecoder::decode_term(rhs);
 
     match check_compatibility(lhs, rhs) {
         Ok(result) => Ok(ColumnarValue::Scalar(ScalarValue::Boolean(Some(result)))),

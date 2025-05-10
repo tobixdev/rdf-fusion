@@ -1,29 +1,26 @@
+use crate::expr_builder::GraphFusionExprBuilder;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
-use crate::paths::{PathNode, COL_SOURCE, COL_TARGET};
+use crate::paths::{PathNode, COL_SOURCE, COL_TARGET, PATH_TABLE_DFSCHEMA};
 use crate::patterns::PatternNode;
 use crate::DFResult;
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, JoinType};
 use datafusion::datasource::DefaultTableSource;
-use datafusion::logical_expr::{col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
+use datafusion::logical_expr::{col, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
-use graphfusion_encoding::value_encoding::scalars::{
-    encode_scalar_named_node, encode_scalar_predicate,
-};
-use graphfusion_encoding::value_encoding::{
-    ENC_AS_NATIVE_BOOLEAN, ENC_EFFECTIVE_BOOLEAN_VALUE, ENC_IS_COMPATIBLE, ENC_SAME_TERM,
-    ENC_WITH_SORTABLE_ENCODING,
-};
 use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
-use graphfusion_model::NamedNode;
+use graphfusion_functions::registry::GraphFusionBuiltinRegistryRef;
+use graphfusion_model::{NamedNode, TermRef};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::NamedNodePattern;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PathToJoinsRule {
+    /// Used for creating expressions with GraphFusion builtins.
+    expr_builder: GraphFusionExprBuilder,
     // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
     quads_table: Arc<dyn TableProvider>,
 }
@@ -55,8 +52,15 @@ impl OptimizerRule for PathToJoinsRule {
 }
 
 impl PathToJoinsRule {
-    pub fn new(quads_table: Arc<dyn TableProvider>) -> Self {
-        Self { quads_table }
+    pub fn new(
+        builtins: GraphFusionBuiltinRegistryRef,
+        quads_table: Arc<dyn TableProvider>,
+    ) -> Self {
+        let expr_builder = GraphFusionExprBuilder::new(PATH_TABLE_DFSCHEMA.clone(), builtins);
+        Self {
+            expr_builder,
+            quads_table,
+        }
     }
 
     fn rewrite_path_node(&self, node: &PathNode) -> DFResult<LogicalPlan> {
@@ -113,10 +117,9 @@ impl PathToJoinsRule {
         graph: Option<&NamedNodePattern>,
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
-        let filter = ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-            col(COL_PREDICATE),
-            lit(encode_scalar_predicate(node.as_ref())),
-        ])]);
+        let filter = self
+            .expr_builder
+            .filter_by_scalar(col(COL_PREDICATE), TermRef::from(node.as_ref()))?;
         self.scan_quads(graph, Some(filter))
     }
 
@@ -127,20 +130,23 @@ impl PathToJoinsRule {
         graph: Option<&NamedNodePattern>,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
-        let test_expression = nodes
+        let test_expressions = nodes
             .iter()
-            .map(|nn| lit(encode_scalar_predicate(nn.as_ref())))
-            .map(|expr| {
-                ENC_EFFECTIVE_BOOLEAN_VALUE
-                    .call(vec![ENC_SAME_TERM.call(vec![col(COL_PREDICATE), expr])])
+            .map(|nn| {
+                self.expr_builder
+                    .filter_by_scalar(col(COL_PREDICATE), TermRef::from(nn.as_ref()))
             })
-            .reduce(or)
-            .ok_or(plan_datafusion_err!(
-                "The negated property set must not be empty"
-            ))?;
+            .collect::<DFResult<Vec<Expr>>>()?;
+        let test_expression =
+            test_expressions
+                .into_iter()
+                .reduce(or)
+                .ok_or(plan_datafusion_err!(
+                    "The negated property set must not be empty"
+                ))?;
 
-        let paths = self.scan_quads(graph, Some(not(test_expression)))?;
-        make_distinct(paths)
+        self.scan_quads(graph, Some(not(test_expression)))?
+            .distinct()
     }
 
     /// Reverses the inner path by swapping [COL_SOURCE] and [COL_TARGET].
@@ -166,7 +172,7 @@ impl PathToJoinsRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let lhs = self.rewrite_property_path_expression(graph, lhs)?;
         let rhs = self.rewrite_property_path_expression(graph, rhs)?;
-        join_path_alternatives(lhs, rhs)
+        self.join_path_alternatives(lhs, rhs)?.distinct()
     }
 
     /// Rewrites a sequence by joining the [COL_TARGET] of the lhs to the [COL_SOURCE] of the `rhs`.
@@ -178,7 +184,7 @@ impl PathToJoinsRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let lhs = self.rewrite_property_path_expression(graph, lhs)?;
         let rhs = self.rewrite_property_path_expression(graph, rhs)?;
-        make_distinct(join_path_sequence(graph, lhs, rhs)?)
+        self.join_path_sequence(graph, lhs, rhs)?.distinct()
     }
 
     /// Rewrites a zero or more to a CTE.
@@ -189,8 +195,7 @@ impl PathToJoinsRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let zero = self.zero_length_paths(graph)?;
         let repetition = self.rewrite_one_or_more(graph, inner)?;
-        let paths = join_path_alternatives(zero, repetition)?;
-        make_distinct(paths)
+        self.join_path_alternatives(zero, repetition)?.distinct()
     }
 
     /// Rewrites a one or more by building a recursive query.
@@ -216,7 +221,7 @@ impl PathToJoinsRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let zero = self.zero_length_paths(graph)?;
         let one = self.rewrite_property_path_expression(graph, inner)?;
-        join_path_alternatives(zero, one)
+        self.join_path_alternatives(zero, one)
     }
 
     /// Returns a list of all subjects and objects in the graph where they both are the source and
@@ -233,7 +238,7 @@ impl PathToJoinsRule {
             col(COL_TARGET).alias(COL_SOURCE),
             col(COL_TARGET).alias(COL_TARGET),
         ])?;
-        make_distinct(subjects.union(objects.build()?)?)
+        subjects.union(objects.build()?)?.distinct()
     }
 
     /// Scans the quads table and optionally filters it to the given named graph.
@@ -251,10 +256,10 @@ impl PathToJoinsRule {
         // Apply graph filter if present
         let query = match graph {
             Some(NamedNodePattern::NamedNode(nn)) => {
-                query.filter(ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-                    col(COL_GRAPH),
-                    lit(encode_scalar_named_node(nn.as_ref())),
-                ])]))?
+                let filter = self
+                    .expr_builder
+                    .filter_by_scalar(col(COL_GRAPH), TermRef::from(nn.as_ref()))?;
+                query.filter(filter)?
             }
             _ => query,
         };
@@ -275,53 +280,43 @@ impl PathToJoinsRule {
 
         Ok(query)
     }
-}
 
-/// Creates a join that represents a sequence of two paths.
-fn join_path_sequence(
-    graph: Option<&NamedNodePattern>,
-    lhs: LogicalPlanBuilder,
-    rhs: LogicalPlanBuilder,
-) -> DFResult<LogicalPlanBuilder> {
-    let path_join_expr = ENC_AS_NATIVE_BOOLEAN.call(vec![ENC_SAME_TERM.call(vec![
-        Expr::from(Column::new(Some("lhs"), COL_TARGET)),
-        Expr::from(Column::new(Some("rhs"), COL_SOURCE)),
-    ])]);
-    let mut on_exprs = vec![path_join_expr];
+    /// Creates a join that represents a sequence of two paths.
+    fn join_path_sequence(
+        &self,
+        graph: Option<&NamedNodePattern>,
+        lhs: LogicalPlanBuilder,
+        rhs: LogicalPlanBuilder,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let path_join_expr = self.expr_builder.same_term(
+            Expr::from(Column::new(Some("lhs"), COL_TARGET)),
+            Expr::from(Column::new(Some("rhs"), COL_SOURCE)),
+        )?;
+        let mut on_exprs = vec![path_join_expr];
 
-    if graph.is_some() {
-        on_exprs.push(ENC_IS_COMPATIBLE.call(vec![
-            Expr::from(Column::new(Some("lhs"), COL_GRAPH)),
-            Expr::from(Column::new(Some("rhs"), COL_GRAPH)),
-        ]))
+        if graph.is_some() {
+            let graph_expr = self.expr_builder.same_term(
+                Expr::from(Column::new(Some("lhs"), COL_GRAPH)),
+                Expr::from(Column::new(Some("rhs"), COL_GRAPH)),
+            )?;
+            on_exprs.push(graph_expr)
+        }
+
+        lhs.alias("lhs")?
+            .join_on(rhs.alias("rhs")?.build()?, JoinType::Inner, on_exprs)?
+            .project([
+                col(Column::new(Some("lhs"), COL_GRAPH)).alias(COL_GRAPH),
+                col(Column::new(Some("lhs"), COL_SOURCE)).alias(COL_SOURCE),
+                col(Column::new(Some("rhs"), COL_TARGET)).alias(COL_TARGET),
+            ])
     }
 
-    lhs.alias("lhs")?
-        .join_on(rhs.alias("rhs")?.build()?, JoinType::Inner, on_exprs)?
-        .project([
-            col(Column::new(Some("lhs"), COL_GRAPH)).alias(COL_GRAPH),
-            col(Column::new(Some("lhs"), COL_SOURCE)).alias(COL_SOURCE),
-            col(Column::new(Some("rhs"), COL_TARGET)).alias(COL_TARGET),
-        ])
-}
-
-/// Creates a union that represents an alternative of two paths.
-fn join_path_alternatives(
-    lhs: LogicalPlanBuilder,
-    rhs: LogicalPlanBuilder,
-) -> DFResult<LogicalPlanBuilder> {
-    lhs.union(rhs.build()?)
-}
-
-/// Makes the path set distinct.
-fn make_distinct(builder: LogicalPlanBuilder) -> DFResult<LogicalPlanBuilder> {
-    builder.distinct_on(
-        vec![
-            ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_GRAPH)]),
-            ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_SOURCE)]),
-            ENC_WITH_SORTABLE_ENCODING.call(vec![col(COL_TARGET)]),
-        ],
-        vec![col(COL_GRAPH), col(COL_SOURCE), col(COL_TARGET)],
-        None,
-    )
+    /// Creates a union that represents an alternative of two paths.
+    fn join_path_alternatives(
+        &self,
+        lhs: LogicalPlanBuilder,
+        rhs: LogicalPlanBuilder,
+    ) -> DFResult<LogicalPlanBuilder> {
+        lhs.union(rhs.build()?)
+    }
 }

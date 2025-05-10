@@ -15,7 +15,7 @@ impl_quarternary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    RegexTermValueQuarternaryDispatcher,
+    RegexTermTypedValueFactory,
     ReplaceSparqlOp,
     BuiltinName::Replace
 );

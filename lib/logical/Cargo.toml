@@ -7,6 +7,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+graphfusion-encoding.workspace = true
 graphfusion-functions.workspace = true
 datafusion.workspace = true
 graphfusion-model.workspace = true

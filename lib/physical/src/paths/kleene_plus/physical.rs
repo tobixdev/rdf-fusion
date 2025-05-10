@@ -1,6 +1,4 @@
 use crate::DFResult;
-use graphfusion_encoding::as_term_value_array;
-use graphfusion_encoding::value_encoding::{TypedValueArrayBuilder, FromArrowRdfTermValue};
 use datafusion::arrow::array::RecordBatchOptions;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -14,8 +12,18 @@ use datafusion::physical_plan::{
     RecordBatchStream,
 };
 use futures::{Stream, StreamExt};
+use graphfusion_encoding::plain_term_encoding::decoders::{
+    DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
+};
+use graphfusion_encoding::plain_term_encoding::encoders::DefaultPlainTermEncoder;
+use graphfusion_encoding::plain_term_encoding::{
+    PlainTermArray, PlainTermArrayBuilder, PlainTermEncoding,
+};
+use graphfusion_encoding::value_encoding::TypedValueArrayBuilder;
+use graphfusion_encoding::{TermDecoder, TermEncoding};
 use graphfusion_logical::paths::PATH_TABLE_SCHEMA;
-use graphfusion_model::{GraphName, GraphNameRef, InternalTerm, TypedValueRef};
+use graphfusion_model::{GraphName, GraphNameRef, Term, TypedValueRef};
+use itertools::izip;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Formatter;
@@ -27,9 +35,12 @@ use std::task::{ready, Context, Poll};
 /// Represents a path in the closure.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 struct Path {
+    /// TODO
     graph: GraphName,
-    start: InternalTerm,
-    end: InternalTerm,
+    /// TODO
+    start: Term,
+    /// TODO
+    end: Term,
 }
 
 /// Represents a Kleene-plus path closure execution plan. This plan computes the Kleene-plus closure
@@ -155,8 +166,11 @@ struct KleenePlusClosureStream {
     allow_cross_graph_paths: bool,
 
     // State
-    initial_paths_map: HashMap<GraphName, HashSet<(InternalTerm, InternalTerm)>>,
+    /// TODO
+    initial_paths_map: HashMap<GraphName, HashSet<(Term, Term)>>,
+    /// TODO
     all_paths: HashSet<Path>,
+    /// TODO
     current_delta: Vec<Path>,
 }
 
@@ -274,18 +288,22 @@ impl KleenePlusClosureStream {
     ///
     /// This adds all inner paths to the `initial_paths_map`, `all_paths`, and the `current_delta`.
     fn collect_next_batch(&mut self, batch: &RecordBatch) -> DFResult<()> {
-        let graph_names = as_term_value_array(batch.column(0))?;
-        let starts = as_term_value_array(batch.column(1))?;
-        let ends = as_term_value_array(batch.column(2))?;
+        let graph_names = PlainTermEncoding::try_new_array(batch.column(0).clone())?;
+        let starts = PlainTermEncoding::try_new_array(batch.column(1).clone())?;
+        let ends = PlainTermEncoding::try_new_array(batch.column(2).clone())?;
 
-        for i in 0..batch.num_rows() {
-            let graph = GraphNameRef::from_array(graph_names, i).map_err(|_| {
+        let graph_names = GraphNameRefPlainTermDecoder::decode_terms(&graph_names);
+        let starts = DefaultPlainTermDecoder::decode_terms(&starts);
+        let ends = DefaultPlainTermDecoder::decode_terms(&ends);
+
+        for (graph, start, end) in izip!(graph_names, starts, ends) {
+            let graph = graph.map_err(|_| {
                 exec_datafusion_err!("Could not obtain graph value from inner paths.")
             })?;
-            let start = TypedValueRef::from_array(starts, i).map_err(|_| {
+            let start = start.map_err(|_| {
                 exec_datafusion_err!("Could not obtain start value from inner paths.")
             })?;
-            let end = TypedValueRef::from_array(ends, i).map_err(|_| {
+            let end = end.map_err(|_| {
                 exec_datafusion_err!("Could not obtain end value from inner paths.")
             })?;
 
@@ -308,7 +326,7 @@ impl KleenePlusClosureStream {
     }
 
     fn compute_new_cross_graph_paths(
-        initial_paths_map: &HashMap<GraphName, HashSet<(InternalTerm, InternalTerm)>>,
+        initial_paths_map: &HashMap<GraphName, HashSet<(Term, Term)>>,
         all_paths: &mut HashSet<Path>,
         next_delta: &mut Vec<Path>,
         current_path: &Path,
@@ -325,7 +343,7 @@ impl KleenePlusClosureStream {
     }
 
     fn compute_new_single_graph_paths(
-        initial_paths_map: &HashMap<GraphName, HashSet<(InternalTerm, InternalTerm)>>,
+        initial_paths_map: &HashMap<GraphName, HashSet<(Term, Term)>>,
         all_paths: &mut HashSet<Path>,
         next_delta: &mut Vec<Path>,
         graph_name: &GraphName,
@@ -350,23 +368,23 @@ impl KleenePlusClosureStream {
 
     /// Creates a [RecordBatch] from the internal state of `self`.
     fn create_output_batch(&self) -> DFResult<RecordBatch> {
-        let mut graph_builder = TypedValueArrayBuilder::default();
-        let mut start_builder = TypedValueArrayBuilder::default();
-        let mut end_builder = TypedValueArrayBuilder::default();
+        let mut graph_builder = PlainTermArrayBuilder::default();
+        let mut start_builder = PlainTermArrayBuilder::default();
+        let mut end_builder = PlainTermArrayBuilder::default();
 
         for path in &self.all_paths {
             match &path.graph {
-                GraphName::NamedNode(named) => graph_builder.append_named_node(named.as_str())?,
-                GraphName::BlankNode(bnode) => graph_builder.append_blank_node(bnode.as_ref())?,
-                GraphName::DefaultGraph => graph_builder.append_null()?,
+                GraphName::NamedNode(named) => graph_builder.append_named_node(named.as_ref()),
+                GraphName::BlankNode(bnode) => graph_builder.append_blank_node(bnode.as_ref()),
+                GraphName::DefaultGraph => graph_builder.append_null(),
             }
-            start_builder.append_term(&path.start.as_ref().into_decoded())?;
-            end_builder.append_term(&path.end.as_ref().into_decoded())?;
+            start_builder.append_term(path.start.as_ref());
+            end_builder.append_term(path.end.as_ref());
         }
 
-        let graph_array = graph_builder.finish()?;
-        let start_array = start_builder.finish()?;
-        let end_array = end_builder.finish()?;
+        let graph_array = graph_builder.finish();
+        let start_array = start_builder.finish();
+        let end_array = end_builder.finish();
 
         let options = RecordBatchOptions::new().with_row_count(Some(self.all_paths.len()));
         RecordBatch::try_new_with_options(

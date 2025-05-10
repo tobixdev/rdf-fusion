@@ -6,10 +6,10 @@ use datafusion::arrow::datatypes::UInt8Type;
 use graphfusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
 
 #[derive(Debug)]
-pub struct PlainTermDefaultDecoder {}
+pub struct DefaultPlainTermDecoder {}
 
 /// Extracts a sequence of term references from the given array.
-impl TermDecoder<PlainTermEncoding> for PlainTermDefaultDecoder {
+impl TermDecoder<PlainTermEncoding> for DefaultPlainTermDecoder {
     type Term<'data> = TermRef<'data>;
 
     fn decode_terms(

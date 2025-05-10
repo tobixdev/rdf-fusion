@@ -4,9 +4,9 @@ use crate::{DFResult, TermEncoding};
 use graphfusion_model::{TermRef, ThinResult};
 
 #[derive(Debug)]
-pub struct PlainTermDefaultEncoder;
+pub struct DefaultPlainTermEncoder;
 
-impl TermEncoder<PlainTermEncoding> for PlainTermDefaultEncoder {
+impl TermEncoder<PlainTermEncoding> for DefaultPlainTermEncoder {
     type Term<'data> = TermRef<'data>;
 
     fn encode_terms<'data>(

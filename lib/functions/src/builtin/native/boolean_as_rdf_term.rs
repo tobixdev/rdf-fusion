@@ -3,7 +3,7 @@ use crate::builtin::BuiltinName;
 use crate::DFResult;
 use datafusion::arrow::array::{as_boolean_array, Array};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, plan_err};
+use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,

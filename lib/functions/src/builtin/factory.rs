@@ -9,7 +9,7 @@ use std::fmt::Debug;
 /// A SPARQL operation that can be dispatched on arrow-encoded terms or term values.
 ///
 /// Contrary to a regular [SparqlOp], the SparqlOpDispatcher knows about the used encoding.
-pub trait GraphFusionBuiltinFactory: Debug {
+pub trait GraphFusionBuiltinFactory: Debug + Send + Sync {
     /// Returns the name of the GraphFusion built-in.
     fn name(&self) -> BuiltinName;
 

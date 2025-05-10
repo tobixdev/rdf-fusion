@@ -22,7 +22,7 @@ impl_binary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    SameTermValueBinaryDispatcher,
+    SameTermTypedValueFactory,
     SameTermSparqlOp,
     BuiltinName::SameTerm
 );
@@ -31,7 +31,7 @@ impl_binary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    EqValueBinaryDispatcher,
+    EqTypedValueFactory,
     EqSparqlOp,
     BuiltinName::Eq
 );
@@ -40,7 +40,7 @@ impl_binary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    GreaterThanValueBinaryDispatcher,
+    GreaterThanTypedValueFactory,
     GreaterThanSparqlOp,
     BuiltinName::GreaterThan
 );
@@ -49,7 +49,7 @@ impl_binary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    GreaterOrEqualValueBinaryDispatcher,
+    GreaterOrEqualTypedValueFactory,
     GreaterOrEqualSparqlOp,
     BuiltinName::GreaterOrEqual
 );
@@ -58,7 +58,7 @@ impl_binary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    LessThanValueBinaryDispatcher,
+    LessThanTypedValueFactory,
     LessThanSparqlOp,
     BuiltinName::LessThan
 );
@@ -67,7 +67,7 @@ impl_binary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    LessOrEqualValueBinaryDispatcher,
+    LessOrEqualTypedValueFactory,
     LessOrEqualSparqlOp,
     BuiltinName::LessOrEqual
 );
@@ -78,7 +78,7 @@ impl_binary_sparql_op!(
     NumericTermValueDecoder,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    AddValueBinaryDispatcher,
+    AddTypedValueFactory,
     AddSparqlOp,
     BuiltinName::Add
 );
@@ -87,7 +87,7 @@ impl_binary_sparql_op!(
     NumericTermValueDecoder,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    DivValueBinaryDispatcher,
+    DivTypedValueFactory,
     DivSparqlOp,
     BuiltinName::Div
 );
@@ -96,7 +96,7 @@ impl_binary_sparql_op!(
     NumericTermValueDecoder,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    MulValueBinaryDispatcher,
+    MulTypedValueFactory,
     MulSparqlOp,
     BuiltinName::Mul
 );
@@ -105,7 +105,7 @@ impl_binary_sparql_op!(
     NumericTermValueDecoder,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    SubValueBinaryDispatcher,
+    SubTypedValueFactory,
     SubSparqlOp,
     BuiltinName::Sub
 );
@@ -116,7 +116,7 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    ContainsValueBinaryDispatcher,
+    ContainsTypedValueFactory,
     ContainsSparqlOp,
     BuiltinName::Contains
 );
@@ -125,7 +125,7 @@ impl_binary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    LangMatchesValueBinaryDispatcher,
+    LangMatchesTypedValueFactory,
     LangMatchesSparqlOp,
     BuiltinName::LangMatches
 );
@@ -134,7 +134,7 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    RegexValueBinaryDispatcher,
+    RegexTypedValueFactory,
     RegexSparqlOp,
     BuiltinName::Regex
 );
@@ -143,7 +143,7 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueEncoder,
-    StrAfterValueBinaryDispatcher,
+    StrAfterTypedValueFactory,
     StrAfterSparqlOp,
     BuiltinName::StrAfter
 );
@@ -152,7 +152,7 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueEncoder,
-    StrBeforeValueBinaryDispatcher,
+    StrBeforeTypedValueFactory,
     StrBeforeSparqlOp,
     BuiltinName::StrBefore
 );
@@ -161,7 +161,7 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    StrEndsValueBinaryDispatcher,
+    StrEndsTypedValueFactory,
     StrEndsSparqlOp,
     BuiltinName::StrEnds
 );
@@ -170,7 +170,7 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    StrStartsValueBinaryDispatcher,
+    StrStartsTypedValueFactory,
     StrStartsSparqlOp,
     BuiltinName::StrStarts
 );
@@ -179,7 +179,7 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     IntegerTermValueDecoder,
     StringLiteralRefTermValueEncoder,
-    SubStrValueBinaryDispatcher,
+    SubStrTypedValueFactory,
     SubStrSparqlOp,
     BuiltinName::SubStr
 );
@@ -190,7 +190,7 @@ impl_binary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     NamedNodeRefTermValueDecoder,
     LiteralRefTermValueEncoder,
-    SubDtValueBinaryDispatcher,
+    SubDtTypedValueFactory,
     StrDtSparqlOp,
     BuiltinName::StrDt
 );
@@ -199,7 +199,7 @@ impl_binary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    SubLangValueBinaryDispatcher,
+    SubLangTypedValueFactory,
     StrLangSparqlOp,
     BuiltinName::StrLang
 );

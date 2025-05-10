@@ -9,6 +9,8 @@ rust-version.workspace = true
 [dependencies]
 async-trait.workspace = true
 datafusion.workspace = true
+graphfusion-encoding.workspace = true
+graphfusion-functions.workspace = true
 graphfusion-model.workspace = true
 futures.workspace = true
 graphfusion-logical.workspace = true

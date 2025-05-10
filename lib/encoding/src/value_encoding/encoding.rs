@@ -7,7 +7,7 @@ use crate::{DFResult, EncodingName};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
-use graphfusion_model::{Decimal, ThinError};
+use graphfusion_model::{Decimal, TermRef, ThinError, TypedValueRef};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
@@ -182,6 +182,14 @@ impl TermEncoding for TypedValueEncoding {
 
     fn try_new_scalar(scalar: ScalarValue) -> DFResult<Self::Scalar> {
         scalar.try_into()
+    }
+
+    fn encode_scalar(term: TermRef<'_>) -> DFResult<Self::Scalar> {
+        todo!()
+    }
+
+    fn encode_null_scalar() -> DFResult<Self::Scalar> {
+        todo!()
     }
 }
 

@@ -1,13 +1,14 @@
 use crate::patterns::pattern_element::PatternNodeElement;
 use crate::DFResult;
-use graphfusion_encoding::value_encoding::RdfTermValueEncoding;
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+use graphfusion_encoding::plain_term_encoding::PlainTermEncoding;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
+use graphfusion_encoding::TermEncoding;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct PatternNode {
@@ -49,9 +50,10 @@ impl PatternNode {
             }
         }
 
+        // TODO: base this on the inner
         let fields = fields
             .into_iter()
-            .map(|name| Field::new(name, RdfTermValueEncoding::datatype(), true))
+            .map(|name| Field::new(name, PlainTermEncoding::data_type(), true))
             .collect::<Fields>();
         Ok(Arc::new(DFSchema::from_unqualified_fields(
             fields,

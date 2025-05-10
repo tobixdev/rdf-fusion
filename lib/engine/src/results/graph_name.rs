@@ -1,11 +1,11 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::QueryEvaluationError;
 use crate::DFResult;
-use graphfusion_encoding::value_encoding::RdfTermValueEncoding;
-use graphfusion_encoding::COL_GRAPH;
 use datafusion::common::exec_err;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
+use graphfusion_encoding::plain_term_encoding::PlainTermEncoding;
+use graphfusion_encoding::{TermEncoding, COL_GRAPH};
 use graphfusion_model::{NamedOrBlankNode, Term, Variable};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -28,7 +28,7 @@ impl GraphNameStream {
             return exec_err!("Unexpected number of columns in the result");
         }
 
-        if stream.schema().field(0).data_type() != &RdfTermValueEncoding::datatype() {
+        if stream.schema().field(0).data_type() != &PlainTermEncoding::data_type() {
             return exec_err!("Unexpected data type in the result");
         }
 

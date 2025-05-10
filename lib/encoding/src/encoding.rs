@@ -3,7 +3,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use graphfusion_model::ThinResult;
+use graphfusion_model::{Term, TermRef, ThinResult};
 use std::fmt::Debug;
 
 /// TODO
@@ -13,6 +13,8 @@ pub enum EncodingName {
     PlainTerm,
     /// TODO
     TypedValue,
+    /// TODO
+    Sortable,
 }
 
 /// Represents an arrow [Array] with a specific Encoding.
@@ -80,6 +82,12 @@ pub trait TermEncoding: Debug + Send + Sync {
         };
         Ok(datum)
     }
+
+    /// TODO
+    fn encode_scalar(term: TermRef<'_>) -> DFResult<Self::Scalar>;
+
+    /// TOOD
+    fn encode_null_scalar() -> DFResult<Self::Scalar>;
 }
 
 /// Allows extracting an iterator of a type from an [EncodingArray].
@@ -104,7 +112,7 @@ pub trait TermEncoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
 
     /// TODO
     fn encode_term(term: ThinResult<Self::Term<'_>>) -> DFResult<TEncoding::Scalar>;
-}
+ }
 
 /// TODO
 pub enum EncodingDatum<TEncoding: TermEncoding + ?Sized> {

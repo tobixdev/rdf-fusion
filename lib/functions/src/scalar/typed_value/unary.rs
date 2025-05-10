@@ -36,7 +36,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    AsBooleanValueUnaryDispatcher,
+    AsBooleanTypedValueFactory,
     AsBooleanSparqlOp,
     BuiltinName::AsBoolean
 );
@@ -44,7 +44,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DateTimeTermValueEncoder,
-    AsDateTimeValueUnaryDispatcher,
+    AsDateTimeTypedValueFactory,
     AsDateTimeSparqlOp,
     BuiltinName::AsDateTime
 );
@@ -52,7 +52,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DecimalTermValueEncoder,
-    AsDecimalValueUnaryDispatcher,
+    AsDecimalTypedValueFactory,
     AsDecimalSparqlOp,
     BuiltinName::AsDecimal
 );
@@ -60,7 +60,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DoubleTermValueEncoder,
-    AsDoubleValueUnaryDispatcher,
+    AsDoubleTypedValueFactory,
     AsDoubleSparqlOp,
     BuiltinName::AsDouble
 );
@@ -68,7 +68,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     FloatTermValueEncoder,
-    AsFloatValueUnaryDispatcher,
+    AsFloatTypedValueFactory,
     AsFloatSparqlOp,
     BuiltinName::AsFloat
 );
@@ -76,7 +76,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     IntTermValueEncoder,
-    AsIntValueUnaryDispatcher,
+    AsIntTypedValueFactory,
     AsIntSparqlOp,
     BuiltinName::AsInt
 );
@@ -84,7 +84,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     IntegerTermValueEncoder,
-    AsIntegerValueUnaryDispatcher,
+    AsIntegerTypedValueFactory,
     AsIntegerSparqlOp,
     BuiltinName::AsInteger
 );
@@ -92,7 +92,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    AsStringValueUnaryDispatcher,
+    AsStringTypedValueFactory,
     AsStringSparqlOp,
     BuiltinName::AsString
 );
@@ -102,7 +102,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    DayValueUnaryDispatcher,
+    DayTypedValueFactory,
     DaySparqlOp,
     BuiltinName::Day
 );
@@ -110,7 +110,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    HoursValueUnaryDispatcher,
+    HoursTypedValueFactory,
     HoursSparqlOp,
     BuiltinName::Hours
 );
@@ -118,7 +118,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    MinutesValueUnaryDispatcher,
+    MinutesTypedValueFactory,
     MinutesSparqlOp,
     BuiltinName::Minutes
 );
@@ -126,7 +126,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    MonthValueUnaryDispatcher,
+    MonthTypedValueFactory,
     MonthSparqlOp,
     BuiltinName::Month
 );
@@ -134,7 +134,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     DecimalTermValueEncoder,
-    SecondsValueUnaryDispatcher,
+    SecondsTypedValueFactory,
     SecondsSparqlOp,
     BuiltinName::Seconds
 );
@@ -142,7 +142,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     DayTimeDurationTermValueEncoder,
-    TimezoneValueUnaryDispatcher,
+    TimezoneTypedValueFactory,
     TimezoneSparqlOp,
     BuiltinName::Timezone
 );
@@ -150,7 +150,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    TzValueUnaryDispatcher,
+    TzTypedValueFactory,
     TzSparqlOp,
     BuiltinName::Tz
 );
@@ -158,7 +158,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    YearValueUnaryDispatcher,
+    YearTypedValueFactory,
     YearSparqlOp,
     BuiltinName::Year
 );
@@ -168,7 +168,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder, // For Bound
-    BoundValueUnaryDispatcher,
+    BoundTypedValueFactory,
     BoundSparqlOp,
     BuiltinName::Bound
 );
@@ -178,7 +178,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Md5ValueUnaryDispatcher,
+    Md5TypedValueFactory,
     Md5SparqlOp,
     BuiltinName::Md5
 );
@@ -186,7 +186,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Sha1ValueUnaryDispatcher,
+    Sha1TypedValueFactory,
     Sha1SparqlOp,
     BuiltinName::Sha1
 );
@@ -194,7 +194,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Sha256ValueUnaryDispatcher,
+    Sha256TypedValueFactory,
     Sha256SparqlOp,
     BuiltinName::Sha256
 );
@@ -202,7 +202,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Sha384ValueUnaryDispatcher,
+    Sha384TypedValueFactory,
     Sha384SparqlOp,
     BuiltinName::Sha384
 );
@@ -210,7 +210,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Sha512ValueUnaryDispatcher,
+    Sha512TypedValueFactory,
     Sha512SparqlOp,
     BuiltinName::Sha512
 );
@@ -220,7 +220,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    AbsValueUnaryDispatcher,
+    AbsTypedValueFactory,
     AbsSparqlOp,
     BuiltinName::Abs
 );
@@ -228,7 +228,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    CeilValueUnaryDispatcher,
+    CeilTypedValueFactory,
     CeilSparqlOp,
     BuiltinName::Ceil
 );
@@ -236,7 +236,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    FloorValueUnaryDispatcher,
+    FloorTypedValueFactory,
     FloorSparqlOp,
     BuiltinName::Floor
 );
@@ -244,7 +244,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    RoundValueUnaryDispatcher,
+    RoundTypedValueFactory,
     RoundSparqlOp,
     BuiltinName::Round
 );
@@ -252,7 +252,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    UnaryMinusValueUnaryDispatcher,
+    UnaryMinusTypedValueFactory,
     UnaryMinusSparqlOp,
     BuiltinName::UnaryMinus
 );
@@ -260,7 +260,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
-    UnaryPlusValueUnaryDispatcher,
+    UnaryPlusTypedValueFactory,
     UnaryPlusSparqlOp,
     BuiltinName::UnaryPlus
 );
@@ -270,7 +270,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    EncodeForUriValueUnaryDispatcher,
+    EncodeForUriTypedValueFactory,
     EncodeForUriSparqlOp,
     BuiltinName::EncodeForUri
 );
@@ -278,7 +278,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    LCaseValueUnaryDispatcher,
+    LCaseTypedValueFactory,
     LCaseSparqlOp,
     BuiltinName::LCase
 );
@@ -286,7 +286,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     IntegerTermValueEncoder,
-    StrLenValueUnaryDispatcher,
+    StrLenTypedValueFactory,
     StrLenSparqlOp,
     BuiltinName::StrLen
 );
@@ -294,7 +294,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    UCaseValueUnaryDispatcher,
+    UCaseTypedValueFactory,
     UCaseSparqlOp,
     BuiltinName::UCase
 );
@@ -304,7 +304,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     BlankNodeRefTermValueEncoder,
-    BNodeValueUnaryDispatcher,
+    BNodeTypedValueFactory,
     BNodeSparqlOp,
     BuiltinName::BNode
 );
@@ -312,7 +312,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     NamedNodeRefTermValueEncoder,
-    DatatypeValueUnaryDispatcher,
+    DatatypeTypedValueFactory,
     DatatypeSparqlOp,
     BuiltinName::Datatype
 );
@@ -320,7 +320,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    IsBlankValueUnaryDispatcher,
+    IsBlankTypedValueFactory,
     IsBlankSparqlOp,
     BuiltinName::IsBlank
 );
@@ -328,7 +328,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    IsIriValueUnaryDispatcher,
+    IsIriTypedValueFactory,
     IsIriSparqlOp,
     BuiltinName::IsIri
 );
@@ -336,7 +336,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    IsLiteralValueUnaryDispatcher,
+    IsLiteralTypedValueFactory,
     IsLiteralSparqlOp,
     BuiltinName::IsLiteral
 );
@@ -344,7 +344,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    IsNumericValueUnaryDispatcher,
+    IsNumericTypedValueFactory,
     IsNumericSparqlOp,
     BuiltinName::IsNumeric
 );
@@ -352,7 +352,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     SimpleLiteralRefTermValueEncoder,
-    LangValueUnaryDispatcher,
+    LangTypedValueFactory,
     LangSparqlOp,
     BuiltinName::Lang
 );
@@ -360,7 +360,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    StrValueUnaryDispatcher,
+    StrTypedValueFactory,
     StrSparqlOp,
     BuiltinName::Str
 );

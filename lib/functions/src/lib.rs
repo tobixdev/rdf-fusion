@@ -1,9 +1,9 @@
-use std::fmt::Display;
 use datafusion::common::DataFusionError;
+use std::fmt::Display;
 
-mod registry;
-mod scalar;
-mod builtin;
+pub mod builtin;
+pub mod registry;
+pub(crate) mod scalar;
 
 type DFResult<T> = Result<T, DataFusionError>;
 

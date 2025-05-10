@@ -1,2 +1,2 @@
 mod default;
-pub use default::PlainTermDefaultEncoder;
+pub use default::DefaultPlainTermEncoder;

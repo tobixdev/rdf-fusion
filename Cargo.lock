@@ -1917,6 +1917,8 @@ dependencies = [
  "async-trait",
  "datafusion",
  "futures",
+ "graphfusion-encoding",
+ "graphfusion-functions",
  "graphfusion-logical",
  "graphfusion-model",
  "graphfusion-physical",
@@ -1958,6 +1960,7 @@ name = "graphfusion-logical"
 version = "0.1.0"
 dependencies = [
  "datafusion",
+ "graphfusion-encoding",
  "graphfusion-functions",
  "graphfusion-model",
  "spargebra",
@@ -1983,6 +1986,7 @@ dependencies = [
  "graphfusion-encoding",
  "graphfusion-logical",
  "graphfusion-model",
+ "itertools 0.14.0",
 ]
 
 [[package]]

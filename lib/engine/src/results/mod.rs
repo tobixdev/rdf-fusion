@@ -1,4 +1,3 @@
-use graphfusion_encoding::value_encoding::{RdfTermValueBuilder, RdfTermValueEncoding};
 use datafusion::arrow::array::{RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::error::ArrowError;
@@ -22,9 +21,11 @@ mod triples;
 
 use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
+use graphfusion_encoding::plain_term_encoding::{PlainTermArrayBuilder, PlainTermEncoding};
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
 pub use sparesults::QuerySolution;
+use graphfusion_encoding::TermEncoding;
 pub use triples::QueryTripleStream;
 
 /// Results of a [SPARQL query](https://www.w3.org/TR/sparql11-query/).
@@ -165,7 +166,8 @@ pub fn query_result_for_iterator(
 ) -> Result<QueryResults, QuerySolutionsToStreamError> {
     let mut builders = Vec::new();
     for _ in 0..variables.len() {
-        builders.push(RdfTermValueBuilder::default())
+        // For now we assume that all outputs have a plain term encoding.
+        builders.push(PlainTermArrayBuilder::default())
     }
 
     let mut count = 0;
@@ -175,20 +177,20 @@ pub fn query_result_for_iterator(
         for (idx, term) in solution.values().iter().enumerate() {
             let builder = &mut builders[idx];
             match term {
-                Some(term) => builder.append_decoded_term(term)?,
-                None => builder.append_null()?,
+                Some(term) => builder.append_term(term.as_ref()),
+                None => builder.append_null(),
             }
         }
     }
 
     let fields = variables
         .iter()
-        .map(|v| Field::new(v.as_str(), RdfTermValueEncoding::datatype(), true))
+        .map(|v| Field::new(v.as_str(), PlainTermEncoding::data_type(), true))
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()
-        .map(RdfTermValueBuilder::finish)
-        .collect::<Result<Vec<_>, DataFusionError>>()?;
+        .map(PlainTermArrayBuilder::finish)
+        .collect::<Vec<_>>();
 
     let schema = SchemaRef::new(Schema::new(fields));
     let options = RecordBatchOptions::new().with_row_count(Some(count));

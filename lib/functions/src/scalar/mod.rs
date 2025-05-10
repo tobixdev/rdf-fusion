@@ -6,7 +6,7 @@ mod nullary;
 mod quaternary;
 #[macro_use]
 mod ternary;
-mod value_encoding;
+mod typed_value;
 #[macro_use]
 mod unary;
 #[macro_use]

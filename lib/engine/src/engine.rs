@@ -2,13 +2,14 @@ use crate::planner::GraphFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults};
 use crate::{DFResult, QuadStorage};
-use graphfusion_encoding::TABLE_QUADS;
 use datafusion::dataframe::DataFrame;
 use datafusion::datasource::DefaultTableSource;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::{AggregateUDF, LogicalPlan, LogicalPlanBuilder};
 use datafusion::prelude::SessionContext;
+use graphfusion_encoding::TABLE_QUADS;
+use graphfusion_functions::registry::{GraphFusionBuiltinRegistry, GraphFusionBuiltinRegistryRef};
 use graphfusion_logical::paths::PathToJoinsRule;
 use graphfusion_logical::patterns::{
     compute_filters_for_pattern, PatternNode, PatternNodeElement, PatternToProjectionRule,
@@ -27,6 +28,8 @@ use std::sync::Arc;
 pub struct GraphFusionInstance {
     /// The DataFusion [SessionContext].
     ctx: SessionContext,
+    /// Holds references to the registered built-in functions.
+    builtins: GraphFusionBuiltinRegistryRef,
     /// The storage that backs this instance.
     storage: Arc<dyn QuadStorage>,
 }
@@ -34,11 +37,20 @@ pub struct GraphFusionInstance {
 impl GraphFusionInstance {
     /// Creates a new [GraphFusionInstance] with the default configuration and the given `storage`.
     pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> DFResult<Self> {
+        // TODO make a builder
+
+        let builtins = Arc::new(GraphFusionBuiltinRegistry::default());
+
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(GraphFusionPlanner))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            .with_optimizer_rule(Arc::new(PathToJoinsRule::new(storage.table_provider())))
-            .with_optimizer_rule(Arc::new(PatternToProjectionRule))
+            .with_optimizer_rule(Arc::new(PathToJoinsRule::new(
+                Arc::clone(&builtins),
+                storage.table_provider(),
+            )))
+            .with_optimizer_rule(Arc::new(PatternToProjectionRule::new(Arc::clone(
+                &builtins,
+            ))))
             .build();
 
         let session_context = SessionContext::from(state);
@@ -46,6 +58,7 @@ impl GraphFusionInstance {
 
         Ok(Self {
             ctx: session_context,
+            builtins,
             storage,
         })
     }
@@ -62,6 +75,7 @@ impl GraphFusionInstance {
     /// Checks whether `quad` is contained in the instance.
     pub async fn contains(&self, quad: &QuadRef<'_>) -> DFResult<bool> {
         let pattern_plan = create_match_pattern_plan(
+            &self.builtins,
             self.storage.as_ref(),
             Some(quad.graph_name),
             Some(quad.subject),
@@ -90,6 +104,7 @@ impl GraphFusionInstance {
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
         let plan = create_match_pattern_plan(
+            &self.builtins,
             self.storage.as_ref(),
             graph_name,
             subject,
@@ -115,6 +130,7 @@ impl GraphFusionInstance {
 
 /// Creates a [LogicalPlan] for computing all quads that match the given pattern.
 fn create_match_pattern_plan(
+    registry: &GraphFusionBuiltinRegistryRef,
     storage: &dyn QuadStorage,
     graph_name: Option<GraphNameRef<'_>>,
     subject: Option<SubjectRef<'_>>,
@@ -150,7 +166,7 @@ fn create_match_pattern_plan(
         plan.clone().build()?,
         vec![graph_name, subject, predicate, object],
     )?;
-    let filter = compute_filters_for_pattern(&pattern_node);
+    let filter = compute_filters_for_pattern(registry, &pattern_node)?;
 
     let plan = match filter {
         None => plan.build()?,

@@ -1,10 +1,14 @@
 use crate::sparql::error::QueryEvaluationError;
-use graphfusion_encoding::value_encoding::FromArrowRdfTermValue;
-use datafusion::arrow::array::{AsArray, RecordBatch, UnionArray};
+use crate::DFResult;
+use datafusion::arrow::array::RecordBatch;
+use datafusion::common::exec_datafusion_err;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
+use graphfusion_encoding::plain_term_encoding::decoders::DefaultPlainTermDecoder;
+use graphfusion_encoding::plain_term_encoding::PlainTermEncoding;
+use graphfusion_encoding::{TermDecoder, TermEncoding};
 use graphfusion_model::Variable;
-use graphfusion_model::{TypedValueRef, Term};
+use graphfusion_model::{Term, ThinError};
 pub use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -19,7 +23,7 @@ pub struct QuerySolutionStream {
 }
 
 impl QuerySolutionStream {
-    /// Construct a new iterator of solution from an ordered list of solution variables and an iterator of solution tuples
+    /// Construct a new iterator of solutions from an ordered list of solution variables and an iterator of solution tuples
     /// (each tuple using the same ordering as the variable list such that tuple element 0 is the value for the variable 0...)
     pub fn new(variables: Arc<[Variable]>, inner: SendableRecordBatchStream) -> Self {
         Self {
@@ -85,33 +89,60 @@ fn to_query_solution(
     variables: &Arc<[Variable]>,
     batch: &RecordBatch,
 ) -> Result<<Vec<QuerySolution> as IntoIterator>::IntoIter, QueryEvaluationError> {
-    // TODO: error handling
-
     let schema = batch.schema();
-    let mut result = Vec::new();
-    for i in 0..batch.num_rows() {
-        let mut terms = Vec::new();
-        for field in schema.fields() {
-            let column = batch
+    let num_rows = batch.num_rows();
+
+    // Get column terms first - compute all terms for each column
+    let mut column_terms: Vec<Vec<Option<Term>>> = Vec::with_capacity(schema.fields().len());
+
+    for field in schema.fields() {
+        let column =
+            batch
                 .column_by_name(field.name())
                 .ok_or(QueryEvaluationError::InternalError(
                     "Field was not present in result.".into(),
-                ))?
-                .as_union();
-            let term = to_term(column, i);
-            terms.push(term);
+                ))?;
+
+        // Convert the column to a PlainTermEncoding array
+        let array = PlainTermEncoding::try_new_array(column.clone()).map_err(|e| {
+            QueryEvaluationError::InternalError(format!(
+                "Failed to convert column to PlainTermEncoding: {}",
+                e
+            ))
+        })?;
+
+        // Decode all terms for this column at once
+        let terms = DefaultPlainTermDecoder::decode_terms(&array)
+            .map(|t| match t {
+                Ok(t) => Ok(Some(t.into_owned())),
+                Err(ThinError::Expected) => Ok(None),
+                Err(ThinError::InternalError(err)) => {
+                    Err(exec_datafusion_err!("Error while obtaining terms: {err}"))
+                }
+            })
+            .collect::<DFResult<Vec<_>>>()
+            .map_err(|e| {
+                QueryEvaluationError::InternalError(format!("Failed to decode terms: {}", e))
+            })?;
+
+        column_terms.push(terms);
+    }
+
+    // Now build the solutions row by row
+    let mut result = Vec::with_capacity(num_rows);
+    for _ in 0..num_rows {
+        let mut row_terms = Vec::with_capacity(column_terms.len());
+
+        // Get the term at index i from each column
+        for column in &mut column_terms {
+            let term = column.pop().expect("Length is guaranteed");
+            row_terms.push(term);
         }
-        result.push((Arc::clone(variables), terms).into())
+
+        result.push((Arc::clone(variables), row_terms).into());
     }
 
     Ok(result.into_iter())
-}
-
-fn to_term(objects: &UnionArray, i: usize) -> Option<Term> {
-    match TypedValueRef::from_array(objects, i) {
-        Ok(value) => Some(value.into_decoded()),
-        Err(_) => None,
-    }
 }
 
 #[cfg(test)]
