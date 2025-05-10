@@ -1,5 +1,5 @@
 use crate::error::LiteralEncodingError;
-use crate::value_encoding::{TermValueEncoding, ValueEncodingField};
+use crate::value_encoding::{TypedValueEncoding, TypedValueEncodingField};
 use crate::AResult;
 use datafusion::arrow::array::{
     ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
@@ -16,7 +16,7 @@ use graphfusion_model::{
 use graphfusion_model::{Decimal, Double, Float, Int, Integer};
 use std::sync::Arc;
 
-pub struct TermValueArrayBuilder {
+pub struct TypedValueArrayBuilder {
     type_ids: Vec<i8>,
     offsets: Vec<i32>,
     named_node_builder: StringBuilder,
@@ -36,14 +36,14 @@ pub struct TermValueArrayBuilder {
     null_builder: NullBuilder,
 }
 
-impl Default for TermValueArrayBuilder {
+impl Default for TypedValueArrayBuilder {
     fn default() -> Self {
         Self {
             type_ids: Vec::new(),
             offsets: Vec::new(),
             named_node_builder: StringBuilder::with_capacity(0, 0),
             blank_node_builder: StringBuilder::with_capacity(0, 0),
-            string_builder: StructBuilder::from_fields(TermValueEncoding::string_fields(), 0),
+            string_builder: StructBuilder::from_fields(TypedValueEncoding::string_fields(), 0),
             boolean_builder: BooleanBuilder::with_capacity(0),
             float_builder: Float32Builder::with_capacity(0),
             double_builder: Float64Builder::with_capacity(0),
@@ -53,12 +53,12 @@ impl Default for TermValueArrayBuilder {
                 .expect("PRECISION and SCALE fixed"),
             int32_builder: Int32Builder::with_capacity(0),
             integer_builder: Int64Builder::with_capacity(0),
-            date_time_builder: StructBuilder::from_fields(TermValueEncoding::timestamp_fields(), 0),
-            time_builder: StructBuilder::from_fields(TermValueEncoding::timestamp_fields(), 0),
-            date_builder: StructBuilder::from_fields(TermValueEncoding::timestamp_fields(), 0),
-            duration_builder: StructBuilder::from_fields(TermValueEncoding::duration_fields(), 0),
+            date_time_builder: StructBuilder::from_fields(TypedValueEncoding::timestamp_fields(), 0),
+            time_builder: StructBuilder::from_fields(TypedValueEncoding::timestamp_fields(), 0),
+            date_builder: StructBuilder::from_fields(TypedValueEncoding::timestamp_fields(), 0),
+            duration_builder: StructBuilder::from_fields(TypedValueEncoding::duration_fields(), 0),
             typed_literal_builder: StructBuilder::from_fields(
-                TermValueEncoding::typed_literal_fields(),
+                TypedValueEncoding::typed_literal_fields(),
                 0,
             ),
             null_builder: NullBuilder::new(),
@@ -66,7 +66,7 @@ impl Default for TermValueArrayBuilder {
     }
 }
 
-impl TermValueArrayBuilder {
+impl TypedValueArrayBuilder {
     pub fn append_term(&mut self, term: TermRef<'_>) -> Result<(), ArrowError> {
         match term {
             TermRef::NamedNode(nn) => self.append_named_node(nn)?,
@@ -95,14 +95,14 @@ impl TermValueArrayBuilder {
     }
 
     pub fn append_boolean(&mut self, value: Boolean) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::Boolean, self.boolean_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Boolean, self.boolean_builder.len())?;
         self.boolean_builder.append_value(value.as_bool());
         Ok(())
     }
 
     pub fn append_named_node(&mut self, value: NamedNodeRef<'_>) -> AResult<()> {
         self.append_type_id_and_offset(
-            ValueEncodingField::NamedNode,
+            TypedValueEncodingField::NamedNode,
             self.named_node_builder.len(),
         )?;
         self.named_node_builder.append_value(value.as_str());
@@ -111,7 +111,7 @@ impl TermValueArrayBuilder {
 
     pub fn append_blank_node(&mut self, value: BlankNodeRef<'_>) -> AResult<()> {
         self.append_type_id_and_offset(
-            ValueEncodingField::BlankNode,
+            TypedValueEncodingField::BlankNode,
             self.blank_node_builder.len(),
         )?;
         self.blank_node_builder.append_value(value.as_str());
@@ -125,7 +125,7 @@ impl TermValueArrayBuilder {
             )));
         }
 
-        self.append_type_id_and_offset(ValueEncodingField::String, self.string_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::String, self.string_builder.len())?;
 
         self.string_builder
             .field_builder::<StringBuilder>(0)
@@ -151,49 +151,49 @@ impl TermValueArrayBuilder {
     }
 
     pub fn append_date_time(&mut self, value: DateTime) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::DateTime, self.date_time_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::DateTime, self.date_time_builder.len())?;
         append_timestamp(&mut self.date_time_builder, value.timestamp());
         Ok(())
     }
 
     pub fn append_time(&mut self, value: Time) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::Time, self.time_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Time, self.time_builder.len())?;
         append_timestamp(&mut self.time_builder, value.timestamp());
         Ok(())
     }
 
     pub fn append_date(&mut self, value: Date) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::Date, self.date_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Date, self.date_builder.len())?;
         append_timestamp(&mut self.date_builder, value.timestamp());
         Ok(())
     }
 
     pub fn append_int(&mut self, int: Int) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::Int, self.int32_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Int, self.int32_builder.len())?;
         self.int32_builder.append_value(int.into());
         Ok(())
     }
 
     pub fn append_integer(&mut self, integer: Integer) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::Integer, self.integer_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Integer, self.integer_builder.len())?;
         self.integer_builder.append_value(integer.into());
         Ok(())
     }
 
     pub fn append_float(&mut self, value: Float) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::Float, self.float_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Float, self.float_builder.len())?;
         self.float_builder.append_value(value.into());
         Ok(())
     }
 
     pub fn append_double(&mut self, value: Double) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::Double, self.double_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Double, self.double_builder.len())?;
         self.double_builder.append_value(value.into());
         Ok(())
     }
 
     pub fn append_decimal(&mut self, value: Decimal) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::Decimal, self.decimal_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Decimal, self.decimal_builder.len())?;
         self.decimal_builder
             .append_value(i128::from_be_bytes(value.to_be_bytes()));
         Ok(())
@@ -220,7 +220,7 @@ impl TermValueArrayBuilder {
             )));
         }
 
-        self.append_type_id_and_offset(ValueEncodingField::Duration, self.duration_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Duration, self.duration_builder.len())?;
         let year_month_builder = self
             .duration_builder
             .field_builder::<Int64Builder>(0)
@@ -251,13 +251,13 @@ impl TermValueArrayBuilder {
         Ok(())
     }
 
-    /// Appends a `literal` that is encoded in the [ValueEncodingField::OtherLiteral].
+    /// Appends a `literal` that is encoded in the [TypedValueEncodingField::OtherLiteral].
     ///
     /// *CAVEAT*: Only call this function if you're positive that there is no specialized encoding
     /// for the data type of the `literal`. Otherwise, call [Self::append_literal].
     pub fn append_other_literal(&mut self, literal: LiteralRef<'_>) -> AResult<()> {
         self.append_type_id_and_offset(
-            ValueEncodingField::OtherLiteral,
+            TypedValueEncodingField::OtherLiteral,
             self.typed_literal_builder.len(),
         )?;
         self.typed_literal_builder
@@ -277,7 +277,7 @@ impl TermValueArrayBuilder {
     }
 
     pub fn append_null(&mut self) -> AResult<()> {
-        self.append_type_id_and_offset(ValueEncodingField::Null, self.null_builder.len())?;
+        self.append_type_id_and_offset(TypedValueEncodingField::Null, self.null_builder.len())?;
         self.null_builder.append_null();
         Ok(())
     }
@@ -285,7 +285,7 @@ impl TermValueArrayBuilder {
     pub fn finish(mut self) -> ArrayRef {
         Arc::new(
             UnionArray::try_new(
-                TermValueEncoding::fields(),
+                TypedValueEncoding::fields(),
                 ScalarBuffer::from(self.type_ids),
                 Some(ScalarBuffer::from(self.offsets)),
                 vec![
@@ -312,7 +312,7 @@ impl TermValueArrayBuilder {
 
     fn append_type_id_and_offset(
         &mut self,
-        field: ValueEncodingField,
+        field: TypedValueEncodingField,
         offset: usize,
     ) -> AResult<()> {
         let offset = i32::try_from(offset).map_err(|_| {

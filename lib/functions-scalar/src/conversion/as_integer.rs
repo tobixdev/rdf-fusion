@@ -1,5 +1,5 @@
-use crate::{SparqlOp, ThinResult, UnaryTermValueOp};
-use graphfusion_model::TermValueRef;
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::TypedValueRef;
 use graphfusion_model::{Integer, Numeric, ThinError};
 
 #[derive(Debug)]
@@ -18,20 +18,17 @@ impl AsIntegerSparqlOp {
 }
 
 impl SparqlOp for AsIntegerSparqlOp {
-    fn name(&self) -> &str {
-        "xsd:integer"
-    }
 }
 
-impl UnaryTermValueOp for AsIntegerSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for AsIntegerSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Integer;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let converted = match value {
-            TermValueRef::BooleanLiteral(v) => Integer::from(v),
-            TermValueRef::SimpleLiteral(v) => v.value.parse()?,
-            TermValueRef::NumericLiteral(numeric) => match numeric {
+            TypedValueRef::BooleanLiteral(v) => Integer::from(v),
+            TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+            TypedValueRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Integer::from(v),
                 Numeric::Integer(v) => v,
                 Numeric::Float(v) => Integer::try_from(v)?,

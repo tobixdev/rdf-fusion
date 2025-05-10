@@ -1,6 +1,6 @@
-use crate::{SparqlOp, ThinResult, UnaryRdfTermOp, UnaryTermValueOp};
-use graphfusion_model::TermValueRef;
-use graphfusion_model::{SimpleLiteralRef, TermRef, ThinError};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::TypedValueRef;
+use graphfusion_model::{SimpleLiteralRef, ThinError};
 
 #[derive(Debug)]
 pub struct LangSparqlOp;
@@ -18,34 +18,19 @@ impl LangSparqlOp {
 }
 
 impl SparqlOp for LangSparqlOp {
-    fn name(&self) -> &str {
-        "lang"
-    }
 }
 
-impl UnaryTermValueOp for LangSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for LangSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = SimpleLiteralRef<'data>;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let result = match value {
-            TermValueRef::NamedNode(_) | TermValueRef::BlankNode(_) => {
+            TypedValueRef::NamedNode(_) | TypedValueRef::BlankNode(_) => {
                 return ThinError::expected()
             }
-            TermValueRef::LanguageStringLiteral(value) => value.language,
+            TypedValueRef::LanguageStringLiteral(value) => value.language,
             _ => "",
-        };
-        Ok(Self::Result::new(result))
-    }
-}
-
-impl UnaryRdfTermOp for LangSparqlOp {
-    type Result<'data> = SimpleLiteralRef<'data>;
-
-    fn evaluate<'data>(&self, value: TermRef<'data>) -> ThinResult<Self::Result<'data>> {
-        let result = match value {
-            TermRef::NamedNode(_) | TermRef::BlankNode(_) => return ThinError::expected(),
-            TermRef::Literal(lit) => lit.language().unwrap_or(""),
         };
         Ok(Self::Result::new(result))
     }

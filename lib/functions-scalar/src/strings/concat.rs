@@ -1,4 +1,4 @@
-use crate::{NAryRdfTermValueOp, SparqlOp, ThinResult};
+use crate::{NArySparqlOp, SparqlOp, ThinResult};
 use graphfusion_model::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl ConcatSparqlOp {
 }
 
 impl SparqlOp for ConcatSparqlOp {
-    fn name(&self) -> &str {
-        "concat"
-    }
 }
 
-impl NAryRdfTermValueOp for ConcatSparqlOp {
+impl NArySparqlOp for ConcatSparqlOp {
     type Args<'data> = StringLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 

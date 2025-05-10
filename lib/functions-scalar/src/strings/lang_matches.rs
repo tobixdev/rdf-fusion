@@ -1,4 +1,4 @@
-use crate::{BinaryTermValueOp, SparqlOp, ThinResult};
+use crate::{BinarySparqlOp, SparqlOp, ThinResult};
 use graphfusion_model::{Boolean, SimpleLiteralRef};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl LangMatchesSparqlOp {
 }
 
 impl SparqlOp for LangMatchesSparqlOp {
-    fn name(&self) -> &str {
-        "langmatches"
-    }
 }
 
-impl BinaryTermValueOp for LangMatchesSparqlOp {
+impl BinarySparqlOp for LangMatchesSparqlOp {
     type ArgLhs<'lhs> = SimpleLiteralRef<'lhs>;
     type ArgRhs<'lhs> = SimpleLiteralRef<'lhs>;
     type Result<'data> = Boolean;

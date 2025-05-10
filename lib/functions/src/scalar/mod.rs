@@ -9,3 +9,5 @@ mod ternary;
 mod value_encoding;
 #[macro_use]
 mod unary;
+#[macro_use]
+mod n_ary;

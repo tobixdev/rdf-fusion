@@ -1,4 +1,4 @@
-use crate::{SparqlOp, ThinResult, UnaryTermValueOp};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl UCaseSparqlOp {
 }
 
 impl SparqlOp for UCaseSparqlOp {
-    fn name(&self) -> &str {
-        "ucase"
-    }
 }
 
-impl UnaryTermValueOp for UCaseSparqlOp {
+impl UnarySparqlOp for UCaseSparqlOp {
     type Arg<'data> = StringLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 

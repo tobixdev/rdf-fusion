@@ -1,61 +1,56 @@
-use crate::dispatcher::SparqlOpDispatcher;
-use crate::scalar::ternary::dispatch_ternary;
-use crate::DFResult;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::ColumnarValue;
-use datafusion::logical_expr::ScalarFunctionArgs;
-use datafusion::logical_expr_common::signature::Signature;
+use crate::builtin::BuiltinName;
 use graphfusion_encoding::value_encoding::decoders::{
-    BooleanTermValueDecoder, DefaultTermValueDecoder, IntegerTermValueDecoder,
+    BooleanTermValueDecoder, DefaultTypedValueDecoder, IntegerTermValueDecoder,
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
 use graphfusion_encoding::value_encoding::encoders::{
     BooleanTermValueEncoder, DefaultTermValueEncoder, OwnedStringLiteralTermValueEncoder,
     StringLiteralRefTermValueEncoder,
 };
-use graphfusion_encoding::value_encoding::TermValueEncoding;
+use graphfusion_encoding::value_encoding::TypedValueEncoding;
 use graphfusion_encoding::TermEncoding;
-use graphfusion_functions_scalar::SparqlOp;
-use graphfusion_functions_scalar::{
-    IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp,
-};
+use graphfusion_functions_scalar::{IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp};
 
 // Functional Forms
-impl_ternary_rdf_value_op!(
-    TermValueEncoding,
+impl_ternary_sparql_op!(
+    TypedValueEncoding,
     BooleanTermValueDecoder,
-    DefaultTermValueDecoder,
-    DefaultTermValueDecoder,
+    DefaultTypedValueDecoder,
+    DefaultTypedValueDecoder,
     DefaultTermValueEncoder,
     IfValueTernaryDispatcher,
-    IfSparqlOp
+    IfSparqlOp,
+    BuiltinName::If
 );
 
 // Strings
-impl_ternary_rdf_value_op!(
-    TermValueEncoding,
+impl_ternary_sparql_op!(
+    TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
     RegexValueTernaryDispatcher,
-    RegexSparqlOp
+    RegexSparqlOp,
+    BuiltinName::Regex
 );
-impl_ternary_rdf_value_op!(
-    TermValueEncoding,
+impl_ternary_sparql_op!(
+    TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     ReplaceValueTernaryDispatcher,
-    ReplaceSparqlOp
+    ReplaceSparqlOp,
+    BuiltinName::Replace
 );
-impl_ternary_rdf_value_op!(
-    TermValueEncoding,
+impl_ternary_sparql_op!(
+    TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     IntegerTermValueDecoder,
     IntegerTermValueDecoder,
     StringLiteralRefTermValueEncoder,
     SubStrTernaryDispatcher,
-    SubStrSparqlOp
+    SubStrSparqlOp,
+    BuiltinName::SubStr
 );

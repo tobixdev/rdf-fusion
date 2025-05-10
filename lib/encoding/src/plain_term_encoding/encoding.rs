@@ -1,8 +1,6 @@
 use crate::encoding::TermEncoding;
-use crate::plain_term_encoding::term_decoder::PlainTermDefaultDecoder;
-use crate::plain_term_encoding::term_encoder::PlainTermDefaultEncoder;
 use crate::plain_term_encoding::{PlainTermArray, PlainTermScalar};
-use crate::DFResult;
+use crate::{DFResult, EncodingName};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;
@@ -20,6 +18,7 @@ static FIELDS_TYPE: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(fields)
 });
 
+#[derive(Debug)]
 pub struct PlainTermEncoding;
 
 impl PlainTermEncoding {
@@ -36,8 +35,10 @@ impl PlainTermEncoding {
 impl TermEncoding for PlainTermEncoding {
     type Array = PlainTermArray;
     type Scalar = PlainTermScalar;
-    type DefaultEncoder = PlainTermDefaultEncoder;
-    type DefaultDecoder = PlainTermDefaultDecoder;
+
+    fn name() -> EncodingName {
+        EncodingName::PlainTerm
+    }
 
     fn data_type() -> DataType {
         DataType::Struct(Self::fields().clone())

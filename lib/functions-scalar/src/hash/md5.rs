@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use md5::{Digest, Md5};
 use graphfusion_model::{OwnedStringLiteral, SimpleLiteralRef};
 
@@ -18,12 +18,9 @@ impl Md5SparqlOp {
 }
 
 impl SparqlOp for Md5SparqlOp {
-    fn name(&self) -> &str {
-        "md5"
-    }
 }
 
-impl UnaryTermValueOp for Md5SparqlOp {
+impl UnarySparqlOp for Md5SparqlOp {
     type Arg<'data> = SimpleLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 

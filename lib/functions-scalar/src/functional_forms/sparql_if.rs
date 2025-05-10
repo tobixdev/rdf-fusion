@@ -1,6 +1,6 @@
-use crate::{SparqlOp, TernaryRdfTermValueOp, ThinResult};
+use crate::{SparqlOp, TernarySparqlOp, ThinResult};
 use graphfusion_model::Boolean;
-use graphfusion_model::TermValueRef;
+use graphfusion_model::TypedValueRef;
 
 #[derive(Debug)]
 pub struct IfSparqlOp;
@@ -18,16 +18,13 @@ impl IfSparqlOp {
 }
 
 impl SparqlOp for IfSparqlOp {
-    fn name(&self) -> &str {
-        "if"
-    }
 }
 
-impl TernaryRdfTermValueOp for IfSparqlOp {
+impl TernarySparqlOp for IfSparqlOp {
     type Arg0<'data> = Boolean;
-    type Arg1<'data> = TermValueRef<'data>;
-    type Arg2<'data> = TermValueRef<'data>;
-    type Result<'data> = TermValueRef<'data>;
+    type Arg1<'data> = TypedValueRef<'data>;
+    type Arg2<'data> = TypedValueRef<'data>;
+    type Result<'data> = TypedValueRef<'data>;
 
     fn evaluate<'data>(
         &self,

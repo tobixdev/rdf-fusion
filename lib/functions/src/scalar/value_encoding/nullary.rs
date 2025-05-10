@@ -1,39 +1,37 @@
-use crate::dispatcher::SparqlOpDispatcher;
-use crate::DFResult;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, Signature};
+use crate::builtin::BuiltinName;
 use graphfusion_encoding::value_encoding::encoders::{
     BlankNodeTermValueEncoder, DoubleTermValueEncoder, NamedNodeTermValueEncoder,
     OwnedStringLiteralTermValueEncoder,
 };
-use graphfusion_encoding::value_encoding::TermValueEncoding;
-use graphfusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
-use graphfusion_functions_scalar::{
-    BNodeSparqlOp, NullarySparqlOp, RandSparqlOp, SparqlOp, StrUuidSparqlOp, UuidSparqlOp,
-};
-use std::fmt::Debug;
+use graphfusion_encoding::value_encoding::TypedValueEncoding;
+use graphfusion_encoding::TermEncoding;
+use graphfusion_functions_scalar::{BNodeSparqlOp, RandSparqlOp, StrUuidSparqlOp, UuidSparqlOp};
 
 impl_nullary_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     BlankNodeTermValueEncoder,
     BNodeTermValue,
-    BNodeSparqlOp
+    BNodeSparqlOp,
+    BuiltinName::BNode
 );
 impl_nullary_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     DoubleTermValueEncoder,
     RandTermValue,
-    RandSparqlOp
+    RandSparqlOp,
+    BuiltinName::Rand
 );
 impl_nullary_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     OwnedStringLiteralTermValueEncoder,
     StrUuidTermValue,
-    StrUuidSparqlOp
+    StrUuidSparqlOp,
+    BuiltinName::StrUuid
 );
 impl_nullary_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     NamedNodeTermValueEncoder,
     UuidTermValue,
-    UuidSparqlOp
+    UuidSparqlOp,
+    BuiltinName::Uuid
 );

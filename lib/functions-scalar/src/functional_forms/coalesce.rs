@@ -1,6 +1,6 @@
-use crate::{NAryRdfTermOp, NAryRdfTermValueOp, SparqlOp, ThinResult};
-use graphfusion_model::TermValueRef;
-use graphfusion_model::{TermRef, ThinError};
+use crate::{NArySparqlOp, SparqlOp, ThinResult};
+use graphfusion_model::TypedValueRef;
+use graphfusion_model::ThinError;
 
 #[derive(Debug)]
 pub struct CoalesceSparqlOp;
@@ -18,14 +18,11 @@ impl CoalesceSparqlOp {
 }
 
 impl SparqlOp for CoalesceSparqlOp {
-    fn name(&self) -> &str {
-        "coalesce"
-    }
 }
 
-impl NAryRdfTermValueOp for CoalesceSparqlOp {
-    type Args<'data> = TermValueRef<'data>;
-    type Result<'data> = TermValueRef<'data>;
+impl NArySparqlOp for CoalesceSparqlOp {
+    type Args<'data> = TypedValueRef<'data>;
+    type Result<'data> = TypedValueRef<'data>;
 
     fn evaluate<'data>(&self, args: &[Self::Args<'data>]) -> ThinResult<Self::Result<'data>> {
         args.first().copied().ok_or(ThinError::Expected)
@@ -34,23 +31,6 @@ impl NAryRdfTermValueOp for CoalesceSparqlOp {
     fn evaluate_error<'data>(
         &self,
         args: &[ThinResult<Self::Args<'data>>],
-    ) -> ThinResult<Self::Result<'data>> {
-        args.iter()
-            .find_map(|arg| arg.ok())
-            .ok_or(ThinError::Expected)
-    }
-}
-
-impl NAryRdfTermOp for CoalesceSparqlOp {
-    type Result<'data> = TermRef<'data>;
-
-    fn evaluate<'data>(&self, args: &[TermRef<'data>]) -> ThinResult<Self::Result<'data>> {
-        args.first().copied().ok_or(ThinError::Expected)
-    }
-
-    fn evaluate_error<'data>(
-        &self,
-        args: &[ThinResult<TermRef<'data>>],
     ) -> ThinResult<Self::Result<'data>> {
         args.iter()
             .find_map(|arg| arg.ok())

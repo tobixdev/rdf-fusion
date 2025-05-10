@@ -1,4 +1,4 @@
-use crate::{SparqlOp, ThinResult, UnaryTermValueOp};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::{DateTime, DayTimeDuration, ThinError};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl TimezoneSparqlOp {
 }
 
 impl SparqlOp for TimezoneSparqlOp {
-    fn name(&self) -> &str {
-        "timezone"
-    }
 }
 
-impl UnaryTermValueOp for TimezoneSparqlOp {
+impl UnarySparqlOp for TimezoneSparqlOp {
     type Arg<'data> = DateTime;
     type Result<'data> = DayTimeDuration;
 

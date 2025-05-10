@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use graphfusion_model::Numeric;
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl RoundSparqlOp {
 }
 
 impl SparqlOp for RoundSparqlOp {
-    fn name(&self) -> &str {
-        "round"
-    }
 }
 
-impl UnaryTermValueOp for RoundSparqlOp {
+impl UnarySparqlOp for RoundSparqlOp {
     type Arg<'data> = Numeric;
     type Result<'data> = Numeric;
 

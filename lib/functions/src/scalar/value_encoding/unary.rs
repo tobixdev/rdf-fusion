@@ -1,13 +1,10 @@
-use crate::dispatcher::SparqlOpDispatcher;
+use crate::builtin::{BuiltinName, GraphFusionBuiltinFactory};
+use crate::scalar::unary::UnaryScalarUdfOp;
 use crate::{impl_unary_sparql_op, DFResult};
-use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
-use datafusion::common::DataFusionError;
-use datafusion::logical_expr::ColumnarValue;
-use datafusion::logical_expr::ScalarFunctionArgs;
-use datafusion::logical_expr_common::signature::Signature;
+use datafusion::logical_expr::ScalarUDF;
 use graphfusion_encoding::value_encoding::decoders::{
-    DateTimeTermValueDecoder, DefaultTermValueDecoder, NumericTermValueDecoder,
+    DateTimeTermValueDecoder, DefaultTypedValueDecoder, NumericTermValueDecoder,
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
 use graphfusion_encoding::value_encoding::encoders::{
@@ -17,360 +14,399 @@ use graphfusion_encoding::value_encoding::encoders::{
     NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder, NumericTermValueEncoder,
     OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
 };
-use graphfusion_encoding::value_encoding::TermValueEncoding;
-use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_encoding::value_encoding::TypedValueEncoding;
+use graphfusion_encoding::{EncodingName, TermDecoder, TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
     AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
     DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp, HoursSparqlOp, IriSparqlOp,
     IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LCaseSparqlOp,
     LangSparqlOp, Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp, RoundSparqlOp, SecondsSparqlOp,
-    Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, SparqlOp, StrLenSparqlOp,
-    StrSparqlOp, TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp,
-    UnaryPlusSparqlOp, YearSparqlOp,
+    Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrSparqlOp,
+    TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp,
+    YearSparqlOp,
 };
-use graphfusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp, UnaryTermValueOp};
-use graphfusion_model::ThinError;
+use graphfusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp};
+use graphfusion_model::{Iri, Term};
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 // Conversion
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
     AsBooleanValueUnaryDispatcher,
-    AsBooleanSparqlOp
+    AsBooleanSparqlOp,
+    BuiltinName::AsBoolean
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     DateTimeTermValueEncoder,
     AsDateTimeValueUnaryDispatcher,
-    AsDateTimeSparqlOp
+    AsDateTimeSparqlOp,
+    BuiltinName::AsDateTime
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     DecimalTermValueEncoder,
     AsDecimalValueUnaryDispatcher,
-    AsDecimalSparqlOp
+    AsDecimalSparqlOp,
+    BuiltinName::AsDecimal
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     DoubleTermValueEncoder,
     AsDoubleValueUnaryDispatcher,
-    AsDoubleSparqlOp
+    AsDoubleSparqlOp,
+    BuiltinName::AsDouble
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     FloatTermValueEncoder,
     AsFloatValueUnaryDispatcher,
-    AsFloatSparqlOp
+    AsFloatSparqlOp,
+    BuiltinName::AsFloat
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     IntTermValueEncoder,
     AsIntValueUnaryDispatcher,
-    AsIntSparqlOp
+    AsIntSparqlOp,
+    BuiltinName::AsInt
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     IntegerTermValueEncoder,
     AsIntegerValueUnaryDispatcher,
-    AsIntegerSparqlOp
+    AsIntegerSparqlOp,
+    BuiltinName::AsInteger
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     AsStringValueUnaryDispatcher,
-    AsStringSparqlOp
+    AsStringSparqlOp,
+    BuiltinName::AsString
 );
 
 // Dates and Times
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
     DayValueUnaryDispatcher,
-    DaySparqlOp
+    DaySparqlOp,
+    BuiltinName::Day
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
     HoursValueUnaryDispatcher,
-    HoursSparqlOp
+    HoursSparqlOp,
+    BuiltinName::Hours
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
     MinutesValueUnaryDispatcher,
-    MinutesSparqlOp
+    MinutesSparqlOp,
+    BuiltinName::Minutes
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
     MonthValueUnaryDispatcher,
-    MonthSparqlOp
+    MonthSparqlOp,
+    BuiltinName::Month
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     DateTimeTermValueDecoder,
     DecimalTermValueEncoder,
     SecondsValueUnaryDispatcher,
-    SecondsSparqlOp
+    SecondsSparqlOp,
+    BuiltinName::Seconds
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     DateTimeTermValueDecoder,
     DayTimeDurationTermValueEncoder,
     TimezoneValueUnaryDispatcher,
-    TimezoneSparqlOp
+    TimezoneSparqlOp,
+    BuiltinName::Timezone
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     DateTimeTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     TzValueUnaryDispatcher,
-    TzSparqlOp
+    TzSparqlOp,
+    BuiltinName::Tz
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
     YearValueUnaryDispatcher,
-    YearSparqlOp
+    YearSparqlOp,
+    BuiltinName::Year
 );
 
 // Functional Form
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     BooleanTermValueEncoder, // For Bound
     BoundValueUnaryDispatcher,
-    BoundSparqlOp
+    BoundSparqlOp,
+    BuiltinName::Bound
 );
 
 // Hashing
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     Md5ValueUnaryDispatcher,
-    Md5SparqlOp
+    Md5SparqlOp,
+    BuiltinName::Md5
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     Sha1ValueUnaryDispatcher,
-    Sha1SparqlOp
+    Sha1SparqlOp,
+    BuiltinName::Sha1
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     Sha256ValueUnaryDispatcher,
-    Sha256SparqlOp
+    Sha256SparqlOp,
+    BuiltinName::Sha256
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     Sha384ValueUnaryDispatcher,
-    Sha384SparqlOp
+    Sha384SparqlOp,
+    BuiltinName::Sha384
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     Sha512ValueUnaryDispatcher,
-    Sha512SparqlOp
+    Sha512SparqlOp,
+    BuiltinName::Sha512
 );
 
 // Numeric
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
     AbsValueUnaryDispatcher,
-    AbsSparqlOp
+    AbsSparqlOp,
+    BuiltinName::Abs
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
     CeilValueUnaryDispatcher,
-    CeilSparqlOp
+    CeilSparqlOp,
+    BuiltinName::Ceil
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
     FloorValueUnaryDispatcher,
-    FloorSparqlOp
+    FloorSparqlOp,
+    BuiltinName::Floor
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
     RoundValueUnaryDispatcher,
-    RoundSparqlOp
+    RoundSparqlOp,
+    BuiltinName::Round
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
     UnaryMinusValueUnaryDispatcher,
-    UnaryMinusSparqlOp
+    UnaryMinusSparqlOp,
+    BuiltinName::UnaryMinus
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueEncoder,
     UnaryPlusValueUnaryDispatcher,
-    UnaryPlusSparqlOp
+    UnaryPlusSparqlOp,
+    BuiltinName::UnaryPlus
 );
 
 // Strings
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     EncodeForUriValueUnaryDispatcher,
-    EncodeForUriSparqlOp
+    EncodeForUriSparqlOp,
+    BuiltinName::EncodeForUri
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     LCaseValueUnaryDispatcher,
-    LCaseSparqlOp
+    LCaseSparqlOp,
+    BuiltinName::LCase
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     IntegerTermValueEncoder,
     StrLenValueUnaryDispatcher,
-    StrLenSparqlOp
+    StrLenSparqlOp,
+    BuiltinName::StrLen
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     UCaseValueUnaryDispatcher,
-    UCaseSparqlOp
+    UCaseSparqlOp,
+    BuiltinName::UCase
 );
 
 // Terms
 impl_unary_sparql_op!(
-    TermValueEncoding,
+    TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     BlankNodeRefTermValueEncoder,
     BNodeValueUnaryDispatcher,
-    BNodeSparqlOp
+    BNodeSparqlOp,
+    BuiltinName::BNode
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     NamedNodeRefTermValueEncoder,
     DatatypeValueUnaryDispatcher,
-    DatatypeSparqlOp
+    DatatypeSparqlOp,
+    BuiltinName::Datatype
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
-    NamedNodeTermValueEncoder,
-    IriValueUnaryDispatcher,
-    IriSparqlOp
-);
-impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
     IsBlankValueUnaryDispatcher,
-    IsBlankSparqlOp
+    IsBlankSparqlOp,
+    BuiltinName::IsBlank
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
     IsIriValueUnaryDispatcher,
-    IsIriSparqlOp
+    IsIriSparqlOp,
+    BuiltinName::IsIri
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
     IsLiteralValueUnaryDispatcher,
-    IsLiteralSparqlOp
+    IsLiteralSparqlOp,
+    BuiltinName::IsLiteral
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
     IsNumericValueUnaryDispatcher,
-    IsNumericSparqlOp
+    IsNumericSparqlOp,
+    BuiltinName::IsNumeric
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     SimpleLiteralRefTermValueEncoder,
     LangValueUnaryDispatcher,
-    LangSparqlOp
+    LangSparqlOp,
+    BuiltinName::Lang
 );
 impl_unary_sparql_op!(
-    TermValueEncoding,
-    DefaultTermValueDecoder,
+    TypedValueEncoding,
+    DefaultTypedValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     StrValueUnaryDispatcher,
-    StrSparqlOp
+    StrSparqlOp,
+    BuiltinName::Str
 );
 
-pub(crate) fn dispatch_unary_array<'data, TEncoding, TDecoder, TEncoder, TOp>(
-    op: &TOp,
-    values: &'data TEncoding::Array,
-) -> DFResult<ColumnarValue>
-where
-    TOp: UnaryTermValueOp,
-    TEncoding: TermEncoding,
-    TDecoder: TermDecoder<TEncoding, Term<'data> = TOp::Arg<'data>>,
-    TEncoder: TermEncoder<TEncoding, Term<'data> = TOp::Result<'data>>,
-{
-    let results = <TDecoder>::decode_terms(values).map(|v| match v {
-        Ok(value) => op.evaluate(value),
-        Err(ThinError::Expected) => op.evaluate_error(),
-        Err(internal_err) => Err(internal_err),
-    });
-    let result = <TEncoder>::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+#[derive(Debug)]
+struct IriBuiltinFactory {}
+
+impl IriBuiltinFactory {
+    pub const BASE_IRI: &'static str = "base_iri";
 }
 
-pub(crate) fn dispatch_unary_scalar<'data, TEncoding, TDecoder, TEncoder, TOp>(
-    op: &TOp,
-    value: &'data TEncoding::Scalar,
-) -> DFResult<ColumnarValue>
-where
-    TOp: UnaryTermValueOp,
-    TEncoding: TermEncoding,
-    TDecoder: TermDecoder<TEncoding, Term<'data> = TOp::Arg<'data>>,
-    TEncoder: TermEncoder<TEncoding, Term<'data> = TOp::Result<'data>>,
-{
-    let value = TDecoder::decode_term(value);
-    let result = match value {
-        Ok(value) => op.evaluate(value),
-        Err(ThinError::Expected) => op.evaluate_error(),
-        Err(ThinError::InternalError(error)) => {
-            return exec_err!("InternalError in UDF: {}", error)
-        }
+impl GraphFusionBuiltinFactory for IriBuiltinFactory {
+    fn name(&self) -> BuiltinName {
+        BuiltinName::Iri
+    }
+
+    fn encoding(&self) -> Vec<EncodingName> {
+        vec![EncodingName::TypedValue]
+    }
+
+    /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
+    fn create_with_args(&self, mut constant_args: HashMap<String, Term>) -> DFResult<ScalarUDF> {
+        let base_iri = extract_base_iri(&mut constant_args)?;
+
+        let op = IriSparqlOp::new(base_iri);
+        let udf_impl = UnaryScalarUdfOp::<
+            IriSparqlOp,
+            TypedValueEncoding,
+            DefaultTypedValueDecoder,
+            NamedNodeTermValueEncoder,
+        >::new(self.name(), op);
+        Ok(ScalarUDF::new_from_impl(udf_impl))
+    }
+}
+
+fn extract_base_iri(constant_args: &mut HashMap<String, Term>) -> DFResult<Option<Iri<String>>> {
+    let Some(term) = constant_args.remove(IriBuiltinFactory::BASE_IRI) else {
+        return Ok(None);
     };
-    let result = TEncoder::encode_term(result)?;
-    Ok(ColumnarValue::Scalar(result.into_scalar_value()))
+
+    match term {
+        Term::NamedNode(iri) => Ok(Some(Iri::parse_unchecked(iri.into_string()))),
+        _ => exec_err!(
+            "{} expcted an IRI for argument {}.",
+            BuiltinName::Iri,
+            IriBuiltinFactory::BASE_IRI
+        ),
+    }
 }

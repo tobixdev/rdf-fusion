@@ -1,6 +1,6 @@
-use crate::{SparqlOp, ThinResult, UnaryRdfTermOp, UnaryTermValueOp};
-use graphfusion_model::TermValueRef;
-use graphfusion_model::{is_numeric_datatype, Boolean, TermRef};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::TypedValueRef;
+use graphfusion_model::Boolean;
 
 #[derive(Debug)]
 pub struct IsNumericSparqlOp;
@@ -18,30 +18,15 @@ impl IsNumericSparqlOp {
 }
 
 impl SparqlOp for IsNumericSparqlOp {
-    fn name(&self) -> &str {
-        "is_numeric"
-    }
 }
 
-impl UnaryTermValueOp for IsNumericSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for IsNumericSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         // Datatypes that are not directly supported should have been promoted.
-        let result = matches!(value, TermValueRef::NumericLiteral(_));
-        Ok(result.into())
-    }
-}
-
-impl UnaryRdfTermOp for IsNumericSparqlOp {
-    type Result<'data> = Boolean;
-
-    fn evaluate<'data>(&self, value: TermRef<'data>) -> ThinResult<Self::Result<'data>> {
-        let result = match value {
-            TermRef::Literal(lit) => is_numeric_datatype(lit.datatype()),
-            _ => false
-        };
+        let result = matches!(value, TypedValueRef::NumericLiteral(_));
         Ok(result.into())
     }
 }

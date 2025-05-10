@@ -5,6 +5,7 @@ use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArra
 use datafusion::arrow::datatypes::UInt8Type;
 use graphfusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
 
+#[derive(Debug)]
 pub struct PlainTermDefaultDecoder {}
 
 /// Extracts a sequence of term references from the given array.

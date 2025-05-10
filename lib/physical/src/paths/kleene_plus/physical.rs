@@ -1,6 +1,6 @@
 use crate::DFResult;
 use graphfusion_encoding::as_term_value_array;
-use graphfusion_encoding::value_encoding::{TermValueArrayBuilder, FromArrowRdfTermValue};
+use graphfusion_encoding::value_encoding::{TypedValueArrayBuilder, FromArrowRdfTermValue};
 use datafusion::arrow::array::RecordBatchOptions;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -15,7 +15,7 @@ use datafusion::physical_plan::{
 };
 use futures::{Stream, StreamExt};
 use graphfusion_logical::paths::PATH_TABLE_SCHEMA;
-use graphfusion_model::{GraphName, GraphNameRef, InternalTerm, TermValueRef};
+use graphfusion_model::{GraphName, GraphNameRef, InternalTerm, TypedValueRef};
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Formatter;
@@ -282,10 +282,10 @@ impl KleenePlusClosureStream {
             let graph = GraphNameRef::from_array(graph_names, i).map_err(|_| {
                 exec_datafusion_err!("Could not obtain graph value from inner paths.")
             })?;
-            let start = TermValueRef::from_array(starts, i).map_err(|_| {
+            let start = TypedValueRef::from_array(starts, i).map_err(|_| {
                 exec_datafusion_err!("Could not obtain start value from inner paths.")
             })?;
-            let end = TermValueRef::from_array(ends, i).map_err(|_| {
+            let end = TypedValueRef::from_array(ends, i).map_err(|_| {
                 exec_datafusion_err!("Could not obtain end value from inner paths.")
             })?;
 
@@ -350,9 +350,9 @@ impl KleenePlusClosureStream {
 
     /// Creates a [RecordBatch] from the internal state of `self`.
     fn create_output_batch(&self) -> DFResult<RecordBatch> {
-        let mut graph_builder = TermValueArrayBuilder::default();
-        let mut start_builder = TermValueArrayBuilder::default();
-        let mut end_builder = TermValueArrayBuilder::default();
+        let mut graph_builder = TypedValueArrayBuilder::default();
+        let mut start_builder = TypedValueArrayBuilder::default();
+        let mut end_builder = TypedValueArrayBuilder::default();
 
         for path in &self.all_paths {
             match &path.graph {

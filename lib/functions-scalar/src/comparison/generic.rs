@@ -1,11 +1,11 @@
 use crate::ThinResult;
-use crate::{BinaryTermValueOp, SparqlOp};
+use crate::{BinarySparqlOp, SparqlOp};
 use graphfusion_model::ThinError;
-use graphfusion_model::{Boolean, TermValueRef};
+use graphfusion_model::{Boolean, TypedValueRef};
 use std::cmp::Ordering;
 
 macro_rules! create_binary_cmp_udf {
-    ($STRUCT: ident, $NAME: expr, $ORDERINGS: expr) => {
+    ($STRUCT: ident, $ORDERINGS: expr) => {
         #[derive(Debug)]
         pub struct $STRUCT {}
 
@@ -22,14 +22,11 @@ macro_rules! create_binary_cmp_udf {
         }
 
         impl SparqlOp for $STRUCT {
-            fn name(&self) -> &str {
-                $NAME
-            }
         }
 
-        impl BinaryTermValueOp for $STRUCT {
-            type ArgLhs<'data> = TermValueRef<'data>;
-            type ArgRhs<'data> = TermValueRef<'data>;
+        impl BinarySparqlOp for $STRUCT {
+            type ArgLhs<'data> = TypedValueRef<'data>;
+            type ArgRhs<'data> = TypedValueRef<'data>;
             type Result<'data> = Boolean;
 
             fn evaluate<'data>(
@@ -46,30 +43,26 @@ macro_rules! create_binary_cmp_udf {
     };
 }
 
-create_binary_cmp_udf!(EqSparqlOp, "eq", [Ordering::Equal]);
-create_binary_cmp_udf!(GreaterThanSparqlOp, "gt", [Ordering::Greater]);
-create_binary_cmp_udf!(
-    GreaterOrEqualSparqlOp,
-    "geq",
-    [Ordering::Equal, Ordering::Greater]
-);
-create_binary_cmp_udf!(LessThanSparqlOp, "lt", [Ordering::Less]);
-create_binary_cmp_udf!(LessOrEqualSparqlOp, "leq", [Ordering::Less, Ordering::Equal]);
+create_binary_cmp_udf!(EqSparqlOp, [Ordering::Equal]);
+create_binary_cmp_udf!(GreaterThanSparqlOp, [Ordering::Greater]);
+create_binary_cmp_udf!(GreaterOrEqualSparqlOp, [Ordering::Equal, Ordering::Greater]);
+create_binary_cmp_udf!(LessThanSparqlOp, [Ordering::Less]);
+create_binary_cmp_udf!(LessOrEqualSparqlOp, [Ordering::Less, Ordering::Equal]);
 
 #[cfg(test)]
 mod tests {
     use crate::comparison::generic::LessThanSparqlOp;
-    use crate::BinaryTermValueOp;
+    use crate::BinarySparqlOp;
     use graphfusion_model::Numeric;
-    use graphfusion_model::TermValueRef;
+    use graphfusion_model::TypedValueRef;
 
     #[test]
     fn test_lth_int_with_float() {
         let less_than = LessThanSparqlOp::new();
         let result = less_than
             .evaluate(
-                TermValueRef::NumericLiteral(Numeric::Int(5.into())),
-                TermValueRef::NumericLiteral(Numeric::Float(10.0.into())),
+                TypedValueRef::NumericLiteral(Numeric::Int(5.into())),
+                TypedValueRef::NumericLiteral(Numeric::Float(10.0.into())),
             )
             .unwrap();
         assert_eq!(result, true.into());

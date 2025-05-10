@@ -1,61 +1,147 @@
+use crate::builtin::BuiltinName;
 use crate::DFResult;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
-use datafusion::logical_expr::ColumnarValue;
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_functions_scalar::UnaryTermValueOp;
+use graphfusion_functions_scalar::{SparqlOpVolatility, UnarySparqlOp};
 use graphfusion_model::ThinError;
+use std::any::Any;
 
 #[macro_export]
 macro_rules! impl_unary_sparql_op {
-    ($ENCODING: ty, $DECODER: ty, $ENCODER: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty) => {
+    ($ENCODING: ty, $DECODER: ty, $ENCODER: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty, $NAME: expr) => {
         #[derive(Debug)]
-        struct $STRUCT_NAME {
-            signature: Signature,
-            op: $SPARQL_OP,
-        }
+        struct $STRUCT_NAME {}
 
-        impl SparqlOpDispatcher for $STRUCT_NAME {
-            fn name(&self) -> &str {
-                self.op.name()
+        impl crate::builtin::GraphFusionBuiltinFactory for $STRUCT_NAME {
+            fn name(&self) -> crate::builtin::BuiltinName {
+                $NAME
             }
 
-            fn signature(&self) -> &Signature {
-                &self.signature
+            fn encoding(&self) -> std::vec::Vec<graphfusion_encoding::EncodingName> {
+                vec![<$ENCODING>::name()]
             }
 
-            fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-                Ok(<$ENCODING>::data_type())
-            }
-
-            fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
-                match TryInto::<[_; 1]>::try_into(args.args) {
-                    Ok([ColumnarValue::Array(arg)]) => {
-                        dispatch_unary_array::<$ENCODING, $DECODER, $ENCODER, $SPARQL_OP>(
-                            &self.op,
-                            &<$ENCODING>::try_new_array(arg)?,
-                        )
-                    }
-                    Ok([ColumnarValue::Scalar(arg)]) => {
-                        dispatch_unary_scalar::<$ENCODING, $DECODER, $ENCODER, $SPARQL_OP>(
-                            &self.op,
-                            &<$ENCODING>::try_new_scalar(arg)?,
-                        )
-                    }
-                    _ => Err(DataFusionError::Execution(String::from(
-                        "Unexpected type combination.",
-                    ))),
-                }
+            /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
+            fn create_with_args(
+                &self,
+                _constant_args: std::collections::HashMap<
+                    std::string::String,
+                    graphfusion_model::Term,
+                >,
+            ) -> crate::DFResult<datafusion::logical_expr::ScalarUDF> {
+                let op = <$SPARQL_OP>::new();
+                let udf_impl = crate::scalar::unary::UnaryScalarUdfOp::<
+                    $SPARQL_OP,
+                    $ENCODING,
+                    $DECODER,
+                    $ENCODER,
+                >::new($NAME, op);
+                Ok(datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl))
             }
         }
     };
 }
 
-pub(crate) fn dispatch_unary_array<'data, TEncoding, TDecoder, TEncoder, TOp>(
+#[derive(Debug)]
+pub(crate) struct UnaryScalarUdfOp<TOp, TEncoding, TDecoder, TEncoder>
+where
+    TOp: UnarySparqlOp,
+    TEncoding: TermEncoding,
+    TDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg<'a>>,
+    TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
+{
+    name: String,
+    op: TOp,
+    signature: Signature,
+    _encoding: std::marker::PhantomData<TEncoding>,
+    _decoder: std::marker::PhantomData<TDecoder>,
+    _encoder: std::marker::PhantomData<TEncoder>,
+}
+
+impl<TOp, TEncoding, TDecoder, TEncoder> UnaryScalarUdfOp<TOp, TEncoding, TDecoder, TEncoder>
+where
+    TOp: UnarySparqlOp,
+    TEncoding: TermEncoding,
+    TDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg<'a>>,
+    TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
+{
+    pub(crate) fn new(name: BuiltinName, op: TOp) -> Self {
+        let volatility = match op.volatility() {
+            SparqlOpVolatility::Immutable => Volatility::Immutable,
+            SparqlOpVolatility::Stable => Volatility::Stable,
+            SparqlOpVolatility::Volatile => Volatility::Volatile,
+        };
+        let signature = Signature::new(
+            TypeSignature::Uniform(1, vec![TEncoding::data_type()]),
+            volatility,
+        );
+        Self {
+            name: name.to_string(),
+            op,
+            signature,
+            _encoding: Default::default(),
+            _decoder: Default::default(),
+            _encoder: Default::default(),
+        }
+    }
+}
+
+impl<TOp, TEncoding, TDecoder, TEncoder> ScalarUDFImpl
+    for UnaryScalarUdfOp<TOp, TEncoding, TDecoder, TEncoder>
+where
+    TOp: UnarySparqlOp + 'static,
+    TEncoding: TermEncoding + 'static,
+    TDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg<'a>> + 'static,
+    TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>> + 'static,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn return_type(&self, _arg_types: &[DataType]) -> datafusion::common::Result<DataType> {
+        Ok(TEncoding::data_type())
+    }
+
+    fn invoke_with_args(
+        &self,
+        args: ScalarFunctionArgs<'_>,
+    ) -> datafusion::common::Result<ColumnarValue> {
+        match TryInto::<[_; 1]>::try_into(args.args) {
+            Ok([ColumnarValue::Array(arg)]) => {
+                dispatch_unary_array::<TEncoding, TDecoder, TEncoder, TOp>(
+                    &self.op,
+                    &TEncoding::try_new_array(arg)?,
+                )
+            }
+            Ok([ColumnarValue::Scalar(arg)]) => {
+                dispatch_unary_scalar::<TEncoding, TDecoder, TEncoder, TOp>(
+                    &self.op,
+                    &TEncoding::try_new_scalar(arg)?,
+                )
+            }
+            _ => exec_err!("Unexpected input combination."),
+        }
+    }
+}
+
+fn dispatch_unary_array<'data, TEncoding, TDecoder, TEncoder, TOp>(
     op: &TOp,
     values: &'data TEncoding::Array,
 ) -> DFResult<ColumnarValue>
 where
-    TOp: UnaryTermValueOp,
+    TOp: UnarySparqlOp,
     TEncoding: TermEncoding,
     TDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg<'a>>,
     TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
@@ -69,12 +155,12 @@ where
     Ok(ColumnarValue::Array(result.into_array()))
 }
 
-pub(crate) fn dispatch_unary_scalar<'data, TEncoding, TDecoder, TEncoder, TOp>(
+fn dispatch_unary_scalar<'data, TEncoding, TDecoder, TEncoder, TOp>(
     op: &TOp,
     value: &'data TEncoding::Scalar,
 ) -> DFResult<ColumnarValue>
 where
-    TOp: UnaryTermValueOp,
+    TOp: UnarySparqlOp,
     TEncoding: TermEncoding,
     TDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg<'a>>,
     TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,

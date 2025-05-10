@@ -1,4 +1,4 @@
-use crate::{NullarySparqlOp, UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{NullarySparqlOp, UnarySparqlOp, ThinResult, SparqlOp};
 use graphfusion_model::{BlankNode, BlankNodeRef, SimpleLiteralRef};
 
 #[derive(Debug)]
@@ -17,9 +17,6 @@ impl BNodeSparqlOp {
 }
 
 impl SparqlOp for BNodeSparqlOp {
-    fn name(&self) -> &str {
-        "bnode"
-    }
 }
 
 impl NullarySparqlOp for BNodeSparqlOp {
@@ -30,7 +27,7 @@ impl NullarySparqlOp for BNodeSparqlOp {
     }
 }
 
-impl UnaryTermValueOp for BNodeSparqlOp {
+impl UnarySparqlOp for BNodeSparqlOp {
     type Arg<'data> = SimpleLiteralRef<'data>;
     type Result<'data> = BlankNodeRef<'data>;
 

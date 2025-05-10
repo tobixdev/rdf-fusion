@@ -1,4 +1,4 @@
-use crate::{SparqlOp, ThinResult, UnaryTermValueOp};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::{Integer, StringLiteralRef};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl StrLenSparqlOp {
 }
 
 impl SparqlOp for StrLenSparqlOp {
-    fn name(&self) -> &str {
-        "strlen"
-    }
 }
 
-impl UnaryTermValueOp for StrLenSparqlOp {
+impl UnarySparqlOp for StrLenSparqlOp {
     type Arg<'data> = StringLiteralRef<'data>;
     type Result<'data> = Integer;
 

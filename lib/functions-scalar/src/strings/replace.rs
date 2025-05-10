@@ -1,5 +1,5 @@
 use crate::strings::regex::compile_pattern;
-use crate::{QuaternaryRdfTermValueOp, SparqlOp, TernaryRdfTermValueOp, ThinResult};
+use crate::{QuaternarySparqlOp, SparqlOp, TernarySparqlOp, ThinResult};
 use graphfusion_model::{OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef};
 use std::borrow::Cow;
 
@@ -21,12 +21,9 @@ impl ReplaceSparqlOp {
 }
 
 impl SparqlOp for ReplaceSparqlOp {
-    fn name(&self) -> &str {
-        "replace"
-    }
 }
 
-impl TernaryRdfTermValueOp for ReplaceSparqlOp {
+impl TernarySparqlOp for ReplaceSparqlOp {
     type Arg0<'data> = StringLiteralRef<'data>;
     type Arg1<'data> = SimpleLiteralRef<'data>;
     type Arg2<'data> = SimpleLiteralRef<'data>;
@@ -49,7 +46,7 @@ impl TernaryRdfTermValueOp for ReplaceSparqlOp {
     }
 }
 
-impl QuaternaryRdfTermValueOp for ReplaceSparqlOp {
+impl QuaternarySparqlOp for ReplaceSparqlOp {
     type Arg0<'data> = StringLiteralRef<'data>;
     type Arg1<'data> = SimpleLiteralRef<'data>;
     type Arg2<'data> = SimpleLiteralRef<'data>;

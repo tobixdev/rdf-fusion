@@ -17,11 +17,7 @@ impl UuidSparqlOp {
     }
 }
 
-impl SparqlOp for UuidSparqlOp {
-    fn name(&self) -> &str {
-        "uuid"
-    }
-}
+impl SparqlOp for UuidSparqlOp {}
 
 impl NullarySparqlOp for UuidSparqlOp {
     type Result = NamedNode;

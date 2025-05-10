@@ -1,6 +1,6 @@
-use crate::{SparqlOp, ThinResult, UnaryRdfTermOp, UnaryTermValueOp};
-use graphfusion_model::TermValueRef;
-use graphfusion_model::{Boolean, TermRef};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::TypedValueRef;
+use graphfusion_model::Boolean;
 
 #[derive(Debug)]
 pub struct IsBlankSparqlOp;
@@ -18,26 +18,14 @@ impl IsBlankSparqlOp {
 }
 
 impl SparqlOp for IsBlankSparqlOp {
-    fn name(&self) -> &str {
-        "is_blank"
-    }
 }
 
-impl UnaryTermValueOp for IsBlankSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for IsBlankSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
-        let result = matches!(value, TermValueRef::BlankNode(_));
-        Ok(result.into())
-    }
-}
-
-impl UnaryRdfTermOp for IsBlankSparqlOp {
-    type Result<'data> = Boolean;
-
-    fn evaluate<'data>(&self, value: TermRef<'data>) -> ThinResult<Self::Result<'data>> {
-        let result = matches!(value, TermRef::BlankNode(_));
+        let result = matches!(value, TypedValueRef::BlankNode(_));
         Ok(result.into())
     }
 }

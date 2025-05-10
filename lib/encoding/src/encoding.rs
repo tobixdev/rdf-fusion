@@ -4,16 +4,16 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use graphfusion_model::ThinResult;
+use std::fmt::Debug;
 
 /// TODO
-pub type DefaultDecoder<TEncoding> = <TEncoding as TermEncoding>::DefaultDecoder;
-pub type DefaultDecoderTerm<'data, TEncoding> =
-    <DefaultDecoder<TEncoding> as TermDecoder<TEncoding>>::Term<'data>;
-
-/// TODO
-pub type DefaultEncoder<TEncoding> = <TEncoding as TermEncoding>::DefaultEncoder;
-pub type DefaultEncoderTerm<'data, TEncoding> =
-    <DefaultEncoder<TEncoding> as TermEncoder<TEncoding>>::Term<'data>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EncodingName {
+    /// TODO
+    PlainTerm,
+    /// TODO
+    TypedValue,
+}
 
 /// Represents an arrow [Array] with a specific Encoding.
 ///
@@ -40,11 +40,12 @@ pub trait EncodingScalar {
 }
 
 /// TODO
-pub trait TermEncoding {
+pub trait TermEncoding: Debug + Send + Sync {
     type Array: EncodingArray;
     type Scalar: EncodingScalar;
-    type DefaultEncoder: TermEncoder<Self>;
-    type DefaultDecoder: TermDecoder<Self>;
+
+    /// Returns the name of the encoding.
+    fn name() -> EncodingName;
 
     /// Returns the [DataType] that is used for this encoding.
     fn data_type() -> DataType;
@@ -82,7 +83,7 @@ pub trait TermEncoding {
 }
 
 /// Allows extracting an iterator of a type from an [EncodingArray].
-pub trait TermDecoder<TEncoding: TermEncoding + ?Sized> {
+pub trait TermDecoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
     type Term<'data>;
 
     /// TODO
@@ -93,7 +94,7 @@ pub trait TermDecoder<TEncoding: TermEncoding + ?Sized> {
 }
 
 /// Allows encoding an iterator of a type into an [EncodingArray].
-pub trait TermEncoder<TEncoding: TermEncoding + ?Sized> {
+pub trait TermEncoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
     type Term<'data>;
 
     /// TODO
@@ -119,7 +120,6 @@ impl<TEncoding: TermEncoding + ?Sized> EncodingDatum<TEncoding> {
     ) -> Box<dyn Iterator<Item = ThinResult<TDecoder::Term<'data>>> + 'data>
     where
         TDecoder: TermDecoder<TEncoding> + 'data,
-        TDecoder::Term<'data>: Clone,
     {
         match self {
             EncodingDatum::Array(array) => Box::new(
@@ -128,8 +128,7 @@ impl<TEncoding: TermEncoding + ?Sized> EncodingDatum<TEncoding> {
                     .into_iter(),
             ),
             EncodingDatum::Scalar(scalar, n) => {
-                let result = TDecoder::decode_term(scalar);
-                Box::new(std::iter::repeat_with(move || result.clone()).take(*n))
+                Box::new((0..*n).map(|_| TDecoder::decode_term(scalar)))
             }
         }
     }

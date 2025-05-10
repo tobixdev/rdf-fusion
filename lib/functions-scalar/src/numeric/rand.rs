@@ -18,9 +18,6 @@ impl RandSparqlOp {
 }
 
 impl SparqlOp for RandSparqlOp {
-    fn name(&self) -> &str {
-        "rand"
-    }
 }
 
 impl NullarySparqlOp for RandSparqlOp {

@@ -3,6 +3,7 @@ use crate::plain_term_encoding::PlainTermEncoding;
 use crate::{DFResult, TermEncoding};
 use graphfusion_model::{TermRef, ThinResult};
 
+#[derive(Debug)]
 pub struct PlainTermDefaultEncoder;
 
 impl TermEncoder<PlainTermEncoding> for PlainTermDefaultEncoder {

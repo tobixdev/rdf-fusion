@@ -1,6 +1,6 @@
 use crate::scalar_encoder::ScalarEncoder;
 use crate::value_encoding::scalar::TermValueScalar;
-use crate::value_encoding::{TermValueArrayBuilder, TermValueEncoding, ValueEncodingField};
+use crate::value_encoding::{TypedValueArrayBuilder, TypedValueEncoding, TypedValueEncodingField};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::ScalarValue;
 use graphfusion_model::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef};
@@ -21,10 +21,10 @@ impl ScalarEncoder for TermValueScalarEncoder {
     fn encode_scalar_null() -> Self::Scalar {
         let value = ScalarValue::Union(
             Some((
-                ValueEncodingField::Null.type_id(),
+                TypedValueEncodingField::Null.type_id(),
                 Box::new(ScalarValue::Null),
             )),
-            TermValueEncoding::fields(),
+            TypedValueEncoding::fields(),
             UnionMode::Dense,
         );
         Self::Scalar::new_unchecked(value)
@@ -34,10 +34,10 @@ impl ScalarEncoder for TermValueScalarEncoder {
         let string_value = ScalarValue::Utf8(Some(String::from(node.as_str())));
         let value = ScalarValue::Union(
             Some((
-                ValueEncodingField::NamedNode.type_id(),
+                TypedValueEncodingField::NamedNode.type_id(),
                 Box::new(string_value),
             )),
-            TermValueEncoding::fields(),
+            TypedValueEncoding::fields(),
             UnionMode::Dense,
         );
         Self::Scalar::new_unchecked(value)
@@ -47,17 +47,17 @@ impl ScalarEncoder for TermValueScalarEncoder {
         let string_value = ScalarValue::Utf8(Some(String::from(node.as_str())));
         let value = ScalarValue::Union(
             Some((
-                ValueEncodingField::BlankNode.type_id(),
+                TypedValueEncodingField::BlankNode.type_id(),
                 Box::new(string_value),
             )),
-            TermValueEncoding::fields(),
+            TypedValueEncoding::fields(),
             UnionMode::Dense,
         );
         Self::Scalar::new_unchecked(value)
     }
 
     fn encode_scalar_literal(literal: LiteralRef<'_>) -> Self::Scalar {
-        let mut builder = TermValueArrayBuilder::default();
+        let mut builder = TypedValueArrayBuilder::default();
         builder
             .append_literal(literal)
             .expect("Cannot become too long");

@@ -1,5 +1,5 @@
-use crate::{BinaryRdfTermOp, BinaryTermValueOp, SparqlOp, ThinResult};
-use graphfusion_model::{Boolean, TermValueRef, TermRef};
+use crate::{BinarySparqlOp, SparqlOp, ThinResult};
+use graphfusion_model::{Boolean, TypedValueRef};
 
 #[derive(Debug)]
 pub struct SameTermSparqlOp;
@@ -17,14 +17,11 @@ impl SameTermSparqlOp {
 }
 
 impl SparqlOp for SameTermSparqlOp {
-    fn name(&self) -> &str {
-        "sameTerm"
-    }
 }
 
-impl BinaryTermValueOp for SameTermSparqlOp {
-    type ArgLhs<'data> = TermValueRef<'data>;
-    type ArgRhs<'data> = TermValueRef<'data>;
+impl BinarySparqlOp for SameTermSparqlOp {
+    type ArgLhs<'data> = TypedValueRef<'data>;
+    type ArgRhs<'data> = TypedValueRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(
@@ -33,18 +30,6 @@ impl BinaryTermValueOp for SameTermSparqlOp {
         rhs: Self::ArgRhs<'data>,
     ) -> ThinResult<Self::Result<'data>> {
         // TODO: fix PartialEq for RdfValue to be SameTerm
-        Ok((lhs == rhs).into())
-    }
-}
-
-impl BinaryRdfTermOp for SameTermSparqlOp {
-    type Result<'data> = Boolean;
-
-    fn evaluate<'data>(
-        &self,
-        lhs: TermRef<'data>,
-        rhs: TermRef<'data>,
-    ) -> ThinResult<Self::Result<'data>> {
         Ok((lhs == rhs).into())
     }
 }

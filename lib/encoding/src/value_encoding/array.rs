@@ -1,4 +1,7 @@
-use crate::value_encoding::{TermValueEncoding, ValueEncodingField};
+use crate::encoding::EncodingArray;
+use crate::value_encoding::{TypedValueEncoding, TypedValueEncodingField};
+use crate::GraphFusionEncodedArray::Value;
+use crate::TermEncoding;
 use datafusion::arrow::array::{
     Array, ArrayRef, AsArray, BooleanArray, Decimal128Array, Float32Array, Float64Array,
     GenericStringArray, Int16Array, Int32Array, Int64Array, UnionArray,
@@ -7,10 +10,8 @@ use datafusion::arrow::datatypes::{
     Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
 };
 use datafusion::common::{exec_err, DataFusionError};
-use crate::encoding::EncodingArray;
-use crate::TermEncoding;
 
-/// Represents an Arrow array with a [TermValueEncoding].
+/// Represents an Arrow array with a [TypedValueEncoding].
 pub struct TermValueArray {
     inner: ArrayRef,
 }
@@ -25,49 +26,50 @@ impl TermValueArray {
     pub fn parts_as_ref(&self) -> TermValueArrayParts<'_> {
         let array = self.inner.as_union();
         let strings_array = array
-            .child(ValueEncodingField::String.type_id())
+            .child(TypedValueEncodingField::String.type_id())
             .as_struct();
         let date_times_array = array
-            .child(ValueEncodingField::DateTime.type_id())
+            .child(TypedValueEncodingField::DateTime.type_id())
             .as_struct();
-        let times_array = array.child(ValueEncodingField::Time.type_id()).as_struct();
-        let dates_array = array.child(ValueEncodingField::Date.type_id()).as_struct();
+        let times_array = array.child(TypedValueEncodingField::Time.type_id()).as_struct();
+        let dates_array = array.child(TypedValueEncodingField::Date.type_id()).as_struct();
         let durations_array = array
-            .child(ValueEncodingField::Duration.type_id())
+            .child(TypedValueEncodingField::Duration.type_id())
             .as_struct();
         let other_literals_array = array
-            .child(ValueEncodingField::OtherLiteral.type_id())
+            .child(TypedValueEncodingField::OtherLiteral.type_id())
             .as_struct();
 
         TermValueArrayParts {
             array,
+            null_count: array.child(TypedValueEncodingField::Null.type_id()).null_count(),
             named_nodes: array
-                .child(ValueEncodingField::NamedNode.type_id())
+                .child(TypedValueEncodingField::NamedNode.type_id())
                 .as_string::<i32>(),
             blank_nodes: array
-                .child(ValueEncodingField::BlankNode.type_id())
+                .child(TypedValueEncodingField::BlankNode.type_id())
                 .as_string::<i32>(),
             strings: StringParts {
                 value: strings_array.column(0).as_string::<i32>(),
                 language: strings_array.column(1).as_string::<i32>(),
             },
             booleans: array
-                .child(ValueEncodingField::Boolean.type_id())
+                .child(TypedValueEncodingField::Boolean.type_id())
                 .as_boolean(),
             floats: array
-                .child(ValueEncodingField::Float.type_id())
+                .child(TypedValueEncodingField::Float.type_id())
                 .as_primitive::<Float32Type>(),
             doubles: array
-                .child(ValueEncodingField::Double.type_id())
+                .child(TypedValueEncodingField::Double.type_id())
                 .as_primitive::<Float64Type>(),
             decimals: array
-                .child(ValueEncodingField::Decimal.type_id())
+                .child(TypedValueEncodingField::Decimal.type_id())
                 .as_primitive::<Decimal128Type>(),
             ints: array
-                .child(ValueEncodingField::Int.type_id())
+                .child(TypedValueEncodingField::Int.type_id())
                 .as_primitive::<Int32Type>(),
             integers: array
-                .child(ValueEncodingField::Integer.type_id())
+                .child(TypedValueEncodingField::Integer.type_id())
                 .as_primitive::<Int64Type>(),
             date_times: TimestampParts {
                 value: date_times_array.column(0).as_primitive::<Decimal128Type>(),
@@ -97,7 +99,7 @@ impl TryFrom<ArrayRef> for TermValueArray {
     type Error = DataFusionError;
 
     fn try_from(value: ArrayRef) -> Result<Self, Self::Error> {
-        if value.data_type() != &TermValueEncoding::data_type() {
+        if value.data_type() != &TypedValueEncoding::data_type() {
             return exec_err!("Unexpected type when creating a value-encoded array");
         }
         Ok(Self { inner: value })
@@ -117,6 +119,7 @@ impl EncodingArray for TermValueArray {
 #[derive(Debug, Clone)]
 pub struct TermValueArrayParts<'data> {
     pub array: &'data UnionArray,
+    pub null_count: usize,
     pub named_nodes: &'data GenericStringArray<i32>,
     pub blank_nodes: &'data GenericStringArray<i32>,
     pub strings: StringParts<'data>,

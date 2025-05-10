@@ -1,4 +1,4 @@
-use crate::{BinaryTermValueOp, SparqlOp, ThinResult};
+use crate::{BinarySparqlOp, SparqlOp, ThinResult};
 use graphfusion_model::{Boolean, CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl StrEndsSparqlOp {
 }
 
 impl SparqlOp for StrEndsSparqlOp {
-    fn name(&self) -> &str {
-        "strends"
-    }
 }
 
-impl BinaryTermValueOp for StrEndsSparqlOp {
+impl BinarySparqlOp for StrEndsSparqlOp {
     type ArgLhs<'data> = StringLiteralRef<'data>;
     type ArgRhs<'data> = StringLiteralRef<'data>;
     type Result<'data> = Boolean;

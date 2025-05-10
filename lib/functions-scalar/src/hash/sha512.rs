@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use md5::Digest;
 use graphfusion_model::{OwnedStringLiteral, SimpleLiteralRef};
 use sha2::Sha512;
@@ -19,12 +19,9 @@ impl Sha512SparqlOp {
 }
 
 impl SparqlOp for Sha512SparqlOp {
-    fn name(&self) -> &str {
-        "sha512"
-    }
 }
 
-impl UnaryTermValueOp for Sha512SparqlOp {
+impl UnarySparqlOp for Sha512SparqlOp {
     type Arg<'data> = SimpleLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 

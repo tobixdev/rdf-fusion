@@ -1,5 +1,5 @@
-use crate::{SparqlOp, ThinResult, UnaryTermValueOp};
-use graphfusion_model::TermValueRef;
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::TypedValueRef;
 use graphfusion_model::{Double, Numeric, ThinError};
 
 #[derive(Debug)]
@@ -18,20 +18,17 @@ impl AsDoubleSparqlOp {
 }
 
 impl SparqlOp for AsDoubleSparqlOp {
-    fn name(&self) -> &str {
-        "xsd:double"
-    }
 }
 
-impl UnaryTermValueOp for AsDoubleSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for AsDoubleSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Double;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let converted = match value {
-            TermValueRef::BooleanLiteral(v) => Double::from(v),
-            TermValueRef::SimpleLiteral(v) => v.value.parse()?,
-            TermValueRef::NumericLiteral(numeric) => match numeric {
+            TypedValueRef::BooleanLiteral(v) => Double::from(v),
+            TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+            TypedValueRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Double::from(v),
                 Numeric::Integer(v) => Double::from(v),
                 Numeric::Float(v) => Double::from(v),

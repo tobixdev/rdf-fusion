@@ -1,5 +1,5 @@
-use crate::{SparqlOp, ThinResult, UnaryTermValueOp};
-use graphfusion_model::TermValueRef;
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::TypedValueRef;
 use graphfusion_model::{Boolean, Numeric, ThinError};
 
 #[derive(Debug)]
@@ -18,20 +18,17 @@ impl AsBooleanSparqlOp {
 }
 
 impl SparqlOp for AsBooleanSparqlOp {
-    fn name(&self) -> &str {
-        "xsd::boolean"
-    }
 }
 
-impl UnaryTermValueOp for AsBooleanSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for AsBooleanSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let converted = match value {
-            TermValueRef::BooleanLiteral(v) => v,
-            TermValueRef::SimpleLiteral(v) => v.value.parse()?,
-            TermValueRef::NumericLiteral(numeric) => match numeric {
+            TypedValueRef::BooleanLiteral(v) => v,
+            TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+            TypedValueRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Boolean::from(v),
                 Numeric::Integer(v) => Boolean::from(v),
                 Numeric::Float(v) => Boolean::from(v),

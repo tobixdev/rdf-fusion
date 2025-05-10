@@ -1,9 +1,9 @@
-use crate::value_encoding::TermValueEncoding;
+use crate::value_encoding::TypedValueEncoding;
 use crate::{DFResult, TermEncoding};
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 use crate::encoding::EncodingScalar;
 
-/// Represents an Arrow scalar with a [TermValueEncoding].
+/// Represents an Arrow scalar with a [TypedValueEncoding].
 pub struct TermValueScalar {
     inner: ScalarValue,
 }
@@ -15,7 +15,7 @@ impl TermValueScalar {
     ///
     /// Returns an error if the data type of `value` is unexpected.
     pub fn try_new(value: ScalarValue) -> DFResult<Self> {
-        if value.data_type() != TermValueEncoding::data_type() {
+        if value.data_type() != TypedValueEncoding::data_type() {
             return exec_err!("Expected scalar value with value encoding, got {:?}", value);
         }
         Ok(Self::new_unchecked(value))

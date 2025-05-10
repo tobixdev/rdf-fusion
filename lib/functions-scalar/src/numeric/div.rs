@@ -1,4 +1,4 @@
-use crate::{BinaryTermValueOp, SparqlOp};
+use crate::{BinarySparqlOp, SparqlOp};
 use graphfusion_model::{Decimal, Numeric, NumericPair, ThinResult};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl DivSparqlOp {
 }
 
 impl SparqlOp for DivSparqlOp {
-    fn name(&self) -> &str {
-        "div"
-    }
 }
 
-impl BinaryTermValueOp for DivSparqlOp {
+impl BinarySparqlOp for DivSparqlOp {
     type ArgLhs<'lhs> = Numeric;
     type ArgRhs<'rhs> = Numeric;
     type Result<'data> = Numeric;

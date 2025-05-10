@@ -1,43 +1,62 @@
-use crate::value_encoding::{RdfTermValueEncoding, RdfTermValueEncodingField};
-use crate::{as_term_value_array, DFResult};
-use datafusion::arrow::array::{as_boolean_array, Array, BooleanArray};
+use crate::builtin::factory::GraphFusionBuiltinFactory;
+use crate::builtin::BuiltinName;
+use crate::DFResult;
+use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::internal_err;
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
+    Volatility,
 };
+use graphfusion_encoding::value_encoding::{TypedValueEncoding, TypedValueEncodingField};
+use graphfusion_encoding::{EncodingName, TermEncoding};
+use graphfusion_model::Term;
 use std::any::Any;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct EncAsNativeBoolean {
-    signature: Signature,
-}
+struct AsNativeBooleanFactory;
 
-impl Default for EncAsNativeBoolean {
-    fn default() -> Self {
-        Self::new()
+impl GraphFusionBuiltinFactory for AsNativeBooleanFactory {
+    fn name(&self) -> BuiltinName {
+        BuiltinName::NativeBooleanAsTerm
+    }
+
+    fn encoding(&self) -> Vec<EncodingName> {
+        vec![EncodingName::TypedValue]
+    }
+
+    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<ScalarUDF> {
+        Ok(ScalarUDF::new_from_impl(AsNativeBoolean::new(self.name())))
     }
 }
 
-impl EncAsNativeBoolean {
-    pub fn new() -> Self {
+#[derive(Debug)]
+pub struct AsNativeBoolean {
+    name: String,
+    signature: Signature,
+}
+
+impl AsNativeBoolean {
+    pub fn new(name: BuiltinName) -> Self {
         Self {
+            name: name.to_string(),
             signature: Signature::new(
-                TypeSignature::Exact(vec![RdfTermValueEncoding::datatype()]),
+                TypeSignature::Exact(vec![TypedValueEncoding::data_type()]),
                 Volatility::Immutable,
             ),
         }
     }
 }
 
-impl ScalarUDFImpl for EncAsNativeBoolean {
+impl ScalarUDFImpl for AsNativeBoolean {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_as_native_boolean"
+        &self.name
     }
 
     fn signature(&self) -> &Signature {
@@ -54,25 +73,25 @@ impl ScalarUDFImpl for EncAsNativeBoolean {
         }
 
         let input = args.args[0].to_array(args.number_rows)?;
-        let terms = as_term_value_array(&input)?;
-        let boolean_array = as_boolean_array(terms.child(RdfTermValueEncodingField::Boolean.type_id()));
-        let null_array = terms.child(RdfTermValueEncodingField::Null.type_id());
+        let terms = TypedValueEncoding::try_new_array(input)?;
+        let parts = terms.parts_as_ref();
 
-        if boolean_array.len() + null_array.len() != args.number_rows {
+        if parts.booleans.len() + parts.null_count != args.number_rows {
             return internal_err!(
                 "Unexpected all elements to either be a boolean or null. expected: {}, actual: {}",
                 args.number_rows,
-                boolean_array.len() + null_array.len()
+                parts.booleans.len() + parts.null_count
             );
         }
 
-        let result = terms
+        let result = parts
+            .array
             .type_ids()
             .iter()
             .enumerate()
             .map(|(idx, tid)| {
-                Some(if *tid == RdfTermValueEncodingField::Boolean.type_id() {
-                    boolean_array.value(terms.value_offset(idx))
+                Some(if *tid == TypedValueEncodingField::Boolean.type_id() {
+                    parts.booleans.value(parts.array.value_offset(idx))
                 } else {
                     false
                 })

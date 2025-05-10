@@ -1,4 +1,4 @@
-use crate::{BinaryTermValueOp, SparqlOp, TernaryRdfTermValueOp, ThinResult};
+use crate::{BinarySparqlOp, SparqlOp, TernarySparqlOp, ThinResult};
 use graphfusion_model::{Integer, StringLiteralRef, ThinError};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl SubStrSparqlOp {
 }
 
 impl SparqlOp for SubStrSparqlOp {
-    fn name(&self) -> &str {
-        "substr"
-    }
 }
 
-impl BinaryTermValueOp for SubStrSparqlOp {
+impl BinarySparqlOp for SubStrSparqlOp {
     type ArgLhs<'lhs> = StringLiteralRef<'lhs>;
     type ArgRhs<'lhs> = Integer;
     type Result<'data> = StringLiteralRef<'data>;
@@ -36,7 +33,7 @@ impl BinaryTermValueOp for SubStrSparqlOp {
     }
 }
 
-impl TernaryRdfTermValueOp for SubStrSparqlOp {
+impl TernarySparqlOp for SubStrSparqlOp {
     type Arg0<'data> = StringLiteralRef<'data>;
     type Arg1<'data> = Integer;
     type Arg2<'data> = Integer;

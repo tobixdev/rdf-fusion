@@ -1,6 +1,6 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use graphfusion_model::{DateTime, ThinError};
-use graphfusion_model::TermValueRef;
+use graphfusion_model::TypedValueRef;
 
 #[derive(Debug)]
 pub struct AsDateTimeSparqlOp;
@@ -18,19 +18,16 @@ impl AsDateTimeSparqlOp {
 }
 
 impl SparqlOp for AsDateTimeSparqlOp {
-    fn name(&self) -> &str {
-        "xsd:dateTime"
-    }
 }
 
-impl UnaryTermValueOp for AsDateTimeSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for AsDateTimeSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = DateTime;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let converted = match value {
-            TermValueRef::SimpleLiteral(v) => v.value.parse()?,
-            TermValueRef::DateTimeLiteral(v) => v,
+            TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+            TypedValueRef::DateTimeLiteral(v) => v,
             _ => return ThinError::expected(),
         };
         Ok(converted)

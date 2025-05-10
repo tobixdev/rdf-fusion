@@ -1,5 +1,5 @@
 use crate::plain_term_encoding::PlainTermEncoding;
-use crate::value_encoding::TermValueEncoding;
+use crate::value_encoding::TypedValueEncoding;
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 
@@ -27,7 +27,7 @@ pub enum GraphFusionEncodedArray {
     /// Represents an Arrow array that contains entries with the [term_encoding].
     PlainTerm(PlainTermEncoding),
     /// Represents an Arrow array that contains entries with the [value_encoding].
-    Value(TermValueEncoding),
+    Value(TypedValueEncoding),
     // Represents an Arrow array that contains entries with the [sortable_encoding].
     // Sortable(SortableEncodedArray),
 }

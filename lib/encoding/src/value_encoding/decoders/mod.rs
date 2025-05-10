@@ -1,5 +1,5 @@
 mod default;
 mod simple;
 
-pub use default::DefaultTermValueDecoder;
+pub use default::DefaultTypedValueDecoder;
 pub use simple::*;

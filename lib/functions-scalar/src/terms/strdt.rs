@@ -1,4 +1,4 @@
-use crate::{BinaryTermValueOp, SparqlOp, ThinResult};
+use crate::{BinarySparqlOp, SparqlOp, ThinResult};
 use graphfusion_model::{LiteralRef, NamedNodeRef, SimpleLiteralRef};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl StrDtSparqlOp {
 }
 
 impl SparqlOp for StrDtSparqlOp {
-    fn name(&self) -> &str {
-        "strdt"
-    }
 }
 
-impl BinaryTermValueOp for StrDtSparqlOp {
+impl BinarySparqlOp for StrDtSparqlOp {
     type ArgLhs<'lhs> = SimpleLiteralRef<'lhs>;
     type ArgRhs<'rhs> = NamedNodeRef<'rhs>;
     type Result<'data> = LiteralRef<'data>;

@@ -24,33 +24,33 @@ pub enum RdfTermValue {
 }
 
 impl RdfTermValue {
-    pub fn as_ref(&self) -> TermValueRef<'_> {
+    pub fn as_ref(&self) -> TypedValueRef<'_> {
         match self {
-            RdfTermValue::NamedNode(inner) => TermValueRef::NamedNode(inner.as_ref()),
-            RdfTermValue::BlankNode(inner) => TermValueRef::BlankNode(inner.as_ref()),
-            RdfTermValue::BooleanLiteral(inner) => TermValueRef::BooleanLiteral(*inner),
-            RdfTermValue::NumericLiteral(inner) => TermValueRef::NumericLiteral(*inner),
-            RdfTermValue::SimpleLiteral(inner) => TermValueRef::SimpleLiteral(inner.as_ref()),
+            RdfTermValue::NamedNode(inner) => TypedValueRef::NamedNode(inner.as_ref()),
+            RdfTermValue::BlankNode(inner) => TypedValueRef::BlankNode(inner.as_ref()),
+            RdfTermValue::BooleanLiteral(inner) => TypedValueRef::BooleanLiteral(*inner),
+            RdfTermValue::NumericLiteral(inner) => TypedValueRef::NumericLiteral(*inner),
+            RdfTermValue::SimpleLiteral(inner) => TypedValueRef::SimpleLiteral(inner.as_ref()),
             RdfTermValue::LanguageStringLiteral(inner) => {
-                TermValueRef::LanguageStringLiteral(inner.as_ref())
+                TypedValueRef::LanguageStringLiteral(inner.as_ref())
             }
-            RdfTermValue::DateTimeLiteral(inner) => TermValueRef::DateTimeLiteral(*inner),
-            RdfTermValue::TimeLiteral(inner) => TermValueRef::TimeLiteral(*inner),
-            RdfTermValue::DateLiteral(inner) => TermValueRef::DateLiteral(*inner),
-            RdfTermValue::DurationLiteral(inner) => TermValueRef::DurationLiteral(*inner),
+            RdfTermValue::DateTimeLiteral(inner) => TypedValueRef::DateTimeLiteral(*inner),
+            RdfTermValue::TimeLiteral(inner) => TypedValueRef::TimeLiteral(*inner),
+            RdfTermValue::DateLiteral(inner) => TypedValueRef::DateLiteral(*inner),
+            RdfTermValue::DurationLiteral(inner) => TypedValueRef::DurationLiteral(*inner),
             RdfTermValue::YearMonthDurationLiteral(inner) => {
-                TermValueRef::YearMonthDurationLiteral(*inner)
+                TypedValueRef::YearMonthDurationLiteral(*inner)
             }
             RdfTermValue::DayTimeDurationLiteral(inner) => {
-                TermValueRef::DayTimeDurationLiteral(*inner)
+                TypedValueRef::DayTimeDurationLiteral(*inner)
             }
-            RdfTermValue::OtherLiteral(inner) => TermValueRef::OtherLiteral(inner.as_ref()),
+            RdfTermValue::OtherLiteral(inner) => TypedValueRef::OtherLiteral(inner.as_ref()),
         }
     }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub enum TermValueRef<'value> {
+pub enum TypedValueRef<'value> {
     NamedNode(NamedNodeRef<'value>),
     BlankNode(BlankNodeRef<'value>),
     BooleanLiteral(Boolean),
@@ -66,14 +66,14 @@ pub enum TermValueRef<'value> {
     OtherLiteral(LiteralRef<'value>),
 }
 
-impl TermValueRef<'_> {
+impl TypedValueRef<'_> {
     /// Returns an owned decoded term.
     pub fn into_decoded(self) -> Term {
         match self {
-            TermValueRef::NamedNode(value) => Term::NamedNode(value.into_owned()),
-            TermValueRef::BlankNode(value) => Term::BlankNode(value.into_owned()),
-            TermValueRef::BooleanLiteral(value) => Term::Literal(Literal::from(value.as_bool())),
-            TermValueRef::NumericLiteral(value) => match value {
+            TypedValueRef::NamedNode(value) => Term::NamedNode(value.into_owned()),
+            TypedValueRef::BlankNode(value) => Term::BlankNode(value.into_owned()),
+            TypedValueRef::BooleanLiteral(value) => Term::Literal(Literal::from(value.as_bool())),
+            TypedValueRef::NumericLiteral(value) => match value {
                 Numeric::Int(value) => Term::Literal(Literal::from(i32::from(value))),
                 Numeric::Integer(value) => Term::Literal(Literal::from(i64::from(value))),
                 Numeric::Float(value) => Term::Literal(Literal::from(f32::from(value))),
@@ -82,138 +82,138 @@ impl TermValueRef<'_> {
                     Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::DECIMAL))
                 }
             },
-            TermValueRef::SimpleLiteral(value) => Term::Literal(Literal::from(value.value)),
-            TermValueRef::LanguageStringLiteral(value) => Term::Literal(
+            TypedValueRef::SimpleLiteral(value) => Term::Literal(Literal::from(value.value)),
+            TypedValueRef::LanguageStringLiteral(value) => Term::Literal(
                 Literal::new_language_tagged_literal_unchecked(value.value, value.language),
             ),
-            TermValueRef::DateTimeLiteral(value) => Term::Literal(Literal::new_typed_literal(
+            TypedValueRef::DateTimeLiteral(value) => Term::Literal(Literal::new_typed_literal(
                 value.to_string(),
                 xsd::DATE_TIME,
             )),
-            TermValueRef::TimeLiteral(value) => {
+            TypedValueRef::TimeLiteral(value) => {
                 Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::TIME))
             }
-            TermValueRef::DateLiteral(value) => {
+            TypedValueRef::DateLiteral(value) => {
                 Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::DATE))
             }
-            TermValueRef::DurationLiteral(value) => {
+            TypedValueRef::DurationLiteral(value) => {
                 Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::DURATION))
             }
-            TermValueRef::YearMonthDurationLiteral(value) => Term::Literal(
+            TypedValueRef::YearMonthDurationLiteral(value) => Term::Literal(
                 Literal::new_typed_literal(value.to_string(), xsd::YEAR_MONTH_DURATION),
             ),
-            TermValueRef::DayTimeDurationLiteral(value) => Term::Literal(
+            TypedValueRef::DayTimeDurationLiteral(value) => Term::Literal(
                 Literal::new_typed_literal(value.to_string(), xsd::DAY_TIME_DURATION),
             ),
-            TermValueRef::OtherLiteral(value) => Term::Literal(value.into_owned()),
+            TypedValueRef::OtherLiteral(value) => Term::Literal(value.into_owned()),
         }
     }
 
     pub fn into_owned(self) -> RdfTermValue {
         match self {
-            TermValueRef::NamedNode(inner) => RdfTermValue::NamedNode(inner.into_owned()),
-            TermValueRef::BlankNode(inner) => RdfTermValue::BlankNode(inner.into_owned()),
-            TermValueRef::BooleanLiteral(inner) => RdfTermValue::BooleanLiteral(inner),
-            TermValueRef::NumericLiteral(inner) => RdfTermValue::NumericLiteral(inner),
-            TermValueRef::SimpleLiteral(inner) => RdfTermValue::SimpleLiteral(inner.into_owned()),
-            TermValueRef::LanguageStringLiteral(inner) => {
+            TypedValueRef::NamedNode(inner) => RdfTermValue::NamedNode(inner.into_owned()),
+            TypedValueRef::BlankNode(inner) => RdfTermValue::BlankNode(inner.into_owned()),
+            TypedValueRef::BooleanLiteral(inner) => RdfTermValue::BooleanLiteral(inner),
+            TypedValueRef::NumericLiteral(inner) => RdfTermValue::NumericLiteral(inner),
+            TypedValueRef::SimpleLiteral(inner) => RdfTermValue::SimpleLiteral(inner.into_owned()),
+            TypedValueRef::LanguageStringLiteral(inner) => {
                 RdfTermValue::LanguageStringLiteral(inner.into_owned())
             }
-            TermValueRef::DateTimeLiteral(inner) => RdfTermValue::DateTimeLiteral(inner),
-            TermValueRef::TimeLiteral(inner) => RdfTermValue::TimeLiteral(inner),
-            TermValueRef::DateLiteral(inner) => RdfTermValue::DateLiteral(inner),
-            TermValueRef::DurationLiteral(inner) => RdfTermValue::DurationLiteral(inner),
-            TermValueRef::YearMonthDurationLiteral(inner) => {
+            TypedValueRef::DateTimeLiteral(inner) => RdfTermValue::DateTimeLiteral(inner),
+            TypedValueRef::TimeLiteral(inner) => RdfTermValue::TimeLiteral(inner),
+            TypedValueRef::DateLiteral(inner) => RdfTermValue::DateLiteral(inner),
+            TypedValueRef::DurationLiteral(inner) => RdfTermValue::DurationLiteral(inner),
+            TypedValueRef::YearMonthDurationLiteral(inner) => {
                 RdfTermValue::YearMonthDurationLiteral(inner)
             }
-            TermValueRef::DayTimeDurationLiteral(inner) => {
+            TypedValueRef::DayTimeDurationLiteral(inner) => {
                 RdfTermValue::DayTimeDurationLiteral(inner)
             }
-            TermValueRef::OtherLiteral(inner) => RdfTermValue::OtherLiteral(inner.into_owned()),
+            TypedValueRef::OtherLiteral(inner) => RdfTermValue::OtherLiteral(inner.into_owned()),
         }
     }
 }
 
-impl PartialOrd for TermValueRef<'_> {
+impl PartialOrd for TypedValueRef<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match *self {
-            TermValueRef::BlankNode(a) => Some(match other {
-                TermValueRef::BlankNode(b) => a.as_str().cmp(b.as_str()),
+            TypedValueRef::BlankNode(a) => Some(match other {
+                TypedValueRef::BlankNode(b) => a.as_str().cmp(b.as_str()),
                 _ => Ordering::Less,
             }),
-            TermValueRef::NamedNode(a) => Some(match other {
-                TermValueRef::BlankNode(_) => Ordering::Greater,
-                TermValueRef::NamedNode(b) => a.as_str().cmp(b.as_str()),
+            TypedValueRef::NamedNode(a) => Some(match other {
+                TypedValueRef::BlankNode(_) => Ordering::Greater,
+                TypedValueRef::NamedNode(b) => a.as_str().cmp(b.as_str()),
                 _ => Ordering::Less,
             }),
             a => match other {
-                TermValueRef::NamedNode(_) | TermValueRef::BlankNode(_) => Some(Ordering::Greater),
+                TypedValueRef::NamedNode(_) | TypedValueRef::BlankNode(_) => Some(Ordering::Greater),
                 _ => partial_cmp_literals(a, *other),
             },
         }
     }
 }
 
-fn partial_cmp_literals(a: TermValueRef<'_>, b: TermValueRef<'_>) -> Option<Ordering> {
+fn partial_cmp_literals(a: TypedValueRef<'_>, b: TypedValueRef<'_>) -> Option<Ordering> {
     match a {
-        TermValueRef::SimpleLiteral(a) => {
-            if let TermValueRef::SimpleLiteral(b) = b {
+        TypedValueRef::SimpleLiteral(a) => {
+            if let TypedValueRef::SimpleLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermValueRef::LanguageStringLiteral(a) => {
-            if let TermValueRef::LanguageStringLiteral(b) = b {
+        TypedValueRef::LanguageStringLiteral(a) => {
+            if let TypedValueRef::LanguageStringLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermValueRef::NumericLiteral(a) => {
-            if let TermValueRef::NumericLiteral(b) = b {
+        TypedValueRef::NumericLiteral(a) => {
+            if let TypedValueRef::NumericLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermValueRef::DateTimeLiteral(a) => {
-            if let TermValueRef::DateTimeLiteral(b) = b {
+        TypedValueRef::DateTimeLiteral(a) => {
+            if let TypedValueRef::DateTimeLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermValueRef::TimeLiteral(a) => {
-            if let TermValueRef::TimeLiteral(b) = b {
+        TypedValueRef::TimeLiteral(a) => {
+            if let TypedValueRef::TimeLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermValueRef::DateLiteral(a) => {
-            if let TermValueRef::DateLiteral(b) = b {
+        TypedValueRef::DateLiteral(a) => {
+            if let TypedValueRef::DateLiteral(b) = b {
                 a.partial_cmp(&b)
             } else {
                 None
             }
         }
-        TermValueRef::DurationLiteral(a) => match b {
-            TermValueRef::DurationLiteral(b) => a.partial_cmp(&b),
-            TermValueRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
-            TermValueRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
+        TypedValueRef::DurationLiteral(a) => match b {
+            TypedValueRef::DurationLiteral(b) => a.partial_cmp(&b),
+            TypedValueRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
+            TypedValueRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
             _ => None,
         },
-        TermValueRef::YearMonthDurationLiteral(a) => match b {
-            TermValueRef::DurationLiteral(b) => a.partial_cmp(&b),
-            TermValueRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
-            TermValueRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
+        TypedValueRef::YearMonthDurationLiteral(a) => match b {
+            TypedValueRef::DurationLiteral(b) => a.partial_cmp(&b),
+            TypedValueRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
+            TypedValueRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
             _ => None,
         },
-        TermValueRef::DayTimeDurationLiteral(a) => match b {
-            TermValueRef::DurationLiteral(b) => a.partial_cmp(&b),
-            TermValueRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
-            TermValueRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
+        TypedValueRef::DayTimeDurationLiteral(a) => match b {
+            TypedValueRef::DurationLiteral(b) => a.partial_cmp(&b),
+            TypedValueRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
+            TypedValueRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
             _ => None,
         },
         _ => None,
@@ -222,7 +222,7 @@ fn partial_cmp_literals(a: TermValueRef<'_>, b: TermValueRef<'_>) -> Option<Orde
 
 macro_rules! impl_from {
     ($TYPE: ty, $VARIANT: path) => {
-        impl<'data> From<$TYPE> for TermValueRef<'data> {
+        impl<'data> From<$TYPE> for TypedValueRef<'data> {
             fn from(value: $TYPE) -> Self {
                 $VARIANT(value)
             }
@@ -230,8 +230,8 @@ macro_rules! impl_from {
     };
 }
 
-impl_from!(Boolean, TermValueRef::BooleanLiteral);
-impl_from!(Numeric, TermValueRef::NumericLiteral);
-impl_from!(SimpleLiteralRef<'data>, TermValueRef::SimpleLiteral);
-impl_from!(LanguageStringRef<'data>, TermValueRef::LanguageStringLiteral);
-impl_from!(LiteralRef<'data>, TermValueRef::OtherLiteral);
+impl_from!(Boolean, TypedValueRef::BooleanLiteral);
+impl_from!(Numeric, TypedValueRef::NumericLiteral);
+impl_from!(SimpleLiteralRef<'data>, TypedValueRef::SimpleLiteral);
+impl_from!(LanguageStringRef<'data>, TypedValueRef::LanguageStringLiteral);
+impl_from!(LiteralRef<'data>, TypedValueRef::OtherLiteral);

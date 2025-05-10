@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use graphfusion_model::Numeric;
 use std::ops::Neg;
 
@@ -18,12 +18,9 @@ impl UnaryMinusSparqlOp {
 }
 
 impl SparqlOp for UnaryMinusSparqlOp {
-    fn name(&self) -> &str {
-        "minus"
-    }
 }
 
-impl UnaryTermValueOp for UnaryMinusSparqlOp {
+impl UnarySparqlOp for UnaryMinusSparqlOp {
     type Arg<'data> = Numeric;
     type Result<'data> = Numeric;
 

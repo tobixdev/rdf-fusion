@@ -1,5 +1,5 @@
-use crate::{SparqlOp, ThinResult, UnaryTermValueOp};
-use graphfusion_model::TermValueRef;
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::TypedValueRef;
 use graphfusion_model::{Float, Numeric, ThinError};
 
 #[derive(Debug)]
@@ -18,20 +18,17 @@ impl AsFloatSparqlOp {
 }
 
 impl SparqlOp for AsFloatSparqlOp {
-    fn name(&self) -> &str {
-        "xsd:float"
-    }
 }
 
-impl UnaryTermValueOp for AsFloatSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for AsFloatSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Float;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let converted = match value {
-            TermValueRef::BooleanLiteral(v) => Float::from(v),
-            TermValueRef::SimpleLiteral(v) => v.value.parse()?,
-            TermValueRef::NumericLiteral(numeric) => match numeric {
+            TypedValueRef::BooleanLiteral(v) => Float::from(v),
+            TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+            TypedValueRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Float::from(v),
                 Numeric::Integer(v) => Float::from(v),
                 Numeric::Float(v) => v,
@@ -46,14 +43,14 @@ impl UnaryTermValueOp for AsFloatSparqlOp {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AsFloatSparqlOp, UnaryTermValueOp};
-    use graphfusion_model::{Numeric, TermValueRef};
+    use crate::{AsFloatSparqlOp, UnarySparqlOp};
+    use graphfusion_model::{Numeric, TypedValueRef};
 
     #[test]
     fn test_enc_as_float() {
         let udf = AsFloatSparqlOp::new();
         let result = udf
-            .evaluate(TermValueRef::NumericLiteral(Numeric::Int(10.into())))
+            .evaluate(TypedValueRef::NumericLiteral(Numeric::Int(10.into())))
             .unwrap();
         assert_eq!(result, 10.0.into());
     }

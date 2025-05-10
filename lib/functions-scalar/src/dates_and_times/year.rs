@@ -1,4 +1,4 @@
-use crate::{SparqlOp, ThinResult, UnaryTermValueOp};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::{DateTime, Integer};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl YearSparqlOp {
 }
 
 impl SparqlOp for YearSparqlOp {
-    fn name(&self) -> &str {
-        "year"
-    }
 }
 
-impl UnaryTermValueOp for YearSparqlOp {
+impl UnarySparqlOp for YearSparqlOp {
     type Arg<'data> = DateTime;
     type Result<'data> = Integer;
 

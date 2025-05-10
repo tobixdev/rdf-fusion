@@ -1,5 +1,5 @@
-use crate::{SparqlOp, ThinResult, UnaryTermValueOp};
-use graphfusion_model::TermValueRef;
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::TypedValueRef;
 use graphfusion_model::{Decimal, Numeric, ThinError};
 
 #[derive(Debug)]
@@ -18,20 +18,17 @@ impl AsDecimalSparqlOp {
 }
 
 impl SparqlOp for AsDecimalSparqlOp {
-    fn name(&self) -> &str {
-        "xsd:decimal"
-    }
 }
 
-impl UnaryTermValueOp for AsDecimalSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for AsDecimalSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Decimal;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
         let converted = match value {
-            TermValueRef::BooleanLiteral(v) => Decimal::from(v),
-            TermValueRef::SimpleLiteral(v) => v.value.parse()?,
-            TermValueRef::NumericLiteral(numeric) => match numeric {
+            TypedValueRef::BooleanLiteral(v) => Decimal::from(v),
+            TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+            TypedValueRef::NumericLiteral(numeric) => match numeric {
                 Numeric::Int(v) => Decimal::from(v),
                 Numeric::Integer(v) => Decimal::from(v),
                 Numeric::Float(v) => Decimal::try_from(v)?,

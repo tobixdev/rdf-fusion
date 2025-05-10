@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use graphfusion_model::Numeric;
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl UnaryPlusSparqlOp {
 }
 
 impl SparqlOp for UnaryPlusSparqlOp {
-    fn name(&self) -> &str {
-        "plus"
-    }
 }
 
-impl UnaryTermValueOp for UnaryPlusSparqlOp {
+impl UnarySparqlOp for UnaryPlusSparqlOp {
     type Arg<'data> = Numeric;
     type Result<'data> = Numeric;
 

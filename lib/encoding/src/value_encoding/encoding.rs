@@ -1,9 +1,9 @@
 use crate::encoding::TermEncoding;
 use crate::value_encoding::array::TermValueArray;
 use crate::value_encoding::scalar::TermValueScalar;
-use crate::value_encoding::decoders::DefaultTermValueDecoder;
+use crate::value_encoding::decoders::DefaultTypedValueDecoder;
 use crate::value_encoding::encoders::DefaultTermValueEncoder;
-use crate::DFResult;
+use crate::{DFResult, EncodingName};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
@@ -51,78 +51,78 @@ static FIELDS_DURATION: LazyLock<Fields> = LazyLock::new(|| {
 static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
     let fields = vec![
         Field::new(
-            ValueEncodingField::Null.name(),
-            ValueEncodingField::Null.data_type(),
+            TypedValueEncodingField::Null.name(),
+            TypedValueEncodingField::Null.data_type(),
             true,
         ),
         Field::new(
-            ValueEncodingField::NamedNode.name(),
-            ValueEncodingField::NamedNode.data_type(),
+            TypedValueEncodingField::NamedNode.name(),
+            TypedValueEncodingField::NamedNode.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::BlankNode.name(),
-            ValueEncodingField::BlankNode.data_type(),
+            TypedValueEncodingField::BlankNode.name(),
+            TypedValueEncodingField::BlankNode.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::String.name(),
-            ValueEncodingField::String.data_type(),
+            TypedValueEncodingField::String.name(),
+            TypedValueEncodingField::String.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::Boolean.name(),
-            ValueEncodingField::Boolean.data_type(),
+            TypedValueEncodingField::Boolean.name(),
+            TypedValueEncodingField::Boolean.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::Float.name(),
-            ValueEncodingField::Float.data_type(),
+            TypedValueEncodingField::Float.name(),
+            TypedValueEncodingField::Float.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::Double.name(),
-            ValueEncodingField::Double.data_type(),
+            TypedValueEncodingField::Double.name(),
+            TypedValueEncodingField::Double.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::Decimal.name(),
-            ValueEncodingField::Decimal.data_type(),
+            TypedValueEncodingField::Decimal.name(),
+            TypedValueEncodingField::Decimal.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::Int.name(),
-            ValueEncodingField::Int.data_type(),
+            TypedValueEncodingField::Int.name(),
+            TypedValueEncodingField::Int.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::Integer.name(),
-            ValueEncodingField::Integer.data_type(),
+            TypedValueEncodingField::Integer.name(),
+            TypedValueEncodingField::Integer.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::DateTime.name(),
-            ValueEncodingField::DateTime.data_type(),
+            TypedValueEncodingField::DateTime.name(),
+            TypedValueEncodingField::DateTime.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::Time.name(),
-            ValueEncodingField::Time.data_type(),
+            TypedValueEncodingField::Time.name(),
+            TypedValueEncodingField::Time.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::Date.name(),
-            ValueEncodingField::Date.data_type(),
+            TypedValueEncodingField::Date.name(),
+            TypedValueEncodingField::Date.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::Duration.name(),
-            ValueEncodingField::Duration.data_type(),
+            TypedValueEncodingField::Duration.name(),
+            TypedValueEncodingField::Duration.data_type(),
             false,
         ),
         Field::new(
-            ValueEncodingField::OtherLiteral.name(),
-            ValueEncodingField::OtherLiteral.data_type(),
+            TypedValueEncodingField::OtherLiteral.name(),
+            TypedValueEncodingField::OtherLiteral.data_type(),
             false,
         ),
     ];
@@ -135,9 +135,10 @@ static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
 });
 
 /// TODO
-pub struct TermValueEncoding;
+#[derive(Debug)]
+pub struct TypedValueEncoding;
 
-impl TermValueEncoding {
+impl TypedValueEncoding {
     pub fn fields() -> UnionFields {
         FIELDS_TYPE.clone()
     }
@@ -163,11 +164,13 @@ impl TermValueEncoding {
     }
 }
 
-impl TermEncoding for TermValueEncoding {
+impl TermEncoding for TypedValueEncoding {
     type Array = TermValueArray;
     type Scalar = TermValueScalar;
-    type DefaultEncoder = DefaultTermValueEncoder;
-    type DefaultDecoder = DefaultTermValueDecoder;
+
+    fn name() -> EncodingName {
+        EncodingName::TypedValue
+    }
 
     fn data_type() -> DataType {
         DataType::Union(Self::fields().clone(), UnionMode::Dense)
@@ -184,7 +187,7 @@ impl TermEncoding for TermValueEncoding {
 
 #[repr(i8)]
 #[derive(Ord, PartialOrd, PartialEq, Eq, Debug, Clone, Copy)]
-pub enum ValueEncodingField {
+pub enum TypedValueEncodingField {
     /// Represents an unbound value or an error.
     ///
     /// This has to be the first encoded field as OUTER joins will use it to initialize default
@@ -206,90 +209,90 @@ pub enum ValueEncodingField {
     OtherLiteral,
 }
 
-impl ValueEncodingField {
+impl TypedValueEncodingField {
     pub fn type_id(self) -> i8 {
         self.into()
     }
 
     pub fn name(self) -> &'static str {
         match self {
-            ValueEncodingField::Null => "null",
-            ValueEncodingField::NamedNode => "named_node",
-            ValueEncodingField::BlankNode => "blank_node",
-            ValueEncodingField::String => "string",
-            ValueEncodingField::Boolean => "boolean",
-            ValueEncodingField::Float => "float",
-            ValueEncodingField::Double => "double",
-            ValueEncodingField::Decimal => "decimal",
-            ValueEncodingField::Int => "int",
-            ValueEncodingField::Integer => "integer",
-            ValueEncodingField::DateTime => "date_time",
-            ValueEncodingField::Time => "time",
-            ValueEncodingField::Date => "date",
-            ValueEncodingField::Duration => "duration",
-            ValueEncodingField::OtherLiteral => "other_literal",
+            TypedValueEncodingField::Null => "null",
+            TypedValueEncodingField::NamedNode => "named_node",
+            TypedValueEncodingField::BlankNode => "blank_node",
+            TypedValueEncodingField::String => "string",
+            TypedValueEncodingField::Boolean => "boolean",
+            TypedValueEncodingField::Float => "float",
+            TypedValueEncodingField::Double => "double",
+            TypedValueEncodingField::Decimal => "decimal",
+            TypedValueEncodingField::Int => "int",
+            TypedValueEncodingField::Integer => "integer",
+            TypedValueEncodingField::DateTime => "date_time",
+            TypedValueEncodingField::Time => "time",
+            TypedValueEncodingField::Date => "date",
+            TypedValueEncodingField::Duration => "duration",
+            TypedValueEncodingField::OtherLiteral => "other_literal",
         }
     }
 
     pub fn data_type(self) -> DataType {
         match self {
-            ValueEncodingField::Null => DataType::Null,
-            ValueEncodingField::NamedNode | ValueEncodingField::BlankNode => DataType::Utf8,
-            ValueEncodingField::String => DataType::Struct(FIELDS_STRING.clone()),
-            ValueEncodingField::Boolean => DataType::Boolean,
-            ValueEncodingField::Float => DataType::Float32,
-            ValueEncodingField::Double => DataType::Float64,
-            ValueEncodingField::Decimal => DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
-            ValueEncodingField::Int => DataType::Int32,
-            ValueEncodingField::Integer => DataType::Int64,
-            ValueEncodingField::DateTime | ValueEncodingField::Time | ValueEncodingField::Date => {
+            TypedValueEncodingField::Null => DataType::Null,
+            TypedValueEncodingField::NamedNode | TypedValueEncodingField::BlankNode => DataType::Utf8,
+            TypedValueEncodingField::String => DataType::Struct(FIELDS_STRING.clone()),
+            TypedValueEncodingField::Boolean => DataType::Boolean,
+            TypedValueEncodingField::Float => DataType::Float32,
+            TypedValueEncodingField::Double => DataType::Float64,
+            TypedValueEncodingField::Decimal => DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
+            TypedValueEncodingField::Int => DataType::Int32,
+            TypedValueEncodingField::Integer => DataType::Int64,
+            TypedValueEncodingField::DateTime | TypedValueEncodingField::Time | TypedValueEncodingField::Date => {
                 DataType::Struct(FIELDS_TIMESTAMP.clone())
             }
-            ValueEncodingField::Duration => DataType::Struct(FIELDS_DURATION.clone()),
-            ValueEncodingField::OtherLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
+            TypedValueEncodingField::Duration => DataType::Struct(FIELDS_DURATION.clone()),
+            TypedValueEncodingField::OtherLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
         }
     }
 
     pub fn is_literal(self) -> bool {
         matches!(
             self,
-            ValueEncodingField::NamedNode | ValueEncodingField::BlankNode
+            TypedValueEncodingField::NamedNode | TypedValueEncodingField::BlankNode
         )
     }
 }
 
-impl Display for ValueEncodingField {
+impl Display for TypedValueEncodingField {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.name())
     }
 }
 
-impl TryFrom<i8> for ValueEncodingField {
+impl TryFrom<i8> for TypedValueEncodingField {
     type Error = ThinError;
 
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         Ok(match value {
-            0 => ValueEncodingField::Null,
-            1 => ValueEncodingField::NamedNode,
-            2 => ValueEncodingField::BlankNode,
-            3 => ValueEncodingField::String,
-            4 => ValueEncodingField::Boolean,
-            5 => ValueEncodingField::Float,
-            6 => ValueEncodingField::Double,
-            7 => ValueEncodingField::Decimal,
-            8 => ValueEncodingField::Int,
-            9 => ValueEncodingField::Integer,
-            10 => ValueEncodingField::DateTime,
-            11 => ValueEncodingField::Time,
-            12 => ValueEncodingField::Date,
-            13 => ValueEncodingField::Duration,
-            14 => ValueEncodingField::OtherLiteral,
+            0 => TypedValueEncodingField::Null,
+            1 => TypedValueEncodingField::NamedNode,
+            2 => TypedValueEncodingField::BlankNode,
+            3 => TypedValueEncodingField::String,
+            4 => TypedValueEncodingField::Boolean,
+            5 => TypedValueEncodingField::Float,
+            6 => TypedValueEncodingField::Double,
+            7 => TypedValueEncodingField::Decimal,
+            8 => TypedValueEncodingField::Int,
+            9 => TypedValueEncodingField::Integer,
+            10 => TypedValueEncodingField::DateTime,
+            11 => TypedValueEncodingField::Time,
+            12 => TypedValueEncodingField::Date,
+            13 => TypedValueEncodingField::Duration,
+            14 => TypedValueEncodingField::OtherLiteral,
             _ => return ThinError::internal_error("Unexpected type_id for encoded RDF Term"),
         })
     }
 }
 
-impl TryFrom<u8> for ValueEncodingField {
+impl TryFrom<u8> for TypedValueEncodingField {
     type Error = ThinError;
 
     #[allow(
@@ -301,24 +304,24 @@ impl TryFrom<u8> for ValueEncodingField {
     }
 }
 
-impl From<ValueEncodingField> for i8 {
-    fn from(value: ValueEncodingField) -> Self {
+impl From<TypedValueEncodingField> for i8 {
+    fn from(value: TypedValueEncodingField) -> Self {
         match value {
-            ValueEncodingField::Null => 0,
-            ValueEncodingField::NamedNode => 1,
-            ValueEncodingField::BlankNode => 2,
-            ValueEncodingField::String => 3,
-            ValueEncodingField::Boolean => 4,
-            ValueEncodingField::Float => 5,
-            ValueEncodingField::Double => 6,
-            ValueEncodingField::Decimal => 7,
-            ValueEncodingField::Int => 8,
-            ValueEncodingField::Integer => 9,
-            ValueEncodingField::DateTime => 10,
-            ValueEncodingField::Time => 11,
-            ValueEncodingField::Date => 12,
-            ValueEncodingField::Duration => 13,
-            ValueEncodingField::OtherLiteral => 14,
+            TypedValueEncodingField::Null => 0,
+            TypedValueEncodingField::NamedNode => 1,
+            TypedValueEncodingField::BlankNode => 2,
+            TypedValueEncodingField::String => 3,
+            TypedValueEncodingField::Boolean => 4,
+            TypedValueEncodingField::Float => 5,
+            TypedValueEncodingField::Double => 6,
+            TypedValueEncodingField::Decimal => 7,
+            TypedValueEncodingField::Int => 8,
+            TypedValueEncodingField::Integer => 9,
+            TypedValueEncodingField::DateTime => 10,
+            TypedValueEncodingField::Time => 11,
+            TypedValueEncodingField::Date => 12,
+            TypedValueEncodingField::Duration => 13,
+            TypedValueEncodingField::OtherLiteral => 14,
         }
     }
 }
@@ -329,24 +332,24 @@ mod tests {
 
     #[test]
     fn test_type_ids() {
-        test_type_id(ValueEncodingField::NamedNode);
-        test_type_id(ValueEncodingField::BlankNode);
-        test_type_id(ValueEncodingField::String);
-        test_type_id(ValueEncodingField::Boolean);
-        test_type_id(ValueEncodingField::Float);
-        test_type_id(ValueEncodingField::Double);
-        test_type_id(ValueEncodingField::Decimal);
-        test_type_id(ValueEncodingField::Int);
-        test_type_id(ValueEncodingField::Integer);
-        test_type_id(ValueEncodingField::DateTime);
-        test_type_id(ValueEncodingField::Time);
-        test_type_id(ValueEncodingField::Date);
-        test_type_id(ValueEncodingField::Duration);
-        test_type_id(ValueEncodingField::OtherLiteral);
-        test_type_id(ValueEncodingField::Null);
+        test_type_id(TypedValueEncodingField::NamedNode);
+        test_type_id(TypedValueEncodingField::BlankNode);
+        test_type_id(TypedValueEncodingField::String);
+        test_type_id(TypedValueEncodingField::Boolean);
+        test_type_id(TypedValueEncodingField::Float);
+        test_type_id(TypedValueEncodingField::Double);
+        test_type_id(TypedValueEncodingField::Decimal);
+        test_type_id(TypedValueEncodingField::Int);
+        test_type_id(TypedValueEncodingField::Integer);
+        test_type_id(TypedValueEncodingField::DateTime);
+        test_type_id(TypedValueEncodingField::Time);
+        test_type_id(TypedValueEncodingField::Date);
+        test_type_id(TypedValueEncodingField::Duration);
+        test_type_id(TypedValueEncodingField::OtherLiteral);
+        test_type_id(TypedValueEncodingField::Null);
     }
 
-    fn test_type_id(term_field: ValueEncodingField) {
+    fn test_type_id(term_field: TypedValueEncodingField) {
         assert_eq!(term_field, term_field.type_id().try_into().unwrap());
     }
 }

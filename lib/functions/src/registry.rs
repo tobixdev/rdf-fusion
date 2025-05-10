@@ -1,11 +1,9 @@
+use crate::builtin::{BuiltinName, GraphFusionBuiltinFactory};
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::dispatcher::SparqlOpDispatcher;
 
-enum SparqlScalarFunction {
-
-}
-
+/// TODO
 pub struct GraphFusionFunctionRegistry {
-    sparql_builtins: HashMap<String, Arc<dyn SparqlOpDispatcher>>
+    /// TODO
+    builtins_scalar: HashMap<BuiltinName, Arc<dyn GraphFusionBuiltinFactory>>,
 }

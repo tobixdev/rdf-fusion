@@ -1,8 +1,8 @@
 mod array;
+pub mod decoders;
+pub mod encoders;
 mod encoding;
-mod term_decoder;
 mod scalar;
-mod term_encoder;
 
 pub use array::PlainTermArray;
 pub use encoding::PlainTermEncoding;

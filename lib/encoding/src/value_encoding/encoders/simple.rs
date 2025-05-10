@@ -1,10 +1,10 @@
-use crate::value_encoding::TermValueArrayBuilder;
+use crate::value_encoding::TypedValueArrayBuilder;
 
 use crate::error::LiteralEncodingError;
 use crate::DFResult;
 use crate::TermEncoder;
 use crate::TermEncoding;
-use crate::TermValueEncoding;
+use crate::TypedValueEncoding;
 use datafusion::common::exec_err;
 use graphfusion_model::{BlankNode, Double, NamedNode};
 use graphfusion_model::{
@@ -17,15 +17,16 @@ use graphfusion_model::{
 #[macro_export]
 macro_rules! make_simple_term_value_encoder {
     ($STRUCT_NAME: ident, $VALUE_TYPE: ty, $BUILDER_INVOCATION: expr) => {
+        #[derive(Debug)]
         pub struct $STRUCT_NAME {}
 
-        impl TermEncoder<TermValueEncoding> for $STRUCT_NAME {
+        impl TermEncoder<TypedValueEncoding> for $STRUCT_NAME {
             type Term<'data> = $VALUE_TYPE;
 
             fn encode_terms<'data>(
                 terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
-            ) -> DFResult<<TermValueEncoding as TermEncoding>::Array> {
-                let mut builder = TermValueArrayBuilder::default();
+            ) -> DFResult<<TypedValueEncoding as TermEncoding>::Array> {
+                let mut builder = TypedValueArrayBuilder::default();
                 for term_result in terms {
                     match term_result {
                         Ok(value) => $BUILDER_INVOCATION(&mut builder, value)?,
@@ -35,12 +36,12 @@ macro_rules! make_simple_term_value_encoder {
                         }
                     }
                 }
-                TermValueEncoding::try_new_array(builder.finish())
+                TypedValueEncoding::try_new_array(builder.finish())
             }
 
             fn encode_term(
                 term: ThinResult<Self::Term<'_>>,
-            ) -> DFResult<<TermValueEncoding as TermEncoding>::Scalar> {
+            ) -> DFResult<<TypedValueEncoding as TermEncoding>::Scalar> {
                 todo!()
             }
         }
@@ -50,103 +51,103 @@ macro_rules! make_simple_term_value_encoder {
 make_simple_term_value_encoder!(
     NamedNodeTermValueEncoder,
     NamedNode,
-    |builder: &mut TermValueArrayBuilder, value: NamedNode| {
+    |builder: &mut TypedValueArrayBuilder, value: NamedNode| {
         builder.append_named_node(value.as_ref())
     }
 );
 make_simple_term_value_encoder!(
     NamedNodeRefTermValueEncoder,
     NamedNodeRef<'data>,
-    |builder: &mut TermValueArrayBuilder, value: NamedNodeRef<'data>| {
+    |builder: &mut TypedValueArrayBuilder, value: NamedNodeRef<'data>| {
         builder.append_named_node(value)
     }
 );
 make_simple_term_value_encoder!(
     BlankNodeTermValueEncoder,
     BlankNode,
-    |builder: &mut TermValueArrayBuilder, value: BlankNode| {
+    |builder: &mut TypedValueArrayBuilder, value: BlankNode| {
         builder.append_blank_node(value.as_ref())
     }
 );
 make_simple_term_value_encoder!(
     BlankNodeRefTermValueEncoder,
     BlankNodeRef<'data>,
-    |builder: &mut TermValueArrayBuilder, value: BlankNodeRef<'data>| {
+    |builder: &mut TypedValueArrayBuilder, value: BlankNodeRef<'data>| {
         builder.append_blank_node(value)
     }
 );
 make_simple_term_value_encoder!(
     BooleanTermValueEncoder,
     Boolean,
-    |builder: &mut TermValueArrayBuilder, value: Boolean| { builder.append_boolean(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Boolean| { builder.append_boolean(value) }
 );
 make_simple_term_value_encoder!(
     SimpleLiteralRefTermValueEncoder,
     SimpleLiteralRef<'data>,
-    |builder: &mut TermValueArrayBuilder, value: SimpleLiteralRef<'data>| {
+    |builder: &mut TypedValueArrayBuilder, value: SimpleLiteralRef<'data>| {
         builder.append_string(value.value, None)
     }
 );
 make_simple_term_value_encoder!(
     StringLiteralRefTermValueEncoder,
     StringLiteralRef<'data>,
-    |builder: &mut TermValueArrayBuilder, value: StringLiteralRef<'data>| {
+    |builder: &mut TypedValueArrayBuilder, value: StringLiteralRef<'data>| {
         builder.append_string(value.0, value.1)
     }
 );
 make_simple_term_value_encoder!(
     OwnedStringLiteralTermValueEncoder,
     OwnedStringLiteral,
-    |builder: &mut TermValueArrayBuilder, value: OwnedStringLiteral| {
+    |builder: &mut TypedValueArrayBuilder, value: OwnedStringLiteral| {
         builder.append_string(value.0.as_str(), value.1.as_deref())
     }
 );
 make_simple_term_value_encoder!(
     IntTermValueEncoder,
     Int,
-    |builder: &mut TermValueArrayBuilder, value: Int| { builder.append_int(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Int| { builder.append_int(value) }
 );
 make_simple_term_value_encoder!(
     IntegerTermValueEncoder,
     Integer,
-    |builder: &mut TermValueArrayBuilder, value: Integer| { builder.append_integer(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Integer| { builder.append_integer(value) }
 );
 make_simple_term_value_encoder!(
     FloatTermValueEncoder,
     Float,
-    |builder: &mut TermValueArrayBuilder, value: Float| { builder.append_float(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Float| { builder.append_float(value) }
 );
 make_simple_term_value_encoder!(
     DoubleTermValueEncoder,
     Double,
-    |builder: &mut TermValueArrayBuilder, value: Double| { builder.append_double(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Double| { builder.append_double(value) }
 );
 make_simple_term_value_encoder!(
     DecimalTermValueEncoder,
     Decimal,
-    |builder: &mut TermValueArrayBuilder, value: Decimal| { builder.append_decimal(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Decimal| { builder.append_decimal(value) }
 );
 make_simple_term_value_encoder!(
     NumericTermValueEncoder,
     Numeric,
-    |builder: &mut TermValueArrayBuilder, value: Numeric| { builder.append_numeric(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Numeric| { builder.append_numeric(value) }
 );
 make_simple_term_value_encoder!(
     DateTimeTermValueEncoder,
     DateTime,
-    |builder: &mut TermValueArrayBuilder, value: DateTime| { builder.append_date_time(value) }
+    |builder: &mut TypedValueArrayBuilder, value: DateTime| { builder.append_date_time(value) }
 );
 make_simple_term_value_encoder!(
     DayTimeDurationTermValueEncoder,
     DayTimeDuration,
-    |builder: &mut TermValueArrayBuilder, value: DayTimeDuration| {
+    |builder: &mut TypedValueArrayBuilder, value: DayTimeDuration| {
         builder.append_duration(None, Some(value))
     }
 );
 make_simple_term_value_encoder!(
     LiteralRefTermValueEncoder,
     LiteralRef<'data>,
-    |builder: &mut TermValueArrayBuilder, value: LiteralRef<'data>| {
+    |builder: &mut TypedValueArrayBuilder, value: LiteralRef<'data>| {
         let result = builder.append_literal(value);
         match result {
             Err(LiteralEncodingError::ParsingError(_)) => builder.append_null(),

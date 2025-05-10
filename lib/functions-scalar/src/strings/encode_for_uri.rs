@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use graphfusion_model::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl EncodeForUriSparqlOp {
 }
 
 impl SparqlOp for EncodeForUriSparqlOp {
-    fn name(&self) -> &str {
-        "encodeforuri"
-    }
 }
 
-impl UnaryTermValueOp for EncodeForUriSparqlOp {
+impl UnarySparqlOp for EncodeForUriSparqlOp {
     type Arg<'data> = StringLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 

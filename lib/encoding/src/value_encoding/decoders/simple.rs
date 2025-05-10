@@ -1,31 +1,32 @@
-use crate::value_encoding::decoders::DefaultTermValueDecoder;
+use crate::value_encoding::decoders::DefaultTypedValueDecoder;
 use crate::TermDecoder;
 use crate::TermEncoder;
 use crate::TermEncoding;
-use crate::TermValueEncoding;
+use crate::TypedValueEncoding;
 use graphfusion_model::{
     Boolean, DateTime, Integer, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef,
     ThinError,
 };
-use graphfusion_model::{TermValueRef, ThinResult};
+use graphfusion_model::{TypedValueRef, ThinResult};
 
 #[macro_export]
 macro_rules! make_simple_term_value_decoder {
     ($STRUCT_NAME: ident, $VALUE_TYPE: ty, $MAPPING_EXPRESSION: expr) => {
+        #[derive(Debug)]
         pub struct $STRUCT_NAME {}
 
-        impl TermDecoder<TermValueEncoding> for $STRUCT_NAME {
+        impl TermDecoder<TypedValueEncoding> for $STRUCT_NAME {
             type Term<'data> = $VALUE_TYPE;
 
             fn decode_terms(
-                array: &<TermValueEncoding as TermEncoding>::Array,
+                array: &<TypedValueEncoding as TermEncoding>::Array,
             ) -> impl Iterator<Item = ThinResult<Self::Term<'_>>> {
-                DefaultTermValueDecoder::decode_terms(array)
+                DefaultTypedValueDecoder::decode_terms(array)
                     .map(|res| res.and_then($MAPPING_EXPRESSION))
             }
 
             fn decode_term(
-                scalar: &<TermValueEncoding as TermEncoding>::Scalar,
+                scalar: &<TypedValueEncoding as TermEncoding>::Scalar,
             ) -> ThinResult<Self::Term<'_>> {
                 todo!()
             }
@@ -36,37 +37,37 @@ macro_rules! make_simple_term_value_decoder {
 make_simple_term_value_decoder!(
     NamedNodeRefTermValueDecoder,
     NamedNodeRef<'data>,
-    |value: TermValueRef<'_>| {
+    |value: TypedValueRef<'_>| {
         match value {
-            TermValueRef::NamedNode(value) => Ok(value),
+            TypedValueRef::NamedNode(value) => Ok(value),
             _ => ThinError::expected(),
         }
     }
 );
 
-make_simple_term_value_decoder!(BooleanTermValueDecoder, Boolean, |value: TermValueRef<
+make_simple_term_value_decoder!(BooleanTermValueDecoder, Boolean, |value: TypedValueRef<
     '_,
 >| {
     match value {
-        TermValueRef::BooleanLiteral(value) => Ok(value),
+        TypedValueRef::BooleanLiteral(value) => Ok(value),
         _ => ThinError::expected(),
     }
 });
 
-make_simple_term_value_decoder!(NumericTermValueDecoder, Numeric, |value: TermValueRef<
+make_simple_term_value_decoder!(NumericTermValueDecoder, Numeric, |value: TypedValueRef<
     '_,
 >| {
     match value {
-        TermValueRef::NumericLiteral(value) => Ok(value),
+        TypedValueRef::NumericLiteral(value) => Ok(value),
         _ => ThinError::expected(),
     }
 });
 
-make_simple_term_value_decoder!(IntegerTermValueDecoder, Integer, |value: TermValueRef<
+make_simple_term_value_decoder!(IntegerTermValueDecoder, Integer, |value: TypedValueRef<
     '_,
 >| {
     match value {
-        TermValueRef::NumericLiteral(Numeric::Integer(value)) => Ok(value),
+        TypedValueRef::NumericLiteral(Numeric::Integer(value)) => Ok(value),
         _ => ThinError::expected(),
     }
 });
@@ -74,9 +75,9 @@ make_simple_term_value_decoder!(IntegerTermValueDecoder, Integer, |value: TermVa
 make_simple_term_value_decoder!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRef<'data>,
-    |value: TermValueRef<'_>| {
+    |value: TypedValueRef<'_>| {
         match value {
-            TermValueRef::SimpleLiteral(value) => Ok(value),
+            TypedValueRef::SimpleLiteral(value) => Ok(value),
             _ => ThinError::expected(),
         }
     }
@@ -85,10 +86,10 @@ make_simple_term_value_decoder!(
 make_simple_term_value_decoder!(
     StringLiteralRefTermValueDecoder,
     StringLiteralRef<'data>,
-    |value: TermValueRef<'_>| {
+    |value: TypedValueRef<'_>| {
         match value {
-            TermValueRef::SimpleLiteral(value) => Ok(StringLiteralRef(value.value, None)),
-            TermValueRef::LanguageStringLiteral(value) => {
+            TypedValueRef::SimpleLiteral(value) => Ok(StringLiteralRef(value.value, None)),
+            TypedValueRef::LanguageStringLiteral(value) => {
                 Ok(StringLiteralRef(value.value, Some(value.language)))
             }
             _ => ThinError::expected(),
@@ -96,11 +97,11 @@ make_simple_term_value_decoder!(
     }
 );
 
-make_simple_term_value_decoder!(DateTimeTermValueDecoder, DateTime, |value: TermValueRef<
+make_simple_term_value_decoder!(DateTimeTermValueDecoder, DateTime, |value: TypedValueRef<
     '_,
 >| {
     match value {
-        TermValueRef::DateTimeLiteral(value) => Ok(value),
+        TypedValueRef::DateTimeLiteral(value) => Ok(value),
         _ => ThinError::expected(),
     }
 });

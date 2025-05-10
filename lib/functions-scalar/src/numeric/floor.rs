@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use graphfusion_model::Numeric;
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl FloorSparqlOp {
 }
 
 impl SparqlOp for FloorSparqlOp {
-    fn name(&self) -> &str {
-        "floor"
-    }
 }
 
-impl UnaryTermValueOp for FloorSparqlOp {
+impl UnarySparqlOp for FloorSparqlOp {
     type Arg<'data> = Numeric;
     type Result<'data> = Numeric;
 

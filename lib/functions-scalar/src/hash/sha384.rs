@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use md5::Digest;
 use graphfusion_model::{OwnedStringLiteral, SimpleLiteralRef};
 use sha2::Sha384;
@@ -19,12 +19,9 @@ impl Sha384SparqlOp {
 }
 
 impl SparqlOp for Sha384SparqlOp {
-    fn name(&self) -> &str {
-        "sha384"
-    }
 }
 
-impl UnaryTermValueOp for Sha384SparqlOp {
+impl UnarySparqlOp for Sha384SparqlOp {
     type Arg<'data> = SimpleLiteralRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 

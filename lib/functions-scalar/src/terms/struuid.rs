@@ -18,9 +18,6 @@ impl StrUuidSparqlOp {
 }
 
 impl SparqlOp for StrUuidSparqlOp {
-    fn name(&self) -> &str {
-        "struuid"
-    }
 }
 
 impl NullarySparqlOp for StrUuidSparqlOp {

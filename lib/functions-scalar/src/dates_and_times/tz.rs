@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use graphfusion_model::{DateTime, OwnedStringLiteral};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl TzSparqlOp {
 }
 
 impl SparqlOp for TzSparqlOp {
-    fn name(&self) -> &str {
-        "tz"
-    }
 }
 
-impl UnaryTermValueOp for TzSparqlOp {
+impl UnarySparqlOp for TzSparqlOp {
     type Arg<'data> = DateTime;
     type Result<'data> = OwnedStringLiteral;
 

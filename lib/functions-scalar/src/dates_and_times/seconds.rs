@@ -1,4 +1,4 @@
-use crate::{UnaryTermValueOp, ThinResult, SparqlOp};
+use crate::{UnarySparqlOp, ThinResult, SparqlOp};
 use graphfusion_model::{DateTime, Decimal};
 
 #[derive(Debug)]
@@ -17,12 +17,9 @@ impl SecondsSparqlOp {
 }
 
 impl SparqlOp for SecondsSparqlOp {
-    fn name(&self) -> &str {
-        "seconds"
-    }
 }
 
-impl UnaryTermValueOp for SecondsSparqlOp {
+impl UnarySparqlOp for SecondsSparqlOp {
     type Arg<'data> = DateTime;
     type Result<'data> = Decimal;
 

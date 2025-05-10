@@ -1,5 +1,5 @@
-use crate::{SparqlOp, ThinResult, UnaryRdfTermOp, UnaryTermValueOp};
-use graphfusion_model::{Boolean, TermValueRef, TermRef};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::{Boolean, TypedValueRef};
 
 #[derive(Debug)]
 pub struct BoundSparqlOp;
@@ -17,28 +17,13 @@ impl BoundSparqlOp {
 }
 
 impl SparqlOp for BoundSparqlOp {
-    fn name(&self) -> &str {
-        "bound"
-    }
 }
 
-impl UnaryTermValueOp for BoundSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for BoundSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, _: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
-        Ok(true.into())
-    }
-
-    fn evaluate_error<'data>(&self) -> ThinResult<Self::Result<'data>> {
-        Ok(false.into())
-    }
-}
-
-impl UnaryRdfTermOp for BoundSparqlOp {
-    type Result<'data> = Boolean;
-
-    fn evaluate<'data>(&self, _: TermRef<'data>) -> ThinResult<Self::Result<'data>> {
         Ok(true.into())
     }
 

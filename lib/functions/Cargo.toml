@@ -12,7 +12,7 @@ graphfusion-encoding.workspace = true
 graphfusion-functions-scalar.workspace = true
 graphfusion-model.workspace = true
 itertools.workspace = true
-thiserror.workspace = true
+spargebra.workspace = true
 
 [lints]
 workspace = true

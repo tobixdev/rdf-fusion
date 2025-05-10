@@ -1,6 +1,6 @@
-use crate::{SparqlOp, ThinResult, UnaryRdfTermOp, UnaryTermValueOp};
-use graphfusion_model::TermValueRef;
-use graphfusion_model::{Boolean, TermRef};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
+use graphfusion_model::TypedValueRef;
+use graphfusion_model::Boolean;
 
 #[derive(Debug)]
 pub struct IsIriSparqlOp;
@@ -18,26 +18,14 @@ impl IsIriSparqlOp {
 }
 
 impl SparqlOp for IsIriSparqlOp {
-    fn name(&self) -> &str {
-        "is_iri"
-    }
 }
 
-impl UnaryTermValueOp for IsIriSparqlOp {
-    type Arg<'data> = TermValueRef<'data>;
+impl UnarySparqlOp for IsIriSparqlOp {
+    type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
-        let result = matches!(value, TermValueRef::NamedNode(_));
-        Ok(result.into())
-    }
-}
-
-impl UnaryRdfTermOp for IsIriSparqlOp {
-    type Result<'data> = Boolean;
-
-    fn evaluate<'data>(&self, value: TermRef<'data>) -> ThinResult<Self::Result<'data>> {
-        let result = matches!(value, TermRef::NamedNode(_));
+        let result = matches!(value, TypedValueRef::NamedNode(_));
         Ok(result.into())
     }
 }

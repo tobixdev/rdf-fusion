@@ -4,7 +4,7 @@ use datafusion::arrow::array::{AsArray, RecordBatch, UnionArray};
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use graphfusion_model::Variable;
-use graphfusion_model::{TermValueRef, Term};
+use graphfusion_model::{TypedValueRef, Term};
 pub use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -108,7 +108,7 @@ fn to_query_solution(
 }
 
 fn to_term(objects: &UnionArray, i: usize) -> Option<Term> {
-    match TermValueRef::from_array(objects, i) {
+    match TypedValueRef::from_array(objects, i) {
         Ok(value) => Some(value.into_decoded()),
         Err(_) => None,
     }

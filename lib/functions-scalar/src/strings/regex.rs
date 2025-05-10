@@ -1,4 +1,4 @@
-use crate::{BinaryTermValueOp, SparqlOp, TernaryRdfTermValueOp, ThinResult};
+use crate::{BinarySparqlOp, SparqlOp, TernarySparqlOp, ThinResult};
 use graphfusion_model::{Boolean, SimpleLiteralRef, StringLiteralRef, ThinError};
 use regex::{Regex, RegexBuilder};
 use std::borrow::Cow;
@@ -21,12 +21,9 @@ impl RegexSparqlOp {
 }
 
 impl SparqlOp for RegexSparqlOp {
-    fn name(&self) -> &str {
-        "regex"
-    }
 }
 
-impl BinaryTermValueOp for RegexSparqlOp {
+impl BinarySparqlOp for RegexSparqlOp {
     type ArgLhs<'data> = StringLiteralRef<'data>;
     type ArgRhs<'data> = SimpleLiteralRef<'data>;
     type Result<'data> = Boolean;
@@ -41,7 +38,7 @@ impl BinaryTermValueOp for RegexSparqlOp {
     }
 }
 
-impl TernaryRdfTermValueOp for RegexSparqlOp {
+impl TernarySparqlOp for RegexSparqlOp {
     type Arg0<'data> = StringLiteralRef<'data>;
     type Arg1<'data> = SimpleLiteralRef<'data>;
     type Arg2<'data> = SimpleLiteralRef<'data>;
