@@ -1,8 +1,7 @@
 #![allow(dead_code)] // We want to keep this as close to the original as possible
 
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::oxigraph_memory::encoder::{insert_term, Decoder, EncodedQuad, StrLookup};
-use crate::oxigraph_memory::hash::{StrHash, StrHashHasher};
+use crate::oxigraph_memory::encoder::{Decoder, EncodedQuad};
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
@@ -24,7 +23,6 @@ use std::sync::{Arc, Mutex, RwLock, Weak};
 #[derive(Clone)]
 pub struct OxigraphMemoryStorage {
     content: Arc<Content>,
-    id2str: Arc<DashMap<StrHash, String, BuildHasherDefault<StrHashHasher>>>,
     version_counter: Arc<AtomicUsize>,
     transaction_counter: Arc<Mutex<usize>>,
 }
@@ -55,7 +53,6 @@ impl OxigraphMemoryStorage {
                 last_quad_by_graph_name: DashMap::default(),
                 graphs: DashMap::default(),
             }),
-            id2str: Arc::new(DashMap::default()),
             version_counter: Arc::new(AtomicUsize::new(0)),
             #[allow(clippy::mutex_atomic)]
             transaction_counter: Arc::new(Mutex::new(usize::MAX >> 1)),
@@ -261,10 +258,6 @@ impl MemoryStorageReader {
             .is_some_and(|range| self.is_in_range(&range))
     }
 
-    pub fn contains_str(&self, key: &StrHash) -> bool {
-        self.storage.id2str.contains_key(key)
-    }
-
     /// Validates that all the storage invariants held in the data
     #[allow(clippy::unwrap_in_result)]
     pub fn validate(&self) -> Result<(), StorageError> {
@@ -287,7 +280,6 @@ impl MemoryStorageReader {
                     CorruptionError::new("Quad in previous chain but not in quad set").into(),
                 );
             }
-            self.decode_quad(&current.quad)?;
             if !current.quad.graph_name.is_default_graph()
                 && !self
                     .storage
@@ -446,12 +438,6 @@ impl MemoryStorageReader {
     }
 }
 
-impl StrLookup for MemoryStorageReader {
-    fn get_str(&self, key: &StrHash) -> Result<Option<String>, StorageError> {
-        Ok(self.storage.id2str.view(key, |_, v| v.clone()))
-    }
-}
-
 pub struct MemoryStorageWriter<'a> {
     storage: &'a OxigraphMemoryStorage,
     log: &'a mut Vec<LogEntry>,
@@ -556,10 +542,6 @@ impl MemoryStorageWriter<'_> {
                 })
                 .or_insert_with(|| (Arc::downgrade(&node), 1));
 
-            self.insert_term(quad.subject.into(), &encoded.subject);
-            self.insert_term(quad.predicate.into(), &encoded.predicate);
-            self.insert_term(quad.object, &encoded.object);
-
             match quad.graph_name {
                 GraphNameRef::NamedNode(graph_name) => {
                     self.insert_encoded_named_graph(graph_name.into(), encoded.graph_name.clone());
@@ -592,7 +574,6 @@ impl MemoryStorageWriter<'_> {
             Entry::Occupied(mut entry) => entry.get_mut().add(self.transaction_id),
             Entry::Vacant(entry) => {
                 entry.insert(VersionRange::Start(self.transaction_id));
-                self.insert_term(graph_name.into(), &encoded_graph_name);
                 true
             }
         };
@@ -600,23 +581,6 @@ impl MemoryStorageWriter<'_> {
             self.log.push(LogEntry::Graph(encoded_graph_name));
         }
         added
-    }
-
-    fn insert_term(&self, term: TermRef<'_>, encoded: &EncodedTerm) {
-        insert_term(term, encoded, &mut |key, value| {
-            self.insert_str(key, value);
-            Ok(())
-        })
-        .unwrap()
-    }
-
-    fn insert_str(&self, key: &StrHash, value: &str) {
-        let inserted = self
-            .storage
-            .id2str
-            .entry(*key)
-            .or_insert_with(|| value.into());
-        debug_assert_eq!(*inserted, value, "Hash conflict for two strings");
     }
 
     pub fn remove(&mut self, quad: QuadRef<'_>) -> bool {

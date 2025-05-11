@@ -1,12 +1,11 @@
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::oxigraph_memory::encoder::Decoder;
 use crate::oxigraph_memory::store::OxigraphMemoryStorage;
 use crate::oxigraph_memory::table_provider::OxigraphMemTable;
 use async_trait::async_trait;
 use datafusion::catalog::TableProvider;
 use graphfusion_engine::error::{CorruptionError, StorageError};
 use graphfusion_engine::QuadStorage;
-use graphfusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, Term};
+use graphfusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -68,15 +67,12 @@ impl QuadStorage for MemoryQuadStorage {
         let snapshot = self.storage.snapshot();
         snapshot
             .named_graphs()
-            .map(|et| snapshot.decode_term(&et))
-            .map(|dt| {
-                dt.and_then(|dt| match dt {
-                    Term::NamedNode(nnode) => Ok(NamedOrBlankNode::NamedNode(nnode)),
-                    Term::BlankNode(bnode) => Ok(NamedOrBlankNode::BlankNode(bnode)),
-                    Term::Literal(_) => Err(StorageError::Corruption(CorruptionError::msg(
-                        "Unexpected named node term.",
-                    ))),
-                })
+            .map(|dt| match dt {
+                EncodedTerm::NamedNode(nnode) => Ok(NamedOrBlankNode::NamedNode(nnode)),
+                EncodedTerm::BlankNode(bnode) => Ok(NamedOrBlankNode::BlankNode(bnode)),
+                EncodedTerm::Literal(_) | EncodedTerm::DefaultGraph => Err(
+                    StorageError::Corruption(CorruptionError::msg("Unexpected named node term.")),
+                ),
             })
             .collect::<Result<Vec<NamedOrBlankNode>, _>>()
     }
@@ -85,7 +81,10 @@ impl QuadStorage for MemoryQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        let encoded_term = EncodedTerm::from(graph_name);
+        let encoded_term = match graph_name {
+            NamedOrBlankNodeRef::NamedNode(node) => EncodedTerm::NamedNode(node.into_owned()),
+            NamedOrBlankNodeRef::BlankNode(node) => EncodedTerm::BlankNode(node.into_owned()),
+        };
         Ok(self.storage.snapshot().contains_named_graph(&encoded_term))
     }
 

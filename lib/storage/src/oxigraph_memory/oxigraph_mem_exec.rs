@@ -2,11 +2,8 @@ use crate::oxigraph_memory::store::{MemoryStorageReader, OxigraphMemoryStorage, 
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
 
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::oxigraph_memory::encoder::{EncodedQuad, StrLookup};
-use crate::oxigraph_memory::hash::StrHash;
+use crate::oxigraph_memory::encoder::EncodedQuad;
 use crate::{AResult, DFResult};
-use graphfusion_encoding::typed_value::{TypedValueArrayBuilder, ENC_QUAD_SCHEMA};
-use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
@@ -16,17 +13,15 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
 };
 use futures::Stream;
-use graphfusion_model::vocab::xsd;
-use graphfusion_model::{
-    BlankNode, BlankNodeRef, Date, DateTime, DayTimeDuration, Decimal, Duration, Time,
-    YearMonthDuration,
-};
+use graphfusion_encoding::plain_term::PlainTermArrayBuilder;
+use graphfusion_encoding::typed_value::ENC_QUAD_SCHEMA;
+use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use graphfusion_model::TermRef;
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use graphfusion_encoding::plain_term::PlainTermArrayBuilder;
 
 pub struct OxigraphMemExec {
     reader: Arc<MemoryStorageReader>,
@@ -209,16 +204,16 @@ impl RdfQuadsRecordBatchBuilder {
 
     fn encode_quad(&mut self, quad: &EncodedQuad) -> AResult<()> {
         if self.project_graph {
-            encode_term(&self.reader, &mut self.graph, &quad.graph_name)?;
+            encode_term(&mut self.graph, &quad.graph_name);
         }
         if self.project_subject {
-            encode_term(&self.reader, &mut self.subject, &quad.subject)?;
+            encode_term(&mut self.subject, &quad.subject);
         }
         if self.project_predicate {
-            encode_term(&self.reader, &mut self.predicate, &quad.predicate)?;
+            encode_term(&mut self.predicate, &quad.predicate);
         }
         if self.project_object {
-            encode_term(&self.reader, &mut self.object, &quad.object)?;
+            encode_term(&mut self.object, &quad.object);
         }
         self.count += 1;
         Ok(())
@@ -231,16 +226,16 @@ impl RdfQuadsRecordBatchBuilder {
 
         let mut fields: Vec<Arc<dyn Array>> = Vec::new();
         if self.project_graph {
-            fields.push(Arc::new(self.graph.finish()?));
+            fields.push(Arc::new(self.graph.finish()));
         }
         if self.project_subject {
-            fields.push(Arc::new(self.subject.finish()?));
+            fields.push(Arc::new(self.subject.finish()));
         }
         if self.project_predicate {
-            fields.push(Arc::new(self.predicate.finish()?));
+            fields.push(Arc::new(self.predicate.finish()));
         }
         if self.project_object {
-            fields.push(Arc::new(self.object.finish()?));
+            fields.push(Arc::new(self.object.finish()));
         }
 
         let options = RecordBatchOptions::default().with_row_count(Some(self.count));
@@ -250,153 +245,15 @@ impl RdfQuadsRecordBatchBuilder {
     }
 }
 
-fn encode_term(
-    reader: &MemoryStorageReader,
-    builder: &mut PlainTermArrayBuilder,
-    term: &EncodedTerm,
-) {
-    match term {
-        EncodedTerm::DefaultGraph => builder.append_null(),
-        EncodedTerm::NamedNode { iri_id } => {
-            let string = load_string(reader, iri_id)?;
-            builder.append_named_node(&string)
-        }
-        EncodedTerm::NumericalBlankNode { id } => {
-            let id = u128::from_be_bytes(*id);
-            builder.append_blank_node(BlankNode::new_from_unique_id(id).as_ref())
-        }
-        EncodedTerm::SmallBlankNode(value) => {
-            builder.append_blank_node(BlankNodeRef::new_unchecked(value.as_str()))
-        }
-        EncodedTerm::BigBlankNode { id_id } => {
-            let string = load_string(reader, id_id)?;
-            builder.append_blank_node(BlankNodeRef::new_unchecked(string.as_str()))
-        }
-        EncodedTerm::SmallStringLiteral(str) => builder.append_string(str, None),
-        EncodedTerm::BigStringLiteral { value_id } => {
-            let string = load_string(reader, value_id)?;
-            builder.append_string(&string, None)
-        }
-        EncodedTerm::SmallSmallLangStringLiteral { value, language } => {
-            builder.append_string(value.as_str(), Some(language.as_str()))
-        }
-        EncodedTerm::SmallBigLangStringLiteral { value, language_id } => {
-            let language = load_string(reader, language_id)?;
-            builder.append_string(value, Some(language.as_str()))
-        }
-        EncodedTerm::BigSmallLangStringLiteral { value_id, language } => {
-            let value = load_string(reader, value_id)?;
-            builder.append_string(&value, Some(language.as_str()))
-        }
-        EncodedTerm::BigBigLangStringLiteral {
-            value_id,
-            language_id,
-        } => {
-            let value = load_string(reader, value_id)?;
-            let language = load_string(reader, language_id)?;
-            builder.append_string(&value, Some(language.as_str()))
-        }
-        EncodedTerm::SmallTypedLiteral { value, datatype_id } => {
-            let datatype = load_string(reader, datatype_id)?;
-            append_typed_literal(builder, value, &datatype)
-        }
-        EncodedTerm::IntegerLiteral(integer) => {
-            let value = i64::from_be_bytes(integer.to_be_bytes());
-            builder.append_integer(value.into())
-        }
-        EncodedTerm::BigTypedLiteral {
-            value_id,
-            datatype_id,
-        } => {
-            let value = load_string(reader, value_id)?;
-            let datatype = load_string(reader, datatype_id)?;
-            append_typed_literal(builder, &value, &datatype)
-        }
-        EncodedTerm::BooleanLiteral(v) => builder.append_boolean((*v).into()),
-        EncodedTerm::FloatLiteral(v) => builder.append_float(f32::from(*v).into()),
-        EncodedTerm::DoubleLiteral(v) => builder.append_double(f64::from(*v).into()),
-        EncodedTerm::DecimalLiteral(v) => {
-            builder.append_decimal(Decimal::from_be_bytes(v.to_be_bytes()))
-        }
-        EncodedTerm::DateTimeLiteral(v) => {
-            builder.append_date_time(DateTime::from_be_bytes(v.to_be_bytes()))
-        }
-        EncodedTerm::TimeLiteral(v) => builder.append_time(Time::from_be_bytes(v.to_be_bytes())),
-        EncodedTerm::DateLiteral(v) => builder.append_date(Date::from_be_bytes(v.to_be_bytes())),
-        EncodedTerm::GYearMonthLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::G_YEAR_MONTH.as_str())
-        }
-        EncodedTerm::GYearLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::G_YEAR.as_str())
-        }
-        EncodedTerm::GMonthDayLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::G_MONTH_DAY.as_str())
-        }
-        EncodedTerm::GDayLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::G_DAY.as_str())
-        }
-        EncodedTerm::GMonthLiteral(v) => {
-            builder.append_typed_literal(&v.to_string(), xsd::G_MONTH.as_str())
-        }
-        EncodedTerm::DurationLiteral(v) => {
-            let duration = Duration::from_be_bytes(v.to_be_bytes());
-            builder.append_duration(Some(duration.year_month()), Some(duration.day_time()))
-        }
-        EncodedTerm::YearMonthDurationLiteral(v) => {
-            let duration = YearMonthDuration::from_be_bytes(v.to_be_bytes());
-            builder.append_duration(Some(duration), None)
-        }
-        EncodedTerm::DayTimeDurationLiteral(v) => {
-            let duration = DayTimeDuration::from_be_bytes(v.to_be_bytes());
-            builder.append_duration(None, Some(duration))
-        }
+fn encode_term(builder: &mut PlainTermArrayBuilder, term: &EncodedTerm) {
+    let term_ref = match term {
+        EncodedTerm::DefaultGraph => None,
+        EncodedTerm::NamedNode(node) => Some(TermRef::NamedNode(node.as_ref())),
+        EncodedTerm::BlankNode(node) => Some(TermRef::BlankNode(node.as_ref())),
+        EncodedTerm::Literal(node) => Some(TermRef::Literal(node.as_ref())),
+    };
+    match term_ref {
+        None => builder.append_null(),
+        Some(term_ref) => builder.append_term(term_ref),
     }
-}
-
-fn append_typed_literal(
-    builder: &mut TypedValueArrayBuilder,
-    value: &str,
-    datatype: &str,
-) -> AResult<()> {
-    // Do type promotion.
-    match datatype {
-        "http://www.w3.org/2001/XMLSchema#byte"
-        | "http://www.w3.org/2001/XMLSchema#short"
-        | "http://www.w3.org/2001/XMLSchema#int"
-        | "http://www.w3.org/2001/XMLSchema#long"
-        | "http://www.w3.org/2001/XMLSchema#unsignedByte"
-        | "http://www.w3.org/2001/XMLSchema#unsignedShort"
-        | "http://www.w3.org/2001/XMLSchema#unsignedInt"
-        | "http://www.w3.org/2001/XMLSchema#unsignedLong"
-        | "http://www.w3.org/2001/XMLSchema#positiveInteger"
-        | "http://www.w3.org/2001/XMLSchema#negativeInteger"
-        | "http://www.w3.org/2001/XMLSchema#nonPositiveInteger"
-        | "http://www.w3.org/2001/XMLSchema#nonNegativeInteger" => {
-            match value.parse() {
-                Ok(value) => builder.append_integer(value)?,
-                Err(_) => builder.append_null()?,
-            }
-            return Ok(());
-        }
-        "http://www.w3.org/2001/XMLSchema#dateTimeStamp" => {
-            match value.parse() {
-                Ok(value) => builder.append_date_time(value)?,
-                Err(_) => builder.append_null()?,
-            }
-            return Ok(());
-        }
-        _ => {}
-    }
-
-    builder.append_typed_literal(value, datatype)
-}
-
-fn load_string(reader: &MemoryStorageReader, str_id: &StrHash) -> DFResult<String> {
-    // TODO: use different error
-    reader
-        .get_str(str_id)
-        .map_err(|e| DataFusionError::External(Box::new(e)))?
-        .ok_or(DataFusionError::Internal(String::from(
-            "Could not find string in storage",
-        )))
 }
