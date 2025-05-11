@@ -1,6 +1,6 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::DFResult;
-use datafusion::common::{internal_err, plan_err, Column, Spans};
+use datafusion::common::{internal_err, plan_err, Spans};
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
@@ -38,7 +38,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     /// Rewrites an [Expression].
     pub fn rewrite(&self, expression: &Expression) -> DFResult<Expr> {
         match expression {
-            Expression::Bound(var) => self.expr_builder.bound(var),
+            Expression::Bound(var) => {
+                let var = self.rewrite(&Expression::Variable(var.clone()))?;
+                self.expr_builder.bound(var)
+            }
             Expression::Not(inner) => self.expr_builder.not(self.rewrite(inner)?),
             Expression::Equal(lhs, rhs) => self
                 .expr_builder
@@ -61,7 +64,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             Expression::Literal(literal) => {
                 self.expr_builder.literal(TermRef::from(literal.as_ref()))
             }
-            Expression::Variable(var) => self.expr_builder.variable(var),
+            Expression::Variable(var) => self.expr_builder.variable(var.as_ref()),
             Expression::FunctionCall(function, args) => self.rewrite_function_call(function, args),
             Expression::NamedNode(nn) => self.expr_builder.literal(TermRef::from(nn.as_ref())),
             Expression::Or(lhs, rhs) => {

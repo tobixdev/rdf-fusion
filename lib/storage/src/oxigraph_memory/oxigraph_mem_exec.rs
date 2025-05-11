@@ -26,6 +26,7 @@ use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use graphfusion_encoding::plain_term::PlainTermArrayBuilder;
 
 pub struct OxigraphMemExec {
     reader: Arc<MemoryStorageReader>,
@@ -170,10 +171,10 @@ impl RecordBatchStream for OxigraphMemStream {
 struct RdfQuadsRecordBatchBuilder {
     reader: Arc<MemoryStorageReader>,
     schema: SchemaRef,
-    graph: TypedValueArrayBuilder,
-    subject: TypedValueArrayBuilder,
-    predicate: TypedValueArrayBuilder,
-    object: TypedValueArrayBuilder,
+    graph: PlainTermArrayBuilder,
+    subject: PlainTermArrayBuilder,
+    predicate: PlainTermArrayBuilder,
+    object: PlainTermArrayBuilder,
     project_graph: bool,
     project_subject: bool,
     project_predicate: bool,
@@ -190,10 +191,10 @@ impl RdfQuadsRecordBatchBuilder {
         Self {
             reader,
             schema,
-            graph: TypedValueArrayBuilder::default(),
-            subject: TypedValueArrayBuilder::default(),
-            predicate: TypedValueArrayBuilder::default(),
-            object: TypedValueArrayBuilder::default(),
+            graph: PlainTermArrayBuilder::default(),
+            subject: PlainTermArrayBuilder::default(),
+            predicate: PlainTermArrayBuilder::default(),
+            object: PlainTermArrayBuilder::default(),
             project_graph,
             project_subject,
             project_predicate,
@@ -251,9 +252,9 @@ impl RdfQuadsRecordBatchBuilder {
 
 fn encode_term(
     reader: &MemoryStorageReader,
-    builder: &mut TypedValueArrayBuilder,
+    builder: &mut PlainTermArrayBuilder,
     term: &EncodedTerm,
-) -> AResult<()> {
+) {
     match term {
         EncodedTerm::DefaultGraph => builder.append_null(),
         EncodedTerm::NamedNode { iri_id } => {

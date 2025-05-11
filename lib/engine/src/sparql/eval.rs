@@ -4,8 +4,9 @@ use crate::sparql::{
     Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream,
     QueryTripleStream,
 };
-use graphfusion_encoding::TABLE_QUADS;
 use datafusion::prelude::{DataFrame, SessionContext};
+use graphfusion_encoding::TABLE_QUADS;
+use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_model::Iri;
 use graphfusion_model::Variable;
 use spargebra::algebra::GraphPattern;
@@ -13,6 +14,7 @@ use std::sync::Arc;
 
 pub async fn evaluate_query(
     ctx: &SessionContext,
+    registry: GraphFusionFunctionRegistryRef,
     query: &Query,
     _options: QueryOptions,
 ) -> Result<(QueryResults, Option<QueryExplanation>), QueryEvaluationError> {
@@ -20,7 +22,8 @@ pub async fn evaluate_query(
         spargebra::Query::Select {
             pattern, base_iri, ..
         } => {
-            let dataframe = create_dataframe(ctx, &query.dataset, pattern, base_iri).await?;
+            let dataframe =
+                create_dataframe(ctx, registry, &query.dataset, pattern, base_iri).await?;
             let variables = create_variables(&dataframe);
             let batch_record_stream = dataframe.execute_stream().await?;
             let stream = QuerySolutionStream::new(variables, batch_record_stream);
@@ -33,7 +36,8 @@ pub async fn evaluate_query(
             base_iri,
             ..
         } => {
-            let dataframe = create_dataframe(ctx, &query.dataset, pattern, base_iri).await?;
+            let dataframe =
+                create_dataframe(ctx, registry, &query.dataset, pattern, base_iri).await?;
             let variables = create_variables(&dataframe);
             let batch_record_stream = dataframe.execute_stream().await?;
             let stream = QuerySolutionStream::new(variables, batch_record_stream);
@@ -46,7 +50,8 @@ pub async fn evaluate_query(
         spargebra::Query::Ask {
             pattern, base_iri, ..
         } => {
-            let dataframe = create_dataframe(ctx, &query.dataset, pattern, base_iri).await?;
+            let dataframe =
+                create_dataframe(ctx, registry, &query.dataset, pattern, base_iri).await?;
             let count = dataframe.limit(0, Some(1))?.count().await?;
             Ok((QueryResults::Boolean(count > 0), None))
         }
@@ -58,14 +63,16 @@ pub async fn evaluate_query(
 
 async fn create_dataframe(
     ctx: &SessionContext,
+    registry: GraphFusionFunctionRegistryRef,
     dataset: &QueryDataset,
     pattern: &GraphPattern,
     base_iri: &Option<Iri<String>>,
 ) -> Result<DataFrame, QueryEvaluationError> {
     let quads = ctx.table_provider(TABLE_QUADS).await?;
-    let logical_plan = GraphPatternRewriter::new(dataset.clone(), base_iri.clone(), quads)
-        .rewrite(pattern)
-        .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
+    let logical_plan =
+        GraphPatternRewriter::new(registry, dataset.clone(), base_iri.clone(), quads)
+            .rewrite(pattern)
+            .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
 
     Ok(DataFrame::new(ctx.state(), logical_plan))
 }

@@ -1,6 +1,6 @@
-use crate::builtin::factory::GraphFusionBuiltinFactory;
+use crate::builtin::factory::GraphFusionUdfFactory;
 use crate::builtin::BuiltinName;
-use crate::DFResult;
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{as_boolean_array, Array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -13,21 +13,23 @@ use graphfusion_encoding::{EncodingName, TermEncoding};
 use graphfusion_model::Term;
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct BooleanAsRdfTermFactory;
 
-impl GraphFusionBuiltinFactory for BooleanAsRdfTermFactory {
-    fn name(&self) -> BuiltinName {
-        BuiltinName::NativeBooleanAsTerm
+impl GraphFusionUdfFactory for BooleanAsRdfTermFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::NativeBooleanAsTerm)
     }
 
     fn encoding(&self) -> Vec<EncodingName> {
         vec![EncodingName::TypedValue]
     }
 
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<ScalarUDF> {
-        Ok(ScalarUDF::new_from_impl(BooleanAsRdfTerm::new(self.name())))
+    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
+        let udf = ScalarUDF::new_from_impl(BooleanAsRdfTerm::new(self.name()));
+        Ok(Arc::new(udf))
     }
 }
 
@@ -38,7 +40,7 @@ pub struct BooleanAsRdfTerm {
 }
 
 impl BooleanAsRdfTerm {
-    pub fn new(name: BuiltinName) -> Self {
+    pub fn new(name: FunctionName) -> Self {
         Self {
             name: name.to_string(),
             signature: Signature::new(

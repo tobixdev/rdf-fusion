@@ -1,6 +1,6 @@
-use crate::builtin::{BuiltinName, GraphFusionBuiltinFactory};
+use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
 use crate::scalar::unary::UnaryScalarUdfOp;
-use crate::{impl_unary_sparql_op, DFResult};
+use crate::{impl_unary_sparql_op, DFResult, FunctionName};
 use datafusion::common::exec_err;
 use datafusion::logical_expr::ScalarUDF;
 use graphfusion_encoding::typed_value::decoders::{
@@ -30,6 +30,7 @@ use graphfusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp};
 use graphfusion_model::{Iri, Term};
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 // Conversion
 impl_unary_sparql_op!(
@@ -372,9 +373,9 @@ impl IriBuiltinFactory {
     pub const BASE_IRI: &'static str = "base_iri";
 }
 
-impl GraphFusionBuiltinFactory for IriBuiltinFactory {
-    fn name(&self) -> BuiltinName {
-        BuiltinName::Iri
+impl GraphFusionUdfFactory for IriBuiltinFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::Iri)
     }
 
     fn encoding(&self) -> Vec<EncodingName> {
@@ -382,7 +383,7 @@ impl GraphFusionBuiltinFactory for IriBuiltinFactory {
     }
 
     /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
-    fn create_with_args(&self, mut constant_args: HashMap<String, Term>) -> DFResult<ScalarUDF> {
+    fn create_with_args(&self, mut constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
         let base_iri = extract_base_iri(&mut constant_args)?;
 
         let op = IriSparqlOp::new(base_iri);
@@ -392,7 +393,7 @@ impl GraphFusionBuiltinFactory for IriBuiltinFactory {
             DefaultTypedValueDecoder,
             NamedNodeTermValueEncoder,
         >::new(self.name(), op);
-        Ok(ScalarUDF::new_from_impl(udf_impl))
+        Ok(Arc::new(ScalarUDF::new_from_impl(udf_impl)))
     }
 }
 

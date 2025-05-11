@@ -1,5 +1,5 @@
-use crate::builtin::{BuiltinName, GraphFusionBuiltinFactory};
-use crate::DFResult;
+use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
@@ -20,19 +20,18 @@ use std::sync::Arc;
 #[derive(Debug)]
 struct EffectiveBooleanValueFactory;
 
-impl GraphFusionBuiltinFactory for EffectiveBooleanValueFactory {
-    fn name(&self) -> BuiltinName {
-        BuiltinName::EffectiveBooleanValue
+impl GraphFusionUdfFactory for EffectiveBooleanValueFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::EffectiveBooleanValue)
     }
 
     fn encoding(&self) -> Vec<EncodingName> {
         vec![EncodingName::TypedValue]
     }
 
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<ScalarUDF> {
-        Ok(ScalarUDF::new_from_impl(EncEffectiveBooleanValue::new(
-            self.name(),
-        )))
+    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
+        let udf = ScalarUDF::new_from_impl(EncEffectiveBooleanValue::new(self.name()));
+        Ok(Arc::new(udf))
     }
 }
 
@@ -44,7 +43,7 @@ pub struct EncEffectiveBooleanValue {
 
 impl EncEffectiveBooleanValue {
     /// TODO
-    pub fn new(name: BuiltinName) -> Self {
+    pub fn new(name: FunctionName) -> Self {
         Self {
             name: name.to_string(),
             signature: Signature::new(

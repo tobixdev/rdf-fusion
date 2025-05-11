@@ -1,9 +1,10 @@
+use graphfusion_model::NamedNode;
 use std::fmt;
 
-/// A function name.
+/// A GraphFusion builtin name.
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub enum BuiltinName {
-    // SPARQL Builtin Functions
+    // SPARQL Builtin Scalar Functions
     Str,
     Lang,
     LangMatches,
@@ -53,6 +54,15 @@ pub enum BuiltinName {
     Bound,
     Coalesce,
     If,
+
+    // Scalar Built-in Aggregate Functions
+    Count,
+    Sum,
+    Min,
+    Max,
+    Avg,
+    Sample,
+    GroupConcat,
 
     // Comparison functions
     SameTerm,
@@ -161,6 +171,13 @@ impl fmt::Display for BuiltinName {
             Self::Coalesce => f.write_str("COALESCE"),
             Self::UnaryMinus => f.write_str("MINUS"),
             Self::UnaryPlus => f.write_str("PLUS"),
+            Self::Count => f.write_str("COUNT"),
+            Self::Sum => f.write_str("SUM"),
+            Self::Min => f.write_str("MIN"),
+            Self::Max => f.write_str("MAX"),
+            Self::Avg => f.write_str("AVG"),
+            Self::Sample => f.write_str("SAMPLE"),
+            Self::GroupConcat => f.write_str("GROUP_CONCAT")
         }
     }
 }

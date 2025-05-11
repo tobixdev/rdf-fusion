@@ -38,6 +38,8 @@ struct SparqlGroupConcat {
 }
 
 impl SparqlGroupConcat {
+    pub const SEPARATOR: &'static str = "separator";
+
     pub fn new(separator: String) -> Self {
         SparqlGroupConcat {
             separator,

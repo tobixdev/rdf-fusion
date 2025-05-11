@@ -12,9 +12,9 @@ use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncodin
 use graphfusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::{Arc, LazyLock};
 
-pub static ENC_MAX: LazyLock<AggregateUDF> = LazyLock::new(|| {
+pub static TYPED_VALUE_MAX: LazyLock<AggregateUDF> = LazyLock::new(|| {
     create_udaf(
-        "enc_max",
+        "max",
         vec![TypedValueEncoding::data_type()],
         Arc::new(TypedValueEncoding::data_type()),
         Volatility::Immutable,

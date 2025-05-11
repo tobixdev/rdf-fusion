@@ -1,5 +1,5 @@
-use crate::builtin::{BuiltinName, GraphFusionBuiltinFactory};
-use crate::DFResult;
+use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
@@ -18,17 +18,18 @@ use std::sync::Arc;
 #[derive(Debug)]
 struct IsCompatibleFactory;
 
-impl GraphFusionBuiltinFactory for IsCompatibleFactory {
-    fn name(&self) -> BuiltinName {
-        BuiltinName::IsCompatible
+impl GraphFusionUdfFactory for IsCompatibleFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::IsCompatible)
     }
 
     fn encoding(&self) -> Vec<EncodingName> {
         vec![EncodingName::PlainTerm]
     }
 
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<ScalarUDF> {
-        Ok(ScalarUDF::new_from_impl(IsCompatible::new(self.name())))
+    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
+        let udf = ScalarUDF::new_from_impl(IsCompatible::new(self.name()));
+        Ok(Arc::new(udf))
     }
 }
 
@@ -39,7 +40,7 @@ pub struct IsCompatible {
 }
 
 impl IsCompatible {
-    pub fn new(name: BuiltinName) -> Self {
+    pub fn new(name: FunctionName) -> Self {
         Self {
             name: name.to_string(),
             signature: Signature::new(

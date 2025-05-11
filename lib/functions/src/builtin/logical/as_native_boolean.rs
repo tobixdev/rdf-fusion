@@ -1,6 +1,6 @@
-use crate::builtin::factory::GraphFusionBuiltinFactory;
+use crate::builtin::factory::GraphFusionUdfFactory;
 use crate::builtin::BuiltinName;
-use crate::DFResult;
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::internal_err;
@@ -18,17 +18,18 @@ use std::sync::Arc;
 #[derive(Debug)]
 struct AsNativeBooleanFactory;
 
-impl GraphFusionBuiltinFactory for AsNativeBooleanFactory {
-    fn name(&self) -> BuiltinName {
-        BuiltinName::NativeBooleanAsTerm
+impl GraphFusionUdfFactory for AsNativeBooleanFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::NativeBooleanAsTerm)
     }
 
     fn encoding(&self) -> Vec<EncodingName> {
         vec![EncodingName::TypedValue]
     }
 
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<ScalarUDF> {
-        Ok(ScalarUDF::new_from_impl(AsNativeBoolean::new(self.name())))
+    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
+        let udf = ScalarUDF::new_from_impl(AsNativeBoolean::new(self.name()));
+        Ok(Arc::new(udf))
     }
 }
 
@@ -39,7 +40,7 @@ pub struct AsNativeBoolean {
 }
 
 impl AsNativeBoolean {
-    pub fn new(name: BuiltinName) -> Self {
+    pub fn new(name: FunctionName) -> Self {
         Self {
             name: name.to_string(),
             signature: Signature::new(

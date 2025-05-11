@@ -1,15 +1,14 @@
-use crate::patterns::PatternNode;
 use crate::DFResult;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{NamedNodePattern, TermPattern};
+use spargebra::term::{GraphNamePattern, TermPattern};
 use std::cmp::Ordering;
 use std::fmt;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct PathNode {
-    graph: Option<NamedNodePattern>,
+    graph: GraphNamePattern,
     subject: TermPattern,
     path: PropertyPathExpression,
     object: TermPattern,
@@ -18,12 +17,12 @@ pub struct PathNode {
 
 impl PathNode {
     pub fn new(
-        graph: Option<NamedNodePattern>,
+        graph: GraphNamePattern,
         subject: TermPattern,
         path: PropertyPathExpression,
         object: TermPattern,
     ) -> DFResult<Self> {
-        let schema = compute_schema(graph.as_ref(), &subject, &object)?;
+        let schema = compute_schema(&graph, &subject, &object)?;
         Ok(Self {
             graph,
             subject,
@@ -33,7 +32,7 @@ impl PathNode {
         })
     }
 
-    pub fn graph(&self) -> &Option<NamedNodePattern> {
+    pub fn graph(&self) -> &GraphNamePattern {
         &self.graph
     }
 
@@ -83,11 +82,7 @@ impl UserDefinedLogicalNodeCore for PathNode {
         write!(
             f,
             "Path: {} {} {} {}",
-            &self
-                .graph
-                .as_ref()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
+            self.graph,
             self.subject,
             self.path,
             self.object
@@ -111,17 +106,17 @@ impl UserDefinedLogicalNodeCore for PathNode {
 }
 
 fn compute_schema(
-    graph: Option<&NamedNodePattern>,
+    graph: &GraphNamePattern,
     subject: &TermPattern,
     object: &TermPattern,
 ) -> DFResult<DFSchemaRef> {
-    let patterns = match graph {
-        None => vec![subject.clone().into(), object.clone().into()],
-        Some(graph) => vec![
-            graph.clone().into(),
-            subject.clone().into(),
-            object.clone().into(),
-        ],
-    };
-    PatternNode::compute_schema(&patterns)
+    // let patterns: Vec<_> = match graph {
+    //     None => vec![subject.clone().into(), object.clone().into()],
+    //     Some(graph) => vec![
+    //         graph.clone().into(),
+    //         subject.clone().into(),
+    //         object.clone().into(),
+    //     ],
+    // };
+    todo!()
 }

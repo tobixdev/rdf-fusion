@@ -1,22 +1,22 @@
 use crate::expr_builder::GraphFusionExprBuilder;
-use crate::patterns::pattern_element::PatternNodeElement;
-use crate::patterns::PatternNode;
+use crate::patterns::QuadPatternNode;
 use crate::DFResult;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::logical_expr::{and, col, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
-use graphfusion_functions::registry::{GraphFusionBuiltinRegistry, GraphFusionBuiltinRegistryRef};
+use graphfusion_functions::registry::{GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PatternToProjectionRule {
-    registry: GraphFusionBuiltinRegistryRef,
+    registry: GraphFusionFunctionRegistryRef,
 }
 
 impl PatternToProjectionRule {
     /// Creates a new [PatternToProjectionRule].
-    pub fn new(registry: GraphFusionBuiltinRegistryRef) -> Self {
+    pub fn new(registry: GraphFusionFunctionRegistryRef) -> Self {
         Self { registry }
     }
 }
@@ -34,7 +34,7 @@ impl OptimizerRule for PatternToProjectionRule {
         plan.transform(|plan| {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
-                    if let Some(node) = node.as_any().downcast_ref::<PatternNode>() {
+                    if let Some(node) = node.as_any().downcast_ref::<QuadPatternNode>() {
                         let plan = LogicalPlanBuilder::from(node.input().clone());
 
                         let filter = compute_filters_for_pattern(&self.registry, node)?;
@@ -56,11 +56,11 @@ impl OptimizerRule for PatternToProjectionRule {
     }
 }
 
-/// Computes the filters that will be applied for a given [PatternNode]. Callers can use this
+/// Computes the filters that will be applied for a given [QuadPatternNode]. Callers can use this
 /// function to only apply the filters of a pattern and ignore any projections to variables.
 pub fn compute_filters_for_pattern(
-    registry: &GraphFusionBuiltinRegistry,
-    node: &PatternNode,
+    registry: &GraphFusionFunctionRegistry,
+    node: &QuadPatternNode,
 ) -> DFResult<Option<Expr>> {
     let expr_builder = GraphFusionExprBuilder::new(&node.input().schema(), registry);
     let filters = [
@@ -155,4 +155,37 @@ fn project_to_variables(
     }
 
     plan.project(projections)
+}
+
+fn filter() {
+    let graph_pattern = state
+        .graph
+        .as_ref()
+        .filter(|_| !state.graph_is_out_of_scope)
+        .map(|nn| PatternNodeElement::from(nn.clone()));
+
+    match graph_pattern {
+        None => {
+            let plan = plan.project([col(COL_SUBJECT), col(COL_PREDICATE), col(COL_OBJECT)])?;
+            let patterns = vec![
+                PatternNodeElement::from(pattern.subject.clone()),
+                PatternNodeElement::from(pattern.predicate.clone()),
+                PatternNodeElement::from(pattern.object.clone()),
+            ];
+            Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
+                node: Arc::new(QuadPatternNode::try_new(plan.build()?, patterns)?),
+            })))
+        }
+        Some(graph_pattern) => {
+            let patterns = vec![
+                graph_pattern,
+                PatternNodeElement::from(pattern.subject.clone()),
+                PatternNodeElement::from(pattern.predicate.clone()),
+                PatternNodeElement::from(pattern.object.clone()),
+            ];
+            Ok(LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
+                node: Arc::new(QuadPatternNode::try_new(plan.build()?, patterns)?),
+            })))
+        }
+    }
 }

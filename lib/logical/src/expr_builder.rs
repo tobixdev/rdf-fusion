@@ -3,14 +3,16 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_window::expr_fn::first_value;
-use datafusion::logical_expr::{and, lit, or, Expr, ExprSchemable, ScalarUDF};
+use datafusion::logical_expr::expr::AggregateFunction;
+use datafusion::logical_expr::{and, lit, or, AggregateUDF, Expr, ExprSchemable, ScalarUDF};
 use graphfusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
 use graphfusion_functions::builtin::BuiltinName;
-use graphfusion_functions::registry::GraphFusionBuiltinRegistry;
-use graphfusion_model::{Iri, TermRef, ThinError, Variable};
+use graphfusion_functions::registry::GraphFusionFunctionRegistry;
+use graphfusion_functions::FunctionName;
+use graphfusion_model::{Iri, TermRef, ThinError, VariableRef};
 use std::collections::HashMap;
 use std::ops::Not;
 use std::sync::Arc;
@@ -19,12 +21,12 @@ use std::sync::Arc;
 // TODO this is still a bit messy with when a boolean and when a term is returned. Fix that.
 
 /// TODO: Explain why
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct GraphFusionExprBuilder<'a> {
     /// The schema of the input data. Necessary for inferring the encodings of RDF terms.
     schema: &'a DFSchema,
     /// Provides access to the builtin functions.
-    registry: &'a GraphFusionBuiltinRegistry,
+    registry: &'a GraphFusionFunctionRegistry,
 }
 
 impl<'a> GraphFusionExprBuilder<'a> {
@@ -38,38 +40,41 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
     /// TODO
     pub fn avg(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
-        Expr::AggregateFunction(datafusion::logical_expr::expr::AggregateFunction::new_udf(
-            Arc::new(ENC_AVG.deref().clone()),
+        let udaf = self.create_builtin_udaf(BuiltinName::Avg)?;
+        Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
+            udaf,
             vec![expr],
             distinct,
             None,
             None,
             None,
-        ))
+        )))
     }
 
     /// TODO
     pub fn max(&self, expr: Expr) -> DFResult<Expr> {
-        Expr::AggregateFunction(datafusion::logical_expr::expr::AggregateFunction::new_udf(
-            Arc::new(ENC_MAX.deref().clone()),
+        let udaf = self.create_builtin_udaf(BuiltinName::Max)?;
+        Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
+            udaf,
             vec![expr],
             false,
             None,
             None,
             None,
-        ))
+        )))
     }
 
     /// TODO
     pub fn min(&self, expr: Expr) -> DFResult<Expr> {
-        Expr::AggregateFunction(datafusion::logical_expr::expr::AggregateFunction::new_udf(
-            Arc::new(ENC_MIN.deref().clone()),
+        let udaf = self.create_builtin_udaf(BuiltinName::Min)?;
+        Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
+            udaf,
             vec![expr],
             false,
             None,
             None,
             None,
-        ))
+        )))
     }
 
     /// TODO
@@ -79,23 +84,39 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
     /// TODO
     pub fn sum(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
-        Expr::AggregateFunction(datafusion::logical_expr::expr::AggregateFunction::new_udf(
-            Arc::new(ENC_MIN.deref().clone()),
+        let udaf = self.create_builtin_udaf(BuiltinName::Sum)?;
+        Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
+            udaf,
             vec![expr],
             distinct,
             None,
             None,
             None,
-        ))
+        )))
     }
 
-    pub fn group_concat(&self, p0: Expr, p1: bool, p2: Option<&str>) {
-        todo!()
+    pub fn group_concat(
+        &self,
+        expr: Expr,
+        distinct: bool,
+        separator: Option<&str>,
+    ) -> DFResult<Expr> {
+        todo!("udaf with separator")
+        // Ok(Expr::AggregateFunction(
+        //     datafusion::logical_expr::expr::AggregateFunction::new_udf(
+        //         Arc::new(udaf),
+        //         vec![expr],
+        //         distinct,
+        //         None,
+        //         None,
+        //         None,
+        //     ),
+        // ))
     }
 }
 
 impl<'a> GraphFusionExprBuilder<'a> {
-    pub fn new(schema: &'a DFSchema, registry: &'a GraphFusionBuiltinRegistry) -> Self {
+    pub fn new(schema: &'a DFSchema, registry: &'a GraphFusionFunctionRegistry) -> Self {
         Self { schema, registry }
     }
 
@@ -408,8 +429,8 @@ impl<'a> GraphFusionExprBuilder<'a> {
     }
 
     /// TODO
-    pub fn variable(&self, var: &Variable) -> DFResult<Expr> {
-        let column = Column::new_unqualified(var.as_str());
+    pub fn variable(&self, variable: VariableRef) -> DFResult<Expr> {
+        let column = Column::new_unqualified(variable.as_str());
         if self.schema().has_column(&column) {
             Ok(Expr::from(column))
         } else {
@@ -421,6 +442,11 @@ impl<'a> GraphFusionExprBuilder<'a> {
     /// TODO
     pub fn literal<'lit>(&self, term: impl Into<TermRef<'lit>>) -> DFResult<Expr> {
         let scalar = DefaultPlainTermEncoder::encode_term(Ok(term.into()))?;
+        Ok(lit(scalar.into_scalar_value()))
+    }
+
+    pub fn null_literal(&self) -> DFResult<Expr> {
+        let scalar = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
         Ok(lit(scalar.into_scalar_value()))
     }
 
@@ -450,9 +476,8 @@ impl<'a> GraphFusionExprBuilder<'a> {
     }
 
     /// TODO
-    pub fn bound(&self, var: &Variable) -> DFResult<Expr> {
-        let var = self.variable(var)?;
-        self.unary_udf(BuiltinName::Bound, var)
+    pub fn bound(&self, expr: Expr) -> DFResult<Expr> {
+        self.unary_udf(BuiltinName::Bound, expr)
     }
 
     /// TODO
@@ -472,7 +497,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
             );
         }
 
-        let udf = self.create_scalar_udf(BuiltinName::NativeBooleanAsTerm)?;
+        let udf = self.create_builtin_udf(BuiltinName::NativeBooleanAsTerm)?;
         Ok(udf.call(vec![expr]))
     }
 
@@ -483,8 +508,9 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
     /// TODO
     pub fn same_term(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        let effective_boolean_value = self.create_scalar_udf(BuiltinName::EffectiveBooleanValue)?;
-        let same_term = self.create_scalar_udf(BuiltinName::SameTerm)?;
+        let effective_boolean_value =
+            self.create_builtin_udf(BuiltinName::EffectiveBooleanValue)?;
+        let same_term = self.create_builtin_udf(BuiltinName::SameTerm)?;
         Ok(effective_boolean_value.call(vec![same_term.call(vec![lhs, rhs])]))
     }
 
@@ -525,20 +551,27 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
     /// TODO
     fn unary_udf(&self, name: BuiltinName, value: Expr) -> DFResult<Expr> {
-        let udf = self.create_scalar_udf(name)?;
+        let udf = self.create_builtin_udf(name)?;
         Ok(udf.call(vec![value]))
     }
 
     /// TODO
     fn binary_udf(&self, name: BuiltinName, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        let udf = self.create_scalar_udf(name)?;
+        let udf = self.create_builtin_udf(name)?;
         Ok(udf.call(vec![lhs, rhs]))
     }
 
     /// TODO
-    fn create_scalar_udf(&self, name: BuiltinName) -> DFResult<ScalarUDF> {
+    fn create_builtin_udf(&self, name: BuiltinName) -> DFResult<Arc<ScalarUDF>> {
         self.registry
-            .scalar_factory(name)
+            .udf_factory(FunctionName::Builtin(name))
+            .create_with_args(HashMap::new())
+    }
+
+    /// TODO
+    fn create_builtin_udaf(&self, name: BuiltinName) -> DFResult<Arc<AggregateUDF>> {
+        self.registry
+            .udaf_factory(FunctionName::Builtin(name))
             .create_with_args(HashMap::new())
     }
 }

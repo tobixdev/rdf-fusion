@@ -1,7 +1,7 @@
 use crate::expr_builder::GraphFusionExprBuilder;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{PathNode, COL_SOURCE, COL_TARGET, PATH_TABLE_DFSCHEMA};
-use crate::patterns::PatternNode;
+use crate::patterns::{PatternNode, QuadPatternNode};
 use crate::DFResult;
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
@@ -11,16 +11,16 @@ use datafusion::logical_expr::{col, Expr, Extension, LogicalPlan, LogicalPlanBui
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
 use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
-use graphfusion_functions::registry::GraphFusionBuiltinRegistryRef;
+use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_model::{NamedNode, TermRef};
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::NamedNodePattern;
+use spargebra::term::{GraphNamePattern, NamedNodePattern};
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PathToJoinsRule {
     /// Used for creating expressions with GraphFusion builtins.
-    registry: GraphFusionBuiltinRegistryRef,
+    registry: GraphFusionFunctionRegistryRef,
     // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
     quads_table: Arc<dyn TableProvider>,
 }
@@ -53,7 +53,7 @@ impl OptimizerRule for PathToJoinsRule {
 
 impl PathToJoinsRule {
     pub fn new(
-        registry: GraphFusionBuiltinRegistryRef,
+        registry: GraphFusionFunctionRegistryRef,
         quads_table: Arc<dyn TableProvider>,
     ) -> Self {
         Self {
@@ -63,7 +63,7 @@ impl PathToJoinsRule {
     }
 
     fn rewrite_path_node(&self, node: &PathNode) -> DFResult<LogicalPlan> {
-        let query = self.rewrite_property_path_expression(node.graph().as_ref(), node.path())?;
+        let query = self.rewrite_property_path_expression(node.graph(), node.path())?;
 
         Ok(match node.graph() {
             None => LogicalPlan::Extension(Extension {
@@ -90,7 +90,7 @@ impl PathToJoinsRule {
     /// contain additional fields that can bind values to variables.
     fn rewrite_property_path_expression(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         path: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
         match path {
@@ -113,7 +113,7 @@ impl PathToJoinsRule {
     /// matches the given `node`.
     fn rewrite_named_node(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
         let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);

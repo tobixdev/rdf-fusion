@@ -1,14 +1,14 @@
-use crate::patterns::pattern_element::PatternNodeElement;
+use crate::patterns::general::pattern_element::PatternNodeElement;
 use crate::DFResult;
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use graphfusion_encoding::plain_term::PlainTermEncoding;
+use graphfusion_encoding::TermEncoding;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
-use graphfusion_encoding::TermEncoding;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct PatternNode {

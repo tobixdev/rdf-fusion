@@ -1,32 +1,49 @@
-use crate::builtin::{BuiltinName, GraphFusionBuiltinFactory};
+use crate::builtin::factory::GraphFusionUdafFactory;
+use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
+use crate::FunctionName;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 /// TODO
-pub type GraphFusionBuiltinRegistryRef = Arc<GraphFusionBuiltinRegistry>;
+pub type GraphFusionFunctionRegistryRef = Arc<GraphFusionFunctionRegistry>;
 
 /// TODO
 #[derive(Debug)]
-pub struct GraphFusionBuiltinRegistry {
+pub struct GraphFusionFunctionRegistry {
     /// TODO
-    builtins_scalar: HashMap<BuiltinName, Arc<dyn GraphFusionBuiltinFactory>>,
+    scalars: HashMap<FunctionName, Arc<dyn GraphFusionUdfFactory>>,
+    /// TODO
+    aggregates: HashMap<FunctionName, Arc<dyn GraphFusionUdafFactory>>,
 }
 
-impl Default for GraphFusionBuiltinRegistry {
+impl Default for GraphFusionFunctionRegistry {
     fn default() -> Self {
-        let mut builtins_scalar = HashMap::new();
+        let mut scalars = HashMap::new();
+        let mut aggregates = HashMap::new();
 
         todo!("Register all built-ins");
 
-        Self { builtins_scalar }
+        Self {
+            scalars,
+            aggregates,
+        }
     }
 }
 
-impl GraphFusionBuiltinRegistry {
+impl GraphFusionFunctionRegistry {
     /// TODO
-    pub fn scalar_factory(&self, name: BuiltinName) -> Arc<dyn GraphFusionBuiltinFactory> {
+    pub fn udf_factory(&self, name: FunctionName) -> Arc<dyn GraphFusionUdfFactory> {
         let factory = self
-            .builtins_scalar
+            .scalars
+            .get(&name)
+            .expect("Validation checks that all built-ins are registered");
+        Arc::clone(factory)
+    }
+
+    /// TODO
+    pub fn udaf_factory(&self, name: FunctionName) -> Arc<dyn GraphFusionUdafFactory> {
+        let factory = self
+            .aggregates
             .get(&name)
             .expect("Validation checks that all built-ins are registered");
         Arc::clone(factory)

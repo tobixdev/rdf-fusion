@@ -5,6 +5,9 @@ pub(crate) mod aggregates;
 pub mod builtin;
 pub mod registry;
 pub(crate) mod scalar;
+mod name;
+
+pub use name::FunctionName;
 
 type DFResult<T> = Result<T, DataFusionError>;
 

@@ -12,7 +12,7 @@ use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncodin
 use graphfusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::{Arc, LazyLock};
 
-pub static ENC_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
+pub static TYPED_VALUE_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
     create_udaf(
         "enc_min",
         vec![TypedValueEncoding::data_type()],

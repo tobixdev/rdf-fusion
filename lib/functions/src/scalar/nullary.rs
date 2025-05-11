@@ -6,6 +6,7 @@ use datafusion::logical_expr::{
 use graphfusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::{NullarySparqlOp, SparqlOpVolatility};
 use std::any::Any;
+use crate::FunctionName;
 
 #[macro_export]
 macro_rules! impl_nullary_op {
@@ -13,9 +14,9 @@ macro_rules! impl_nullary_op {
         #[derive(Debug)]
         struct $STRUCT_NAME {}
 
-        impl crate::builtin::GraphFusionBuiltinFactory for $STRUCT_NAME {
-            fn name(&self) -> crate::builtin::BuiltinName {
-                $NAME
+        impl crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
+            fn name(&self) -> crate::FunctionName {
+                crate::FunctionName::Builtin($NAME)
             }
 
             fn encoding(&self) -> std::vec::Vec<graphfusion_encoding::EncodingName> {
@@ -29,14 +30,15 @@ macro_rules! impl_nullary_op {
                     std::string::String,
                     graphfusion_model::Term,
                 >,
-            ) -> crate::DFResult<datafusion::logical_expr::ScalarUDF> {
+            ) -> crate::DFResult<std::sync::Arc<datafusion::logical_expr::ScalarUDF>> {
                 let op = <$SPARQL_OP>::new();
                 let udf_impl = crate::scalar::nullary::NullaryScalarUdfOp::<
                     $SPARQL_OP,
                     $ENCODING,
                     $ENCODER,
-                >::new($NAME, op);
-                Ok(datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl))
+                >::new(self.name(), op);
+                let udf = datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl);
+                Ok(std::sync::Arc::new(udf))
             }
         }
     };
@@ -62,7 +64,7 @@ where
     TEncoding: TermEncoding,
     TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result>,
 {
-    pub(crate) fn new(name: BuiltinName, op: TOp) -> Self {
+    pub(crate) fn new(name: FunctionName, op: TOp) -> Self {
         let volatility = match op.volatility() {
             SparqlOpVolatility::Immutable => Volatility::Immutable,
             SparqlOpVolatility::Stable => Volatility::Stable,

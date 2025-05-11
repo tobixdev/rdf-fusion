@@ -1,5 +1,5 @@
 use crate::builtin::BuiltinName;
-use crate::DFResult;
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err};
 use datafusion::logical_expr::{
@@ -17,9 +17,9 @@ macro_rules! impl_quarternary_sparql_op {
         #[derive(Debug)]
         struct $STRUCT_NAME {}
 
-        impl crate::builtin::GraphFusionBuiltinFactory for $STRUCT_NAME {
-            fn name(&self) -> crate::builtin::BuiltinName {
-                $NAME
+        impl crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
+            fn name(&self) -> crate::FunctionName {
+                crate::FunctionName::Builtin($NAME)
             }
 
             fn encoding(&self) -> std::vec::Vec<graphfusion_encoding::EncodingName> {
@@ -33,7 +33,7 @@ macro_rules! impl_quarternary_sparql_op {
                     std::string::String,
                     graphfusion_model::Term,
                 >,
-            ) -> crate::DFResult<datafusion::logical_expr::ScalarUDF> {
+            ) -> crate::DFResult<std::sync::Arc<datafusion::logical_expr::ScalarUDF>> {
                 let op = <$SPARQL_OP>::new();
                 let udf_impl = crate::scalar::quaternary::QuarternaryScalarUdfOp::<
                     $SPARQL_OP,
@@ -43,8 +43,9 @@ macro_rules! impl_quarternary_sparql_op {
                     $DECODER2,
                     $DECODER3,
                     $ENCODER,
-                >::new($NAME, op);
-                Ok(datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl))
+                >::new(self.name(), op);
+                let udf = datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl);
+                Ok(std::sync::Arc::new(udf))
             }
         }
     };
@@ -90,7 +91,7 @@ where
     TDecoder3: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg3<'a>>,
     TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
 {
-    pub(crate) fn new(name: BuiltinName, op: TOp) -> Self {
+    pub(crate) fn new(name: FunctionName, op: TOp) -> Self {
         let volatility = match op.volatility() {
             SparqlOpVolatility::Immutable => Volatility::Immutable,
             SparqlOpVolatility::Stable => Volatility::Stable,
