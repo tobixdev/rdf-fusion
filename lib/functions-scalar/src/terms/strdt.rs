@@ -16,8 +16,7 @@ impl StrDtSparqlOp {
     }
 }
 
-impl SparqlOp for StrDtSparqlOp {
-}
+impl SparqlOp for StrDtSparqlOp {}
 
 impl BinarySparqlOp for StrDtSparqlOp {
     type ArgLhs<'lhs> = SimpleLiteralRef<'lhs>;

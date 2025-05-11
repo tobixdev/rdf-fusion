@@ -1,6 +1,6 @@
-use crate::{UnarySparqlOp, ThinResult, SparqlOp};
-use graphfusion_model::{DateTime, ThinError};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::TypedValueRef;
+use graphfusion_model::{DateTime, ThinError};
 
 #[derive(Debug)]
 pub struct AsDateTimeSparqlOp;
@@ -17,8 +17,7 @@ impl AsDateTimeSparqlOp {
     }
 }
 
-impl SparqlOp for AsDateTimeSparqlOp {
-}
+impl SparqlOp for AsDateTimeSparqlOp {}
 
 impl UnarySparqlOp for AsDateTimeSparqlOp {
     type Arg<'data> = TypedValueRef<'data>;

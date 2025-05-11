@@ -53,7 +53,10 @@ impl Default for TypedValueArrayBuilder {
                 .expect("PRECISION and SCALE fixed"),
             int32_builder: Int32Builder::with_capacity(0),
             integer_builder: Int64Builder::with_capacity(0),
-            date_time_builder: StructBuilder::from_fields(TypedValueEncoding::timestamp_fields(), 0),
+            date_time_builder: StructBuilder::from_fields(
+                TypedValueEncoding::timestamp_fields(),
+                0,
+            ),
             time_builder: StructBuilder::from_fields(TypedValueEncoding::timestamp_fields(), 0),
             date_builder: StructBuilder::from_fields(TypedValueEncoding::timestamp_fields(), 0),
             duration_builder: StructBuilder::from_fields(TypedValueEncoding::duration_fields(), 0),
@@ -95,7 +98,10 @@ impl TypedValueArrayBuilder {
     }
 
     pub fn append_boolean(&mut self, value: Boolean) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::Boolean, self.boolean_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Boolean,
+            self.boolean_builder.len(),
+        )?;
         self.boolean_builder.append_value(value.as_bool());
         Ok(())
     }
@@ -151,7 +157,10 @@ impl TypedValueArrayBuilder {
     }
 
     pub fn append_date_time(&mut self, value: DateTime) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::DateTime, self.date_time_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::DateTime,
+            self.date_time_builder.len(),
+        )?;
         append_timestamp(&mut self.date_time_builder, value.timestamp());
         Ok(())
     }
@@ -175,7 +184,10 @@ impl TypedValueArrayBuilder {
     }
 
     pub fn append_integer(&mut self, integer: Integer) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::Integer, self.integer_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Integer,
+            self.integer_builder.len(),
+        )?;
         self.integer_builder.append_value(integer.into());
         Ok(())
     }
@@ -193,7 +205,10 @@ impl TypedValueArrayBuilder {
     }
 
     pub fn append_decimal(&mut self, value: Decimal) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::Decimal, self.decimal_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Decimal,
+            self.decimal_builder.len(),
+        )?;
         self.decimal_builder
             .append_value(i128::from_be_bytes(value.to_be_bytes()));
         Ok(())
@@ -220,7 +235,10 @@ impl TypedValueArrayBuilder {
             )));
         }
 
-        self.append_type_id_and_offset(TypedValueEncodingField::Duration, self.duration_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Duration,
+            self.duration_builder.len(),
+        )?;
         let year_month_builder = self
             .duration_builder
             .field_builder::<Int64Builder>(0)

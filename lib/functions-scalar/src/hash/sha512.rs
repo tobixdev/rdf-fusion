@@ -1,6 +1,6 @@
-use crate::{UnarySparqlOp, ThinResult, SparqlOp};
-use md5::Digest;
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::{OwnedStringLiteral, SimpleLiteralRef};
+use md5::Digest;
 use sha2::Sha512;
 
 #[derive(Debug)]
@@ -18,8 +18,7 @@ impl Sha512SparqlOp {
     }
 }
 
-impl SparqlOp for Sha512SparqlOp {
-}
+impl SparqlOp for Sha512SparqlOp {}
 
 impl UnarySparqlOp for Sha512SparqlOp {
     type Arg<'data> = SimpleLiteralRef<'data>;

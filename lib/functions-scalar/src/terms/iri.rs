@@ -13,8 +13,7 @@ impl IriSparqlOp {
     }
 }
 
-impl SparqlOp for IriSparqlOp {
-}
+impl SparqlOp for IriSparqlOp {}
 
 impl UnarySparqlOp for IriSparqlOp {
     type Arg<'data> = TypedValueRef<'data>;

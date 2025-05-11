@@ -17,8 +17,7 @@ impl LangSparqlOp {
     }
 }
 
-impl SparqlOp for LangSparqlOp {
-}
+impl SparqlOp for LangSparqlOp {}
 
 impl UnarySparqlOp for LangSparqlOp {
     type Arg<'data> = TypedValueRef<'data>;

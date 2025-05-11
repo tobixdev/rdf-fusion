@@ -16,8 +16,7 @@ impl LangMatchesSparqlOp {
     }
 }
 
-impl SparqlOp for LangMatchesSparqlOp {
-}
+impl SparqlOp for LangMatchesSparqlOp {}
 
 impl BinarySparqlOp for LangMatchesSparqlOp {
     type ArgLhs<'lhs> = SimpleLiteralRef<'lhs>;

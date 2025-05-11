@@ -177,7 +177,7 @@ impl fmt::Display for BuiltinName {
             Self::Max => f.write_str("MAX"),
             Self::Avg => f.write_str("AVG"),
             Self::Sample => f.write_str("SAMPLE"),
-            Self::GroupConcat => f.write_str("GROUP_CONCAT")
+            Self::GroupConcat => f.write_str("GROUP_CONCAT"),
         }
     }
 }

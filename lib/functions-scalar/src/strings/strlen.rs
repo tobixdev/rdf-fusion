@@ -16,8 +16,7 @@ impl StrLenSparqlOp {
     }
 }
 
-impl SparqlOp for StrLenSparqlOp {
-}
+impl SparqlOp for StrLenSparqlOp {}
 
 impl UnarySparqlOp for StrLenSparqlOp {
     type Arg<'data> = StringLiteralRef<'data>;

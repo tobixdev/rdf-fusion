@@ -31,8 +31,12 @@ impl TermValueArray {
         let date_times_array = array
             .child(TypedValueEncodingField::DateTime.type_id())
             .as_struct();
-        let times_array = array.child(TypedValueEncodingField::Time.type_id()).as_struct();
-        let dates_array = array.child(TypedValueEncodingField::Date.type_id()).as_struct();
+        let times_array = array
+            .child(TypedValueEncodingField::Time.type_id())
+            .as_struct();
+        let dates_array = array
+            .child(TypedValueEncodingField::Date.type_id())
+            .as_struct();
         let durations_array = array
             .child(TypedValueEncodingField::Duration.type_id())
             .as_struct();
@@ -42,7 +46,9 @@ impl TermValueArray {
 
         TermValueArrayParts {
             array,
-            null_count: array.child(TypedValueEncodingField::Null.type_id()).null_count(),
+            null_count: array
+                .child(TypedValueEncodingField::Null.type_id())
+                .null_count(),
             named_nodes: array
                 .child(TypedValueEncodingField::NamedNode.type_id())
                 .as_string::<i32>(),

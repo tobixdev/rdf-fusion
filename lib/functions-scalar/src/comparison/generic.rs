@@ -21,8 +21,7 @@ macro_rules! create_binary_cmp_udf {
             }
         }
 
-        impl SparqlOp for $STRUCT {
-        }
+        impl SparqlOp for $STRUCT {}
 
         impl BinarySparqlOp for $STRUCT {
             type ArgLhs<'data> = TypedValueRef<'data>;

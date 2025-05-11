@@ -16,8 +16,7 @@ impl UCaseSparqlOp {
     }
 }
 
-impl SparqlOp for UCaseSparqlOp {
-}
+impl SparqlOp for UCaseSparqlOp {}
 
 impl UnarySparqlOp for UCaseSparqlOp {
     type Arg<'data> = StringLiteralRef<'data>;

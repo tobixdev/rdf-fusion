@@ -16,8 +16,7 @@ impl DivSparqlOp {
     }
 }
 
-impl SparqlOp for DivSparqlOp {
-}
+impl SparqlOp for DivSparqlOp {}
 
 impl BinarySparqlOp for DivSparqlOp {
     type ArgLhs<'lhs> = Numeric;

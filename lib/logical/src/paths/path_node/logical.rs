@@ -82,10 +82,7 @@ impl UserDefinedLogicalNodeCore for PathNode {
         write!(
             f,
             "Path: {} {} {} {}",
-            self.graph,
-            self.subject,
-            self.path,
-            self.object
+            self.graph, self.subject, self.path, self.object
         )
     }
 

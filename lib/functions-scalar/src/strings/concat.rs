@@ -16,8 +16,7 @@ impl ConcatSparqlOp {
     }
 }
 
-impl SparqlOp for ConcatSparqlOp {
-}
+impl SparqlOp for ConcatSparqlOp {}
 
 impl NArySparqlOp for ConcatSparqlOp {
     type Args<'data> = StringLiteralRef<'data>;

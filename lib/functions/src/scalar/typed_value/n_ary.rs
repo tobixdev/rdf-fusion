@@ -1,3 +1,4 @@
+use crate::builtin::BuiltinName;
 use crate::impl_n_ary_sparql_op;
 use graphfusion_encoding::typed_value::decoders::{
     DefaultTypedValueDecoder, StringLiteralRefTermValueDecoder,
@@ -7,7 +8,6 @@ use graphfusion_encoding::typed_value::encoders::{
 };
 use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_functions_scalar::{CoalesceSparqlOp, ConcatSparqlOp};
-use crate::builtin::BuiltinName;
 
 // Functional Forms
 impl_n_ary_sparql_op!(

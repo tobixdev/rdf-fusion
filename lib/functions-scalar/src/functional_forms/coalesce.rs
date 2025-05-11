@@ -1,6 +1,6 @@
 use crate::{NArySparqlOp, SparqlOp, ThinResult};
-use graphfusion_model::TypedValueRef;
 use graphfusion_model::ThinError;
+use graphfusion_model::TypedValueRef;
 
 #[derive(Debug)]
 pub struct CoalesceSparqlOp;
@@ -17,8 +17,7 @@ impl CoalesceSparqlOp {
     }
 }
 
-impl SparqlOp for CoalesceSparqlOp {
-}
+impl SparqlOp for CoalesceSparqlOp {}
 
 impl NArySparqlOp for CoalesceSparqlOp {
     type Args<'data> = TypedValueRef<'data>;

@@ -16,9 +16,7 @@ use graphfusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
 use graphfusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use graphfusion_encoding::plain_term::{
-    PlainTermArray, PlainTermArrayBuilder, PlainTermEncoding,
-};
+use graphfusion_encoding::plain_term::{PlainTermArray, PlainTermArrayBuilder, PlainTermEncoding};
 use graphfusion_encoding::typed_value::TypedValueArrayBuilder;
 use graphfusion_encoding::{TermDecoder, TermEncoding};
 use graphfusion_logical::paths::PATH_TABLE_SCHEMA;

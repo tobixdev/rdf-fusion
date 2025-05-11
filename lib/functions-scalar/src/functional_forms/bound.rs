@@ -16,8 +16,7 @@ impl BoundSparqlOp {
     }
 }
 
-impl SparqlOp for BoundSparqlOp {
-}
+impl SparqlOp for BoundSparqlOp {}
 
 impl UnarySparqlOp for BoundSparqlOp {
     type Arg<'data> = TypedValueRef<'data>;

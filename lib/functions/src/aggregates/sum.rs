@@ -3,7 +3,9 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use graphfusion_encoding::typed_value::decoders::{DefaultTypedValueDecoder, NumericTermValueDecoder};
+use graphfusion_encoding::typed_value::decoders::{
+    DefaultTypedValueDecoder, NumericTermValueDecoder,
+};
 use graphfusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};

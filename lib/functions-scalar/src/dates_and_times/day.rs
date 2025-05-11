@@ -16,8 +16,7 @@ impl DaySparqlOp {
     }
 }
 
-impl SparqlOp for DaySparqlOp {
-}
+impl SparqlOp for DaySparqlOp {}
 
 impl UnarySparqlOp for DaySparqlOp {
     type Arg<'data> = DateTime;

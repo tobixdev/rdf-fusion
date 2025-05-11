@@ -1,18 +1,16 @@
+use crate::encoding::EncodingArray;
 use crate::plain_term::PlainTermEncoding;
+use crate::TermEncoding;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::common::exec_err;
 use datafusion::error::DataFusionError;
-use crate::encoding::EncodingArray;
-use crate::TermEncoding;
 
 /// Represents an Arrow array with a [PlainTermEncoding].
 pub struct PlainTermArray {
     inner: ArrayRef,
 }
 
-impl PlainTermArray {
-
-}
+impl PlainTermArray {}
 
 impl EncodingArray for PlainTermArray {
     fn array(&self) -> &ArrayRef {

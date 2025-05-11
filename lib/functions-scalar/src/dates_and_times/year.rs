@@ -16,8 +16,7 @@ impl YearSparqlOp {
     }
 }
 
-impl SparqlOp for YearSparqlOp {
-}
+impl SparqlOp for YearSparqlOp {}
 
 impl UnarySparqlOp for YearSparqlOp {
     type Arg<'data> = DateTime;

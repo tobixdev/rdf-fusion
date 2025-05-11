@@ -16,8 +16,7 @@ impl SameTermSparqlOp {
     }
 }
 
-impl SparqlOp for SameTermSparqlOp {
-}
+impl SparqlOp for SameTermSparqlOp {}
 
 impl BinarySparqlOp for SameTermSparqlOp {
     type ArgLhs<'data> = TypedValueRef<'data>;

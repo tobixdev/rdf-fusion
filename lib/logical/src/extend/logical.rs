@@ -18,11 +18,7 @@ pub struct ExtendNode {
 
 impl ExtendNode {
     /// TODO
-    pub fn try_new(
-        inner: LogicalPlan,
-        variable: Column,
-        expression: Expr,
-    ) -> DFResult<Self> {
+    pub fn try_new(inner: LogicalPlan, variable: Column, expression: Expr) -> DFResult<Self> {
         todo!()
     }
 

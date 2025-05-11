@@ -16,8 +16,7 @@ impl TimezoneSparqlOp {
     }
 }
 
-impl SparqlOp for TimezoneSparqlOp {
-}
+impl SparqlOp for TimezoneSparqlOp {}
 
 impl UnarySparqlOp for TimezoneSparqlOp {
     type Arg<'data> = DateTime;

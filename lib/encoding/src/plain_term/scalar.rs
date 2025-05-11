@@ -1,7 +1,7 @@
+use crate::encoding::EncodingScalar;
 use crate::plain_term::PlainTermEncoding;
 use crate::{DFResult, TermEncoding};
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
-use crate::encoding::EncodingScalar;
 
 /// Represents an Arrow scalar with a [ValueEncoding].
 pub struct PlainTermScalar {

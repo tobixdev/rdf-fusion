@@ -17,8 +17,7 @@ impl RandSparqlOp {
     }
 }
 
-impl SparqlOp for RandSparqlOp {
-}
+impl SparqlOp for RandSparqlOp {}
 
 impl NullarySparqlOp for RandSparqlOp {
     type Result = Double;

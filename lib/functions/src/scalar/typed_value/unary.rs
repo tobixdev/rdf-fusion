@@ -383,7 +383,10 @@ impl GraphFusionUdfFactory for IriBuiltinFactory {
     }
 
     /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
-    fn create_with_args(&self, mut constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
+    fn create_with_args(
+        &self,
+        mut constant_args: HashMap<String, Term>,
+    ) -> DFResult<Arc<ScalarUDF>> {
         let base_iri = extract_base_iri(&mut constant_args)?;
 
         let op = IriSparqlOp::new(base_iri);

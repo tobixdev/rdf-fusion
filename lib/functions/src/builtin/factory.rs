@@ -20,7 +20,6 @@ pub trait GraphFusionUdfFactory: Debug + Send + Sync {
     fn create_with_args(&self, constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>>;
 }
 
-
 /// A SPARQL aggregate operation that can be dispatched on arrow-encoded terms or term values.
 pub trait GraphFusionUdafFactory: Debug + Send + Sync {
     /// Returns the name of the GraphFusion built-in.
@@ -31,5 +30,6 @@ pub trait GraphFusionUdafFactory: Debug + Send + Sync {
     fn encoding(&self) -> Vec<EncodingName>;
 
     /// Creates a DataFusion [AggregateUDF] given the `constant_args`.
-    fn create_with_args(&self, constant_args: HashMap<String, Term>) -> DFResult<Arc<AggregateUDF>>;
+    fn create_with_args(&self, constant_args: HashMap<String, Term>)
+        -> DFResult<Arc<AggregateUDF>>;
 }

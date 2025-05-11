@@ -17,8 +17,7 @@ impl IfSparqlOp {
     }
 }
 
-impl SparqlOp for IfSparqlOp {
-}
+impl SparqlOp for IfSparqlOp {}
 
 impl TernarySparqlOp for IfSparqlOp {
     type Arg0<'data> = Boolean;

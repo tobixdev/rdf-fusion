@@ -1,6 +1,6 @@
 mod binary;
-mod nullary;
-mod unary;
-mod ternary;
-mod quaternary;
 mod n_ary;
+mod nullary;
+mod quaternary;
+mod ternary;
+mod unary;

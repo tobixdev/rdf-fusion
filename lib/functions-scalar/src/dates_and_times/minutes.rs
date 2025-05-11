@@ -16,8 +16,7 @@ impl MinutesSparqlOp {
     }
 }
 
-impl SparqlOp for MinutesSparqlOp {
-}
+impl SparqlOp for MinutesSparqlOp {}
 
 impl UnarySparqlOp for MinutesSparqlOp {
     type Arg<'data> = DateTime;

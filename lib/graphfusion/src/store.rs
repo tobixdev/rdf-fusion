@@ -39,11 +39,11 @@ use graphfusion_engine::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
 use graphfusion_engine::GraphFusionInstance;
-use graphfusion_storage::MemoryQuadStorage;
 use graphfusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
     TermRef, Variable,
 };
+use graphfusion_storage::MemoryQuadStorage;
 use oxrdfio::{RdfParser, RdfSerializer};
 use std::io::{Read, Write};
 use std::sync::{Arc, LazyLock};

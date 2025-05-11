@@ -1,6 +1,6 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::TypedValueRef;
 use graphfusion_model::Boolean;
+use graphfusion_model::TypedValueRef;
 
 #[derive(Debug)]
 pub struct IsIriSparqlOp;
@@ -17,8 +17,7 @@ impl IsIriSparqlOp {
     }
 }
 
-impl SparqlOp for IsIriSparqlOp {
-}
+impl SparqlOp for IsIriSparqlOp {}
 
 impl UnarySparqlOp for IsIriSparqlOp {
     type Arg<'data> = TypedValueRef<'data>;

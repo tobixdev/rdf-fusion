@@ -20,8 +20,7 @@ impl RegexSparqlOp {
     }
 }
 
-impl SparqlOp for RegexSparqlOp {
-}
+impl SparqlOp for RegexSparqlOp {}
 
 impl BinarySparqlOp for RegexSparqlOp {
     type ArgLhs<'data> = StringLiteralRef<'data>;

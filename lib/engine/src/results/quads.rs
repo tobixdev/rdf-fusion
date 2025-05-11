@@ -1,7 +1,7 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::QueryEvaluationError;
-use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use futures::{ready, Stream, StreamExt};
+use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use graphfusion_model::{GraphName, NamedNode, Quad, Subject, Term, Variable};
 use sparesults::QuerySolution;
 use std::pin::Pin;

@@ -16,8 +16,7 @@ impl SubStrSparqlOp {
     }
 }
 
-impl SparqlOp for SubStrSparqlOp {
-}
+impl SparqlOp for SubStrSparqlOp {}
 
 impl BinarySparqlOp for SubStrSparqlOp {
     type ArgLhs<'lhs> = StringLiteralRef<'lhs>;

@@ -5,8 +5,8 @@ use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArra
 use datafusion::arrow::datatypes::UInt8Type;
 use datafusion::functions_aggregate::regr::regr_slope;
 use graphfusion_model::{
-    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, TypedValue, TermRef, ThinError,
-    ThinResult,
+    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult,
+    TypedValue,
 };
 
 #[derive(Debug)]

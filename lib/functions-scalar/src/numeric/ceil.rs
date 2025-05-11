@@ -1,4 +1,4 @@
-use crate::{UnarySparqlOp, ThinResult, SparqlOp};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::Numeric;
 
 #[derive(Debug)]
@@ -16,8 +16,7 @@ impl CeilSparqlOp {
     }
 }
 
-impl SparqlOp for CeilSparqlOp {
-}
+impl SparqlOp for CeilSparqlOp {}
 
 impl UnarySparqlOp for CeilSparqlOp {
     type Arg<'data> = Numeric;

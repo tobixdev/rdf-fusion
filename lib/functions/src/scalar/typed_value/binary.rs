@@ -1,3 +1,4 @@
+use crate::builtin::BuiltinName;
 use graphfusion_encoding::typed_value::decoders::{
     DefaultTypedValueDecoder, IntegerTermValueDecoder, NamedNodeRefTermValueDecoder,
     NumericTermValueDecoder, SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
@@ -14,7 +15,6 @@ use graphfusion_functions_scalar::{
     RegexSparqlOp, SameTermSparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrDtSparqlOp,
     StrEndsSparqlOp, StrLangSparqlOp, StrStartsSparqlOp, SubSparqlOp, SubStrSparqlOp,
 };
-use crate::builtin::BuiltinName;
 
 // Comparisons
 impl_binary_sparql_op!(

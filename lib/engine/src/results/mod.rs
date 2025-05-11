@@ -22,10 +22,10 @@ mod triples;
 use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
 use graphfusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use graphfusion_encoding::TermEncoding;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
 pub use sparesults::QuerySolution;
-use graphfusion_encoding::TermEncoding;
 pub use triples::QueryTripleStream;
 
 /// Results of a [SPARQL query](https://www.w3.org/TR/sparql11-query/).

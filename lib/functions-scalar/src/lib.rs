@@ -31,8 +31,7 @@ pub enum SparqlOpVolatility {
 }
 
 /// A super trait of all SPARQL operations.
-pub trait SparqlOp: Debug + Sync + Send {
-}
+pub trait SparqlOp: Debug + Sync + Send {}
 
 /// TODO
 pub trait NullarySparqlOp: SparqlOp {

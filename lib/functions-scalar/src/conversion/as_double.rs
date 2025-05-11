@@ -17,8 +17,7 @@ impl AsDoubleSparqlOp {
     }
 }
 
-impl SparqlOp for AsDoubleSparqlOp {
-}
+impl SparqlOp for AsDoubleSparqlOp {}
 
 impl UnarySparqlOp for AsDoubleSparqlOp {
     type Arg<'data> = TypedValueRef<'data>;

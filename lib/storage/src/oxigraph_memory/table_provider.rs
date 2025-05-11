@@ -6,8 +6,8 @@ use datafusion::datasource::{TableProvider, TableType};
 use datafusion::logical_expr::Expr;
 
 use crate::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
-use graphfusion_encoding::typed_value::ENC_QUAD_SCHEMA;
 use datafusion::physical_plan::ExecutionPlan;
+use graphfusion_encoding::typed_value::ENC_QUAD_SCHEMA;
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};

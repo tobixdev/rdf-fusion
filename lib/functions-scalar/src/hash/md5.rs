@@ -1,6 +1,6 @@
-use crate::{UnarySparqlOp, ThinResult, SparqlOp};
-use md5::{Digest, Md5};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::{OwnedStringLiteral, SimpleLiteralRef};
+use md5::{Digest, Md5};
 
 #[derive(Debug)]
 pub struct Md5SparqlOp;
@@ -17,8 +17,7 @@ impl Md5SparqlOp {
     }
 }
 
-impl SparqlOp for Md5SparqlOp {
-}
+impl SparqlOp for Md5SparqlOp {}
 
 impl UnarySparqlOp for Md5SparqlOp {
     type Arg<'data> = SimpleLiteralRef<'data>;

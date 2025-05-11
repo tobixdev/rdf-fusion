@@ -1,6 +1,6 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::TypedValueRef;
 use graphfusion_model::Boolean;
+use graphfusion_model::TypedValueRef;
 
 #[derive(Debug)]
 pub struct IsNumericSparqlOp;
@@ -17,8 +17,7 @@ impl IsNumericSparqlOp {
     }
 }
 
-impl SparqlOp for IsNumericSparqlOp {
-}
+impl SparqlOp for IsNumericSparqlOp {}
 
 impl UnarySparqlOp for IsNumericSparqlOp {
     type Arg<'data> = TypedValueRef<'data>;

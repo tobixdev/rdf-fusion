@@ -16,8 +16,7 @@ impl StrAfterSparqlOp {
     }
 }
 
-impl SparqlOp for StrAfterSparqlOp {
-}
+impl SparqlOp for StrAfterSparqlOp {}
 
 impl BinarySparqlOp for StrAfterSparqlOp {
     type ArgLhs<'data> = StringLiteralRef<'data>;

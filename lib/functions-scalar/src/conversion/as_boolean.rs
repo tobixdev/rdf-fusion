@@ -17,8 +17,7 @@ impl AsBooleanSparqlOp {
     }
 }
 
-impl SparqlOp for AsBooleanSparqlOp {
-}
+impl SparqlOp for AsBooleanSparqlOp {}
 
 impl UnarySparqlOp for AsBooleanSparqlOp {
     type Arg<'data> = TypedValueRef<'data>;

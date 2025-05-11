@@ -16,8 +16,7 @@ impl MulSparqlOp {
     }
 }
 
-impl SparqlOp for MulSparqlOp {
-}
+impl SparqlOp for MulSparqlOp {}
 
 impl BinarySparqlOp for MulSparqlOp {
     type ArgLhs<'lhs> = Numeric;

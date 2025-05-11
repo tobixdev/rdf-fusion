@@ -1,4 +1,4 @@
-use crate::{UnarySparqlOp, ThinResult, SparqlOp};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::Numeric;
 
 #[derive(Debug)]
@@ -16,8 +16,7 @@ impl AbsSparqlOp {
     }
 }
 
-impl SparqlOp for AbsSparqlOp {
-}
+impl SparqlOp for AbsSparqlOp {}
 
 impl UnarySparqlOp for AbsSparqlOp {
     type Arg<'data> = Numeric;

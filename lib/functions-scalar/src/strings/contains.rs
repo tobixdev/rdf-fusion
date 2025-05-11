@@ -16,8 +16,7 @@ impl ContainsSparqlOp {
     }
 }
 
-impl SparqlOp for ContainsSparqlOp {
-}
+impl SparqlOp for ContainsSparqlOp {}
 
 impl BinarySparqlOp for ContainsSparqlOp {
     type ArgLhs<'data> = StringLiteralRef<'data>;

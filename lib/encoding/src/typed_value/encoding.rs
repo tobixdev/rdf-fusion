@@ -1,8 +1,8 @@
 use crate::encoding::TermEncoding;
 use crate::typed_value::array::TermValueArray;
-use crate::typed_value::scalar::TermValueScalar;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::typed_value::encoders::DefaultTypedValueEncoder;
+use crate::typed_value::scalar::TermValueScalar;
 use crate::{DFResult, EncodingName};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
@@ -245,17 +245,21 @@ impl TypedValueEncodingField {
     pub fn data_type(self) -> DataType {
         match self {
             TypedValueEncodingField::Null => DataType::Null,
-            TypedValueEncodingField::NamedNode | TypedValueEncodingField::BlankNode => DataType::Utf8,
+            TypedValueEncodingField::NamedNode | TypedValueEncodingField::BlankNode => {
+                DataType::Utf8
+            }
             TypedValueEncodingField::String => DataType::Struct(FIELDS_STRING.clone()),
             TypedValueEncodingField::Boolean => DataType::Boolean,
             TypedValueEncodingField::Float => DataType::Float32,
             TypedValueEncodingField::Double => DataType::Float64,
-            TypedValueEncodingField::Decimal => DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
+            TypedValueEncodingField::Decimal => {
+                DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE)
+            }
             TypedValueEncodingField::Int => DataType::Int32,
             TypedValueEncodingField::Integer => DataType::Int64,
-            TypedValueEncodingField::DateTime | TypedValueEncodingField::Time | TypedValueEncodingField::Date => {
-                DataType::Struct(FIELDS_TIMESTAMP.clone())
-            }
+            TypedValueEncodingField::DateTime
+            | TypedValueEncodingField::Time
+            | TypedValueEncodingField::Date => DataType::Struct(FIELDS_TIMESTAMP.clone()),
             TypedValueEncodingField::Duration => DataType::Struct(FIELDS_DURATION.clone()),
             TypedValueEncodingField::OtherLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
         }

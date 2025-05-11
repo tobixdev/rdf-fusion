@@ -5,8 +5,8 @@ use crate::TermEncoding;
 use datafusion::arrow::array::Array;
 use graphfusion_model::{
     BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int,
-    Integer, LanguageStringRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, TypedValueRef,
-    ThinError, ThinResult, Time, Timestamp, TimezoneOffset, YearMonthDuration,
+    Integer, LanguageStringRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, ThinError,
+    ThinResult, Time, Timestamp, TimezoneOffset, TypedValueRef, YearMonthDuration,
 };
 use std::ops::Not;
 
@@ -57,10 +57,12 @@ fn extract_term_value<'data>(
                     parts.strings.value.value(offset),
                 )))
             } else {
-                Ok(TypedValueRef::LanguageStringLiteral(LanguageStringRef::new(
-                    parts.strings.value.value(offset),
-                    parts.strings.language.value(offset),
-                )))
+                Ok(TypedValueRef::LanguageStringLiteral(
+                    LanguageStringRef::new(
+                        parts.strings.value.value(offset),
+                        parts.strings.language.value(offset),
+                    ),
+                ))
             }
         }
         TypedValueEncodingField::Boolean => {

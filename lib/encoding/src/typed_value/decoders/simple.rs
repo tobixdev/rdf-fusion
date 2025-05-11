@@ -7,7 +7,7 @@ use graphfusion_model::{
     Boolean, DateTime, Integer, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef,
     ThinError,
 };
-use graphfusion_model::{TypedValueRef, ThinResult};
+use graphfusion_model::{ThinResult, TypedValueRef};
 
 #[macro_export]
 macro_rules! make_simple_term_value_decoder {
@@ -97,11 +97,13 @@ make_simple_term_value_decoder!(
     }
 );
 
-make_simple_term_value_decoder!(DateTimeTermValueDecoder, DateTime, |value: TypedValueRef<
-    '_,
->| {
-    match value {
-        TypedValueRef::DateTimeLiteral(value) => Ok(value),
-        _ => ThinError::expected(),
+make_simple_term_value_decoder!(
+    DateTimeTermValueDecoder,
+    DateTime,
+    |value: TypedValueRef<'_>| {
+        match value {
+            TypedValueRef::DateTimeLiteral(value) => Ok(value),
+            _ => ThinError::expected(),
+        }
     }
-});
+);

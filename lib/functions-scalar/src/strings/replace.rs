@@ -20,8 +20,7 @@ impl ReplaceSparqlOp {
     }
 }
 
-impl SparqlOp for ReplaceSparqlOp {
-}
+impl SparqlOp for ReplaceSparqlOp {}
 
 impl TernarySparqlOp for ReplaceSparqlOp {
     type Arg0<'data> = StringLiteralRef<'data>;

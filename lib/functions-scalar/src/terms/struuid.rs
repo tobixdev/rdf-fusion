@@ -17,8 +17,7 @@ impl StrUuidSparqlOp {
     }
 }
 
-impl SparqlOp for StrUuidSparqlOp {
-}
+impl SparqlOp for StrUuidSparqlOp {}
 
 impl NullarySparqlOp for StrUuidSparqlOp {
     type Result = OwnedStringLiteral;

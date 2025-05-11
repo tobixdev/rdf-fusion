@@ -1,4 +1,4 @@
-use crate::{UnarySparqlOp, ThinResult, SparqlOp};
+use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use graphfusion_model::{DateTime, OwnedStringLiteral};
 
 #[derive(Debug)]
@@ -16,8 +16,7 @@ impl TzSparqlOp {
     }
 }
 
-impl SparqlOp for TzSparqlOp {
-}
+impl SparqlOp for TzSparqlOp {}
 
 impl UnarySparqlOp for TzSparqlOp {
     type Arg<'data> = DateTime;

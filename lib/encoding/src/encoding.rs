@@ -112,7 +112,7 @@ pub trait TermEncoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
 
     /// TODO
     fn encode_term(term: ThinResult<Self::Term<'_>>) -> DFResult<TEncoding::Scalar>;
- }
+}
 
 /// TODO
 pub enum EncodingDatum<TEncoding: TermEncoding + ?Sized> {

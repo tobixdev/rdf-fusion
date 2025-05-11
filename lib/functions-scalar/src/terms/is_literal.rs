@@ -17,8 +17,7 @@ impl IsLiteralSparqlOp {
     }
 }
 
-impl SparqlOp for IsLiteralSparqlOp {
-}
+impl SparqlOp for IsLiteralSparqlOp {}
 
 impl UnarySparqlOp for IsLiteralSparqlOp {
     type Arg<'data> = TypedValueRef<'data>;

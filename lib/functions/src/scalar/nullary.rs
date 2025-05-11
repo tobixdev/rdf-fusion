@@ -1,4 +1,5 @@
 use crate::builtin::BuiltinName;
+use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
@@ -6,7 +7,6 @@ use datafusion::logical_expr::{
 use graphfusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
 use graphfusion_functions_scalar::{NullarySparqlOp, SparqlOpVolatility};
 use std::any::Any;
-use crate::FunctionName;
 
 #[macro_export]
 macro_rules! impl_nullary_op {
