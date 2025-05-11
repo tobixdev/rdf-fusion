@@ -15,12 +15,10 @@ use futures::{Stream, StreamExt};
 use graphfusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
-use graphfusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use graphfusion_encoding::plain_term::{PlainTermArray, PlainTermArrayBuilder, PlainTermEncoding};
-use graphfusion_encoding::typed_value::TypedValueArrayBuilder;
+use graphfusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
 use graphfusion_encoding::{TermDecoder, TermEncoding};
 use graphfusion_logical::paths::PATH_TABLE_SCHEMA;
-use graphfusion_model::{GraphName, GraphNameRef, Term, TypedValueRef};
+use graphfusion_model::{GraphName, Term};
 use itertools::izip;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};

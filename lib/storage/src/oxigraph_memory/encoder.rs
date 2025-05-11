@@ -4,10 +4,9 @@ use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use graphfusion_engine::error::{CorruptionError, StorageError};
 use graphfusion_model::Term;
 use graphfusion_model::TermRef;
-use graphfusion_model::{BlankNode, GraphName, Literal, NamedNode, Quad, QuadRef, Subject};
+use graphfusion_model::{GraphName, NamedNode, Quad, QuadRef, Subject};
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::str;
 
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub struct EncodedQuad {

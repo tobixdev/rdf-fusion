@@ -1,13 +1,13 @@
 #![allow(dead_code)] // We want to keep this as close to the original as possible
 
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::oxigraph_memory::encoder::{Decoder, EncodedQuad};
+use crate::oxigraph_memory::encoder::EncodedQuad;
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use graphfusion_engine::error::{CorruptionError, StorageError};
 use graphfusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
-use graphfusion_model::{Quad, TermRef};
+use graphfusion_model::Quad;
 use rustc_hash::FxHasher;
 use std::borrow::Borrow;
 use std::error::Error;

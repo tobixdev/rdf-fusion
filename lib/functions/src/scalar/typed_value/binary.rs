@@ -190,7 +190,7 @@ impl_binary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     NamedNodeRefTermValueDecoder,
     LiteralRefTermValueEncoder,
-    SubDtTypedValueFactory,
+    StrDtTypedValueFactory,
     StrDtSparqlOp,
     BuiltinName::StrDt
 );
@@ -199,7 +199,7 @@ impl_binary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    SubLangTypedValueFactory,
+    StrLangTypedValueFactory,
     StrLangSparqlOp,
     BuiltinName::StrLang
 );

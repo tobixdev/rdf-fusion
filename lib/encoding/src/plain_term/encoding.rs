@@ -5,7 +5,7 @@ use crate::{DFResult, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;
-use graphfusion_model::{Term, TermRef, ThinError};
+use graphfusion_model::{TermRef, ThinError};
 use std::clone::Clone;
 use std::sync::LazyLock;
 
@@ -97,9 +97,9 @@ impl TryFrom<u8> for PlainTermType {
     }
 }
 
-impl Into<u8> for PlainTermType {
-    fn into(self) -> u8 {
-        match self {
+impl From<PlainTermType> for u8 {
+    fn from(val: PlainTermType) -> Self {
+        match val {
             PlainTermType::NamedNode => 0,
             PlainTermType::BlankNode => 1,
             PlainTermType::Literal => 2,

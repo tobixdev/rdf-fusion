@@ -151,7 +151,7 @@ make_simple_term_value_encoder!(
         let result = builder.append_literal(value);
         match result {
             Err(LiteralEncodingError::ParsingError(_)) => builder.append_null(),
-            Err(LiteralEncodingError::Arrow(arrow_error)) => return Err(arrow_error),
+            Err(LiteralEncodingError::Arrow(arrow_error)) => Err(arrow_error),
             Ok(()) => Ok(()),
         }
     }

@@ -108,7 +108,7 @@ pub(crate) fn dispatch_binary_array_array(
 
     let results = lhs
         .zip(rhs)
-        .map(|(lhs_value, rhs_value)| check_compatibility(lhs_value, rhs_value).map(|r| Some(r)))
+        .map(|(lhs_value, rhs_value)| check_compatibility(lhs_value, rhs_value).map(Some))
         .collect::<Result<BooleanArray, ThinError>>();
 
     match results {
@@ -129,7 +129,7 @@ pub(crate) fn dispatch_binary_scalar_array(
     let lhs_value = DefaultPlainTermDecoder::decode_term(lhs);
 
     let results = DefaultPlainTermDecoder::decode_terms(rhs)
-        .map(|rhs_value| check_compatibility(lhs_value, rhs_value).map(|r| Some(r)))
+        .map(|rhs_value| check_compatibility(lhs_value, rhs_value).map(Some))
         .collect::<Result<BooleanArray, ThinError>>();
 
     match results {
@@ -150,7 +150,7 @@ pub(crate) fn dispatch_binary_array_scalar(
     let rhs_value = DefaultPlainTermDecoder::decode_term(rhs);
 
     let results = DefaultPlainTermDecoder::decode_terms(lhs)
-        .map(|lhs_value| check_compatibility(lhs_value, rhs_value).map(|r| Some(r)))
+        .map(|lhs_value| check_compatibility(lhs_value, rhs_value).map(Some))
         .collect::<Result<BooleanArray, ThinError>>();
 
     match results {

@@ -1,4 +1,3 @@
-use crate::builtin::BuiltinName;
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
@@ -12,10 +11,10 @@ use std::any::Any;
 macro_rules! impl_nullary_op {
     ($ENCODING: ty, $ENCODER: ty, $STRUCT_NAME:ident, $SPARQL_OP:ty, $NAME: expr) => {
         #[derive(Debug)]
-        struct $STRUCT_NAME {}
+        pub struct $STRUCT_NAME {}
 
-        impl crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
-            fn name(&self) -> crate::FunctionName {
+        impl $crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
+            fn name(&self) -> $crate::FunctionName {
                 crate::FunctionName::Builtin($NAME)
             }
 
@@ -107,8 +106,7 @@ where
         args: ScalarFunctionArgs<'_>,
     ) -> datafusion::common::Result<ColumnarValue> {
         let results = (0..args.number_rows)
-            .into_iter()
-            .map(|_| self.op.evaluate().into());
+            .map(|_| self.op.evaluate());
         let result = TEncoder::encode_terms(results)?;
         Ok(ColumnarValue::Array(result.into_array()))
     }

@@ -66,7 +66,7 @@ impl UserDefinedLogicalNodeCore for QuadsNode {
         exprs: Vec<Expr>,
         inputs: Vec<LogicalPlan>,
     ) -> datafusion::common::Result<Self> {
-        if inputs.len() != 0 {
+        if !inputs.is_empty() {
             return plan_err!("QuadsNode has no inputs, got {}", inputs.len());
         }
 

@@ -29,13 +29,10 @@ pub struct GraphFusionExprBuilder<'a> {
     registry: &'a GraphFusionFunctionRegistry,
 }
 
-impl<'a> GraphFusionExprBuilder<'a> {
+impl GraphFusionExprBuilder<'_> {
     /// TODO
     pub fn count(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
-        Ok(match distinct {
-            true => count_distinct(expr),
-            false => count(expr),
-        })
+        Ok(if distinct { count_distinct(expr) } else { count(expr) })
     }
 
     /// TODO

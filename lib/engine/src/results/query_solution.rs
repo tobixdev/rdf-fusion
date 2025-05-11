@@ -106,8 +106,7 @@ fn to_query_solution(
         // Convert the column to a PlainTermEncoding array
         let array = PlainTermEncoding::try_new_array(column.clone()).map_err(|e| {
             QueryEvaluationError::InternalError(format!(
-                "Failed to convert column to PlainTermEncoding: {}",
-                e
+                "Failed to convert column to PlainTermEncoding: {e}"
             ))
         })?;
 
@@ -122,7 +121,7 @@ fn to_query_solution(
             })
             .collect::<DFResult<Vec<_>>>()
             .map_err(|e| {
-                QueryEvaluationError::InternalError(format!("Failed to decode terms: {}", e))
+                QueryEvaluationError::InternalError(format!("Failed to decode terms: {e}"))
             })?;
 
         column_terms.push(terms);

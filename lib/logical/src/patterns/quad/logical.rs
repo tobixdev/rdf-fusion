@@ -14,7 +14,7 @@ impl QuadPatternNode {
     /// Creates a new [QuadPatternNode].
     pub fn new(pattern: QuadPattern) -> Self {
         let schema = compute_schema(&pattern);
-        Self { schema, pattern }
+        Self { pattern, schema }
     }
 
     pub fn pattern(&self) -> &QuadPattern {
@@ -60,7 +60,7 @@ impl UserDefinedLogicalNodeCore for QuadPatternNode {
         exprs: Vec<Expr>,
         inputs: Vec<LogicalPlan>,
     ) -> datafusion::common::Result<Self> {
-        if inputs.len() != 0 {
+        if !inputs.is_empty() {
             return plan_err!(
                 "PatternNode must have exactly one input, got {}",
                 inputs.len()

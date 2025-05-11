@@ -3,7 +3,6 @@ use datafusion::common::{plan_err, Column, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use std::cmp::Ordering;
 use std::fmt;
-use std::fmt::{Display, Formatter};
 
 /// TODO
 #[derive(PartialEq, Eq, Hash)]

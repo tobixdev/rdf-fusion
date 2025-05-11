@@ -69,7 +69,7 @@ impl SparqlJoinNode {
 }
 
 impl fmt::Debug for SparqlJoinNode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         UserDefinedLogicalNodeCore::fmt_for_explain(self, f)
     }
 }
@@ -97,12 +97,12 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
         vec![]
     }
 
-    fn fmt_for_explain(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt_for_explain(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let filter = self
             .filter
             .as_ref()
-            .map(|f| f.to_string())
-            .unwrap_or("".to_owned());
+            .map(ToString::to_string)
+            .unwrap_or_default();
         write!(f, "SparqlJoin: {} {}", self.join_type, &filter)
     }
 

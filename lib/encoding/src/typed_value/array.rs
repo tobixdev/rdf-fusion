@@ -1,6 +1,5 @@
 use crate::encoding::EncodingArray;
 use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
-use crate::GraphFusionEncodedArray::Value;
 use crate::TermEncoding;
 use datafusion::arrow::array::{
     Array, ArrayRef, AsArray, BooleanArray, Decimal128Array, Float32Array, Float64Array,

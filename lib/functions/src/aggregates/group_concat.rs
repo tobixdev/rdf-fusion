@@ -1,4 +1,6 @@
-use crate::DFResult;
+use crate::builtin::factory::GraphFusionUdafFactory;
+use crate::builtin::BuiltinName;
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
@@ -7,25 +9,43 @@ use datafusion::{error::Result, physical_plan::Accumulator};
 use graphfusion_encoding::typed_value::decoders::StringLiteralRefTermValueDecoder;
 use graphfusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{StringLiteralRef, ThinError};
+use graphfusion_encoding::{EncodingName, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_model::{StringLiteralRef, Term, ThinError};
+use std::collections::HashMap;
 use std::sync::Arc;
 
-pub fn enc_group_concat(separator: impl Into<String>) -> AggregateUDF {
-    let separator = separator.into();
-    create_udaf(
-        "enc_group_concat",
-        vec![TypedValueEncoding::data_type()],
-        Arc::new(TypedValueEncoding::data_type()),
-        Volatility::Immutable,
-        Arc::new(move |_| Ok(Box::new(SparqlGroupConcat::new(separator.clone())))),
-        Arc::new(vec![
-            DataType::Boolean,
-            DataType::Utf8,
-            DataType::Boolean,
-            DataType::Utf8,
-        ]),
-    )
+#[derive(Debug)]
+pub struct GroupConcatUdafFactory {}
+
+impl GraphFusionUdafFactory for GroupConcatUdafFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::GroupConcat)
+    }
+
+    fn encoding(&self) -> Vec<EncodingName> {
+        vec![EncodingName::TypedValue]
+    }
+
+    fn create_with_args(
+        &self,
+        constant_args: HashMap<String, Term>,
+    ) -> DFResult<Arc<AggregateUDF>> {
+        // TODO support separatro
+        let udaf = create_udaf(
+            "group_concat",
+            vec![TypedValueEncoding::data_type()],
+            Arc::new(TypedValueEncoding::data_type()),
+            Volatility::Immutable,
+            Arc::new(move |_| Ok(Box::new(SparqlGroupConcat::new(",".to_owned())))),
+            Arc::new(vec![
+                DataType::Boolean,
+                DataType::Utf8,
+                DataType::Boolean,
+                DataType::Utf8,
+            ]),
+        );
+        Ok(Arc::new(udaf))
+    }
 }
 
 #[derive(Debug)]
@@ -90,12 +110,13 @@ impl Accumulator for SparqlGroupConcat {
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         if self.error {
             return StringLiteralRefTermValueEncoder::encode_term(ThinError::expected())
-                .map(|t| t.into_scalar_value());
+                .map(graphfusion_encoding::EncodingScalar::into_scalar_value);
         }
 
         let value = self.value.as_deref().unwrap_or("");
         let literal = StringLiteralRef(value, self.language.as_deref());
-        StringLiteralRefTermValueEncoder::encode_term(Ok(literal)).map(|t| t.into_scalar_value())
+        StringLiteralRefTermValueEncoder::encode_term(Ok(literal))
+            .map(graphfusion_encoding::EncodingScalar::into_scalar_value)
     }
 
     fn size(&self) -> usize {

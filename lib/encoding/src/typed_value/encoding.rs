@@ -1,13 +1,11 @@
 use crate::encoding::TermEncoding;
 use crate::typed_value::array::TermValueArray;
-use crate::typed_value::decoders::DefaultTypedValueDecoder;
-use crate::typed_value::encoders::DefaultTypedValueEncoder;
 use crate::typed_value::scalar::TermValueScalar;
 use crate::{DFResult, EncodingName};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
-use graphfusion_model::{Decimal, TermRef, ThinError, TypedValueRef};
+use graphfusion_model::{Decimal, TermRef, ThinError};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;

@@ -1,4 +1,6 @@
-use crate::DFResult;
+use crate::builtin::factory::GraphFusionUdafFactory;
+use crate::builtin::BuiltinName;
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::{DataType, UInt64Type};
 use datafusion::common::exec_datafusion_err;
@@ -11,21 +13,44 @@ use graphfusion_encoding::typed_value::encoders::{
     IntegerTermValueEncoder, NumericTypedValueEncoder,
 };
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
+use graphfusion_encoding::{
+    EncodingArray, EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
+};
+use graphfusion_model::{Decimal, Integer, Numeric, NumericPair, Term, ThinError, ThinResult};
+use std::collections::HashMap;
 use std::ops::Div;
 use std::sync::{Arc, LazyLock};
 
-pub static ENC_AVG: LazyLock<AggregateUDF> = LazyLock::new(|| {
-    create_udaf(
-        "enc_avg",
+pub static ENC_AVG: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
+    Arc::new(create_udaf(
+        "avg",
         vec![TypedValueEncoding::data_type()],
         Arc::new(TypedValueEncoding::data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlAvg::new()))),
         Arc::new(vec![TypedValueEncoding::data_type(), DataType::UInt64]),
-    )
+    ))
 });
+
+#[derive(Debug)]
+pub struct SparqlAvgUdafFactory {}
+
+impl GraphFusionUdafFactory for SparqlAvgUdafFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::Avg)
+    }
+
+    fn encoding(&self) -> Vec<EncodingName> {
+        vec![EncodingName::TypedValue]
+    }
+
+    fn create_with_args(
+        &self,
+        constant_args: HashMap<String, Term>,
+    ) -> DFResult<Arc<AggregateUDF>> {
+        Ok(Arc::clone(&ENC_AVG))
+    }
+}
 
 #[derive(Debug)]
 struct SparqlAvg {
@@ -80,12 +105,12 @@ impl Accumulator for SparqlAvg {
             let count = i64::try_from(self.count)
                 .map_err(|_| exec_datafusion_err!("Count too large for current xsd::Integer"))?;
             return IntegerTermValueEncoder::encode_term(Ok(Integer::from(count)))
-                .map(|t| t.into_scalar_value());
+                .map(EncodingScalar::into_scalar_value);
         }
 
         let Ok(sum) = self.sum else {
             return IntegerTermValueEncoder::encode_term(ThinError::expected())
-                .map(|t| t.into_scalar_value());
+                .map(EncodingScalar::into_scalar_value);
         };
 
         let count = Numeric::Decimal(Decimal::from(self.count));
@@ -93,19 +118,20 @@ impl Accumulator for SparqlAvg {
             NumericPair::Int(_, _) => unreachable!("Starts with Integer"),
             NumericPair::Integer(lhs, rhs) => {
                 let value = lhs.checked_div(rhs);
-                IntegerTermValueEncoder::encode_term(value).map(|t| t.into_scalar_value())
+                IntegerTermValueEncoder::encode_term(value).map(EncodingScalar::into_scalar_value)
             }
             NumericPair::Float(lhs, rhs) => {
                 let value = lhs.div(rhs);
-                FloatTermValueEncoder::encode_term(Ok(value)).map(|t| t.into_scalar_value())
+                FloatTermValueEncoder::encode_term(Ok(value)).map(EncodingScalar::into_scalar_value)
             }
             NumericPair::Double(lhs, rhs) => {
                 let value = lhs.div(rhs);
-                DoubleTermValueEncoder::encode_term(Ok(value)).map(|t| t.into_scalar_value())
+                DoubleTermValueEncoder::encode_term(Ok(value))
+                    .map(EncodingScalar::into_scalar_value)
             }
             NumericPair::Decimal(lhs, rhs) => {
                 let value = lhs.checked_div(rhs);
-                DecimalTermValueEncoder::encode_term(value).map(|t| t.into_scalar_value())
+                DecimalTermValueEncoder::encode_term(value).map(EncodingScalar::into_scalar_value)
             }
         }?;
         Ok(result)

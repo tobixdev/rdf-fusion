@@ -1,7 +1,7 @@
 use crate::plain_term::encoding::{PlainTermEncodingField, PlainTermType};
 use crate::plain_term::PlainTermEncoding;
 use datafusion::arrow::array::{
-    ArrayRef, BinaryBuilder, Float64Builder, StringBuilder, StructArray, StructBuilder,
+    ArrayRef, StringBuilder, StructBuilder,
     UInt8Builder,
 };
 use graphfusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};

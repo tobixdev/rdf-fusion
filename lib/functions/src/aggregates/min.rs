@@ -1,4 +1,5 @@
-use crate::DFResult;
+use std::collections::HashMap;
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -8,9 +9,12 @@ use datafusion::scalar::ScalarValue;
 use graphfusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use graphfusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
+use graphfusion_encoding::{EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_model::{Term, ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::{Arc, LazyLock};
+use crate::aggregates::ENC_AVG;
+use crate::builtin::BuiltinName;
+use crate::builtin::factory::GraphFusionUdafFactory;
 
 pub static TYPED_VALUE_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
     create_udaf(
@@ -22,6 +26,26 @@ pub static TYPED_VALUE_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
         Arc::new(vec![DataType::Boolean, TypedValueEncoding::data_type()]),
     )
 });
+
+#[derive(Debug)]
+pub struct SparqlMinUdafFactory {}
+
+impl GraphFusionUdafFactory for SparqlMinUdafFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::Avg)
+    }
+
+    fn encoding(&self) -> Vec<EncodingName> {
+        vec![EncodingName::TypedValue]
+    }
+
+    fn create_with_args(
+        &self,
+        constant_args: HashMap<String, Term>,
+    ) -> DFResult<Arc<AggregateUDF>> {
+        Ok(Arc::clone(&ENC_AVG))
+    }
+}
 
 #[derive(Debug)]
 struct SparqlMin {

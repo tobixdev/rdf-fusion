@@ -1,4 +1,3 @@
-use graphfusion_model::NamedNode;
 use std::fmt;
 
 /// A GraphFusion builtin name.

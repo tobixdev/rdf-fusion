@@ -10,28 +10,28 @@ use graphfusion_functions_scalar::{BNodeSparqlOp, RandSparqlOp, StrUuidSparqlOp,
 impl_nullary_op!(
     TypedValueEncoding,
     BlankNodeTermValueEncoder,
-    BNodeTermValue,
+    BNodeNullaryTypedValueFactory,
     BNodeSparqlOp,
     BuiltinName::BNode
 );
 impl_nullary_op!(
     TypedValueEncoding,
     DoubleTermValueEncoder,
-    RandTermValue,
+    RandTypedValueFactory,
     RandSparqlOp,
     BuiltinName::Rand
 );
 impl_nullary_op!(
     TypedValueEncoding,
     OwnedStringLiteralTermValueEncoder,
-    StrUuidTermValue,
+    StrUuidTypedValueFactory,
     StrUuidSparqlOp,
     BuiltinName::StrUuid
 );
 impl_nullary_op!(
     TypedValueEncoding,
     NamedNodeTermValueEncoder,
-    UuidTermValue,
+    UuidTypedValueFactory,
     UuidSparqlOp,
     BuiltinName::Uuid
 );

@@ -130,28 +130,24 @@ fn create_match_pattern_plan(
     object: Option<TermRef>,
 ) -> DFResult<LogicalPlan> {
     let graph_name = graph_name
-        .map(|g| match g {
+        .map_or(GraphNamePattern::Variable(Variable::new_unchecked(
+            BlankNode::default().as_str(),
+        )), |g| match g {
             GraphNameRef::NamedNode(nn) => GraphNamePattern::NamedNode(nn.into_owned()),
             GraphNameRef::BlankNode(bnode) => {
                 GraphNamePattern::Variable(Variable::new_unchecked(bnode.as_str()))
             }
             GraphNameRef::DefaultGraph => GraphNamePattern::DefaultGraph,
-        })
-        .unwrap_or(GraphNamePattern::Variable(Variable::new_unchecked(
-            BlankNode::default().as_str(),
-        )));
+        });
 
     let subject = subject
-        .map(|s| TermPattern::from(s.into_owned()))
-        .unwrap_or(TermPattern::BlankNode(BlankNode::default()));
+        .map_or(TermPattern::BlankNode(BlankNode::default()), |s| TermPattern::from(s.into_owned()));
     let predicate = predicate
-        .map(|p| NamedNodePattern::from(p.into_owned()))
-        .unwrap_or(NamedNodePattern::Variable(Variable::new_unchecked(
+        .map_or(NamedNodePattern::Variable(Variable::new_unchecked(
             BlankNode::default().as_str(),
-        )));
+        )), |p| NamedNodePattern::from(p.into_owned()));
     let object = object
-        .map(|o| TermPattern::from(o.into_owned()))
-        .unwrap_or(TermPattern::BlankNode(BlankNode::default()));
+        .map_or(TermPattern::BlankNode(BlankNode::default()), |o| TermPattern::from(o.into_owned()));
     let quad_pattern = QuadPattern {
         subject,
         predicate,

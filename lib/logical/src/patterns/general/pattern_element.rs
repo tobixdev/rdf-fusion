@@ -3,7 +3,6 @@ use crate::DFResult;
 use datafusion::common::Column;
 use datafusion::logical_expr::Expr;
 use datafusion::prelude::col;
-use graphfusion_encoding::TermEncoding;
 use graphfusion_model::{Literal, NamedNode};
 use spargebra::term::{BlankNode, GraphNamePattern, NamedNodePattern, Term, TermPattern, Variable};
 use std::fmt::{Display, Formatter};

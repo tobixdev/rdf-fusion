@@ -11,3 +11,5 @@ mod typed_value;
 mod unary;
 #[macro_use]
 mod n_ary;
+
+pub use typed_value::*;

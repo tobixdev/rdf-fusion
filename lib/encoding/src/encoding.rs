@@ -1,9 +1,9 @@
-use crate::{DFResult, ScalarEncoder};
+use crate::DFResult;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
-use graphfusion_model::{Term, TermRef, ThinResult};
+use graphfusion_model::{TermRef, ThinResult};
 use std::fmt::Debug;
 
 /// TODO

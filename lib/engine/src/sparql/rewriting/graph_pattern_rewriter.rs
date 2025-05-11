@@ -17,7 +17,7 @@ use graphfusion_model::Variable;
 use spargebra::algebra::{
     AggregateExpression, AggregateFunction, Expression, GraphPattern, OrderExpression,
 };
-use spargebra::term::{GraphNamePattern, TriplePattern};
+use spargebra::term::GraphNamePattern;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -251,7 +251,7 @@ impl GraphPatternRewriter {
     ) -> DFResult<Expr> {
         let expr_builder = GraphFusionExprBuilder::new(schema, &self.registry);
         let expression_rewriter =
-            ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder.clone());
+            ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder);
         match expression {
             AggregateExpression::CountSolutions { distinct } => match distinct {
                 false => Ok(count(Expr::Literal(COUNT_STAR_EXPANSION))),
@@ -291,7 +291,7 @@ impl GraphPatternRewriter {
                         expr_builder.group_concat(expr, *distinct, separator.as_deref())
                     }
                     AggregateFunction::Custom(name) => {
-                        return plan_err!("Unsupported custom aggregate function: {name}");
+                        plan_err!("Unsupported custom aggregate function: {name}")
                     }
                 }
             }
@@ -356,7 +356,7 @@ fn create_distinct_on_expr(
     sort_exprs: Option<&Vec<OrderExpression>>,
 ) -> DFResult<Vec<Expr>> {
     let Some(sort_exprs) = sort_exprs else {
-        return Ok(schema.columns().into_iter().map(|c| col(c)).collect());
+        return Ok(schema.columns().into_iter().map(col).collect());
     };
 
     let mut on_exprs = Vec::new();
@@ -380,7 +380,7 @@ fn create_distinct_on_expr(
         }
     }
 
-    Ok(on_exprs.into_iter().map(|c| col(c)).collect())
+    Ok(on_exprs.into_iter().map(col).collect())
 }
 
 /// When creating a DISTINCT ON node, the initial `on_expr` expressions must match the given

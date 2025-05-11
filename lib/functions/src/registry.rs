@@ -1,5 +1,5 @@
 use crate::builtin::factory::GraphFusionUdafFactory;
-use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
+use crate::builtin::GraphFusionUdfFactory;
 use crate::FunctionName;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -18,8 +18,8 @@ pub struct GraphFusionFunctionRegistry {
 
 impl Default for GraphFusionFunctionRegistry {
     fn default() -> Self {
-        let mut scalars = HashMap::new();
-        let mut aggregates = HashMap::new();
+        let scalars = HashMap::new();
+        let aggregates = HashMap::new();
 
         todo!("Register all built-ins");
 

@@ -12,10 +12,10 @@ use std::any::Any;
 macro_rules! impl_n_ary_sparql_op {
     ($ENCODING: ty, $DECODER: ty, $ENCODER: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty, $NAME: expr) => {
         #[derive(Debug)]
-        struct $STRUCT_NAME {}
+        pub struct $STRUCT_NAME {}
 
-        impl crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
-            fn name(&self) -> crate::FunctionName {
+        impl $crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
+            fn name(&self) -> $crate::FunctionName {
                 crate::FunctionName::Builtin($NAME)
             }
 

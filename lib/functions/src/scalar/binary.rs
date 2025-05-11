@@ -1,4 +1,3 @@
-use crate::builtin::BuiltinName;
 use crate::{DFResult, FunctionName};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -16,10 +15,10 @@ use std::any::Any;
 macro_rules! impl_binary_sparql_op {
     ($ENCODING: ty, $DECODER_LHS: ty, $DECODER_RHS: ty, $ENCODER: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty, $NAME: expr) => {
         #[derive(Debug)]
-        struct $STRUCT_NAME {}
+        pub struct $STRUCT_NAME {}
 
-        impl crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
-            fn name(&self) -> crate::FunctionName {
+        impl $crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
+            fn name(&self) -> $crate::FunctionName {
                 crate::FunctionName::Builtin($NAME)
             }
 

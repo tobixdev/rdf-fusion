@@ -18,9 +18,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug)]
-struct EffectiveBooleanValueFactory;
+pub struct EffectiveBooleanValueTypedValueFactory;
 
-impl GraphFusionUdfFactory for EffectiveBooleanValueFactory {
+impl GraphFusionUdfFactory for EffectiveBooleanValueTypedValueFactory {
     fn name(&self) -> FunctionName {
         FunctionName::Builtin(BuiltinName::EffectiveBooleanValue)
     }

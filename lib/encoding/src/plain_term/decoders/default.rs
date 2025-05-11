@@ -62,15 +62,12 @@ fn decode_term<'data>(
     match term_type {
         TermType::NamedNode => TermRef::NamedNode(NamedNodeRef::new_unchecked(value.value(idx))),
         TermType::BlankNode => TermRef::BlankNode(BlankNodeRef::new_unchecked(value.value(idx))),
-        TermType::Literal => match language.is_valid(idx) {
-            false => TermRef::Literal(LiteralRef::new_typed_literal(
-                value.value(idx),
-                NamedNodeRef::new_unchecked(datatype.value(idx)),
-            )),
-            true => TermRef::Literal(LiteralRef::new_language_tagged_literal_unchecked(
-                value.value(idx),
-                language.value(idx),
-            )),
-        },
+        TermType::Literal => if language.is_valid(idx) { TermRef::Literal(LiteralRef::new_language_tagged_literal_unchecked(
+            value.value(idx),
+            language.value(idx),
+        )) } else { TermRef::Literal(LiteralRef::new_typed_literal(
+            value.value(idx),
+            NamedNodeRef::new_unchecked(datatype.value(idx)),
+        )) },
     }
 }

@@ -15,7 +15,7 @@ use graphfusion_encoding::typed_value::encoders::{
     OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
 };
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingName, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_encoding::{EncodingName, TermEncoding};
 use graphfusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
     AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
@@ -367,13 +367,13 @@ impl_unary_sparql_op!(
 );
 
 #[derive(Debug)]
-struct IriBuiltinFactory {}
+pub struct IriTypedValueFactory {}
 
-impl IriBuiltinFactory {
+impl IriTypedValueFactory {
     pub const BASE_IRI: &'static str = "base_iri";
 }
 
-impl GraphFusionUdfFactory for IriBuiltinFactory {
+impl GraphFusionUdfFactory for IriTypedValueFactory {
     fn name(&self) -> FunctionName {
         FunctionName::Builtin(BuiltinName::Iri)
     }
@@ -401,7 +401,7 @@ impl GraphFusionUdfFactory for IriBuiltinFactory {
 }
 
 fn extract_base_iri(constant_args: &mut HashMap<String, Term>) -> DFResult<Option<Iri<String>>> {
-    let Some(term) = constant_args.remove(IriBuiltinFactory::BASE_IRI) else {
+    let Some(term) = constant_args.remove(IriTypedValueFactory::BASE_IRI) else {
         return Ok(None);
     };
 
@@ -410,7 +410,7 @@ fn extract_base_iri(constant_args: &mut HashMap<String, Term>) -> DFResult<Optio
         _ => exec_err!(
             "{} expcted an IRI for argument {}.",
             BuiltinName::Iri,
-            IriBuiltinFactory::BASE_IRI
+            IriTypedValueFactory::BASE_IRI
         ),
     }
 }

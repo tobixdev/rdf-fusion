@@ -16,9 +16,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug)]
-struct BooleanAsRdfTermFactory;
+struct BooleanAsRdfTermTypedValueFactory;
 
-impl GraphFusionUdfFactory for BooleanAsRdfTermFactory {
+impl GraphFusionUdfFactory for BooleanAsRdfTermTypedValueFactory {
     fn name(&self) -> FunctionName {
         FunctionName::Builtin(BuiltinName::NativeBooleanAsTerm)
     }

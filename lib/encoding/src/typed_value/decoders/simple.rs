@@ -1,6 +1,5 @@
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::TermDecoder;
-use crate::TermEncoder;
 use crate::TermEncoding;
 use crate::TypedValueEncoding;
 use graphfusion_model::{

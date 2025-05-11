@@ -3,10 +3,8 @@ use crate::plain_term::{PlainTermEncoding, TermType};
 use crate::TermEncoding;
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
-use datafusion::functions_aggregate::regr::regr_slope;
 use graphfusion_model::{
-    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult,
-    TypedValue,
+    BlankNodeRef, GraphNameRef, NamedNodeRef, ThinError, ThinResult,
 };
 
 #[derive(Debug)]

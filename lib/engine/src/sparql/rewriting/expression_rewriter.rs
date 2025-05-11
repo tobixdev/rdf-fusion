@@ -138,7 +138,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             }
             Function::Iri => {
                 let arg = unary_args(args)?;
-                self.expr_builder.iri(self.base_iri.clone(), arg)
+                self.expr_builder.iri(self.base_iri, arg)
             }
             Function::BNode => match args.len() {
                 0 => self.expr_builder.bnode(),

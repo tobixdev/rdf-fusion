@@ -1,16 +1,18 @@
-use crate::DFResult;
+use std::collections::HashMap;
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use graphfusion_encoding::typed_value::decoders::{
-    DefaultTypedValueDecoder, NumericTermValueDecoder,
-};
+use graphfusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use graphfusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{Integer, Numeric, NumericPair, ThinResult};
+use graphfusion_encoding::{EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_model::{Integer, Numeric, NumericPair, Term, ThinResult};
 use std::sync::{Arc, LazyLock};
+use crate::aggregates::ENC_AVG;
+use crate::builtin::BuiltinName;
+use crate::builtin::factory::GraphFusionUdafFactory;
 
 pub static ENC_SUM: LazyLock<AggregateUDF> = LazyLock::new(|| {
     create_udaf(
@@ -22,6 +24,26 @@ pub static ENC_SUM: LazyLock<AggregateUDF> = LazyLock::new(|| {
         Arc::new(vec![TypedValueEncoding::data_type()]),
     )
 });
+
+#[derive(Debug)]
+pub struct SparqlSumUdafFactory {}
+
+impl GraphFusionUdafFactory for SparqlSumUdafFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::Avg)
+    }
+
+    fn encoding(&self) -> Vec<EncodingName> {
+        vec![EncodingName::TypedValue]
+    }
+
+    fn create_with_args(
+        &self,
+        constant_args: HashMap<String, Term>,
+    ) -> DFResult<Arc<AggregateUDF>> {
+        Ok(Arc::clone(&ENC_AVG))
+    }
+}
 
 #[derive(Debug)]
 struct SparqlSum {
@@ -69,7 +91,7 @@ impl Accumulator for SparqlSum {
     // DataFusion expects this function to return the final value of this aggregator.
     // in this case, this is the formula of the geometric mean
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
-        NumericTypedValueEncoder::encode_term(self.sum).map(|t| t.into_scalar_value())
+        NumericTypedValueEncoder::encode_term(self.sum).map(EncodingScalar::into_scalar_value)
     }
 
     fn size(&self) -> usize {

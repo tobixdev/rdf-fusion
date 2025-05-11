@@ -6,6 +6,7 @@ pub mod builtin;
 mod name;
 pub mod registry;
 pub(crate) mod scalar;
+mod registry_builder;
 
 pub use name::FunctionName;
 
@@ -23,7 +24,7 @@ pub enum SparqlOpArity {
 impl Display for SparqlOpArity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SparqlOpArity::Fixed(n) => write!(f, "{}", n),
+            SparqlOpArity::Fixed(n) => write!(f, "{n}"),
             SparqlOpArity::NAry => write!(f, "n-ary"),
         }
     }

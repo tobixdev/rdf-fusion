@@ -1,4 +1,3 @@
-use crate::builtin::BuiltinName;
 use crate::{DFResult, FunctionName};
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use graphfusion_encoding::EncodingName;
