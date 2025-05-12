@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// A GraphFusion builtin name.
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
 pub enum BuiltinName {
     // SPARQL Builtin Scalar Functions
     Str,
@@ -86,6 +86,11 @@ pub enum BuiltinName {
     AsDecimal,
     AsDateTime,
     AsBoolean,
+
+    // Encoding
+    WithSortableEncoding,
+    WithTypedValueEncoding,
+    WithPlainTermEncoding,
 
     // Other Necessary Functions
     EffectiveBooleanValue,
@@ -173,6 +178,9 @@ impl fmt::Display for BuiltinName {
             Self::Max => f.write_str("MAX"),
             Self::Avg => f.write_str("AVG"),
             Self::GroupConcat => f.write_str("GROUP_CONCAT"),
+            Self::WithSortableEncoding => f.write_str("WITH_SORTABLE_ENCODING"),
+            Self::WithTypedValueEncoding => f.write_str("WITH_TYPED_VALUE_ENCODING"),
+            Self::WithPlainTermEncoding => f.write_str("WITH_PLAIN_TERM_ENCODING"),
         }
     }
 }

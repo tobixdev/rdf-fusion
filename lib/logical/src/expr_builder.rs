@@ -1,10 +1,10 @@
-use crate::DFResult;
+use crate::{ActiveGraphInfo, DFResult};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{plan_err, Column, DFSchema};
+use datafusion::common::{plan_datafusion_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_window::expr_fn::first_value;
 use datafusion::logical_expr::expr::AggregateFunction;
-use datafusion::logical_expr::{and, lit, or, AggregateUDF, Expr, ExprSchemable, ScalarUDF};
+use datafusion::logical_expr::{and, lit, or, Expr, ExprSchemable};
 use graphfusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
@@ -15,7 +15,6 @@ use graphfusion_functions::FunctionName;
 use graphfusion_model::{Iri, TermRef, ThinError, VariableRef};
 use std::collections::HashMap;
 use std::ops::Not;
-use std::sync::Arc;
 // TODO maybe this expr stuff is good in a separate crate
 
 // TODO this is still a bit messy with when a boolean and when a term is returned. Fix that.
@@ -32,46 +31,47 @@ pub struct GraphFusionExprBuilder<'a> {
 impl GraphFusionExprBuilder<'_> {
     /// TODO
     pub fn count(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
-        Ok(if distinct { count_distinct(expr) } else { count(expr) })
+        Ok(if distinct {
+            count_distinct(expr)
+        } else {
+            count(expr)
+        })
+    }
+
+    /// TODO
+    pub(crate) fn filter_active_graph(
+        &self,
+        expr: Expr,
+        active_graph: &ActiveGraphInfo,
+    ) -> DFResult<Expr> {
+        match active_graph {
+            ActiveGraphInfo::DefaultGraph => Ok(expr.is_null()),
+            ActiveGraphInfo::NamedGraphs(named_graphs) => {
+                let filters = named_graphs
+                    .iter()
+                    .map(|g| self.filter_by_scalar(expr.clone(), g.as_ref().into()))
+                    .collect::<DFResult<Vec<_>>>()?;
+                Ok(filters
+                    .into_iter()
+                    .reduce(and)
+                    .expect("At least one active graph"))
+            }
+        }
     }
 
     /// TODO
     pub fn avg(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
-        let udaf = self.create_builtin_udaf(BuiltinName::Avg)?;
-        Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
-            udaf,
-            vec![expr],
-            distinct,
-            None,
-            None,
-            None,
-        )))
+        self.apply_builtin_udaf(BuiltinName::Avg, expr, distinct)
     }
 
     /// TODO
     pub fn max(&self, expr: Expr) -> DFResult<Expr> {
-        let udaf = self.create_builtin_udaf(BuiltinName::Max)?;
-        Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
-            udaf,
-            vec![expr],
-            false,
-            None,
-            None,
-            None,
-        )))
+        self.apply_builtin_udaf(BuiltinName::Max, expr, false)
     }
 
     /// TODO
     pub fn min(&self, expr: Expr) -> DFResult<Expr> {
-        let udaf = self.create_builtin_udaf(BuiltinName::Min)?;
-        Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
-            udaf,
-            vec![expr],
-            false,
-            None,
-            None,
-            None,
-        )))
+        self.apply_builtin_udaf(BuiltinName::Min, expr, false)
     }
 
     /// TODO
@@ -81,15 +81,7 @@ impl GraphFusionExprBuilder<'_> {
 
     /// TODO
     pub fn sum(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
-        let udaf = self.create_builtin_udaf(BuiltinName::Sum)?;
-        Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
-            udaf,
-            vec![expr],
-            distinct,
-            None,
-            None,
-            None,
-        )))
+        self.apply_builtin_udaf(BuiltinName::Sum, expr, distinct)
     }
 
     pub fn group_concat(
@@ -122,8 +114,23 @@ impl<'a> GraphFusionExprBuilder<'a> {
         self.schema
     }
 
-    pub fn with_encoding(&self, value: Expr, encoding: EncodingName) -> DFResult<Expr> {
-        todo!()
+    pub fn with_encoding(&self, value: Expr, target_encoding: EncodingName) -> DFResult<Expr> {
+        let actual_encoding = self.encoding(&value)?;
+        if actual_encoding == target_encoding {
+            return Ok(value);
+        }
+
+        let builtin = match target_encoding {
+            EncodingName::PlainTerm => BuiltinName::WithPlainTermEncoding,
+            EncodingName::TypedValue => BuiltinName::WithTypedValueEncoding,
+            EncodingName::Sortable => BuiltinName::WithSortableEncoding,
+        };
+
+        let udf = self
+            .registry
+            .udf_factory(FunctionName::Builtin(builtin))
+            .create_with_args(HashMap::new())?;
+        Ok(udf.call(vec![value]))
     }
 
     pub fn sparql_if(&self, p0: Vec<Expr>) -> Expr {
@@ -494,8 +501,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
             );
         }
 
-        let udf = self.create_builtin_udf(BuiltinName::NativeBooleanAsTerm)?;
-        Ok(udf.call(vec![expr]))
+        self.apply_builtin(BuiltinName::NativeBooleanAsTerm, vec![expr])
     }
 
     /// TODO
@@ -506,10 +512,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
     /// TODO
     pub fn same_term(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        let effective_boolean_value =
-            self.create_builtin_udf(BuiltinName::EffectiveBooleanValue)?;
-        let same_term = self.create_builtin_udf(BuiltinName::SameTerm)?;
-        Ok(effective_boolean_value.call(vec![same_term.call(vec![lhs, rhs])]))
+        self.binary_udf(BuiltinName::SameTerm, lhs, rhs)
     }
 
     /// TODO
@@ -549,27 +552,48 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
     /// TODO
     fn unary_udf(&self, name: BuiltinName, value: Expr) -> DFResult<Expr> {
-        let udf = self.create_builtin_udf(name)?;
-        Ok(udf.call(vec![value]))
+        self.apply_builtin(name, vec![value])
     }
 
     /// TODO
     fn binary_udf(&self, name: BuiltinName, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        let udf = self.create_builtin_udf(name)?;
-        Ok(udf.call(vec![lhs, rhs]))
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
-    fn create_builtin_udf(&self, name: BuiltinName) -> DFResult<Arc<ScalarUDF>> {
-        self.registry
-            .udf_factory(FunctionName::Builtin(name))
-            .create_with_args(HashMap::new())
+    fn apply_builtin(&self, name: BuiltinName, args: Vec<Expr>) -> DFResult<Expr> {
+        let udf_factory = self.registry.udf_factory(FunctionName::Builtin(name));
+
+        let target_encoding = udf_factory.encoding().pop().ok_or(plan_datafusion_err!(
+            "The UDF factory for {} is not valid for any Encoding.",
+            name
+        ))?;
+        let args = args
+            .into_iter()
+            .map(|e| self.with_encoding(e, target_encoding))
+            .collect::<DFResult<Vec<_>>>()?;
+
+        // TODO pass encoding into function
+        let udf = udf_factory.create_with_args(HashMap::new())?;
+        Ok(udf.call(args))
     }
 
     /// TODO
-    fn create_builtin_udaf(&self, name: BuiltinName) -> DFResult<Arc<AggregateUDF>> {
-        self.registry
+    fn apply_builtin_udaf(&self, name: BuiltinName, arg: Expr, distinct: bool) -> DFResult<Expr> {
+        // Currently, UDAFs are only supported for typed values
+        let arg = self.with_encoding(arg, EncodingName::TypedValue)?;
+        let udaf = self
+            .registry
             .udaf_factory(FunctionName::Builtin(name))
-            .create_with_args(HashMap::new())
+            .create_with_args(HashMap::new())?;
+
+        Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
+            udaf,
+            vec![arg],
+            distinct,
+            None,
+            None,
+            None,
+        )))
     }
 }

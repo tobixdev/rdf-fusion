@@ -1,7 +1,5 @@
-use crate::expr_builder::GraphFusionExprBuilder;
-use crate::paths::PATH_TABLE_DFSCHEMA;
 use crate::quads::QuadsNode;
-use crate::{ActiveGraphInfo, DFResult, GraphFusionLogicalPlanBuilder};
+use crate::{DFResult, GraphFusionLogicalPlanBuilder};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::datasource::DefaultTableSource;
@@ -69,26 +67,29 @@ impl QuadsToScanAndFilterRule {
         let plan =
             GraphFusionLogicalPlanBuilder::new(Arc::new(scan.build()?), Arc::clone(&self.registry));
 
-        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
-        let mut plan = match node.active_graph() {
-            ActiveGraphInfo::DefaultGraph => plan.filter(col(COL_GRAPH).is_null())?,
-            ActiveGraphInfo::NamedGraphs(named_graphs) => todo!("Get this into expr_builder"),
-        };
+        let active_graph_filter = plan
+            .expr_builder()
+            .filter_active_graph(col(COL_GRAPH), node.active_graph())?;
+        let mut plan = plan.filter(active_graph_filter)?;
 
         if let Some(subject) = node.subject() {
-            let filter =
-                expr_builder.filter_by_scalar(col(COL_SUBJECT), TermRef::from(subject.as_ref()))?;
+            let filter = plan
+                .expr_builder()
+                .filter_by_scalar(col(COL_SUBJECT), TermRef::from(subject.as_ref()))?;
             plan = plan.filter(filter)?;
         }
 
         if let Some(predicate) = node.predicate() {
-            let filter = expr_builder
+            let filter = plan
+                .expr_builder()
                 .filter_by_scalar(col(COL_PREDICATE), TermRef::from(predicate.as_ref()))?;
             plan = plan.filter(filter)?;
         }
 
         if let Some(predicate) = node.object() {
-            let filter = expr_builder.filter_by_scalar(col(COL_OBJECT), predicate.as_ref())?;
+            let filter = plan
+                .expr_builder()
+                .filter_by_scalar(col(COL_OBJECT), predicate.as_ref())?;
             plan = plan.filter(filter)?;
         }
 

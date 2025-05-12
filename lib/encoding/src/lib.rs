@@ -7,7 +7,7 @@ mod encoding;
 pub mod error;
 pub mod plain_term;
 mod scalar_encoder;
-pub mod sortable;
+pub mod sortable_term;
 pub mod typed_value;
 
 pub use encoding::*;

@@ -75,6 +75,7 @@ impl PlainTermArrayBuilder {
         }
     }
 
+    /// TODO
     fn append(
         &mut self,
         term_type: PlainTermType,

@@ -11,10 +11,12 @@ use graphfusion_encoding::TABLE_QUADS;
 use graphfusion_functions::registry::{
     GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef,
 };
-use graphfusion_logical::{ActiveGraphInfo, GraphFusionLogicalPlanBuilder};
-use graphfusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef};
-use std::sync::Arc;
 use graphfusion_logical::quads::QuadsToScanAndFilterRule;
+use graphfusion_logical::{ActiveGraphInfo, GraphFusionLogicalPlanBuilder};
+use graphfusion_model::{
+    GraphNameRef, NamedNodeRef, NamedOrBlankNode, QuadRef, SubjectRef, TermRef,
+};
+use std::sync::Arc;
 
 /// Represents an instance of a GraphFusion engine.
 ///
@@ -135,10 +137,10 @@ impl GraphFusionInstance {
 fn graph_name_to_active_graph(graph_name: GraphNameRef<'_>) -> ActiveGraphInfo {
     match graph_name {
         GraphNameRef::NamedNode(nn) => {
-            ActiveGraphInfo::NamedGraphs(vec![GraphName::NamedNode(nn.into_owned())])
+            ActiveGraphInfo::NamedGraphs(vec![NamedOrBlankNode::NamedNode(nn.into_owned())])
         }
         GraphNameRef::BlankNode(bnode) => {
-            ActiveGraphInfo::NamedGraphs(vec![GraphName::BlankNode(bnode.into_owned())])
+            ActiveGraphInfo::NamedGraphs(vec![NamedOrBlankNode::BlankNode(bnode.into_owned())])
         }
         GraphNameRef::DefaultGraph => ActiveGraphInfo::DefaultGraph,
     }

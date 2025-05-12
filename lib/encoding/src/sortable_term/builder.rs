@@ -1,5 +1,5 @@
-use crate::sortable::term_type::SortableTermType;
-use crate::sortable::{SortableTerm, SortableTermField};
+use crate::sortable_term::encoding::{SortableTermEncoding, SortableTermField};
+use crate::sortable_term::term_type::SortableTermType;
 use datafusion::arrow::array::{
     BinaryBuilder, Float64Builder, StructArray, StructBuilder, UInt8Builder,
 };
@@ -9,14 +9,14 @@ use graphfusion_model::{
     YearMonthDuration,
 };
 
-pub struct SortableTermBuilder {
+pub struct SortableTermArrayBuilder {
     builder: StructBuilder,
 }
 
-impl SortableTermBuilder {
+impl SortableTermArrayBuilder {
     pub fn new(capacity: usize) -> Self {
         Self {
-            builder: StructBuilder::from_fields(SortableTerm::fields(), capacity),
+            builder: StructBuilder::from_fields(SortableTermEncoding::fields(), capacity),
         }
     }
 
@@ -53,7 +53,7 @@ impl SortableTermBuilder {
         self.append(SortableTermType::String, None, value.as_bytes())
     }
 
-    pub(crate) fn append_date_time(&mut self, value: DateTime) {
+    pub fn append_date_time(&mut self, value: DateTime) {
         self.append(
             SortableTermType::DateTime,
             Some(value.timestamp().value().into()),
@@ -61,7 +61,7 @@ impl SortableTermBuilder {
         )
     }
 
-    pub(crate) fn append_time(&mut self, value: Time) {
+    pub fn append_time(&mut self, value: Time) {
         self.append(
             SortableTermType::Time,
             Some(value.timestamp().value().into()),
@@ -69,7 +69,7 @@ impl SortableTermBuilder {
         )
     }
 
-    pub(crate) fn append_date(&mut self, value: Date) {
+    pub fn append_date(&mut self, value: Date) {
         self.append(
             SortableTermType::Date,
             Some(value.timestamp().value().into()),
@@ -77,7 +77,7 @@ impl SortableTermBuilder {
         )
     }
 
-    pub(crate) fn append_duration(&mut self, value: Duration) {
+    pub fn append_duration(&mut self, value: Duration) {
         self.append(
             SortableTermType::Duration,
             None, // Sort by bytes
@@ -85,7 +85,7 @@ impl SortableTermBuilder {
         )
     }
 
-    pub(crate) fn append_year_month_duration(&mut self, value: YearMonthDuration) {
+    pub fn append_year_month_duration(&mut self, value: YearMonthDuration) {
         self.append(
             SortableTermType::YearMonthDuration,
             Some(Integer::from(value.as_i64()).into()),
@@ -93,7 +93,7 @@ impl SortableTermBuilder {
         )
     }
 
-    pub(crate) fn append_day_time_duration(&mut self, value: DayTimeDuration) {
+    pub fn append_day_time_duration(&mut self, value: DayTimeDuration) {
         self.append(
             SortableTermType::DayTimeDuration,
             Some(value.as_seconds().into()),

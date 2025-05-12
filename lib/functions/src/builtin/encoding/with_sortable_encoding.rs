@@ -1,46 +1,72 @@
-use crate::sortable_encoding::{SortableTerm, SortableTermBuilder};
-use crate::FromArrow;
-use crate::typed_value::RdfTermValueEncoding;
-use crate::DFResult;
+use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{as_union_array, StructArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
+    Volatility,
 };
-use graphfusion_model::{RdfTermValueRef, ThinResult};
+use graphfusion_encoding::plain_term::PlainTermEncoding;
+use graphfusion_encoding::typed_value::TypedValueEncoding;
+use graphfusion_encoding::{EncodingName, TermEncoding};
+use graphfusion_model::{Term, ThinResult, TypedValueRef};
 use std::any::Any;
+use std::collections::HashMap;
 use std::sync::Arc;
+use graphfusion_encoding::sortable_term::SortableTermArrayBuilder;
 
 #[derive(Debug)]
-pub struct EncWithSortableEncoding {
-    signature: Signature,
-}
+struct WithSortableEncodingFactory;
 
-impl Default for EncWithSortableEncoding {
-    fn default() -> Self {
-        Self::new()
+impl GraphFusionUdfFactory for WithSortableEncodingFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::WithSortableEncoding)
+    }
+
+    fn encoding(&self) -> Vec<EncodingName> {
+        vec![EncodingName::TypedValue, EncodingName::PlainTerm]
+    }
+
+    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
+        let udf = ScalarUDF::new_from_impl(
+            WithSortableEncoding::new(self.name()),
+        );
+        Ok(Arc::new(udf))
     }
 }
 
-impl EncWithSortableEncoding {
-    pub fn new() -> Self {
+#[derive(Debug)]
+pub struct WithSortableEncoding {
+    name: String,
+    signature: Signature,
+}
+
+impl WithSortableEncoding {
+    pub fn new(name: FunctionName) -> Self {
         Self {
+            name: name.to_string(),
             signature: Signature::new(
-                TypeSignature::Exact(vec![RdfTermValueEncoding::datatype()]),
+                TypeSignature::Uniform(
+                    1,
+                    vec![
+                        PlainTermEncoding::data_type(),
+                        TypedValueEncoding::data_type(),
+                    ],
+                ),
                 Volatility::Immutable,
             ),
         }
     }
 }
 
-impl ScalarUDFImpl for EncWithSortableEncoding {
+impl ScalarUDFImpl for WithSortableEncoding {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_with_sortable_encoding"
+        &self.name
     }
 
     fn signature(&self) -> &Signature {
@@ -59,12 +85,12 @@ impl ScalarUDFImpl for EncWithSortableEncoding {
         match &args.args[0] {
             ColumnarValue::Array(array) => {
                 let array = as_union_array(array);
-                let values = (0..args.number_rows).map(|i| RdfTermValueRef::from_array(array, i));
+                let values = (0..args.number_rows).map(|i| TypedValueRef::from_array(array, i));
                 let result = into_struct_enc(values);
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             ColumnarValue::Scalar(scalar) => {
-                let term = RdfTermValueRef::from_scalar(scalar);
+                let term = TypedValueRef::from_scalar(scalar);
                 let result = into_struct_enc([term]);
                 Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(
                     &result, 0,
@@ -75,33 +101,33 @@ impl ScalarUDFImpl for EncWithSortableEncoding {
 }
 
 fn into_struct_enc<'data>(
-    terms: impl IntoIterator<Item = ThinResult<RdfTermValueRef<'data>>>,
+    terms: impl IntoIterator<Item = ThinResult<TypedValueRef<'data>>>,
 ) -> StructArray {
     let terms_iter = terms.into_iter();
 
     let (_, size_upper_bound) = terms_iter.size_hint();
-    let mut builder = SortableTermBuilder::new(size_upper_bound.unwrap_or(0));
+    let mut builder = SortableTermArrayBuilder::new(size_upper_bound.unwrap_or(0));
 
     for term in terms_iter {
         if let Ok(term) = term {
             match term {
-                RdfTermValueRef::NamedNode(v) => builder.append_named_node(v),
-                RdfTermValueRef::BlankNode(v) => builder.append_blank_node(v),
-                RdfTermValueRef::BooleanLiteral(v) => builder.append_boolean(v),
-                RdfTermValueRef::NumericLiteral(v) => {
+                TypedValueRef::NamedNode(v) => builder.append_named_node(v),
+                TypedValueRef::BlankNode(v) => builder.append_blank_node(v),
+                TypedValueRef::BooleanLiteral(v) => builder.append_boolean(v),
+                TypedValueRef::NumericLiteral(v) => {
                     builder.append_numeric(v, v.to_be_bytes().as_ref())
                 }
-                RdfTermValueRef::SimpleLiteral(v) => builder.append_string(v.value),
-                RdfTermValueRef::LanguageStringLiteral(v) => builder.append_string(v.value),
-                RdfTermValueRef::DateTimeLiteral(v) => builder.append_date_time(v),
-                RdfTermValueRef::TimeLiteral(v) => builder.append_time(v),
-                RdfTermValueRef::DateLiteral(v) => builder.append_date(v),
-                RdfTermValueRef::DurationLiteral(v) => builder.append_duration(v),
-                RdfTermValueRef::YearMonthDurationLiteral(v) => {
+                TypedValueRef::SimpleLiteral(v) => builder.append_string(v.value),
+                TypedValueRef::LanguageStringLiteral(v) => builder.append_string(v.value),
+                TypedValueRef::DateTimeLiteral(v) => builder.append_date_time(v),
+                TypedValueRef::TimeLiteral(v) => builder.append_time(v),
+                TypedValueRef::DateLiteral(v) => builder.append_date(v),
+                TypedValueRef::DurationLiteral(v) => builder.append_duration(v),
+                TypedValueRef::YearMonthDurationLiteral(v) => {
                     builder.append_year_month_duration(v)
                 }
-                RdfTermValueRef::DayTimeDurationLiteral(v) => builder.append_day_time_duration(v),
-                RdfTermValueRef::OtherLiteral(v) => builder.append_literal(v),
+                TypedValueRef::DayTimeDurationLiteral(v) => builder.append_day_time_duration(v),
+                TypedValueRef::OtherLiteral(v) => builder.append_literal(v),
             }
         } else {
             builder.append_null()

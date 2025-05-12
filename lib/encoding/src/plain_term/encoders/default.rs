@@ -1,7 +1,9 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::PlainTermEncoding;
+use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use crate::typed_value::TypedValueEncoding;
 use crate::{DFResult, TermEncoding};
-use graphfusion_model::{TermRef, ThinResult};
+use datafusion::common::exec_err;
+use graphfusion_model::{TermRef, ThinError, ThinResult};
 
 #[derive(Debug)]
 pub struct DefaultPlainTermEncoder;
@@ -12,12 +14,18 @@ impl TermEncoder<PlainTermEncoding> for DefaultPlainTermEncoder {
     fn encode_terms<'data>(
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<<PlainTermEncoding as TermEncoding>::Array> {
-        todo!()
-    }
-
-    fn encode_term(
-        term: ThinResult<Self::Term<'_>>,
-    ) -> DFResult<<PlainTermEncoding as TermEncoding>::Scalar> {
-        todo!()
+        let mut value_builder = PlainTermArrayBuilder::default();
+        for value in terms {
+            match value {
+                Ok(TermRef::NamedNode(value)) => value_builder.append_named_node(value),
+                Ok(TermRef::BlankNode(value)) => value_builder.append_blank_node(value),
+                Ok(TermRef::Literal(value)) => value_builder.append_literal(value),
+                Err(ThinError::Expected) => value_builder.append_null(),
+                Err(ThinError::InternalError(cause)) => {
+                    return exec_err!("Internal error during RDF operation: {cause}")
+                }
+            }
+        }
+        PlainTermEncoding::try_new_array(value_builder.finish())
     }
 }

@@ -111,7 +111,11 @@ pub trait TermEncoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
     ) -> DFResult<TEncoding::Array>;
 
     /// TODO
-    fn encode_term(term: ThinResult<Self::Term<'_>>) -> DFResult<TEncoding::Scalar>;
+    fn encode_term(term: ThinResult<Self::Term<'_>>) -> DFResult<TEncoding::Scalar> {
+        let array = Self::encode_terms([term])?;
+        let scalar = ScalarValue::try_from_array(array.array(), 0)?;
+        TEncoding::try_new_scalar(scalar)
+    }
 }
 
 /// TODO
