@@ -9,7 +9,6 @@ use datafusion::logical_expr::{
 };
 use graphfusion_encoding::plain_term::encoders::TypedValueRefPlainTermEncoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
-use graphfusion_encoding::sortable_term::SortableTermEncoding;
 use graphfusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::{

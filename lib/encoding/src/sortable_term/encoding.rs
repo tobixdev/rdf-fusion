@@ -1,9 +1,5 @@
 use crate::encoding::TermEncoding;
-use crate::plain_term::encoders::DefaultPlainTermEncoder;
-use crate::plain_term::{PlainTermArray, PlainTermScalar};
-use crate::sortable_term::encoders::{
-    TermRefSortableTermEncoder, TypedValueRefSortableTermEncoder,
-};
+use crate::sortable_term::encoders::TermRefSortableTermEncoder;
 use crate::sortable_term::{SortableTermArray, SortableTermScalar};
 use crate::{DFResult, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;

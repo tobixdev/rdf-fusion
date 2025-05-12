@@ -1,8 +1,8 @@
 use crate::encoding::TermEncoder;
 use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use crate::{DFResult, TermEncoding};
-use datafusion::common::{exec_datafusion_err, exec_err};
-use graphfusion_model::{Numeric, TermRef, ThinError, ThinResult, TypedValue, TypedValueRef};
+use datafusion::common::exec_err;
+use graphfusion_model::{TermRef, ThinError, ThinResult};
 
 #[derive(Debug)]
 pub struct TermRefTypedValueEncoder;

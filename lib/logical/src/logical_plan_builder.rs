@@ -5,7 +5,6 @@ use crate::paths::PropertyPathNode;
 use crate::patterns::PatternNode;
 use crate::quads::QuadsNode;
 use crate::{DFResult, GraphFusionExprBuilder};
-use datafusion::arrow::compute::sort;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::{plan_datafusion_err, Column, DFSchema, DFSchemaRef, JoinType};
 use datafusion::logical_expr::{
@@ -18,7 +17,7 @@ use graphfusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncodi
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_model::{NamedNode, Subject, Term, TermRef, ThinError, Variable};
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{GraphNamePattern, GroundTerm, QuadPattern, TermPattern, TriplePattern};
+use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 // TODO: check types
@@ -163,7 +162,7 @@ impl GraphFusionLogicalPlanBuilder {
         let pattern = PatternNode::try_new(
             quads_plan,
             vec![
-                graph_variables.map(|v| TermPattern::Variable(v)),
+                graph_variables.map(TermPattern::Variable),
                 Some(pattern.subject),
                 Some(pattern.predicate.into()),
                 Some(pattern.object),
@@ -431,7 +430,7 @@ impl GraphFusionLogicalPlanBuilder {
     ) -> DFResult<GraphFusionLogicalPlanBuilder> {
         let schema = self.plan_builder.schema();
         let (on_expr, sorts) = create_distinct_on_expressions(self.expr_builder(), sorts.clone())?;
-        let select_expr = schema.columns().into_iter().map(|c| col(c)).collect();
+        let select_expr = schema.columns().into_iter().map(col).collect();
         let sorts = if sorts.is_empty() { None } else { Some(sorts) };
 
         Ok(Self {

@@ -8,7 +8,7 @@ use graphfusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::{TermDecoder, TermEncoding};
 use graphfusion_model::Variable;
-use graphfusion_model::{Term, ThinError};
+use graphfusion_model::ThinError;
 pub use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::sync::Arc;

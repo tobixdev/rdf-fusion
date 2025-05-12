@@ -1,15 +1,10 @@
 use crate::patterns::compute_schema_for_pattern;
 use crate::DFResult;
-use datafusion::arrow::datatypes::{Field, Fields};
-use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
+use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use graphfusion_encoding::plain_term::PlainTermEncoding;
-use graphfusion_encoding::TermEncoding;
 use spargebra::term::TermPattern;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::fmt;
-use std::sync::Arc;
 
 /// TODO
 #[derive(PartialEq, Eq, Hash)]
@@ -88,8 +83,7 @@ impl UserDefinedLogicalNodeCore for PatternNode {
             .iter()
             .map(|opt| {
                 opt.as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or("-".to_string())
+                    .map_or("-".to_owned(), ToString::to_string)
             })
             .collect::<Vec<_>>()
             .join(" ");

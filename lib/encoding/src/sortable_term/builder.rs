@@ -1,7 +1,7 @@
 use crate::sortable_term::encoding::{SortableTermEncoding, SortableTermEncodingField};
 use crate::sortable_term::term_type::SortableTermType;
 use datafusion::arrow::array::{
-    ArrayRef, BinaryBuilder, Float64Builder, StructArray, StructBuilder, UInt8Builder,
+    ArrayRef, BinaryBuilder, Float64Builder, StructBuilder, UInt8Builder,
 };
 use graphfusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef};
 use graphfusion_model::{

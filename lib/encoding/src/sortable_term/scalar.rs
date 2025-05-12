@@ -1,5 +1,4 @@
 use crate::encoding::EncodingScalar;
-use crate::plain_term::PlainTermEncoding;
 use crate::sortable_term::SortableTermEncoding;
 use crate::{DFResult, TermEncoding};
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};

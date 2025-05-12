@@ -1,19 +1,14 @@
 use crate::join::{SparqlJoinNode, SparqlJoinType};
-use crate::quads::QuadsNode;
 use crate::GraphFusionExprBuilder;
-use crate::{DFResult, GraphFusionLogicalPlanBuilder};
+use crate::DFResult;
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{Column, JoinType};
-use datafusion::datasource::DefaultTableSource;
 use datafusion::logical_expr::Expr;
-use datafusion::logical_expr::{col, Extension, LogicalPlan, LogicalPlanBuilder};
+use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
-use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
-use graphfusion_model::TermRef;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 /// TODO
 #[derive(Debug)]

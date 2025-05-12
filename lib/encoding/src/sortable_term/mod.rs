@@ -9,4 +9,3 @@ pub use array::*;
 pub use builder::*;
 pub use encoding::*;
 pub use scalar::*;
-pub use term_type::*;

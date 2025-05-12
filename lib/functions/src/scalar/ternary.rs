@@ -17,7 +17,7 @@ macro_rules! impl_ternary_sparql_op {
 
         impl $crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
             fn name(&self) -> $crate::FunctionName {
-                crate::FunctionName::Builtin($NAME)
+                $crate::FunctionName::Builtin($NAME)
             }
 
             fn encoding(&self) -> std::vec::Vec<graphfusion_encoding::EncodingName> {
@@ -31,7 +31,7 @@ macro_rules! impl_ternary_sparql_op {
                     std::string::String,
                     graphfusion_model::Term,
                 >,
-            ) -> crate::DFResult<std::sync::Arc<datafusion::logical_expr::ScalarUDF>> {
+            ) -> $crate::DFResult<std::sync::Arc<datafusion::logical_expr::ScalarUDF>> {
                 let op = <$SPARQL_OP>::new();
                 let udf_impl = crate::scalar::ternary::TernaryScalarUdfOp::<
                     $SPARQL_OP,

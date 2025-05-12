@@ -1,10 +1,7 @@
 use crate::encoding::TermEncoder;
 use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
-use crate::sortable_term::{SortableTermArrayBuilder, SortableTermEncoding};
-use crate::typed_value::TypedValueEncoding;
 use crate::{DFResult, TermEncoding};
-use datafusion::common::exec_err;
-use graphfusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
+use graphfusion_model::{ThinResult, TypedValueRef};
 
 #[derive(Debug)]
 pub struct TypedValueRefPlainTermEncoder;

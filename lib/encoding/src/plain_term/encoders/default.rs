@@ -1,6 +1,5 @@
 use crate::encoding::TermEncoder;
 use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
-use crate::typed_value::TypedValueEncoding;
 use crate::{DFResult, TermEncoding};
 use datafusion::common::exec_err;
 use graphfusion_model::{TermRef, ThinError, ThinResult};

@@ -1,7 +1,6 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
 use crate::sortable_term::encoders::TypedValueRefSortableTermEncoder;
-use crate::sortable_term::{SortableTermArrayBuilder, SortableTermEncoding};
+use crate::sortable_term::SortableTermEncoding;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use crate::{DFResult, TermDecoder, TermEncoding};

@@ -65,7 +65,7 @@ pub fn compute_filters_for_pattern(
     registry: &GraphFusionFunctionRegistry,
     node: &PatternNode,
 ) -> DFResult<Option<Expr>> {
-    let expr_builder = GraphFusionExprBuilder::new(&node.input().schema(), registry);
+    let expr_builder = GraphFusionExprBuilder::new(node.input().schema(), registry);
     let filters = [
         filter_by_values(&expr_builder, node.patterns())?,
         filter_same_variable(&expr_builder, node.patterns())?,
@@ -86,9 +86,9 @@ fn filter_by_values(
         .columns()
         .iter()
         .zip(pattern.iter())
-        .map(|(c, p)| create_filter_expression(&expr_builder, c, p.as_ref()))
+        .map(|(c, p)| create_filter_expression(expr_builder, c, p.as_ref()))
         .collect::<DFResult<Vec<_>>>()?;
-    Ok(filters.into_iter().filter_map(|f| f).reduce(and))
+    Ok(filters.into_iter().flatten().reduce(and))
 }
 
 /// Adds filter operations that constraints the solutions of patterns that use the same variable
@@ -112,7 +112,7 @@ fn filter_same_variable(
             if !mappings.contains_key(variable) {
                 mappings.insert(variable.clone(), Vec::new());
             }
-            mappings.get_mut(&variable).unwrap().push(column.clone());
+            mappings.get_mut(variable).unwrap().push(column.clone());
         }
     }
 
@@ -125,7 +125,7 @@ fn filter_same_variable(
             .map(|(a, b)| expr_builder.same_term(a.clone(), b.clone()))
             .collect::<DFResult<Vec<_>>>()?;
 
-        let mut new_constraint = new_constraints.into_iter().reduce(Expr::and);
+        let new_constraint = new_constraints.into_iter().reduce(Expr::and);
         if let Some(constraint) = new_constraint {
             constraints.push(constraint);
         }

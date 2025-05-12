@@ -3,10 +3,8 @@ use crate::{ActiveGraph, DFResult};
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{GraphNamePattern, TermPattern, Variable};
+use spargebra::term::{TermPattern, Variable};
 use std::cmp::Ordering;
-use std::collections::HashSet;
-use std::env::var;
 use std::fmt;
 
 #[derive(PartialEq, Eq, Hash)]
@@ -93,7 +91,7 @@ impl UserDefinedLogicalNodeCore for PropertyPathNode {
             .graph_name_var
             .as_ref()
             .map(|v| v.to_string() + " ")
-            .unwrap_or("".to_owned());
+            .unwrap_or_default();
         write!(
             f,
             "Path: {}{} {} {}",

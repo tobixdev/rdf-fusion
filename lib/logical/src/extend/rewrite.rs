@@ -1,17 +1,13 @@
 use crate::extend::ExtendNode;
-use crate::quads::QuadsNode;
-use crate::{DFResult, GraphFusionExprBuilder, GraphFusionLogicalPlanBuilder};
+use crate::DFResult;
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::Column;
-use datafusion::datasource::DefaultTableSource;
 use datafusion::logical_expr::{
     col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore,
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
-use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
-use graphfusion_model::TermRef;
 use std::sync::Arc;
 
 /// TODO

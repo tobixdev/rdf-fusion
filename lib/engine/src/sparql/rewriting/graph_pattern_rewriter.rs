@@ -2,12 +2,11 @@ use crate::sparql::rewriting::expression_rewriter::ExpressionRewriter;
 use crate::sparql::QueryDataset;
 use crate::DFResult;
 use datafusion::common::tree_node::TreeNode;
-use datafusion::common::{not_impl_err, plan_datafusion_err, plan_err, Column, DFSchema};
+use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
 use datafusion::datasource::TableProvider;
 use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr, UserDefinedLogicalNode};
-use datafusion::prelude::col;
 use graphfusion_encoding::EncodingName;
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_logical::join::SparqlJoinType;
@@ -17,10 +16,9 @@ use graphfusion_model::{Iri, NamedOrBlankNode};
 use spargebra::algebra::{
     AggregateExpression, AggregateFunction, Expression, GraphPattern, OrderExpression,
 };
-use spargebra::term::{GraphNamePattern, NamedNodePattern};
+use spargebra::term::NamedNodePattern;
 use std::cell::RefCell;
 use std::sync::Arc;
-use thiserror::__private::Var;
 
 pub struct GraphPatternRewriter {
     registry: GraphFusionFunctionRegistryRef,
@@ -171,7 +169,7 @@ impl GraphPatternRewriter {
                     }
                     NamedNodePattern::Variable(_) => match self.dataset.available_named_graphs() {
                         None => ActiveGraph::AnyNamedGraph,
-                        Some(graphs) => ActiveGraph::NamedGraphs(graphs.iter().cloned().collect()),
+                        Some(graphs) => ActiveGraph::NamedGraphs(graphs.to_vec()),
                     },
                 };
                 let variable = match name {

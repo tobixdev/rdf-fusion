@@ -120,9 +120,9 @@ impl GraphFusionInstance {
         let pattern_plan = GraphFusionLogicalPlanBuilder::new_from_quads(
             Arc::clone(&self.functions),
             active_graph_info,
-            subject.map(|s| s.into_owned()),
-            predicate.map(|p| p.into_owned()),
-            object.map(|o| o.into_owned()),
+            subject.map(SubjectRef::into_owned),
+            predicate.map(NamedNodeRef::into_owned),
+            object.map(TermRef::into_owned),
         );
 
         let result = DataFrame::new(self.ctx.state(), pattern_plan.build()?)

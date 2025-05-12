@@ -6,7 +6,7 @@ use graphfusion_model::NamedNode;
 use spargebra::term::{Subject, Term};
 use std::cmp::Ordering;
 use std::fmt;
-use std::fmt::{Display, Formatter};
+use std::fmt::Formatter;
 
 /// TODO
 #[derive(PartialEq, Eq, Hash)]
@@ -92,11 +92,11 @@ impl UserDefinedLogicalNodeCore for QuadsNode {
         exprs: Vec<Expr>,
         inputs: Vec<LogicalPlan>,
     ) -> datafusion::common::Result<Self> {
-        if inputs.len() != 0 {
+        if !inputs.is_empty() {
             return plan_err!("QuadsNode has no inputs, got {}.", inputs.len());
         }
 
-        if exprs.len() > 0 {
+        if !exprs.is_empty() {
             return plan_err!("QuadsNode has no expressions, got {}.", exprs.len());
         }
 

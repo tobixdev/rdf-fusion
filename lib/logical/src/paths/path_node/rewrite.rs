@@ -13,7 +13,7 @@ use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_model::{NamedNode, TermRef};
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{GraphNamePattern, NamedNodePattern, TermPattern, TriplePattern, Variable};
+use spargebra::term::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::sync::Arc;
 
 #[derive(Debug)]

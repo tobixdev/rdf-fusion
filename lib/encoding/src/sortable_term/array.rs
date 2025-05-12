@@ -1,5 +1,4 @@
 use crate::encoding::EncodingArray;
-use crate::plain_term::PlainTermEncoding;
 use crate::sortable_term::SortableTermEncoding;
 use crate::TermEncoding;
 use datafusion::arrow::array::{Array, ArrayRef};

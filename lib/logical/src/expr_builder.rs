@@ -12,7 +12,7 @@ use graphfusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncodi
 use graphfusion_functions::builtin::BuiltinName;
 use graphfusion_functions::registry::GraphFusionFunctionRegistry;
 use graphfusion_functions::FunctionName;
-use graphfusion_model::{Iri, Literal, Term, TermRef, ThinError, VariableRef};
+use graphfusion_model::{Iri, Term, TermRef, ThinError, VariableRef};
 use spargebra::term::NamedNode;
 use std::collections::HashMap;
 use std::ops::Not;
@@ -379,7 +379,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
         let mut args = HashMap::new();
         if let Some(base) = p0 {
             let literal = NamedNode::new_unchecked(base.as_str());
-            args.insert("base".to_string(), Term::from(literal));
+            args.insert("base".to_owned(), Term::from(literal));
         }
 
         let udf = self
