@@ -1,6 +1,7 @@
-use crate::builtin::factory::GraphFusionUdafFactory;
 use crate::builtin::GraphFusionUdfFactory;
-use crate::FunctionName;
+use crate::factory::GraphFusionUdafFactory;
+use crate::registry_builder::GraphFusionFunctionRegistryBuilder;
+use crate::{DFResult, FunctionName};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -18,19 +19,24 @@ pub struct GraphFusionFunctionRegistry {
 
 impl Default for GraphFusionFunctionRegistry {
     fn default() -> Self {
-        let scalars = HashMap::new();
-        let aggregates = HashMap::new();
-
-        todo!("Register all built-ins");
-
-        Self {
-            scalars,
-            aggregates,
-        }
+        GraphFusionFunctionRegistryBuilder::default()
+            .build()
+            .expect("All built-ins are registered in default builder.")
     }
 }
 
 impl GraphFusionFunctionRegistry {
+    pub fn try_new(
+        scalars: HashMap<FunctionName, Arc<dyn GraphFusionUdfFactory>>,
+        aggregates: HashMap<FunctionName, Arc<dyn GraphFusionUdafFactory>>,
+    ) -> DFResult<Self> {
+        // TODO validate.
+        Ok(Self {
+            scalars,
+            aggregates,
+        })
+    }
+
     /// TODO
     pub fn udf_factory(&self, name: FunctionName) -> Arc<dyn GraphFusionUdfFactory> {
         let factory = self

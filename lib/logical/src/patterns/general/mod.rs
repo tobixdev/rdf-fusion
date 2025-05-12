@@ -1,5 +1,5 @@
 mod logical;
-mod pattern_element;
+mod rewrite;
 
 pub use logical::*;
-pub use pattern_element::*;
+pub use rewrite::*;

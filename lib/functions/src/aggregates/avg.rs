@@ -1,4 +1,4 @@
-use crate::builtin::factory::GraphFusionUdafFactory;
+use crate::factory::GraphFusionUdafFactory;
 use crate::builtin::BuiltinName;
 use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
@@ -33,9 +33,9 @@ pub static ENC_AVG: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
 });
 
 #[derive(Debug)]
-pub struct SparqlAvgUdafFactory {}
+pub struct AvgUdafFactory {}
 
-impl GraphFusionUdafFactory for SparqlAvgUdafFactory {
+impl GraphFusionUdafFactory for AvgUdafFactory {
     fn name(&self) -> FunctionName {
         FunctionName::Builtin(BuiltinName::Avg)
     }

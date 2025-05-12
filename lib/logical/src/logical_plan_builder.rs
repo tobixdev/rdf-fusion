@@ -1,24 +1,25 @@
+use crate::active_graph::ActiveGraphInfo;
 use crate::extend::ExtendNode;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
 use crate::paths::PathNode;
 use crate::patterns::QuadPatternNode;
+use crate::quads::QuadsNode;
 use crate::{DFResult, GraphFusionExprBuilder};
-use datafusion::arrow::datatypes::{Field, Fields};
+use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::{plan_datafusion_err, Column, DFSchema, DFSchemaRef, JoinType};
 use datafusion::logical_expr::{
-    and, col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
+    and, col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
     UserDefinedLogicalNode, Values,
 };
 use graphfusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::{EncodingScalar, TermEncoder, TermEncoding};
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
-use graphfusion_model::{TermRef, ThinError, Variable};
+use graphfusion_model::{NamedNode, Subject, Term, TermRef, ThinError, Variable};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{GraphNamePattern, GroundTerm, QuadPattern, TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-
 // TODO: check types
 
 #[derive(Debug, Clone)]
@@ -35,6 +36,21 @@ impl GraphFusionLogicalPlanBuilder {
         let plan_builder = LogicalPlanBuilder::new_from_arc(plan);
         Self {
             plan_builder,
+            registry,
+        }
+    }
+
+    /// TODO
+    pub fn new_from_quads(
+        registry: GraphFusionFunctionRegistryRef,
+        active_graph: ActiveGraphInfo,
+        subject: Option<Subject>,
+        predicate: Option<NamedNode>,
+        object: Option<Term>,
+    ) -> Self {
+        let node = QuadsNode::new(active_graph, subject, predicate, object);
+        Self {
+            plan_builder: create_extension_plan(node),
             registry,
         }
     }
@@ -116,7 +132,7 @@ impl GraphFusionLogicalPlanBuilder {
     ) -> DFResult<GraphFusionLogicalPlanBuilder> {
         patterns
             .iter()
-            .map(|p| Self::new_from_pattern(Arc::clone(&registry), graph_name, p))
+            .map(|p| Self::new_from_pattern(Arc::clone(&registry), graph_name.clone(), p.clone()))
             .reduce(|lhs, rhs| lhs?.join(rhs?.build()?, SparqlJoinType::Inner, None))
             .unwrap_or_else(|| {
                 Ok(GraphFusionLogicalPlanBuilder::new_with_empty_solution(
@@ -130,14 +146,14 @@ impl GraphFusionLogicalPlanBuilder {
     /// The [PlainTermEncoding] is used for encoding the terms.
     pub fn new_from_pattern(
         registry: GraphFusionFunctionRegistryRef,
-        graph_name: &GraphNamePattern,
-        pattern: &TriplePattern,
+        graph_name: GraphNamePattern,
+        pattern: TriplePattern,
     ) -> DFResult<Self> {
         let quad_node = QuadPattern {
-            graph_name: graph_name.clone(),
-            subject: pattern.subject.clone(),
-            predicate: pattern.predicate.clone(),
-            object: pattern.object.clone(),
+            graph_name,
+            subject: pattern.subject,
+            predicate: pattern.predicate,
+            object: pattern.object,
         };
         let quad_node_pattern = QuadPatternNode::new(quad_node);
 
@@ -184,7 +200,13 @@ impl GraphFusionLogicalPlanBuilder {
     ///
     /// TODO talk about handling fo terms
     pub fn filter(self, expression: Expr) -> DFResult<GraphFusionLogicalPlanBuilder> {
-        let expression = self.expr_builder().effective_boolean_value(expression)?;
+        let (datatype, _) = expression.data_type_and_nullable(self.schema())?;
+        let expression = match datatype {
+            // If the expression already evaluates to a Boolean, we can use it directly.
+            DataType::Boolean => expression,
+            // Otherwise, obtain the EBV. This will trigger an error on an unknown encoding.
+            _ => self.expr_builder().effective_boolean_value(expression)?,
+        };
         Ok(Self {
             registry: self.registry,
             plan_builder: self.plan_builder.filter(expression)?,
@@ -245,6 +267,7 @@ impl GraphFusionLogicalPlanBuilder {
     /// TODO
     pub fn union(self, rhs: LogicalPlan) -> DFResult<GraphFusionLogicalPlanBuilder> {
         // TODO check types
+
         let mut new_schema = self.schema().as_ref().clone();
         new_schema.merge(rhs.schema().as_ref());
 
@@ -415,6 +438,11 @@ impl GraphFusionLogicalPlanBuilder {
     pub fn expr_builder(&self) -> GraphFusionExprBuilder<'_> {
         let schema = self.schema().as_ref();
         GraphFusionExprBuilder::new(schema, &self.registry)
+    }
+
+    /// TODO
+    pub fn into_inner(self) -> LogicalPlanBuilder {
+        self.plan_builder
     }
 
     /// TODO

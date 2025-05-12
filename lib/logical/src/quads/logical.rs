@@ -1,34 +1,61 @@
-use crate::DFResult;
+use crate::active_graph::ActiveGraphInfo;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use spargebra::term::GraphNamePattern;
+use graphfusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
+use graphfusion_model::NamedNode;
+use spargebra::term::{Subject, Term};
 use std::cmp::Ordering;
 use std::fmt;
+use std::fmt::{Display, Formatter};
 
 /// TODO
 #[derive(PartialEq, Eq, Hash)]
 pub struct QuadsNode {
-    /// Specifies which graphs should be queried.
-    graph_name: Option<GraphNamePattern>,
+    active_graph: ActiveGraphInfo,
+    subject: Option<Subject>,
+    predicate: Option<NamedNode>,
+    object: Option<Term>,
 }
 
 impl QuadsNode {
     /// TODO
-    pub fn try_new(graph_name: Option<GraphNamePattern>) -> DFResult<Self> {
-        todo!()
+    pub fn new(
+        active_graph: ActiveGraphInfo,
+        subject: Option<Subject>,
+        predicate: Option<NamedNode>,
+        object: Option<Term>,
+    ) -> Self {
+        Self {
+            active_graph,
+            subject,
+            predicate,
+            object,
+        }
     }
 
-    pub(crate) fn compute_schema(graph_name: Option<GraphNamePattern>) -> DFResult<DFSchemaRef> {
-        todo!()
+    /// TODO
+    pub fn active_graph(&self) -> &ActiveGraphInfo {
+        &self.active_graph
     }
 
-    pub fn graph_name(&self) -> Option<&GraphNamePattern> {
-        self.graph_name.as_ref()
+    /// TODO
+    pub fn subject(&self) -> Option<&Subject> {
+        self.subject.as_ref()
+    }
+
+    /// TODO
+    pub fn predicate(&self) -> Option<&NamedNode> {
+        self.predicate.as_ref()
+    }
+
+    /// TODO
+    pub fn object(&self) -> Option<&Term> {
+        self.object.as_ref()
     }
 }
 
 impl fmt::Debug for QuadsNode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         UserDefinedLogicalNodeCore::fmt_for_explain(self, f)
     }
 }
@@ -49,16 +76,15 @@ impl UserDefinedLogicalNodeCore for QuadsNode {
     }
 
     fn schema(&self) -> &DFSchemaRef {
-        todo!()
+        &DEFAULT_QUAD_DFSCHEMA
     }
 
     fn expressions(&self) -> Vec<Expr> {
         vec![]
     }
 
-    fn fmt_for_explain(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Quads:",)?;
-        todo!("Include pattern")
+    fn fmt_for_explain(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "Quads")
     }
 
     fn with_exprs_and_inputs(
@@ -66,14 +92,19 @@ impl UserDefinedLogicalNodeCore for QuadsNode {
         exprs: Vec<Expr>,
         inputs: Vec<LogicalPlan>,
     ) -> datafusion::common::Result<Self> {
-        if !inputs.is_empty() {
-            return plan_err!("QuadsNode has no inputs, got {}", inputs.len());
+        if inputs.len() != 0 {
+            return plan_err!("QuadsNode has no inputs, got {}.", inputs.len());
         }
 
-        if !exprs.is_empty() {
-            return plan_err!("QuadsNode must have no expressions");
+        if exprs.len() > 0 {
+            return plan_err!("QuadsNode has no expressions, got {}.", exprs.len());
         }
 
-        todo!()
+        Ok(Self::new(
+            self.active_graph.clone(),
+            self.subject.clone(),
+            self.predicate.clone(),
+            self.object.clone(),
+        ))
     }
 }

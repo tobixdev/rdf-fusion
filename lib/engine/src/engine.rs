@@ -1,22 +1,20 @@
 use crate::planner::GraphFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
-use crate::sparql::{
-    evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults, Variable,
-};
+use crate::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults};
 use crate::{DFResult, QuadStorage};
 use datafusion::dataframe::DataFrame;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
-use datafusion::logical_expr::{AggregateUDF, Extension, LogicalPlan};
+use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::SessionContext;
 use graphfusion_encoding::TABLE_QUADS;
 use graphfusion_functions::registry::{
     GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef,
 };
-use graphfusion_logical::patterns::QuadPatternNode;
-use graphfusion_model::{GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef};
-use spargebra::term::{BlankNode, GraphNamePattern, NamedNodePattern, QuadPattern, TermPattern};
+use graphfusion_logical::{ActiveGraphInfo, GraphFusionLogicalPlanBuilder};
+use graphfusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
+use graphfusion_logical::quads::QuadsToScanAndFilterRule;
 
 /// Represents an instance of a GraphFusion engine.
 ///
@@ -44,6 +42,10 @@ impl GraphFusionInstance {
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(GraphFusionPlanner))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
+            .with_optimizer_rule(Arc::new(QuadsToScanAndFilterRule::new(
+                Arc::clone(&builtins),
+                storage.table_provider(),
+            )))
             // .with_optimizer_rule(Arc::new(PathToJoinsRule::new(
             //     Arc::clone(&builtins),
             //     storage.table_provider(),
@@ -74,15 +76,16 @@ impl GraphFusionInstance {
 
     /// Checks whether `quad` is contained in the instance.
     pub async fn contains(&self, quad: &QuadRef<'_>) -> DFResult<bool> {
-        let pattern_plan = create_match_pattern_plan(
-            &self.functions,
-            Some(quad.graph_name),
-            Some(quad.subject),
-            Some(quad.predicate),
-            Some(quad.object),
-        )?;
+        let active_graph_info = graph_name_to_active_graph(quad.graph_name);
+        let pattern_plan = GraphFusionLogicalPlanBuilder::new_from_quads(
+            Arc::clone(&self.functions),
+            active_graph_info,
+            Some(quad.subject.into_owned()),
+            Some(quad.predicate.into_owned()),
+            Some(quad.object.into_owned()),
+        );
 
-        let count = DataFrame::new(self.ctx.state(), pattern_plan)
+        let count = DataFrame::new(self.ctx.state(), pattern_plan.build()?)
             .count()
             .await?;
 
@@ -102,10 +105,18 @@ impl GraphFusionInstance {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
-        let plan =
-            create_match_pattern_plan(&self.functions, graph_name, subject, predicate, object)?;
+        let active_graph_info = graph_name
+            .map(graph_name_to_active_graph)
+            .unwrap_or_default();
+        let pattern_plan = GraphFusionLogicalPlanBuilder::new_from_quads(
+            Arc::clone(&self.functions),
+            active_graph_info,
+            subject.map(|s| s.into_owned()),
+            predicate.map(|p| p.into_owned()),
+            object.map(|o| o.into_owned()),
+        );
 
-        let result = DataFrame::new(self.ctx.state(), plan)
+        let result = DataFrame::new(self.ctx.state(), pattern_plan.build()?)
             .execute_stream()
             .await?;
         Ok(result)
@@ -121,42 +132,14 @@ impl GraphFusionInstance {
     }
 }
 
-/// Creates a [LogicalPlan] for computing all quads that match the given pattern.
-fn create_match_pattern_plan(
-    registry: &GraphFusionFunctionRegistryRef,
-    graph_name: Option<GraphNameRef>,
-    subject: Option<SubjectRef>,
-    predicate: Option<NamedNodeRef>,
-    object: Option<TermRef>,
-) -> DFResult<LogicalPlan> {
-    let graph_name = graph_name
-        .map_or(GraphNamePattern::Variable(Variable::new_unchecked(
-            BlankNode::default().as_str(),
-        )), |g| match g {
-            GraphNameRef::NamedNode(nn) => GraphNamePattern::NamedNode(nn.into_owned()),
-            GraphNameRef::BlankNode(bnode) => {
-                GraphNamePattern::Variable(Variable::new_unchecked(bnode.as_str()))
-            }
-            GraphNameRef::DefaultGraph => GraphNamePattern::DefaultGraph,
-        });
-
-    let subject = subject
-        .map_or(TermPattern::BlankNode(BlankNode::default()), |s| TermPattern::from(s.into_owned()));
-    let predicate = predicate
-        .map_or(NamedNodePattern::Variable(Variable::new_unchecked(
-            BlankNode::default().as_str(),
-        )), |p| NamedNodePattern::from(p.into_owned()));
-    let object = object
-        .map_or(TermPattern::BlankNode(BlankNode::default()), |o| TermPattern::from(o.into_owned()));
-    let quad_pattern = QuadPattern {
-        subject,
-        predicate,
-        object,
-        graph_name,
-    };
-
-    let plan = QuadPatternNode::new(quad_pattern);
-    Ok(LogicalPlan::Extension(Extension {
-        node: Arc::new(plan),
-    }))
+fn graph_name_to_active_graph(graph_name: GraphNameRef<'_>) -> ActiveGraphInfo {
+    match graph_name {
+        GraphNameRef::NamedNode(nn) => {
+            ActiveGraphInfo::NamedGraphs(vec![GraphName::NamedNode(nn.into_owned())])
+        }
+        GraphNameRef::BlankNode(bnode) => {
+            ActiveGraphInfo::NamedGraphs(vec![GraphName::BlankNode(bnode.into_owned())])
+        }
+        GraphNameRef::DefaultGraph => ActiveGraphInfo::DefaultGraph,
+    }
 }

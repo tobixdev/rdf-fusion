@@ -55,12 +55,10 @@ pub enum BuiltinName {
     If,
 
     // Scalar Built-in Aggregate Functions
-    Count,
     Sum,
     Min,
     Max,
     Avg,
-    Sample,
     GroupConcat,
 
     // Comparison functions
@@ -170,12 +168,10 @@ impl fmt::Display for BuiltinName {
             Self::Coalesce => f.write_str("COALESCE"),
             Self::UnaryMinus => f.write_str("MINUS"),
             Self::UnaryPlus => f.write_str("PLUS"),
-            Self::Count => f.write_str("COUNT"),
             Self::Sum => f.write_str("SUM"),
             Self::Min => f.write_str("MIN"),
             Self::Max => f.write_str("MAX"),
             Self::Avg => f.write_str("AVG"),
-            Self::Sample => f.write_str("SAMPLE"),
             Self::GroupConcat => f.write_str("GROUP_CONCAT"),
         }
     }

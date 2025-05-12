@@ -30,18 +30,18 @@ impl GraphFusionUdfFactory for EffectiveBooleanValueTypedValueFactory {
     }
 
     fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
-        let udf = ScalarUDF::new_from_impl(EncEffectiveBooleanValue::new(self.name()));
+        let udf = ScalarUDF::new_from_impl(EffectiveBooleanValueUdfImpl::new(self.name()));
         Ok(Arc::new(udf))
     }
 }
 
 #[derive(Debug)]
-pub struct EncEffectiveBooleanValue {
+struct EffectiveBooleanValueUdfImpl {
     name: String,
     signature: Signature,
 }
 
-impl EncEffectiveBooleanValue {
+impl EffectiveBooleanValueUdfImpl {
     /// TODO
     pub fn new(name: FunctionName) -> Self {
         Self {
@@ -54,7 +54,7 @@ impl EncEffectiveBooleanValue {
     }
 }
 
-impl ScalarUDFImpl for EncEffectiveBooleanValue {
+impl ScalarUDFImpl for EffectiveBooleanValueUdfImpl {
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -14,7 +14,7 @@ use graphfusion_model::{Term, ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::{Arc, LazyLock};
 use crate::aggregates::ENC_AVG;
 use crate::builtin::BuiltinName;
-use crate::builtin::factory::GraphFusionUdafFactory;
+use crate::factory::GraphFusionUdafFactory;
 
 pub static TYPED_VALUE_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
     create_udaf(
@@ -28,9 +28,9 @@ pub static TYPED_VALUE_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
 });
 
 #[derive(Debug)]
-pub struct SparqlMinUdafFactory {}
+pub struct MinUdafFactory {}
 
-impl GraphFusionUdafFactory for SparqlMinUdafFactory {
+impl GraphFusionUdafFactory for MinUdafFactory {
     fn name(&self) -> FunctionName {
         FunctionName::Builtin(BuiltinName::Avg)
     }

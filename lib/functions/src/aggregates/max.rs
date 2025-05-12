@@ -14,7 +14,7 @@ use graphfusion_model::{Term, ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::{Arc, LazyLock};
 use crate::aggregates::ENC_AVG;
 use crate::builtin::BuiltinName;
-use crate::builtin::factory::GraphFusionUdafFactory;
+use crate::factory::GraphFusionUdafFactory;
 
 static TYPED_VALUE_MAX: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
     Arc::new(create_udaf(
@@ -29,9 +29,9 @@ static TYPED_VALUE_MAX: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
 
 
 #[derive(Debug)]
-pub struct SparqlMaxUdafFactory {}
+pub struct MaxUdafFactory {}
 
-impl GraphFusionUdafFactory for crate::aggregates::SparqlSumUdafFactory {
+impl GraphFusionUdafFactory for MaxUdafFactory {
     fn name(&self) -> FunctionName {
         FunctionName::Builtin(BuiltinName::Avg)
     }

@@ -6,8 +6,8 @@ use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use graphfusion_engine::error::{CorruptionError, StorageError};
-use graphfusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use graphfusion_model::Quad;
+use graphfusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
 use std::borrow::Borrow;
 use std::error::Error;
@@ -543,11 +543,11 @@ impl MemoryStorageWriter<'_> {
                 .or_insert_with(|| (Arc::downgrade(&node), 1));
 
             match quad.graph_name {
-                GraphNameRef::NamedNode(graph_name) => {
-                    self.insert_encoded_named_graph(graph_name.into(), encoded.graph_name.clone());
+                GraphNameRef::NamedNode(_) => {
+                    self.insert_encoded_named_graph(encoded.graph_name.clone());
                 }
-                GraphNameRef::BlankNode(graph_name) => {
-                    self.insert_encoded_named_graph(graph_name.into(), encoded.graph_name.clone());
+                GraphNameRef::BlankNode(_) => {
+                    self.insert_encoded_named_graph(encoded.graph_name.clone());
                 }
                 GraphNameRef::DefaultGraph => (),
             }
@@ -557,20 +557,11 @@ impl MemoryStorageWriter<'_> {
     }
 
     pub fn insert_named_graph(&mut self, graph_name: NamedOrBlankNodeRef<'_>) -> bool {
-        self.insert_encoded_named_graph(graph_name, graph_name.into())
+        self.insert_encoded_named_graph(graph_name.into())
     }
 
-    fn insert_encoded_named_graph(
-        &mut self,
-        graph_name: NamedOrBlankNodeRef<'_>,
-        encoded_graph_name: EncodedTerm,
-    ) -> bool {
-        let added = match self
-            .storage
-            .content
-            .graphs
-            .entry(encoded_graph_name.clone())
-        {
+    fn insert_encoded_named_graph(&mut self, graph_name: EncodedTerm) -> bool {
+        let added = match self.storage.content.graphs.entry(graph_name.clone()) {
             Entry::Occupied(mut entry) => entry.get_mut().add(self.transaction_id),
             Entry::Vacant(entry) => {
                 entry.insert(VersionRange::Start(self.transaction_id));
@@ -578,7 +569,7 @@ impl MemoryStorageWriter<'_> {
             }
         };
         if added {
-            self.log.push(LogEntry::Graph(encoded_graph_name));
+            self.log.push(LogEntry::Graph(graph_name));
         }
         added
     }

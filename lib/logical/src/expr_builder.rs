@@ -500,6 +500,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
     /// TODO
     pub fn effective_boolean_value(&self, expr: Expr) -> DFResult<Expr> {
+        let encoding = self.encoding(&expr).unwrap();
         self.unary_udf(BuiltinName::EffectiveBooleanValue, expr)
     }
 

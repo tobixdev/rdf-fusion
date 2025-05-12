@@ -1,20 +1,19 @@
 use crate::expr_builder::GraphFusionExprBuilder;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{PathNode, COL_SOURCE, COL_TARGET, PATH_TABLE_DFSCHEMA};
-use crate::patterns::{PatternNode, QuadPatternNode};
-use crate::DFResult;
+use crate::patterns::PatternNode;
+use crate::{DFResult, GraphFusionLogicalPlanBuilder};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, JoinType};
-use datafusion::datasource::DefaultTableSource;
 use datafusion::logical_expr::{col, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
-use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
+use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_model::{NamedNode, TermRef};
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{GraphNamePattern, NamedNodePattern};
+use spargebra::term::{GraphNamePattern, NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -65,24 +64,22 @@ impl PathToJoinsRule {
     fn rewrite_path_node(&self, node: &PathNode) -> DFResult<LogicalPlan> {
         let query = self.rewrite_property_path_expression(node.graph(), node.path())?;
 
-        Ok(match node.graph() {
-            None => LogicalPlan::Extension(Extension {
-                node: Arc::new(PatternNode::try_new(
-                    query.project([col(COL_SOURCE), col(COL_TARGET)])?.build()?,
-                    vec![node.subject().clone().into(), node.object().clone().into()],
-                )?),
-            }),
-            Some(graph) => LogicalPlan::Extension(Extension {
-                node: Arc::new(PatternNode::try_new(
-                    query.build()?,
-                    vec![
-                        graph.clone().into(),
-                        node.subject().clone().into(),
-                        node.object().clone().into(),
-                    ],
-                )?),
-            }),
-        })
+        let graph_pattern = match node.graph() {
+            GraphNamePattern::Variable(var) => Some(TermPattern::Variable(var.clone())),
+            _ => None, // Handling Graph origin already done while rewriting the property path
+        };
+
+        let logical_plan = LogicalPlan::Extension(Extension {
+            node: Arc::new(PatternNode::try_new(
+                query.build()?,
+                vec![
+                    graph_pattern,
+                    node.subject().clone().into(),
+                    node.object().clone().into(),
+                ],
+            )?),
+        });
+        Ok(logical_plan)
     }
 
     /// The resulting query always has a column "start" and "end" that indicates the respective start
@@ -126,7 +123,7 @@ impl PathToJoinsRule {
     /// predicate does not match any of the given `nodes`.
     fn rewrite_negated_property_set(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
         let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
@@ -149,7 +146,7 @@ impl PathToJoinsRule {
     /// Reverses the inner path by swapping [COL_SOURCE] and [COL_TARGET].
     fn rewrite_reverse(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_property_path_expression(graph, inner)?;
@@ -163,7 +160,7 @@ impl PathToJoinsRule {
     /// Rewrites an alternative path to union over both (distinct).
     fn rewrite_alternative(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         lhs: &PropertyPathExpression,
         rhs: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -175,7 +172,7 @@ impl PathToJoinsRule {
     /// Rewrites a sequence by joining the [COL_TARGET] of the lhs to the [COL_SOURCE] of the `rhs`.
     fn rewrite_sequence(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         lhs: &PropertyPathExpression,
         rhs: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -187,7 +184,7 @@ impl PathToJoinsRule {
     /// Rewrites a zero or more to a CTE.
     fn rewrite_zero_or_more(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
         let zero = self.zero_length_paths(graph)?;
@@ -198,11 +195,11 @@ impl PathToJoinsRule {
     /// Rewrites a one or more by building a recursive query.
     fn rewrite_one_or_more(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_property_path_expression(graph, inner)?;
-        let allow_cross_graph_paths = graph.is_none();
+        let allow_cross_graph_paths = matches!(graph, GraphNamePattern::DefaultGraph);
         let node = KleenePlusClosureNode::try_new(inner.build()?, allow_cross_graph_paths)?;
 
         let builder = LogicalPlanBuilder::from(LogicalPlan::Extension(Extension {
@@ -213,7 +210,7 @@ impl PathToJoinsRule {
 
     fn rewrite_zero_or_one(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
         let zero = self.zero_length_paths(graph)?;
@@ -223,7 +220,7 @@ impl PathToJoinsRule {
 
     /// Returns a list of all subjects and objects in the graph where they both are the source and
     /// the target of the path.
-    fn zero_length_paths(&self, graph: Option<&NamedNodePattern>) -> DFResult<LogicalPlanBuilder> {
+    fn zero_length_paths(&self, graph: &GraphNamePattern) -> DFResult<LogicalPlanBuilder> {
         // TODO: This must be optimized
         let subjects = self.scan_quads(graph, None)?.project([
             col(COL_GRAPH).alias(COL_GRAPH),
@@ -238,50 +235,10 @@ impl PathToJoinsRule {
         subjects.union(objects.build()?)?.distinct()
     }
 
-    /// Scans the quads table and optionally filters it to the given named graph.
-    fn scan_quads(
-        &self,
-        graph: Option<&NamedNodePattern>,
-        filter: Option<Expr>,
-    ) -> DFResult<LogicalPlanBuilder> {
-        let query = LogicalPlanBuilder::scan(
-            TABLE_QUADS,
-            Arc::new(DefaultTableSource::new(Arc::clone(&self.quads_table))),
-            None,
-        )?;
-
-        // Apply graph filter if present
-        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
-        let query = match graph {
-            Some(NamedNodePattern::NamedNode(nn)) => {
-                let filter =
-                    expr_builder.filter_by_scalar(col(COL_GRAPH), TermRef::from(nn.as_ref()))?;
-                query.filter(filter)?
-            }
-            _ => query,
-        };
-
-        // Apply filter if present
-        let query = if let Some(filter) = filter {
-            query.filter(filter)?
-        } else {
-            query
-        };
-
-        // Project columns to PATH_TABLE
-        let query = query.project([
-            col(COL_GRAPH).alias(COL_GRAPH),
-            col(COL_SUBJECT).alias(COL_SOURCE),
-            col(COL_OBJECT).alias(COL_TARGET),
-        ])?;
-
-        Ok(query)
-    }
-
     /// Creates a join that represents a sequence of two paths.
     fn join_path_sequence(
         &self,
-        graph: Option<&NamedNodePattern>,
+        graph: &GraphNamePattern,
         lhs: LogicalPlanBuilder,
         rhs: LogicalPlanBuilder,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -292,7 +249,7 @@ impl PathToJoinsRule {
         )?;
         let mut on_exprs = vec![path_join_expr];
 
-        if graph.is_some() {
+        if !matches!(graph, GraphNamePattern::DefaultGraph) {
             let graph_expr = expr_builder.same_term(
                 Expr::from(Column::new(Some("lhs"), COL_GRAPH)),
                 Expr::from(Column::new(Some("rhs"), COL_GRAPH)),
@@ -316,5 +273,39 @@ impl PathToJoinsRule {
         rhs: LogicalPlanBuilder,
     ) -> DFResult<LogicalPlanBuilder> {
         lhs.union(rhs.build()?)
+    }
+
+    /// Scans the quads table and optionally filters it.
+    fn scan_quads(
+        &self,
+        graph: &GraphNamePattern,
+        filter: Option<Expr>,
+    ) -> DFResult<LogicalPlanBuilder> {
+        let pattern = TriplePattern {
+            subject: TermPattern::Variable(Variable::new_unchecked(COL_SUBJECT)),
+            predicate: NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
+            object: TermPattern::Variable(Variable::new_unchecked(COL_TARGET)),
+        };
+        let builder = GraphFusionLogicalPlanBuilder::new_from_pattern(
+            Arc::clone(&self.registry),
+            graph.clone(),
+            pattern,
+        )?;
+
+        // Apply filter if present
+        let builder = if let Some(filter) = filter {
+            builder.filter(filter)?
+        } else {
+            builder
+        };
+
+        // Project columns to PATH_TABLE
+        let query = builder.into_inner().project([
+            col(COL_GRAPH).alias(COL_GRAPH),
+            col(COL_SUBJECT).alias(COL_SOURCE),
+            col(COL_OBJECT).alias(COL_TARGET),
+        ])?;
+
+        Ok(query)
     }
 }

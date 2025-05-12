@@ -1,5 +1,5 @@
 mod logical;
-// mod rewrite;
+mod rewrite;
 
 pub use logical::PathNode;
-// pub use rewrite::PathToJoinsRule;
+pub use rewrite::PathToJoinsRule;

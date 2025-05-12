@@ -1,8 +1,13 @@
-use datafusion::common::{plan_err, DFSchemaRef};
+use datafusion::arrow::datatypes::{Field, Fields};
+use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use spargebra::term::QuadPattern;
+use graphfusion_encoding::plain_term::PlainTermEncoding;
+use graphfusion_encoding::TermEncoding;
+use spargebra::term::{GraphNamePattern, NamedNodePattern, QuadPattern, TermPattern};
 use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::sync::Arc;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct QuadPatternNode {
@@ -75,6 +80,31 @@ impl UserDefinedLogicalNodeCore for QuadPatternNode {
     }
 }
 
-pub(crate) fn compute_schema(pattern: &QuadPattern) -> DFSchemaRef {
-    todo!()
+/// Computes the schema of evaluating a [QuadPattern].
+///
+/// All RDF terms are encoded with the [PlainTermEncoding] and cannot be `null`.
+fn compute_schema(pattern: &QuadPattern) -> DFSchemaRef {
+    let mut variables = Vec::new();
+
+    if let GraphNamePattern::Variable(var) = &pattern.graph_name {
+        variables.push(var);
+    }
+    if let TermPattern::Variable(var) = &pattern.subject {
+        variables.push(var);
+    }
+    if let NamedNodePattern::Variable(var) = &pattern.predicate {
+        variables.push(var);
+    }
+    if let TermPattern::Variable(var) = &pattern.object {
+        variables.push(var);
+    }
+
+    let fields = variables
+        .iter()
+        .map(|v| Field::new(v.as_str(), PlainTermEncoding::data_type(), false))
+        .collect::<HashSet<_>>();
+    let schema =
+        DFSchema::from_unqualified_fields(fields.into_iter().collect::<Fields>(), HashMap::new())
+            .expect("Variables have unique names after de-duplication.");
+    Arc::new(schema)
 }

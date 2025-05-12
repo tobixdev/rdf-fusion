@@ -1,5 +1,6 @@
 extern crate core;
 
+mod active_graph;
 mod expr_builder;
 pub mod extend;
 pub mod join;
@@ -8,6 +9,7 @@ pub mod paths;
 pub mod patterns;
 pub mod quads;
 
+pub use active_graph::ActiveGraphInfo;
 pub use expr_builder::GraphFusionExprBuilder;
 pub use logical_plan_builder::GraphFusionLogicalPlanBuilder;
 

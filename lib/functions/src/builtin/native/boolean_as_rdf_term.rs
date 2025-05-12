@@ -1,4 +1,4 @@
-use crate::builtin::factory::GraphFusionUdfFactory;
+use crate::factory::GraphFusionUdfFactory;
 use crate::builtin::BuiltinName;
 use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{as_boolean_array, Array};
@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug)]
-struct BooleanAsRdfTermTypedValueFactory;
+pub struct BooleanAsRdfTermTypedValueFactory;
 
 impl GraphFusionUdfFactory for BooleanAsRdfTermTypedValueFactory {
     fn name(&self) -> FunctionName {

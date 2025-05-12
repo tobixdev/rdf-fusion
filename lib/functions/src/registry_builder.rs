@@ -1,7 +1,37 @@
-use crate::builtin::factory::GraphFusionUdafFactory;
+use crate::aggregates::{
+    AvgUdafFactory, GroupConcatUdafFactory, MaxUdafFactory, MinUdafFactory, SumUdafFactory,
+};
+use crate::builtin::native::BooleanAsRdfTermTypedValueFactory;
+use crate::builtin::native::EffectiveBooleanValueTypedValueFactory;
+use crate::builtin::query::IsCompatibleUdfFactory;
 use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
-use crate::scalar::{AbsTypedValueFactory, AddTypedValueFactory, AsBooleanTypedValueFactory, AsDateTimeTypedValueFactory, AsDecimalTypedValueFactory, AsDoubleTypedValueFactory, AsFloatTypedValueFactory, AsIntTypedValueFactory, AsIntegerTypedValueFactory, AsStringTypedValueFactory, BNodeTypedValueFactory, BoundTypedValueFactory, CeilTypedValueFactory, CoalesceTypedValueFactory, ConcatTypedValueFactory, ContainsTypedValueFactory, DatatypeTypedValueFactory, DayTypedValueFactory, DivTypedValueFactory, EncodeForUriTypedValueFactory, EqTypedValueFactory, FloorTypedValueFactory, GreaterOrEqualTypedValueFactory, GreaterThanTypedValueFactory, HoursTypedValueFactory, IfTypedValueFactory, IriTypedValueFactory, IsBlankTypedValueFactory, IsIriTypedValueFactory, IsLiteralTypedValueFactory, IsNumericTypedValueFactory, LCaseTypedValueFactory, LangMatchesTypedValueFactory, LangTypedValueFactory, LessOrEqualTypedValueFactory, LessThanTypedValueFactory, Md5TypedValueFactory, MinutesTypedValueFactory, MonthTypedValueFactory, MulTypedValueFactory, RandTypedValueFactory, RegexTypedValueFactory, ReplaceTypedValueFactory, RoundTypedValueFactory, SameTermTypedValueFactory, SecondsTypedValueFactory, Sha1TypedValueFactory, Sha256TypedValueFactory, Sha384TypedValueFactory, Sha512TypedValueFactory, StrAfterTypedValueFactory, StrBeforeTypedValueFactory, StrDtTypedValueFactory, StrEndsTypedValueFactory, StrLangTypedValueFactory, StrLenTypedValueFactory, StrStartsTypedValueFactory, StrTypedValueFactory, StrUuidTypedValueFactory, SubStrTypedValueFactory, SubTypedValueFactory, TimezoneTypedValueFactory, UCaseTypedValueFactory, UnaryMinusTypedValueFactory, UnaryPlusTypedValueFactory, UuidTypedValueFactory, YearTypedValueFactory};
-use crate::FunctionName;
+use crate::factory::GraphFusionUdafFactory;
+use crate::registry::GraphFusionFunctionRegistry;
+use crate::scalar::{
+    AbsTypedValueFactory, AddTypedValueFactory, AsBooleanTypedValueFactory,
+    AsDateTimeTypedValueFactory, AsDecimalTypedValueFactory, AsDoubleTypedValueFactory,
+    AsFloatTypedValueFactory, AsIntTypedValueFactory, AsIntegerTypedValueFactory,
+    AsStringTypedValueFactory, BNodeTypedValueFactory, BoundTypedValueFactory,
+    CeilTypedValueFactory, CoalesceTypedValueFactory, ConcatTypedValueFactory,
+    ContainsTypedValueFactory, DatatypeTypedValueFactory, DayTypedValueFactory,
+    DivTypedValueFactory, EncodeForUriTypedValueFactory, EqTypedValueFactory,
+    FloorTypedValueFactory, GreaterOrEqualTypedValueFactory, GreaterThanTypedValueFactory,
+    HoursTypedValueFactory, IfTypedValueFactory, IriTypedValueFactory, IsBlankTypedValueFactory,
+    IsIriTypedValueFactory, IsLiteralTypedValueFactory, IsNumericTypedValueFactory,
+    LCaseTypedValueFactory, LangMatchesTypedValueFactory, LangTypedValueFactory,
+    LessOrEqualTypedValueFactory, LessThanTypedValueFactory, Md5TypedValueFactory,
+    MinutesTypedValueFactory, MonthTypedValueFactory, MulTypedValueFactory, RandTypedValueFactory,
+    RegexTypedValueFactory, ReplaceTypedValueFactory, RoundTypedValueFactory,
+    SameTermTypedValueFactory, SecondsTypedValueFactory, Sha1TypedValueFactory,
+    Sha256TypedValueFactory, Sha384TypedValueFactory, Sha512TypedValueFactory,
+    StrAfterTypedValueFactory, StrBeforeTypedValueFactory, StrDtTypedValueFactory,
+    StrEndsTypedValueFactory, StrLangTypedValueFactory, StrLenTypedValueFactory,
+    StrStartsTypedValueFactory, StrTypedValueFactory, StrUuidTypedValueFactory,
+    SubStrTypedValueFactory, SubTypedValueFactory, TimezoneTypedValueFactory,
+    UCaseTypedValueFactory, UnaryMinusTypedValueFactory, UnaryPlusTypedValueFactory,
+    UuidTypedValueFactory, YearTypedValueFactory,
+};
+use crate::{DFResult, FunctionName};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -12,6 +42,13 @@ pub struct GraphFusionFunctionRegistryBuilder {
     scalars: HashMap<FunctionName, Arc<dyn GraphFusionUdfFactory>>,
     /// TODO
     aggregates: HashMap<FunctionName, Arc<dyn GraphFusionUdafFactory>>,
+}
+
+impl GraphFusionFunctionRegistryBuilder {
+    /// TODO
+    pub fn build(self) -> DFResult<GraphFusionFunctionRegistry> {
+        GraphFusionFunctionRegistry::try_new(self.scalars, self.aggregates)
+    }
 }
 
 impl Default for GraphFusionFunctionRegistryBuilder {
@@ -305,45 +342,37 @@ impl Default for GraphFusionFunctionRegistryBuilder {
         // Other Necessary Functions
         scalars.insert(
             FunctionName::Builtin(BuiltinName::EffectiveBooleanValue),
-            Arc::new(EffectiveBooleanTypedValueFactory {}),
+            Arc::new(EffectiveBooleanValueTypedValueFactory {}),
         );
         scalars.insert(
             FunctionName::Builtin(BuiltinName::NativeBooleanAsTerm),
-            Arc::new(NativeTypedValueFactory {}),
+            Arc::new(BooleanAsRdfTermTypedValueFactory {}),
         );
         scalars.insert(
             FunctionName::Builtin(BuiltinName::IsCompatible),
-            Arc::new(IsCompatibleTypedValueFactory {}),
+            Arc::new(IsCompatibleUdfFactory {}),
         );
 
         let mut aggregates: HashMap<FunctionName, Arc<dyn GraphFusionUdafFactory>> = HashMap::new();
-        scalars.insert(
-            FunctionName::Builtin(BuiltinName::Count),
-            Arc::new(CountTypedValueFactory {}),
-        );
-        scalars.insert(
+        aggregates.insert(
             FunctionName::Builtin(BuiltinName::Sum),
-            Arc::new(SumTypedValueFactory {}),
+            Arc::new(SumUdafFactory {}),
         );
-        scalars.insert(
+        aggregates.insert(
             FunctionName::Builtin(BuiltinName::Min),
-            Arc::new(MinTypedValueFactory {}),
+            Arc::new(MinUdafFactory {}),
         );
-        scalars.insert(
+        aggregates.insert(
             FunctionName::Builtin(BuiltinName::Max),
-            Arc::new(MinTypedValueFactory {}),
+            Arc::new(MaxUdafFactory {}),
         );
-        scalars.insert(
+        aggregates.insert(
             FunctionName::Builtin(BuiltinName::Avg),
-            Arc::new(MinTypedValueFactory {}),
+            Arc::new(AvgUdafFactory {}),
         );
-        scalars.insert(
-            FunctionName::Builtin(BuiltinName::Sample),
-            Arc::new(MinTypedValueFactory {}),
-        );
-        scalars.insert(
-            FunctionName::Builtin(BuiltinName::Sample),
-            Arc::new(GroupConcatTypedValueFactory {}),
+        aggregates.insert(
+            FunctionName::Builtin(BuiltinName::GroupConcat),
+            Arc::new(GroupConcatUdafFactory {}),
         );
 
         Self {

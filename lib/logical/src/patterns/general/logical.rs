@@ -1,19 +1,23 @@
-use crate::patterns::general::pattern_element::PatternNodeElement;
 use crate::DFResult;
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::TermEncoding;
+use spargebra::term::TermPattern;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
+/// TODO
 #[derive(PartialEq, Eq, Hash)]
 pub struct PatternNode {
+    /// TODO
     input: LogicalPlan,
-    patterns: Vec<PatternNodeElement>,
+    /// TODO
+    patterns: Vec<Option<TermPattern>>,
+    /// TODO
     schema: DFSchemaRef,
 }
 
@@ -24,12 +28,14 @@ impl PatternNode {
     ///
     /// Returns an error if the length of the input schema does not match the length of the
     /// patterns.
-    pub fn try_new(input: LogicalPlan, patterns: Vec<PatternNodeElement>) -> DFResult<Self> {
+    pub fn try_new(input: LogicalPlan, patterns: Vec<Option<TermPattern>>) -> DFResult<Self> {
         if input.schema().columns().len() != patterns.len() {
             return plan_err!("Patterns must match the number of column of inner.");
         }
 
-        let schema = PatternNode::compute_schema(&patterns)?;
+        // TODO: Check type
+
+        let schema = compute_schema(&patterns)?;
         Ok(Self {
             input,
             patterns,
@@ -37,35 +43,11 @@ impl PatternNode {
         })
     }
 
-    pub(crate) fn compute_schema(patterns: &[PatternNodeElement]) -> DFResult<DFSchemaRef> {
-        let mut fields = Vec::new();
-        for pattern in patterns {
-            match pattern.variable_name() {
-                None => {}
-                Some(variable) => {
-                    if !fields.contains(&variable) {
-                        fields.push(variable);
-                    }
-                }
-            }
-        }
-
-        // TODO: base this on the inner
-        let fields = fields
-            .into_iter()
-            .map(|name| Field::new(name, PlainTermEncoding::data_type(), true))
-            .collect::<Fields>();
-        Ok(Arc::new(DFSchema::from_unqualified_fields(
-            fields,
-            HashMap::new(),
-        )?))
-    }
-
     pub fn input(&self) -> &LogicalPlan {
         &self.input
     }
 
-    pub fn patterns(&self) -> &[PatternNodeElement] {
+    pub fn patterns(&self) -> &[Option<TermPattern>] {
         &self.patterns
     }
 }
@@ -103,7 +85,7 @@ impl UserDefinedLogicalNodeCore for PatternNode {
         let patterns = self
             .patterns
             .iter()
-            .map(ToString::to_string)
+            .map(|opt| opt.as_ref().map(ToString::to_string).unwrap_or("-".to_string()))
             .collect::<Vec<_>>()
             .join(", ");
         write!(f, "Pattern: {patterns}",)
@@ -127,4 +109,28 @@ impl UserDefinedLogicalNodeCore for PatternNode {
 
         Self::try_new(inputs[0].clone(), self.patterns.clone())
     }
+}
+
+fn compute_schema(patterns: &[Option<TermPattern>]) -> DFResult<DFSchemaRef> {
+    let mut fields = Vec::new();
+    for pattern in patterns {
+        match pattern {
+            Some(TermPattern::Variable(variable)) => {
+                if !fields.contains(&variable) {
+                    fields.push(variable);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // TODO: base nullable on inner.
+    let fields = fields
+        .into_iter()
+        .map(|name| Field::new(name.as_str(), PlainTermEncoding::data_type(), true))
+        .collect::<Fields>();
+    Ok(Arc::new(DFSchema::from_unqualified_fields(
+        fields,
+        HashMap::new(),
+    )?))
 }

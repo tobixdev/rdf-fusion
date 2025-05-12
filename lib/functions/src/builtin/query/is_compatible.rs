@@ -16,9 +16,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug)]
-struct IsCompatibleFactory;
+pub struct IsCompatibleUdfFactory;
 
-impl GraphFusionUdfFactory for IsCompatibleFactory {
+impl GraphFusionUdfFactory for IsCompatibleUdfFactory {
     fn name(&self) -> FunctionName {
         FunctionName::Builtin(BuiltinName::IsCompatible)
     }

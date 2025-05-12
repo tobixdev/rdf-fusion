@@ -1,13 +1,13 @@
 use crate::plain_term::encoding::{PlainTermEncodingField, PlainTermType};
 use crate::plain_term::PlainTermEncoding;
-use datafusion::arrow::array::{
-    ArrayRef, StringBuilder, StructBuilder,
-    UInt8Builder,
-};
+use datafusion::arrow::array::{ArrayRef, StringBuilder, StructBuilder, UInt8Builder};
 use graphfusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 use std::sync::Arc;
 
+/// Provides a convenient API for building arrays of RDF terms with the [PlainTermEncoding]. The
+/// documentation of the encoding provides additional information.
 pub struct PlainTermArrayBuilder {
+    /// The underlying [StructBuilder].
     builder: StructBuilder,
 }
 
@@ -27,7 +27,23 @@ impl PlainTermArrayBuilder {
 
     /// TODO
     pub fn append_null(&mut self) {
-        self.builder.append_null();
+        self.builder
+            .field_builder::<UInt8Builder>(PlainTermEncodingField::TermType.index())
+            .unwrap()
+            .append_null();
+        self.builder
+            .field_builder::<StringBuilder>(PlainTermEncodingField::Value.index())
+            .unwrap()
+            .append_null();
+        self.builder
+            .field_builder::<StringBuilder>(PlainTermEncodingField::DataType.index())
+            .unwrap()
+            .append_null();
+        self.builder
+            .field_builder::<StringBuilder>(PlainTermEncodingField::LanguageTag.index())
+            .unwrap()
+            .append_null();
+        self.builder.append(false)
     }
 
     /// TODO
@@ -87,7 +103,7 @@ impl PlainTermArrayBuilder {
 
         let language_tag_builder = self
             .builder
-            .field_builder::<StringBuilder>(PlainTermEncodingField::DataType.index())
+            .field_builder::<StringBuilder>(PlainTermEncodingField::LanguageTag.index())
             .unwrap();
         match language_tag {
             None => language_tag_builder.append_null(),

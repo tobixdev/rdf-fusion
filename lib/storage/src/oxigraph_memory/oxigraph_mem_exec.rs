@@ -14,7 +14,7 @@ use datafusion::physical_plan::{
 };
 use futures::Stream;
 use graphfusion_encoding::plain_term::PlainTermArrayBuilder;
-use graphfusion_encoding::typed_value::ENC_QUAD_SCHEMA;
+use graphfusion_encoding::typed_value::DEFAULT_QUAD_SCHEMA;
 use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use graphfusion_model::TermRef;
 use std::any::Any;
@@ -30,10 +30,10 @@ pub struct OxigraphMemExec {
 
 impl OxigraphMemExec {
     pub fn new(storage: &OxigraphMemoryStorage, projection: Option<Vec<usize>>) -> Self {
-        let projection = projection.unwrap_or((0..ENC_QUAD_SCHEMA.fields.len()).collect());
+        let projection = projection.unwrap_or((0..DEFAULT_QUAD_SCHEMA.fields.len()).collect());
         let new_fields: Vec<_> = projection
             .iter()
-            .map(|i| Arc::clone(ENC_QUAD_SCHEMA.fields.get(*i).unwrap()))
+            .map(|i| Arc::clone(DEFAULT_QUAD_SCHEMA.fields.get(*i).unwrap()))
             .collect();
         let schema = SchemaRef::new(Schema::new(new_fields));
 
@@ -108,7 +108,6 @@ impl ExecutionPlan for OxigraphMemExec {
 
 /// Stream that generates record batches on demand
 pub struct OxigraphMemStream {
-    storage: Arc<MemoryStorageReader>,
     schema: SchemaRef,
     batch_size: usize,
     iterator: QuadIterator,
@@ -118,7 +117,6 @@ impl OxigraphMemStream {
     fn new(storage: Arc<MemoryStorageReader>, schema: SchemaRef, batch_size: usize) -> Self {
         let iterator = storage.quads_for_pattern(None, None, None, None);
         Self {
-            storage,
             schema,
             batch_size,
             iterator,
@@ -134,7 +132,7 @@ impl Stream for OxigraphMemStream {
         _ctx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         let mut rb_builder =
-            RdfQuadsRecordBatchBuilder::new(Arc::clone(&self.storage), Arc::clone(&self.schema));
+            RdfQuadsRecordBatchBuilder::new(Arc::clone(&self.schema));
 
         while let Some(quad) = self.iterator.next() {
             let result = rb_builder.encode_quad(&quad);
@@ -164,7 +162,6 @@ impl RecordBatchStream for OxigraphMemStream {
 
 #[allow(clippy::struct_excessive_bools)]
 struct RdfQuadsRecordBatchBuilder {
-    reader: Arc<MemoryStorageReader>,
     schema: SchemaRef,
     graph: PlainTermArrayBuilder,
     subject: PlainTermArrayBuilder,
@@ -178,13 +175,12 @@ struct RdfQuadsRecordBatchBuilder {
 }
 
 impl RdfQuadsRecordBatchBuilder {
-    fn new(reader: Arc<MemoryStorageReader>, schema: SchemaRef) -> Self {
+    fn new(schema: SchemaRef) -> Self {
         let project_graph = schema.column_with_name(COL_GRAPH).is_some();
         let project_subject = schema.column_with_name(COL_SUBJECT).is_some();
         let project_predicate = schema.column_with_name(COL_PREDICATE).is_some();
         let project_object = schema.column_with_name(COL_OBJECT).is_some();
         Self {
-            reader,
             schema,
             graph: PlainTermArrayBuilder::default(),
             subject: PlainTermArrayBuilder::default(),

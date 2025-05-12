@@ -1,83 +1,105 @@
-use datafusion::logical_expr::{col, lit, not, Expr, LogicalPlanBuilder};
-use spargebra::algebra::QueryDataset;
-use spargebra::term::NamedNodePattern;
-use graphfusion_encoding::COL_GRAPH;
-use graphfusion_model::{GraphName, NamedOrBlankNode};
-use crate::{DFResult, GraphFusionExprBuilder};
+use crate::expr_builder::GraphFusionExprBuilder;
+use crate::paths::PATH_TABLE_DFSCHEMA;
+use crate::quads::QuadsNode;
+use crate::{ActiveGraphInfo, DFResult, GraphFusionLogicalPlanBuilder};
+use datafusion::catalog::TableProvider;
+use datafusion::common::tree_node::{Transformed, TreeNode};
+use datafusion::datasource::DefaultTableSource;
+use datafusion::logical_expr::{col, Extension, LogicalPlan, LogicalPlanBuilder};
+use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
+use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
+use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
+use graphfusion_model::TermRef;
+use std::sync::Arc;
 
-/// Adds filter operations that constraints the solutions of patterns to named graphs if necessary.
-fn filter_by_named_graph(
-    expr_builder: GraphFusionExprBuilder<'_>,
-    plan: LogicalPlanBuilder,
-    dataset: &QueryDataset,
-    graph_pattern: Option<&NamedNodePattern>,
-) -> DFResult<LogicalPlanBuilder> {
-    match graph_pattern {
-        None => plan.filter(create_filter_for_default_graph(
-            dataset.default_graph_graphs(),
-        )),
-        Some(NamedNodePattern::Variable(_)) => plan.filter(create_filter_for_named_graph(
-            dataset.available_named_graphs(),
-        )),
-        Some(NamedNodePattern::NamedNode(nn)) => {
-            let graph_filter = expr_builder.filter_by_scalar(col(COL_GRAPH), nn.as_ref().into())?;
-            plan.filter(graph_filter)
-        }
+/// TODO
+#[derive(Debug)]
+pub struct QuadsToScanAndFilterRule {
+    /// Used for creating expressions with GraphFusion builtins.
+    registry: GraphFusionFunctionRegistryRef,
+    // Reference to the registered Quads Table.
+    quads_table: Arc<dyn TableProvider>,
+}
+
+impl OptimizerRule for QuadsToScanAndFilterRule {
+    fn name(&self) -> &str {
+        "quads_to_scan_and_filter"
+    }
+
+    fn rewrite(
+        &self,
+        plan: LogicalPlan,
+        _config: &dyn OptimizerConfig,
+    ) -> DFResult<Transformed<LogicalPlan>> {
+        plan.transform(|plan| {
+            let new_plan = match &plan {
+                LogicalPlan::Extension(Extension { node }) => {
+                    if let Some(node) = node.as_any().downcast_ref::<QuadsNode>() {
+                        Transformed::yes(self.rewrite_quads_node(node)?)
+                    } else {
+                        Transformed::no(plan)
+                    }
+                }
+                _ => Transformed::no(plan),
+            };
+            Ok(new_plan)
+        })
     }
 }
 
-fn create_filter_for_default_graph(
-    expr_builder: GraphFusionExprBuilder<'_>,
-    graph: Option<&[GraphName]>,
-) -> DFResult<Expr> {
-    let Some(graph) = graph else {
-        return Ok(not(
-            expr_builder.effective_boolean_value(expr_builder.bound(col(COL_GRAPH))?)?
-        ));
-    };
+impl QuadsToScanAndFilterRule {
+    /// TODO
+    pub fn new(
+        registry: GraphFusionFunctionRegistryRef,
+        quads_table: Arc<dyn TableProvider>,
+    ) -> Self {
+        Self {
+            registry,
+            quads_table,
+        }
+    }
 
-    let filters = graph
-        .iter()
-        .map(|name| match name {
-            GraphName::NamedNode(nn) => {
-                expr_builder.filter_by_scalar(col(COL_GRAPH), nn.as_ref().into())
-            }
-            GraphName::BlankNode(bnode) => {
-                expr_builder.filter_by_scalar(col(COL_GRAPH), bnode.as_ref().into())
-            }
-            GraphName::DefaultGraph => Ok(not(
-                expr_builder.effective_boolean_value(expr_builder.bound(col(COL_GRAPH))?)?
-            )),
-        })
-        .collect::<DFResult<Vec<_>>>()?;
+    /// TODO
+    fn rewrite_quads_node(&self, node: &QuadsNode) -> DFResult<LogicalPlan> {
+        let scan = LogicalPlanBuilder::scan(
+            TABLE_QUADS,
+            Arc::new(DefaultTableSource::new(Arc::clone(&self.quads_table))),
+            None,
+        )?;
+        let plan =
+            GraphFusionLogicalPlanBuilder::new(Arc::new(scan.build()?), Arc::clone(&self.registry));
 
-    filters.into_iter().reduce(Expr::or).unwrap_or(lit(false))
-}
+        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
+        let mut plan = match node.active_graph() {
+            ActiveGraphInfo::DefaultGraph => plan.filter(col(COL_GRAPH).is_null())?,
+            ActiveGraphInfo::NamedGraphs(named_graphs) => todo!("Get this into expr_builder"),
+        };
 
-fn create_filter_for_named_graph(
-    expr_builder: GraphFusionExprBuilder<'_>,
-    graphs: Option<&[NamedOrBlankNode]>,
-) -> Expr {
-    let Some(graphs) = graphs else {
-        return ENC_EFFECTIVE_BOOLEAN_VALUE.call(vec![ENC_BOUND.call(vec![col(COL_GRAPH)])]);
-    };
+        if let Some(subject) = node.subject() {
+            let filter =
+                expr_builder.filter_by_scalar(col(COL_SUBJECT), TermRef::from(subject.as_ref()))?;
+            plan = plan.filter(filter)?;
+        }
 
-    graphs
-        .iter()
-        .map(|name| match name {
-            NamedOrBlankNode::NamedNode(nn) => {
-                expr_builder.filter_by_scalar(
-                    col(COL_GRAPH),
-                    nn.as_ref().into(),
-                )?
-            }
-            NamedOrBlankNode::BlankNode(bnode) => {
-                expr_builder.filter_by_scalar(
-                    col(COL_GRAPH),
-                    bnode.as_ref().into(),
-                )
-            }
-        })
-        .reduce(Expr::or)
-        .unwrap_or(lit(false))
+        if let Some(predicate) = node.predicate() {
+            let filter = expr_builder
+                .filter_by_scalar(col(COL_PREDICATE), TermRef::from(predicate.as_ref()))?;
+            plan = plan.filter(filter)?;
+        }
+
+        if let Some(predicate) = node.object() {
+            let filter = expr_builder.filter_by_scalar(col(COL_OBJECT), predicate.as_ref())?;
+            plan = plan.filter(filter)?;
+        }
+
+        // Project away bare table qualifiers
+        plan.into_inner()
+            .project(vec![
+                col(COL_GRAPH).alias(COL_GRAPH),
+                col(COL_SUBJECT).alias(COL_SUBJECT),
+                col(COL_PREDICATE).alias(COL_PREDICATE),
+                col(COL_OBJECT).alias(COL_OBJECT),
+            ])?
+            .build()
+    }
 }

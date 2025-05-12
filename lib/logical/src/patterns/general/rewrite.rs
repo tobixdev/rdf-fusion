@@ -1,12 +1,15 @@
 use crate::expr_builder::GraphFusionExprBuilder;
-use crate::patterns::pattern_element::PatternNodeElement;
 use crate::patterns::PatternNode;
 use crate::DFResult;
 use datafusion::common::tree_node::{Transformed, TreeNode};
+use datafusion::common::Column;
 use datafusion::logical_expr::{and, col, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
-use graphfusion_functions::registry::{GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef};
+use graphfusion_functions::registry::{
+    GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef,
+};
+use spargebra::term::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
@@ -76,14 +79,14 @@ pub fn compute_filters_for_pattern(
 /// the predicate is `foaf:knows`.
 fn filter_by_values(
     expr_builder: &GraphFusionExprBuilder,
-    pattern: &[PatternNodeElement],
+    pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
     let filters = expr_builder
         .schema()
         .columns()
         .iter()
         .zip(pattern.iter())
-        .map(|(c, p)| p.filter_expression(&expr_builder, c))
+        .map(|(c, p)| create_filter_expression(&expr_builder, c, p.as_ref()))
         .collect::<DFResult<Vec<_>>>()?;
     Ok(filters.into_iter().filter_map(|f| f).reduce(and))
 }
@@ -95,7 +98,7 @@ fn filter_by_values(
 /// subject is equal to the predicate.
 fn filter_same_variable(
     expr_builder: &GraphFusionExprBuilder,
-    pattern: &[PatternNodeElement],
+    pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
     let mut mappings = HashMap::new();
 
@@ -105,8 +108,8 @@ fn filter_same_variable(
         .into_iter()
         .zip(pattern.iter());
     for (column, pattern) in column_patterns {
-        if let Some(variable) = pattern.variable_name() {
-            if !mappings.contains_key(&variable) {
+        if let Some(TermPattern::Variable(variable)) = pattern {
+            if !mappings.contains_key(variable) {
                 mappings.insert(variable.clone(), Vec::new());
             }
             mappings.get_mut(&variable).unwrap().push(column.clone());
@@ -134,25 +137,46 @@ fn filter_same_variable(
 /// Projects the inner columns to the variables.
 fn project_to_variables(
     plan: LogicalPlanBuilder,
-    patterns: &[PatternNodeElement],
+    patterns: &[Option<TermPattern>],
 ) -> DFResult<LogicalPlanBuilder> {
     let possible_projections = plan
         .schema()
         .columns()
         .into_iter()
         .zip(patterns.iter())
-        .filter_map(|(c, p)| p.variable_name().map(|vname| (c, vname)));
+        .filter_map(|(c, p)| match p {
+            Some(TermPattern::Variable(v)) => Some((c, v)),
+            _ => None,
+        });
 
     let mut already_projected = HashSet::new();
     let mut projections = Vec::new();
     for (old_name, new_name) in possible_projections {
-        if !already_projected.contains(&new_name) {
+        if !already_projected.contains(new_name) {
             already_projected.insert(new_name.clone());
 
-            let expr = Expr::from(old_name.clone()).alias(new_name);
+            let expr = Expr::from(old_name.clone()).alias(new_name.as_str());
             projections.push(expr);
         }
     }
 
     plan.project(projections)
+}
+
+/// Creates an [Expr] that filters `column` based on the contents of this element.
+fn create_filter_expression(
+    expr_builder: &GraphFusionExprBuilder,
+    column: &Column,
+    pattern: Option<&TermPattern>,
+) -> DFResult<Option<Expr>> {
+    let result = match pattern {
+        Some(TermPattern::NamedNode(nn)) => Some(
+            expr_builder.filter_by_scalar(col(column.clone()), Term::from(nn.clone()).as_ref())?,
+        ),
+        Some(TermPattern::Literal(lit)) => Some(
+            expr_builder.filter_by_scalar(col(column.clone()), Term::from(lit.clone()).as_ref())?,
+        ),
+        _ => None,
+    };
+    Ok(result)
 }

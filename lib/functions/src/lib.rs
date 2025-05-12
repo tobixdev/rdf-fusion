@@ -7,6 +7,8 @@ mod name;
 pub mod registry;
 pub(crate) mod scalar;
 mod registry_builder;
+pub(crate) mod factory;
+
 
 pub use name::FunctionName;
 

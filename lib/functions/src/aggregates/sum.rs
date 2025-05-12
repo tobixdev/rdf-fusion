@@ -12,7 +12,7 @@ use graphfusion_model::{Integer, Numeric, NumericPair, Term, ThinResult};
 use std::sync::{Arc, LazyLock};
 use crate::aggregates::ENC_AVG;
 use crate::builtin::BuiltinName;
-use crate::builtin::factory::GraphFusionUdafFactory;
+use crate::factory::GraphFusionUdafFactory;
 
 pub static ENC_SUM: LazyLock<AggregateUDF> = LazyLock::new(|| {
     create_udaf(
@@ -26,9 +26,9 @@ pub static ENC_SUM: LazyLock<AggregateUDF> = LazyLock::new(|| {
 });
 
 #[derive(Debug)]
-pub struct SparqlSumUdafFactory {}
+pub struct SumUdafFactory {}
 
-impl GraphFusionUdafFactory for SparqlSumUdafFactory {
+impl GraphFusionUdafFactory for SumUdafFactory {
     fn name(&self) -> FunctionName {
         FunctionName::Builtin(BuiltinName::Avg)
     }

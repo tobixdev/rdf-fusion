@@ -1,4 +1,4 @@
-use crate::builtin::factory::GraphFusionUdafFactory;
+use crate::factory::GraphFusionUdafFactory;
 use crate::builtin::BuiltinName;
 use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
