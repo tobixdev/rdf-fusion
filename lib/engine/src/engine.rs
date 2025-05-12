@@ -11,8 +11,12 @@ use graphfusion_encoding::TABLE_QUADS;
 use graphfusion_functions::registry::{
     GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef,
 };
-use graphfusion_logical::quads::QuadsToScanAndFilterRule;
-use graphfusion_logical::{ActiveGraphInfo, GraphFusionLogicalPlanBuilder};
+use graphfusion_logical::extend::ExtendLoweringRule;
+use graphfusion_logical::join::SparqlJoinLoweringRule;
+use graphfusion_logical::paths::PropertyPathLoweringRule;
+use graphfusion_logical::patterns::PatternLoweringRule;
+use graphfusion_logical::quads::QuadsLoweringRule;
+use graphfusion_logical::{ActiveGraph, GraphFusionLogicalPlanBuilder};
 use graphfusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, QuadRef, SubjectRef, TermRef,
 };
@@ -44,17 +48,20 @@ impl GraphFusionInstance {
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(GraphFusionPlanner))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            .with_optimizer_rule(Arc::new(QuadsToScanAndFilterRule::new(
+            .with_optimizer_rule(Arc::new(ExtendLoweringRule::new(
                 Arc::clone(&builtins),
                 storage.table_provider(),
             )))
-            // .with_optimizer_rule(Arc::new(PathToJoinsRule::new(
-            //     Arc::clone(&builtins),
-            //     storage.table_provider(),
-            // )))
-            // .with_optimizer_rule(Arc::new(PatternToProjectionRule::new(Arc::clone(
-            //     &builtins,
-            // ))))
+            .with_optimizer_rule(Arc::new(PropertyPathLoweringRule::new(
+                Arc::clone(&builtins),
+                storage.table_provider(),
+            )))
+            .with_optimizer_rule(Arc::new(SparqlJoinLoweringRule::new(Arc::clone(&builtins))))
+            .with_optimizer_rule(Arc::new(PatternLoweringRule::new(Arc::clone(&builtins))))
+            .with_optimizer_rule(Arc::new(QuadsLoweringRule::new(
+                Arc::clone(&builtins),
+                storage.table_provider(),
+            )))
             .build();
 
         let session_context = SessionContext::from(state);
@@ -134,14 +141,14 @@ impl GraphFusionInstance {
     }
 }
 
-fn graph_name_to_active_graph(graph_name: GraphNameRef<'_>) -> ActiveGraphInfo {
+fn graph_name_to_active_graph(graph_name: GraphNameRef<'_>) -> ActiveGraph {
     match graph_name {
         GraphNameRef::NamedNode(nn) => {
-            ActiveGraphInfo::NamedGraphs(vec![NamedOrBlankNode::NamedNode(nn.into_owned())])
+            ActiveGraph::NamedGraphs(vec![NamedOrBlankNode::NamedNode(nn.into_owned())])
         }
         GraphNameRef::BlankNode(bnode) => {
-            ActiveGraphInfo::NamedGraphs(vec![NamedOrBlankNode::BlankNode(bnode.into_owned())])
+            ActiveGraph::NamedGraphs(vec![NamedOrBlankNode::BlankNode(bnode.into_owned())])
         }
-        GraphNameRef::DefaultGraph => ActiveGraphInfo::DefaultGraph,
+        GraphNameRef::DefaultGraph => ActiveGraph::DefaultGraph,
     }
 }

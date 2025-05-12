@@ -1,0 +1,30 @@
+use crate::encoding::TermEncoder;
+use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
+use crate::{DFResult, TermEncoding};
+use datafusion::common::{exec_datafusion_err, exec_err};
+use graphfusion_model::{Numeric, TermRef, ThinError, ThinResult, TypedValue, TypedValueRef};
+
+#[derive(Debug)]
+pub struct TermRefTypedValueEncoder;
+
+impl TermEncoder<TypedValueEncoding> for TermRefTypedValueEncoder {
+    type Term<'data> = TermRef<'data>;
+
+    fn encode_terms<'data>(
+        terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
+    ) -> DFResult<<TypedValueEncoding as TermEncoding>::Array> {
+        let mut value_builder = TypedValueArrayBuilder::default();
+        for term in terms {
+            match term {
+                Ok(value) => value_builder.append_term(value)?,
+                Err(ThinError::Expected) => {
+                    value_builder.append_null()?;
+                }
+                Err(ThinError::InternalError(err)) => {
+                    return exec_err!("Error while obtaining terms: {err}")
+                }
+            }
+        }
+        TypedValueEncoding::try_new_array(value_builder.finish())
+    }
+}

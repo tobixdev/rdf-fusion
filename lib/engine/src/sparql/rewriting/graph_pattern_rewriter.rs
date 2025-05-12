@@ -11,15 +11,16 @@ use datafusion::prelude::col;
 use graphfusion_encoding::EncodingName;
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_logical::join::SparqlJoinType;
-use graphfusion_logical::{GraphFusionExprBuilder, GraphFusionLogicalPlanBuilder};
-use graphfusion_model::Iri;
+use graphfusion_logical::{ActiveGraph, GraphFusionExprBuilder, GraphFusionLogicalPlanBuilder};
 use graphfusion_model::Variable;
+use graphfusion_model::{Iri, NamedOrBlankNode};
 use spargebra::algebra::{
     AggregateExpression, AggregateFunction, Expression, GraphPattern, OrderExpression,
 };
-use spargebra::term::GraphNamePattern;
+use spargebra::term::{GraphNamePattern, NamedNodePattern};
 use std::cell::RefCell;
 use std::sync::Arc;
+use thiserror::__private::Var;
 
 pub struct GraphPatternRewriter {
     registry: GraphFusionFunctionRegistryRef,
@@ -48,7 +49,7 @@ impl GraphPatternRewriter {
 
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
         let plan = self.rewrite_graph_pattern(pattern)?;
-        plan.build()
+        plan.with_plain_terms()?.build()
     }
 
     fn rewrite_graph_pattern(
@@ -60,14 +61,15 @@ impl GraphPatternRewriter {
                 let state = self.state.borrow();
                 GraphFusionLogicalPlanBuilder::new_from_bgp(
                     Arc::clone(&self.registry),
-                    &state.graph,
+                    &state.active_graph,
+                    state.graph_name_var.as_ref(),
                     patterns,
                 )
             }
             GraphPattern::Project { inner, variables } => {
                 if self.graph_variable_goes_out_of_scope(variables) {
                     let old_state = self.state.borrow().clone();
-                    let new_state = old_state.with_graph_variable_going_out_of_scope();
+                    let new_state = old_state.without_graph_variable();
                     self.state.replace(new_state);
 
                     let inner = self.rewrite_graph_pattern(inner.as_ref())?;
@@ -135,8 +137,18 @@ impl GraphPatternRewriter {
                 inner.slice(*start, *length)
             }
             GraphPattern::Distinct { inner } => {
+                let sort_exprs = get_sort_expressions(inner);
                 let inner = self.rewrite_graph_pattern(inner)?;
-                inner.distinct()
+
+                let Some(sort_exprs) = sort_exprs else {
+                    return inner.distinct();
+                };
+
+                let sort_exprs = sort_exprs
+                    .iter()
+                    .map(|e| self.rewrite_order_expression(inner.expr_builder(), e))
+                    .collect::<Result<Vec<_>, _>>()?;
+                inner.distinct_with_sort(sort_exprs)
             }
             GraphPattern::OrderBy { inner, expression } => {
                 let inner = self.rewrite_graph_pattern(inner)?;
@@ -153,7 +165,22 @@ impl GraphPatternRewriter {
             }
             GraphPattern::Graph { name, inner } => {
                 let old_state = self.state.borrow().clone();
-                let new_state = old_state.with_graph(GraphNamePattern::from(name.clone()));
+                let active_graph = match name {
+                    NamedNodePattern::NamedNode(nn) => {
+                        ActiveGraph::NamedGraphs(vec![NamedOrBlankNode::NamedNode(nn.clone())])
+                    }
+                    NamedNodePattern::Variable(_) => match self.dataset.available_named_graphs() {
+                        None => ActiveGraph::AnyNamedGraph,
+                        Some(graphs) => ActiveGraph::NamedGraphs(graphs.iter().cloned().collect()),
+                    },
+                };
+                let variable = match name {
+                    NamedNodePattern::Variable(var) => Some(var.clone()),
+                    _ => None,
+                };
+                let new_state = old_state
+                    .with_active_graph(active_graph)
+                    .with_graph_variable(variable);
                 self.state.replace(new_state);
                 let result = self.rewrite_graph_pattern(inner.as_ref());
                 self.state.replace(old_state);
@@ -164,10 +191,11 @@ impl GraphPatternRewriter {
                 subject,
                 object,
             } => {
-                let graph_name = self.state.borrow().graph.clone();
+                let state = self.state.borrow();
                 GraphFusionLogicalPlanBuilder::new_from_property_path(
                     Arc::clone(&self.registry),
-                    graph_name,
+                    state.active_graph.clone(),
+                    state.graph_name_var.clone(),
                     path.clone(),
                     subject.clone(),
                     object.clone(),
@@ -205,12 +233,8 @@ impl GraphPatternRewriter {
     /// query.
     fn graph_variable_goes_out_of_scope(&self, variables: &[Variable]) -> bool {
         let state = self.state.borrow();
-        if state.graph_is_out_of_scope {
-            return true;
-        }
-
-        match &state.graph {
-            GraphNamePattern::Variable(v) => !variables.contains(v),
+        match &state.graph_name_var {
+            Some(v) => !variables.contains(v),
             _ => false,
         }
     }
@@ -301,103 +325,48 @@ impl GraphPatternRewriter {
 
 #[derive(Clone)]
 struct RewritingState {
-    /// Indicates whether the active graph is restricted to a particular pattern.
-    graph: GraphNamePattern,
-    /// Indicates whether the active graph pattern is out of scope.
-    graph_is_out_of_scope: bool,
+    /// Currently active graph.
+    active_graph: ActiveGraph,
+    /// Indicates whether the graph should be bound to a variable.
+    graph_name_var: Option<Variable>,
 }
 
 impl Default for RewritingState {
     fn default() -> Self {
         RewritingState {
-            graph: GraphNamePattern::DefaultGraph,
-            graph_is_out_of_scope: false,
+            active_graph: ActiveGraph::DefaultGraph,
+            graph_name_var: None,
         }
     }
 }
 
 impl RewritingState {
-    /// Returns a new state like `self` but with the current graph set to `graph`.
+    /// TODO
     #[allow(clippy::unused_self)]
-    fn with_graph(&self, graph: GraphNamePattern) -> RewritingState {
+    fn with_graph_variable(&self, variable: Option<Variable>) -> RewritingState {
         RewritingState {
-            graph,
-            graph_is_out_of_scope: false,
+            graph_name_var: variable,
+            active_graph: self.active_graph.clone(),
         }
     }
 
-    /// Returns a new state like `self` but where [RewritingState::graph_is_out_of_scope] is set to
-    /// `true`.
+    /// TODO
     #[allow(clippy::unused_self)]
-    fn with_graph_variable_going_out_of_scope(&self) -> RewritingState {
+    fn without_graph_variable(&self) -> RewritingState {
         RewritingState {
-            graph_is_out_of_scope: true,
-            graph: self.graph.clone(),
-        }
-    }
-}
-
-/// Extracts sort expressions from possible solution modifiers.
-fn get_sort_expressions(graph_pattern: &GraphPattern) -> Option<&Vec<OrderExpression>> {
-    match graph_pattern {
-        GraphPattern::OrderBy { expression, .. } => Some(expression),
-        GraphPattern::Project { inner, .. }
-        | GraphPattern::Distinct { inner, .. }
-        | GraphPattern::Slice { inner, .. }
-        | GraphPattern::Reduced { inner, .. } => get_sort_expressions(inner),
-        _ => None,
-    }
-}
-
-/// Creates the `on_expr` for a DISTINCT ON operation. This function ensures that the first
-/// expressions in the results aligns with `sort_exprs`, if present.
-fn create_distinct_on_expr(
-    schema: &DFSchema,
-    sort_exprs: Option<&Vec<OrderExpression>>,
-) -> DFResult<Vec<Expr>> {
-    let Some(sort_exprs) = sort_exprs else {
-        return Ok(schema.columns().into_iter().map(col).collect());
-    };
-
-    let mut on_exprs = Vec::new();
-
-    // TODO: This should be easier to do.
-    let on_exprs_order = create_initial_columns_from_sort(sort_exprs)?;
-    for on_expr in &on_exprs_order {
-        let column = schema
-            .columns()
-            .into_iter()
-            .find(|c| c.name() == on_expr)
-            .ok_or(plan_datafusion_err!(
-                "Could not find column {on_expr} in schema {schema}"
-            ))?;
-        on_exprs.push(column);
-    }
-
-    for column in schema.columns() {
-        if !on_exprs.contains(&column) {
-            on_exprs.push(column);
+            graph_name_var: None,
+            active_graph: self.active_graph.clone(),
         }
     }
 
-    Ok(on_exprs.into_iter().map(col).collect())
-}
-
-/// When creating a DISTINCT ON node, the initial `on_expr` expressions must match the given
-/// `sort_expr` (if they exist). This function creates these initial columns from the order
-/// expressions.
-fn create_initial_columns_from_sort(sort_exprs: &[OrderExpression]) -> DFResult<Vec<String>> {
-    sort_exprs
-        .iter()
-        .map(|sort_expr| match sort_expr {
-            OrderExpression::Asc(Expression::Variable(var))
-            | OrderExpression::Desc(Expression::Variable(var)) => Ok(var.as_str().to_owned()),
-            _ => plan_err!(
-                "Expression {} not supported for ORDER BY in combination with DISTINCT.",
-                sort_expr
-            ),
-        })
-        .collect::<DFResult<Vec<_>>>()
+    /// TODO
+    #[allow(clippy::unused_self)]
+    fn with_active_graph(&self, active_graph: ActiveGraph) -> RewritingState {
+        RewritingState {
+            graph_name_var: None,
+            active_graph,
+        }
+    }
 }
 
 /// Ensures that all columns in the result are RDF terms. If not, a cast operation is inserted if
@@ -429,4 +398,17 @@ fn ensure_all_columns_are_rdf_terms(
     //     .collect::<DFResult<Vec<_>>>()?;
     // inner.project(projections)
     todo!()
+}
+
+/// Extracts sort expressions from possible solution modifiers.
+fn get_sort_expressions(graph_pattern: &GraphPattern) -> Option<&Vec<OrderExpression>> {
+    match graph_pattern {
+        GraphPattern::OrderBy { expression, .. } => Some(expression),
+        GraphPattern::Project { inner, .. }
+        | GraphPattern::Distinct { inner, .. }
+        | GraphPattern::Slice { inner, .. }
+        | GraphPattern::Reduced { inner, .. }
+        | GraphPattern::Group { inner, .. } => get_sort_expressions(inner),
+        _ => None,
+    }
 }

@@ -16,7 +16,10 @@ impl TermValueScalar {
     /// Returns an error if the data type of `value` is unexpected.
     pub fn try_new(value: ScalarValue) -> DFResult<Self> {
         if value.data_type() != TypedValueEncoding::data_type() {
-            return exec_err!("Expected scalar value with value encoding, got {:?}", value);
+            return exec_err!(
+                "Expected scalar value with TypedValueEncoding, got {:?}",
+                value
+            );
         }
         Ok(Self::new_unchecked(value))
     }

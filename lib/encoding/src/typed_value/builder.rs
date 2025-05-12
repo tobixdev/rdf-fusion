@@ -10,8 +10,8 @@ use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use graphfusion_model::vocab::{rdf, xsd};
 use graphfusion_model::{
-    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, LiteralRef, NamedNodeRef, Numeric,
-    TermRef, Time, Timestamp, YearMonthDuration,
+    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Duration, LiteralRef, NamedNodeRef,
+    Numeric, TermRef, Time, Timestamp, YearMonthDuration,
 };
 use graphfusion_model::{Decimal, Double, Float, Int, Integer};
 use std::sync::Arc;
@@ -85,13 +85,31 @@ impl TypedValueArrayBuilder {
 
     pub fn append_literal(&mut self, literal: LiteralRef<'_>) -> Result<(), LiteralEncodingError> {
         match literal.datatype() {
+            // TODO: Other literals
             xsd::BOOLEAN => self.append_boolean(literal.value().parse()?)?,
             xsd::FLOAT => self.append_float(literal.value().parse()?)?,
             xsd::DOUBLE => self.append_double(literal.value().parse()?)?,
+            xsd::DECIMAL => self.append_decimal(literal.value().parse()?)?,
             xsd::INTEGER => self.append_integer(literal.value().parse()?)?,
             xsd::INT => self.append_int(literal.value().parse()?)?,
-            rdf::LANG_STRING => self.append_string(literal.value(), literal.language())?,
-            xsd::STRING => self.append_string(literal.value(), None)?,
+            xsd::DURATION => {
+                let duration: Duration = literal.value().parse()?;
+                self.append_duration(Some(duration.year_month()), Some(duration.day_time()))?
+            }
+            xsd::YEAR_MONTH_DURATION => {
+                let duration: YearMonthDuration = literal.value().parse()?;
+                self.append_duration(Some(duration), None)?
+            }
+            xsd::DURATION => {
+                let duration: DayTimeDuration = literal.value().parse()?;
+                self.append_duration(None, Some(duration))?
+            }
+            xsd::DATE_TIME => self.append_date_time(literal.value().parse()?)?,
+            xsd::TIME => self.append_time(literal.value().parse()?)?,
+            xsd::DATE => self.append_date(literal.value().parse()?)?,
+            rdf::LANG_STRING | xsd::STRING => {
+                self.append_string(literal.value(), literal.language())?
+            }
             _ => self.append_other_literal(literal)?,
         };
         Ok(())

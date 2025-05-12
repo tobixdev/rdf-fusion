@@ -1,4 +1,5 @@
 use datafusion::arrow::error::ArrowError;
+use graphfusion_model::{ParseDateTimeError, ParseDecimalError, ParseDurationError};
 use std::error::Error;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::ParseBoolError;
@@ -25,6 +26,24 @@ impl From<ParseFloatError> for LiteralEncodingError {
 
 impl From<ParseBoolError> for LiteralEncodingError {
     fn from(error: ParseBoolError) -> Self {
+        LiteralEncodingError::ParsingError(Box::new(error))
+    }
+}
+
+impl From<ParseDecimalError> for LiteralEncodingError {
+    fn from(error: ParseDecimalError) -> Self {
+        LiteralEncodingError::ParsingError(Box::new(error))
+    }
+}
+
+impl From<ParseDurationError> for LiteralEncodingError {
+    fn from(error: ParseDurationError) -> Self {
+        LiteralEncodingError::ParsingError(Box::new(error))
+    }
+}
+
+impl From<ParseDateTimeError> for LiteralEncodingError {
+    fn from(error: ParseDateTimeError) -> Self {
         LiteralEncodingError::ParsingError(Box::new(error))
     }
 }

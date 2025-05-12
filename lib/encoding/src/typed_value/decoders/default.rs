@@ -1,8 +1,9 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::typed_value::array::{TermValueArrayParts, TimestampParts};
-use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
-use crate::TermEncoding;
-use datafusion::arrow::array::Array;
+use crate::typed_value::array::{DurationParts, StringParts, TermValueArrayParts, TimestampParts};
+use crate::typed_value::{scalar, TypedValueEncoding, TypedValueEncodingField};
+use crate::{EncodingScalar, TermEncoding};
+use datafusion::arrow::array::{Array, AsArray};
+use datafusion::common::ScalarValue;
 use graphfusion_model::{
     BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int,
     Integer, LanguageStringRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, ThinError,
@@ -29,7 +30,87 @@ impl TermDecoder<TypedValueEncoding> for DefaultTypedValueDecoder {
     fn decode_term(
         scalar: &<TypedValueEncoding as TermEncoding>::Scalar,
     ) -> ThinResult<Self::Term<'_>> {
-        todo!()
+        let ScalarValue::Union(Some((type_id, value)), _, _) = scalar.scalar_value() else {
+            return ThinError::internal_error("Unexpected type id");
+        };
+
+        let field = TypedValueEncodingField::try_from(*type_id)
+            .map_err(|_| ThinError::InternalError("Unexpected type id"))?;
+        let result = match (field, value.as_ref()) {
+            (TypedValueEncodingField::NamedNode, ScalarValue::Utf8(Some(value))) => {
+                TypedValueRef::NamedNode(NamedNodeRef::new_unchecked(value))
+            }
+            (TypedValueEncodingField::BlankNode, ScalarValue::Utf8(Some(value))) => {
+                TypedValueRef::BlankNode(BlankNodeRef::new_unchecked(value))
+            }
+            (TypedValueEncodingField::String, ScalarValue::Struct(struct_array)) => {
+                let parts = StringParts {
+                    value: struct_array.column(0).as_string::<i32>(),
+                    language: struct_array.column(1).as_string::<i32>(),
+                };
+                extract_string(parts, 0)
+            }
+            (TypedValueEncodingField::Boolean, ScalarValue::Boolean(Some(value))) => {
+                TypedValueRef::BooleanLiteral((*value).into())
+            }
+            (TypedValueEncodingField::Float, ScalarValue::Float32(Some(value))) => {
+                TypedValueRef::NumericLiteral(Numeric::Float((*value).into()))
+            }
+            (TypedValueEncodingField::Double, ScalarValue::Float64(Some(value))) => {
+                TypedValueRef::NumericLiteral(Numeric::Double((*value).into()))
+            }
+            (TypedValueEncodingField::Decimal, ScalarValue::Decimal128(Some(value), _, _)) => {
+                TypedValueRef::NumericLiteral(Numeric::Decimal(Decimal::from_be_bytes(
+                    value.to_be_bytes(),
+                )))
+            }
+            (TypedValueEncodingField::Int, ScalarValue::Int32(Some(value))) => {
+                TypedValueRef::NumericLiteral(Numeric::Int((*value).into()))
+            }
+            (TypedValueEncodingField::Integer, ScalarValue::Int64(Some(value))) => {
+                TypedValueRef::NumericLiteral(Numeric::Integer((*value).into()))
+            }
+            (TypedValueEncodingField::Duration, ScalarValue::Struct(struct_array)) => {
+                let parts = DurationParts {
+                    months: struct_array.column(0).as_primitive(),
+                    seconds: struct_array.column(1).as_primitive(),
+                };
+                extract_duration(parts, 0)?
+            }
+            (TypedValueEncodingField::DateTime, ScalarValue::Struct(struct_array)) => {
+                let parts = TimestampParts {
+                    value: struct_array.column(0).as_primitive(),
+                    offset: struct_array.column(1).as_primitive(),
+                };
+                let timestamp = extract_timestamp(parts, 0);
+                TypedValueRef::DateTimeLiteral(DateTime::new(timestamp))
+            }
+            (TypedValueEncodingField::Time, ScalarValue::Struct(struct_array)) => {
+                let parts = TimestampParts {
+                    value: struct_array.column(0).as_primitive(),
+                    offset: struct_array.column(1).as_primitive(),
+                };
+                let timestamp = extract_timestamp(parts, 0);
+                TypedValueRef::TimeLiteral(Time::new(timestamp))
+            }
+            (TypedValueEncodingField::Date, ScalarValue::Struct(struct_array)) => {
+                let parts = TimestampParts {
+                    value: struct_array.column(0).as_primitive(),
+                    offset: struct_array.column(1).as_primitive(),
+                };
+                let timestamp = extract_timestamp(parts, 0);
+                TypedValueRef::DateLiteral(Date::new(timestamp))
+            }
+            (TypedValueEncodingField::OtherLiteral, ScalarValue::Struct(struct_array)) => {
+                let value = struct_array.column(0).as_string::<i32>().value(0);
+                let datatype = struct_array.column(1).as_string::<i32>().value(0);
+                let datatype = NamedNodeRef::new_unchecked(datatype);
+                TypedValueRef::OtherLiteral(LiteralRef::new_typed_literal(value, datatype))
+            }
+            (TypedValueEncodingField::Null, _) => return ThinError::expected(),
+            _ => return ThinError::internal_error("Unexpected type id / value combination"),
+        };
+        Ok(result)
     }
 }
 
@@ -51,20 +132,7 @@ fn extract_term_value<'data>(
             let value = BlankNodeRef::new_unchecked(parts.blank_nodes.value(offset));
             Ok(TypedValueRef::BlankNode(value))
         }
-        TypedValueEncodingField::String => {
-            if parts.strings.language.is_null(offset) {
-                Ok(TypedValueRef::SimpleLiteral(SimpleLiteralRef::new(
-                    parts.strings.value.value(offset),
-                )))
-            } else {
-                Ok(TypedValueRef::LanguageStringLiteral(
-                    LanguageStringRef::new(
-                        parts.strings.value.value(offset),
-                        parts.strings.language.value(offset),
-                    ),
-                ))
-            }
-        }
+        TypedValueEncodingField::String => Ok(extract_string(parts.strings, offset)),
         TypedValueEncodingField::Boolean => {
             let value = Boolean::from(parts.booleans.value(offset));
             Ok(TypedValueRef::BooleanLiteral(value))
@@ -101,7 +169,7 @@ fn extract_term_value<'data>(
             let timestamp = extract_timestamp(parts.dates, offset);
             Ok(TypedValueRef::DateLiteral(Date::new(timestamp)))
         }
-        TypedValueEncodingField::Duration => extract_duration(parts, offset),
+        TypedValueEncodingField::Duration => extract_duration(parts.durations, offset),
         TypedValueEncodingField::OtherLiteral => {
             let value = parts.other_literals.value.value(offset);
             let datatype = parts.other_literals.datatype.value(offset);
@@ -110,6 +178,18 @@ fn extract_term_value<'data>(
                 value, datatype,
             )))
         }
+    }
+}
+
+/// TODO
+fn extract_string(parts: StringParts<'_>, offset: usize) -> TypedValueRef {
+    if parts.language.is_null(offset) {
+        TypedValueRef::SimpleLiteral(SimpleLiteralRef::new(parts.value.value(offset)))
+    } else {
+        TypedValueRef::LanguageStringLiteral(LanguageStringRef::new(
+            parts.value.value(offset),
+            parts.language.value(offset),
+        ))
     }
 }
 
@@ -124,24 +204,21 @@ fn extract_timestamp(parts: TimestampParts<'_>, offset: usize) -> Timestamp {
     )
 }
 
-fn extract_duration<'data>(
-    parts: &TermValueArrayParts<'_>,
-    offset: usize,
-) -> ThinResult<TypedValueRef<'data>> {
-    let year_month_is_null = parts.durations.months.is_null(offset);
-    let day_time_is_null = parts.durations.seconds.is_null(offset);
+fn extract_duration(parts: DurationParts<'_>, offset: usize) -> ThinResult<TypedValueRef> {
+    let year_month_is_null = parts.months.is_null(offset);
+    let day_time_is_null = parts.seconds.is_null(offset);
     Ok(match (year_month_is_null, day_time_is_null) {
         (false, false) => {
             let mut bytes = [0; 24];
-            bytes[0..8].copy_from_slice(&parts.durations.months.value(offset).to_be_bytes());
-            bytes[8..24].copy_from_slice(&parts.durations.seconds.value(offset).to_be_bytes());
+            bytes[0..8].copy_from_slice(&parts.months.value(offset).to_be_bytes());
+            bytes[8..24].copy_from_slice(&parts.seconds.value(offset).to_be_bytes());
             TypedValueRef::DurationLiteral(Duration::from_be_bytes(bytes))
         }
         (false, true) => TypedValueRef::YearMonthDurationLiteral(YearMonthDuration::from_be_bytes(
-            parts.durations.months.value(offset).to_be_bytes(),
+            parts.months.value(offset).to_be_bytes(),
         )),
         (true, false) => TypedValueRef::DayTimeDurationLiteral(DayTimeDuration::from_be_bytes(
-            parts.durations.seconds.value(offset).to_be_bytes(),
+            parts.seconds.value(offset).to_be_bytes(),
         )),
         _ => return ThinError::internal_error("Both values are null in a duration."),
     })

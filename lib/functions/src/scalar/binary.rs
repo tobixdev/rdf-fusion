@@ -83,7 +83,7 @@ where
             SparqlOpVolatility::Volatile => Volatility::Volatile,
         };
         let signature = Signature::new(
-            TypeSignature::Uniform(1, vec![TEncoding::data_type()]),
+            TypeSignature::Uniform(2, vec![TEncoding::data_type()]),
             volatility,
         );
         Self {

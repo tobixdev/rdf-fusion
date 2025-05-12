@@ -1,30 +1,36 @@
-use crate::DFResult;
+use crate::patterns::compute_schema_for_pattern;
+use crate::{ActiveGraph, DFResult};
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{GraphNamePattern, TermPattern};
+use spargebra::term::{GraphNamePattern, TermPattern, Variable};
 use std::cmp::Ordering;
+use std::collections::HashSet;
+use std::env::var;
 use std::fmt;
 
 #[derive(PartialEq, Eq, Hash)]
-pub struct PathNode {
-    graph: GraphNamePattern,
+pub struct PropertyPathNode {
+    active_graph: ActiveGraph,
+    graph_name_var: Option<Variable>,
     subject: TermPattern,
     path: PropertyPathExpression,
     object: TermPattern,
     schema: DFSchemaRef,
 }
 
-impl PathNode {
+impl PropertyPathNode {
     pub fn new(
-        graph: GraphNamePattern,
+        active_graph: ActiveGraph,
+        graph_name_var: Option<Variable>,
         subject: TermPattern,
         path: PropertyPathExpression,
         object: TermPattern,
     ) -> DFResult<Self> {
-        let schema = compute_schema(&graph, &subject, &object)?;
+        let schema = compute_schema(graph_name_var.as_ref(), &subject, &object)?;
         Ok(Self {
-            graph,
+            active_graph,
+            graph_name_var,
             subject,
             path,
             object,
@@ -32,8 +38,12 @@ impl PathNode {
         })
     }
 
-    pub fn graph(&self) -> &GraphNamePattern {
-        &self.graph
+    pub fn active_graph(&self) -> &ActiveGraph {
+        &self.active_graph
+    }
+
+    pub fn graph_name_var(&self) -> Option<&Variable> {
+        self.graph_name_var.as_ref()
     }
 
     pub fn subject(&self) -> &TermPattern {
@@ -49,19 +59,19 @@ impl PathNode {
     }
 }
 
-impl fmt::Debug for PathNode {
+impl fmt::Debug for PropertyPathNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         UserDefinedLogicalNodeCore::fmt_for_explain(self, f)
     }
 }
 
-impl PartialOrd for PathNode {
+impl PartialOrd for PropertyPathNode {
     fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
         None
     }
 }
 
-impl UserDefinedLogicalNodeCore for PathNode {
+impl UserDefinedLogicalNodeCore for PropertyPathNode {
     fn name(&self) -> &str {
         "Path"
     }
@@ -79,10 +89,15 @@ impl UserDefinedLogicalNodeCore for PathNode {
     }
 
     fn fmt_for_explain(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let graph_name = self
+            .graph_name_var
+            .as_ref()
+            .map(|v| v.to_string() + " ")
+            .unwrap_or("".to_owned());
         write!(
             f,
-            "Path: {} {} {} {}",
-            self.graph, self.subject, self.path, self.object
+            "Path: {}{} {} {}",
+            &graph_name, &self.subject, &self.path, &self.object
         )
     }
 
@@ -94,7 +109,8 @@ impl UserDefinedLogicalNodeCore for PathNode {
             return plan_err!("Expected 0 expressions but got {}", exprs.len());
         }
         Self::new(
-            self.graph.clone(),
+            self.active_graph.clone(),
+            self.graph_name_var.clone(),
             self.subject.clone(),
             self.path.clone(),
             self.object.clone(),
@@ -103,17 +119,14 @@ impl UserDefinedLogicalNodeCore for PathNode {
 }
 
 fn compute_schema(
-    graph: &GraphNamePattern,
+    graph: Option<&Variable>,
     subject: &TermPattern,
     object: &TermPattern,
 ) -> DFResult<DFSchemaRef> {
-    // let patterns: Vec<_> = match graph {
-    //     None => vec![subject.clone().into(), object.clone().into()],
-    //     Some(graph) => vec![
-    //         graph.clone().into(),
-    //         subject.clone().into(),
-    //         object.clone().into(),
-    //     ],
-    // };
-    todo!()
+    let patterns = vec![
+        graph.map(|v| TermPattern::Variable(v.clone())),
+        Some(subject.clone()),
+        Some(object.clone()),
+    ];
+    compute_schema_for_pattern(&patterns)
 }

@@ -93,7 +93,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                     .iter()
                     .map(|arg| self.rewrite(arg))
                     .collect::<DFResult<Vec<_>>>()?;
-                Ok(self.expr_builder.coalesce(args))
+                self.expr_builder.coalesce(args)
             }
         }
     }
@@ -163,7 +163,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                 let arg = unary_args(args)?;
                 self.expr_builder.str_len(arg)
             }
-            Function::SubStr => Ok(match args.len() {
+            Function::SubStr => match args.len() {
                 2 => {
                     let (lhs, rhs) = binary_args(args)?;
                     self.expr_builder.substr(lhs, rhs)
@@ -173,7 +173,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                     self.expr_builder.substr_with_length(arg0, arg1, arg2)
                 }
                 _ => unreachable!("Unexpected number of args"),
-            }),
+            },
             Function::UCase => {
                 let arg = unary_args(args)?;
                 self.expr_builder.ucase(arg)
@@ -211,7 +211,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                 let (lhs, rhs) = binary_args(args)?;
                 self.expr_builder.lang_matches(lhs, rhs)
             }
-            Function::Regex => Ok(match args.len() {
+            Function::Regex => match args.len() {
                 2 => {
                     let (lhs, rhs) = binary_args(args)?;
                     self.expr_builder.regex(lhs, rhs)
@@ -221,8 +221,8 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                     self.expr_builder.regex_with_flags(arg0, arg1, arg2)
                 }
                 _ => unreachable!("Unexpected number of args"),
-            }),
-            Function::Replace => Ok(match args.len() {
+            },
+            Function::Replace => match args.len() {
                 3 => {
                     let (arg0, arg1, arg2) = ternary_args(args)?;
                     self.expr_builder.replace(arg0, arg1, arg2)
@@ -232,7 +232,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                     self.expr_builder.replace_with_flags(arg0, arg1, arg2, arg3)
                 }
                 _ => unreachable!("Unexpected number of args"),
-            }),
+            },
             // Numeric
             Function::Abs => {
                 let arg = unary_args(args)?;
@@ -460,7 +460,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         let test = self.rewrite(test)?;
         let if_true = self.rewrite(if_true)?;
         let if_false = self.rewrite(if_false)?;
-        Ok(self.expr_builder.sparql_if(vec![test, if_true, if_false]))
+        self.expr_builder.sparql_if(test, if_true, if_false)
     }
 }
 

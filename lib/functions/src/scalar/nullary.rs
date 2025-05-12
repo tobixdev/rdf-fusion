@@ -105,8 +105,7 @@ where
         &self,
         args: ScalarFunctionArgs<'_>,
     ) -> datafusion::common::Result<ColumnarValue> {
-        let results = (0..args.number_rows)
-            .map(|_| self.op.evaluate());
+        let results = (0..args.number_rows).map(|_| self.op.evaluate());
         let result = TEncoder::encode_terms(results)?;
         Ok(ColumnarValue::Array(result.into_array()))
     }

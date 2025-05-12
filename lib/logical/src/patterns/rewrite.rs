@@ -13,20 +13,20 @@ use spargebra::term::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
-pub struct PatternToProjectionRule {
+pub struct PatternLoweringRule {
     registry: GraphFusionFunctionRegistryRef,
 }
 
-impl PatternToProjectionRule {
-    /// Creates a new [PatternToProjectionRule].
+impl PatternLoweringRule {
+    /// Creates a new [PatternLoweringRule].
     pub fn new(registry: GraphFusionFunctionRegistryRef) -> Self {
         Self { registry }
     }
 }
 
-impl OptimizerRule for PatternToProjectionRule {
+impl OptimizerRule for PatternLoweringRule {
     fn name(&self) -> &str {
-        "pattern_to_projection_rule"
+        "pattern-node-lowering"
     }
 
     fn rewrite(

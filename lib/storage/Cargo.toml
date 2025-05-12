@@ -7,8 +7,6 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-# This should be removed in the future. Necessary for OxigraphMemory
-oxsdatatypes = "0.2.2"
 async-trait.workspace = true
 graphfusion-model.workspace = true
 datafusion.workspace = true
@@ -17,7 +15,6 @@ graphfusion-engine.workspace = true
 dashmap.workspace = true
 futures.workspace = true
 rustc-hash.workspace = true
-siphasher.workspace = true
 thiserror.workspace = true
 
 [lints]

@@ -12,16 +12,16 @@ use std::sync::Arc;
 
 /// TODO
 #[derive(Debug)]
-pub struct QuadsToScanAndFilterRule {
+pub struct QuadsLoweringRule {
     /// Used for creating expressions with GraphFusion builtins.
     registry: GraphFusionFunctionRegistryRef,
-    // Reference to the registered Quads Table.
+    /// Reference to the registered Quads Table.
     quads_table: Arc<dyn TableProvider>,
 }
 
-impl OptimizerRule for QuadsToScanAndFilterRule {
+impl OptimizerRule for QuadsLoweringRule {
     fn name(&self) -> &str {
-        "quads_to_scan_and_filter"
+        "quads-lowering"
     }
 
     fn rewrite(
@@ -45,7 +45,7 @@ impl OptimizerRule for QuadsToScanAndFilterRule {
     }
 }
 
-impl QuadsToScanAndFilterRule {
+impl QuadsLoweringRule {
     /// TODO
     pub fn new(
         registry: GraphFusionFunctionRegistryRef,

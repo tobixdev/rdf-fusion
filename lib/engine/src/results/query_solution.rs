@@ -17,8 +17,11 @@ use std::task::{ready, Context, Poll};
 /// A stream over [`QuerySolution`]s.
 /// ```
 pub struct QuerySolutionStream {
+    /// TODO
     variables: Arc<[Variable]>,
+    /// TODO
     inner: Option<SendableRecordBatchStream>,
+    /// TODO
     current: Option<<Vec<QuerySolution> as IntoIterator>::IntoIter>,
 }
 
@@ -93,7 +96,7 @@ fn to_query_solution(
     let num_rows = batch.num_rows();
 
     // Get column terms first - compute all terms for each column
-    let mut column_terms: Vec<Vec<Option<Term>>> = Vec::with_capacity(schema.fields().len());
+    let mut column_terms = Vec::with_capacity(schema.fields().len());
 
     for field in schema.fields() {
         let column =
@@ -124,7 +127,7 @@ fn to_query_solution(
                 QueryEvaluationError::InternalError(format!("Failed to decode terms: {e}"))
             })?;
 
-        column_terms.push(terms);
+        column_terms.push(terms.into_iter());
     }
 
     // Now build the solutions row by row
@@ -134,7 +137,7 @@ fn to_query_solution(
 
         // Get the term at index i from each column
         for column in &mut column_terms {
-            let term = column.pop().expect("Length is guaranteed");
+            let term = column.next().expect("Length is guaranteed");
             row_terms.push(term);
         }
 

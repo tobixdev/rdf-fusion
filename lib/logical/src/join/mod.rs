@@ -1,5 +1,5 @@
 mod logical;
-// mod rewrite;
+mod rewrite;
 
 pub use logical::*;
-// pub use rewrite::*;
+pub use rewrite::*;

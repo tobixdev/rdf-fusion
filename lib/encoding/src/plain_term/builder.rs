@@ -59,7 +59,7 @@ impl PlainTermArrayBuilder {
     /// TODO
     pub fn append_literal(&mut self, literal: LiteralRef<'_>) {
         self.append(
-            PlainTermType::BlankNode,
+            PlainTermType::Literal,
             literal.value(),
             Some(literal.datatype().as_str()),
             literal.language(),

@@ -1,8 +1,13 @@
 use crate::DFResult;
-use datafusion::common::{plan_err, Column, DFSchemaRef};
-use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+use datafusion::arrow::datatypes::{Field, Fields, Schema};
+use datafusion::common::{plan_err, Column, DFSchema, DFSchemaRef};
+use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore};
+use graphfusion_model::Variable;
 use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::env::var;
 use std::fmt;
+use std::sync::Arc;
 
 /// TODO
 #[derive(PartialEq, Eq, Hash)]
@@ -10,20 +15,28 @@ pub struct ExtendNode {
     /// TODO
     inner: LogicalPlan,
     /// TODO
-    variable: Column,
+    variable: Variable,
     /// TODO
     expression: Expr,
+    /// TODO
+    schema: DFSchemaRef,
 }
 
 impl ExtendNode {
     /// TODO
-    pub fn try_new(inner: LogicalPlan, variable: Column, expression: Expr) -> DFResult<Self> {
-        todo!()
-    }
+    pub fn try_new(inner: LogicalPlan, variable: Variable, expression: Expr) -> DFResult<Self> {
+        let column = Column::new_unqualified(variable.as_str());
+        if inner.schema().has_column(&column) {
+            return plan_err!("Variable {} already exists in schema.", variable);
+        }
 
-    /// TODO
-    pub fn schema(&self) -> DFSchemaRef {
-        todo!()
+        let schema = compute_schema(inner.clone(), &variable, &expression)?;
+        Ok(Self {
+            inner,
+            variable,
+            expression,
+            schema,
+        })
     }
 
     /// TODO
@@ -31,7 +44,7 @@ impl ExtendNode {
         &self.inner
     }
 
-    pub fn variable(&self) -> &Column {
+    pub fn variable(&self) -> &Variable {
         &self.variable
     }
 
@@ -63,7 +76,7 @@ impl UserDefinedLogicalNodeCore for ExtendNode {
     }
 
     fn schema(&self) -> &DFSchemaRef {
-        todo!()
+        &self.schema
     }
 
     fn expressions(&self) -> Vec<Expr> {
@@ -90,14 +103,27 @@ impl UserDefinedLogicalNodeCore for ExtendNode {
             return plan_err!("ExtendNode must exactly one expression.");
         }
 
-        todo!()
+        Self::try_new(inputs[0].clone(), self.variable.clone(), exprs[0].clone())
     }
 }
 
 fn compute_schema(
     inner: LogicalPlan,
-    variable: &Column,
+    variable: &Variable,
     expression: &Expr,
 ) -> DFResult<DFSchemaRef> {
-    todo!()
+    let column = Column::new_unqualified(variable.as_str());
+    let (data_type, _) = expression.data_type_and_nullable(inner.schema())?;
+
+    let mut fields = inner
+        .schema()
+        .fields()
+        .iter()
+        .map(|f| f.as_ref().clone())
+        .collect::<Vec<_>>();
+    fields.push(Field::new(column.name, data_type, false));
+
+    let fields = fields.into_iter().collect::<Fields>();
+    let schema = DFSchema::from_unqualified_fields(fields, HashMap::new())?;
+    Ok(Arc::new(schema))
 }

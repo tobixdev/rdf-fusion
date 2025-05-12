@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use crate::aggregates::ENC_AVG;
+use crate::builtin::BuiltinName;
+use crate::factory::GraphFusionUdafFactory;
 use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
@@ -11,10 +13,8 @@ use graphfusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::{EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use graphfusion_model::{Term, ThinError, ThinResult, TypedValue, TypedValueRef};
+use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
-use crate::aggregates::ENC_AVG;
-use crate::builtin::BuiltinName;
-use crate::factory::GraphFusionUdafFactory;
 
 pub static TYPED_VALUE_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
     create_udaf(

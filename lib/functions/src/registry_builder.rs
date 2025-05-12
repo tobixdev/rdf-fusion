@@ -1,6 +1,9 @@
 use crate::aggregates::{
     AvgUdafFactory, GroupConcatUdafFactory, MaxUdafFactory, MinUdafFactory, SumUdafFactory,
 };
+use crate::builtin::encoding::WithPlainTermEncodingFactory;
+use crate::builtin::encoding::WithSortableEncodingFactory;
+use crate::builtin::encoding::WithTypedValueEncodingFactory;
 use crate::builtin::native::BooleanAsRdfTermTypedValueFactory;
 use crate::builtin::native::EffectiveBooleanValueTypedValueFactory;
 use crate::builtin::query::IsCompatibleUdfFactory;
@@ -337,6 +340,20 @@ impl Default for GraphFusionFunctionRegistryBuilder {
         scalars.insert(
             FunctionName::Builtin(BuiltinName::AsBoolean),
             Arc::new(AsBooleanTypedValueFactory {}),
+        );
+
+        // Encoding Functions
+        scalars.insert(
+            FunctionName::Builtin(BuiltinName::WithPlainTermEncoding),
+            Arc::new(WithPlainTermEncodingFactory {}),
+        );
+        scalars.insert(
+            FunctionName::Builtin(BuiltinName::WithTypedValueEncoding),
+            Arc::new(WithTypedValueEncodingFactory {}),
+        );
+        scalars.insert(
+            FunctionName::Builtin(BuiltinName::WithSortableEncoding),
+            Arc::new(WithSortableEncodingFactory {}),
         );
 
         // Other Necessary Functions

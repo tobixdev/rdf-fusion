@@ -1,4 +1,4 @@
-use crate::active_graph::ActiveGraphInfo;
+use crate::active_graph::ActiveGraph;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use graphfusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
@@ -11,7 +11,7 @@ use std::fmt::{Display, Formatter};
 /// TODO
 #[derive(PartialEq, Eq, Hash)]
 pub struct QuadsNode {
-    active_graph: ActiveGraphInfo,
+    active_graph: ActiveGraph,
     subject: Option<Subject>,
     predicate: Option<NamedNode>,
     object: Option<Term>,
@@ -20,7 +20,7 @@ pub struct QuadsNode {
 impl QuadsNode {
     /// TODO
     pub fn new(
-        active_graph: ActiveGraphInfo,
+        active_graph: ActiveGraph,
         subject: Option<Subject>,
         predicate: Option<NamedNode>,
         object: Option<Term>,
@@ -34,7 +34,7 @@ impl QuadsNode {
     }
 
     /// TODO
-    pub fn active_graph(&self) -> &ActiveGraphInfo {
+    pub fn active_graph(&self) -> &ActiveGraph {
         &self.active_graph
     }
 

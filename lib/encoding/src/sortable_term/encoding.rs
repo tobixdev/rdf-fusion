@@ -1,6 +1,10 @@
 use crate::encoding::TermEncoding;
 use crate::plain_term::encoders::DefaultPlainTermEncoder;
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
+use crate::sortable_term::encoders::{
+    TermRefSortableTermEncoder, TypedValueRefSortableTermEncoder,
+};
+use crate::sortable_term::{SortableTermArray, SortableTermScalar};
 use crate::{DFResult, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
@@ -11,7 +15,7 @@ use std::sync::LazyLock;
 
 /// TODO
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SortableTermField {
+pub(crate) enum SortableTermEncodingField {
     /// TODO
     Type,
     /// TODO
@@ -20,28 +24,28 @@ pub(crate) enum SortableTermField {
     Bytes,
 }
 
-impl SortableTermField {
+impl SortableTermEncodingField {
     pub fn name(self) -> &'static str {
         match self {
-            SortableTermField::Type => "type",
-            SortableTermField::Numeric => "numeric",
-            SortableTermField::Bytes => "bytes",
+            SortableTermEncodingField::Type => "type",
+            SortableTermEncodingField::Numeric => "numeric",
+            SortableTermEncodingField::Bytes => "bytes",
         }
     }
 
     pub fn index(self) -> usize {
         match self {
-            SortableTermField::Type => 0,
-            SortableTermField::Numeric => 1,
-            SortableTermField::Bytes => 2,
+            SortableTermEncodingField::Type => 0,
+            SortableTermEncodingField::Numeric => 1,
+            SortableTermEncodingField::Bytes => 2,
         }
     }
 
     pub fn data_type(self) -> DataType {
         match self {
-            SortableTermField::Type => DataType::UInt8,
-            SortableTermField::Numeric => DataType::Float64,
-            SortableTermField::Bytes => DataType::Binary,
+            SortableTermEncodingField::Type => DataType::UInt8,
+            SortableTermEncodingField::Numeric => DataType::Float64,
+            SortableTermEncodingField::Bytes => DataType::Binary,
         }
     }
 }
@@ -49,18 +53,18 @@ impl SortableTermField {
 static FIELDS: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
         Field::new(
-            SortableTermField::Type.name(),
-            SortableTermField::Type.data_type(),
+            SortableTermEncodingField::Type.name(),
+            SortableTermEncodingField::Type.data_type(),
             false,
         ),
         Field::new(
-            SortableTermField::Numeric.name(),
-            SortableTermField::Numeric.data_type(),
+            SortableTermEncodingField::Numeric.name(),
+            SortableTermEncodingField::Numeric.data_type(),
             true,
         ),
         Field::new(
-            SortableTermField::Bytes.name(),
-            SortableTermField::Bytes.data_type(),
+            SortableTermEncodingField::Bytes.name(),
+            SortableTermEncodingField::Bytes.data_type(),
             false,
         ),
     ])
@@ -80,11 +84,11 @@ impl SortableTermEncoding {
 }
 
 impl TermEncoding for SortableTermEncoding {
-    type Array = PlainTermArray;
-    type Scalar = PlainTermScalar;
+    type Array = SortableTermArray;
+    type Scalar = SortableTermScalar;
 
     fn name() -> EncodingName {
-        EncodingName::PlainTerm
+        EncodingName::Sortable
     }
 
     fn data_type() -> DataType {
@@ -100,11 +104,11 @@ impl TermEncoding for SortableTermEncoding {
     }
 
     fn encode_scalar(term: TermRef<'_>) -> DFResult<Self::Scalar> {
-        DefaultPlainTermEncoder::encode_term(Ok(term))
+        TermRefSortableTermEncoder::encode_term(Ok(term))
     }
 
     fn encode_null_scalar() -> DFResult<Self::Scalar> {
-        DefaultPlainTermEncoder::encode_term(ThinError::expected())
+        TermRefSortableTermEncoder::encode_term(ThinError::expected())
     }
 }
 

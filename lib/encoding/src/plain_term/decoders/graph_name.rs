@@ -3,9 +3,7 @@ use crate::plain_term::{PlainTermEncoding, TermType};
 use crate::TermEncoding;
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
-use graphfusion_model::{
-    BlankNodeRef, GraphNameRef, NamedNodeRef, ThinError, ThinResult,
-};
+use graphfusion_model::{BlankNodeRef, GraphNameRef, NamedNodeRef, ThinError, ThinResult};
 
 #[derive(Debug)]
 pub struct GraphNameRefPlainTermDecoder {}

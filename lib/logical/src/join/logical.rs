@@ -4,6 +4,7 @@ use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 
 /// TODO
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -29,6 +30,7 @@ pub struct SparqlJoinNode {
     rhs: LogicalPlan,
     filter: Option<Expr>,
     join_type: SparqlJoinType,
+    schema: DFSchemaRef,
 }
 
 impl SparqlJoinNode {
@@ -39,12 +41,18 @@ impl SparqlJoinNode {
         filter: Option<Expr>,
         join_type: SparqlJoinType,
     ) -> DFResult<Self> {
-        todo!()
+        let schema = compute_schema(&lhs, &rhs);
+        Ok(Self {
+            lhs,
+            rhs,
+            filter,
+            join_type,
+            schema,
+        })
     }
 
-    /// TODO
-    pub fn schema(&self) -> DFSchemaRef {
-        todo!()
+    pub fn schema(&self) -> &DFSchemaRef {
+        &self.schema
     }
 
     /// TODO
@@ -90,7 +98,7 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
     }
 
     fn schema(&self) -> &DFSchemaRef {
-        todo!()
+        &self.schema
     }
 
     fn expressions(&self) -> Vec<Expr> {
@@ -127,10 +135,9 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
     }
 }
 
-fn compute_schema(
-    lhs: LogicalPlan,
-    rhs: LogicalPlan,
-    join_type: SparqlJoinType,
-) -> DFResult<DFSchemaRef> {
-    todo!()
+/// TODO
+fn compute_schema(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFSchemaRef {
+    let mut new_schema = lhs.schema().as_ref().clone();
+    new_schema.merge(rhs.schema());
+    Arc::new(new_schema)
 }

@@ -1,4 +1,4 @@
-use crate::{ActiveGraphInfo, DFResult};
+use crate::{ActiveGraph, DFResult};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_datafusion_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_distinct};
@@ -12,7 +12,8 @@ use graphfusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncodi
 use graphfusion_functions::builtin::BuiltinName;
 use graphfusion_functions::registry::GraphFusionFunctionRegistry;
 use graphfusion_functions::FunctionName;
-use graphfusion_model::{Iri, TermRef, ThinError, VariableRef};
+use graphfusion_model::{Iri, Literal, Term, TermRef, ThinError, VariableRef};
+use spargebra::term::NamedNode;
 use std::collections::HashMap;
 use std::ops::Not;
 // TODO maybe this expr stuff is good in a separate crate
@@ -42,11 +43,11 @@ impl GraphFusionExprBuilder<'_> {
     pub(crate) fn filter_active_graph(
         &self,
         expr: Expr,
-        active_graph: &ActiveGraphInfo,
+        active_graph: &ActiveGraph,
     ) -> DFResult<Expr> {
         match active_graph {
-            ActiveGraphInfo::DefaultGraph => Ok(expr.is_null()),
-            ActiveGraphInfo::NamedGraphs(named_graphs) => {
+            ActiveGraph::DefaultGraph => Ok(expr.is_null()),
+            ActiveGraph::NamedGraphs(named_graphs) => {
                 let filters = named_graphs
                     .iter()
                     .map(|g| self.filter_by_scalar(expr.clone(), g.as_ref().into()))
@@ -56,6 +57,7 @@ impl GraphFusionExprBuilder<'_> {
                     .reduce(and)
                     .expect("At least one active graph"))
             }
+            ActiveGraph::AnyNamedGraph => Ok(expr.is_not_null()),
         }
     }
 
@@ -114,298 +116,350 @@ impl<'a> GraphFusionExprBuilder<'a> {
         self.schema
     }
 
-    pub fn with_encoding(&self, value: Expr, target_encoding: EncodingName) -> DFResult<Expr> {
-        let actual_encoding = self.encoding(&value)?;
-        if actual_encoding == target_encoding {
-            return Ok(value);
-        }
-
-        let builtin = match target_encoding {
-            EncodingName::PlainTerm => BuiltinName::WithPlainTermEncoding,
-            EncodingName::TypedValue => BuiltinName::WithTypedValueEncoding,
-            EncodingName::Sortable => BuiltinName::WithSortableEncoding,
-        };
-
-        let udf = self
-            .registry
-            .udf_factory(FunctionName::Builtin(builtin))
-            .create_with_args(HashMap::new())?;
-        Ok(udf.call(vec![value]))
+    pub fn sparql_if(&self, test: Expr, if_true: Expr, if_false: Expr) -> DFResult<Expr> {
+        self.apply_builtin(BuiltinName::Coalesce, vec![test, if_true, if_false])
     }
 
-    pub fn sparql_if(&self, p0: Vec<Expr>) -> Expr {
-        todo!()
-    }
-
-    pub fn is_compatible(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
-        todo!()
-    }
-
-    pub fn coalesce(&self, args: Vec<Expr>) -> Expr {
-        todo!()
+    pub fn coalesce(&self, args: Vec<Expr>) -> DFResult<Expr> {
+        self.apply_builtin(BuiltinName::Coalesce, args)
     }
 
     pub fn as_string(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::AsString;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn as_date_time(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::AsDateTime;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn as_decimal(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::AsDecimal;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn as_double(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::AsDouble;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn as_float(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::AsFloat;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn as_integer(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::AsInteger;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn as_int(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::AsInt;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn as_boolean(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::AsBoolean;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn sha512(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Sha512;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn sha384(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Sha384;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn sha256(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Sha256;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn sha1(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Sha1;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn md5(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Md5;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn tz(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Tz;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn timezone(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Timezone;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn seconds(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Seconds;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn minutes(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Minutes;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn hours(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Hours;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn day(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Day;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn month(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Month;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn year(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Year;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn rand(&self) -> DFResult<Expr> {
-        todo!()
+        let udf = self
+            .registry
+            .udf_factory(FunctionName::Builtin(BuiltinName::Rand))
+            .create_with_args(HashMap::new())?;
+        Ok(udf.call(vec![]))
     }
 
-    pub fn replace_with_flags(&self, p0: Expr, p1: Expr, p2: Expr, p3: Expr) -> Expr {
-        todo!()
+    pub fn replace_with_flags(&self, p0: Expr, p1: Expr, p2: Expr, p3: Expr) -> DFResult<Expr> {
+        self.apply_builtin(BuiltinName::Replace, vec![p0, p1, p2, p3])
     }
 
-    /// TODO
-    pub fn replace(&self, p0: Expr, p1: Expr, p2: Expr) -> Expr {
-        todo!()
+    pub fn replace(&self, p0: Expr, p1: Expr, p2: Expr) -> DFResult<Expr> {
+        self.apply_builtin(BuiltinName::Replace, vec![p0, p1, p2])
     }
 
-    /// TODO
     pub fn abs(&self, val: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Abs;
+        self.apply_builtin(name, vec![val])
     }
 
-    /// TODO
     pub fn round(&self, val: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Round;
+        self.apply_builtin(name, vec![val])
     }
 
-    /// TODO
     pub fn ceil(&self, val: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Ceil;
+        self.apply_builtin(name, vec![val])
     }
 
-    /// TODO
     pub fn floor(&self, val: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Floor;
+        self.apply_builtin(name, vec![val])
     }
 
-    pub fn regex_with_flags(&self, p0: Expr, p1: Expr, p2: Expr) -> Expr {
-        todo!()
+    pub fn regex_with_flags(&self, p0: Expr, p1: Expr, p2: Expr) -> DFResult<Expr> {
+        self.apply_builtin(BuiltinName::Regex, vec![p0, p1, p2])
     }
 
-    pub fn regex(&self, p0: Expr, p1: Expr) -> Expr {
-        todo!()
+    pub fn regex(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
+        self.apply_builtin(BuiltinName::Regex, vec![p0, p1])
     }
 
     pub fn lang_matches(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::LangMatches;
+        self.apply_builtin(name, vec![p0, p1])
     }
 
     pub fn encode_for_uri(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::EncodeForUri;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn concat(&self, args: Vec<Expr>) -> DFResult<Expr> {
-        todo!()
+        self.apply_builtin(BuiltinName::Concat, args)
     }
 
     pub fn str_after(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::StrAfter;
+        self.apply_builtin(name, vec![p0, p1])
     }
 
     pub fn str_before(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::StrBefore;
+        self.apply_builtin(name, vec![p0, p1])
     }
 
     pub fn str_ends(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::StrEnds;
+        self.apply_builtin(name, vec![p0, p1])
     }
+
     pub fn contains(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Contains;
+        self.apply_builtin(name, vec![p0, p1])
     }
 
     pub fn str_starts(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::StrStarts;
+        self.apply_builtin(name, vec![p0, p1])
     }
 
     pub fn lcase(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::LCase;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn ucase(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::UCase;
+        self.apply_builtin(name, vec![p0])
     }
 
-    pub fn substr_with_length(&self, p0: Expr, p1: Expr, p2: Expr) -> Expr {
-        todo!()
+    pub fn substr_with_length(&self, p0: Expr, p1: Expr, p2: Expr) -> DFResult<Expr> {
+        self.apply_builtin(BuiltinName::SubStr, vec![p0, p1, p2])
     }
 
-    pub fn substr(&self, p0: Expr, p1: Expr) -> Expr {
-        todo!()
+    pub fn substr(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
+        let name = BuiltinName::SubStr;
+        self.apply_builtin(name, vec![p0, p1])
     }
 
     pub fn str_len(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::StrLen;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn str_uuid(&self) -> DFResult<Expr> {
-        todo!()
+        let udf = self
+            .registry
+            .udf_factory(FunctionName::Builtin(BuiltinName::StrUuid))
+            .create_with_args(HashMap::new())?;
+        Ok(udf.call(vec![]))
     }
 
     pub fn uuid(&self) -> DFResult<Expr> {
-        todo!()
+        let udf = self
+            .registry
+            .udf_factory(FunctionName::Builtin(BuiltinName::Uuid))
+            .create_with_args(HashMap::new())?;
+        Ok(udf.call(vec![]))
     }
 
     pub fn str_lang(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::StrLang;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn str_dt(&self, p0: Expr, p1: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::StrDt;
+        self.apply_builtin(name, vec![p0, p1])
     }
 
-    pub fn bnode_from(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+    pub fn bnode_from(&self, value: Expr) -> DFResult<Expr> {
+        let name = BuiltinName::BNode;
+        self.apply_builtin(name, vec![value])
     }
 
     pub fn bnode(&self) -> DFResult<Expr> {
-        todo!()
+        let udf = self
+            .registry
+            .udf_factory(FunctionName::Builtin(BuiltinName::BNode))
+            .create_with_args(HashMap::new())?;
+        Ok(udf.call(vec![]))
     }
 
     pub fn iri(&self, p0: Option<&Iri<String>>, p1: Expr) -> DFResult<Expr> {
-        todo!()
+        let mut args = HashMap::new();
+        if let Some(base) = p0 {
+            let literal = NamedNode::new_unchecked(base.as_str());
+            args.insert("base".to_string(), Term::from(literal));
+        }
+
+        let udf = self
+            .registry
+            .udf_factory(FunctionName::Builtin(BuiltinName::Iri))
+            .create_with_args(args)?;
+        Ok(udf.call(vec![p1]))
     }
 
     pub fn datatype(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Datatype;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn lang(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Lang;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn str(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::Str;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn is_numeric(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::IsNumeric;
+        self.apply_builtin(name, vec![p0])
     }
 
     pub fn is_literal(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+        let name = BuiltinName::IsLiteral;
+        self.apply_builtin(name, vec![p0])
     }
 
-    pub fn is_blank(&self, p0: Expr) -> DFResult<Expr> {
-        todo!()
+    /// TODO
+    pub fn is_blank(&self, value: Expr) -> DFResult<Expr> {
+        let name = BuiltinName::IsBlank;
+        self.apply_builtin(name, vec![value])
     }
 
     /// TODO
     pub fn is_iri(&self, value: Expr) -> DFResult<Expr> {
-        self.unary_udf(BuiltinName::IsIri, value)
+        let name = BuiltinName::IsIri;
+        self.apply_builtin(name, vec![value])
     }
 
     /// TODO
     pub fn unary_plus(&self, value: Expr) -> DFResult<Expr> {
-        self.unary_udf(BuiltinName::UnaryPlus, value)
+        let name = BuiltinName::UnaryPlus;
+        self.apply_builtin(name, vec![value])
     }
 
     /// TODO
     pub fn unary_minus(&self, value: Expr) -> DFResult<Expr> {
-        self.unary_udf(BuiltinName::UnaryMinus, value)
+        let name = BuiltinName::UnaryMinus;
+        self.apply_builtin(name, vec![value])
     }
 
     /// TODO
     pub fn add(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::Add, lhs, rhs)
+        let name = BuiltinName::Add;
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
     pub fn sub(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::Sub, lhs, rhs)
+        let name = BuiltinName::Sub;
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
     pub fn mul(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::Mul, lhs, rhs)
+        let name = BuiltinName::Mul;
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
     pub fn div(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::Div, lhs, rhs)
+        let name = BuiltinName::Div;
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
@@ -456,32 +510,38 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
     /// TODO
     pub fn equal(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::Equal, lhs, rhs)
+        let name = BuiltinName::Equal;
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
     pub fn greater_than(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::GreaterThan, lhs, rhs)
+        let name = BuiltinName::GreaterThan;
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
     pub fn greater_or_equal(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::GreaterOrEqual, lhs, rhs)
+        let name = BuiltinName::GreaterOrEqual;
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
     pub fn less_than(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::LessThan, lhs, rhs)
+        let name = BuiltinName::LessThan;
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
     pub fn less_or_equal(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::LessOrEqual, lhs, rhs)
+        let name = BuiltinName::LessOrEqual;
+        self.apply_builtin(name, vec![lhs, rhs])
     }
 
     /// TODO
     pub fn bound(&self, expr: Expr) -> DFResult<Expr> {
-        self.unary_udf(BuiltinName::Bound, expr)
+        let name = BuiltinName::Bound;
+        self.apply_builtin(name, vec![expr])
     }
 
     /// TODO
@@ -507,12 +567,18 @@ impl<'a> GraphFusionExprBuilder<'a> {
     /// TODO
     pub fn effective_boolean_value(&self, expr: Expr) -> DFResult<Expr> {
         let encoding = self.encoding(&expr).unwrap();
-        self.unary_udf(BuiltinName::EffectiveBooleanValue, expr)
+        let name = BuiltinName::EffectiveBooleanValue;
+        self.apply_builtin(name, vec![expr])
     }
 
     /// TODO
     pub fn same_term(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.binary_udf(BuiltinName::SameTerm, lhs, rhs)
+        self.apply_builtin(BuiltinName::SameTerm, vec![lhs, rhs])
+    }
+
+    /// TODO
+    pub fn is_compatible(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
+        self.apply_builtin(BuiltinName::IsCompatible, vec![lhs, rhs])
     }
 
     /// TODO
@@ -529,7 +595,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
                 return plan_err!("Filtering not supported for Sortable encoding.")
             }
         };
-        self.same_term(expr, lit(literal))
+        self.effective_boolean_value(self.same_term(expr, lit(literal))?)
     }
 
     /// Tries to obtain the encoding from a given expression.
@@ -551,13 +617,23 @@ impl<'a> GraphFusionExprBuilder<'a> {
     }
 
     /// TODO
-    fn unary_udf(&self, name: BuiltinName, value: Expr) -> DFResult<Expr> {
-        self.apply_builtin(name, vec![value])
-    }
+    pub fn with_encoding(&self, expr: Expr, target_encoding: EncodingName) -> DFResult<Expr> {
+        let actual_encoding = self.encoding(&expr)?;
+        if actual_encoding == target_encoding {
+            return Ok(expr);
+        }
 
-    /// TODO
-    fn binary_udf(&self, name: BuiltinName, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.apply_builtin(name, vec![lhs, rhs])
+        let builtin = match target_encoding {
+            EncodingName::PlainTerm => BuiltinName::WithPlainTermEncoding,
+            EncodingName::TypedValue => BuiltinName::WithTypedValueEncoding,
+            EncodingName::Sortable => BuiltinName::WithSortableEncoding,
+        };
+
+        let udf = self
+            .registry
+            .udf_factory(FunctionName::Builtin(builtin))
+            .create_with_args(HashMap::new())?;
+        Ok(udf.call(vec![expr]))
     }
 
     /// TODO

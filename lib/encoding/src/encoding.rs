@@ -1,3 +1,6 @@
+use crate::plain_term::PlainTermEncoding;
+use crate::sortable_term::SortableTermEncoding;
+use crate::typed_value::TypedValueEncoding;
 use crate::DFResult;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
@@ -15,6 +18,28 @@ pub enum EncodingName {
     TypedValue,
     /// TODO
     Sortable,
+}
+
+impl EncodingName {
+    /// TODO
+    ///
+    /// Remove this in the future for a state-full implementation that has access to registered
+    /// encodings.
+    pub fn try_from_data_type(data_type: &DataType) -> Option<Self> {
+        if data_type == &TypedValueEncoding::data_type() {
+            return Some(EncodingName::TypedValue);
+        }
+
+        if data_type == &PlainTermEncoding::data_type() {
+            return Some(EncodingName::PlainTerm);
+        }
+
+        if data_type == &SortableTermEncoding::data_type() {
+            return Some(EncodingName::Sortable);
+        }
+
+        None
+    }
 }
 
 /// Represents an arrow [Array] with a specific Encoding.

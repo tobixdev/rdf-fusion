@@ -9,7 +9,7 @@ pub mod paths;
 pub mod patterns;
 pub mod quads;
 
-pub use active_graph::ActiveGraphInfo;
+pub use active_graph::ActiveGraph;
 pub use expr_builder::GraphFusionExprBuilder;
 pub use logical_plan_builder::GraphFusionLogicalPlanBuilder;
 

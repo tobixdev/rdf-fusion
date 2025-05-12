@@ -1,23 +1,30 @@
 use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
 use crate::{DFResult, FunctionName};
-use datafusion::arrow::array::{as_union_array, StructArray};
+use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{exec_datafusion_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
+use graphfusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
+use graphfusion_encoding::sortable_term::encoders::{
+    TermRefSortableTermEncoder, TypedValueRefSortableTermEncoder,
+};
+use graphfusion_encoding::sortable_term::SortableTermEncoding;
+use graphfusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingName, TermEncoding};
-use graphfusion_model::{Term, ThinResult, TypedValueRef};
+use graphfusion_encoding::{
+    EncodingArray, EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
+};
+use graphfusion_model::Term;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
-use graphfusion_encoding::sortable_term::SortableTermArrayBuilder;
 
 #[derive(Debug)]
-struct WithSortableEncodingFactory;
+pub struct WithSortableEncodingFactory;
 
 impl GraphFusionUdfFactory for WithSortableEncodingFactory {
     fn name(&self) -> FunctionName {
@@ -29,15 +36,13 @@ impl GraphFusionUdfFactory for WithSortableEncodingFactory {
     }
 
     fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
-        let udf = ScalarUDF::new_from_impl(
-            WithSortableEncoding::new(self.name()),
-        );
+        let udf = ScalarUDF::new_from_impl(WithSortableEncoding::new(self.name()));
         Ok(Arc::new(udf))
     }
 }
 
 #[derive(Debug)]
-pub struct WithSortableEncoding {
+struct WithSortableEncoding {
     name: String,
     signature: Signature,
 }
@@ -58,6 +63,42 @@ impl WithSortableEncoding {
             ),
         }
     }
+
+    fn convert_scalar(encoding_name: EncodingName, scalar: ScalarValue) -> DFResult<ColumnarValue> {
+        match encoding_name {
+            EncodingName::PlainTerm => {
+                let scalar = PlainTermEncoding::try_new_scalar(scalar)?;
+                let input = DefaultPlainTermDecoder::decode_term(&scalar);
+                let result = TermRefSortableTermEncoder::encode_term(input)?;
+                Ok(ColumnarValue::Scalar(result.into_scalar_value()))
+            }
+            EncodingName::TypedValue => {
+                let scalar = TypedValueEncoding::try_new_scalar(scalar)?;
+                let input = DefaultTypedValueDecoder::decode_term(&scalar);
+                let result = TypedValueRefSortableTermEncoder::encode_term(input)?;
+                Ok(ColumnarValue::Scalar(result.into_scalar_value()))
+            }
+            EncodingName::Sortable => Ok(ColumnarValue::Scalar(scalar)),
+        }
+    }
+
+    fn convert_array(encoding_name: EncodingName, array: ArrayRef) -> DFResult<ColumnarValue> {
+        match encoding_name {
+            EncodingName::PlainTerm => {
+                let array = PlainTermEncoding::try_new_array(array)?;
+                let input = DefaultPlainTermDecoder::decode_terms(&array);
+                let result = TermRefSortableTermEncoder::encode_terms(input)?;
+                Ok(ColumnarValue::Array(result.into_array()))
+            }
+            EncodingName::TypedValue => {
+                let array = TypedValueEncoding::try_new_array(array)?;
+                let input = DefaultTypedValueDecoder::decode_terms(&array);
+                let result = TypedValueRefSortableTermEncoder::encode_terms(input)?;
+                Ok(ColumnarValue::Array(result.into_array()))
+            }
+            EncodingName::Sortable => Ok(ColumnarValue::Array(array)),
+        }
+    }
 }
 
 impl ScalarUDFImpl for WithSortableEncoding {
@@ -74,65 +115,19 @@ impl ScalarUDFImpl for WithSortableEncoding {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(SortableTerm::data_type())
+        Ok(SortableTermEncoding::data_type())
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
-        if args.args.len() != 1 {
-            return exec_err!("Unexpected number of arguments");
-        }
+        let args = TryInto::<[ColumnarValue; 1]>::try_into(args.args)
+            .map_err(|_| exec_datafusion_err!("Invalid number of arguments."))?;
+        let encoding_name = EncodingName::try_from_data_type(&args[0].data_type()).ok_or(
+            exec_datafusion_err!("Cannot obtain encoding from argument."),
+        )?;
 
-        match &args.args[0] {
-            ColumnarValue::Array(array) => {
-                let array = as_union_array(array);
-                let values = (0..args.number_rows).map(|i| TypedValueRef::from_array(array, i));
-                let result = into_struct_enc(values);
-                Ok(ColumnarValue::Array(Arc::new(result)))
-            }
-            ColumnarValue::Scalar(scalar) => {
-                let term = TypedValueRef::from_scalar(scalar);
-                let result = into_struct_enc([term]);
-                Ok(ColumnarValue::Scalar(ScalarValue::try_from_array(
-                    &result, 0,
-                )?))
-            }
+        match args {
+            [ColumnarValue::Array(array)] => Self::convert_array(encoding_name, array),
+            [ColumnarValue::Scalar(scalar)] => Self::convert_scalar(encoding_name, scalar),
         }
     }
-}
-
-fn into_struct_enc<'data>(
-    terms: impl IntoIterator<Item = ThinResult<TypedValueRef<'data>>>,
-) -> StructArray {
-    let terms_iter = terms.into_iter();
-
-    let (_, size_upper_bound) = terms_iter.size_hint();
-    let mut builder = SortableTermArrayBuilder::new(size_upper_bound.unwrap_or(0));
-
-    for term in terms_iter {
-        if let Ok(term) = term {
-            match term {
-                TypedValueRef::NamedNode(v) => builder.append_named_node(v),
-                TypedValueRef::BlankNode(v) => builder.append_blank_node(v),
-                TypedValueRef::BooleanLiteral(v) => builder.append_boolean(v),
-                TypedValueRef::NumericLiteral(v) => {
-                    builder.append_numeric(v, v.to_be_bytes().as_ref())
-                }
-                TypedValueRef::SimpleLiteral(v) => builder.append_string(v.value),
-                TypedValueRef::LanguageStringLiteral(v) => builder.append_string(v.value),
-                TypedValueRef::DateTimeLiteral(v) => builder.append_date_time(v),
-                TypedValueRef::TimeLiteral(v) => builder.append_time(v),
-                TypedValueRef::DateLiteral(v) => builder.append_date(v),
-                TypedValueRef::DurationLiteral(v) => builder.append_duration(v),
-                TypedValueRef::YearMonthDurationLiteral(v) => {
-                    builder.append_year_month_duration(v)
-                }
-                TypedValueRef::DayTimeDurationLiteral(v) => builder.append_day_time_duration(v),
-                TypedValueRef::OtherLiteral(v) => builder.append_literal(v),
-            }
-        } else {
-            builder.append_null()
-        }
-    }
-
-    builder.finish()
 }

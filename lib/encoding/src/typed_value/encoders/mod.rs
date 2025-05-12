@@ -1,6 +1,7 @@
 mod default;
-#[macro_use]
 mod simple;
+mod terms;
 
-pub use default::DefaultTypedValueEncoder;
+pub use default::*;
 pub use simple::*;
+pub use terms::*;

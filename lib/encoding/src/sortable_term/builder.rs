@@ -1,13 +1,14 @@
-use crate::sortable_term::encoding::{SortableTermEncoding, SortableTermField};
+use crate::sortable_term::encoding::{SortableTermEncoding, SortableTermEncodingField};
 use crate::sortable_term::term_type::SortableTermType;
 use datafusion::arrow::array::{
-    BinaryBuilder, Float64Builder, StructArray, StructBuilder, UInt8Builder,
+    ArrayRef, BinaryBuilder, Float64Builder, StructArray, StructBuilder, UInt8Builder,
 };
 use graphfusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef};
 use graphfusion_model::{
     Boolean, Date, DateTime, DayTimeDuration, Double, Duration, Integer, Numeric, Time,
     YearMonthDuration,
 };
+use std::sync::Arc;
 
 pub struct SortableTermArrayBuilder {
     builder: StructBuilder,
@@ -111,13 +112,13 @@ impl SortableTermArrayBuilder {
 
     fn append(&mut self, sort_type: SortableTermType, numeric: Option<Double>, bytes: &[u8]) {
         self.builder
-            .field_builder::<UInt8Builder>(SortableTermField::Type.index())
+            .field_builder::<UInt8Builder>(SortableTermEncodingField::Type.index())
             .unwrap()
             .append_value(sort_type.as_u8());
 
         let numeric_builder = self
             .builder
-            .field_builder::<Float64Builder>(SortableTermField::Numeric.index())
+            .field_builder::<Float64Builder>(SortableTermEncodingField::Numeric.index())
             .unwrap();
         match numeric {
             None => numeric_builder.append_null(),
@@ -126,14 +127,14 @@ impl SortableTermArrayBuilder {
 
         let bytes_builder = self
             .builder
-            .field_builder::<BinaryBuilder>(SortableTermField::Bytes.index())
+            .field_builder::<BinaryBuilder>(SortableTermEncodingField::Bytes.index())
             .unwrap();
         bytes_builder.append_value(bytes);
 
         self.builder.append(true)
     }
 
-    pub fn finish(mut self) -> StructArray {
-        self.builder.finish()
+    pub fn finish(mut self) -> ArrayRef {
+        Arc::new(self.builder.finish())
     }
 }

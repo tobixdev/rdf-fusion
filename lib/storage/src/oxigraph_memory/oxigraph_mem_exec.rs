@@ -131,8 +131,7 @@ impl Stream for OxigraphMemStream {
         mut self: std::pin::Pin<&mut Self>,
         _ctx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        let mut rb_builder =
-            RdfQuadsRecordBatchBuilder::new(Arc::clone(&self.schema));
+        let mut rb_builder = RdfQuadsRecordBatchBuilder::new(Arc::clone(&self.schema));
 
         while let Some(quad) = self.iterator.next() {
             let result = rb_builder.encode_quad(&quad);

@@ -1,10 +1,11 @@
-use crate::active_graph::ActiveGraphInfo;
+use crate::active_graph::ActiveGraph;
 use crate::extend::ExtendNode;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
-use crate::paths::PathNode;
-use crate::patterns::QuadPatternNode;
+use crate::paths::PropertyPathNode;
+use crate::patterns::PatternNode;
 use crate::quads::QuadsNode;
 use crate::{DFResult, GraphFusionExprBuilder};
+use datafusion::arrow::compute::sort;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::{plan_datafusion_err, Column, DFSchema, DFSchemaRef, JoinType};
 use datafusion::logical_expr::{
@@ -13,7 +14,7 @@ use datafusion::logical_expr::{
 };
 use graphfusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
-use graphfusion_encoding::{EncodingScalar, TermEncoder, TermEncoding};
+use graphfusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_model::{NamedNode, Subject, Term, TermRef, ThinError, Variable};
 use spargebra::algebra::PropertyPathExpression;
@@ -43,7 +44,7 @@ impl GraphFusionLogicalPlanBuilder {
     /// TODO
     pub fn new_from_quads(
         registry: GraphFusionFunctionRegistryRef,
-        active_graph: ActiveGraphInfo,
+        active_graph: ActiveGraph,
         subject: Option<Subject>,
         predicate: Option<NamedNode>,
         object: Option<Term>,
@@ -127,12 +128,20 @@ impl GraphFusionLogicalPlanBuilder {
     /// - [SPARQL 1.1 - Basic Graph Patterns](https://www.w3.org/TR/sparql11-query/#BasicGraphPatterns)
     pub fn new_from_bgp(
         registry: GraphFusionFunctionRegistryRef,
-        graph_name: &GraphNamePattern,
+        active_graph: &ActiveGraph,
+        graph_variables: Option<&Variable>,
         patterns: &[TriplePattern],
     ) -> DFResult<GraphFusionLogicalPlanBuilder> {
         patterns
             .iter()
-            .map(|p| Self::new_from_pattern(Arc::clone(&registry), graph_name.clone(), p.clone()))
+            .map(|p| {
+                Self::new_from_pattern(
+                    Arc::clone(&registry),
+                    active_graph.clone(),
+                    graph_variables.cloned(),
+                    p.clone(),
+                )
+            })
             .reduce(|lhs, rhs| lhs?.join(rhs?.build()?, SparqlJoinType::Inner, None))
             .unwrap_or_else(|| {
                 Ok(GraphFusionLogicalPlanBuilder::new_with_empty_solution(
@@ -141,24 +150,28 @@ impl GraphFusionLogicalPlanBuilder {
             })
     }
 
-    /// Creates a new [GraphFusionLogicalPlanBuilder] that holds the given VALUES as RDF terms.
-    ///
-    /// The [PlainTermEncoding] is used for encoding the terms.
+    /// TODO
     pub fn new_from_pattern(
         registry: GraphFusionFunctionRegistryRef,
-        graph_name: GraphNamePattern,
+        active_graph: ActiveGraph,
+        graph_variables: Option<Variable>,
         pattern: TriplePattern,
     ) -> DFResult<Self> {
-        let quad_node = QuadPattern {
-            graph_name,
-            subject: pattern.subject,
-            predicate: pattern.predicate,
-            object: pattern.object,
-        };
-        let quad_node_pattern = QuadPatternNode::new(quad_node);
+        let quad = QuadsNode::new(active_graph, None, None, None);
+
+        let quads_plan = create_extension_plan(quad).build()?;
+        let pattern = PatternNode::try_new(
+            quads_plan,
+            vec![
+                graph_variables.map(|v| TermPattern::Variable(v)),
+                Some(pattern.subject),
+                Some(pattern.predicate.into()),
+                Some(pattern.object),
+            ],
+        )?;
 
         Ok(Self {
-            plan_builder: create_extension_plan(quad_node_pattern),
+            plan_builder: create_extension_plan(pattern),
             registry,
         })
     }
@@ -166,13 +179,15 @@ impl GraphFusionLogicalPlanBuilder {
     /// TODO
     pub fn new_from_property_path(
         registry: GraphFusionFunctionRegistryRef,
-        graph_name: GraphNamePattern,
+        active_graph: ActiveGraph,
+        graph_variable: Option<Variable>,
         path: PropertyPathExpression,
         subject: TermPattern,
         object: TermPattern,
     ) -> DFResult<GraphFusionLogicalPlanBuilder> {
-        let node = PathNode::new(
-            graph_name.clone(),
+        let node = PropertyPathNode::new(
+            active_graph,
+            graph_variable.clone(),
             subject.clone(),
             path.clone(),
             object.clone(),
@@ -207,6 +222,7 @@ impl GraphFusionLogicalPlanBuilder {
             // Otherwise, obtain the EBV. This will trigger an error on an unknown encoding.
             _ => self.expr_builder().effective_boolean_value(expression)?,
         };
+
         Ok(Self {
             registry: self.registry,
             plan_builder: self.plan_builder.filter(expression)?,
@@ -216,8 +232,7 @@ impl GraphFusionLogicalPlanBuilder {
     /// TODO
     pub fn extend(self, variable: Variable, expr: Expr) -> DFResult<GraphFusionLogicalPlanBuilder> {
         let inner = self.plan_builder.build()?;
-        let column = Column::new_unqualified(variable.as_str());
-        let extend_node = ExtendNode::try_new(inner, column, expr)?;
+        let extend_node = ExtendNode::try_new(inner, variable, expr)?;
         Ok(Self {
             registry: self.registry,
             plan_builder: create_extension_plan(extend_node),
@@ -406,26 +421,41 @@ impl GraphFusionLogicalPlanBuilder {
 
     /// TODO
     pub fn distinct(self) -> DFResult<GraphFusionLogicalPlanBuilder> {
-        // TODO ordering
-        // let sort_expr = get_sort_expressions(inner);
-        //
-        // let inner = self.rewrite_graph_pattern(inner)?;
-        // let columns = inner.schema().columns();
-        // let on_expr = create_distinct_on_expr(inner.schema(), sort_expr)?;
-        // let select_expr = columns.iter().map(|c| Expr::Column(c.clone())).collect();
-        // let sort_expr = sort_expr
-        //     .map(|exprs| {
-        //         exprs
-        //             .iter()
-        //             .map(|expr| self.rewrite_order_expression(inner.schema(), expr))
-        //             .collect::<Result<Vec<_>, _>>()
-        //     })
-        //     .transpose()?;
-        //
-        // inner.distinct_on(on_expr, select_expr, sort_expr)
+        self.distinct_with_sort(Vec::new())
+    }
+
+    /// TODO
+    pub fn distinct_with_sort(
+        self,
+        sorts: Vec<SortExpr>,
+    ) -> DFResult<GraphFusionLogicalPlanBuilder> {
+        let schema = self.plan_builder.schema();
+        let (on_expr, sorts) = create_distinct_on_expressions(self.expr_builder(), sorts.clone())?;
+        let select_expr = schema.columns().into_iter().map(|c| col(c)).collect();
+        let sorts = if sorts.is_empty() { None } else { Some(sorts) };
+
         Ok(Self {
             registry: self.registry,
-            plan_builder: self.plan_builder.distinct()?,
+            plan_builder: self.plan_builder.distinct_on(on_expr, select_expr, sorts)?,
+        })
+    }
+
+    /// TODO
+    pub fn with_plain_terms(self) -> DFResult<GraphFusionLogicalPlanBuilder> {
+        let expr_builder = self.expr_builder();
+        let with_correct_encoding = self
+            .schema()
+            .columns()
+            .into_iter()
+            .map(|c| {
+                expr_builder
+                    .with_encoding(col(c.clone()), EncodingName::PlainTerm)
+                    .map(|e| e.alias(c.name()))
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+        Ok(Self {
+            registry: self.registry,
+            plan_builder: self.plan_builder.project(with_correct_encoding)?,
         })
     }
 
@@ -449,6 +479,30 @@ impl GraphFusionLogicalPlanBuilder {
     pub fn build(self) -> DFResult<LogicalPlan> {
         self.plan_builder.build()
     }
+}
+
+/// TODO
+fn create_distinct_on_expressions(
+    expr_builder: GraphFusionExprBuilder<'_>,
+    mut sort_expr: Vec<SortExpr>,
+) -> DFResult<(Vec<Expr>, Vec<SortExpr>)> {
+    let mut on_expr = sort_expr
+        .iter()
+        .map(|se| se.expr.clone())
+        .collect::<Vec<_>>();
+
+    for column in expr_builder.schema().columns() {
+        let expr = col(column.clone());
+        let sortable_expr = expr_builder.with_encoding(expr.clone(), EncodingName::Sortable)?;
+
+        // If, initially, the sortable expression is already part of on_expr we don't re-add it.
+        if !on_expr.contains(&sortable_expr) {
+            on_expr.push(expr.clone());
+            sort_expr.push(SortExpr::new(expr, true, true))
+        }
+    }
+
+    Ok((on_expr, sort_expr))
 }
 
 /// TODO
