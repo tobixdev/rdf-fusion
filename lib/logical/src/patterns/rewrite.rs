@@ -78,7 +78,7 @@ pub fn compute_filters_for_pattern(
 /// For example, for the pattern `?a foaf:knows ?b` this functions adds a filter that ensures that
 /// the predicate is `foaf:knows`.
 fn filter_by_values(
-    expr_builder: &GraphFusionExprBuilder,
+    expr_builder: &GraphFusionExprBuilder<'_>,
     pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
     let filters = expr_builder
@@ -97,7 +97,7 @@ fn filter_by_values(
 /// For example, for the pattern `?a ?a ?b` this functions adds a constraint that ensures that the
 /// subject is equal to the predicate.
 fn filter_same_variable(
-    expr_builder: &GraphFusionExprBuilder,
+    expr_builder: &GraphFusionExprBuilder<'_>,
     pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
     let mut mappings = HashMap::new();
@@ -165,7 +165,7 @@ fn project_to_variables(
 
 /// Creates an [Expr] that filters `column` based on the contents of this element.
 fn create_filter_expression(
-    expr_builder: &GraphFusionExprBuilder,
+    expr_builder: &GraphFusionExprBuilder<'_>,
     column: &Column,
     pattern: Option<&TermPattern>,
 ) -> DFResult<Option<Expr>> {

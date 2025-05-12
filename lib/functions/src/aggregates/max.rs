@@ -1,8 +1,7 @@
-use crate::aggregates::ENC_AVG;
 use crate::builtin::BuiltinName;
 use crate::factory::GraphFusionUdafFactory;
 use crate::{DFResult, FunctionName};
-use datafusion::arrow::array::{Array, ArrayRef, AsArray};
+use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
@@ -32,7 +31,7 @@ pub struct MaxUdafFactory {}
 
 impl GraphFusionUdafFactory for MaxUdafFactory {
     fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::Avg)
+        FunctionName::Builtin(BuiltinName::Max)
     }
 
     fn encoding(&self) -> Vec<EncodingName> {
@@ -41,9 +40,9 @@ impl GraphFusionUdafFactory for MaxUdafFactory {
 
     fn create_with_args(
         &self,
-        constant_args: HashMap<String, Term>,
+        _constant_args: HashMap<String, Term>,
     ) -> DFResult<Arc<AggregateUDF>> {
-        Ok(Arc::clone(&ENC_AVG))
+        Ok(Arc::clone(&TYPED_VALUE_MAX))
     }
 }
 

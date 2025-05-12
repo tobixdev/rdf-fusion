@@ -48,14 +48,10 @@ impl GraphFusionInstance {
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(GraphFusionPlanner))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            .with_optimizer_rule(Arc::new(ExtendLoweringRule::new(
-                Arc::clone(&builtins),
-                storage.table_provider(),
-            )))
-            .with_optimizer_rule(Arc::new(PropertyPathLoweringRule::new(
-                Arc::clone(&builtins),
-                storage.table_provider(),
-            )))
+            .with_optimizer_rule(Arc::new(ExtendLoweringRule::new()))
+            .with_optimizer_rule(Arc::new(PropertyPathLoweringRule::new(Arc::clone(
+                &builtins,
+            ))))
             .with_optimizer_rule(Arc::new(SparqlJoinLoweringRule::new(Arc::clone(&builtins))))
             .with_optimizer_rule(Arc::new(PatternLoweringRule::new(Arc::clone(&builtins))))
             .with_optimizer_rule(Arc::new(QuadsLoweringRule::new(

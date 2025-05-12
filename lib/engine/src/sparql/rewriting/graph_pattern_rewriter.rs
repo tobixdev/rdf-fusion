@@ -1,12 +1,10 @@
 use crate::sparql::rewriting::expression_rewriter::ExpressionRewriter;
 use crate::sparql::QueryDataset;
 use crate::DFResult;
-use datafusion::common::tree_node::TreeNode;
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
-use datafusion::datasource::TableProvider;
 use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
-use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr, UserDefinedLogicalNode};
+use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
 use graphfusion_encoding::EncodingName;
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_logical::join::SparqlJoinType;
@@ -24,8 +22,6 @@ pub struct GraphPatternRewriter {
     registry: GraphFusionFunctionRegistryRef,
     dataset: QueryDataset,
     base_iri: Option<Iri<String>>,
-    // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
-    quads_table: Arc<dyn TableProvider>,
     state: RefCell<RewritingState>,
 }
 
@@ -34,13 +30,11 @@ impl GraphPatternRewriter {
         registry: GraphFusionFunctionRegistryRef,
         dataset: QueryDataset,
         base_iri: Option<Iri<String>>,
-        quads_table: Arc<dyn TableProvider>,
     ) -> Self {
         Self {
             registry,
             dataset,
             base_iri,
-            quads_table,
             state: RefCell::default(),
         }
     }

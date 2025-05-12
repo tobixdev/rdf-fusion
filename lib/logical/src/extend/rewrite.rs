@@ -1,23 +1,15 @@
 use crate::extend::ExtendNode;
 use crate::DFResult;
-use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::Column;
 use datafusion::logical_expr::{
     col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore,
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
-use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
-use std::sync::Arc;
 
 /// TODO
 #[derive(Debug)]
-pub struct ExtendLoweringRule {
-    /// Used for creating expressions with GraphFusion builtins.
-    registry: GraphFusionFunctionRegistryRef,
-    /// Reference to the registered Quads Table.
-    quads_table: Arc<dyn TableProvider>,
-}
+pub struct ExtendLoweringRule {}
 
 impl OptimizerRule for ExtendLoweringRule {
     fn name(&self) -> &str {
@@ -47,14 +39,8 @@ impl OptimizerRule for ExtendLoweringRule {
 
 impl ExtendLoweringRule {
     /// TODO
-    pub fn new(
-        registry: GraphFusionFunctionRegistryRef,
-        quads_table: Arc<dyn TableProvider>,
-    ) -> Self {
-        Self {
-            registry,
-            quads_table,
-        }
+    pub fn new() -> Self {
+        Self {}
     }
 
     /// TODO

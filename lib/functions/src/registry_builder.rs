@@ -4,6 +4,8 @@ use crate::aggregates::{
 use crate::builtin::encoding::WithPlainTermEncodingFactory;
 use crate::builtin::encoding::WithSortableEncodingFactory;
 use crate::builtin::encoding::WithTypedValueEncodingFactory;
+use crate::builtin::logical::SparqlAndFactory;
+use crate::builtin::logical::SparqlOrFactory;
 use crate::builtin::native::BooleanAsRdfTermTypedValueFactory;
 use crate::builtin::native::EffectiveBooleanValueTypedValueFactory;
 use crate::builtin::query::IsCompatibleUdfFactory;
@@ -24,7 +26,7 @@ use crate::scalar::{
     LCaseTypedValueFactory, LangMatchesTypedValueFactory, LangTypedValueFactory,
     LessOrEqualTypedValueFactory, LessThanTypedValueFactory, Md5TypedValueFactory,
     MinutesTypedValueFactory, MonthTypedValueFactory, MulTypedValueFactory, RandTypedValueFactory,
-    RegexTypedValueFactory, ReplaceTypedValueFactory, RoundTypedValueFactory,
+    RegexBinaryTypedValueFactory, ReplaceTypedValueFactory, RoundTypedValueFactory,
     SameTermTypedValueFactory, SecondsTypedValueFactory, Sha1TypedValueFactory,
     Sha256TypedValueFactory, Sha384TypedValueFactory, Sha512TypedValueFactory,
     StrAfterTypedValueFactory, StrBeforeTypedValueFactory, StrDtTypedValueFactory,
@@ -37,7 +39,6 @@ use crate::scalar::{
 use crate::{DFResult, FunctionName};
 use std::collections::HashMap;
 use std::sync::Arc;
-
 /// TODO
 #[derive(Debug)]
 pub struct GraphFusionFunctionRegistryBuilder {
@@ -241,7 +242,7 @@ impl Default for GraphFusionFunctionRegistryBuilder {
         );
         scalars.insert(
             FunctionName::Builtin(BuiltinName::Regex),
-            Arc::new(RegexTypedValueFactory {}),
+            Arc::new(RegexBinaryTypedValueFactory {}),
         );
         scalars.insert(
             FunctionName::Builtin(BuiltinName::Bound),
@@ -306,6 +307,16 @@ impl Default for GraphFusionFunctionRegistryBuilder {
         scalars.insert(
             FunctionName::Builtin(BuiltinName::UnaryPlus),
             Arc::new(UnaryPlusTypedValueFactory {}),
+        );
+
+        // Logic Functions
+        scalars.insert(
+            FunctionName::Builtin(BuiltinName::And),
+            Arc::new(SparqlAndFactory {}),
+        );
+        scalars.insert(
+            FunctionName::Builtin(BuiltinName::Or),
+            Arc::new(SparqlOrFactory {}),
         );
 
         // Conversion Functions

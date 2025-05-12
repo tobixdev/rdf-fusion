@@ -182,7 +182,7 @@ fn extract_term_value<'data>(
 }
 
 /// TODO
-fn extract_string(parts: StringParts<'_>, offset: usize) -> TypedValueRef {
+fn extract_string(parts: StringParts<'_>, offset: usize) -> TypedValueRef<'_> {
     if parts.language.is_null(offset) {
         TypedValueRef::SimpleLiteral(SimpleLiteralRef::new(parts.value.value(offset)))
     } else {
@@ -204,7 +204,7 @@ fn extract_timestamp(parts: TimestampParts<'_>, offset: usize) -> Timestamp {
     )
 }
 
-fn extract_duration(parts: DurationParts<'_>, offset: usize) -> ThinResult<TypedValueRef> {
+fn extract_duration(parts: DurationParts<'_>, offset: usize) -> ThinResult<TypedValueRef<'_>> {
     let year_month_is_null = parts.months.is_null(offset);
     let day_time_is_null = parts.seconds.is_null(offset);
     Ok(match (year_month_is_null, day_time_is_null) {

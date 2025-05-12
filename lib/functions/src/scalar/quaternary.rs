@@ -5,7 +5,6 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use graphfusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_functions_scalar::TernarySparqlOp;
 use graphfusion_functions_scalar::{QuaternarySparqlOp, SparqlOpVolatility};
 use itertools::izip;
 use std::any::Any;

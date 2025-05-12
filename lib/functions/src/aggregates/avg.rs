@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::ops::Div;
 use std::sync::{Arc, LazyLock};
 
-pub static ENC_AVG: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
+static ENC_AVG: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
     Arc::new(create_udaf(
         "avg",
         vec![TypedValueEncoding::data_type()],
@@ -46,7 +46,7 @@ impl GraphFusionUdafFactory for AvgUdafFactory {
 
     fn create_with_args(
         &self,
-        constant_args: HashMap<String, Term>,
+        _constant_args: HashMap<String, Term>,
     ) -> DFResult<Arc<AggregateUDF>> {
         Ok(Arc::clone(&ENC_AVG))
     }

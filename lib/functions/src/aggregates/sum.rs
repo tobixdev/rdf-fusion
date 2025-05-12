@@ -1,8 +1,7 @@
-use crate::aggregates::ENC_AVG;
 use crate::builtin::BuiltinName;
 use crate::factory::GraphFusionUdafFactory;
 use crate::{DFResult, FunctionName};
-use datafusion::arrow::array::{Array, ArrayRef};
+use datafusion::arrow::array::ArrayRef;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
@@ -14,15 +13,16 @@ use graphfusion_model::{Integer, Numeric, NumericPair, Term, ThinResult};
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
-pub static ENC_SUM: LazyLock<AggregateUDF> = LazyLock::new(|| {
-    create_udaf(
+pub static TYPED_VALUE_SUM: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
+    let udaf = create_udaf(
         "enc_sum",
         vec![TypedValueEncoding::data_type()],
         Arc::new(TypedValueEncoding::data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlSum::new()))),
         Arc::new(vec![TypedValueEncoding::data_type()]),
-    )
+    );
+    Arc::new(udaf)
 });
 
 #[derive(Debug)]
@@ -39,9 +39,9 @@ impl GraphFusionUdafFactory for SumUdafFactory {
 
     fn create_with_args(
         &self,
-        constant_args: HashMap<String, Term>,
+        _constant_args: HashMap<String, Term>,
     ) -> DFResult<Arc<AggregateUDF>> {
-        Ok(Arc::clone(&ENC_AVG))
+        Ok(Arc::clone(&TYPED_VALUE_SUM))
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::encoding::EncodingScalar;
 use crate::sortable_term::SortableTermEncoding;
-use crate::{DFResult, TermEncoding};
+use crate::DFResult;
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 
 /// Represents an Arrow scalar with a [SortableTermEncoding].

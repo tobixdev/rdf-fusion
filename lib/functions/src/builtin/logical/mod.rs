@@ -1,3 +1,5 @@
 mod and;
-mod as_native_boolean;
 mod or;
+
+pub use and::*;
+pub use or::*;

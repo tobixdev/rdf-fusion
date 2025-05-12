@@ -1,8 +1,7 @@
-use crate::aggregates::ENC_AVG;
 use crate::builtin::BuiltinName;
 use crate::factory::GraphFusionUdafFactory;
 use crate::{DFResult, FunctionName};
-use datafusion::arrow::array::{Array, ArrayRef, AsArray};
+use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
@@ -16,15 +15,16 @@ use graphfusion_model::{Term, ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
-pub static TYPED_VALUE_MIN: LazyLock<AggregateUDF> = LazyLock::new(|| {
-    create_udaf(
+pub static TYPED_VALUE_MIN: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
+    let udaf = create_udaf(
         "enc_min",
         vec![TypedValueEncoding::data_type()],
         Arc::new(TypedValueEncoding::data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlMin::new()))),
         Arc::new(vec![DataType::Boolean, TypedValueEncoding::data_type()]),
-    )
+    );
+    Arc::new(udaf)
 });
 
 #[derive(Debug)]
@@ -41,9 +41,9 @@ impl GraphFusionUdafFactory for MinUdafFactory {
 
     fn create_with_args(
         &self,
-        constant_args: HashMap<String, Term>,
+        _constant_args: HashMap<String, Term>,
     ) -> DFResult<Arc<AggregateUDF>> {
-        Ok(Arc::clone(&ENC_AVG))
+        Ok(Arc::clone(&TYPED_VALUE_MIN))
     }
 }
 

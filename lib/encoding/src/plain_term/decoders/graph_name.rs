@@ -1,9 +1,8 @@
-use crate::encoding::{EncodingArray, TermDecoder};
-use crate::plain_term::{PlainTermEncoding, TermType};
+use crate::encoding::TermDecoder;
+use crate::plain_term::decoders::DefaultPlainTermDecoder;
+use crate::plain_term::PlainTermEncoding;
 use crate::TermEncoding;
-use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
-use datafusion::arrow::datatypes::UInt8Type;
-use graphfusion_model::{BlankNodeRef, GraphNameRef, NamedNodeRef, ThinError, ThinResult};
+use graphfusion_model::{GraphNameRef, TermRef, ThinError, ThinResult};
 
 #[derive(Debug)]
 pub struct GraphNameRefPlainTermDecoder {}
@@ -15,52 +14,23 @@ impl TermDecoder<PlainTermEncoding> for GraphNameRefPlainTermDecoder {
     fn decode_terms(
         array: &<PlainTermEncoding as TermEncoding>::Array,
     ) -> impl Iterator<Item = ThinResult<Self::Term<'_>>> {
-        let array = array.array().as_struct();
-
-        let term_type = array.column(0).as_primitive::<UInt8Type>();
-
-        let value = array.column(1).as_string::<i32>();
-
-        (0..array.len()).map(|idx| extract_graph_name_ref(array, term_type, value, idx))
+        DefaultPlainTermDecoder::decode_terms(array).map(map_term_ref_to_graph_name_ref)
     }
 
     fn decode_term(
-        array: &<PlainTermEncoding as TermEncoding>::Scalar,
+        scalar: &<PlainTermEncoding as TermEncoding>::Scalar,
     ) -> ThinResult<Self::Term<'_>> {
-        todo!()
+        let term = DefaultPlainTermDecoder::decode_term(scalar);
+        map_term_ref_to_graph_name_ref(term)
     }
 }
 
-fn extract_graph_name_ref<'data>(
-    array: &'data StructArray,
-    term_type: &'data PrimitiveArray<UInt8Type>,
-    value: &'data GenericStringArray<i32>,
-    idx: usize,
-) -> ThinResult<GraphNameRef<'data>> {
-    let value = array
-        .is_valid(idx)
-        .then(|| {
-            let term_type = TermType::try_from(term_type.value(idx))
-                .map_err(|_| ThinError::InternalError("Unexpected term type encoding"))?;
-            decode_graph_name(value, idx, term_type)
-        })
-        .transpose()?;
-    value.ok_or(ThinError::Expected)
-}
-
-fn decode_graph_name(
-    value: &GenericStringArray<i32>,
-    idx: usize,
-    term_type: TermType,
-) -> ThinResult<GraphNameRef<'_>> {
-    let result = match term_type {
-        TermType::NamedNode => {
-            GraphNameRef::NamedNode(NamedNodeRef::new_unchecked(value.value(idx)))
-        }
-        TermType::BlankNode => {
-            GraphNameRef::BlankNode(BlankNodeRef::new_unchecked(value.value(idx)))
-        }
-        _ => return ThinError::expected(),
-    };
-    Ok(result)
+fn map_term_ref_to_graph_name_ref(term: ThinResult<TermRef<'_>>) -> ThinResult<GraphNameRef<'_>> {
+    match term {
+        Ok(TermRef::NamedNode(nn)) => Ok(GraphNameRef::NamedNode(nn)),
+        Ok(TermRef::BlankNode(bnode)) => Ok(GraphNameRef::BlankNode(bnode)),
+        Ok(TermRef::Literal(_)) => ThinError::internal_error("Literal when extracting grpah name"),
+        Err(ThinError::Expected) => Ok(GraphNameRef::DefaultGraph),
+        Err(e) => Err(e),
+    }
 }

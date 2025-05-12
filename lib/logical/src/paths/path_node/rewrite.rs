@@ -3,7 +3,6 @@ use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{PropertyPathNode, COL_SOURCE, COL_TARGET, PATH_TABLE_DFSCHEMA};
 use crate::patterns::PatternNode;
 use crate::{ActiveGraph, DFResult, GraphFusionLogicalPlanBuilder};
-use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, JoinType};
 use datafusion::logical_expr::{col, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
@@ -20,8 +19,6 @@ use std::sync::Arc;
 pub struct PropertyPathLoweringRule {
     /// Used for creating expressions with GraphFusion builtins.
     registry: GraphFusionFunctionRegistryRef,
-    // TODO: Check if we can remove this and just use TABLE_QUADS in the logical plan
-    quads_table: Arc<dyn TableProvider>,
 }
 
 impl OptimizerRule for PropertyPathLoweringRule {
@@ -51,14 +48,8 @@ impl OptimizerRule for PropertyPathLoweringRule {
 }
 
 impl PropertyPathLoweringRule {
-    pub fn new(
-        registry: GraphFusionFunctionRegistryRef,
-        quads_table: Arc<dyn TableProvider>,
-    ) -> Self {
-        Self {
-            registry,
-            quads_table,
-        }
+    pub fn new(registry: GraphFusionFunctionRegistryRef) -> Self {
+        Self { registry }
     }
 
     fn rewrite_path_node(&self, node: &PropertyPathNode) -> DFResult<LogicalPlan> {

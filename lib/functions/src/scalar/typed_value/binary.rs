@@ -134,7 +134,7 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    RegexTypedValueFactory,
+    RegexBinaryTypedValueFactory,
     RegexSparqlOp,
     BuiltinName::Regex
 );

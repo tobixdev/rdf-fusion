@@ -30,7 +30,7 @@ impl_ternary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    RegexTypedValueFactory,
+    RegexTernaryTypedValueFactory,
     RegexSparqlOp,
     BuiltinName::Regex
 );

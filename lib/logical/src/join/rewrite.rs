@@ -1,12 +1,12 @@
 use crate::join::{SparqlJoinNode, SparqlJoinType};
-use crate::GraphFusionExprBuilder;
 use crate::DFResult;
-use datafusion::catalog::TableProvider;
+use crate::GraphFusionExprBuilder;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{Column, JoinType};
 use datafusion::logical_expr::Expr;
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
+use graphfusion_encoding::EncodingName;
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use std::collections::HashSet;
 
@@ -31,7 +31,17 @@ impl OptimizerRule for SparqlJoinLoweringRule {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<SparqlJoinNode>() {
-                        Transformed::yes(self.rewrite_sparql_join(node)?)
+                        let result = self.rewrite_sparql_join(node)?;
+
+                        if result.schema() != plan.schema() {
+                            panic!(
+                                "Schema mismatch!\n result_schema: {:?}\n\nplan_schema: {:?}",
+                                result.schema(),
+                                plan.schema()
+                            );
+                        }
+
+                        Transformed::yes(result)
                     } else {
                         Transformed::no(plan)
                     }
@@ -68,15 +78,22 @@ impl SparqlJoinLoweringRule {
             .map(|c| c.name().to_owned())
             .collect();
 
-        // If both solutions are disjoint, use cross join.
-        if lhs_keys.is_disjoint(&rhs_keys) && filter.is_none() {
-            return lhs.cross_join(rhs.build()?)?.build();
-        }
-
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
 
         let expr_builder = GraphFusionExprBuilder::new(&join_schema, &self.registry);
+        let projections = node
+            .schema()
+            .columns()
+            .into_iter()
+            .map(|c| value_from_joined(expr_builder, &lhs_keys, &rhs_keys, c.name()))
+            .collect::<DFResult<Vec<_>>>()?;
+
+        // If both solutions are disjoint, use cross join.
+        if lhs_keys.is_disjoint(&rhs_keys) && filter.is_none() {
+            return lhs.cross_join(rhs.build()?)?.project(projections)?.build();
+        }
+
         let mut join_filters = lhs_keys
             .intersection(&rhs_keys)
             .map(|k| {
@@ -105,11 +122,6 @@ impl SparqlJoinLoweringRule {
         }
         let filter_expr = join_filters.into_iter().reduce(Expr::and);
 
-        let projections = lhs_keys
-            .union(&rhs_keys)
-            .map(|k| value_from_joined(expr_builder, &lhs_keys, &rhs_keys, k))
-            .collect::<DFResult<Vec<_>>>()?;
-
         let join_type = match node.join_type() {
             SparqlJoinType::Inner => JoinType::Inner,
             SparqlJoinType::Left => JoinType::Left,
@@ -137,10 +149,13 @@ fn value_from_joined(
     let rhs_expr = Expr::from(Column::new(Some("rhs"), variable));
 
     let expr = match (lhs_keys.contains(variable), rhs_keys.contains(variable)) {
-        (true, true) => expr_builder.coalesce(vec![lhs_expr, rhs_expr])?,
+        (true, true) => {
+            let coalesce = expr_builder.coalesce(vec![lhs_expr, rhs_expr])?;
+            expr_builder.with_encoding(coalesce, EncodingName::PlainTerm)?
+        }
         (true, false) => lhs_expr,
         (false, true) => rhs_expr,
-        (false, false) => expr_builder.null_literal()?,
+        (false, false) => unreachable!("At least one of lhs or rhs must contain variable"),
     };
     Ok(expr.alias(variable))
 }

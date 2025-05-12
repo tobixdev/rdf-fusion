@@ -64,10 +64,4 @@ impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
         }
         TypedValueEncoding::try_new_array(value_builder.finish())
     }
-
-    fn encode_term(
-        term: ThinResult<TypedValueRef<'_>>,
-    ) -> DFResult<<TypedValueEncoding as TermEncoding>::Scalar> {
-        todo!()
-    }
 }

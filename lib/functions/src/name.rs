@@ -1,6 +1,6 @@
 use crate::builtin::BuiltinName;
 use graphfusion_model::Iri;
-use std::fmt::{Display, Formatter, Pointer};
+use std::fmt::{Display, Formatter};
 
 /// Identifier for a function. Either it is a GraphFusion builtin (e.g., a SPARQL operation) or a
 /// custom function.

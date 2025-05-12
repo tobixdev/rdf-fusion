@@ -1,19 +1,42 @@
-use crate::DFResult;
+use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
+use crate::{DFResult, FunctionName};
 use datafusion::arrow::array::{as_boolean_array, Array, BooleanBuilder};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
+    Volatility,
 };
+use graphfusion_encoding::EncodingName;
+use graphfusion_model::Term;
 use std::any::Any;
+use std::collections::HashMap;
 use std::ops::Not;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct EncOr {
+pub struct SparqlOrFactory;
+
+impl GraphFusionUdfFactory for SparqlOrFactory {
+    fn name(&self) -> FunctionName {
+        FunctionName::Builtin(BuiltinName::And)
+    }
+
+    fn encoding(&self) -> Vec<EncodingName> {
+        vec![EncodingName::TypedValue]
+    }
+
+    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
+        let udf = ScalarUDF::new_from_impl(SparqlOr::new());
+        Ok(Arc::new(udf))
+    }
+}
+
+#[derive(Debug)]
+pub struct SparqlOr {
     signature: Signature,
 }
 
-impl EncOr {
+impl SparqlOr {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -24,13 +47,13 @@ impl EncOr {
     }
 }
 
-impl ScalarUDFImpl for EncOr {
+impl ScalarUDFImpl for SparqlOr {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn name(&self) -> &str {
-        "enc_or"
+        "or"
     }
 
     fn signature(&self) -> &Signature {

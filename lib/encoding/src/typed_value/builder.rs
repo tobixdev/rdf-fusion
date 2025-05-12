@@ -100,7 +100,7 @@ impl TypedValueArrayBuilder {
                 let duration: YearMonthDuration = literal.value().parse()?;
                 self.append_duration(Some(duration), None)?
             }
-            xsd::DURATION => {
+            xsd::DAY_TIME_DURATION => {
                 let duration: DayTimeDuration = literal.value().parse()?;
                 self.append_duration(None, Some(duration))?
             }

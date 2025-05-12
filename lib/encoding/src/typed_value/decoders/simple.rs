@@ -27,7 +27,8 @@ macro_rules! make_simple_term_value_decoder {
             fn decode_term(
                 scalar: &<TypedValueEncoding as TermEncoding>::Scalar,
             ) -> ThinResult<Self::Term<'_>> {
-                todo!()
+                let scalar = DefaultTypedValueDecoder::decode_term(scalar);
+                scalar.and_then($MAPPING_EXPRESSION)
             }
         }
     };

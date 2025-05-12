@@ -4,7 +4,7 @@ use datafusion::common::{plan_datafusion_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_window::expr_fn::first_value;
 use datafusion::logical_expr::expr::AggregateFunction;
-use datafusion::logical_expr::{and, lit, or, Expr, ExprSchemable};
+use datafusion::logical_expr::{lit, Expr, ExprSchemable};
 use graphfusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
@@ -12,7 +12,7 @@ use graphfusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncodi
 use graphfusion_functions::builtin::BuiltinName;
 use graphfusion_functions::registry::GraphFusionFunctionRegistry;
 use graphfusion_functions::FunctionName;
-use graphfusion_model::{Iri, Term, TermRef, ThinError, VariableRef};
+use graphfusion_model::{Iri, Literal, Term, TermRef, ThinError, VariableRef};
 use spargebra::term::NamedNode;
 use std::collections::HashMap;
 use std::ops::Not;
@@ -54,7 +54,7 @@ impl GraphFusionExprBuilder<'_> {
                     .collect::<DFResult<Vec<_>>>()?;
                 Ok(filters
                     .into_iter()
-                    .reduce(and)
+                    .reduce(|a, b| self.and(a, b).expect("TODO"))
                     .expect("At least one active graph"))
             }
             ActiveGraph::AnyNamedGraph => Ok(expr.is_not_null()),
@@ -63,17 +63,17 @@ impl GraphFusionExprBuilder<'_> {
 
     /// TODO
     pub fn avg(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
-        self.apply_builtin_udaf(BuiltinName::Avg, expr, distinct)
+        self.apply_builtin_udaf(BuiltinName::Avg, expr, distinct, HashMap::new())
     }
 
     /// TODO
     pub fn max(&self, expr: Expr) -> DFResult<Expr> {
-        self.apply_builtin_udaf(BuiltinName::Max, expr, false)
+        self.apply_builtin_udaf(BuiltinName::Max, expr, false, HashMap::new())
     }
 
     /// TODO
     pub fn min(&self, expr: Expr) -> DFResult<Expr> {
-        self.apply_builtin_udaf(BuiltinName::Min, expr, false)
+        self.apply_builtin_udaf(BuiltinName::Min, expr, false, HashMap::new())
     }
 
     /// TODO
@@ -83,7 +83,7 @@ impl GraphFusionExprBuilder<'_> {
 
     /// TODO
     pub fn sum(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
-        self.apply_builtin_udaf(BuiltinName::Sum, expr, distinct)
+        self.apply_builtin_udaf(BuiltinName::Sum, expr, distinct, HashMap::new())
     }
 
     pub fn group_concat(
@@ -92,17 +92,13 @@ impl GraphFusionExprBuilder<'_> {
         distinct: bool,
         separator: Option<&str>,
     ) -> DFResult<Expr> {
-        todo!("udaf with separator")
-        // Ok(Expr::AggregateFunction(
-        //     datafusion::logical_expr::expr::AggregateFunction::new_udf(
-        //         Arc::new(udaf),
-        //         vec![expr],
-        //         distinct,
-        //         None,
-        //         None,
-        //         None,
-        //     ),
-        // ))
+        let separator = separator.map(|s| Term::from(Literal::new_simple_literal(s)));
+        let mut args = HashMap::new();
+        if let Some(separator) = separator {
+            args.insert("separator".to_owned(), separator);
+        }
+
+        self.apply_builtin_udaf(BuiltinName::Sum, expr, distinct, args)
     }
 }
 
@@ -466,14 +462,26 @@ impl<'a> GraphFusionExprBuilder<'a> {
     pub fn and(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
         let lhs = self.ensure_boolean(lhs)?;
         let rhs = self.ensure_boolean(rhs)?;
-        Ok(and(lhs, rhs))
+
+        let udf = self
+            .registry
+            .udf_factory(FunctionName::Builtin(BuiltinName::And))
+            .create_with_args(HashMap::new())
+            .expect("And does not work on RDF terms");
+        Ok(udf.call(vec![lhs, rhs]))
     }
 
     /// TODO
     pub fn or(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
         let lhs = self.ensure_boolean(lhs)?;
         let rhs = self.ensure_boolean(rhs)?;
-        Ok(or(lhs, rhs))
+
+        let udf = self
+            .registry
+            .udf_factory(FunctionName::Builtin(BuiltinName::Or))
+            .create_with_args(HashMap::new())
+            .expect("And does not work on RDF terms");
+        Ok(udf.call(vec![lhs, rhs]))
     }
 
     /// TODO
@@ -483,11 +491,11 @@ impl<'a> GraphFusionExprBuilder<'a> {
             return Ok(expr);
         }
 
-        todo!()
+        self.effective_boolean_value(expr)
     }
 
     /// TODO
-    pub fn variable(&self, variable: VariableRef) -> DFResult<Expr> {
+    pub fn variable(&self, variable: VariableRef<'_>) -> DFResult<Expr> {
         let column = Column::new_unqualified(variable.as_str());
         if self.schema().has_column(&column) {
             Ok(Expr::from(column))
@@ -566,7 +574,6 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
     /// TODO
     pub fn effective_boolean_value(&self, expr: Expr) -> DFResult<Expr> {
-        let encoding = self.encoding(&expr).unwrap();
         let name = BuiltinName::EffectiveBooleanValue;
         self.apply_builtin(name, vec![expr])
     }
@@ -655,13 +662,19 @@ impl<'a> GraphFusionExprBuilder<'a> {
     }
 
     /// TODO
-    fn apply_builtin_udaf(&self, name: BuiltinName, arg: Expr, distinct: bool) -> DFResult<Expr> {
+    fn apply_builtin_udaf(
+        &self,
+        name: BuiltinName,
+        arg: Expr,
+        distinct: bool,
+        args: HashMap<String, Term>,
+    ) -> DFResult<Expr> {
         // Currently, UDAFs are only supported for typed values
         let arg = self.with_encoding(arg, EncodingName::TypedValue)?;
         let udaf = self
             .registry
             .udaf_factory(FunctionName::Builtin(name))
-            .create_with_args(HashMap::new())?;
+            .create_with_args(args)?;
 
         Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
             udaf,

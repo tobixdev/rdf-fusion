@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoding;
 use crate::typed_value::array::TermValueArray;
 use crate::typed_value::scalar::TermValueScalar;
-use crate::{DFResult, EncodingName};
+use crate::{DFResult, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
@@ -9,6 +9,7 @@ use graphfusion_model::{Decimal, TermRef, ThinError};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
+use crate::typed_value::encoders::TermRefTypedValueEncoder;
 
 static FIELDS_STRING: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
@@ -183,11 +184,11 @@ impl TermEncoding for TypedValueEncoding {
     }
 
     fn encode_scalar(term: TermRef<'_>) -> DFResult<Self::Scalar> {
-        todo!()
+        TermRefTypedValueEncoder::encode_term(Ok(term))
     }
 
     fn encode_null_scalar() -> DFResult<Self::Scalar> {
-        todo!()
+        TermRefTypedValueEncoder::encode_term(ThinError::expected())
     }
 }
 

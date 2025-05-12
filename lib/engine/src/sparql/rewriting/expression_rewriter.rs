@@ -1,11 +1,10 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::DFResult;
-use datafusion::common::{internal_err, plan_err, Spans};
+use datafusion::common::{internal_err, plan_datafusion_err, plan_err, Column, Spans};
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
 use datafusion::prelude::{and, exists};
-use futures::StreamExt;
 use graphfusion_logical::GraphFusionExprBuilder;
 use graphfusion_model::vocab::xsd;
 use graphfusion_model::Iri;
@@ -431,18 +430,23 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .collect::<Vec<_>>();
         let projected_inner = inner.project(projections)?;
 
-        let compatible_filter = outer_keys
+        let compatible_filters = outer_keys
             .intersection(&inner_keys)
             .map(|k| {
-                todo!("Rewrite EXISTS with compatible filter")
-                // self.expr_builder.is_compatible(
-                //     Expr::OuterReferenceColumn(
-                //         RdfTermValueEncoding::datatype(),
-                //         Column::new_unqualified(k),
-                //     ),
-                //     Expr::from(Column::new_unqualified(format!("__inner__{k}"))),
-                // )
+                let data_type = self
+                    .expr_builder
+                    .schema()
+                    .field_with_name(None, k)
+                    .map_err(|_| plan_datafusion_err!("Could not find column {} in schema.", k))?
+                    .data_type();
+                self.expr_builder.is_compatible(
+                    Expr::OuterReferenceColumn(data_type.clone(), Column::new_unqualified(k)),
+                    Expr::from(Column::new_unqualified(format!("__inner__{k}"))),
+                )
             })
+            .collect::<DFResult<Vec<_>>>()?;
+        let compatible_filter = compatible_filters
+            .into_iter()
             .reduce(and)
             .unwrap_or(lit(true));
 

@@ -5,7 +5,6 @@ use crate::sparql::{
     QueryTripleStream,
 };
 use datafusion::prelude::{DataFrame, SessionContext};
-use graphfusion_encoding::TABLE_QUADS;
 use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
 use graphfusion_model::Iri;
 use graphfusion_model::Variable;
@@ -68,11 +67,9 @@ async fn create_dataframe(
     pattern: &GraphPattern,
     base_iri: &Option<Iri<String>>,
 ) -> Result<DataFrame, QueryEvaluationError> {
-    let quads = ctx.table_provider(TABLE_QUADS).await?;
-    let logical_plan =
-        GraphPatternRewriter::new(registry, dataset.clone(), base_iri.clone(), quads)
-            .rewrite(pattern)
-            .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
+    let logical_plan = GraphPatternRewriter::new(registry, dataset.clone(), base_iri.clone())
+        .rewrite(pattern)
+        .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
 
     Ok(DataFrame::new(ctx.state(), logical_plan))
 }
