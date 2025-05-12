@@ -1,5 +1,5 @@
-use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
-use crate::{DFResult, FunctionName};
+use crate::builtin::BuiltinName;
+use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, ScalarValue};
@@ -18,27 +18,12 @@ use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
 };
-use graphfusion_model::Term;
 use std::any::Any;
-use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug)]
-pub struct WithSortableEncodingFactory;
-
-impl GraphFusionUdfFactory for WithSortableEncodingFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::WithSortableEncoding)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::TypedValue, EncodingName::PlainTerm]
-    }
-
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
-        let udf = ScalarUDF::new_from_impl(WithSortableEncoding::new(self.name()));
-        Ok(Arc::new(udf))
-    }
+pub fn with_sortable_term_encoding() -> Arc<ScalarUDF> {
+    let udf_impl = WithSortableEncoding::new();
+    Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
 #[derive(Debug)]
@@ -48,9 +33,9 @@ struct WithSortableEncoding {
 }
 
 impl WithSortableEncoding {
-    pub fn new(name: FunctionName) -> Self {
+    pub fn new() -> Self {
         Self {
-            name: name.to_string(),
+            name: BuiltinName::WithSortableEncoding.to_string(),
             signature: Signature::new(
                 TypeSignature::Uniform(
                     1,

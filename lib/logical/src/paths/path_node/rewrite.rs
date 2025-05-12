@@ -100,7 +100,8 @@ impl PropertyPathLoweringRule {
         graph: &ActiveGraph,
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
-        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
+        let expr_builder =
+            GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
         let filter =
             expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(node.as_ref()))?;
         self.scan_quads(graph, Some(filter))
@@ -113,7 +114,8 @@ impl PropertyPathLoweringRule {
         graph: &ActiveGraph,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
-        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
+        let expr_builder =
+            GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
         let test_expressions = nodes
             .iter()
             .map(|nn| expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(nn.as_ref())))
@@ -229,7 +231,8 @@ impl PropertyPathLoweringRule {
         lhs: LogicalPlanBuilder,
         rhs: LogicalPlanBuilder,
     ) -> DFResult<LogicalPlanBuilder> {
-        let expr_builder = GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, &self.registry);
+        let expr_builder =
+            GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
         let path_join_expr = expr_builder.same_term(
             Expr::from(Column::new(Some("lhs"), COL_TARGET)),
             Expr::from(Column::new(Some("rhs"), COL_SOURCE)),

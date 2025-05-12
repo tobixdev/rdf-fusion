@@ -11,38 +11,18 @@ use std::any::Any;
 
 #[macro_export]
 macro_rules! impl_unary_sparql_op {
-    ($ENCODING: ty, $DECODER: ty, $ENCODER: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty, $NAME: expr) => {
-        #[derive(Debug)]
-        pub struct $STRUCT_NAME {}
-
-        impl $crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
-            fn name(&self) -> $crate::FunctionName {
-                $crate::FunctionName::Builtin($NAME)
-            }
-
-            fn encoding(&self) -> std::vec::Vec<graphfusion_encoding::EncodingName> {
-                vec![<$ENCODING>::name()]
-            }
-
-            /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
-            fn create_with_args(
-                &self,
-                _constant_args: std::collections::HashMap<
-                    std::string::String,
-                    graphfusion_model::Term,
-                >,
-            ) -> $crate::DFResult<std::sync::Arc<datafusion::logical_expr::ScalarUDF>> {
-                let op = <$SPARQL_OP>::new();
-                let udf_impl = crate::scalar::unary::UnaryScalarUdfOp::<
-                    $SPARQL_OP,
-                    $ENCODING,
-                    $DECODER,
-                    $ENCODER,
-                >::new(self.name(), op);
-                Ok(std::sync::Arc::new(
-                    datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl),
-                ))
-            }
+    ($ENCODING: ty, $DECODER: ty, $ENCODER: ty, $FUNCTION_NAME: ident, $SPARQL_OP: ty, $NAME: expr) => {
+        pub fn $FUNCTION_NAME() -> std::sync::Arc<datafusion::logical_expr::ScalarUDF> {
+            let op = <$SPARQL_OP>::new();
+            let udf_impl = crate::scalar::unary::UnaryScalarUdfOp::<
+                $SPARQL_OP,
+                $ENCODING,
+                $DECODER,
+                $ENCODER,
+            >::new($NAME, op);
+            std::sync::Arc::new(
+                datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl),
+            )
         }
     };
 }

@@ -4,8 +4,8 @@ use graphfusion_encoding::typed_value::decoders::{
 };
 use graphfusion_encoding::typed_value::encoders::OwnedStringLiteralTermValueEncoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::TermEncoding;
 use graphfusion_functions_scalar::ReplaceSparqlOp;
+use crate::FunctionName;
 
 // Strings
 impl_quarternary_sparql_op!(
@@ -15,7 +15,7 @@ impl_quarternary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    RegexTermTypedValueFactory,
+    regex_term_typed_value,
     ReplaceSparqlOp,
-    BuiltinName::Replace
+    FunctionName::Builtin(BuiltinName::Replace)
 );

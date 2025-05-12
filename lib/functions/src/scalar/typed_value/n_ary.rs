@@ -1,5 +1,5 @@
 use crate::builtin::BuiltinName;
-use crate::impl_n_ary_sparql_op;
+use crate::{impl_n_ary_sparql_op, FunctionName};
 use graphfusion_encoding::typed_value::decoders::{
     DefaultTypedValueDecoder, StringLiteralRefTermValueDecoder,
 };
@@ -14,9 +14,9 @@ impl_n_ary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DefaultTypedValueEncoder,
-    CoalesceTypedValueFactory,
+    coalesce_typed_value,
     CoalesceSparqlOp,
-    BuiltinName::Coalesce
+    FunctionName::Builtin(BuiltinName::Coalesce)
 );
 
 // Strings
@@ -24,7 +24,7 @@ impl_n_ary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    ConcatTypedValueFactory,
+    concat_typed_value,
     ConcatSparqlOp,
-    BuiltinName::Concat
+    FunctionName::Builtin(BuiltinName::Concat)
 );

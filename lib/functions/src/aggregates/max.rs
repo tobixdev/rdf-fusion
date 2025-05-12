@@ -1,6 +1,4 @@
-use crate::builtin::BuiltinName;
-use crate::factory::GraphFusionUdafFactory;
-use crate::{DFResult, FunctionName};
+use crate::DFResult;
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -10,51 +8,30 @@ use datafusion::scalar::ScalarValue;
 use graphfusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use graphfusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{Term, ThinError, ThinResult, TypedValue, TypedValueRef};
-use std::collections::HashMap;
-use std::sync::{Arc, LazyLock};
+use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
+use std::sync::Arc;
 
-static TYPED_VALUE_MAX: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
+pub fn max_typed_value() -> Arc<AggregateUDF> {
     Arc::new(create_udaf(
         "MAX",
         vec![TypedValueEncoding::data_type()],
         Arc::new(TypedValueEncoding::data_type()),
         Volatility::Immutable,
-        Arc::new(|_| Ok(Box::new(SparqlMax::new()))),
+        Arc::new(|_| Ok(Box::new(SparqlTypedValueMax::new()))),
         Arc::new(vec![DataType::Boolean, TypedValueEncoding::data_type()]),
     ))
-});
-
-#[derive(Debug)]
-pub struct MaxUdafFactory {}
-
-impl GraphFusionUdafFactory for MaxUdafFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::Max)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::TypedValue]
-    }
-
-    fn create_with_args(
-        &self,
-        _constant_args: HashMap<String, Term>,
-    ) -> DFResult<Arc<AggregateUDF>> {
-        Ok(Arc::clone(&TYPED_VALUE_MAX))
-    }
 }
 
 #[derive(Debug)]
-struct SparqlMax {
+struct SparqlTypedValueMax {
     executed_once: bool,
     max: ThinResult<TypedValue>,
 }
 
-impl SparqlMax {
+impl SparqlTypedValueMax {
     pub fn new() -> Self {
-        SparqlMax {
+        SparqlTypedValueMax {
             executed_once: false,
             max: ThinError::expected(),
         }
@@ -74,7 +51,7 @@ impl SparqlMax {
     }
 }
 
-impl Accumulator for SparqlMax {
+impl Accumulator for SparqlTypedValueMax {
     fn update_batch(&mut self, values: &[ArrayRef]) -> DFResult<()> {
         if values.is_empty() {
             return Ok(());

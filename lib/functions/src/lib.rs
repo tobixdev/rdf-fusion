@@ -3,10 +3,8 @@ use std::fmt::Display;
 
 pub(crate) mod aggregates;
 pub mod builtin;
-pub(crate) mod factory;
 mod name;
 pub mod registry;
-mod registry_builder;
 pub(crate) mod scalar;
 
 pub use name::FunctionName;

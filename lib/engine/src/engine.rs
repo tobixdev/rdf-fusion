@@ -9,7 +9,7 @@ use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::SessionContext;
 use graphfusion_encoding::TABLE_QUADS;
 use graphfusion_functions::registry::{
-    GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef,
+    DefaultGraphFusionFunctionRegistry, GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef,
 };
 use graphfusion_logical::extend::ExtendLoweringRule;
 use graphfusion_logical::join::SparqlJoinLoweringRule;
@@ -43,7 +43,8 @@ impl GraphFusionInstance {
     pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> DFResult<Self> {
         // TODO make a builder
 
-        let builtins = Arc::new(GraphFusionFunctionRegistry::default());
+        let builtins: Arc<dyn GraphFusionFunctionRegistry> =
+            Arc::new(DefaultGraphFusionFunctionRegistry::default());
 
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(GraphFusionPlanner))

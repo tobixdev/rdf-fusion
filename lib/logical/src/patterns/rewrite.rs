@@ -40,7 +40,7 @@ impl OptimizerRule for PatternLoweringRule {
                     if let Some(node) = node.as_any().downcast_ref::<PatternNode>() {
                         let plan = LogicalPlanBuilder::from(node.input().clone());
 
-                        let filter = compute_filters_for_pattern(&self.registry, node)?;
+                        let filter = compute_filters_for_pattern(self.registry.as_ref(), node)?;
                         let plan = match filter {
                             None => plan,
                             Some(filter) => plan.filter(filter)?,
@@ -62,7 +62,7 @@ impl OptimizerRule for PatternLoweringRule {
 /// Computes the filters that will be applied for a given [PatternNode]. Callers can use this
 /// function to only apply the filters of a pattern and ignore any projections to variables.
 pub fn compute_filters_for_pattern(
-    registry: &GraphFusionFunctionRegistry,
+    registry: &dyn GraphFusionFunctionRegistry,
     node: &PatternNode,
 ) -> DFResult<Option<Expr>> {
     let expr_builder = GraphFusionExprBuilder::new(node.input().schema(), registry);

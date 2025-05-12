@@ -1,6 +1,5 @@
 use crate::builtin::BuiltinName;
-use crate::factory::GraphFusionUdafFactory;
-use crate::{DFResult, FunctionName};
+use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
@@ -8,57 +7,36 @@ use datafusion::{error::Result, physical_plan::Accumulator};
 use graphfusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use graphfusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{Integer, Numeric, NumericPair, Term, ThinResult};
-use std::collections::HashMap;
-use std::sync::{Arc, LazyLock};
+use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_model::{Integer, Numeric, NumericPair, ThinResult};
+use std::sync::Arc;
 
-pub static TYPED_VALUE_SUM: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
+pub fn sum_typed_value() -> Arc<AggregateUDF> {
     let udaf = create_udaf(
-        "enc_sum",
+        &BuiltinName::Sum.to_string(),
         vec![TypedValueEncoding::data_type()],
         Arc::new(TypedValueEncoding::data_type()),
         Volatility::Immutable,
-        Arc::new(|_| Ok(Box::new(SparqlSum::new()))),
+        Arc::new(|_| Ok(Box::new(SparqlTypedValueSum::new()))),
         Arc::new(vec![TypedValueEncoding::data_type()]),
     );
     Arc::new(udaf)
-});
-
-#[derive(Debug)]
-pub struct SumUdafFactory {}
-
-impl GraphFusionUdafFactory for SumUdafFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::Avg)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::TypedValue]
-    }
-
-    fn create_with_args(
-        &self,
-        _constant_args: HashMap<String, Term>,
-    ) -> DFResult<Arc<AggregateUDF>> {
-        Ok(Arc::clone(&TYPED_VALUE_SUM))
-    }
 }
 
 #[derive(Debug)]
-struct SparqlSum {
+struct SparqlTypedValueSum {
     sum: ThinResult<Numeric>,
 }
 
-impl SparqlSum {
+impl SparqlTypedValueSum {
     pub fn new() -> Self {
-        SparqlSum {
+        SparqlTypedValueSum {
             sum: Ok(Numeric::Integer(Integer::from(0))),
         }
     }
 }
 
-impl Accumulator for SparqlSum {
+impl Accumulator for SparqlTypedValueSum {
     fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
         if values.is_empty() {
             return Ok(());

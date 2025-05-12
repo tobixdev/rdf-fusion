@@ -1,37 +1,37 @@
 use crate::builtin::BuiltinName;
+use crate::FunctionName;
 use graphfusion_encoding::typed_value::encoders::{
     BlankNodeTermValueEncoder, DoubleTermValueEncoder, NamedNodeTermValueEncoder,
     OwnedStringLiteralTermValueEncoder,
 };
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::TermEncoding;
 use graphfusion_functions_scalar::{BNodeSparqlOp, RandSparqlOp, StrUuidSparqlOp, UuidSparqlOp};
 
 impl_nullary_op!(
     TypedValueEncoding,
     BlankNodeTermValueEncoder,
-    BNodeNullaryTypedValueFactory,
+    bnode_nullary_typed_value,
     BNodeSparqlOp,
-    BuiltinName::BNode
+    FunctionName::Builtin(BuiltinName::BNode)
 );
 impl_nullary_op!(
     TypedValueEncoding,
     DoubleTermValueEncoder,
-    RandTypedValueFactory,
+    rand_typed_value,
     RandSparqlOp,
-    BuiltinName::Rand
+    FunctionName::Builtin(BuiltinName::Rand)
 );
 impl_nullary_op!(
     TypedValueEncoding,
     OwnedStringLiteralTermValueEncoder,
-    StrUuidTypedValueFactory,
+    str_uuid_typed_value,
     StrUuidSparqlOp,
-    BuiltinName::StrUuid
+    FunctionName::Builtin(BuiltinName::StrUuid)
 );
 impl_nullary_op!(
     TypedValueEncoding,
     NamedNodeTermValueEncoder,
-    UuidTypedValueFactory,
+    uuid_typed_value,
     UuidSparqlOp,
-    BuiltinName::Uuid
+    FunctionName::Builtin(BuiltinName::Uuid)
 );

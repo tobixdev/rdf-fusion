@@ -1,4 +1,5 @@
 use crate::builtin::BuiltinName;
+use crate::FunctionName;
 use graphfusion_encoding::typed_value::decoders::{
     DefaultTypedValueDecoder, IntegerTermValueDecoder, NamedNodeRefTermValueDecoder,
     NumericTermValueDecoder, SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
@@ -8,7 +9,6 @@ use graphfusion_encoding::typed_value::encoders::{
     OwnedStringLiteralTermValueEncoder, StringLiteralRefTermValueEncoder,
 };
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::TermEncoding;
 use graphfusion_functions_scalar::{
     AddSparqlOp, ContainsSparqlOp, DivSparqlOp, EqSparqlOp, GreaterOrEqualSparqlOp,
     GreaterThanSparqlOp, LangMatchesSparqlOp, LessOrEqualSparqlOp, LessThanSparqlOp, MulSparqlOp,
@@ -22,54 +22,54 @@ impl_binary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    SameTermTypedValueFactory,
+    same_term_typed_value,
     SameTermSparqlOp,
-    BuiltinName::SameTerm
+    FunctionName::Builtin(BuiltinName::SameTerm)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    EqTypedValueFactory,
+    eq_typed_value,
     EqSparqlOp,
-    BuiltinName::Equal
+    FunctionName::Builtin(BuiltinName::Equal)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    GreaterThanTypedValueFactory,
+    greater_than_typed_value,
     GreaterThanSparqlOp,
-    BuiltinName::GreaterThan
+    FunctionName::Builtin(BuiltinName::GreaterThan)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    GreaterOrEqualTypedValueFactory,
+    greater_or_equal_typed_value,
     GreaterOrEqualSparqlOp,
-    BuiltinName::GreaterOrEqual
+    FunctionName::Builtin(BuiltinName::GreaterOrEqual)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    LessThanTypedValueFactory,
+    less_than_typed_value,
     LessThanSparqlOp,
-    BuiltinName::LessThan
+    FunctionName::Builtin(BuiltinName::LessThan)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    LessOrEqualTypedValueFactory,
+    less_or_equal_typed_value,
     LessOrEqualSparqlOp,
-    BuiltinName::LessOrEqual
+    FunctionName::Builtin(BuiltinName::LessOrEqual)
 );
 
 // Numeric
@@ -78,36 +78,36 @@ impl_binary_sparql_op!(
     NumericTermValueDecoder,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    AddTypedValueFactory,
+    add_typed_value,
     AddSparqlOp,
-    BuiltinName::Add
+    FunctionName::Builtin(BuiltinName::Add)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    DivTypedValueFactory,
+    div_typed_value,
     DivSparqlOp,
-    BuiltinName::Div
+    FunctionName::Builtin(BuiltinName::Div)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    MulTypedValueFactory,
+    mul_typed_value,
     MulSparqlOp,
-    BuiltinName::Mul
+    FunctionName::Builtin(BuiltinName::Mul)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    SubTypedValueFactory,
+    sub_typed_value,
     SubSparqlOp,
-    BuiltinName::Sub
+    FunctionName::Builtin(BuiltinName::Sub)
 );
 
 // Strings
@@ -116,72 +116,72 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    ContainsTypedValueFactory,
+    contains_typed_value,
     ContainsSparqlOp,
-    BuiltinName::Contains
+    FunctionName::Builtin(BuiltinName::Contains)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    LangMatchesTypedValueFactory,
+    lang_matches_typed_value,
     LangMatchesSparqlOp,
-    BuiltinName::LangMatches
+    FunctionName::Builtin(BuiltinName::LangMatches)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    RegexBinaryTypedValueFactory,
+    regex_binary_typed_value,
     RegexSparqlOp,
-    BuiltinName::Regex
+    FunctionName::Builtin(BuiltinName::Regex)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueEncoder,
-    StrAfterTypedValueFactory,
+    str_after_typed_value,
     StrAfterSparqlOp,
-    BuiltinName::StrAfter
+    FunctionName::Builtin(BuiltinName::StrAfter)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueEncoder,
-    StrBeforeTypedValueFactory,
+    str_before_typed_value,
     StrBeforeSparqlOp,
-    BuiltinName::StrBefore
+    FunctionName::Builtin(BuiltinName::StrBefore)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    StrEndsTypedValueFactory,
+    str_ends_typed_value,
     StrEndsSparqlOp,
-    BuiltinName::StrEnds
+    FunctionName::Builtin(BuiltinName::StrEnds)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     StringLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    StrStartsTypedValueFactory,
+    str_starts_typed_value,
     StrStartsSparqlOp,
-    BuiltinName::StrStarts
+    FunctionName::Builtin(BuiltinName::StrStarts)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     IntegerTermValueDecoder,
     StringLiteralRefTermValueEncoder,
-    SubStrTypedValueFactory,
+    sub_str_typed_value,
     SubStrSparqlOp,
-    BuiltinName::SubStr
+    FunctionName::Builtin(BuiltinName::SubStr)
 );
 
 // Terms
@@ -190,16 +190,16 @@ impl_binary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     NamedNodeRefTermValueDecoder,
     LiteralRefTermValueEncoder,
-    StrDtTypedValueFactory,
+    str_dt_typed_value,
     StrDtSparqlOp,
-    BuiltinName::StrDt
+    FunctionName::Builtin(BuiltinName::StrDt)
 );
 impl_binary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    StrLangTypedValueFactory,
+    str_lang_typed_value,
     StrLangSparqlOp,
-    BuiltinName::StrLang
+    FunctionName::Builtin(BuiltinName::StrLang)
 );

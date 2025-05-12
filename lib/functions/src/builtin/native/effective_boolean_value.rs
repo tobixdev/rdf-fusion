@@ -1,5 +1,5 @@
-use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
-use crate::{DFResult, FunctionName};
+use crate::builtin::BuiltinName;
+use crate::DFResult;
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
@@ -9,43 +9,29 @@ use datafusion::logical_expr::{
 };
 use graphfusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingName, TermDecoder, TermEncoding};
+use graphfusion_encoding::{TermDecoder, TermEncoding};
 use graphfusion_model::{
-    Decimal, Double, Float, Int, Integer, Numeric, Term, ThinError, ThinResult, TypedValueRef,
+    Decimal, Double, Float, Int, Integer, Numeric, ThinError, ThinResult, TypedValueRef,
 };
 use std::any::Any;
-use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug)]
-pub struct EffectiveBooleanValueTypedValueFactory;
-
-impl GraphFusionUdfFactory for EffectiveBooleanValueTypedValueFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::EffectiveBooleanValue)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::TypedValue]
-    }
-
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
-        let udf = ScalarUDF::new_from_impl(EffectiveBooleanValueUdfImpl::new(self.name()));
-        Ok(Arc::new(udf))
-    }
+pub fn effective_boolean_value() -> Arc<ScalarUDF> {
+    let udf_impl = EffectiveBooleanValue::new();
+    Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
 #[derive(Debug)]
-struct EffectiveBooleanValueUdfImpl {
+struct EffectiveBooleanValue {
     name: String,
     signature: Signature,
 }
 
-impl EffectiveBooleanValueUdfImpl {
+impl EffectiveBooleanValue {
     /// TODO
-    pub fn new(name: FunctionName) -> Self {
+    pub fn new() -> Self {
         Self {
-            name: name.to_string(),
+            name: BuiltinName::EffectiveBooleanValue.to_string(),
             signature: Signature::new(
                 TypeSignature::Exact(vec![TypedValueEncoding::data_type()]),
                 Volatility::Immutable,
@@ -54,7 +40,7 @@ impl EffectiveBooleanValueUdfImpl {
     }
 }
 
-impl ScalarUDFImpl for EffectiveBooleanValueUdfImpl {
+impl ScalarUDFImpl for EffectiveBooleanValue {
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -26,7 +26,7 @@ pub struct GraphFusionExprBuilder<'a> {
     /// The schema of the input data. Necessary for inferring the encodings of RDF terms.
     schema: &'a DFSchema,
     /// Provides access to the builtin functions.
-    registry: &'a GraphFusionFunctionRegistry,
+    registry: &'a dyn GraphFusionFunctionRegistry,
 }
 
 impl GraphFusionExprBuilder<'_> {
@@ -103,7 +103,7 @@ impl GraphFusionExprBuilder<'_> {
 }
 
 impl<'a> GraphFusionExprBuilder<'a> {
-    pub fn new(schema: &'a DFSchema, registry: &'a GraphFusionFunctionRegistry) -> Self {
+    pub fn new(schema: &'a DFSchema, registry: &'a dyn GraphFusionFunctionRegistry) -> Self {
         Self { schema, registry }
     }
 
@@ -228,8 +228,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
     pub fn rand(&self) -> DFResult<Expr> {
         let udf = self
             .registry
-            .udf_factory(FunctionName::Builtin(BuiltinName::Rand))
-            .create_with_args(HashMap::new())?;
+            .create_udf(FunctionName::Builtin(BuiltinName::Rand), HashMap::new())?;
         Ok(udf.call(vec![]))
     }
 
@@ -335,16 +334,14 @@ impl<'a> GraphFusionExprBuilder<'a> {
     pub fn str_uuid(&self) -> DFResult<Expr> {
         let udf = self
             .registry
-            .udf_factory(FunctionName::Builtin(BuiltinName::StrUuid))
-            .create_with_args(HashMap::new())?;
+            .create_udf(FunctionName::Builtin(BuiltinName::StrUuid), HashMap::new())?;
         Ok(udf.call(vec![]))
     }
 
     pub fn uuid(&self) -> DFResult<Expr> {
         let udf = self
             .registry
-            .udf_factory(FunctionName::Builtin(BuiltinName::Uuid))
-            .create_with_args(HashMap::new())?;
+            .create_udf(FunctionName::Builtin(BuiltinName::Uuid), HashMap::new())?;
         Ok(udf.call(vec![]))
     }
 
@@ -366,8 +363,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
     pub fn bnode(&self) -> DFResult<Expr> {
         let udf = self
             .registry
-            .udf_factory(FunctionName::Builtin(BuiltinName::BNode))
-            .create_with_args(HashMap::new())?;
+            .create_udf(FunctionName::Builtin(BuiltinName::BNode), HashMap::new())?;
         Ok(udf.call(vec![]))
     }
 
@@ -380,8 +376,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
         let udf = self
             .registry
-            .udf_factory(FunctionName::Builtin(BuiltinName::Iri))
-            .create_with_args(args)?;
+            .create_udf(FunctionName::Builtin(BuiltinName::Iri), HashMap::new())?;
         Ok(udf.call(vec![p1]))
     }
 
@@ -465,8 +460,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
         let udf = self
             .registry
-            .udf_factory(FunctionName::Builtin(BuiltinName::And))
-            .create_with_args(HashMap::new())
+            .create_udf(FunctionName::Builtin(BuiltinName::And), HashMap::new())
             .expect("And does not work on RDF terms");
         Ok(udf.call(vec![lhs, rhs]))
     }
@@ -478,8 +472,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
         let udf = self
             .registry
-            .udf_factory(FunctionName::Builtin(BuiltinName::Or))
-            .create_with_args(HashMap::new())
+            .create_udf(FunctionName::Builtin(BuiltinName::Or), HashMap::new())
             .expect("And does not work on RDF terms");
         Ok(udf.call(vec![lhs, rhs]))
     }
@@ -638,26 +631,22 @@ impl<'a> GraphFusionExprBuilder<'a> {
 
         let udf = self
             .registry
-            .udf_factory(FunctionName::Builtin(builtin))
-            .create_with_args(HashMap::new())?;
+            .create_udf(FunctionName::Builtin(builtin), HashMap::new())?;
         Ok(udf.call(vec![expr]))
     }
 
     /// TODO
     fn apply_builtin(&self, name: BuiltinName, args: Vec<Expr>) -> DFResult<Expr> {
-        let udf_factory = self.registry.udf_factory(FunctionName::Builtin(name));
-
-        let target_encoding = udf_factory.encoding().pop().ok_or(plan_datafusion_err!(
-            "The UDF factory for {} is not valid for any Encoding.",
-            name
-        ))?;
+        let target_encoding = TypedValueEncoding::name();
         let args = args
             .into_iter()
             .map(|e| self.with_encoding(e, target_encoding))
             .collect::<DFResult<Vec<_>>>()?;
 
         // TODO pass encoding into function
-        let udf = udf_factory.create_with_args(HashMap::new())?;
+        let udf = self
+            .registry
+            .create_udf(FunctionName::Builtin(name), HashMap::new())?;
         Ok(udf.call(args))
     }
 
@@ -673,8 +662,7 @@ impl<'a> GraphFusionExprBuilder<'a> {
         let arg = self.with_encoding(arg, EncodingName::TypedValue)?;
         let udaf = self
             .registry
-            .udaf_factory(FunctionName::Builtin(name))
-            .create_with_args(args)?;
+            .create_udaf(FunctionName::Builtin(name), args)?;
 
         Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
             udaf,

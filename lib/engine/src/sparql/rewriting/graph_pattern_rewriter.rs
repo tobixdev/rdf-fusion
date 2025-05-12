@@ -112,7 +112,8 @@ impl GraphPatternRewriter {
                 let mut join_schema = lhs.schema().as_ref().clone();
                 join_schema.merge(rhs.schema());
 
-                let expr_builder = GraphFusionExprBuilder::new(&join_schema, &self.registry);
+                let expr_builder =
+                    GraphFusionExprBuilder::new(&join_schema, self.registry.as_ref());
                 let filter = expression
                     .as_ref()
                     .map(|f| self.rewrite_expression(expr_builder, f))
@@ -265,7 +266,7 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &AggregateExpression,
     ) -> DFResult<Expr> {
-        let expr_builder = GraphFusionExprBuilder::new(schema, &self.registry);
+        let expr_builder = GraphFusionExprBuilder::new(schema, self.registry.as_ref());
         let expression_rewriter =
             ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder);
         match expression {

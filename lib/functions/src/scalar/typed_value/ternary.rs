@@ -1,4 +1,5 @@
 use crate::builtin::BuiltinName;
+use crate::FunctionName;
 use graphfusion_encoding::typed_value::decoders::{
     BooleanTermValueDecoder, DefaultTypedValueDecoder, IntegerTermValueDecoder,
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
@@ -8,7 +9,6 @@ use graphfusion_encoding::typed_value::encoders::{
     StringLiteralRefTermValueEncoder,
 };
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::TermEncoding;
 use graphfusion_functions_scalar::{IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp};
 
 // Functional Forms
@@ -18,9 +18,9 @@ impl_ternary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     DefaultTypedValueEncoder,
-    IfTypedValueFactory,
+    if_typed_value,
     IfSparqlOp,
-    BuiltinName::If
+    FunctionName::Builtin(BuiltinName::If)
 );
 
 // Strings
@@ -30,9 +30,9 @@ impl_ternary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     BooleanTermValueEncoder,
-    RegexTernaryTypedValueFactory,
+    regex_ternary_typed_value,
     RegexSparqlOp,
-    BuiltinName::Regex
+    FunctionName::Builtin(BuiltinName::Regex)
 );
 impl_ternary_sparql_op!(
     TypedValueEncoding,
@@ -40,9 +40,9 @@ impl_ternary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    ReplaceTypedValueFactory,
+    replace_typed_value,
     ReplaceSparqlOp,
-    BuiltinName::Replace
+    FunctionName::Builtin(BuiltinName::Replace)
 );
 impl_ternary_sparql_op!(
     TypedValueEncoding,
@@ -50,7 +50,7 @@ impl_ternary_sparql_op!(
     IntegerTermValueDecoder,
     IntegerTermValueDecoder,
     StringLiteralRefTermValueEncoder,
-    SubStrTernaryDispatcher,
+    sub_str_ternary_typed_value,
     SubStrSparqlOp,
-    BuiltinName::SubStr
+    FunctionName::Builtin(BuiltinName::SubStr)
 );

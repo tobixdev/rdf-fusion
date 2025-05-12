@@ -348,7 +348,7 @@ impl GraphFusionLogicalPlanBuilder {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
 
-        let expr_builder = GraphFusionExprBuilder::new(&join_schema, &self.registry);
+        let expr_builder = GraphFusionExprBuilder::new(&join_schema, self.registry.as_ref());
         let mut join_filters = Vec::new();
 
         for k in &overlapping_keys {
@@ -466,7 +466,7 @@ impl GraphFusionLogicalPlanBuilder {
     /// TODO
     pub fn expr_builder(&self) -> GraphFusionExprBuilder<'_> {
         let schema = self.schema().as_ref();
-        GraphFusionExprBuilder::new(schema, &self.registry)
+        GraphFusionExprBuilder::new(schema, self.registry.as_ref())
     }
 
     /// TODO

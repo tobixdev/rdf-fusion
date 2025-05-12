@@ -1,6 +1,5 @@
 use crate::builtin::BuiltinName;
-use crate::factory::GraphFusionUdfFactory;
-use crate::{DFResult, FunctionName};
+use crate::DFResult;
 use datafusion::arrow::array::{as_boolean_array, Array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -9,40 +8,25 @@ use datafusion::logical_expr::{
     Volatility,
 };
 use graphfusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use graphfusion_encoding::{EncodingName, TermEncoding};
-use graphfusion_model::Term;
+use graphfusion_encoding::TermEncoding;
 use std::any::Any;
-use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug)]
-pub struct BooleanAsRdfTermTypedValueFactory;
-
-impl GraphFusionUdfFactory for BooleanAsRdfTermTypedValueFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::NativeBooleanAsTerm)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::TypedValue]
-    }
-
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
-        let udf = ScalarUDF::new_from_impl(BooleanAsRdfTerm::new(self.name()));
-        Ok(Arc::new(udf))
-    }
+pub fn native_boolean_as_term() -> Arc<ScalarUDF> {
+    let udf_impl = NativeBooleanAsTerm::new();
+    Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
 #[derive(Debug)]
-pub struct BooleanAsRdfTerm {
+struct NativeBooleanAsTerm {
     name: String,
     signature: Signature,
 }
 
-impl BooleanAsRdfTerm {
-    pub fn new(name: FunctionName) -> Self {
+impl NativeBooleanAsTerm {
+    pub fn new() -> Self {
         Self {
-            name: name.to_string(),
+            name: BuiltinName::NativeBooleanAsTerm.to_string(),
             signature: Signature::new(
                 TypeSignature::Exact(vec![DataType::Boolean]),
                 Volatility::Immutable,
@@ -51,7 +35,7 @@ impl BooleanAsRdfTerm {
     }
 }
 
-impl ScalarUDFImpl for BooleanAsRdfTerm {
+impl ScalarUDFImpl for NativeBooleanAsTerm {
     fn as_any(&self) -> &dyn Any {
         self
     }

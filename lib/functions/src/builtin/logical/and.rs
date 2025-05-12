@@ -1,41 +1,30 @@
-use crate::{DFResult, FunctionName};
+use crate::builtin::BuiltinName;
+use crate::DFResult;
 use datafusion::arrow::array::{as_boolean_array, Array, BooleanBuilder};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
+    Volatility,
+};
 use std::any::Any;
-use std::collections::HashMap;
 use std::ops::Not;
 use std::sync::Arc;
-use graphfusion_encoding::EncodingName;
-use graphfusion_model::Term;
-use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
 
-#[derive(Debug)]
-pub struct SparqlAndFactory;
-
-impl GraphFusionUdfFactory for SparqlAndFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::And)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::TypedValue]
-    }
-
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
-        let udf = ScalarUDF::new_from_impl(SparqlAnd::new());
-        Ok(Arc::new(udf))
-    }
+pub fn sparql_and() -> Arc<ScalarUDF> {
+    let udf_impl = SparqlAnd::new();
+    Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
 #[derive(Debug)]
-pub struct SparqlAnd {
+struct SparqlAnd {
+    name: String,
     signature: Signature,
 }
 
 impl SparqlAnd {
     pub fn new() -> Self {
         Self {
+            name: BuiltinName::And.to_string(),
             signature: Signature::new(
                 TypeSignature::Exact(vec![DataType::Boolean, DataType::Boolean]),
                 Volatility::Immutable,
@@ -50,7 +39,7 @@ impl ScalarUDFImpl for SparqlAnd {
     }
 
     fn name(&self) -> &str {
-        "and"
+        &self.name
     }
 
     fn signature(&self) -> &Signature {

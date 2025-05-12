@@ -1,6 +1,5 @@
 use crate::builtin::BuiltinName;
-use crate::factory::GraphFusionUdafFactory;
-use crate::{DFResult, FunctionName};
+use crate::DFResult;
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::{DataType, UInt64Type};
 use datafusion::common::exec_datafusion_err;
@@ -13,43 +12,20 @@ use graphfusion_encoding::typed_value::encoders::{
     IntegerTermValueEncoder, NumericTypedValueEncoder,
 };
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{
-    EncodingArray, EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
-};
-use graphfusion_model::{Decimal, Integer, Numeric, NumericPair, Term, ThinError, ThinResult};
-use std::collections::HashMap;
+use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use graphfusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
 use std::ops::Div;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
-static ENC_AVG: LazyLock<Arc<AggregateUDF>> = LazyLock::new(|| {
+pub fn avg_typed_value() -> Arc<AggregateUDF> {
     Arc::new(create_udaf(
-        "avg",
+        BuiltinName::Avg.to_string().as_str(),
         vec![TypedValueEncoding::data_type()],
         Arc::new(TypedValueEncoding::data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlAvg::new()))),
         Arc::new(vec![TypedValueEncoding::data_type(), DataType::UInt64]),
     ))
-});
-
-#[derive(Debug)]
-pub struct AvgUdafFactory {}
-
-impl GraphFusionUdafFactory for AvgUdafFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::Avg)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::TypedValue]
-    }
-
-    fn create_with_args(
-        &self,
-        _constant_args: HashMap<String, Term>,
-    ) -> DFResult<Arc<AggregateUDF>> {
-        Ok(Arc::clone(&ENC_AVG))
-    }
 }
 
 #[derive(Debug)]

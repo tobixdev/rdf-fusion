@@ -1,5 +1,5 @@
-use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
-use crate::{DFResult, FunctionName};
+use crate::builtin::BuiltinName;
+use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
@@ -14,27 +14,12 @@ use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
 };
-use graphfusion_model::Term;
 use std::any::Any;
-use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug)]
-pub struct WithTypedValueEncodingFactory;
-
-impl GraphFusionUdfFactory for WithTypedValueEncodingFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::WithTypedValueEncoding)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::PlainTerm]
-    }
-
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
-        let udf = ScalarUDF::new_from_impl(WithTypedValueEncoding::new(self.name()));
-        Ok(Arc::new(udf))
-    }
+pub fn with_typed_value_encoding() -> Arc<ScalarUDF> {
+    let udf_impl = WithTypedValueEncoding::new();
+    Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
 #[derive(Debug)]
@@ -44,9 +29,9 @@ struct WithTypedValueEncoding {
 }
 
 impl WithTypedValueEncoding {
-    pub fn new(name: FunctionName) -> Self {
+    pub fn new() -> Self {
         Self {
-            name: name.to_string(),
+            name: BuiltinName::WithTypedValueEncoding.to_string(),
             signature: Signature::new(
                 TypeSignature::Uniform(1, vec![PlainTermEncoding::data_type()]),
                 Volatility::Immutable,

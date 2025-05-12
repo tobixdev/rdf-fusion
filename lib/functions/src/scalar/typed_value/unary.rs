@@ -1,7 +1,6 @@
-use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
+use crate::builtin::BuiltinName;
 use crate::scalar::unary::UnaryScalarUdfOp;
-use crate::{impl_unary_sparql_op, DFResult, FunctionName};
-use datafusion::common::exec_err;
+use crate::{impl_unary_sparql_op, FunctionName};
 use datafusion::logical_expr::ScalarUDF;
 use graphfusion_encoding::typed_value::decoders::{
     DateTimeTermValueDecoder, DefaultTypedValueDecoder, NumericTermValueDecoder,
@@ -15,7 +14,6 @@ use graphfusion_encoding::typed_value::encoders::{
     OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
 };
 use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingName, TermEncoding};
 use graphfusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
     AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
@@ -27,9 +25,7 @@ use graphfusion_functions_scalar::{
     YearSparqlOp,
 };
 use graphfusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp};
-use graphfusion_model::{Iri, Term};
-use std::collections::HashMap;
-use std::fmt::Debug;
+use graphfusion_model::Iri;
 use std::sync::Arc;
 
 // Conversion
@@ -37,65 +33,65 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    AsBooleanTypedValueFactory,
+    as_boolean_typed_value,
     AsBooleanSparqlOp,
-    BuiltinName::AsBoolean
+    FunctionName::Builtin(BuiltinName::AsBoolean)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DateTimeTermValueEncoder,
-    AsDateTimeTypedValueFactory,
+    as_date_time_typed_value,
     AsDateTimeSparqlOp,
-    BuiltinName::AsDateTime
+    FunctionName::Builtin(BuiltinName::AsDateTime)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DecimalTermValueEncoder,
-    AsDecimalTypedValueFactory,
+    as_decimal_typed_value,
     AsDecimalSparqlOp,
-    BuiltinName::AsDecimal
+    FunctionName::Builtin(BuiltinName::AsDecimal)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     DoubleTermValueEncoder,
-    AsDoubleTypedValueFactory,
+    as_double_typed_value,
     AsDoubleSparqlOp,
-    BuiltinName::AsDouble
+    FunctionName::Builtin(BuiltinName::AsDouble)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     FloatTermValueEncoder,
-    AsFloatTypedValueFactory,
+    as_float_typed_value,
     AsFloatSparqlOp,
-    BuiltinName::AsFloat
+    FunctionName::Builtin(BuiltinName::AsFloat)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     IntTermValueEncoder,
-    AsIntTypedValueFactory,
+    as_int_typed_value,
     AsIntSparqlOp,
-    BuiltinName::AsInt
+    FunctionName::Builtin(BuiltinName::AsInt)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     IntegerTermValueEncoder,
-    AsIntegerTypedValueFactory,
+    as_integer_typed_value,
     AsIntegerSparqlOp,
-    BuiltinName::AsInteger
+    FunctionName::Builtin(BuiltinName::AsInteger)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    AsStringTypedValueFactory,
+    as_string_typed_value,
     AsStringSparqlOp,
-    BuiltinName::AsString
+    FunctionName::Builtin(BuiltinName::AsString)
 );
 
 // Dates and Times
@@ -103,65 +99,65 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    DayTypedValueFactory,
+    day_typed_value,
     DaySparqlOp,
-    BuiltinName::Day
+    FunctionName::Builtin(BuiltinName::Day)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    HoursTypedValueFactory,
+    hours_typed_value,
     HoursSparqlOp,
-    BuiltinName::Hours
+    FunctionName::Builtin(BuiltinName::Hours)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    MinutesTypedValueFactory,
+    minutes_typed_value,
     MinutesSparqlOp,
-    BuiltinName::Minutes
+    FunctionName::Builtin(BuiltinName::Minutes)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    MonthTypedValueFactory,
+    month_typed_value,
     MonthSparqlOp,
-    BuiltinName::Month
+    FunctionName::Builtin(BuiltinName::Month)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     DecimalTermValueEncoder,
-    SecondsTypedValueFactory,
+    seconds_typed_value,
     SecondsSparqlOp,
-    BuiltinName::Seconds
+    FunctionName::Builtin(BuiltinName::Seconds)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     DayTimeDurationTermValueEncoder,
-    TimezoneTypedValueFactory,
+    timezone_typed_value,
     TimezoneSparqlOp,
-    BuiltinName::Timezone
+    FunctionName::Builtin(BuiltinName::Timezone)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    TzTypedValueFactory,
+    tz_typed_value,
     TzSparqlOp,
-    BuiltinName::Tz
+    FunctionName::Builtin(BuiltinName::Tz)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
     IntegerTermValueEncoder,
-    YearTypedValueFactory,
+    year_typed_value,
     YearSparqlOp,
-    BuiltinName::Year
+    FunctionName::Builtin(BuiltinName::Year)
 );
 
 // Functional Form
@@ -169,9 +165,9 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder, // For Bound
-    BoundTypedValueFactory,
+    bound_typed_value,
     BoundSparqlOp,
-    BuiltinName::Bound
+    FunctionName::Builtin(BuiltinName::Bound)
 );
 
 // Hashing
@@ -179,41 +175,41 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Md5TypedValueFactory,
+    md5_typed_value,
     Md5SparqlOp,
-    BuiltinName::Md5
+    FunctionName::Builtin(BuiltinName::Md5)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Sha1TypedValueFactory,
+    sha1_typed_value,
     Sha1SparqlOp,
-    BuiltinName::Sha1
+    FunctionName::Builtin(BuiltinName::Sha1)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Sha256TypedValueFactory,
+    sha256_typed_value,
     Sha256SparqlOp,
-    BuiltinName::Sha256
+    FunctionName::Builtin(BuiltinName::Sha256)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Sha384TypedValueFactory,
+    sha384_typed_value,
     Sha384SparqlOp,
-    BuiltinName::Sha384
+    FunctionName::Builtin(BuiltinName::Sha384)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    Sha512TypedValueFactory,
+    sha512_typed_value,
     Sha512SparqlOp,
-    BuiltinName::Sha512
+    FunctionName::Builtin(BuiltinName::Sha512)
 );
 
 // Numeric
@@ -221,49 +217,49 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    AbsTypedValueFactory,
+    abs_typed_value,
     AbsSparqlOp,
-    BuiltinName::Abs
+    FunctionName::Builtin(BuiltinName::Abs)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    CeilTypedValueFactory,
+    ceil_typed_value,
     CeilSparqlOp,
-    BuiltinName::Ceil
+    FunctionName::Builtin(BuiltinName::Ceil)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    FloorTypedValueFactory,
+    floor_typed_value,
     FloorSparqlOp,
-    BuiltinName::Floor
+    FunctionName::Builtin(BuiltinName::Floor)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    RoundTypedValueFactory,
+    round_typed_value,
     RoundSparqlOp,
-    BuiltinName::Round
+    FunctionName::Builtin(BuiltinName::Round)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    UnaryMinusTypedValueFactory,
+    unary_minus_typed_value,
     UnaryMinusSparqlOp,
-    BuiltinName::UnaryMinus
+    FunctionName::Builtin(BuiltinName::UnaryMinus)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
     NumericTypedValueEncoder,
-    UnaryPlusTypedValueFactory,
+    unary_plus_typed_value,
     UnaryPlusSparqlOp,
-    BuiltinName::UnaryPlus
+    FunctionName::Builtin(BuiltinName::UnaryPlus)
 );
 
 // Strings
@@ -271,33 +267,33 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    EncodeForUriTypedValueFactory,
+    encode_for_uri_typed_value,
     EncodeForUriSparqlOp,
-    BuiltinName::EncodeForUri
+    FunctionName::Builtin(BuiltinName::EncodeForUri)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    LCaseTypedValueFactory,
+    lcase_typed_value,
     LCaseSparqlOp,
-    BuiltinName::LCase
+    FunctionName::Builtin(BuiltinName::LCase)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     IntegerTermValueEncoder,
-    StrLenTypedValueFactory,
+    str_len_typed_value,
     StrLenSparqlOp,
-    BuiltinName::StrLen
+    FunctionName::Builtin(BuiltinName::StrLen)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     StringLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    UCaseTypedValueFactory,
+    ucase_typed_value,
     UCaseSparqlOp,
-    BuiltinName::UCase
+    FunctionName::Builtin(BuiltinName::UCase)
 );
 
 // Terms
@@ -305,112 +301,74 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     BlankNodeRefTermValueEncoder,
-    BNodeTypedValueFactory,
+    bnode_typed_value,
     BNodeSparqlOp,
-    BuiltinName::BNode
+    FunctionName::Builtin(BuiltinName::BNode)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     NamedNodeRefTermValueEncoder,
-    DatatypeTypedValueFactory,
+    datatype_typed_value,
     DatatypeSparqlOp,
-    BuiltinName::Datatype
+    FunctionName::Builtin(BuiltinName::Datatype)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    IsBlankTypedValueFactory,
+    is_blank_typed_value,
     IsBlankSparqlOp,
-    BuiltinName::IsBlank
+    FunctionName::Builtin(BuiltinName::IsBlank)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    IsIriTypedValueFactory,
+    is_iri_typed_value,
     IsIriSparqlOp,
-    BuiltinName::IsIri
+    FunctionName::Builtin(BuiltinName::IsIri)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    IsLiteralTypedValueFactory,
+    is_literal_typed_value,
     IsLiteralSparqlOp,
-    BuiltinName::IsLiteral
+    FunctionName::Builtin(BuiltinName::IsLiteral)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    IsNumericTypedValueFactory,
+    is_numeric_typed_value,
     IsNumericSparqlOp,
-    BuiltinName::IsNumeric
+    FunctionName::Builtin(BuiltinName::IsNumeric)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     SimpleLiteralRefTermValueEncoder,
-    LangTypedValueFactory,
+    lang_typed_value,
     LangSparqlOp,
-    BuiltinName::Lang
+    FunctionName::Builtin(BuiltinName::Lang)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    StrTypedValueFactory,
+    str_typed_value,
     StrSparqlOp,
-    BuiltinName::Str
+    FunctionName::Builtin(BuiltinName::Str)
 );
 
-#[derive(Debug)]
-pub struct IriTypedValueFactory {}
-
-impl IriTypedValueFactory {
-    pub const BASE_IRI: &'static str = "base_iri";
-}
-
-impl GraphFusionUdfFactory for IriTypedValueFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::Iri)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::TypedValue]
-    }
-
-    /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
-    fn create_with_args(
-        &self,
-        mut constant_args: HashMap<String, Term>,
-    ) -> DFResult<Arc<ScalarUDF>> {
-        let base_iri = extract_base_iri(&mut constant_args)?;
-
-        let op = IriSparqlOp::new(base_iri);
-        let udf_impl = UnaryScalarUdfOp::<
-            IriSparqlOp,
-            TypedValueEncoding,
-            DefaultTypedValueDecoder,
-            NamedNodeTermValueEncoder,
-        >::new(self.name(), op);
-        Ok(Arc::new(ScalarUDF::new_from_impl(udf_impl)))
-    }
-}
-
-fn extract_base_iri(constant_args: &mut HashMap<String, Term>) -> DFResult<Option<Iri<String>>> {
-    let Some(term) = constant_args.remove(IriTypedValueFactory::BASE_IRI) else {
-        return Ok(None);
-    };
-
-    match term {
-        Term::NamedNode(iri) => Ok(Some(Iri::parse_unchecked(iri.into_string()))),
-        _ => exec_err!(
-            "{} expcted an IRI for argument {}.",
-            BuiltinName::Iri,
-            IriTypedValueFactory::BASE_IRI
-        ),
-    }
+pub fn iri_typed_value(base_iri: Option<Iri<String>>) -> Arc<ScalarUDF> {
+    let op = IriSparqlOp::new(base_iri);
+    let udf_impl = UnaryScalarUdfOp::<
+        IriSparqlOp,
+        TypedValueEncoding,
+        DefaultTypedValueDecoder,
+        NamedNodeTermValueEncoder,
+    >::new(FunctionName::Builtin(BuiltinName::Iri), op);
+    Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }

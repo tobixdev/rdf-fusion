@@ -11,40 +11,20 @@ use std::any::Any;
 
 #[macro_export]
 macro_rules! impl_quarternary_sparql_op {
-    ($ENCODING: ty, $DECODER0: ty, $DECODER1: ty, $DECODER2: ty, $DECODER3: ty, $ENCODER: ty, $STRUCT_NAME: ident, $SPARQL_OP: ty, $NAME: expr) => {
-        #[derive(Debug)]
-        pub struct $STRUCT_NAME {}
-
-        impl $crate::builtin::GraphFusionUdfFactory for $STRUCT_NAME {
-            fn name(&self) -> $crate::FunctionName {
-                $crate::FunctionName::Builtin($NAME)
-            }
-
-            fn encoding(&self) -> std::vec::Vec<graphfusion_encoding::EncodingName> {
-                vec![<$ENCODING>::name()]
-            }
-
-            /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
-            fn create_with_args(
-                &self,
-                _constant_args: std::collections::HashMap<
-                    std::string::String,
-                    graphfusion_model::Term,
-                >,
-            ) -> $crate::DFResult<std::sync::Arc<datafusion::logical_expr::ScalarUDF>> {
-                let op = <$SPARQL_OP>::new();
-                let udf_impl = crate::scalar::quaternary::QuarternaryScalarUdfOp::<
-                    $SPARQL_OP,
-                    $ENCODING,
-                    $DECODER0,
-                    $DECODER1,
-                    $DECODER2,
-                    $DECODER3,
-                    $ENCODER,
-                >::new(self.name(), op);
-                let udf = datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl);
-                Ok(std::sync::Arc::new(udf))
-            }
+    ($ENCODING: ty, $DECODER0: ty, $DECODER1: ty, $DECODER2: ty, $DECODER3: ty, $ENCODER: ty, $FUNCTION_NAME: ident, $SPARQL_OP: ty, $NAME: expr) => {
+        pub fn $FUNCTION_NAME() -> std::sync::Arc<datafusion::logical_expr::ScalarUDF> {
+            let op = <$SPARQL_OP>::new();
+            let udf_impl = crate::scalar::quaternary::QuarternaryScalarUdfOp::<
+                $SPARQL_OP,
+                $ENCODING,
+                $DECODER0,
+                $DECODER1,
+                $DECODER2,
+                $DECODER3,
+                $ENCODER,
+            >::new($NAME, op);
+            let udf = datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl);
+            std::sync::Arc::new(udf)
         }
     };
 }

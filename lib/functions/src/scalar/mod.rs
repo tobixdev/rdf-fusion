@@ -6,10 +6,8 @@ mod nullary;
 mod quaternary;
 #[macro_use]
 mod ternary;
-mod typed_value;
+pub(crate) mod typed_value;
 #[macro_use]
 mod unary;
 #[macro_use]
 mod n_ary;
-
-pub use typed_value::*;

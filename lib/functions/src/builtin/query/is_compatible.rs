@@ -1,5 +1,5 @@
-use crate::builtin::{BuiltinName, GraphFusionUdfFactory};
-use crate::{DFResult, FunctionName};
+use crate::builtin::BuiltinName;
+use crate::DFResult;
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
@@ -9,40 +9,26 @@ use datafusion::logical_expr::{
 };
 use graphfusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
-use graphfusion_encoding::{EncodingName, TermDecoder, TermEncoding};
-use graphfusion_model::{Term, TermRef, ThinError, ThinResult};
+use graphfusion_encoding::{TermDecoder, TermEncoding};
+use graphfusion_model::{TermRef, ThinError, ThinResult};
 use std::any::Any;
-use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Debug)]
-pub struct IsCompatibleUdfFactory;
-
-impl GraphFusionUdfFactory for IsCompatibleUdfFactory {
-    fn name(&self) -> FunctionName {
-        FunctionName::Builtin(BuiltinName::IsCompatible)
-    }
-
-    fn encoding(&self) -> Vec<EncodingName> {
-        vec![EncodingName::PlainTerm]
-    }
-
-    fn create_with_args(&self, _constant_args: HashMap<String, Term>) -> DFResult<Arc<ScalarUDF>> {
-        let udf = ScalarUDF::new_from_impl(IsCompatible::new(self.name()));
-        Ok(Arc::new(udf))
-    }
+pub fn is_compatible() -> Arc<ScalarUDF> {
+    let udf_impl = IsCompatible::new();
+    Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
 #[derive(Debug)]
-pub struct IsCompatible {
+struct IsCompatible {
     name: String,
     signature: Signature,
 }
 
 impl IsCompatible {
-    pub fn new(name: FunctionName) -> Self {
+    pub fn new() -> Self {
         Self {
-            name: name.to_string(),
+            name: BuiltinName::IsCompatible.to_string(),
             signature: Signature::new(
                 TypeSignature::Exact(vec![PlainTermEncoding::data_type(); 2]),
                 Volatility::Immutable,

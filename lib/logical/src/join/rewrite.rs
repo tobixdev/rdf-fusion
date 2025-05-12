@@ -81,7 +81,7 @@ impl SparqlJoinLoweringRule {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
 
-        let expr_builder = GraphFusionExprBuilder::new(&join_schema, &self.registry);
+        let expr_builder = GraphFusionExprBuilder::new(&join_schema, self.registry.as_ref());
         let projections = node
             .schema()
             .columns()
