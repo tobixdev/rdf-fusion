@@ -1,5 +1,5 @@
 use crate::{BinarySparqlOp, SparqlOp, ThinResult};
-use graphfusion_model::{Boolean, TypedValueRef};
+use rdf_fusion_model::{Boolean, TypedValueRef};
 
 #[derive(Debug)]
 pub struct SameTermSparqlOp;

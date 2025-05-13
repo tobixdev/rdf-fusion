@@ -1,5 +1,5 @@
 use crate::{NullarySparqlOp, SparqlOp, ThinResult};
-use graphfusion_model::OwnedStringLiteral;
+use rdf_fusion_model::OwnedStringLiteral;
 use uuid::Uuid;
 
 #[derive(Debug)]

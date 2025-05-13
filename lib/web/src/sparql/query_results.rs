@@ -1,5 +1,5 @@
 use axum::response::{IntoResponse, Response};
-use graphfusion::QueryResults;
+use rdf_fusion::QueryResults;
 
 /// Wraps a [QueryResults] that can be converted into a [Response].
 #[allow(unused)]

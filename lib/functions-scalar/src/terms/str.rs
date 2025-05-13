@@ -1,6 +1,6 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::OwnedStringLiteral;
-use graphfusion_model::TypedValueRef;
+use rdf_fusion_model::OwnedStringLiteral;
+use rdf_fusion_model::TypedValueRef;
 
 #[derive(Debug)]
 pub struct StrSparqlOp;

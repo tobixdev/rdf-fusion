@@ -3,8 +3,8 @@
 //! Utilities to read RDF graphs and datasets.
 
 use crate::io::{DatasetFormat, GraphFormat};
-use graphfusion_model::IriParseError;
-use graphfusion_model::{Quad, Triple};
+use rdf_fusion_model::IriParseError;
+use rdf_fusion_model::{Quad, Triple};
 use oxrdfio::{RdfParseError, RdfParser, ReaderQuadParser};
 use std::io::Read;
 
@@ -16,7 +16,7 @@ use std::io::Read;
 /// * [RDF/XML](https://www.w3.org/TR/rdf-syntax-grammar/) ([`GraphFormat::RdfXml`])
 ///
 /// ```
-/// use graphfusion::io::{GraphFormat, GraphParser};
+/// use rdf_fusion::io::{GraphFormat, GraphParser};
 ///
 /// let file = "<http://example.com/s> <http://example.com/p> <http://example.com/o> .";
 ///
@@ -48,7 +48,7 @@ impl GraphParser {
     /// Provides an IRI that could be used to resolve the file relative IRIs.
     ///
     /// ```
-    /// use graphfusion::io::{GraphFormat, GraphParser};
+    /// use rdf_fusion::io::{GraphFormat, GraphParser};
     ///
     /// let file = "</s> </p> </o> .";
     ///
@@ -81,7 +81,7 @@ impl GraphParser {
 /// Could be built using a [`GraphParser`].
 ///
 /// ```
-/// use graphfusion::io::{GraphFormat, GraphParser};
+/// use rdf_fusion::io::{GraphFormat, GraphParser};
 ///
 /// let file = "<http://example.com/s> <http://example.com/p> <http://example.com/o> .";
 ///
@@ -114,7 +114,7 @@ impl<R: Read> Iterator for TripleReader<R> {
 /// * [TriG](https://www.w3.org/TR/trig/) ([`DatasetFormat::TriG`])
 ///
 /// ```
-/// use graphfusion::io::{DatasetFormat, DatasetParser};
+/// use rdf_fusion::io::{DatasetFormat, DatasetParser};
 ///
 /// let file = "<http://example.com/s> <http://example.com/p> <http://example.com/o> <http://example.com/g> .";
 ///
@@ -142,7 +142,7 @@ impl DatasetParser {
     /// Provides an IRI that could be used to resolve the file relative IRIs.
     ///
     /// ```
-    /// use graphfusion::io::{DatasetFormat, DatasetParser};
+    /// use rdf_fusion::io::{DatasetFormat, DatasetParser};
     ///
     /// let file = "<g> { </s> </p> </o> }";
     ///
@@ -175,7 +175,7 @@ impl DatasetParser {
 /// Could be built using a [`DatasetParser`].
 ///
 /// ```
-/// use graphfusion::io::{DatasetFormat, DatasetParser};
+/// use rdf_fusion::io::{DatasetFormat, DatasetParser};
 ///
 /// let file = "<http://example.com/s> <http://example.com/p> <http://example.com/o> <http://example.com/g> .";
 ///

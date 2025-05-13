@@ -1,5 +1,5 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::{DateTime, OwnedStringLiteral};
+use rdf_fusion_model::{DateTime, OwnedStringLiteral};
 
 #[derive(Debug)]
 pub struct TzSparqlOp;

@@ -3,9 +3,9 @@ use crate::oxigraph_memory::store::OxigraphMemoryStorage;
 use crate::oxigraph_memory::table_provider::OxigraphMemTable;
 use async_trait::async_trait;
 use datafusion::catalog::TableProvider;
-use graphfusion_engine::error::{CorruptionError, StorageError};
-use graphfusion_engine::QuadStorage;
-use graphfusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
+use rdf_fusion_engine::error::{CorruptionError, StorageError};
+use rdf_fusion_engine::QuadStorage;
+use rdf_fusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
 use std::sync::Arc;
 
 #[derive(Clone)]

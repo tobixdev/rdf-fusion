@@ -1,5 +1,5 @@
 use datafusion::arrow::error::ArrowError;
-use graphfusion_model::{ParseDateTimeError, ParseDecimalError, ParseDurationError};
+use rdf_fusion_model::{ParseDateTimeError, ParseDecimalError, ParseDurationError};
 use std::error::Error;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::ParseBoolError;

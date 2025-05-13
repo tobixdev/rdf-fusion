@@ -2,11 +2,11 @@ use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::TermDecoder;
 use crate::TermEncoding;
 use crate::TypedValueEncoding;
-use graphfusion_model::{
+use rdf_fusion_model::{
     Boolean, DateTime, Integer, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef,
     ThinError,
 };
-use graphfusion_model::{ThinResult, TypedValueRef};
+use rdf_fusion_model::{ThinResult, TypedValueRef};
 
 #[macro_export]
 macro_rules! make_simple_term_value_decoder {

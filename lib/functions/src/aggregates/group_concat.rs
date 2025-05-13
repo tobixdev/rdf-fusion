@@ -4,11 +4,11 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use graphfusion_encoding::typed_value::decoders::StringLiteralRefTermValueDecoder;
-use graphfusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
-use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{StringLiteralRef, ThinError};
+use rdf_fusion_encoding::typed_value::decoders::StringLiteralRefTermValueDecoder;
+use rdf_fusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
+use rdf_fusion_model::{StringLiteralRef, ThinError};
 use std::sync::Arc;
 
 pub fn group_concat_typed_value(separator: Option<String>) -> Arc<AggregateUDF> {
@@ -89,13 +89,13 @@ impl Accumulator for SparqlGroupConcat {
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         if self.error {
             return StringLiteralRefTermValueEncoder::encode_term(ThinError::expected())
-                .map(graphfusion_encoding::EncodingScalar::into_scalar_value);
+                .map(rdf_fusion_encoding::EncodingScalar::into_scalar_value);
         }
 
         let value = self.value.as_deref().unwrap_or("");
         let literal = StringLiteralRef(value, self.language.as_deref());
         StringLiteralRefTermValueEncoder::encode_term(Ok(literal))
-            .map(graphfusion_encoding::EncodingScalar::into_scalar_value)
+            .map(rdf_fusion_encoding::EncodingScalar::into_scalar_value)
     }
 
     fn size(&self) -> usize {

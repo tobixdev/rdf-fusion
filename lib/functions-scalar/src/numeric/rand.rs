@@ -1,5 +1,5 @@
 use crate::{NullarySparqlOp, SparqlOp, ThinResult};
-use graphfusion_model::Double;
+use rdf_fusion_model::Double;
 use rand::random;
 
 #[derive(Debug)]

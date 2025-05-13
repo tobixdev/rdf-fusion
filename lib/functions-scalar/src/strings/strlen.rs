@@ -1,5 +1,5 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::{Integer, StringLiteralRef};
+use rdf_fusion_model::{Integer, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct StrLenSparqlOp;

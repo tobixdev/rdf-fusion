@@ -1,6 +1,6 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::TypedValueRef;
-use graphfusion_model::{Integer, Numeric, ThinError};
+use rdf_fusion_model::TypedValueRef;
+use rdf_fusion_model::{Integer, Numeric, ThinError};
 
 #[derive(Debug)]
 pub struct AsIntegerSparqlOp;

@@ -2,7 +2,7 @@ use crate::encoding::TermEncoder;
 use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use crate::{DFResult, TermEncoding};
 use datafusion::common::exec_err;
-use graphfusion_model::{Numeric, ThinError, ThinResult, TypedValueRef};
+use rdf_fusion_model::{Numeric, ThinError, ThinResult, TypedValueRef};
 
 #[derive(Debug)]
 pub struct DefaultTypedValueEncoder;

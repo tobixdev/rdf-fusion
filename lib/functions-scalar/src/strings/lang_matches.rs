@@ -1,5 +1,5 @@
 use crate::{BinarySparqlOp, SparqlOp, ThinResult};
-use graphfusion_model::{Boolean, SimpleLiteralRef};
+use rdf_fusion_model::{Boolean, SimpleLiteralRef};
 
 #[derive(Debug)]
 pub struct LangMatchesSparqlOp;

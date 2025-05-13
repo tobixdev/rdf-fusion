@@ -1,5 +1,5 @@
 use crate::{BinarySparqlOp, SparqlOp, TernarySparqlOp, ThinResult};
-use graphfusion_model::{Boolean, SimpleLiteralRef, StringLiteralRef, ThinError};
+use rdf_fusion_model::{Boolean, SimpleLiteralRef, StringLiteralRef, ThinError};
 use regex::{Regex, RegexBuilder};
 use std::borrow::Cow;
 

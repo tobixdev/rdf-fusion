@@ -3,9 +3,9 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use graphfusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_functions_scalar::NArySparqlOp;
-use graphfusion_functions_scalar::SparqlOpVolatility;
+use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
+use rdf_fusion_functions_scalar::NArySparqlOp;
+use rdf_fusion_functions_scalar::SparqlOpVolatility;
 use std::any::Any;
 
 #[macro_export]

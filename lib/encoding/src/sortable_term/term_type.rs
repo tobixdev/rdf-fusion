@@ -1,4 +1,4 @@
-use graphfusion_model::ThinError;
+use rdf_fusion_model::ThinError;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum SortableTermType {

@@ -1,7 +1,7 @@
 use crate::plain_term::encoding::{PlainTermEncodingField, PlainTermType};
 use crate::plain_term::PlainTermEncoding;
 use datafusion::arrow::array::{ArrayRef, StringBuilder, StructBuilder, UInt8Builder};
-use graphfusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
+use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 use std::sync::Arc;
 
 /// Provides a convenient API for building arrays of RDF terms with the [PlainTermEncoding]. The

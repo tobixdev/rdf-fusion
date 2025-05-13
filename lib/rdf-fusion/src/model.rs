@@ -1,1 +1,1 @@
-pub use graphfusion_model::*;
+pub use rdf_fusion_model::*;

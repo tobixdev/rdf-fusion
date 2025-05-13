@@ -1,7 +1,7 @@
 #![allow(clippy::unreadable_literal)]
 
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
-use graphfusion_model::QuadRef;
+use rdf_fusion_model::QuadRef;
 use std::fmt::Debug;
 use std::hash::Hash;
 

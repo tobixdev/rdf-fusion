@@ -5,7 +5,7 @@ use crate::{DFResult, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
-use graphfusion_model::{Decimal, TermRef, ThinError};
+use rdf_fusion_model::{Decimal, TermRef, ThinError};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;

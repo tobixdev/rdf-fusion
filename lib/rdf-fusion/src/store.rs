@@ -4,9 +4,9 @@
 //!
 //! Usage example:
 //! ```
-//! use graphfusion::model::*;
-//! use graphfusion::sparql::QueryResults;
-//! use graphfusion::store::Store;
+//! use rdf_fusion::model::*;
+//! use rdf_fusion::sparql::QueryResults;
+//! use rdf_fusion::store::Store;
 //! use futures::StreamExt;
 //!
 //! # tokio_test::block_on(async {
@@ -33,17 +33,17 @@
 use crate::error::{LoaderError, SerializerError};
 use crate::sparql::error::QueryEvaluationError;
 use futures::StreamExt;
-use graphfusion_engine::error::StorageError;
-use graphfusion_engine::results::{QuadStream, QuerySolutionStream};
-use graphfusion_engine::sparql::{
+use rdf_fusion_engine::error::StorageError;
+use rdf_fusion_engine::results::{QuadStream, QuerySolutionStream};
+use rdf_fusion_engine::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use graphfusion_engine::RdfFusionInstance;
-use graphfusion_model::{
+use rdf_fusion_engine::RdfFusionInstance;
+use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
     TermRef, Variable,
 };
-use graphfusion_storage::MemoryQuadStorage;
+use rdf_fusion_storage::MemoryQuadStorage;
 use oxrdfio::{RdfParser, RdfSerializer};
 use std::io::{Read, Write};
 use std::sync::{Arc, LazyLock};
@@ -63,9 +63,9 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 ///
 /// Usage example:
 /// ```
-/// use graphfusion::model::*;
-/// use graphfusion::sparql::QueryResults;
-/// use graphfusion::store::Store;
+/// use rdf_fusion::model::*;
+/// use rdf_fusion::sparql::QueryResults;
+/// use rdf_fusion::store::Store;
 /// use futures::StreamExt;
 ///
 /// # tokio_test::block_on(async {
@@ -113,9 +113,9 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::sparql::QueryResults;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::sparql::QueryResults;
+    /// use rdf_fusion::store::Store;
     /// use futures::StreamExt;
     ///
     /// # tokio_test::block_on(async {
@@ -146,9 +146,9 @@ impl Store {
     ///
     /// Usage example with a custom function serializing terms to N-Triples:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::sparql::{QueryOptions, QueryResults};
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::sparql::{QueryOptions, QueryResults};
+    /// use rdf_fusion::store::Store;
     /// use futures::StreamExt;
     ///
     /// # tokio_test::block_on(async {
@@ -180,8 +180,8 @@ impl Store {
     ///
     /// Usage example serialising the explanation with statistics in JSON:
     /// ```
-    /// use graphfusion::sparql::{QueryOptions, QueryResults};
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::sparql::{QueryOptions, QueryResults};
+    /// use rdf_fusion::store::Store;
     /// use futures::StreamExt;
     ///
     /// # tokio_test::block_on(async {
@@ -215,8 +215,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::new();
@@ -253,8 +253,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::new();
@@ -284,8 +284,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -316,8 +316,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -336,8 +336,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::new();
@@ -416,9 +416,9 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::store::Store;
-    /// use graphfusion::io::RdfFormat;
-    /// use graphfusion::model::*;
+    /// use rdf_fusion::store::Store;
+    /// use rdf_fusion::io::RdfFormat;
+    /// use rdf_fusion::model::*;
     /// use oxrdfio::RdfParser;
     ///
     /// # tokio_test::block_on(async {
@@ -469,8 +469,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -509,8 +509,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -532,8 +532,8 @@ impl Store {
     /// Dumps the store into a file.
     ///
     /// ```
-    /// use graphfusion::io::RdfFormat;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::io::RdfFormat;
+    /// use rdf_fusion::store::Store;
     ///
     /// let file =
     ///     "<http://example.com> <http://example.com> <http://example.com> <http://example.com> .\n"
@@ -570,9 +570,9 @@ impl Store {
     /// Usage example:
     /// ```
     /// use oxrdfio::RdfParser;
-    /// use graphfusion::io::RdfFormat;
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::io::RdfFormat;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// let file = "<http://example.com> <http://example.com> <http://example.com> .\n".as_bytes();
     ///
@@ -607,8 +607,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNode::new("http://example.com")?;
@@ -630,8 +630,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::{NamedNode, QuadRef};
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::{NamedNode, QuadRef};
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNode::new("http://example.com")?;
@@ -658,8 +658,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::NamedNodeRef;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::NamedNodeRef;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -687,8 +687,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::{NamedNodeRef, QuadRef};
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::{NamedNodeRef, QuadRef};
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -716,8 +716,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::{NamedNodeRef, QuadRef};
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::{NamedNodeRef, QuadRef};
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -746,8 +746,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use graphfusion::model::*;
-    /// use graphfusion::store::Store;
+    /// use rdf_fusion::model::*;
+    /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -779,7 +779,7 @@ impl Store {
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
-    use graphfusion_model::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
+    use rdf_fusion_model::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
 
     #[test]
     fn test_send_sync() {

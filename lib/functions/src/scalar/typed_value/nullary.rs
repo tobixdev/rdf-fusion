@@ -1,11 +1,11 @@
 use crate::builtin::BuiltinName;
 use crate::FunctionName;
-use graphfusion_encoding::typed_value::encoders::{
+use rdf_fusion_encoding::typed_value::encoders::{
     BlankNodeTermValueEncoder, DoubleTermValueEncoder, NamedNodeTermValueEncoder,
     OwnedStringLiteralTermValueEncoder,
 };
-use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_functions_scalar::{BNodeSparqlOp, RandSparqlOp, StrUuidSparqlOp, UuidSparqlOp};
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_functions_scalar::{BNodeSparqlOp, RandSparqlOp, StrUuidSparqlOp, UuidSparqlOp};
 
 impl_nullary_op!(
     TypedValueEncoding,

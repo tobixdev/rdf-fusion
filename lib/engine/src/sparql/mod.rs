@@ -1,6 +1,6 @@
 //! [SPARQL](https://www.w3.org/TR/sparql11-overview/) implementation.
 //!
-//! Stores execute SPARQL. See [`Store`](graphfusion::store::Store::query()) for an example.
+//! Stores execute SPARQL. See [`Store`](rdf_fusion::store::Store::query()) for an example.
 
 mod algebra;
 pub mod error;
@@ -12,7 +12,7 @@ pub use crate::results::{QueryResults, QuerySolution, QuerySolutionStream, Query
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};
 pub use crate::sparql::explanation::QueryExplanation;
 pub use eval::evaluate_query;
-pub use graphfusion_model::{Variable, VariableNameParseError};
+pub use rdf_fusion_model::{Variable, VariableNameParseError};
 pub use spargebra::SparqlSyntaxError;
 
 /// Options for SPARQL query evaluation.

@@ -1,8 +1,8 @@
 use crate::active_graph::ActiveGraph;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use graphfusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
-use graphfusion_model::NamedNode;
+use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
+use rdf_fusion_model::NamedNode;
 use spargebra::term::{Subject, Term};
 use std::cmp::Ordering;
 use std::fmt;

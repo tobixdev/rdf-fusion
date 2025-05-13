@@ -2,9 +2,9 @@
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use futures::StreamExt;
-use graphfusion::io::{RdfFormat, RdfParser};
-use graphfusion::sparql::{Query, QueryOptions, QueryResults, Update};
-use graphfusion::store::Store;
+use rdf_fusion::io::{RdfFormat, RdfParser};
+use rdf_fusion::sparql::{Query, QueryOptions, QueryResults, Update};
+use rdf_fusion::store::Store;
 use rand::random;
 use std::env::temp_dir;
 use std::fs::{remove_dir_all, File};

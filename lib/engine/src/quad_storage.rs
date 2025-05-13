@@ -1,7 +1,7 @@
 use crate::error::StorageError;
 use async_trait::async_trait;
 use datafusion::datasource::TableProvider;
-use graphfusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
+use rdf_fusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
 use std::sync::Arc;
 
 #[async_trait]

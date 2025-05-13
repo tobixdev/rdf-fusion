@@ -2,19 +2,19 @@ use crate::builtin::BuiltinName;
 use crate::scalar::unary::UnaryScalarUdfOp;
 use crate::{impl_unary_sparql_op, FunctionName};
 use datafusion::logical_expr::ScalarUDF;
-use graphfusion_encoding::typed_value::decoders::{
+use rdf_fusion_encoding::typed_value::decoders::{
     DateTimeTermValueDecoder, DefaultTypedValueDecoder, NumericTermValueDecoder,
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
-use graphfusion_encoding::typed_value::encoders::{
+use rdf_fusion_encoding::typed_value::encoders::{
     BlankNodeRefTermValueEncoder, BooleanTermValueEncoder, DateTimeTermValueEncoder,
     DayTimeDurationTermValueEncoder, DecimalTermValueEncoder, DoubleTermValueEncoder,
     FloatTermValueEncoder, IntTermValueEncoder, IntegerTermValueEncoder,
     NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder, NumericTypedValueEncoder,
     OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
 };
-use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_functions_scalar::{
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
     AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
     DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp, HoursSparqlOp, IriSparqlOp,
@@ -24,8 +24,8 @@ use graphfusion_functions_scalar::{
     TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp,
     YearSparqlOp,
 };
-use graphfusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp};
-use graphfusion_model::Iri;
+use rdf_fusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp};
+use rdf_fusion_model::Iri;
 use std::sync::Arc;
 
 // Conversion

@@ -1,5 +1,5 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::Numeric;
+use rdf_fusion_model::Numeric;
 use std::ops::Neg;
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::TypedValueRef;
-use graphfusion_model::{DateTime, ThinError};
+use rdf_fusion_model::TypedValueRef;
+use rdf_fusion_model::{DateTime, ThinError};
 
 #[derive(Debug)]
 pub struct AsDateTimeSparqlOp;

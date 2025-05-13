@@ -6,11 +6,11 @@ use crate::TermEncoder;
 use crate::TermEncoding;
 use crate::TypedValueEncoding;
 use datafusion::common::exec_err;
-use graphfusion_model::{BlankNode, Double, NamedNode};
-use graphfusion_model::{
+use rdf_fusion_model::{BlankNode, Double, NamedNode};
+use rdf_fusion_model::{
     BlankNodeRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef, ThinResult,
 };
-use graphfusion_model::{
+use rdf_fusion_model::{
     Boolean, DateTime, DayTimeDuration, Decimal, Float, Int, Integer, OwnedStringLiteral, ThinError,
 };
 

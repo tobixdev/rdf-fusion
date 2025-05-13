@@ -1,4 +1,4 @@
-use graphfusion_model::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, TermRef};
+use rdf_fusion_model::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, TermRef};
 
 /// Is responsible for encoding RDF terms (or NULL) in a particular encoding.
 pub trait ScalarEncoder {

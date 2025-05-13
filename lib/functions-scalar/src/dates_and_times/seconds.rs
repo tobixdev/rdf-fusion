@@ -1,5 +1,5 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::{DateTime, Decimal};
+use rdf_fusion_model::{DateTime, Decimal};
 
 #[derive(Debug)]
 pub struct SecondsSparqlOp;

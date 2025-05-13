@@ -1,7 +1,7 @@
 use crate::ThinResult;
 use crate::{BinarySparqlOp, SparqlOp};
-use graphfusion_model::ThinError;
-use graphfusion_model::{Boolean, TypedValueRef};
+use rdf_fusion_model::ThinError;
+use rdf_fusion_model::{Boolean, TypedValueRef};
 use std::cmp::Ordering;
 
 macro_rules! create_binary_cmp_udf {
@@ -52,8 +52,8 @@ create_binary_cmp_udf!(LessOrEqualSparqlOp, [Ordering::Less, Ordering::Equal]);
 mod tests {
     use crate::comparison::generic::LessThanSparqlOp;
     use crate::BinarySparqlOp;
-    use graphfusion_model::Numeric;
-    use graphfusion_model::TypedValueRef;
+    use rdf_fusion_model::Numeric;
+    use rdf_fusion_model::TypedValueRef;
 
     #[test]
     fn test_lth_int_with_float() {

@@ -1,4 +1,4 @@
-use graphfusion::store::Store;
+use rdf_fusion::store::Store;
 use std::time::Duration;
 
 #[allow(unused, reason = "Not yet implemented")]

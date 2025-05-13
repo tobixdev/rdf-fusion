@@ -2,8 +2,8 @@ use crate::error::RdfFusionServerError;
 use crate::AppState;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use graphfusion::io::RdfFormat;
-use graphfusion::results::QueryResultsFormat;
+use rdf_fusion::io::RdfFormat;
+use rdf_fusion::results::QueryResultsFormat;
 use headers::HeaderMapExt;
 use headers_accept::Accept;
 use mediatype::names::{

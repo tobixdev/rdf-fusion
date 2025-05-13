@@ -1,5 +1,5 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::{DateTime, DayTimeDuration, ThinError};
+use rdf_fusion_model::{DateTime, DayTimeDuration, ThinError};
 
 #[derive(Debug)]
 pub struct TimezoneSparqlOp;

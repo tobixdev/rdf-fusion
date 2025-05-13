@@ -1,10 +1,10 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
-use graphfusion::io::RdfFormat;
-use graphfusion::model::vocab::{rdf, xsd};
-use graphfusion::model::{GraphNameRef, LiteralRef, NamedNodeRef, QuadRef};
-use graphfusion::store::Store;
+use rdf_fusion::io::RdfFormat;
+use rdf_fusion::model::vocab::{rdf, xsd};
+use rdf_fusion::model::{GraphNameRef, LiteralRef, NamedNodeRef, QuadRef};
+use rdf_fusion::store::Store;
 use std::error::Error;
 
 #[allow(clippy::non_ascii_literal)]

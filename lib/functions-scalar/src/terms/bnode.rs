@@ -1,5 +1,5 @@
 use crate::{NullarySparqlOp, SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::{BlankNode, BlankNodeRef, SimpleLiteralRef};
+use rdf_fusion_model::{BlankNode, BlankNodeRef, SimpleLiteralRef};
 
 #[derive(Debug)]
 pub struct BNodeSparqlOp;

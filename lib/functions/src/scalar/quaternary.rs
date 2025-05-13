@@ -4,8 +4,8 @@ use datafusion::common::exec_datafusion_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use graphfusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_functions_scalar::{QuaternarySparqlOp, SparqlOpVolatility};
+use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
+use rdf_fusion_functions_scalar::{QuaternarySparqlOp, SparqlOpVolatility};
 use itertools::izip;
 use std::any::Any;
 

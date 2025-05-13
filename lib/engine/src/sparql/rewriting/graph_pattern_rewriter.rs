@@ -5,12 +5,12 @@ use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
-use graphfusion_encoding::EncodingName;
-use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
-use graphfusion_logical::join::SparqlJoinType;
-use graphfusion_logical::{ActiveGraph, RdfFusionExprBuilder, RdfFusionLogicalPlanBuilder};
-use graphfusion_model::Variable;
-use graphfusion_model::{Iri, NamedOrBlankNode};
+use rdf_fusion_encoding::EncodingName;
+use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_logical::join::SparqlJoinType;
+use rdf_fusion_logical::{ActiveGraph, RdfFusionExprBuilder, RdfFusionLogicalPlanBuilder};
+use rdf_fusion_model::Variable;
+use rdf_fusion_model::{Iri, NamedOrBlankNode};
 use spargebra::algebra::{
     AggregateExpression, AggregateFunction, Expression, GraphPattern, OrderExpression,
 };

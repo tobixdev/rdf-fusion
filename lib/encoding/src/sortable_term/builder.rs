@@ -3,8 +3,8 @@ use crate::sortable_term::term_type::SortableTermType;
 use datafusion::arrow::array::{
     ArrayRef, BinaryBuilder, Float64Builder, StructBuilder, UInt8Builder,
 };
-use graphfusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef};
-use graphfusion_model::{
+use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef};
+use rdf_fusion_model::{
     Boolean, Date, DateTime, DayTimeDuration, Double, Duration, Integer, Numeric, Time,
     YearMonthDuration,
 };

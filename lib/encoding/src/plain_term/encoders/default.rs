@@ -2,7 +2,7 @@ use crate::encoding::TermEncoder;
 use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
 use crate::{DFResult, TermEncoding};
 use datafusion::common::exec_err;
-use graphfusion_model::{TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{TermRef, ThinError, ThinResult};
 
 #[derive(Debug)]
 pub struct DefaultPlainTermEncoder;

@@ -1,6 +1,6 @@
 use crate::{NArySparqlOp, SparqlOp, ThinResult};
-use graphfusion_model::ThinError;
-use graphfusion_model::TypedValueRef;
+use rdf_fusion_model::ThinError;
+use rdf_fusion_model::TypedValueRef;
 
 #[derive(Debug)]
 pub struct CoalesceSparqlOp;

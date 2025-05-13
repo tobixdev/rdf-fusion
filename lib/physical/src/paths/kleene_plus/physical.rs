@@ -12,13 +12,13 @@ use datafusion::physical_plan::{
     RecordBatchStream,
 };
 use futures::{Stream, StreamExt};
-use graphfusion_encoding::plain_term::decoders::{
+use rdf_fusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
-use graphfusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
-use graphfusion_encoding::{TermDecoder, TermEncoding};
-use graphfusion_logical::paths::PATH_TABLE_SCHEMA;
-use graphfusion_model::{GraphName, Term};
+use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use rdf_fusion_encoding::{TermDecoder, TermEncoding};
+use rdf_fusion_logical::paths::PATH_TABLE_SCHEMA;
+use rdf_fusion_model::{GraphName, Term};
 use itertools::izip;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};

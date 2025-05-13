@@ -1,6 +1,6 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::TypedValueRef;
-use graphfusion_model::{Float, Numeric, ThinError};
+use rdf_fusion_model::TypedValueRef;
+use rdf_fusion_model::{Float, Numeric, ThinError};
 
 #[derive(Debug)]
 pub struct AsFloatSparqlOp;
@@ -43,7 +43,7 @@ impl UnarySparqlOp for AsFloatSparqlOp {
 #[cfg(test)]
 mod tests {
     use crate::{AsFloatSparqlOp, UnarySparqlOp};
-    use graphfusion_model::{Numeric, TypedValueRef};
+    use rdf_fusion_model::{Numeric, TypedValueRef};
 
     #[test]
     fn test_enc_as_float() {

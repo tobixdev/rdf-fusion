@@ -7,17 +7,17 @@ use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::SessionContext;
-use graphfusion_encoding::TABLE_QUADS;
-use graphfusion_functions::registry::{
+use rdf_fusion_encoding::TABLE_QUADS;
+use rdf_fusion_functions::registry::{
     DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
-use graphfusion_logical::extend::ExtendLoweringRule;
-use graphfusion_logical::join::SparqlJoinLoweringRule;
-use graphfusion_logical::paths::PropertyPathLoweringRule;
-use graphfusion_logical::patterns::PatternLoweringRule;
-use graphfusion_logical::quads::QuadsLoweringRule;
-use graphfusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilder};
-use graphfusion_model::{
+use rdf_fusion_logical::extend::ExtendLoweringRule;
+use rdf_fusion_logical::join::SparqlJoinLoweringRule;
+use rdf_fusion_logical::paths::PropertyPathLoweringRule;
+use rdf_fusion_logical::patterns::PatternLoweringRule;
+use rdf_fusion_logical::quads::QuadsLoweringRule;
+use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilder};
+use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, QuadRef, SubjectRef, TermRef,
 };
 use std::sync::Arc;

@@ -1,5 +1,5 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::{OwnedStringLiteral, SimpleLiteralRef};
+use rdf_fusion_model::{OwnedStringLiteral, SimpleLiteralRef};
 use md5::Digest;
 use sha2::Sha384;
 

@@ -1,5 +1,5 @@
 use crate::{BinarySparqlOp, SparqlOp, ThinResult};
-use graphfusion_model::{LiteralRef, NamedNodeRef, SimpleLiteralRef};
+use rdf_fusion_model::{LiteralRef, NamedNodeRef, SimpleLiteralRef};
 
 #[derive(Debug)]
 pub struct StrDtSparqlOp;

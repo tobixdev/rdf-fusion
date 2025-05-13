@@ -4,7 +4,7 @@ use crate::{EncodingScalar, TermEncoding};
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
 use datafusion::common::ScalarValue;
-use graphfusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
 
 #[derive(Debug)]
 pub struct DefaultPlainTermDecoder {}

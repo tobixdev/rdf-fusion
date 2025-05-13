@@ -2,7 +2,7 @@ use crate::encoding::TermDecoder;
 use crate::plain_term::decoders::DefaultPlainTermDecoder;
 use crate::plain_term::PlainTermEncoding;
 use crate::TermEncoding;
-use graphfusion_model::{GraphNameRef, TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{GraphNameRef, TermRef, ThinError, ThinResult};
 
 #[derive(Debug)]
 pub struct GraphNameRefPlainTermDecoder {}

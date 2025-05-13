@@ -1,13 +1,13 @@
 use axum::http::header::CONTENT_TYPE;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use graphfusion::io::{RdfFormat, RdfSerializer};
-use graphfusion::model::vocab::rdf;
-use graphfusion::model::{BlankNode, NamedNodeRef, TripleRef};
-use graphfusion::results::QueryResultsFormat;
+use rdf_fusion::io::{RdfFormat, RdfSerializer};
+use rdf_fusion::model::vocab::rdf;
+use rdf_fusion::model::{BlankNode, NamedNodeRef, TripleRef};
+use rdf_fusion::results::QueryResultsFormat;
 
 mod sd {
-    use graphfusion::model::NamedNodeRef;
+    use rdf_fusion::model::NamedNodeRef;
 
     pub const SERVICE: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#Service");

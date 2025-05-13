@@ -5,9 +5,9 @@ use crate::oxigraph_memory::encoder::EncodedQuad;
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
-use graphfusion_engine::error::{CorruptionError, StorageError};
-use graphfusion_model::Quad;
-use graphfusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
+use rdf_fusion_engine::error::{CorruptionError, StorageError};
+use rdf_fusion_model::Quad;
+use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
 use std::borrow::Borrow;
 use std::error::Error;
@@ -985,7 +985,7 @@ fn pop_boxed_slice<T: Copy>(slice: &[T]) -> Box<[T]> {
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
-    use graphfusion_model::NamedNodeRef;
+    use rdf_fusion_model::NamedNodeRef;
 
     #[test]
     fn test_range() {

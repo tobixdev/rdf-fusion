@@ -1,7 +1,7 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::vocab::{rdf, xsd};
-use graphfusion_model::TypedValueRef;
-use graphfusion_model::{NamedNodeRef, Numeric, ThinError};
+use rdf_fusion_model::vocab::{rdf, xsd};
+use rdf_fusion_model::TypedValueRef;
+use rdf_fusion_model::{NamedNodeRef, Numeric, ThinError};
 
 #[derive(Debug)]
 pub struct DatatypeSparqlOp;

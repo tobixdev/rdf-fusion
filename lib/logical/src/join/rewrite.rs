@@ -6,8 +6,8 @@ use datafusion::common::{Column, JoinType};
 use datafusion::logical_expr::Expr;
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
-use graphfusion_encoding::EncodingName;
-use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_encoding::EncodingName;
+use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
 
 /// TODO

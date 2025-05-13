@@ -11,11 +11,11 @@ use datafusion::logical_expr::{
     and, col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
     UserDefinedLogicalNode, Values,
 };
-use graphfusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use graphfusion_encoding::plain_term::PlainTermEncoding;
-use graphfusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
-use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
-use graphfusion_model::{NamedNode, Subject, Term, TermRef, ThinError, Variable};
+use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
+use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_model::{NamedNode, Subject, Term, TermRef, ThinError, Variable};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};

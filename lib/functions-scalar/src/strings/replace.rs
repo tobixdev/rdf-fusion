@@ -1,6 +1,6 @@
 use crate::strings::regex::compile_pattern;
 use crate::{QuaternarySparqlOp, SparqlOp, TernarySparqlOp, ThinResult};
-use graphfusion_model::{OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef};
+use rdf_fusion_model::{OwnedStringLiteral, SimpleLiteralRef, StringLiteralRef};
 use std::borrow::Cow;
 
 #[derive(Debug)]

@@ -4,11 +4,11 @@ use datafusion::arrow::array::ArrayRef;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use graphfusion_encoding::typed_value::decoders::NumericTermValueDecoder;
-use graphfusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
-use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{Integer, Numeric, NumericPair, ThinResult};
+use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
+use rdf_fusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use rdf_fusion_model::{Integer, Numeric, NumericPair, ThinResult};
 use std::sync::Arc;
 
 pub fn sum_typed_value() -> Arc<AggregateUDF> {

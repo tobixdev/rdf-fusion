@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoder;
 use crate::sortable_term::{SortableTermArrayBuilder, SortableTermEncoding};
 use crate::{DFResult, TermEncoding};
-use graphfusion_model::{ThinResult, TypedValueRef};
+use rdf_fusion_model::{ThinResult, TypedValueRef};
 
 #[derive(Debug)]
 pub struct TypedValueRefSortableTermEncoder;

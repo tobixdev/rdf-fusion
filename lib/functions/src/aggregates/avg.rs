@@ -6,14 +6,14 @@ use datafusion::common::exec_datafusion_err;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use graphfusion_encoding::typed_value::decoders::NumericTermValueDecoder;
-use graphfusion_encoding::typed_value::encoders::{
+use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
+use rdf_fusion_encoding::typed_value::encoders::{
     DecimalTermValueEncoder, DoubleTermValueEncoder, FloatTermValueEncoder,
     IntegerTermValueEncoder, NumericTypedValueEncoder,
 };
-use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use rdf_fusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
 use std::ops::Div;
 use std::sync::Arc;
 

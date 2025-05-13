@@ -4,7 +4,7 @@ use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use crate::{EncodingScalar, TermEncoding};
 use datafusion::arrow::array::{Array, AsArray};
 use datafusion::common::ScalarValue;
-use graphfusion_model::{
+use rdf_fusion_model::{
     BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int,
     Integer, LanguageStringRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, ThinError,
     ThinResult, Time, Timestamp, TimezoneOffset, TypedValueRef, YearMonthDuration,

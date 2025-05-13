@@ -1,6 +1,6 @@
 use crate::{SparqlOp, TernarySparqlOp, ThinResult};
-use graphfusion_model::Boolean;
-use graphfusion_model::TypedValueRef;
+use rdf_fusion_model::Boolean;
+use rdf_fusion_model::TypedValueRef;
 
 #[derive(Debug)]
 pub struct IfSparqlOp;

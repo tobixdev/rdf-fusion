@@ -28,7 +28,7 @@ use crate::scalar::typed_value::{
 use crate::{DFResult, FunctionName};
 use datafusion::common::plan_err;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
-use graphfusion_model::Term;
+use rdf_fusion_model::Term;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;

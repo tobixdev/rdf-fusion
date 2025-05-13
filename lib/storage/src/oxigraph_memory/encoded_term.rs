@@ -1,4 +1,4 @@
-use graphfusion_model::{
+use rdf_fusion_model::{
     BlankNode, GraphNameRef, Literal, NamedNode, NamedNodeRef, NamedOrBlankNodeRef, SubjectRef,
     TermRef,
 };

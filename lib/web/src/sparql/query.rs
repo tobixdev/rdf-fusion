@@ -8,10 +8,10 @@ use crate::AppState;
 use anyhow::anyhow;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
-use graphfusion::io::RdfFormat;
-use graphfusion::model::{GraphName, IriParseError, NamedNode, NamedOrBlankNode};
-use graphfusion::results::QueryResultsFormat;
-use graphfusion::store::Store;
+use rdf_fusion::io::RdfFormat;
+use rdf_fusion::model::{GraphName, IriParseError, NamedNode, NamedOrBlankNode};
+use rdf_fusion::results::QueryResultsFormat;
+use rdf_fusion::store::Store;
 
 pub async fn handle_query_get(
     State(state): State<AppState>,
@@ -47,7 +47,7 @@ async fn evaluate_sparql_query(
     params: &SparqlQueryParams,
     query: &str,
 ) -> Result<QueryResultsResponse, RdfFusionServerError> {
-    let mut query = graphfusion::Query::parse(query, Some(params.base_uri.as_str()))
+    let mut query = rdf_fusion::Query::parse(query, Some(params.base_uri.as_str()))
         .map_err(|e| RdfFusionServerError::BadRequest(e.to_string()))?;
 
     if params.default_graph_as_union {

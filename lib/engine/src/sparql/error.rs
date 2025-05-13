@@ -1,7 +1,7 @@
 use crate::error::StorageError;
 use crate::sparql::SparqlSyntaxError;
 use datafusion::error::DataFusionError;
-use graphfusion_model::{NamedNode, Term};
+use rdf_fusion_model::{NamedNode, Term};
 use oxrdfio::RdfParseError;
 use sparesults::QueryResultsParseError;
 use std::convert::Infallible;

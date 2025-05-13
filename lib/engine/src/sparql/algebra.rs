@@ -2,7 +2,7 @@
 //!
 //! The root type for SPARQL queries is [`Query`] and the root type for updates is [`Update`].
 
-use graphfusion_model::{GraphName, NamedOrBlankNode};
+use rdf_fusion_model::{GraphName, NamedOrBlankNode};
 use spargebra::GraphUpdateOperation;
 use std::fmt;
 use std::str::FromStr;
@@ -10,8 +10,8 @@ use std::str::FromStr;
 /// A parsed [SPARQL query](https://www.w3.org/TR/sparql11-query/).
 ///
 /// ```
-/// use graphfusion_engine::sparql::Query;
-/// use graphfusion_model::NamedNode;
+/// use rdf_fusion_engine::sparql::Query;
+/// use rdf_fusion_model::NamedNode;
 ///
 /// let query_str = "SELECT ?s ?p ?o WHERE { ?s ?p ?o . }";
 /// let mut query = Query::parse(query_str, None)?;
@@ -106,7 +106,7 @@ impl From<spargebra::Query> for Query {
 ///
 /// ```
 /// use spargebra::SparqlSyntaxError;
-/// use graphfusion_engine::sparql::Update;
+/// use rdf_fusion_engine::sparql::Update;
 ///
 /// let update_str = "CLEAR ALL ;";
 /// let update = Update::parse(update_str, None)?;
@@ -219,7 +219,7 @@ impl QueryDataset {
     /// (i.e. the default graph is the store default graph and all the store named graphs are available)
     ///
     /// ```
-    /// use graphfusion_engine::sparql::Query;
+    /// use rdf_fusion_engine::sparql::Query;
     ///
     /// assert!(Query::parse("SELECT ?s ?p ?o WHERE { ?s ?p ?o . }", None)?
     ///     .dataset()
@@ -255,8 +255,8 @@ impl QueryDataset {
     ///
     /// By default only the store default graph is considered.
     /// ```
-    /// use graphfusion_engine::sparql::Query;
-    /// use graphfusion_model::NamedNode;
+    /// use rdf_fusion_engine::sparql::Query;
+    /// use rdf_fusion_model::NamedNode;
     ///
     /// let mut query = Query::parse("SELECT ?s ?p ?o WHERE { ?s ?p ?o . }", None)?;
     /// let default = vec![NamedNode::new("http://example.com")?.into()];
@@ -280,8 +280,8 @@ impl QueryDataset {
     /// Sets the list of allowed named graphs in the query.
     ///
     /// ```
-    /// use graphfusion_engine::sparql::Query;
-    /// use graphfusion_model::NamedNode;
+    /// use rdf_fusion_engine::sparql::Query;
+    /// use rdf_fusion_model::NamedNode;
     ///
     /// let mut query = Query::parse("SELECT ?s ?p ?o WHERE { ?s ?p ?o . }", None)?;
     /// let named = vec![NamedNode::new("http://example.com")?.into()];

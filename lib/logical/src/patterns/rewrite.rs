@@ -6,7 +6,7 @@ use datafusion::common::Column;
 use datafusion::logical_expr::{and, col, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
-use graphfusion_functions::registry::{
+use rdf_fusion_functions::registry::{
     RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
 use spargebra::term::{Term, TermPattern};

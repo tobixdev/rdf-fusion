@@ -1,4 +1,4 @@
-use graphfusion_model::NamedOrBlankNode;
+use rdf_fusion_model::NamedOrBlankNode;
 
 /// TODO
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]

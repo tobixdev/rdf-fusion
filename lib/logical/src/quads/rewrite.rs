@@ -5,9 +5,9 @@ use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::datasource::DefaultTableSource;
 use datafusion::logical_expr::{col, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
-use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
-use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
-use graphfusion_model::TermRef;
+use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
+use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_model::TermRef;
 use std::sync::Arc;
 
 /// TODO

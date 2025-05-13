@@ -1,8 +1,8 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::QueryEvaluationError;
 use futures::{ready, Stream, StreamExt};
-use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
-use graphfusion_model::{GraphName, NamedNode, Quad, Subject, Term, Variable};
+use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject, Term, Variable};
 use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::task::{Context, Poll};

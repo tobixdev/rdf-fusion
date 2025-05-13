@@ -3,7 +3,7 @@ use crate::AppState;
 use axum::extract::{FromRequestParts, Query};
 use axum::http::request::Parts;
 use axum::RequestPartsExt;
-use graphfusion::QueryOptions;
+use rdf_fusion::QueryOptions;
 use serde::Deserialize;
 
 #[derive(Deserialize)]

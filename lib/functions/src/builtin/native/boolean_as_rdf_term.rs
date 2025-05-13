@@ -7,8 +7,8 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
-use graphfusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use graphfusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
+use rdf_fusion_encoding::TermEncoding;
 use std::any::Any;
 use std::sync::Arc;
 

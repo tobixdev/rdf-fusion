@@ -4,7 +4,7 @@
 //!
 //! Usage example converting a Turtle file to a N-Triples file:
 //! ```
-//! use graphfusion::io::{RdfFormat, RdfParser, RdfSerializer};
+//! use rdf_fusion::io::{RdfFormat, RdfParser, RdfSerializer};
 //!
 //! let turtle_file = b"@base <http://example.com/> .
 //! @prefix schema: <http://schema.org/> .

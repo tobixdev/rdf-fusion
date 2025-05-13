@@ -4,7 +4,7 @@ use datafusion::execution::SessionState;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::{DefaultPhysicalPlanner, PhysicalPlanner};
-use graphfusion_physical::paths::KleenePlusPathPlanner;
+use rdf_fusion_physical::paths::KleenePlusPathPlanner;
 use std::sync::Arc;
 
 #[derive(Debug, Default)]

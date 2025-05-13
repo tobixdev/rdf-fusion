@@ -7,10 +7,10 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
-use graphfusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use graphfusion_encoding::plain_term::PlainTermEncoding;
-use graphfusion_encoding::{TermDecoder, TermEncoding};
-use graphfusion_model::{TermRef, ThinError, ThinResult};
+use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::{TermDecoder, TermEncoding};
+use rdf_fusion_model::{TermRef, ThinError, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
 

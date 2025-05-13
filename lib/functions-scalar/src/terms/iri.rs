@@ -1,6 +1,6 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::TypedValueRef;
-use graphfusion_model::{Iri, NamedNode, ThinError};
+use rdf_fusion_model::TypedValueRef;
+use rdf_fusion_model::{Iri, NamedNode, ThinError};
 
 #[derive(Debug)]
 pub struct IriSparqlOp {

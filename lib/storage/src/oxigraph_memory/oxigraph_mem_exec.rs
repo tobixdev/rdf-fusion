@@ -13,10 +13,10 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
 };
 use futures::Stream;
-use graphfusion_encoding::plain_term::PlainTermArrayBuilder;
-use graphfusion_encoding::typed_value::DEFAULT_QUAD_SCHEMA;
-use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
-use graphfusion_model::TermRef;
+use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
+use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_SCHEMA;
+use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_model::TermRef;
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};

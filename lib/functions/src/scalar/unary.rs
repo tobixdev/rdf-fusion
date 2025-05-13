@@ -4,9 +4,9 @@ use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use graphfusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_functions_scalar::{SparqlOpVolatility, UnarySparqlOp};
-use graphfusion_model::ThinError;
+use rdf_fusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use rdf_fusion_functions_scalar::{SparqlOpVolatility, UnarySparqlOp};
+use rdf_fusion_model::ThinError;
 use std::any::Any;
 
 #[macro_export]

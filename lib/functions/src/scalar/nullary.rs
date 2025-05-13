@@ -3,8 +3,8 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use graphfusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
-use graphfusion_functions_scalar::{NullarySparqlOp, SparqlOpVolatility};
+use rdf_fusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
+use rdf_fusion_functions_scalar::{NullarySparqlOp, SparqlOpVolatility};
 use std::any::Any;
 
 #[macro_export]

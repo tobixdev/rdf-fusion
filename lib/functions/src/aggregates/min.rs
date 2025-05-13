@@ -5,11 +5,11 @@ use datafusion::common::exec_err;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use graphfusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use graphfusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
-use graphfusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
+use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
+use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use rdf_fusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::Arc;
 
 pub fn min_typed_value() -> Arc<AggregateUDF> {

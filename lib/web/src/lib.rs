@@ -11,7 +11,7 @@ mod sparql;
 
 use crate::app::create_app_routes;
 pub use config::ServerConfig;
-use graphfusion::store::Store;
+use rdf_fusion::store::Store;
 
 // TODO: proper logging
 #[allow(clippy::print_stdout)]

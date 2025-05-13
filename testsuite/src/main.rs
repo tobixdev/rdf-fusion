@@ -1,9 +1,9 @@
 #![allow(clippy::print_stdout)]
 use anyhow::Result;
 use clap::Parser;
-use graphfusion_testsuite::evaluator::TestEvaluator;
-use graphfusion_testsuite::manifest::TestManifest;
-use graphfusion_testsuite::report::build_report;
+use rdf_fusion_testsuite::evaluator::TestEvaluator;
+use rdf_fusion_testsuite::manifest::TestManifest;
+use rdf_fusion_testsuite::report::build_report;
 
 #[derive(Parser)]
 /// Oxigraph testsuite runner

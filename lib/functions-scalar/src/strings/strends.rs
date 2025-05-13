@@ -1,5 +1,5 @@
 use crate::{BinarySparqlOp, SparqlOp, ThinResult};
-use graphfusion_model::{Boolean, CompatibleStringArgs, StringLiteralRef};
+use rdf_fusion_model::{Boolean, CompatibleStringArgs, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct StrEndsSparqlOp;

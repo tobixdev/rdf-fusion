@@ -6,7 +6,7 @@ use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
 use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
-use graphfusion_logical::paths::KleenePlusClosureNode;
+use rdf_fusion_logical::paths::KleenePlusClosureNode;
 use std::sync::Arc;
 
 /// Planner for KleenePlusPath nodes

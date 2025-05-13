@@ -8,12 +8,12 @@ use datafusion::arrow::array::{
 };
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
-use graphfusion_model::vocab::{rdf, xsd};
-use graphfusion_model::{
+use rdf_fusion_model::vocab::{rdf, xsd};
+use rdf_fusion_model::{
     BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Duration, LiteralRef, NamedNodeRef,
     Numeric, TermRef, Time, Timestamp, YearMonthDuration,
 };
-use graphfusion_model::{Decimal, Double, Float, Int, Integer};
+use rdf_fusion_model::{Decimal, Double, Float, Int, Integer};
 use std::sync::Arc;
 
 pub struct TypedValueArrayBuilder {

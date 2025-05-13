@@ -6,8 +6,8 @@ use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
-use graphfusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use graphfusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
+use rdf_fusion_encoding::TermEncoding;
 use std::any::Any;
 
 #[derive(Debug)]

@@ -1,5 +1,5 @@
 use crate::{BinarySparqlOp, SparqlOp};
-use graphfusion_model::{Decimal, Numeric, NumericPair, ThinResult};
+use rdf_fusion_model::{Decimal, Numeric, NumericPair, ThinResult};
 
 #[derive(Debug)]
 pub struct DivSparqlOp;

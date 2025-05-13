@@ -17,7 +17,7 @@ use std::fmt::Debug;
 pub use strings::*;
 pub use terms::*;
 
-use graphfusion_model::{ThinError, ThinResult};
+use rdf_fusion_model::{ThinError, ThinResult};
 
 /// TODO
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]

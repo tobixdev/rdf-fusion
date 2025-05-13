@@ -1,5 +1,5 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use graphfusion_model::{OwnedStringLiteral, StringLiteralRef};
+use rdf_fusion_model::{OwnedStringLiteral, StringLiteralRef};
 
 #[derive(Debug)]
 pub struct UCaseSparqlOp;

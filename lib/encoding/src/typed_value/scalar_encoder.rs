@@ -3,7 +3,7 @@ use crate::typed_value::scalar::TermValueScalar;
 use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding, TypedValueEncodingField};
 use datafusion::arrow::datatypes::UnionMode;
 use datafusion::common::ScalarValue;
-use graphfusion_model::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef};
+use rdf_fusion_model::{BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef};
 
 pub struct TermValueScalarEncoder {}
 

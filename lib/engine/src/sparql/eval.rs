@@ -5,9 +5,9 @@ use crate::sparql::{
     QueryTripleStream,
 };
 use datafusion::prelude::{DataFrame, SessionContext};
-use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
-use graphfusion_model::Iri;
-use graphfusion_model::Variable;
+use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_model::Iri;
+use rdf_fusion_model::Variable;
 use spargebra::algebra::GraphPattern;
 use std::sync::Arc;
 

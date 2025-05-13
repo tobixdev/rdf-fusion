@@ -1,15 +1,15 @@
 use crate::builtin::BuiltinName;
 use crate::FunctionName;
-use graphfusion_encoding::typed_value::decoders::{
+use rdf_fusion_encoding::typed_value::decoders::{
     BooleanTermValueDecoder, DefaultTypedValueDecoder, IntegerTermValueDecoder,
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
-use graphfusion_encoding::typed_value::encoders::{
+use rdf_fusion_encoding::typed_value::encoders::{
     BooleanTermValueEncoder, DefaultTypedValueEncoder, OwnedStringLiteralTermValueEncoder,
     StringLiteralRefTermValueEncoder,
 };
-use graphfusion_encoding::typed_value::TypedValueEncoding;
-use graphfusion_functions_scalar::{IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp};
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_functions_scalar::{IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp};
 
 // Functional Forms
 impl_ternary_sparql_op!(
