@@ -1,5 +1,8 @@
 # RdfFusion
 
+> **⚠️ DISCLAIMER: This project is still heavily under development and is not ready for production use. APIs may change, features may be incomplete, and there might be performance issues or bugs.**
+
+
 RdfFusion is a graph database implementing the [SPARQL](https://www.w3.org/TR/sparql11-overview/) standard.
 
 The query engine of RdfFusion is based on the [Apache Arrow](https://arrow.apache.org/) columnar format and
@@ -44,4 +47,3 @@ The project started as a fork from [Oxigraph](https://github.com/oxigraph/oxigra
 with a custom SPARQL query engine.
 While large portions of the codebase have been written from scratch, there is still code from Oxigraph in this
 repository.
-RdfFusion would not exist without Oxigraph.
