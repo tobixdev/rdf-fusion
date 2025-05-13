@@ -1,5 +1,5 @@
 [package]
-name = "graphfusion-storage"
+name = "rdf-fusion-storage"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -8,10 +8,10 @@ rust-version.workspace = true
 
 [dependencies]
 async-trait.workspace = true
-graphfusion-model.workspace = true
+rdf-fusion-model.workspace = true
 datafusion.workspace = true
-graphfusion-encoding.workspace = true
-graphfusion-engine.workspace = true
+rdf-fusion-encoding.workspace = true
+rdf-fusion-engine.workspace = true
 dashmap.workspace = true
 futures.workspace = true
 rustc-hash.workspace = true

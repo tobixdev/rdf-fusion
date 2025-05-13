@@ -265,7 +265,7 @@ struct TempDir(PathBuf);
 
 impl Default for TempDir {
     fn default() -> Self {
-        Self(temp_dir().join(format!("graphfusion-bench-{}", random::<u128>())))
+        Self(temp_dir().join(format!("rdf-fusion-bench-{}", random::<u128>())))
     }
 }
 

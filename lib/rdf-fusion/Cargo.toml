@@ -1,5 +1,5 @@
 [package]
-name = "graphfusion"
+name = "rdf-fusion"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -16,10 +16,10 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-graphfusion-model.workspace = true
+rdf-fusion-model.workspace = true
 futures.workspace = true
-graphfusion-engine.workspace = true
-graphfusion-storage.workspace = true
+rdf-fusion-engine.workspace = true
+rdf-fusion-storage.workspace = true
 oxrdfio.workspace = true
 rand.workspace = true
 thiserror.workspace = true

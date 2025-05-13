@@ -1,5 +1,5 @@
 [package]
-name = "graphfusion-model"
+name = "rdf-fusion-model"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

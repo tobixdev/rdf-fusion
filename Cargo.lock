@@ -1867,176 +1867,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "graphfusion"
-version = "0.1.0"
-dependencies = [
- "criterion",
- "futures",
- "graphfusion-engine",
- "graphfusion-model",
- "graphfusion-storage",
- "oxrdfio",
- "rand",
- "sparesults",
- "thiserror",
- "tokio",
- "tokio-test",
-]
-
-[[package]]
-name = "graphfusion-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "assert_fs",
- "clap",
- "clap_complete",
- "clap_mangen",
- "graphfusion",
- "graphfusion-web",
- "predicates",
- "tokio",
-]
-
-[[package]]
-name = "graphfusion-encoding"
-version = "0.1.0"
-dependencies = [
- "datafusion",
- "graphfusion-functions-scalar",
- "graphfusion-model",
- "thiserror",
- "uuid",
-]
-
-[[package]]
-name = "graphfusion-engine"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "datafusion",
- "futures",
- "graphfusion-encoding",
- "graphfusion-functions",
- "graphfusion-logical",
- "graphfusion-model",
- "graphfusion-physical",
- "oxrdfio",
- "sparesults",
- "spargebra",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "graphfusion-functions"
-version = "0.1.0"
-dependencies = [
- "datafusion",
- "graphfusion-encoding",
- "graphfusion-functions-scalar",
- "graphfusion-model",
- "itertools 0.14.0",
- "spargebra",
-]
-
-[[package]]
-name = "graphfusion-functions-scalar"
-version = "0.1.0"
-dependencies = [
- "graphfusion-model",
- "hex",
- "md-5",
- "rand",
- "regex",
- "sha1",
- "sha2",
- "uuid",
-]
-
-[[package]]
-name = "graphfusion-logical"
-version = "0.1.0"
-dependencies = [
- "datafusion",
- "graphfusion-encoding",
- "graphfusion-functions",
- "graphfusion-model",
- "spargebra",
-]
-
-[[package]]
-name = "graphfusion-model"
-version = "0.1.0"
-dependencies = [
- "oxiri",
- "oxrdf",
- "oxsdatatypes",
- "thiserror",
-]
-
-[[package]]
-name = "graphfusion-physical"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "datafusion",
- "futures",
- "graphfusion-encoding",
- "graphfusion-logical",
- "graphfusion-model",
- "itertools 0.14.0",
-]
-
-[[package]]
-name = "graphfusion-storage"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "dashmap",
- "datafusion",
- "futures",
- "graphfusion-encoding",
- "graphfusion-engine",
- "graphfusion-model",
- "rustc-hash",
- "thiserror",
-]
-
-[[package]]
-name = "graphfusion-testsuite"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "clap",
- "criterion",
- "futures",
- "graphfusion",
- "oxttl",
- "sparesults",
- "text-diff",
- "time",
- "tokio",
-]
-
-[[package]]
-name = "graphfusion-web"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "graphfusion",
- "headers",
- "headers-accept",
- "mediatype",
- "serde",
- "thiserror",
- "tokio",
- "tower-http",
-]
-
-[[package]]
 name = "half"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3209,6 +3039,176 @@ checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "rdf-fusion"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "futures",
+ "oxrdfio",
+ "rand",
+ "rdf-fusion-engine",
+ "rdf-fusion-model",
+ "rdf-fusion-storage",
+ "sparesults",
+ "thiserror",
+ "tokio",
+ "tokio-test",
+]
+
+[[package]]
+name = "rdf-fusion-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "assert_fs",
+ "clap",
+ "clap_complete",
+ "clap_mangen",
+ "predicates",
+ "rdf-fusion",
+ "rdf-fusion-web",
+ "tokio",
+]
+
+[[package]]
+name = "rdf-fusion-encoding"
+version = "0.1.0"
+dependencies = [
+ "datafusion",
+ "rdf-fusion-functions-scalar",
+ "rdf-fusion-model",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
+name = "rdf-fusion-engine"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "datafusion",
+ "futures",
+ "oxrdfio",
+ "rdf-fusion-encoding",
+ "rdf-fusion-functions",
+ "rdf-fusion-logical",
+ "rdf-fusion-model",
+ "rdf-fusion-physical",
+ "sparesults",
+ "spargebra",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "rdf-fusion-functions"
+version = "0.1.0"
+dependencies = [
+ "datafusion",
+ "itertools 0.14.0",
+ "rdf-fusion-encoding",
+ "rdf-fusion-functions-scalar",
+ "rdf-fusion-model",
+ "spargebra",
+]
+
+[[package]]
+name = "rdf-fusion-functions-scalar"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "md-5",
+ "rand",
+ "rdf-fusion-model",
+ "regex",
+ "sha1",
+ "sha2",
+ "uuid",
+]
+
+[[package]]
+name = "rdf-fusion-logical"
+version = "0.1.0"
+dependencies = [
+ "datafusion",
+ "rdf-fusion-encoding",
+ "rdf-fusion-functions",
+ "rdf-fusion-model",
+ "spargebra",
+]
+
+[[package]]
+name = "rdf-fusion-model"
+version = "0.1.0"
+dependencies = [
+ "oxiri",
+ "oxrdf",
+ "oxsdatatypes",
+ "thiserror",
+]
+
+[[package]]
+name = "rdf-fusion-physical"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "datafusion",
+ "futures",
+ "itertools 0.14.0",
+ "rdf-fusion-encoding",
+ "rdf-fusion-logical",
+ "rdf-fusion-model",
+]
+
+[[package]]
+name = "rdf-fusion-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "dashmap",
+ "datafusion",
+ "futures",
+ "rdf-fusion-encoding",
+ "rdf-fusion-engine",
+ "rdf-fusion-model",
+ "rustc-hash",
+ "thiserror",
+]
+
+[[package]]
+name = "rdf-fusion-testsuite"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "criterion",
+ "futures",
+ "oxttl",
+ "rdf-fusion",
+ "sparesults",
+ "text-diff",
+ "time",
+ "tokio",
+]
+
+[[package]]
+name = "rdf-fusion-web"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "headers",
+ "headers-accept",
+ "mediatype",
+ "rdf-fusion",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tower-http",
 ]
 
 [[package]]

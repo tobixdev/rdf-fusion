@@ -251,7 +251,7 @@ mod tests {
         command
             .arg("run")
             .arg("--bin")
-            .arg("graphfusion")
+            .arg("rdf-fusion")
             .arg("--no-default-features");
         command.arg("--");
         command

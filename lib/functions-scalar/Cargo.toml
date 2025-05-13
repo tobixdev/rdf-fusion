@@ -1,5 +1,5 @@
 [package]
-name = "graphfusion-functions-scalar"
+name = "rdf-fusion-functions-scalar"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-graphfusion-model.workspace = true
+rdf-fusion-model.workspace = true
 hex.workspace = true
 md-5.workspace = true
 rand.workspace = true

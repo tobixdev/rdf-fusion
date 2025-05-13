@@ -357,8 +357,8 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// // use graphfusion::model::*;
-    /// // use graphfusion::store::Store;
+    /// // use rdf-fusion::model::*;
+    /// // use rdf-fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
     /// // TODO #7: Implement Update
@@ -386,8 +386,8 @@ impl Store {
     /// Executes a [SPARQL 1.1 update](https://www.w3.org/TR/sparql11-update/) with some options.
     ///
     /// ```
-    /// // use graphfusion::store::Store;
-    /// // use graphfusion::sparql::QueryOptions;
+    /// // use rdf-fusion::store::Store;
+    /// // use rdf-fusion::sparql::QueryOptions;
     ///
     /// # tokio_test::block_on(async {
     /// // TODO #7: Implement Update

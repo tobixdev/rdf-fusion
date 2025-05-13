@@ -9,7 +9,7 @@ members = [
     "lib/logical",
     "lib/physical",
     "lib/storage",
-    "lib/graphfusion",
+    "lib/rdf-fusion",
     "lib/web",
     "testsuite", "lib/functions"]
 resolver = "2"
@@ -57,16 +57,16 @@ sparesults = "0.2.4"
 spargebra = "0.3.5"
 
 # Internal dependencies
-graphfusion-model = { version = "=0.1.0", path = "lib/model" }
-graphfusion-encoding = { version = "=0.1.0", path = "lib/encoding" }
-graphfusion-engine = { version = "=0.1.0", path = "lib/engine" }
-graphfusion-functions = { version = "=0.1.0", path = "lib/functions" }
-graphfusion-functions-scalar = { version = "=0.1.0", path = "lib/functions-scalar" }
-graphfusion-logical = { version = "=0.1.0", path = "lib/logical" }
-graphfusion-physical = { version = "=0.1.0", path = "lib/physical" }
-graphfusion-storage = { version = "=0.1.0", path = "lib/storage" }
-graphfusion = { version = "=0.1.0", path = "lib/graphfusion" }
-graphfusion-web = { version = "=0.1.0", path = "lib/web" }
+rdf-fusion-model = { version = "=0.1.0", path = "lib/model" }
+rdf-fusion-encoding = { version = "=0.1.0", path = "lib/encoding" }
+rdf-fusion-engine = { version = "=0.1.0", path = "lib/engine" }
+rdf-fusion-functions = { version = "=0.1.0", path = "lib/functions" }
+rdf-fusion-functions-scalar = { version = "=0.1.0", path = "lib/functions-scalar" }
+rdf-fusion-logical = { version = "=0.1.0", path = "lib/logical" }
+rdf-fusion-physical = { version = "=0.1.0", path = "lib/physical" }
+rdf-fusion-storage = { version = "=0.1.0", path = "lib/storage" }
+rdf-fusion = { version = "=0.1.0", path = "lib/rdf-fusion" }
+rdf-fusion-web = { version = "=0.1.0", path = "lib/web" }
 
 [workspace.lints.rust]
 absolute_paths_not_starting_with_crate = "warn"

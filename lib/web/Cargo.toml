@@ -1,5 +1,5 @@
 [package]
-name = "graphfusion-web"
+name = "rdf-fusion-web"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -15,7 +15,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 thiserror.workspace = true
 tower-http = { version = "0.6.2", features = ["cors"] }
 
-graphfusion.workspace = true
+rdf-fusion.workspace = true
 tokio.workspace = true
 anyhow.workspace = true
 

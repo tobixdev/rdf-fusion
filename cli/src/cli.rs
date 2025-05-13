@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand, ValueHint};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(about, version, name = "graphfusion")]
+#[command(about, version, name = "rdf-fusion")]
 /// GraphFusion command line toolkit and SPARQL HTTP server
 pub struct Args {
     #[command(subcommand)]

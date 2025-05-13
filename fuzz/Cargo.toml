@@ -1,5 +1,5 @@
 [package]
-name = "graphfusion-fuzz"
+name = "rdf-fusion-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2021"
@@ -11,7 +11,7 @@ cargo-fuzz = true
 anyhow = "1.0.72"
 libfuzzer-sys = "0.4"
 sparql-smith = "0.1.0-alpha.9"
-graphfusion = { path = "../lib/graphfusion", default-features = false }
+rdf-fusion = { path = "../lib/rdf-fusion", default-features = false }
 sparesults = { path = "../lib/sparesults" }
 spargebra = { path = "../lib/spargebra", features = ["sep-0006"] }
 
