@@ -1,0 +1,41 @@
+[package]
+name = "rdf-fusion"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+readme = "README.md"
+keywords = ["RDF", "SPARQL", "graph-database", "database"]
+categories = ["database-implementations"]
+repository = "https://github.com/oxigraph/oxigraph/tree/main/lib/oxigraph"
+homepage = "https://oxigraph.org/"
+documentation = "https://docs.rs/oxigraph"
+description = """
+a SPARQL database and RDF toolkit
+"""
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rdf-fusion-model.workspace = true
+futures.workspace = true
+rdf-fusion-engine.workspace = true
+rdf-fusion-storage.workspace = true
+oxrdfio.workspace = true
+rand.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+sparesults.workspace = true
+
+[dev-dependencies]
+tokio-test.workspace = true
+criterion.workspace = true
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[bench]]
+name = "store"
+harness = false

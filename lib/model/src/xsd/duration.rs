@@ -1,4 +1,4 @@
-use crate::{DateTime, Decimal, InternalTermRef, RdfValueRef, ThinError, ThinResult};
+use crate::{DateTime, Decimal, ThinError, ThinResult};
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
@@ -172,18 +172,6 @@ impl Duration {
     #[must_use]
     pub fn is_identical_with(self, other: Self) -> bool {
         self == other
-    }
-}
-
-impl RdfValueRef<'_> for Duration {
-    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
-    where
-        Self: Sized,
-    {
-        match term {
-            InternalTermRef::DurationLiteral(inner) => Ok(inner),
-            _ => ThinError::expected(),
-        }
     }
 }
 

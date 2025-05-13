@@ -1,8 +1,8 @@
 #![no_main]
 
-use graphfusion::model::dataset::{CanonicalizationAlgorithm, Dataset};
-use graphfusion::sparql::{QueryOptions, Update};
-use graphfusion::store::Store;
+use rdf_fusion::model::dataset::{CanonicalizationAlgorithm, Dataset};
+use rdf_fusion::sparql::{QueryOptions, Update};
+use rdf_fusion::store::Store;
 use libfuzzer_sys::fuzz_target;
 #[cfg(feature = "storage")]
 use std::env::temp_dir;
@@ -13,7 +13,7 @@ fuzz_target!(|data: sparql_smith::Update| {
     let disk_store = DISK_STORE.get_or_init(|| {
         #[cfg(feature = "storage")]
         {
-            Store::open(temp_dir().join("graphfusion-fuzz-update")).unwrap()
+            Store::open(temp_dir().join("rdf-fusion-fuzz-update")).unwrap()
         }
         #[cfg(not(feature = "storage"))]
         {

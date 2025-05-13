@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use anyhow::Result;
-use graphfusion_testsuite::check_testsuite;
+use rdf_fusion_testsuite::check_testsuite;
 
 #[cfg(not(windows))] // Tests don't like git auto "\r\n" on Windows
 #[tokio::test]

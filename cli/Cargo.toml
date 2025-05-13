@@ -1,28 +1,28 @@
 [package]
-name = "graphfusion-cli"
+name = "rdf-fusion-cli"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
 readme = "README.md"
 keywords = ["RDF", "SPARQL", "graph-database", "database"]
 categories = ["command-line-utilities", "database"]
-repository = "https://github.com/tobixdev/graphfusion/tree/main/cli"
+repository = "https://github.com/tobixdev/rdf-fusion/tree/main/cli"
 description = """
-GraphFusion CLI tool and SPARQL HTTP server
+RdfFusion CLI tool and SPARQL HTTP server
 """
 edition.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "graphfusion"
+name = "rdf-fusion"
 path = "src/main.rs"
 doc = false
 
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
-graphfusion.workspace = true
-graphfusion-web.workspace = true
+rdf-fusion.workspace = true
+rdf-fusion-web.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]

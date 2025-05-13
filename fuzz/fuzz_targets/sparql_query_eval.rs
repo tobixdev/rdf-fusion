@@ -1,10 +1,10 @@
 #![no_main]
 
-use graphfusion::io::RdfFormat;
-use graphfusion::model::graph::CanonicalizationAlgorithm;
-use graphfusion::model::{Graph, NamedNode};
-use graphfusion::sparql::{EvaluationError, Query, QueryOptions, QueryResults, ServiceHandler};
-use graphfusion::store::Store;
+use rdf_fusion::io::RdfFormat;
+use rdf_fusion::model::graph::CanonicalizationAlgorithm;
+use rdf_fusion::model::{Graph, NamedNode};
+use rdf_fusion::sparql::{EvaluationError, Query, QueryOptions, QueryResults, ServiceHandler};
+use rdf_fusion::store::Store;
 use libfuzzer_sys::fuzz_target;
 use oxigraph_fuzz::count_triple_blank_nodes;
 use std::sync::OnceLock;

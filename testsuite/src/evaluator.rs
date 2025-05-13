@@ -13,7 +13,7 @@ use crate::sparql_evaluator::{
     sparql_evaluate_positive_update_syntax_test, sparql_evaluate_update_evaluation_test,
 };
 use anyhow::{anyhow, Result};
-use graphfusion::io::RdfFormat;
+use rdf_fusion::io::RdfFormat;
 use sparesults::QueryResultsFormat;
 use time::OffsetDateTime;
 

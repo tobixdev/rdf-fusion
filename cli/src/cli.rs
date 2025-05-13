@@ -2,8 +2,8 @@ use clap::{Parser, Subcommand, ValueHint};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(about, version, name = "graphfusion")]
-/// GraphFusion command line toolkit and SPARQL HTTP server
+#[command(about, version, name = "rdf-fusion")]
+/// RdfFusion command line toolkit and SPARQL HTTP server
 pub struct Args {
     #[command(subcommand)]
     pub command: Command,
@@ -11,7 +11,7 @@ pub struct Args {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Start GraphFusion HTTP server in read-write mode
+    /// Start RdfFusion HTTP server in read-write mode
     Serve {
         /// Host and port to listen to
         #[arg(short, long, default_value = "localhost:7878", value_hint = ValueHint::Hostname)]

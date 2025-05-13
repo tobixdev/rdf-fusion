@@ -1,5 +1,5 @@
 pub mod rs {
-    use graphfusion::model::NamedNodeRef;
+    use rdf_fusion::model::NamedNodeRef;
 
     pub const RESULT_SET: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/2001/sw/DataAccess/tests/result-set#ResultSet",
@@ -26,7 +26,7 @@ pub mod rs {
 }
 
 pub mod mf {
-    use graphfusion::model::NamedNodeRef;
+    use rdf_fusion::model::NamedNodeRef;
 
     pub const INCLUDE: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#include",
@@ -52,7 +52,7 @@ pub mod mf {
 }
 
 pub mod rdft {
-    use graphfusion::model::NamedNodeRef;
+    use rdf_fusion::model::NamedNodeRef;
 
     pub const APPROVAL: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/ns/rdftest#approval");
@@ -61,7 +61,7 @@ pub mod rdft {
 }
 
 pub mod qt {
-    use graphfusion::model::NamedNodeRef;
+    use rdf_fusion::model::NamedNodeRef;
 
     pub const QUERY: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/2001/sw/DataAccess/tests/test-query#query");
@@ -79,7 +79,7 @@ pub mod qt {
 }
 
 pub mod ut {
-    use graphfusion::model::NamedNodeRef;
+    use rdf_fusion::model::NamedNodeRef;
 
     pub const DATA: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/2009/sparql/tests/test-update#data");

@@ -1,16 +1,17 @@
 [workspace]
 members = [
     "cli",
-    "lib/arrow-rdf",
-    "lib/arrow-rdf-functions",
     "lib/model",
-    "lib/graphfusion-engine",
-    "lib/graphfusion-logical",
-    "lib/graphfusion-physical",
-    "lib/graphfusion-storage",
-    "lib/graphfusion",
-    "lib/graphfusion-web",
-    "testsuite"]
+    "lib/encoding",
+    "lib/engine",
+    "lib/functions",
+    "lib/functions-scalar",
+    "lib/logical",
+    "lib/physical",
+    "lib/storage",
+    "lib/rdf-fusion",
+    "lib/web",
+    "testsuite", "lib/functions"]
 resolver = "2"
 
 [workspace.package]
@@ -33,6 +34,7 @@ datafusion = "47.0.0"
 dashmap = "6.1.0"
 futures = "0.3.31"
 hex = "0.4.3"
+itertools = "0.14.0"
 md-5 = "0.10.6"
 predicates = ">=2.0, <4.0"
 rand = "0.8"
@@ -55,15 +57,16 @@ sparesults = "0.2.4"
 spargebra = "0.3.5"
 
 # Internal dependencies
-arrow-rdf = { version = "=0.1.0", path = "lib/arrow-rdf" }
-model = { version = "=0.1.0", path = "lib/model" }
-arrow-rdf-functions = { version = "=0.1.0", path = "lib/arrow-rdf-functions" }
-graphfusion-engine = { version = "=0.1.0", path = "lib/graphfusion-engine" }
-graphfusion-logical = { version = "=0.1.0", path = "lib/graphfusion-logical" }
-graphfusion-physical = { version = "=0.1.0", path = "lib/graphfusion-physical" }
-graphfusion-storage = { version = "=0.1.0", path = "lib/graphfusion-storage" }
-graphfusion = { version = "=0.1.0", path = "lib/graphfusion" }
-graphfusion-web = { version = "=0.1.0", path = "lib/graphfusion-web" }
+rdf-fusion-model = { version = "=0.1.0", path = "lib/model" }
+rdf-fusion-encoding = { version = "=0.1.0", path = "lib/encoding" }
+rdf-fusion-engine = { version = "=0.1.0", path = "lib/engine" }
+rdf-fusion-functions = { version = "=0.1.0", path = "lib/functions" }
+rdf-fusion-functions-scalar = { version = "=0.1.0", path = "lib/functions-scalar" }
+rdf-fusion-logical = { version = "=0.1.0", path = "lib/logical" }
+rdf-fusion-physical = { version = "=0.1.0", path = "lib/physical" }
+rdf-fusion-storage = { version = "=0.1.0", path = "lib/storage" }
+rdf-fusion = { version = "=0.1.0", path = "lib/rdf-fusion" }
+rdf-fusion-web = { version = "=0.1.0", path = "lib/web" }
 
 [workspace.lints.rust]
 absolute_paths_not_starting_with_crate = "warn"

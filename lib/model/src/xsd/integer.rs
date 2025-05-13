@@ -1,7 +1,4 @@
-use crate::{
-    Boolean, Decimal, Double, Float, Int, InternalTermRef, Numeric, RdfValueRef, ThinError,
-    ThinResult,
-};
+use crate::{Boolean, Decimal, Double, Float, Int, ThinError, ThinResult};
 use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
@@ -155,18 +152,6 @@ impl Integer {
     #[inline]
     pub fn as_i64(self) -> i64 {
         self.value
-    }
-}
-
-impl RdfValueRef<'_> for Integer {
-    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
-    where
-        Self: Sized,
-    {
-        match term {
-            InternalTermRef::NumericLiteral(Numeric::Integer(inner)) => Ok(inner),
-            _ => ThinError::expected(),
-        }
     }
 }
 

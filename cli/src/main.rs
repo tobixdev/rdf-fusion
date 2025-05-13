@@ -2,10 +2,10 @@
 use crate::cli::{Args, Command};
 use anyhow::{bail, Context};
 use clap::Parser;
-use graphfusion::io::{RdfFormat, RdfParser, RdfSerializer};
-use graphfusion::model::{GraphName, NamedNode};
-use graphfusion::store::Store;
-use graphfusion_web::ServerConfig;
+use rdf_fusion::io::{RdfFormat, RdfParser, RdfSerializer};
+use rdf_fusion::model::{GraphName, NamedNode};
+use rdf_fusion::store::Store;
+use rdf_fusion_web::ServerConfig;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, stdin, stdout, BufWriter, Read, Write};
@@ -225,7 +225,7 @@ async fn serve(
         cors,
         union_default_graph,
     };
-    graphfusion_web::serve(server_config).await
+    rdf_fusion_web::serve(server_config).await
 }
 
 fn close_file_writer(writer: BufWriter<File>) -> io::Result<()> {
@@ -251,7 +251,7 @@ mod tests {
         command
             .arg("run")
             .arg("--bin")
-            .arg("graphfusion")
+            .arg("rdf-fusion")
             .arg("--no-default-features");
         command.arg("--");
         command
@@ -263,7 +263,7 @@ mod tests {
             .assert()
             .failure()
             .stdout("")
-            .stderr(predicate::str::contains("GraphFusion"));
+            .stderr(predicate::str::contains("RdfFusion"));
     }
 
     #[test]

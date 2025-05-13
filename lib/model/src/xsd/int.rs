@@ -1,7 +1,5 @@
 use crate::xsd::double::Double;
-use crate::{
-    Boolean, Decimal, Float, Integer, InternalTermRef, Numeric, RdfValueRef, ThinError, ThinResult,
-};
+use crate::{Boolean, Decimal, Float, Integer, ThinError, ThinResult};
 use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
@@ -152,18 +150,6 @@ impl Int {
     #[must_use]
     pub fn is_identical_with(self, other: Self) -> bool {
         self == other
-    }
-}
-
-impl RdfValueRef<'_> for Int {
-    fn from_term(term: InternalTermRef<'_>) -> ThinResult<Self>
-    where
-        Self: Sized,
-    {
-        match term {
-            InternalTermRef::NumericLiteral(Numeric::Int(inner)) => Ok(inner),
-            _ => ThinError::expected(),
-        }
     }
 }
 

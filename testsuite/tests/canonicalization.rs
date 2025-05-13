@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use anyhow::Result;
-use graphfusion_testsuite::check_testsuite;
+use rdf_fusion_testsuite::check_testsuite;
 
 #[tokio::test]
 #[ignore = "Test type not implemented"]
