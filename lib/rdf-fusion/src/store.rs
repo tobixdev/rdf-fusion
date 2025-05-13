@@ -38,7 +38,7 @@ use graphfusion_engine::results::{QuadStream, QuerySolutionStream};
 use graphfusion_engine::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use graphfusion_engine::GraphFusionInstance;
+use graphfusion_engine::RdfFusionInstance;
 use graphfusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
     TermRef, Variable,
@@ -90,7 +90,7 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// ```
 #[derive(Clone)]
 pub struct Store {
-    engine: GraphFusionInstance,
+    engine: RdfFusionInstance,
 }
 
 impl Default for Store {
@@ -104,7 +104,7 @@ impl Store {
     #[allow(clippy::expect_used)]
     pub fn new() -> Store {
         let storage = MemoryQuadStorage::new("memory_quads");
-        let engine = GraphFusionInstance::new_with_storage(Arc::new(storage))
+        let engine = RdfFusionInstance::new_with_storage(Arc::new(storage))
             .expect("Name of the storage is OK");
         Self { engine }
     }

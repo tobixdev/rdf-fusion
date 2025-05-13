@@ -10,7 +10,7 @@ use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::typed_value::TypedValueEncoding;
 use graphfusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
 use graphfusion_functions::builtin::BuiltinName;
-use graphfusion_functions::registry::GraphFusionFunctionRegistry;
+use graphfusion_functions::registry::RdfFusionFunctionRegistry;
 use graphfusion_functions::FunctionName;
 use graphfusion_model::{Iri, Literal, Term, TermRef, ThinError, VariableRef};
 use spargebra::term::NamedNode;
@@ -22,14 +22,14 @@ use std::ops::Not;
 
 /// TODO: Explain why
 #[derive(Debug, Clone, Copy)]
-pub struct GraphFusionExprBuilder<'a> {
+pub struct RdfFusionExprBuilder<'a> {
     /// The schema of the input data. Necessary for inferring the encodings of RDF terms.
     schema: &'a DFSchema,
     /// Provides access to the builtin functions.
-    registry: &'a dyn GraphFusionFunctionRegistry,
+    registry: &'a dyn RdfFusionFunctionRegistry,
 }
 
-impl GraphFusionExprBuilder<'_> {
+impl RdfFusionExprBuilder<'_> {
     /// TODO
     pub fn count(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
         Ok(if distinct {
@@ -102,8 +102,8 @@ impl GraphFusionExprBuilder<'_> {
     }
 }
 
-impl<'a> GraphFusionExprBuilder<'a> {
-    pub fn new(schema: &'a DFSchema, registry: &'a dyn GraphFusionFunctionRegistry) -> Self {
+impl<'a> RdfFusionExprBuilder<'a> {
+    pub fn new(schema: &'a DFSchema, registry: &'a dyn RdfFusionFunctionRegistry) -> Self {
         Self { schema, registry }
     }
 

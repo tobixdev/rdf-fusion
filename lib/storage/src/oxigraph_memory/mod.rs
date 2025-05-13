@@ -1,4 +1,4 @@
-//! This module exposes the in-memory store from Oxigraph as table in GraphFusion.
+//! This module exposes the in-memory store from Oxigraph as table in RdfFusion.
 mod encoded_term;
 mod encoder;
 mod oxigraph_mem_exec;

@@ -1,8 +1,8 @@
-# GraphFusion
+# RdfFusion
 
-GraphFusion is a graph database implementing the [SPARQL](https://www.w3.org/TR/sparql11-overview/) standard.
+RdfFusion is a graph database implementing the [SPARQL](https://www.w3.org/TR/sparql11-overview/) standard.
 
-The query engine of GraphFusion is based on the [Apache Arrow](https://arrow.apache.org/) columnar format and
+The query engine of RdfFusion is based on the [Apache Arrow](https://arrow.apache.org/) columnar format and
 [Apache DataFusion](https://datafusion.apache.org/), an extensible query engine based on Arrow. 
 
 ## Getting Started
@@ -19,7 +19,7 @@ just check # Run checks
 ## Help
 
 Feel free to use [GitHub discussions](https://github.com/tobixdev/graphfusion/discussions) to ask questions or talk
-about GraphFusion.
+about RdfFusion.
 [Bug reports](https://github.com/tobixdev/graphfusion/issues) are also very welcome.
 
 ## License
@@ -35,7 +35,7 @@ at your option.
 
 ## Contributing
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in GraphFusion by you, as
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in RdfFusion by you, as
 defined in the Apache-2.0 license, shall be dually licensed as above, without any additional terms or conditions.
 
 ## Acknowledgements
@@ -44,4 +44,4 @@ The project started as a fork from [Oxigraph](https://github.com/oxigraph/oxigra
 with a custom SPARQL query engine.
 While large portions of the codebase have been written from scratch, there is still code from Oxigraph in this
 repository.
-GraphFusion would not exist without Oxigraph.
+RdfFusion would not exist without Oxigraph.

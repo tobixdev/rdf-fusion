@@ -263,7 +263,7 @@ mod tests {
             .assert()
             .failure()
             .stdout("")
-            .stderr(predicate::str::contains("GraphFusion"));
+            .stderr(predicate::str::contains("RdfFusion"));
     }
 
     #[test]

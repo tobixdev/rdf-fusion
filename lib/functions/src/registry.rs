@@ -34,10 +34,10 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 /// TODO
-pub type GraphFusionFunctionRegistryRef = Arc<dyn GraphFusionFunctionRegistry>;
+pub type RdfFusionFunctionRegistryRef = Arc<dyn RdfFusionFunctionRegistry>;
 
 ///TODO
-pub trait GraphFusionFunctionRegistry: Debug + Send + Sync {
+pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
     /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
     fn create_udf(
         &self,
@@ -55,9 +55,9 @@ pub trait GraphFusionFunctionRegistry: Debug + Send + Sync {
 
 /// TODO
 #[derive(Debug, Default)]
-pub struct DefaultGraphFusionFunctionRegistry {}
+pub struct DefaultRdfFusionFunctionRegistry {}
 
-impl GraphFusionFunctionRegistry for DefaultGraphFusionFunctionRegistry {
+impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     fn create_udf(
         &self,
         function_name: FunctionName,

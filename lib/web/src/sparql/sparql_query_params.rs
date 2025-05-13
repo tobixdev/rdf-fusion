@@ -1,4 +1,4 @@
-use crate::error::GraphFusionServerError;
+use crate::error::RdfFusionServerError;
 use crate::AppState;
 use axum::extract::{FromRequestParts, Query};
 use axum::http::request::Parts;
@@ -37,7 +37,7 @@ impl SparqlQueryParams {
 }
 
 impl FromRequestParts<AppState> for SparqlQueryParams {
-    type Rejection = GraphFusionServerError;
+    type Rejection = RdfFusionServerError;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -46,7 +46,7 @@ impl FromRequestParts<AppState> for SparqlQueryParams {
         let raw_params = parts
             .extract::<Query<SparqlQueryParamsRaw>>()
             .await
-            .map_err(|e| GraphFusionServerError::BadRequest(e.to_string()))?
+            .map_err(|e| RdfFusionServerError::BadRequest(e.to_string()))?
             .0;
 
         let use_default_graph_as_union = raw_params
@@ -56,7 +56,7 @@ impl FromRequestParts<AppState> for SparqlQueryParams {
             && (!raw_params.using_graph_uri.is_empty()
                 || !raw_params.using_named_graph_uri.is_empty())
         {
-            return Err(GraphFusionServerError::BadRequest(
+            return Err(RdfFusionServerError::BadRequest(
                 "default-graph-uri or named-graph-uri and union-default-graph should not be set at the same time".to_owned()
             ));
         }

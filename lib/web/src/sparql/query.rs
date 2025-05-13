@@ -1,4 +1,4 @@
-use crate::error::GraphFusionServerError;
+use crate::error::RdfFusionServerError;
 use crate::sparql::query_results::QueryResultsResponse;
 use crate::sparql::service_description::{
     generate_service_description, EndpointKind, ServiceDescription,
@@ -18,7 +18,7 @@ pub async fn handle_query_get(
     query_params: SparqlQueryParams,
     format: RdfFormat,
     _query_format: QueryResultsFormat,
-) -> Result<HandleQueryResponse, GraphFusionServerError> {
+) -> Result<HandleQueryResponse, RdfFusionServerError> {
     let Some(query) = &query_params.query else {
         return Ok(generate_service_description(
             format,
@@ -46,9 +46,9 @@ async fn evaluate_sparql_query(
     store: &Store,
     params: &SparqlQueryParams,
     query: &str,
-) -> Result<QueryResultsResponse, GraphFusionServerError> {
+) -> Result<QueryResultsResponse, RdfFusionServerError> {
     let mut query = graphfusion::Query::parse(query, Some(params.base_uri.as_str()))
-        .map_err(|e| GraphFusionServerError::BadRequest(e.to_string()))?;
+        .map_err(|e| RdfFusionServerError::BadRequest(e.to_string()))?;
 
     if params.default_graph_as_union {
         query.dataset_mut().set_default_graph_as_union()
@@ -59,7 +59,7 @@ async fn evaluate_sparql_query(
                 .iter()
                 .map(|e| Ok(NamedNode::new(e)?.into()))
                 .collect::<Result<Vec<GraphName>, IriParseError>>()
-                .map_err(|e| GraphFusionServerError::BadRequest(e.to_string()))?,
+                .map_err(|e| RdfFusionServerError::BadRequest(e.to_string()))?,
         );
         query.dataset_mut().set_available_named_graphs(
             params
@@ -67,7 +67,7 @@ async fn evaluate_sparql_query(
                 .iter()
                 .map(|e| Ok(NamedNode::new(e)?.into()))
                 .collect::<Result<Vec<NamedOrBlankNode>, IriParseError>>()
-                .map_err(|e| GraphFusionServerError::BadRequest(e.to_string()))?,
+                .map_err(|e| RdfFusionServerError::BadRequest(e.to_string()))?,
         );
     }
 
@@ -75,7 +75,7 @@ async fn evaluate_sparql_query(
         .query_opt(query, params.to_query_options())
         .await
         .map(QueryResultsResponse::from)
-        .map_err(|e| GraphFusionServerError::Internal(anyhow!(e)))
+        .map_err(|e| RdfFusionServerError::Internal(anyhow!(e)))
 }
 
 /// Holds any of the possible responses from a query request.

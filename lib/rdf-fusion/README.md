@@ -1,10 +1,10 @@
-GraphFusion
+RdfFusion
 ========
 
 TBD
 
 
-Here is an example of using GraphFusion:
+Here is an example of using RdfFusion:
 ```rust
 use std::error::Error;
 use graphfusion::store::Store;

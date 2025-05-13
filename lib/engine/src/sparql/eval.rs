@@ -5,7 +5,7 @@ use crate::sparql::{
     QueryTripleStream,
 };
 use datafusion::prelude::{DataFrame, SessionContext};
-use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
+use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
 use graphfusion_model::Iri;
 use graphfusion_model::Variable;
 use spargebra::algebra::GraphPattern;
@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 pub async fn evaluate_query(
     ctx: &SessionContext,
-    registry: GraphFusionFunctionRegistryRef,
+    registry: RdfFusionFunctionRegistryRef,
     query: &Query,
     _options: QueryOptions,
 ) -> Result<(QueryResults, Option<QueryExplanation>), QueryEvaluationError> {
@@ -62,7 +62,7 @@ pub async fn evaluate_query(
 
 async fn create_dataframe(
     ctx: &SessionContext,
-    registry: GraphFusionFunctionRegistryRef,
+    registry: RdfFusionFunctionRegistryRef,
     dataset: &QueryDataset,
     pattern: &GraphPattern,
     base_iri: &Option<Iri<String>>,

@@ -1,20 +1,20 @@
 use crate::join::{SparqlJoinNode, SparqlJoinType};
 use crate::DFResult;
-use crate::GraphFusionExprBuilder;
+use crate::RdfFusionExprBuilder;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{Column, JoinType};
 use datafusion::logical_expr::Expr;
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use graphfusion_encoding::EncodingName;
-use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
+use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
 
 /// TODO
 #[derive(Debug)]
 pub struct SparqlJoinLoweringRule {
-    /// Used for creating expressions with GraphFusion builtins.
-    registry: GraphFusionFunctionRegistryRef,
+    /// Used for creating expressions with RdfFusion builtins.
+    registry: RdfFusionFunctionRegistryRef,
 }
 
 impl OptimizerRule for SparqlJoinLoweringRule {
@@ -55,7 +55,7 @@ impl OptimizerRule for SparqlJoinLoweringRule {
 
 impl SparqlJoinLoweringRule {
     /// TODO
-    pub fn new(registry: GraphFusionFunctionRegistryRef) -> Self {
+    pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
         Self { registry }
     }
 
@@ -81,7 +81,7 @@ impl SparqlJoinLoweringRule {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
 
-        let expr_builder = GraphFusionExprBuilder::new(&join_schema, self.registry.as_ref());
+        let expr_builder = RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
         let projections = node
             .schema()
             .columns()
@@ -140,7 +140,7 @@ impl SparqlJoinLoweringRule {
 /// Returns an expression that obtains value `variable` from either the lhs, the rhs, or both
 /// depending on the schema.
 fn value_from_joined(
-    expr_builder: GraphFusionExprBuilder<'_>,
+    expr_builder: RdfFusionExprBuilder<'_>,
     lhs_keys: &HashSet<String>,
     rhs_keys: &HashSet<String>,
     variable: &str,

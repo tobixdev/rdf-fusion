@@ -18,7 +18,7 @@ pub struct MemoryQuadStorage {
 impl MemoryQuadStorage {
     /// Creates a new empty [MemoryQuadStorage].
     ///
-    /// It is intended to pass this storage into a GraphFusion engine.
+    /// It is intended to pass this storage into a RdfFusion engine.
     pub fn new(table_name: impl Into<String>) -> Self {
         let table_name = table_name.into();
         let table = Arc::new(OxigraphMemTable::new());

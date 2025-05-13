@@ -6,9 +6,9 @@ pub const MAX_SPARQL_BODY_SIZE: u64 = 1024 * 1024 * 128; // 128MB
 #[allow(unused, reason = "Not yet implemented")]
 pub const HTTP_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// Holds the configuration for a GraphFusion web server.
+/// Holds the configuration for a RdfFusion web server.
 pub struct ServerConfig {
-    /// The GraphFusion instance that is used.
+    /// The RdfFusion instance that is used.
     pub store: Store,
     /// The IP address or DNS name that the socket binds to.
     pub bind: String,

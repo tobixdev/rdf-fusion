@@ -1,4 +1,4 @@
-GraphFusion Rust crates
+RdfFusion Rust crates
 ====================
 
 TODO

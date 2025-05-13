@@ -22,8 +22,8 @@ pub const COL_OBJECT: &str = "object";
 type DFResult<T> = Result<T, DataFusionError>;
 type AResult<T> = Result<T, ArrowError>;
 
-/// Represents an instance of a GraphFusion encoding.
-pub enum GraphFusionEncodedArray {
+/// Represents an instance of a RdfFusion encoding.
+pub enum RdfFusionEncodedArray {
     /// Represents an Arrow array that contains entries with the [term_encoding].
     PlainTerm(PlainTermEncoding),
     /// Represents an Arrow array that contains entries with the [value_encoding].

@@ -1,4 +1,4 @@
-use crate::expr_builder::GraphFusionExprBuilder;
+use crate::expr_builder::RdfFusionExprBuilder;
 use crate::patterns::PatternNode;
 use crate::DFResult;
 use datafusion::common::tree_node::{Transformed, TreeNode};
@@ -7,19 +7,19 @@ use datafusion::logical_expr::{and, col, Extension, LogicalPlan, LogicalPlanBuil
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
 use graphfusion_functions::registry::{
-    GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef,
+    RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
 use spargebra::term::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
 pub struct PatternLoweringRule {
-    registry: GraphFusionFunctionRegistryRef,
+    registry: RdfFusionFunctionRegistryRef,
 }
 
 impl PatternLoweringRule {
     /// Creates a new [PatternLoweringRule].
-    pub fn new(registry: GraphFusionFunctionRegistryRef) -> Self {
+    pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
         Self { registry }
     }
 }
@@ -62,10 +62,10 @@ impl OptimizerRule for PatternLoweringRule {
 /// Computes the filters that will be applied for a given [PatternNode]. Callers can use this
 /// function to only apply the filters of a pattern and ignore any projections to variables.
 pub fn compute_filters_for_pattern(
-    registry: &dyn GraphFusionFunctionRegistry,
+    registry: &dyn RdfFusionFunctionRegistry,
     node: &PatternNode,
 ) -> DFResult<Option<Expr>> {
-    let expr_builder = GraphFusionExprBuilder::new(node.input().schema(), registry);
+    let expr_builder = RdfFusionExprBuilder::new(node.input().schema(), registry);
     let filters = [
         filter_by_values(&expr_builder, node.patterns())?,
         filter_same_variable(&expr_builder, node.patterns())?,
@@ -78,7 +78,7 @@ pub fn compute_filters_for_pattern(
 /// For example, for the pattern `?a foaf:knows ?b` this functions adds a filter that ensures that
 /// the predicate is `foaf:knows`.
 fn filter_by_values(
-    expr_builder: &GraphFusionExprBuilder<'_>,
+    expr_builder: &RdfFusionExprBuilder<'_>,
     pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
     let filters = expr_builder
@@ -97,7 +97,7 @@ fn filter_by_values(
 /// For example, for the pattern `?a ?a ?b` this functions adds a constraint that ensures that the
 /// subject is equal to the predicate.
 fn filter_same_variable(
-    expr_builder: &GraphFusionExprBuilder<'_>,
+    expr_builder: &RdfFusionExprBuilder<'_>,
     pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
     let mut mappings = HashMap::new();
@@ -165,7 +165,7 @@ fn project_to_variables(
 
 /// Creates an [Expr] that filters `column` based on the contents of this element.
 fn create_filter_expression(
-    expr_builder: &GraphFusionExprBuilder<'_>,
+    expr_builder: &RdfFusionExprBuilder<'_>,
     column: &Column,
     pattern: Option<&TermPattern>,
 ) -> DFResult<Option<Expr>> {

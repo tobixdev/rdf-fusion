@@ -5,7 +5,7 @@ use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
 use datafusion::prelude::{and, exists};
-use graphfusion_logical::GraphFusionExprBuilder;
+use graphfusion_logical::RdfFusionExprBuilder;
 use graphfusion_model::vocab::xsd;
 use graphfusion_model::Iri;
 use graphfusion_model::{DateTime, TermRef};
@@ -17,7 +17,7 @@ use std::sync::Arc;
 pub(super) struct ExpressionRewriter<'rewriter> {
     graph_rewriter: &'rewriter GraphPatternRewriter,
     base_iri: Option<&'rewriter Iri<String>>,
-    expr_builder: GraphFusionExprBuilder<'rewriter>,
+    expr_builder: RdfFusionExprBuilder<'rewriter>,
 }
 
 impl<'rewriter> ExpressionRewriter<'rewriter> {
@@ -25,7 +25,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     pub fn new(
         graph_rewriter: &'rewriter GraphPatternRewriter,
         base_iri: Option<&'rewriter Iri<String>>,
-        expr_builder: GraphFusionExprBuilder<'rewriter>,
+        expr_builder: RdfFusionExprBuilder<'rewriter>,
     ) -> Self {
         Self {
             graph_rewriter,

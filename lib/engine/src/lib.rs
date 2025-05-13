@@ -7,7 +7,7 @@ mod quad_storage;
 pub mod results;
 pub mod sparql;
 
-pub use engine::GraphFusionInstance;
+pub use engine::RdfFusionInstance;
 pub use quad_storage::QuadStorage;
 
 type DFResult<T> = datafusion::error::Result<T>;

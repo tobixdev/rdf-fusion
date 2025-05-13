@@ -1,20 +1,20 @@
 use crate::quads::QuadsNode;
-use crate::{DFResult, GraphFusionLogicalPlanBuilder};
+use crate::{DFResult, RdfFusionLogicalPlanBuilder};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::datasource::DefaultTableSource;
 use datafusion::logical_expr::{col, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
-use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
+use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
 use graphfusion_model::TermRef;
 use std::sync::Arc;
 
 /// TODO
 #[derive(Debug)]
 pub struct QuadsLoweringRule {
-    /// Used for creating expressions with GraphFusion builtins.
-    registry: GraphFusionFunctionRegistryRef,
+    /// Used for creating expressions with RdfFusion builtins.
+    registry: RdfFusionFunctionRegistryRef,
     /// Reference to the registered Quads Table.
     quads_table: Arc<dyn TableProvider>,
 }
@@ -48,7 +48,7 @@ impl OptimizerRule for QuadsLoweringRule {
 impl QuadsLoweringRule {
     /// TODO
     pub fn new(
-        registry: GraphFusionFunctionRegistryRef,
+        registry: RdfFusionFunctionRegistryRef,
         quads_table: Arc<dyn TableProvider>,
     ) -> Self {
         Self {
@@ -65,7 +65,7 @@ impl QuadsLoweringRule {
             None,
         )?;
         let plan =
-            GraphFusionLogicalPlanBuilder::new(Arc::new(scan.build()?), Arc::clone(&self.registry));
+            RdfFusionLogicalPlanBuilder::new(Arc::new(scan.build()?), Arc::clone(&self.registry));
 
         let active_graph_filter = plan
             .expr_builder()

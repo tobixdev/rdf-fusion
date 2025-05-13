@@ -1,4 +1,4 @@
-use crate::planner::GraphFusionPlanner;
+use crate::planner::RdfFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults};
 use crate::{DFResult, QuadStorage};
@@ -9,45 +9,45 @@ use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::SessionContext;
 use graphfusion_encoding::TABLE_QUADS;
 use graphfusion_functions::registry::{
-    DefaultGraphFusionFunctionRegistry, GraphFusionFunctionRegistry, GraphFusionFunctionRegistryRef,
+    DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
 use graphfusion_logical::extend::ExtendLoweringRule;
 use graphfusion_logical::join::SparqlJoinLoweringRule;
 use graphfusion_logical::paths::PropertyPathLoweringRule;
 use graphfusion_logical::patterns::PatternLoweringRule;
 use graphfusion_logical::quads::QuadsLoweringRule;
-use graphfusion_logical::{ActiveGraph, GraphFusionLogicalPlanBuilder};
+use graphfusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilder};
 use graphfusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, QuadRef, SubjectRef, TermRef,
 };
 use std::sync::Arc;
 
-/// Represents an instance of a GraphFusion engine.
+/// Represents an instance of a RdfFusion engine.
 ///
-/// A GraphFusion instance consists of:
+/// A RdfFusion instance consists of:
 /// - A [SessionContext]. This is the primary interaction point with DataFusion.
 /// - A reference to a storage backend that holds quads. This reference is used for updates via the
 ///   store API.
 #[derive(Clone)]
-pub struct GraphFusionInstance {
+pub struct RdfFusionInstance {
     /// The DataFusion [SessionContext].
     ctx: SessionContext,
     /// Holds references to the registered built-in functions.
-    functions: GraphFusionFunctionRegistryRef,
+    functions: RdfFusionFunctionRegistryRef,
     /// The storage that backs this instance.
     storage: Arc<dyn QuadStorage>,
 }
 
-impl GraphFusionInstance {
-    /// Creates a new [GraphFusionInstance] with the default configuration and the given `storage`.
+impl RdfFusionInstance {
+    /// Creates a new [RdfFusionInstance] with the default configuration and the given `storage`.
     pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> DFResult<Self> {
         // TODO make a builder
 
-        let builtins: Arc<dyn GraphFusionFunctionRegistry> =
-            Arc::new(DefaultGraphFusionFunctionRegistry::default());
+        let builtins: Arc<dyn RdfFusionFunctionRegistry> =
+            Arc::new(DefaultRdfFusionFunctionRegistry::default());
 
         let state = SessionStateBuilder::new()
-            .with_query_planner(Arc::new(GraphFusionPlanner))
+            .with_query_planner(Arc::new(RdfFusionPlanner))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
             .with_optimizer_rule(Arc::new(ExtendLoweringRule::new()))
             .with_optimizer_rule(Arc::new(PropertyPathLoweringRule::new(Arc::clone(
@@ -83,7 +83,7 @@ impl GraphFusionInstance {
     /// Checks whether `quad` is contained in the instance.
     pub async fn contains(&self, quad: &QuadRef<'_>) -> DFResult<bool> {
         let active_graph_info = graph_name_to_active_graph(quad.graph_name);
-        let pattern_plan = GraphFusionLogicalPlanBuilder::new_from_quads(
+        let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_quads(
             Arc::clone(&self.functions),
             active_graph_info,
             Some(quad.subject.into_owned()),
@@ -114,7 +114,7 @@ impl GraphFusionInstance {
         let active_graph_info = graph_name
             .map(graph_name_to_active_graph)
             .unwrap_or_default();
-        let pattern_plan = GraphFusionLogicalPlanBuilder::new_from_quads(
+        let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_quads(
             Arc::clone(&self.functions),
             active_graph_info,
             subject.map(SubjectRef::into_owned),

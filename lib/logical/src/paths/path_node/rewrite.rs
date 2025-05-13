@@ -1,15 +1,15 @@
-use crate::expr_builder::GraphFusionExprBuilder;
+use crate::expr_builder::RdfFusionExprBuilder;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{PropertyPathNode, COL_SOURCE, COL_TARGET, PATH_TABLE_DFSCHEMA};
 use crate::patterns::PatternNode;
-use crate::{ActiveGraph, DFResult, GraphFusionLogicalPlanBuilder};
+use crate::{ActiveGraph, DFResult, RdfFusionLogicalPlanBuilder};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, JoinType};
 use datafusion::logical_expr::{col, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
 use graphfusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
-use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
+use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
 use graphfusion_model::{NamedNode, TermRef};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{NamedNodePattern, TermPattern, TriplePattern, Variable};
@@ -17,8 +17,8 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PropertyPathLoweringRule {
-    /// Used for creating expressions with GraphFusion builtins.
-    registry: GraphFusionFunctionRegistryRef,
+    /// Used for creating expressions with RdfFusion builtins.
+    registry: RdfFusionFunctionRegistryRef,
 }
 
 impl OptimizerRule for PropertyPathLoweringRule {
@@ -48,7 +48,7 @@ impl OptimizerRule for PropertyPathLoweringRule {
 }
 
 impl PropertyPathLoweringRule {
-    pub fn new(registry: GraphFusionFunctionRegistryRef) -> Self {
+    pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
         Self { registry }
     }
 
@@ -101,7 +101,7 @@ impl PropertyPathLoweringRule {
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
         let expr_builder =
-            GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
+            RdfFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
         let filter =
             expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(node.as_ref()))?;
         self.scan_quads(graph, Some(filter))
@@ -115,7 +115,7 @@ impl PropertyPathLoweringRule {
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
         let expr_builder =
-            GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
+            RdfFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
         let test_expressions = nodes
             .iter()
             .map(|nn| expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(nn.as_ref())))
@@ -232,7 +232,7 @@ impl PropertyPathLoweringRule {
         rhs: LogicalPlanBuilder,
     ) -> DFResult<LogicalPlanBuilder> {
         let expr_builder =
-            GraphFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
+            RdfFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
         let path_join_expr = expr_builder.same_term(
             Expr::from(Column::new(Some("lhs"), COL_TARGET)),
             Expr::from(Column::new(Some("rhs"), COL_SOURCE)),
@@ -276,7 +276,7 @@ impl PropertyPathLoweringRule {
             predicate: NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
             object: TermPattern::Variable(Variable::new_unchecked(COL_TARGET)),
         };
-        let builder = GraphFusionLogicalPlanBuilder::new_from_pattern(
+        let builder = RdfFusionLogicalPlanBuilder::new_from_pattern(
             Arc::clone(&self.registry),
             active_graph.clone(),
             Some(Variable::new_unchecked(COL_GRAPH)),

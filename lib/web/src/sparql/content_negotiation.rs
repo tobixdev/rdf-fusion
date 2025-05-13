@@ -1,4 +1,4 @@
-use crate::error::GraphFusionServerError;
+use crate::error::RdfFusionServerError;
 use crate::AppState;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
@@ -13,7 +13,7 @@ use mediatype::{MediaType, Name};
 
 /// Handles the content-negotiation for requests that return RDF data.
 impl FromRequestParts<AppState> for RdfFormat {
-    type Rejection = GraphFusionServerError;
+    type Rejection = RdfFusionServerError;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -40,7 +40,7 @@ impl FromRequestParts<AppState> for RdfFormat {
         )?;
 
         RdfFormat::from_media_type(media_type.to_string().as_str()).ok_or(
-            GraphFusionServerError::BadRequest(format!(
+            RdfFusionServerError::BadRequest(format!(
                 "Could not convert negotiated media type '{media_type}' to internal representation."
             )),
         )
@@ -49,7 +49,7 @@ impl FromRequestParts<AppState> for RdfFormat {
 
 /// Handles the content-negotiation for requests that return query results.
 impl FromRequestParts<AppState> for QueryResultsFormat {
-    type Rejection = GraphFusionServerError;
+    type Rejection = RdfFusionServerError;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -76,7 +76,7 @@ impl FromRequestParts<AppState> for QueryResultsFormat {
         )?;
 
         QueryResultsFormat::from_media_type(media_type.to_string().as_str()).ok_or(
-            GraphFusionServerError::BadRequest(format!(
+            RdfFusionServerError::BadRequest(format!(
                 "Could not convert negotiated media type '{media_type}' to internal representation."
             )),
         )
@@ -88,13 +88,13 @@ fn content_negotiation<'media>(
     available: &'media [MediaType<'media>],
     default: &'media MediaType<'media>,
     example: &str,
-) -> Result<MediaType<'media>, GraphFusionServerError> {
+) -> Result<MediaType<'media>, RdfFusionServerError> {
     let Some(accept) = accept else {
         return Ok(default.clone());
     };
 
     match accept.negotiate(available) {
-        None => Err(GraphFusionServerError::ContentNegotiation(format!(
+        None => Err(RdfFusionServerError::ContentNegotiation(format!(
             "The accept header does not provide any accepted format like {example}."
         ))),
         Some(result) => Ok(result.clone()),

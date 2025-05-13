@@ -10,7 +10,7 @@ pub mod patterns;
 pub mod quads;
 
 pub use active_graph::ActiveGraph;
-pub use expr_builder::GraphFusionExprBuilder;
-pub use logical_plan_builder::GraphFusionLogicalPlanBuilder;
+pub use expr_builder::RdfFusionExprBuilder;
+pub use logical_plan_builder::RdfFusionLogicalPlanBuilder;
 
 type DFResult<T> = datafusion::error::Result<T>;

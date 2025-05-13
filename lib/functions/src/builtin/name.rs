@@ -1,6 +1,6 @@
 use std::fmt;
 
-/// A GraphFusion builtin name.
+/// A RdfFusion builtin name.
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
 pub enum BuiltinName {
     // SPARQL Builtin Scalar Functions

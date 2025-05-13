@@ -6,9 +6,9 @@ use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
 use graphfusion_encoding::EncodingName;
-use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
+use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
 use graphfusion_logical::join::SparqlJoinType;
-use graphfusion_logical::{ActiveGraph, GraphFusionExprBuilder, GraphFusionLogicalPlanBuilder};
+use graphfusion_logical::{ActiveGraph, RdfFusionExprBuilder, RdfFusionLogicalPlanBuilder};
 use graphfusion_model::Variable;
 use graphfusion_model::{Iri, NamedOrBlankNode};
 use spargebra::algebra::{
@@ -19,7 +19,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 pub struct GraphPatternRewriter {
-    registry: GraphFusionFunctionRegistryRef,
+    registry: RdfFusionFunctionRegistryRef,
     dataset: QueryDataset,
     base_iri: Option<Iri<String>>,
     state: RefCell<RewritingState>,
@@ -27,7 +27,7 @@ pub struct GraphPatternRewriter {
 
 impl GraphPatternRewriter {
     pub fn new(
-        registry: GraphFusionFunctionRegistryRef,
+        registry: RdfFusionFunctionRegistryRef,
         dataset: QueryDataset,
         base_iri: Option<Iri<String>>,
     ) -> Self {
@@ -47,11 +47,11 @@ impl GraphPatternRewriter {
     fn rewrite_graph_pattern(
         &self,
         pattern: &GraphPattern,
-    ) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         match pattern {
             GraphPattern::Bgp { patterns } => {
                 let state = self.state.borrow();
-                GraphFusionLogicalPlanBuilder::new_from_bgp(
+                RdfFusionLogicalPlanBuilder::new_from_bgp(
                     Arc::clone(&self.registry),
                     &state.active_graph,
                     state.graph_name_var.as_ref(),
@@ -91,7 +91,7 @@ impl GraphPatternRewriter {
             GraphPattern::Values {
                 variables,
                 bindings,
-            } => GraphFusionLogicalPlanBuilder::new_from_values(
+            } => RdfFusionLogicalPlanBuilder::new_from_values(
                 Arc::clone(&self.registry),
                 variables,
                 bindings,
@@ -113,7 +113,7 @@ impl GraphPatternRewriter {
                 join_schema.merge(rhs.schema());
 
                 let expr_builder =
-                    GraphFusionExprBuilder::new(&join_schema, self.registry.as_ref());
+                    RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
                 let filter = expression
                     .as_ref()
                     .map(|f| self.rewrite_expression(expr_builder, f))
@@ -185,7 +185,7 @@ impl GraphPatternRewriter {
                 object,
             } => {
                 let state = self.state.borrow();
-                GraphFusionLogicalPlanBuilder::new_from_property_path(
+                RdfFusionLogicalPlanBuilder::new_from_property_path(
                     Arc::clone(&self.registry),
                     state.active_graph.clone(),
                     state.graph_name_var.clone(),
@@ -235,7 +235,7 @@ impl GraphPatternRewriter {
     /// Rewrites an [Expression].
     fn rewrite_expression(
         &self,
-        expr_builder: GraphFusionExprBuilder<'_>,
+        expr_builder: RdfFusionExprBuilder<'_>,
         expression: &Expression,
     ) -> DFResult<Expr> {
         let expression_rewriter =
@@ -246,7 +246,7 @@ impl GraphPatternRewriter {
     /// Rewrites an [OrderExpression].
     fn rewrite_order_expression(
         &self,
-        expr_builder: GraphFusionExprBuilder<'_>,
+        expr_builder: RdfFusionExprBuilder<'_>,
         expression: &OrderExpression,
     ) -> DFResult<SortExpr> {
         let expression_rewriter =
@@ -266,7 +266,7 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &AggregateExpression,
     ) -> DFResult<Expr> {
-        let expr_builder = GraphFusionExprBuilder::new(schema, self.registry.as_ref());
+        let expr_builder = RdfFusionExprBuilder::new(schema, self.registry.as_ref());
         let expression_rewriter =
             ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder);
         match expression {
@@ -365,8 +365,8 @@ impl RewritingState {
 /// Ensures that all columns in the result are RDF terms. If not, a cast operation is inserted if
 /// possible.
 fn ensure_all_columns_are_rdf_terms(
-    inner: GraphFusionLogicalPlanBuilder,
-) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    inner: RdfFusionLogicalPlanBuilder,
+) -> DFResult<RdfFusionLogicalPlanBuilder> {
     // let projections = inner
     //     .schema()
     //     .fields()

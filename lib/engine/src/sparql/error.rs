@@ -88,7 +88,7 @@ pub enum QueryEvaluationError {
     Engine(DataFusionError),
     #[error("A feature has not yet been implemented: {0}")]
     NotImplemented(String),
-    #[error("An internal error that likely indicates towards a bug in GraphFusion: {0}")]
+    #[error("An internal error that likely indicates towards a bug in RdfFusion: {0}")]
     InternalError(String),
 }
 

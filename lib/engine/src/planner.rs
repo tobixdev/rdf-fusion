@@ -8,10 +8,10 @@ use graphfusion_physical::paths::KleenePlusPathPlanner;
 use std::sync::Arc;
 
 #[derive(Debug, Default)]
-pub struct GraphFusionPlanner;
+pub struct RdfFusionPlanner;
 
 #[async_trait]
-impl QueryPlanner for GraphFusionPlanner {
+impl QueryPlanner for RdfFusionPlanner {
     async fn create_physical_plan(
         &self,
         logical_plan: &LogicalPlan,

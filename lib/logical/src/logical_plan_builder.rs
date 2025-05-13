@@ -4,7 +4,7 @@ use crate::join::{SparqlJoinNode, SparqlJoinType};
 use crate::paths::PropertyPathNode;
 use crate::patterns::PatternNode;
 use crate::quads::QuadsNode;
-use crate::{DFResult, GraphFusionExprBuilder};
+use crate::{DFResult, RdfFusionExprBuilder};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::{plan_datafusion_err, Column, DFSchema, DFSchemaRef, JoinType};
 use datafusion::logical_expr::{
@@ -14,7 +14,7 @@ use datafusion::logical_expr::{
 use graphfusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use graphfusion_encoding::plain_term::PlainTermEncoding;
 use graphfusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
-use graphfusion_functions::registry::GraphFusionFunctionRegistryRef;
+use graphfusion_functions::registry::RdfFusionFunctionRegistryRef;
 use graphfusion_model::{NamedNode, Subject, Term, TermRef, ThinError, Variable};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
@@ -23,16 +23,16 @@ use std::sync::Arc;
 // TODO: check types
 
 #[derive(Debug, Clone)]
-pub struct GraphFusionLogicalPlanBuilder {
+pub struct RdfFusionLogicalPlanBuilder {
     /// TODO
     plan_builder: LogicalPlanBuilder,
     /// TODO
-    registry: GraphFusionFunctionRegistryRef,
+    registry: RdfFusionFunctionRegistryRef,
 }
 
-impl GraphFusionLogicalPlanBuilder {
+impl RdfFusionLogicalPlanBuilder {
     /// TODO
-    pub fn new(plan: Arc<LogicalPlan>, registry: GraphFusionFunctionRegistryRef) -> Self {
+    pub fn new(plan: Arc<LogicalPlan>, registry: RdfFusionFunctionRegistryRef) -> Self {
         let plan_builder = LogicalPlanBuilder::new_from_arc(plan);
         Self {
             plan_builder,
@@ -42,7 +42,7 @@ impl GraphFusionLogicalPlanBuilder {
 
     /// TODO
     pub fn new_from_quads(
-        registry: GraphFusionFunctionRegistryRef,
+        registry: RdfFusionFunctionRegistryRef,
         active_graph: ActiveGraph,
         subject: Option<Subject>,
         predicate: Option<NamedNode>,
@@ -56,7 +56,7 @@ impl GraphFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn new_with_empty_solution(registry: GraphFusionFunctionRegistryRef) -> Self {
+    pub fn new_with_empty_solution(registry: RdfFusionFunctionRegistryRef) -> Self {
         let plan_builder = LogicalPlanBuilder::empty(true);
         Self {
             plan_builder,
@@ -64,11 +64,11 @@ impl GraphFusionLogicalPlanBuilder {
         }
     }
 
-    /// Creates a new [GraphFusionLogicalPlanBuilder] that holds the given VALUES as RDF terms.
+    /// Creates a new [RdfFusionLogicalPlanBuilder] that holds the given VALUES as RDF terms.
     ///
     /// The [PlainTermEncoding] is used for encoding the terms.
     pub fn new_from_values(
-        registry: GraphFusionFunctionRegistryRef,
+        registry: RdfFusionFunctionRegistryRef,
         variables: &[Variable],
         bindings: &[Vec<Option<GroundTerm>>],
     ) -> DFResult<Self> {
@@ -120,17 +120,17 @@ impl GraphFusionLogicalPlanBuilder {
         })
     }
 
-    /// Creates a new [GraphFusionLogicalPlanBuilder] that matches the given basic graph pattern
+    /// Creates a new [RdfFusionLogicalPlanBuilder] that matches the given basic graph pattern
     /// and returns all solutions.
     ///
     /// # Relevant Specifications
     /// - [SPARQL 1.1 - Basic Graph Patterns](https://www.w3.org/TR/sparql11-query/#BasicGraphPatterns)
     pub fn new_from_bgp(
-        registry: GraphFusionFunctionRegistryRef,
+        registry: RdfFusionFunctionRegistryRef,
         active_graph: &ActiveGraph,
         graph_variables: Option<&Variable>,
         patterns: &[TriplePattern],
-    ) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         patterns
             .iter()
             .map(|p| {
@@ -143,7 +143,7 @@ impl GraphFusionLogicalPlanBuilder {
             })
             .reduce(|lhs, rhs| lhs?.join(rhs?.build()?, SparqlJoinType::Inner, None))
             .unwrap_or_else(|| {
-                Ok(GraphFusionLogicalPlanBuilder::new_with_empty_solution(
+                Ok(RdfFusionLogicalPlanBuilder::new_with_empty_solution(
                     Arc::clone(&registry),
                 ))
             })
@@ -151,7 +151,7 @@ impl GraphFusionLogicalPlanBuilder {
 
     /// TODO
     pub fn new_from_pattern(
-        registry: GraphFusionFunctionRegistryRef,
+        registry: RdfFusionFunctionRegistryRef,
         active_graph: ActiveGraph,
         graph_variables: Option<Variable>,
         pattern: TriplePattern,
@@ -177,13 +177,13 @@ impl GraphFusionLogicalPlanBuilder {
 
     /// TODO
     pub fn new_from_property_path(
-        registry: GraphFusionFunctionRegistryRef,
+        registry: RdfFusionFunctionRegistryRef,
         active_graph: ActiveGraph,
         graph_variable: Option<Variable>,
         path: PropertyPathExpression,
         subject: TermPattern,
         object: TermPattern,
-    ) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let node = PropertyPathNode::new(
             active_graph,
             graph_variable.clone(),
@@ -213,7 +213,7 @@ impl GraphFusionLogicalPlanBuilder {
     /// Applies a filter using `expression`.
     ///
     /// TODO talk about handling fo terms
-    pub fn filter(self, expression: Expr) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    pub fn filter(self, expression: Expr) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let (datatype, _) = expression.data_type_and_nullable(self.schema())?;
         let expression = match datatype {
             // If the expression already evaluates to a Boolean, we can use it directly.
@@ -229,7 +229,7 @@ impl GraphFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn extend(self, variable: Variable, expr: Expr) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    pub fn extend(self, variable: Variable, expr: Expr) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let inner = self.plan_builder.build()?;
         let extend_node = ExtendNode::try_new(inner, variable, expr)?;
         Ok(Self {
@@ -247,7 +247,7 @@ impl GraphFusionLogicalPlanBuilder {
         rhs: LogicalPlan,
         join_type: SparqlJoinType,
         filter: Option<Expr>,
-    ) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let lhs = self.plan_builder.build()?;
         let join_node = SparqlJoinNode::try_new(lhs, rhs, filter, join_type)?;
         Ok(Self {
@@ -263,7 +263,7 @@ impl GraphFusionLogicalPlanBuilder {
         self,
         start: usize,
         length: Option<usize>,
-    ) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         Ok(Self {
             registry: self.registry,
             plan_builder: self.plan_builder.limit(start, length)?,
@@ -271,7 +271,7 @@ impl GraphFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn order_by(self, exprs: &[SortExpr]) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    pub fn order_by(self, exprs: &[SortExpr]) -> DFResult<RdfFusionLogicalPlanBuilder> {
         Ok(Self {
             registry: self.registry,
             plan_builder: self.plan_builder.sort(exprs.to_vec())?,
@@ -279,7 +279,7 @@ impl GraphFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn union(self, rhs: LogicalPlan) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    pub fn union(self, rhs: LogicalPlan) -> DFResult<RdfFusionLogicalPlanBuilder> {
         // TODO check types
 
         let mut new_schema = self.schema().as_ref().clone();
@@ -321,7 +321,7 @@ impl GraphFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn minus(self, rhs: LogicalPlan) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    pub fn minus(self, rhs: LogicalPlan) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let lhs_keys: HashSet<_> = self
             .schema()
             .columns()
@@ -348,7 +348,7 @@ impl GraphFusionLogicalPlanBuilder {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
 
-        let expr_builder = GraphFusionExprBuilder::new(&join_schema, self.registry.as_ref());
+        let expr_builder = RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
         let mut join_filters = Vec::new();
 
         for k in &overlapping_keys {
@@ -399,7 +399,7 @@ impl GraphFusionLogicalPlanBuilder {
         self,
         variables: &[Variable],
         aggregates: &[(Variable, Expr)],
-    ) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let expr_builder = self.expr_builder();
         let group_expr = variables
             .iter()
@@ -419,7 +419,7 @@ impl GraphFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn distinct(self) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    pub fn distinct(self) -> DFResult<RdfFusionLogicalPlanBuilder> {
         self.distinct_with_sort(Vec::new())
     }
 
@@ -427,7 +427,7 @@ impl GraphFusionLogicalPlanBuilder {
     pub fn distinct_with_sort(
         self,
         sorts: Vec<SortExpr>,
-    ) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let schema = self.plan_builder.schema();
         let (on_expr, sorts) = create_distinct_on_expressions(self.expr_builder(), sorts.clone())?;
         let select_expr = schema.columns().into_iter().map(col).collect();
@@ -440,7 +440,7 @@ impl GraphFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn with_plain_terms(self) -> DFResult<GraphFusionLogicalPlanBuilder> {
+    pub fn with_plain_terms(self) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let expr_builder = self.expr_builder();
         let with_correct_encoding = self
             .schema()
@@ -464,9 +464,9 @@ impl GraphFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn expr_builder(&self) -> GraphFusionExprBuilder<'_> {
+    pub fn expr_builder(&self) -> RdfFusionExprBuilder<'_> {
         let schema = self.schema().as_ref();
-        GraphFusionExprBuilder::new(schema, self.registry.as_ref())
+        RdfFusionExprBuilder::new(schema, self.registry.as_ref())
     }
 
     /// TODO
@@ -482,7 +482,7 @@ impl GraphFusionLogicalPlanBuilder {
 
 /// TODO
 fn create_distinct_on_expressions(
-    expr_builder: GraphFusionExprBuilder<'_>,
+    expr_builder: RdfFusionExprBuilder<'_>,
     mut sort_expr: Vec<SortExpr>,
 ) -> DFResult<(Vec<Expr>, Vec<SortExpr>)> {
     let mut on_expr = sort_expr
