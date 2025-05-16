@@ -8,5 +8,5 @@ mod scalar;
 pub use array::PlainTermArray;
 pub use builder::PlainTermArrayBuilder;
 pub use encoding::PlainTermEncoding;
-pub use encoding::TermType;
+pub use encoding::PlainTermType;
 pub use scalar::PlainTermScalar;

@@ -18,14 +18,14 @@ impl Default for PlainTermArrayBuilder {
 }
 
 impl PlainTermArrayBuilder {
-    /// TODO
+    /// Create a [PlainTermArrayBuilder] with the given `capacity`.
     pub fn new(capacity: usize) -> Self {
         Self {
             builder: StructBuilder::from_fields(PlainTermEncoding::fields(), capacity),
         }
     }
 
-    /// TODO
+    /// Appends a null value to the array.
     pub fn append_null(&mut self) {
         self.builder
             .field_builder::<UInt8Builder>(PlainTermEncodingField::TermType.index())
@@ -46,17 +46,19 @@ impl PlainTermArrayBuilder {
         self.builder.append(false)
     }
 
-    /// TODO
+    /// Appends a name node to the array.
     pub fn append_named_node(&mut self, named_node: NamedNodeRef<'_>) {
         self.append(PlainTermType::NamedNode, named_node.as_str(), None, None);
     }
 
-    /// TODO
+    /// Appends a blank node to the array.
     pub fn append_blank_node(&mut self, blank_node: BlankNodeRef<'_>) {
         self.append(PlainTermType::BlankNode, blank_node.as_str(), None, None);
     }
 
-    /// TODO
+    /// Appends a literal to the array.
+    ///
+    /// This encoding retains invalid lexical values for typed RDF literals.
     pub fn append_literal(&mut self, literal: LiteralRef<'_>) {
         self.append(
             PlainTermType::Literal,
@@ -66,7 +68,9 @@ impl PlainTermArrayBuilder {
         );
     }
 
-    /// TODO
+    /// Appends an arbitrary RDF term to the array.
+    ///
+    /// This encoding retains invalid lexical values for typed RDF literals.
     pub fn append_term(&mut self, literal: TermRef<'_>) {
         match literal {
             TermRef::NamedNode(nn) => self.append_named_node(nn),
@@ -75,7 +79,9 @@ impl PlainTermArrayBuilder {
         }
     }
 
-    /// TODO
+    /// Appends the given RDF term to the array.
+    ///
+    /// All literals must pass a `data_type`.
     fn append(
         &mut self,
         term_type: PlainTermType,
@@ -83,6 +89,10 @@ impl PlainTermArrayBuilder {
         data_type: Option<&str>,
         language_tag: Option<&str>,
     ) {
+        if term_type == PlainTermType::Literal && data_type.is_none() {
+            panic!("Literal term must have a data type");
+        }
+
         self.builder
             .field_builder::<UInt8Builder>(PlainTermEncodingField::TermType.index())
             .unwrap()

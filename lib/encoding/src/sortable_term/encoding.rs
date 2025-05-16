@@ -9,7 +9,12 @@ use rdf_fusion_model::{TermRef, ThinError};
 use std::clone::Clone;
 use std::sync::LazyLock;
 
-/// TODO
+/// Represents a sortable term encoding field.
+///
+/// First, the encoding differentiates between terms of different types. For example,
+///
+/// This encoding is currently a work-around as user-defined orderings are not yet supported in
+/// DataFusion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SortableTermEncodingField {
     /// TODO
@@ -105,64 +110,5 @@ impl TermEncoding for SortableTermEncoding {
 
     fn encode_null_scalar() -> DFResult<Self::Scalar> {
         TermRefSortableTermEncoder::encode_term(ThinError::expected())
-    }
-}
-
-#[derive(Ord, PartialOrd, PartialEq, Eq, Debug, Clone, Copy)]
-pub enum TermType {
-    NamedNode,
-    BlankNode,
-    Literal,
-}
-
-impl TryFrom<i8> for TermType {
-    type Error = ThinError;
-
-    fn try_from(value: i8) -> Result<Self, Self::Error> {
-        Ok(match value {
-            0 => TermType::NamedNode,
-            1 => TermType::BlankNode,
-            2 => TermType::Literal,
-            _ => return ThinError::internal_error("Unexpected type_id for encoded RDF Term"),
-        })
-    }
-}
-
-impl TryFrom<u8> for TermType {
-    type Error = ThinError;
-
-    #[allow(
-        clippy::cast_possible_wrap,
-        reason = "Self::try_from will catch any overflow as EncTermField does not have that many variants"
-    )]
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        Self::try_from(value as i8)
-    }
-}
-
-impl From<TermType> for i8 {
-    fn from(value: TermType) -> Self {
-        match value {
-            TermType::NamedNode => 0,
-            TermType::BlankNode => 1,
-            TermType::Literal => 2,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_type_ids() {
-        test_roundtrip(TermType::NamedNode);
-        test_roundtrip(TermType::BlankNode);
-        test_roundtrip(TermType::Literal);
-    }
-
-    fn test_roundtrip(term_field: TermType) {
-        let value: i8 = term_field.into();
-        assert_eq!(term_field, value.try_into().unwrap());
     }
 }

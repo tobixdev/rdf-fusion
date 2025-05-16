@@ -1,10 +1,11 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::plain_term::{PlainTermEncoding, TermType};
+use crate::plain_term::{PlainTermEncoding};
 use crate::{EncodingScalar, TermEncoding};
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
 use datafusion::common::ScalarValue;
 use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
+use crate::plain_term::encoding::PlainTermType;
 
 #[derive(Debug)]
 pub struct DefaultPlainTermDecoder {}
@@ -54,7 +55,7 @@ fn extract_term<'data>(
     let value = array
         .is_valid(idx)
         .then(|| {
-            let term_type = TermType::try_from(term_type.value(idx))
+            let term_type = PlainTermType::try_from(term_type.value(idx))
                 .map_err(|_| ThinError::InternalError("Unexpected term type encoding"))?;
             Ok::<_, ThinError>(decode_term(value, datatype, language, idx, term_type))
         })
@@ -67,12 +68,12 @@ fn decode_term<'data>(
     datatype: &'data GenericStringArray<i32>,
     language: &'data GenericStringArray<i32>,
     idx: usize,
-    term_type: TermType,
+    term_type: PlainTermType,
 ) -> TermRef<'data> {
     match term_type {
-        TermType::NamedNode => TermRef::NamedNode(NamedNodeRef::new_unchecked(value.value(idx))),
-        TermType::BlankNode => TermRef::BlankNode(BlankNodeRef::new_unchecked(value.value(idx))),
-        TermType::Literal => {
+        PlainTermType::NamedNode => TermRef::NamedNode(NamedNodeRef::new_unchecked(value.value(idx))),
+        PlainTermType::BlankNode => TermRef::BlankNode(BlankNodeRef::new_unchecked(value.value(idx))),
+        PlainTermType::Literal => {
             if language.is_valid(idx) {
                 TermRef::Literal(LiteralRef::new_language_tagged_literal_unchecked(
                     value.value(idx),

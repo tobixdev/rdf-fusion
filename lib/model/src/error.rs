@@ -10,7 +10,9 @@ use std::str::ParseBoolError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
-// TODO ThinResult = Option<T> in the future
+// TODO ThinResult -> SparqlResult as an entire wrapper type
+// Furthermore, there should be another wrapper that indicates unexpected errors.
+// See how ergonomic that is.
 
 /// A light-weight result, mainly used for SPARQL operations.
 pub type ThinResult<T> = Result<T, ThinError>;

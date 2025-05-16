@@ -114,7 +114,7 @@ impl SortableTermArrayBuilder {
         self.builder
             .field_builder::<UInt8Builder>(SortableTermEncodingField::Type.index())
             .unwrap()
-            .append_value(sort_type.as_u8());
+            .append_value(sort_type.into());
 
         let numeric_builder = self
             .builder

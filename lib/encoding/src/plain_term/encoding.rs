@@ -9,16 +9,22 @@ use rdf_fusion_model::{TermRef, ThinError};
 use std::clone::Clone;
 use std::sync::LazyLock;
 
-/// TODO
+/// Represents the fields of the [PlainTermEncoding].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlainTermEncodingField {
-    /// TODO
+    /// Indicates the type of RDF term.
     TermType,
-    /// TODO
+    /// Contains the lexical value of an RDF term.
     Value,
-    /// TODO
+    /// Holds the data type of RDF literal, including simple literals and language-tagged literals.
+    /// If an RDF term has a language tag, the datatype must contain rdf:langString.
+    ///
+    /// This filed should be `null` for named nodes and blank nodes.
     DataType,
-    /// TODO
+    /// Contains an optional language tag for language-tagged literals.
+    ///
+    /// This field should be `null` for named nodes, blank nodes, and literals without a language
+    /// tag.
     LanguageTag,
 }
 
@@ -74,13 +80,14 @@ static FIELDS_TYPE: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(fields)
 });
 
-/// TODO
+/// Indicates the type of an RDF term that is encoded in the [PlainTermEncoding].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PlainTermType {
-    /// TODO
+    /// Represents a named node.
     NamedNode,
-    /// TODO
+    /// Represents a blank node.
     BlankNode,
-    /// TODO
+    /// Represents a literal.
     Literal,
 }
 
@@ -111,7 +118,8 @@ impl From<PlainTermType> for u8 {
 pub struct PlainTermEncoding;
 
 impl PlainTermEncoding {
-    pub fn fields() -> Fields {
+    /// Returns the Arrow [Fields] of the [PlainTermEncoding].
+    pub(crate) fn fields() -> Fields {
         FIELDS_TYPE.clone()
     }
 }
@@ -145,61 +153,19 @@ impl TermEncoding for PlainTermEncoding {
     }
 }
 
-#[derive(Ord, PartialOrd, PartialEq, Eq, Debug, Clone, Copy)]
-pub enum TermType {
-    NamedNode,
-    BlankNode,
-    Literal,
-}
-
-impl TryFrom<i8> for TermType {
-    type Error = ThinError;
-
-    fn try_from(value: i8) -> Result<Self, Self::Error> {
-        Ok(match value {
-            0 => TermType::NamedNode,
-            1 => TermType::BlankNode,
-            2 => TermType::Literal,
-            _ => return ThinError::internal_error("Unexpected type_id for encoded RDF Term"),
-        })
-    }
-}
-
-impl TryFrom<u8> for TermType {
-    type Error = ThinError;
-
-    #[allow(
-        clippy::cast_possible_wrap,
-        reason = "Self::try_from will catch any overflow as EncTermField does not have that many variants"
-    )]
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        Self::try_from(value as i8)
-    }
-}
-
-impl From<TermType> for i8 {
-    fn from(value: TermType) -> Self {
-        match value {
-            TermType::NamedNode => 0,
-            TermType::BlankNode => 1,
-            TermType::Literal => 2,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_type_ids() {
-        test_roundtrip(TermType::NamedNode);
-        test_roundtrip(TermType::BlankNode);
-        test_roundtrip(TermType::Literal);
+    fn test_plain_term_type_roundtrip() {
+        test_roundtrip(PlainTermType::NamedNode);
+        test_roundtrip(PlainTermType::BlankNode);
+        test_roundtrip(PlainTermType::Literal);
     }
 
-    fn test_roundtrip(term_field: TermType) {
-        let value: i8 = term_field.into();
+    fn test_roundtrip(term_field: PlainTermType) {
+        let value: u8 = term_field.into();
         assert_eq!(term_field, value.try_into().unwrap());
     }
 }
