@@ -1,12 +1,11 @@
 use crate::typed_value::TypedValueArrayBuilder;
 
-use crate::error::LiteralEncodingError;
 use crate::DFResult;
 use crate::TermEncoder;
 use crate::TermEncoding;
 use crate::TypedValueEncoding;
 use datafusion::common::exec_err;
-use rdf_fusion_model::{BlankNode, Double, NamedNode};
+use rdf_fusion_model::{BlankNode, Double, NamedNode, TypedValueRef};
 use rdf_fusion_model::{
     BlankNodeRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef, ThinResult,
 };
@@ -142,11 +141,9 @@ make_simple_term_value_encoder!(
     LiteralRefTermValueEncoder,
     LiteralRef<'data>,
     |builder: &mut TypedValueArrayBuilder, value: LiteralRef<'data>| {
-        let result = builder.append_literal(value);
-        match result {
-            Err(LiteralEncodingError::ParsingError(_)) => builder.append_null(),
-            Err(LiteralEncodingError::Arrow(arrow_error)) => Err(arrow_error),
-            Ok(()) => Ok(()),
+        match TryInto::<TypedValueRef<'_>>::try_into(value) {
+            Ok(value) => builder.append_typed_value(value),
+            Err(_) => builder.append_null(),
         }
     }
 );

@@ -4,7 +4,6 @@ use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 
 mod encoding;
-pub mod error;
 pub mod plain_term;
 mod scalar_encoder;
 pub mod sortable_term;

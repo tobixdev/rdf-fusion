@@ -5,7 +5,7 @@ use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use crate::{DFResult, TermDecoder, TermEncoding};
 use datafusion::common::exec_err;
-use rdf_fusion_model::{TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
 
 #[derive(Debug)]
 pub struct TermRefSortableTermEncoder;
@@ -18,8 +18,10 @@ impl TermEncoder<SortableTermEncoding> for TermRefSortableTermEncoder {
     ) -> DFResult<<SortableTermEncoding as TermEncoding>::Array> {
         let mut typed_values_array = TypedValueArrayBuilder::default();
         for term in terms {
-            match term {
-                Ok(value) => typed_values_array.append_term(value)?,
+            let value: ThinResult<TypedValueRef<'_>> =
+                term.and_then(|t| t.try_into().map_err(|_| ThinError::Expected));
+            match value {
+                Ok(value) => typed_values_array.append_typed_value(value)?,
                 Err(ThinError::Expected) => {
                     typed_values_array.append_null()?;
                 }

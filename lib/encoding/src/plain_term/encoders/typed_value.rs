@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoder;
 use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
 use crate::{DFResult, TermEncoding};
-use rdf_fusion_model::{ThinResult, TypedValueRef};
+use rdf_fusion_model::{Term, ThinResult, TypedValueRef};
 
 #[derive(Debug)]
 pub struct TypedValueRefPlainTermEncoder;
@@ -18,7 +18,7 @@ impl TermEncoder<PlainTermEncoding> for TypedValueRefPlainTermEncoder {
 
         for term in iter {
             if let Ok(term) = term {
-                let decoded = term.into_decoded();
+                let decoded: Term = term.into();
                 builder.append_term(decoded.as_ref());
             } else {
                 builder.append_null();

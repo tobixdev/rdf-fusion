@@ -4,7 +4,6 @@ pub mod decoders;
 pub mod encoders;
 mod encoding;
 mod scalar;
-mod scalar_encoder;
 
 use crate::plain_term::PlainTermEncoding;
 use crate::{TermEncoding, COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};

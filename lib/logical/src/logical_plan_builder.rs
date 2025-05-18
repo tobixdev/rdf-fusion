@@ -7,9 +7,9 @@ use crate::patterns::PatternNode;
 use crate::quads::QuadsNode;
 use crate::{DFResult, RdfFusionExprBuilder};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
-use datafusion::common::{plan_datafusion_err, Column, DFSchema, DFSchemaRef, JoinType};
+use datafusion::common::{Column, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{
-    and, col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
+    col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
     UserDefinedLogicalNode, Values,
 };
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
@@ -19,7 +19,7 @@ use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::{NamedNode, Subject, Term, TermRef, ThinError, Variable};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 /// A convenient builder for programmatically creating SPARQL queries.

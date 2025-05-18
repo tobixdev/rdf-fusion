@@ -337,7 +337,21 @@ fn compare_terms<'a>(
         (TermRef::BlankNode(expected), TermRef::BlankNode(actual)) => {
             expected == *bnode_map.entry(actual).or_insert(expected)
         }
-        (expected, actual) => expected == actual,
+        (expected, actual) => {
+            if expected == actual {
+                return true;
+            }
+
+            let value_lhs = TypedValueRef::try_from(expected);
+            let value_rhs = TypedValueRef::try_from(actual);
+            if let (Ok(value_lhs), Ok(value_rhs)) = (value_lhs, value_rhs) {
+                value_lhs == value_rhs
+            } else {
+                // If these are ill-formed literals, they must be the same term to match
+                // TODO: Check if this is standard conform
+                false
+            }
+        }
     }
 }
 

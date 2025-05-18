@@ -1,4 +1,3 @@
-use crate::error::LiteralEncodingError;
 use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use crate::AResult;
 use datafusion::arrow::array::{
@@ -8,10 +7,9 @@ use datafusion::arrow::array::{
 };
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
-use rdf_fusion_model::vocab::{rdf, xsd};
 use rdf_fusion_model::{
-    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Duration, LiteralRef, NamedNodeRef,
-    Numeric, TermRef, Time, Timestamp, YearMonthDuration,
+    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, LiteralRef, NamedNodeRef, Numeric,
+    Time, Timestamp, TypedValueRef, YearMonthDuration,
 };
 use rdf_fusion_model::{Decimal, Double, Float, Int, Integer};
 use std::sync::Arc;
@@ -70,60 +68,26 @@ impl Default for TypedValueArrayBuilder {
 }
 
 impl TypedValueArrayBuilder {
-    pub fn append_term(&mut self, term: TermRef<'_>) -> Result<(), ArrowError> {
-        match term {
-            TermRef::NamedNode(nn) => self.append_named_node(nn)?,
-            TermRef::BlankNode(bnode) => self.append_blank_node(bnode)?,
-            TermRef::Literal(literal) => match self.append_literal(literal) {
-                Ok(()) => (),
-                Err(LiteralEncodingError::Arrow(error)) => return Err(error),
-                Err(LiteralEncodingError::ParsingError(_)) => self.append_null()?,
-            },
-        };
-        Ok(())
-    }
-
-    pub fn append_literal(&mut self, literal: LiteralRef<'_>) -> Result<(), LiteralEncodingError> {
-        match literal.datatype() {
-            // TODO: Other literals
-            xsd::BOOLEAN => self.append_boolean(literal.value().parse()?)?,
-            xsd::FLOAT => self.append_float(literal.value().parse()?)?,
-            xsd::DOUBLE => self.append_double(literal.value().parse()?)?,
-            xsd::DECIMAL => self.append_decimal(literal.value().parse()?)?,
-            xsd::BYTE
-            | xsd::SHORT
-            | xsd::LONG
-            | xsd::UNSIGNED_BYTE
-            | xsd::UNSIGNED_SHORT
-            | xsd::UNSIGNED_INT
-            | xsd::UNSIGNED_LONG
-            | xsd::POSITIVE_INTEGER
-            | xsd::NEGATIVE_INTEGER
-            | xsd::NON_POSITIVE_INTEGER
-            | xsd::NON_NEGATIVE_INTEGER
-            | xsd::INTEGER=> self.append_integer(literal.value().parse()?)?,
-            xsd::INT => self.append_int(literal.value().parse()?)?,
-            xsd::DURATION => {
-                let duration: Duration = literal.value().parse()?;
-                self.append_duration(Some(duration.year_month()), Some(duration.day_time()))?
+    pub fn append_typed_value(&mut self, value: TypedValueRef<'_>) -> AResult<()> {
+        match value {
+            TypedValueRef::NamedNode(v) => self.append_named_node(v),
+            TypedValueRef::BlankNode(v) => self.append_blank_node(v),
+            TypedValueRef::BooleanLiteral(v) => self.append_boolean(v),
+            TypedValueRef::NumericLiteral(v) => self.append_numeric(v),
+            TypedValueRef::SimpleLiteral(v) => self.append_string(v.value, None),
+            TypedValueRef::LanguageStringLiteral(v) => {
+                self.append_string(v.value, Some(v.language))
             }
-            xsd::YEAR_MONTH_DURATION => {
-                let duration: YearMonthDuration = literal.value().parse()?;
-                self.append_duration(Some(duration), None)?
+            TypedValueRef::DateTimeLiteral(v) => self.append_date_time(v),
+            TypedValueRef::TimeLiteral(v) => self.append_time(v),
+            TypedValueRef::DateLiteral(v) => self.append_date(v),
+            TypedValueRef::DurationLiteral(v) => {
+                self.append_duration(Some(v.year_month()), Some(v.day_time()))
             }
-            xsd::DAY_TIME_DURATION => {
-                let duration: DayTimeDuration = literal.value().parse()?;
-                self.append_duration(None, Some(duration))?
-            }
-            xsd::DATE_TIME => self.append_date_time(literal.value().parse()?)?,
-            xsd::TIME => self.append_time(literal.value().parse()?)?,
-            xsd::DATE => self.append_date(literal.value().parse()?)?,
-            rdf::LANG_STRING | xsd::STRING => {
-                self.append_string(literal.value(), literal.language())?
-            }
-            _ => self.append_other_literal(literal)?,
-        };
-        Ok(())
+            TypedValueRef::YearMonthDurationLiteral(v) => self.append_duration(Some(v), None),
+            TypedValueRef::DayTimeDurationLiteral(v) => self.append_duration(None, Some(v)),
+            TypedValueRef::OtherLiteral(v) => self.append_other_literal(v),
+        }
     }
 
     pub fn append_boolean(&mut self, value: Boolean) -> AResult<()> {
