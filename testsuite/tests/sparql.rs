@@ -16,6 +16,8 @@ async fn sparql10_w3c_query_syntax_testsuite() -> Result<()> {
 #[tokio::test]
 async fn sparql10_w3c_query_evaluation_testsuite() -> Result<()> {
     check_testsuite("https://w3c.github.io/rdf-tests/sparql/sparql10/manifest-evaluation.ttl", &[
+        // Equality of illformed literals. I believe this changed between SPARQL 1.0 and 1.1.
+        "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/open-world/manifest#open-eq-07",
         //Simple literal vs xsd:string. We apply RDF 1.1
         "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/distinct/manifest#distinct-2",
         "http://www.w3.org/2001/sw/DataAccess/tests/data-r2/open-world/manifest#open-eq-08",
