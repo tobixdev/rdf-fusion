@@ -1,7 +1,9 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::DFResult;
-use datafusion::common::{internal_err, plan_datafusion_err, plan_err, Column};
-use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator};
+use datafusion::common::{internal_err, plan_datafusion_err, plan_err, Column, Spans};
+use datafusion::functions_aggregate::count::count;
+use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
+use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
 use datafusion::prelude::{and, exists};
 use rdf_fusion_logical::RdfFusionExprBuilder;
 use rdf_fusion_model::vocab::xsd;
@@ -401,6 +403,23 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .into_iter()
             .map(|c| c.name().to_owned())
             .collect();
+
+        // This check is necessary to avoid a crash during query planning. However, we don't know
+        // whether this is our fault or it is a bug in DataFusion.
+        // TODO: Investigate why this causes issues and file an issue if necessary
+        if outer_keys.is_disjoint(&exists_keys) {
+            let group_expr: [Expr; 0] = [];
+            let count = exists_pattern
+                .aggregate(group_expr, [count(Expr::Literal(COUNT_STAR_EXPANSION))])?;
+            let subquery = Subquery {
+                subquery: count.build()?.into(),
+                outer_ref_columns: vec![],
+                spans: Spans(vec![]),
+            };
+            return self
+                .expr_builder
+                .native_boolean_as_term(Expr::ScalarSubquery(subquery).gt(lit(0)));
+        }
 
         // TODO: Investigate why we need this renaming and cannot refer to the unqualified column
         let projections = exists_pattern
