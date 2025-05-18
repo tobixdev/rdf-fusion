@@ -39,7 +39,7 @@ impl ExtensionPlanner for KleenePlusPathPlanner {
             // Create the physical execution plan
             let physical_plan = KleenePlusClosureExec::try_new(
                 Arc::clone(&physical_inputs[0]),
-                node.allow_cross_graph_paths(),
+                !node.disallow_cross_graph_paths(),
             )?;
 
             Ok(Some(Arc::new(physical_plan)))

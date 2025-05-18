@@ -16,19 +16,19 @@ pub struct KleenePlusClosureNode {
     /// This setting indicates whether a single path can span multiple graphs. While usually this
     /// is allowed (as the entire RDF dataset is queries), given a GRAPH ?x { ... } pattern, each
     /// named node is evaluated individually.
-    allow_cross_graph_paths: bool,
+    disallow_cross_graph_paths: bool,
 }
 
 impl KleenePlusClosureNode {
     /// Tries to create a new [KleenePlusClosureNode].
     ///
-    /// See [KleenePlusClosureNode::allow_cross_graph_paths] for details on
+    /// See [KleenePlusClosureNode::disallow_cross_graph_paths] for details on
     /// `allow_cross_graph_paths`.
     ///
     /// # Errors
     ///
     /// Returns an error if `inner` does not have the expected schema.
-    pub fn try_new(inner: LogicalPlan, allow_cross_graph_paths: bool) -> DFResult<Self> {
+    pub fn try_new(inner: LogicalPlan, disallow_cross_graph_paths: bool) -> DFResult<Self> {
         if inner.schema().as_ref() != PATH_TABLE_DFSCHEMA.as_ref() {
             return plan_err!(
                 "Unexpected schema for inner path node. Expected: {:?} Schema: {:?}",
@@ -40,7 +40,7 @@ impl KleenePlusClosureNode {
         Ok(Self {
             inner,
             schema: PATH_TABLE_DFSCHEMA.clone(),
-            allow_cross_graph_paths,
+            disallow_cross_graph_paths,
         })
     }
 
@@ -49,8 +49,8 @@ impl KleenePlusClosureNode {
     }
 
     /// Indicates whether paths can cross graphs.
-    pub fn allow_cross_graph_paths(&self) -> bool {
-        self.allow_cross_graph_paths
+    pub fn disallow_cross_graph_paths(&self) -> bool {
+        self.disallow_cross_graph_paths
     }
 }
 
@@ -94,6 +94,6 @@ impl UserDefinedLogicalNodeCore for KleenePlusClosureNode {
         if !exprs.is_empty() {
             return plan_err!("Expected 0 expressions but got {}", exprs.len());
         }
-        Self::try_new(inputs[0].clone(), self.allow_cross_graph_paths())
+        Self::try_new(inputs[0].clone(), self.disallow_cross_graph_paths())
     }
 }

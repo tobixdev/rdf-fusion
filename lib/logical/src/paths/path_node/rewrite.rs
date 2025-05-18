@@ -1,6 +1,8 @@
 use crate::expr_builder::RdfFusionExprBuilder;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
-use crate::paths::{PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET, PATH_TABLE_DFSCHEMA};
+use crate::paths::{
+    PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET, PATH_TABLE_DFSCHEMA,
+};
 use crate::patterns::PatternNode;
 use crate::{check_same_schema, ActiveGraph, DFResult, RdfFusionLogicalPlanBuilder};
 use datafusion::common::tree_node::{Transformed, TreeNode};
@@ -63,7 +65,11 @@ impl PropertyPathLoweringRule {
 
     /// TODO
     fn rewrite_property_path_node(&self, node: &PropertyPathNode) -> DFResult<LogicalPlan> {
-        let query = self.rewrite_property_path_expression(node.active_graph(), node.path())?;
+        let inf = PropertyPathLoweringInformation {
+            disallow_cross_graph_paths: node.graph_name_var().is_some(),
+            active_graph: node.active_graph().clone(),
+        };
+        let query = self.rewrite_property_path_expression(&inf, node.path())?;
 
         let logical_plan = LogicalPlan::Extension(Extension {
             node: Arc::new(PatternNode::try_new(
@@ -83,21 +89,21 @@ impl PropertyPathLoweringRule {
     /// and end of the current path. In addition to that, the result contains a graph column.
     fn rewrite_property_path_expression(
         &self,
-        graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         path: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
         match path {
-            PropertyPathExpression::NamedNode(node) => self.rewrite_named_node(graph, node),
-            PropertyPathExpression::Reverse(inner) => self.rewrite_reverse(graph, inner),
-            PropertyPathExpression::Sequence(lhs, rhs) => self.rewrite_sequence(graph, lhs, rhs),
+            PropertyPathExpression::NamedNode(node) => self.rewrite_named_node(inf, node),
+            PropertyPathExpression::Reverse(inner) => self.rewrite_reverse(inf, inner),
+            PropertyPathExpression::Sequence(lhs, rhs) => self.rewrite_sequence(inf, lhs, rhs),
             PropertyPathExpression::Alternative(lhs, rhs) => {
-                self.rewrite_alternative(graph, lhs, rhs)
+                self.rewrite_alternative(inf, lhs, rhs)
             }
-            PropertyPathExpression::ZeroOrMore(inner) => self.rewrite_zero_or_more(graph, inner),
-            PropertyPathExpression::OneOrMore(inner) => self.rewrite_one_or_more(graph, inner),
-            PropertyPathExpression::ZeroOrOne(inner) => self.rewrite_zero_or_one(graph, inner),
+            PropertyPathExpression::ZeroOrMore(inner) => self.rewrite_zero_or_more(inf, inner),
+            PropertyPathExpression::OneOrMore(inner) => self.rewrite_one_or_more(inf, inner),
+            PropertyPathExpression::ZeroOrOne(inner) => self.rewrite_zero_or_one(inf, inner),
             PropertyPathExpression::NegatedPropertySet(inner) => {
-                self.rewrite_negated_property_set(graph, inner)
+                self.rewrite_negated_property_set(inf, inner)
             }
         }
     }
@@ -106,21 +112,21 @@ impl PropertyPathLoweringRule {
     /// matches the given `node`.
     fn rewrite_named_node(
         &self,
-        graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
         let expr_builder =
             RdfFusionExprBuilder::new(&DEFAULT_QUAD_DFSCHEMA, self.registry.as_ref());
         let filter =
             expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(node.as_ref()))?;
-        self.scan_quads(graph, Some(filter))
+        self.scan_quads(&inf.active_graph, Some(filter))
     }
 
     /// Rewrites a negated property set to scanning the quads relation and checking whether the
     /// predicate does not match any of the given `nodes`.
     fn rewrite_negated_property_set(
         &self,
-        graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
         let expr_builder =
@@ -137,17 +143,17 @@ impl PropertyPathLoweringRule {
                     "The negated property set must not be empty"
                 ))?;
 
-        self.scan_quads(graph, Some(not(test_expression)))?
+        self.scan_quads(&inf.active_graph, Some(not(test_expression)))?
             .distinct()
     }
 
     /// Reverses the inner path by swapping [COL_PATH_SOURCE] and [COL_PATH_TARGET].
     fn rewrite_reverse(
         &self,
-        graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
-        let inner = self.rewrite_property_path_expression(graph, inner)?;
+        let inner = self.rewrite_property_path_expression(inf, inner)?;
         inner.project([
             col(COL_PATH_GRAPH),
             col(COL_PATH_TARGET).alias(COL_PATH_SOURCE),
@@ -158,47 +164,46 @@ impl PropertyPathLoweringRule {
     /// Rewrites an alternative path to union over both (distinct).
     fn rewrite_alternative(
         &self,
-        graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         lhs: &PropertyPathExpression,
         rhs: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
-        let lhs = self.rewrite_property_path_expression(graph, lhs)?;
-        let rhs = self.rewrite_property_path_expression(graph, rhs)?;
+        let lhs = self.rewrite_property_path_expression(inf, lhs)?;
+        let rhs = self.rewrite_property_path_expression(inf, rhs)?;
         self.join_path_alternatives(lhs, rhs)?.distinct()
     }
 
     /// Rewrites a sequence by joining the [COL_PATH_TARGET] of the lhs to the [COL_PATH_SOURCE] of the `rhs`.
     fn rewrite_sequence(
         &self,
-        graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         lhs: &PropertyPathExpression,
         rhs: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
-        let lhs = self.rewrite_property_path_expression(graph, lhs)?;
-        let rhs = self.rewrite_property_path_expression(graph, rhs)?;
-        self.join_path_sequence(graph, lhs, rhs)?.distinct()
+        let lhs = self.rewrite_property_path_expression(inf, lhs)?;
+        let rhs = self.rewrite_property_path_expression(inf, rhs)?;
+        self.join_path_sequence(inf, lhs, rhs)?.distinct()
     }
 
     /// Rewrites a zero or more to a CTE.
     fn rewrite_zero_or_more(
         &self,
-        graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
-        let zero = self.zero_length_paths(graph)?;
-        let repetition = self.rewrite_one_or_more(graph, inner)?;
+        let zero = self.zero_length_paths(inf)?;
+        let repetition = self.rewrite_one_or_more(inf, inner)?;
         self.join_path_alternatives(zero, repetition)?.distinct()
     }
 
     /// Rewrites a one or more by building a recursive query.
     fn rewrite_one_or_more(
         &self,
-        graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
-        let inner = self.rewrite_property_path_expression(graph, inner)?;
-        let allow_cross_graph_paths = matches!(graph, ActiveGraph::DefaultGraph);
-        let node = KleenePlusClosureNode::try_new(inner.build()?, allow_cross_graph_paths)?;
+        let inner = self.rewrite_property_path_expression(inf, inner)?;
+        let node = KleenePlusClosureNode::try_new(inner.build()?, inf.disallow_cross_graph_paths)?;
 
         let builder = LogicalPlanBuilder::from(LogicalPlan::Extension(Extension {
             node: Arc::new(node),
@@ -208,24 +213,27 @@ impl PropertyPathLoweringRule {
 
     fn rewrite_zero_or_one(
         &self,
-        graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         inner: &PropertyPathExpression,
     ) -> DFResult<LogicalPlanBuilder> {
-        let zero = self.zero_length_paths(graph)?;
-        let one = self.rewrite_property_path_expression(graph, inner)?;
+        let zero = self.zero_length_paths(inf)?;
+        let one = self.rewrite_property_path_expression(inf, inner)?;
         self.join_path_alternatives(zero, one)
     }
 
     /// Returns a list of all subjects and objects in the graph where they both are the source and
     /// the target of the path.
-    fn zero_length_paths(&self, graph: &ActiveGraph) -> DFResult<LogicalPlanBuilder> {
+    fn zero_length_paths(
+        &self,
+        inf: &PropertyPathLoweringInformation,
+    ) -> DFResult<LogicalPlanBuilder> {
         // TODO: This must be optimized
-        let subjects = self.scan_quads(graph, None)?.project([
+        let subjects = self.scan_quads(&inf.active_graph, None)?.project([
             col(COL_PATH_GRAPH).alias(COL_PATH_GRAPH),
             col(COL_PATH_SOURCE).alias(COL_PATH_SOURCE),
             col(COL_PATH_SOURCE).alias(COL_PATH_TARGET),
         ])?;
-        let objects = self.scan_quads(graph, None)?.project([
+        let objects = self.scan_quads(&inf.active_graph, None)?.project([
             col(COL_PATH_GRAPH).alias(COL_PATH_GRAPH),
             col(COL_PATH_TARGET).alias(COL_PATH_SOURCE),
             col(COL_PATH_TARGET).alias(COL_PATH_TARGET),
@@ -236,7 +244,7 @@ impl PropertyPathLoweringRule {
     /// Creates a join that represents a sequence of two paths.
     fn join_path_sequence(
         &self,
-        active_graph: &ActiveGraph,
+        inf: &PropertyPathLoweringInformation,
         lhs: LogicalPlanBuilder,
         rhs: LogicalPlanBuilder,
     ) -> DFResult<LogicalPlanBuilder> {
@@ -252,8 +260,8 @@ impl PropertyPathLoweringRule {
         )?;
         let mut on_exprs = vec![path_join_expr];
 
-        if !allows_cross_graph_paths(active_graph) {
-            let graph_expr = expr_builder.is_compatible(
+        if inf.disallow_cross_graph_paths {
+            let graph_expr = expr_builder.same_term(
                 Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)),
                 Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)),
             )?;
@@ -323,7 +331,7 @@ impl PropertyPathLoweringRule {
     }
 }
 
-/// TODO
-fn allows_cross_graph_paths(graph: &ActiveGraph) -> bool {
-    matches!(graph, ActiveGraph::DefaultGraph)
+struct PropertyPathLoweringInformation {
+    active_graph: ActiveGraph,
+    disallow_cross_graph_paths: bool,
 }
