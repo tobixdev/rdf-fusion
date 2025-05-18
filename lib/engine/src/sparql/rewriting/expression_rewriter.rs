@@ -389,56 +389,41 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
 
     /// Rewrites an EXISTS expression to a correlated subquery.
     fn rewrite_exists(&self, inner: &GraphPattern) -> DFResult<Expr> {
-        let inner = LogicalPlanBuilder::new(self.graph_rewriter.rewrite(inner)?);
+        let exists_pattern = LogicalPlanBuilder::new(self.graph_rewriter.rewrite(inner)?);
+        let outer_schema = self.expr_builder.schema();
 
-        let outer_keys: HashSet<_> = self
-            .expr_builder
+        let outer_keys: HashSet<_> = outer_schema
+            .columns()
+            .into_iter()
+            .map(|c| c.name().to_owned())
+            .collect();
+        let exists_keys: HashSet<_> = exists_pattern
             .schema()
             .columns()
             .into_iter()
             .map(|c| c.name().to_owned())
             .collect();
-        let inner_keys: HashSet<_> = inner
-            .schema()
-            .columns()
-            .into_iter()
-            .map(|c| c.name().to_owned())
-            .collect();
-
-        // TODO: Is there a better way to check for this?
-        if outer_keys.is_disjoint(&inner_keys) {
-            let group_expr: [Expr; 0] = [];
-            let count =
-                inner.aggregate(group_expr, [count(Expr::Literal(COUNT_STAR_EXPANSION))])?;
-            let subquery = Subquery {
-                subquery: count.build()?.into(),
-                outer_ref_columns: vec![],
-                spans: Spans(vec![]),
-            };
-            return self
-                .expr_builder
-                .native_boolean_as_term(Expr::ScalarSubquery(subquery).gt(lit(0)));
-        }
 
         // TODO: Investigate why we need this renaming and cannot refer to the unqualified column
-        let projections = inner
+        let projections = exists_pattern
             .schema()
             .columns()
             .into_iter()
             .map(|c| Expr::from(c.clone()).alias(format!("__inner__{}", c.name())))
             .collect::<Vec<_>>();
-        let projected_inner = inner.project(projections)?;
+        let exists_pattern = exists_pattern.project(projections)?;
+        let exists_schema = Arc::clone(&exists_pattern.schema());
+        let exists_expr_builder =
+            RdfFusionExprBuilder::new(&exists_schema, self.expr_builder.registry());
 
         let compatible_filters = outer_keys
-            .intersection(&inner_keys)
+            .intersection(&exists_keys)
             .map(|k| {
-                let data_type = self
-                    .expr_builder
-                    .schema()
+                let data_type = outer_schema
                     .field_with_name(None, k)
                     .map_err(|_| plan_datafusion_err!("Could not find column {} in schema.", k))?
                     .data_type();
-                self.expr_builder.is_compatible(
+                exists_expr_builder.is_compatible(
                     Expr::OuterReferenceColumn(data_type.clone(), Column::new_unqualified(k)),
                     Expr::from(Column::new_unqualified(format!("__inner__{k}"))),
                 )
@@ -449,7 +434,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .reduce(and)
             .unwrap_or(lit(true));
 
-        let subquery = Arc::new(projected_inner.filter(compatible_filter)?.build()?);
+        let subquery = Arc::new(exists_pattern.filter(compatible_filter)?.build()?);
         self.expr_builder.native_boolean_as_term(exists(subquery))
     }
 

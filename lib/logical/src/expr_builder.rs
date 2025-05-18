@@ -41,6 +41,11 @@ impl<'a> RdfFusionExprBuilder<'a> {
         self.schema
     }
 
+    /// Returns a reference to the used function registry.
+    pub fn registry(&self) -> &dyn RdfFusionFunctionRegistry {
+        self.registry
+    }
+
     /// Creates a new aggregate expression that computes the average of the inner expression.
     ///
     /// If `distinct` is true, only distinct values are considered.
