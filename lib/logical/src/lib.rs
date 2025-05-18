@@ -8,6 +8,7 @@ mod logical_plan_builder;
 pub mod paths;
 pub mod patterns;
 pub mod quads;
+pub mod minus;
 
 pub use active_graph::ActiveGraph;
 use datafusion::common::{plan_err, DFSchema};

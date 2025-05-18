@@ -1,7 +1,7 @@
 use crate::expr_builder::RdfFusionExprBuilder;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{
-    PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET, PATH_TABLE_DFSCHEMA,
+    PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET,
 };
 use crate::patterns::PatternNode;
 use crate::{check_same_schema, ActiveGraph, DFResult, RdfFusionLogicalPlanBuilder};

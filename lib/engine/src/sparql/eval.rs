@@ -4,7 +4,6 @@ use crate::sparql::{
     Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream,
     QueryTripleStream,
 };
-use datafusion::common::plan_err;
 use datafusion::prelude::{DataFrame, SessionContext};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::Iri;

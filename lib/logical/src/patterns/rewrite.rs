@@ -158,9 +158,9 @@ fn project_to_variables(
     let mut projections = Vec::new();
     for (old_name, new_name) in possible_projections {
         if !already_projected.contains(new_name) {
-            already_projected.insert(new_name.clone());
+            already_projected.insert(new_name);
 
-            let expr = Expr::from(old_name.clone()).alias(new_name);
+            let expr = Expr::from(old_name).alias(new_name);
             projections.push(expr);
         }
     }

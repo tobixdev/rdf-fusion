@@ -1,6 +1,7 @@
 use crate::active_graph::ActiveGraph;
 use crate::extend::ExtendNode;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
+use crate::minus::MinusNode;
 use crate::paths::PropertyPathNode;
 use crate::patterns::PatternNode;
 use crate::quads::QuadsNode;
@@ -359,75 +360,10 @@ impl RdfFusionLogicalPlanBuilder {
 
     /// TODO
     pub fn minus(self, rhs: LogicalPlan) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        let lhs_keys: HashSet<_> = self
-            .schema()
-            .columns()
-            .into_iter()
-            .map(|c| c.name().to_owned())
-            .collect();
-        let rhs_keys: HashSet<_> = rhs
-            .schema()
-            .columns()
-            .into_iter()
-            .map(|c| c.name().to_owned())
-            .collect();
-
-        let overlapping_keys = lhs_keys
-            .intersection(&rhs_keys)
-            .collect::<HashSet<&String>>();
-        if overlapping_keys.is_empty() {
-            return Ok(self);
-        }
-
-        let lhs = self.plan_builder.alias("lhs")?;
-        let rhs = LogicalPlanBuilder::new(rhs).alias("rhs")?;
-
-        let mut join_schema = lhs.schema().as_ref().clone();
-        join_schema.merge(rhs.schema());
-
-        let expr_builder = RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
-        let mut join_filters = Vec::new();
-
-        for k in &overlapping_keys {
-            let expr = expr_builder.is_compatible(
-                Expr::from(Column::new(Some("lhs"), *k)),
-                Expr::from(Column::new(Some("rhs"), *k)),
-            )?;
-            join_filters.push(expr);
-        }
-        let any_both_not_null = overlapping_keys
-            .iter()
-            .map(|k| {
-                and(
-                    Expr::from(Column::new(Some("lhs"), *k)).is_not_null(),
-                    Expr::from(Column::new(Some("rhs"), *k)).is_not_null(),
-                )
-            })
-            .reduce(Expr::or)
-            .ok_or(plan_datafusion_err!(
-                "There must be at least one overlapping key"
-            ))?;
-        join_filters.push(any_both_not_null);
-
-        let filter_expr = join_filters.into_iter().reduce(Expr::and);
-
-        let projections = lhs_keys
-            .iter()
-            .map(|k| Expr::from(Column::new(Some("lhs"), k)).alias(k))
-            .collect::<Vec<_>>();
-
-        let plan = lhs
-            .join_detailed(
-                rhs.build()?,
-                JoinType::LeftAnti,
-                (Vec::<Column>::new(), Vec::<Column>::new()),
-                filter_expr,
-                false,
-            )?
-            .project(projections)?;
+        let minus_node = MinusNode::new(self.plan_builder.build()?, rhs)?;
         Ok(Self {
             registry: self.registry,
-            plan_builder: plan,
+            plan_builder: create_extension_plan(minus_node),
         })
     }
 

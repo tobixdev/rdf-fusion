@@ -11,8 +11,8 @@ use rdf_fusion_encoding::{EncodingName, TermEncoding};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_logical::join::SparqlJoinType;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionExprBuilder, RdfFusionLogicalPlanBuilder};
+use rdf_fusion_model::Iri;
 use rdf_fusion_model::{GraphName, Variable};
-use rdf_fusion_model::{Iri, NamedOrBlankNode};
 use spargebra::algebra::{
     AggregateExpression, AggregateFunction, Expression, GraphPattern, OrderExpression,
 };
