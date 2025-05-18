@@ -3,6 +3,7 @@ use crate::sortable_term::SortableTermEncoding;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::common::exec_err;
 use datafusion::error::DataFusionError;
+use crate::TermEncoding;
 
 /// Represents an Arrow array with a [SortableTermArray].
 pub struct SortableTermArray {

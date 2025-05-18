@@ -1,6 +1,6 @@
 use crate::{ActiveGraph, DFResult};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{plan_datafusion_err, plan_err, Column, DFSchema};
+use datafusion::common::{plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_window::expr_fn::first_value;
 use datafusion::logical_expr::expr::AggregateFunction;
@@ -16,11 +16,12 @@ use rdf_fusion_model::{Iri, Literal, Term, TermRef, ThinError, VariableRef};
 use spargebra::term::NamedNode;
 use std::collections::HashMap;
 use std::ops::Not;
-// TODO maybe this expr stuff is good in a separate crate
 
-// TODO this is still a bit messy with when a boolean and when a term is returned. Fix that.
-
-/// TODO: Explain why
+/// A builder for expressions that make use of RdfFusion built-ins.
+///
+/// Users of RdfFusion can override all built-ins with custom implementations. As a result,
+/// constructing expressions requires access to some `state` that holds the set of registered
+/// built-ins. This struct provides an abstraction over using this `registry`.
 #[derive(Debug, Clone, Copy)]
 pub struct RdfFusionExprBuilder<'a> {
     /// The schema of the input data. Necessary for inferring the encodings of RDF terms.
@@ -29,8 +30,20 @@ pub struct RdfFusionExprBuilder<'a> {
     registry: &'a dyn RdfFusionFunctionRegistry,
 }
 
-impl RdfFusionExprBuilder<'_> {
-    /// TODO
+impl<'a> RdfFusionExprBuilder<'a> {
+    /// Creates a new expression builder.
+    pub fn new(schema: &'a DFSchema, registry: &'a dyn RdfFusionFunctionRegistry) -> Self {
+        Self { schema, registry }
+    }
+
+    /// Returns the schema of the input data.
+    pub fn schema(&self) -> &DFSchema {
+        self.schema
+    }
+
+    /// Creates a new aggregate expression that computes the average of the inner expression.
+    ///
+    /// If `distinct` is true, only distinct values are considered.
     pub fn count(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
         Ok(if distinct {
             count_distinct(expr)
@@ -39,7 +52,9 @@ impl RdfFusionExprBuilder<'_> {
         })
     }
 
-    /// TODO
+    /// Filters the expression based on the `active_graph`. While, in theory, this method can be
+    /// used for filtering arbitrary columns, it is only sensible for those that directly refer
+    /// to the graph column in the quads table.
     pub(crate) fn filter_active_graph(
         &self,
         expr: Expr,
@@ -61,31 +76,38 @@ impl RdfFusionExprBuilder<'_> {
         }
     }
 
-    /// TODO
+    /// Creates a new aggregate expression that computes the average of the inner expression.
+    ///
+    /// If `distinct` is true, only distinct values are considered.
     pub fn avg(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
         self.apply_builtin_udaf(BuiltinName::Avg, expr, distinct, HashMap::new())
     }
 
-    /// TODO
+    /// Creates a new aggregate expression that computes the maximum of the inner expression.
     pub fn max(&self, expr: Expr) -> DFResult<Expr> {
         self.apply_builtin_udaf(BuiltinName::Max, expr, false, HashMap::new())
     }
 
-    /// TODO
+    /// Creates a new aggregate expression that computes the minimum of the inner expression.
     pub fn min(&self, expr: Expr) -> DFResult<Expr> {
         self.apply_builtin_udaf(BuiltinName::Min, expr, false, HashMap::new())
     }
 
-    /// TODO
+    /// Creates a new aggregate expression that returns any value of the inner expression.
     pub fn sample(&self, expr: Expr) -> DFResult<Expr> {
         Ok(first_value(expr))
     }
 
-    /// TODO
+    /// Creates a new aggregate expression that computes the sum of the inner expression.
     pub fn sum(&self, expr: Expr, distinct: bool) -> DFResult<Expr> {
         self.apply_builtin_udaf(BuiltinName::Sum, expr, distinct, HashMap::new())
     }
 
+    /// Creates a new aggregate expression that computes the concatenation of the inner expression.
+    ///
+    /// The `separator` parameter can be used to use a custom separator for combining strings.
+    ///
+    /// If `distinct` is true, only distinct values are considered.
     pub fn group_concat(
         &self,
         expr: Expr,
@@ -100,131 +122,239 @@ impl RdfFusionExprBuilder<'_> {
 
         self.apply_builtin_udaf(BuiltinName::Sum, expr, distinct, args)
     }
-}
 
-impl<'a> RdfFusionExprBuilder<'a> {
-    pub fn new(schema: &'a DFSchema, registry: &'a dyn RdfFusionFunctionRegistry) -> Self {
-        Self { schema, registry }
-    }
-
-    /// Returns the schema of the input data.
-    pub fn schema(&self) -> &DFSchema {
-        self.schema
-    }
-
+    /// Returns an expression that evaluates to either the value of `if_true´ or `if_false`
+    /// depending on the effective boolean value of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 IF](https://www.w3.org/TR/sparql11-query/#func-if)
     pub fn sparql_if(&self, test: Expr, if_true: Expr, if_false: Expr) -> DFResult<Expr> {
         self.apply_builtin(BuiltinName::Coalesce, vec![test, if_true, if_false])
     }
 
+    /// Creates a new expression that evaluates to the first argument that does not produce an
+    /// error.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Coalesce](https://www.w3.org/TR/sparql11-query/#func-coalesce)
     pub fn coalesce(&self, args: Vec<Expr>) -> DFResult<Expr> {
         self.apply_builtin(BuiltinName::Coalesce, args)
     }
 
+    /// Casts the inner expression to an `xsd:string`.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn as_string(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::AsString;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Casts the inner expression to an `xsd:dateTime`.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn as_date_time(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::AsDateTime;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Casts the inner expression to an `xsd:decimal`.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn as_decimal(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::AsDecimal;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Casts the inner expression to an `xsd:double`.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn as_double(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::AsDouble;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Casts the inner expression to an `xsd:float`.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn as_float(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::AsFloat;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Casts the inner expression to an `xsd:integer`.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn as_integer(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::AsInteger;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Casts the inner expression to an `xsd:int`.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn as_int(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::AsInt;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Casts the inner expression to an `xsd:boolean`.
+    ///
+    /// Note that this does _not_ encode the result as a native boolean array. Use
+    /// [Self::effective_boolean_value] for this purpose
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn as_boolean(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::AsBoolean;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that computes the SHA512 checksum of the inner expression.
+    ///
+    /// The checksum is encoded as a hexadecimal string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - SHA512](https://www.w3.org/TR/sparql11-query/#func-sha512)
     pub fn sha512(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Sha512;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that computes the SHA384 checksum of the inner expression.
+    ///
+    /// The checksum is encoded as a hexadecimal string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - SHA384](https://www.w3.org/TR/sparql11-query/#func-sha384)
     pub fn sha384(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Sha384;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that computes the SHA256 checksum of the inner expression.
+    ///
+    /// The checksum is encoded as a hexadecimal string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - SHA256](https://www.w3.org/TR/sparql11-query/#func-sha256)
     pub fn sha256(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Sha256;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that computes the SHA1 checksum of the inner expression.
+    ///
+    /// The checksum is encoded as a hexadecimal string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - SHA1](https://www.w3.org/TR/sparql11-query/#func-sha1)
     pub fn sha1(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Sha1;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that computes the MD5 checksum of the inner expression.
+    ///
+    /// The checksum is encoded as a hexadecimal string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - MD5](https://www.w3.org/TR/sparql11-query/#func-md5)
     pub fn md5(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Md5;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that returns the timezone of the inner expression.
+    ///
+    /// This returns the timezone as a simple literal. For a representation as a duration
+    /// see [Self::timezone].
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Timezone](https://www.w3.org/TR/sparql11-query/#func-timezone)
     pub fn tz(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Tz;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that returns the timezone of the inner expression.
+    ///
+    /// This returns the timezone as an `xsd:dayTimeDuration`. For a simple string representation
+    /// see [Self::tz].
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Timezone](https://www.w3.org/TR/sparql11-query/#func-timezone)
     pub fn timezone(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Timezone;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that returns the seconds component of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Seconds](https://www.w3.org/TR/sparql11-query/#func-seconds)
     pub fn seconds(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Seconds;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that returns the minutes component of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Minutes](https://www.w3.org/TR/sparql11-query/#func-minutes)
     pub fn minutes(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Minutes;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that returns the hours component of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Hours](https://www.w3.org/TR/sparql11-query/#func-hours)
     pub fn hours(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Hours;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that returns the day component of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Day](https://www.w3.org/TR/sparql11-query/#func-day)
     pub fn day(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Day;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that returns the month component of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Month](https://www.w3.org/TR/sparql11-query/#func-month)
     pub fn month(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Month;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates a new expression that returns the year component of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Year](https://www.w3.org/TR/sparql11-query/#func-year)
     pub fn year(&self, p0: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Year;
         self.apply_builtin(name, vec![p0])
     }
 
+    /// Creates an expression that computes a pseudo-random value between 0 and 1.
+    ///
+    /// The data type of the value is `xsd:double`.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Rand](https://www.w3.org/TR/sparql11-query/#idp2130040)
     pub fn rand(&self) -> DFResult<Expr> {
         let udf = self
             .registry
@@ -232,19 +362,44 @@ impl<'a> RdfFusionExprBuilder<'a> {
         Ok(udf.call(vec![]))
     }
 
+    /// Replaces all occurrences of a pattern with a given replacement.
+    ///
+    /// In addition to the regular [Self::relace] functions, this allows providing flags used for
+    /// the regex matching process.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Replace](https://www.w3.org/TR/sparql11-query/#func-replace)
     pub fn replace_with_flags(&self, p0: Expr, p1: Expr, p2: Expr, p3: Expr) -> DFResult<Expr> {
         self.apply_builtin(BuiltinName::Replace, vec![p0, p1, p2, p3])
     }
 
+    /// Replaces all occurrences of a pattern with a given replacement.
+    ///
+    /// If more control about the matching behavior is required, use the [Self::replace_with_flags]
+    /// operation.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Replace](https://www.w3.org/TR/sparql11-query/#func-replace)
     pub fn replace(&self, p0: Expr, p1: Expr, p2: Expr) -> DFResult<Expr> {
         self.apply_builtin(BuiltinName::Replace, vec![p0, p1, p2])
     }
 
+    /// Compute the absolute value of a numeric literal.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Abs](https://www.w3.org/TR/sparql11-query/#func-abs)
     pub fn abs(&self, val: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Abs;
         self.apply_builtin(name, vec![val])
     }
 
+    /// Rounds the inner expression to the nearest integer.
+    ///
+    /// If the value is exactly between two integers, the integer closer to positive infinity is
+    /// used (e.g., 0.5 -> 1).
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Round](https://www.w3.org/TR/sparql11-query/#func-round)
     pub fn round(&self, val: Expr) -> DFResult<Expr> {
         let name = BuiltinName::Round;
         self.apply_builtin(name, vec![val])

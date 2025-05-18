@@ -20,18 +20,24 @@ use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-// TODO: check types
 
+/// A convenient builder for programmatically creating SPARQL queries.
+///
+/// TODO example
 #[derive(Debug, Clone)]
 pub struct RdfFusionLogicalPlanBuilder {
-    /// TODO
+    /// The inner DataFusion [LogicalPlanBuilder].
+    ///
+    /// We do not use [LogicalPlan] directly as we want to leverage the convenience (and validation)
+    /// that the [LogicalPlanBuilder] provides.
     plan_builder: LogicalPlanBuilder,
-    /// TODO
+    /// The registry allows us to access the registered functions. This is necessary for
+    /// creating expressions within the builder.
     registry: RdfFusionFunctionRegistryRef,
 }
 
 impl RdfFusionLogicalPlanBuilder {
-    /// TODO
+    /// Creates a new [RdfFusionLogicalPlanBuilder] with an existing `plan`.
     pub fn new(plan: Arc<LogicalPlan>, registry: RdfFusionFunctionRegistryRef) -> Self {
         let plan_builder = LogicalPlanBuilder::new_from_arc(plan);
         Self {
@@ -40,7 +46,13 @@ impl RdfFusionLogicalPlanBuilder {
         }
     }
 
-    /// TODO
+    /// Creates a new [RdfFusionLogicalPlanBuilder] that matches Quads.
+    ///
+    /// The `active_graph` dictates which graphs should be considered, while the optional constants
+    /// (`subject`, `predicate`, `object`) allows filtering the resulting solution sequence.
+    ///
+    /// This does not allow you to bind values to custom variable. See [Self::new_from_pattern] for
+    /// this purpose.
     pub fn new_from_quads(
         registry: RdfFusionFunctionRegistryRef,
         active_graph: ActiveGraph,
@@ -55,7 +67,7 @@ impl RdfFusionLogicalPlanBuilder {
         }
     }
 
-    /// TODO
+    /// Creates a new [RdfFusionLogicalPlanBuilder] that that returns a single empty solution.
     pub fn new_with_empty_solution(registry: RdfFusionFunctionRegistryRef) -> Self {
         let plan_builder = LogicalPlanBuilder::empty(true);
         Self {
@@ -123,6 +135,10 @@ impl RdfFusionLogicalPlanBuilder {
     /// Creates a new [RdfFusionLogicalPlanBuilder] that matches the given basic graph pattern
     /// and returns all solutions.
     ///
+    /// # Example
+    ///
+    /// TODO
+    ///
     /// # Relevant Specifications
     /// - [SPARQL 1.1 - Basic Graph Patterns](https://www.w3.org/TR/sparql11-query/#BasicGraphPatterns)
     pub fn new_from_bgp(
@@ -149,7 +165,20 @@ impl RdfFusionLogicalPlanBuilder {
             })
     }
 
+    /// Creates a new [RdfFusionLogicalPlanBuilder] that matches a single `pattern` on the
+    /// `active_graph`.
+    ///
+    /// # Example
+    ///
     /// TODO
+    ///
+    /// # Active Graph
+    ///
+    /// The `active_graph` is interpreted from the viewpoint of the quad store, not the query. This
+    /// API does not have knowledge about RDF data sets and it is up to the user to correctly
+    /// construct an [ActiveGraph] instance from the data set.
+    ///
+    /// See [ActiveGraph] for more detailed information.
     pub fn new_from_pattern(
         registry: RdfFusionFunctionRegistryRef,
         active_graph: ActiveGraph,

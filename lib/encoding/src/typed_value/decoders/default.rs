@@ -11,12 +11,13 @@ use rdf_fusion_model::{
 };
 use std::ops::Not;
 
-/// TODO
-/// Extracts a sequence of term references from the given array.
+/// Extracts [TypedValueRef] from an array or scalar that uses the [TypedValueEncoding].
+///
+/// The default decoder allows users to extract all RDF terms that can be encoded in the
+/// [TypedValueEncoding].
 #[derive(Debug)]
 pub struct DefaultTypedValueDecoder;
 
-/// Extracts a sequence of term references from the given array.
 impl TermDecoder<TypedValueEncoding> for DefaultTypedValueDecoder {
     type Term<'data> = TypedValueRef<'data>;
 
@@ -114,13 +115,14 @@ impl TermDecoder<TypedValueEncoding> for DefaultTypedValueDecoder {
     }
 }
 
+/// Extracts a [TypedValueRef] from `parts` at `index`.
 fn extract_term_value<'data>(
     parts: &TermValueArrayParts<'data>,
-    idx: usize,
+    index: usize,
 ) -> ThinResult<TypedValueRef<'data>> {
-    let field = TypedValueEncodingField::try_from(parts.array.type_id(idx))
+    let field = TypedValueEncodingField::try_from(parts.array.type_id(index))
         .map_err(|_| ThinError::InternalError("Unexpected type id"))?;
-    let offset = parts.array.value_offset(idx);
+    let offset = parts.array.value_offset(index);
 
     match field {
         TypedValueEncodingField::Null => ThinError::expected(),
@@ -181,44 +183,53 @@ fn extract_term_value<'data>(
     }
 }
 
-/// TODO
-fn extract_string(parts: StringParts<'_>, offset: usize) -> TypedValueRef<'_> {
-    if parts.language.is_null(offset) {
-        TypedValueRef::SimpleLiteral(SimpleLiteralRef::new(parts.value.value(offset)))
+/// Extracts a string from the given `parts` at `index`.
+///
+/// Depending on whether the language value is null, this will return a simple literal or a
+/// language-tagged string literal.
+fn extract_string(parts: StringParts<'_>, index: usize) -> TypedValueRef<'_> {
+    if parts.language.is_null(index) {
+        TypedValueRef::SimpleLiteral(SimpleLiteralRef::new(parts.value.value(index)))
     } else {
         TypedValueRef::LanguageStringLiteral(LanguageStringRef::new(
-            parts.value.value(offset),
-            parts.language.value(offset),
+            parts.value.value(index),
+            parts.language.value(index),
         ))
     }
 }
 
-fn extract_timestamp(parts: TimestampParts<'_>, offset: usize) -> Timestamp {
+/// Extracts a timestamp from the given `parts` at `index`.
+///
+/// A timestamp is stored as a decimal that holds the actual value and an optional timezone offset.
+fn extract_timestamp(parts: TimestampParts<'_>, index: usize) -> Timestamp {
     Timestamp::new(
-        Decimal::from_be_bytes(parts.value.value(offset).to_be_bytes()),
+        Decimal::from_be_bytes(parts.value.value(index).to_be_bytes()),
         parts
             .offset
-            .is_null(offset)
+            .is_null(index)
             .not()
-            .then(|| TimezoneOffset::new_unchecked(parts.offset.value(offset))),
+            .then(|| TimezoneOffset::new_unchecked(parts.offset.value(index))),
     )
 }
 
-fn extract_duration(parts: DurationParts<'_>, offset: usize) -> ThinResult<TypedValueRef<'_>> {
-    let year_month_is_null = parts.months.is_null(offset);
-    let day_time_is_null = parts.seconds.is_null(offset);
+/// Extracts a duration from the given `parts` at `index`.
+///
+/// The actual returned literal depends on which parts of the durations exist (YearMonth, DayTime).
+fn extract_duration(parts: DurationParts<'_>, index: usize) -> ThinResult<TypedValueRef<'_>> {
+    let year_month_is_null = parts.months.is_null(index);
+    let day_time_is_null = parts.seconds.is_null(index);
     Ok(match (year_month_is_null, day_time_is_null) {
         (false, false) => {
             let mut bytes = [0; 24];
-            bytes[0..8].copy_from_slice(&parts.months.value(offset).to_be_bytes());
-            bytes[8..24].copy_from_slice(&parts.seconds.value(offset).to_be_bytes());
+            bytes[0..8].copy_from_slice(&parts.months.value(index).to_be_bytes());
+            bytes[8..24].copy_from_slice(&parts.seconds.value(index).to_be_bytes());
             TypedValueRef::DurationLiteral(Duration::from_be_bytes(bytes))
         }
         (false, true) => TypedValueRef::YearMonthDurationLiteral(YearMonthDuration::from_be_bytes(
-            parts.months.value(offset).to_be_bytes(),
+            parts.months.value(index).to_be_bytes(),
         )),
         (true, false) => TypedValueRef::DayTimeDurationLiteral(DayTimeDuration::from_be_bytes(
-            parts.seconds.value(offset).to_be_bytes(),
+            parts.seconds.value(index).to_be_bytes(),
         )),
         _ => return ThinError::internal_error("Both values are null in a duration."),
     })

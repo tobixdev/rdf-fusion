@@ -11,21 +11,24 @@ use std::sync::LazyLock;
 
 /// Represents a sortable term encoding field.
 ///
-/// First, the encoding differentiates between terms of different types. For example,
-///
 /// This encoding is currently a work-around as user-defined orderings are not yet supported in
-/// DataFusion.
+/// DataFusion. The idea is to project a column of this type and then use the built-in ordering for
+/// structs to establish the SPARQL order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SortableTermEncodingField {
-    /// TODO
+    /// Indicates the type of the encoded term. This is the first column and allows to separate the
+    /// ordering into the data types (e.g., blank nodes coming before named nodes).
     Type,
-    /// TODO
+    /// Holds a Float64 representation of a possible numeric value. This can cause problems as some
+    /// values (e.g., Decimals) cannot be accurately represented using this approach. However, as we
+    /// hope that this is only a temporary solution, it is "good-enough" for now.
     Numeric,
-    /// TODO
+    /// Holds bytes that are compared based on their byte values.
     Bytes,
 }
 
 impl SortableTermEncodingField {
+    /// Get the name of the field.
     pub fn name(self) -> &'static str {
         match self {
             SortableTermEncodingField::Type => "type",
@@ -34,6 +37,7 @@ impl SortableTermEncodingField {
         }
     }
 
+    /// Get the index in the struct from that field.
     pub fn index(self) -> usize {
         match self {
             SortableTermEncodingField::Type => 0,
@@ -42,6 +46,7 @@ impl SortableTermEncodingField {
         }
     }
 
+    /// Get the [DataType] of this field.
     pub fn data_type(self) -> DataType {
         match self {
             SortableTermEncodingField::Type => DataType::UInt8,
@@ -71,16 +76,18 @@ static FIELDS: LazyLock<Fields> = LazyLock::new(|| {
     ])
 });
 
+/// The sortable term encoding allows us to represent the expected SPARQL ordering using
+/// DataFusion's built-in ordering for structs.
+///
+/// This is meant as a work-around until we can define a custom ordering in DataFusion.
+/// Alternatively, we could also write a custom operator for sorting SPARQL solutions.
 #[derive(Debug)]
 pub struct SortableTermEncoding;
 
 impl SortableTermEncoding {
+    /// Returns the fields of this encoding.
     pub fn fields() -> Fields {
         FIELDS.clone()
-    }
-
-    pub fn data_type() -> DataType {
-        DataType::Struct(FIELDS.clone())
     }
 }
 
