@@ -1,7 +1,9 @@
 use crate::DFResult;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+use rdf_fusion_encoding::EncodingName;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
@@ -41,6 +43,7 @@ impl SparqlJoinNode {
         filter: Option<Expr>,
         join_type: SparqlJoinType,
     ) -> DFResult<Self> {
+        validate_inputs(&lhs, &rhs)?;
         let schema = compute_schema(&lhs, &rhs);
         Ok(Self {
             lhs,
@@ -122,20 +125,59 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
         exprs: Vec<Expr>,
         inputs: Vec<LogicalPlan>,
     ) -> datafusion::common::Result<Self> {
-        if inputs.len() != 2 {
-            return plan_err!(
-                "SparqlJoinNode must have exactly two inputs, got {}.",
-                inputs.len()
-            );
-        }
-
         if exprs.len() > 1 {
             return plan_err!("SparqlJoinNode must not have more than one expression.");
         }
 
+        let input_len = inputs.len();
+        let Ok([lhs, rhs]) = TryInto::<[LogicalPlan; 2]>::try_into(inputs) else {
+            return plan_err!("SparqlJoinNode must have exactly two inputs, actual: {input_len}");
+        };
+
         let filter = exprs.first().cloned();
-        Self::try_new(self.lhs.clone(), self.rhs.clone(), filter, self.join_type)
+        Self::try_new(lhs, rhs, filter, self.join_type)
     }
+}
+
+/// Validates whether the two inputs are valid.
+///
+/// The following invariants are checked:
+/// - Join variables must have the PlainTermEncoding.
+fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
+    let lhs_fields = lhs
+        .schema()
+        .fields()
+        .iter()
+        .map(|f| f.name())
+        .collect::<HashSet<_>>();
+    let rhs_fields = rhs
+        .schema()
+        .fields()
+        .iter()
+        .map(|f| f.name())
+        .collect::<HashSet<_>>();
+
+    for field_name in lhs_fields.intersection(&rhs_fields) {
+        let lhs_field = lhs
+            .schema()
+            .field_with_unqualified_name(field_name)
+            .expect("Already checked");
+        if EncodingName::try_from_data_type(lhs_field.data_type()) != Some(EncodingName::PlainTerm)
+        {
+            return plan_err!("Join variables must have the PlainTermEncoding.");
+        }
+
+        let rhs_field = rhs
+            .schema()
+            .field_with_unqualified_name(field_name)
+            .expect("Already checked");
+        if EncodingName::try_from_data_type(rhs_field.data_type()) != Some(EncodingName::PlainTerm)
+        {
+            return plan_err!("Join variables must have the PlainTermEncoding.");
+        }
+    }
+
+    Ok(())
 }
 
 /// TODO
