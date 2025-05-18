@@ -1,13 +1,16 @@
 use crate::expr_builder::RdfFusionExprBuilder;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
-use crate::paths::{PropertyPathNode, COL_SOURCE, COL_TARGET, PATH_TABLE_DFSCHEMA};
+use crate::paths::{PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET, PATH_TABLE_DFSCHEMA};
 use crate::patterns::PatternNode;
-use crate::{ActiveGraph, DFResult, RdfFusionLogicalPlanBuilder};
+use crate::{check_same_schema, ActiveGraph, DFResult, RdfFusionLogicalPlanBuilder};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, JoinType};
-use datafusion::logical_expr::{col, Expr, Extension, LogicalPlan, LogicalPlanBuilder};
-use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
+use datafusion::logical_expr::{
+    col, Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode,
+};
+use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
+use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::{NamedNode, TermRef};
@@ -26,6 +29,10 @@ impl OptimizerRule for PropertyPathLoweringRule {
         "property-path-lowering"
     }
 
+    fn apply_order(&self) -> Option<ApplyOrder> {
+        Some(ApplyOrder::TopDown)
+    }
+
     fn rewrite(
         &self,
         plan: LogicalPlan,
@@ -35,7 +42,9 @@ impl OptimizerRule for PropertyPathLoweringRule {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<PropertyPathNode>() {
-                        Transformed::yes(self.rewrite_path_node(node)?)
+                        let new_plan = self.rewrite_property_path_node(node)?;
+                        check_same_schema(node.schema(), new_plan.schema())?;
+                        Transformed::yes(new_plan)
                     } else {
                         Transformed::no(plan)
                     }
@@ -52,7 +61,8 @@ impl PropertyPathLoweringRule {
         Self { registry }
     }
 
-    fn rewrite_path_node(&self, node: &PropertyPathNode) -> DFResult<LogicalPlan> {
+    /// TODO
+    fn rewrite_property_path_node(&self, node: &PropertyPathNode) -> DFResult<LogicalPlan> {
         let query = self.rewrite_property_path_expression(node.active_graph(), node.path())?;
 
         let logical_plan = LogicalPlan::Extension(Extension {
@@ -70,8 +80,7 @@ impl PropertyPathLoweringRule {
     }
 
     /// The resulting query always has a column "start" and "end" that indicates the respective start
-    /// and end of the current path. In addition to that, the result contains a graph column and may
-    /// contain additional fields that can bind values to variables.
+    /// and end of the current path. In addition to that, the result contains a graph column.
     fn rewrite_property_path_expression(
         &self,
         graph: &ActiveGraph,
@@ -101,7 +110,7 @@ impl PropertyPathLoweringRule {
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
         let expr_builder =
-            RdfFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
+            RdfFusionExprBuilder::new(&DEFAULT_QUAD_DFSCHEMA, self.registry.as_ref());
         let filter =
             expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(node.as_ref()))?;
         self.scan_quads(graph, Some(filter))
@@ -115,7 +124,7 @@ impl PropertyPathLoweringRule {
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
         let expr_builder =
-            RdfFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
+            RdfFusionExprBuilder::new(&DEFAULT_QUAD_DFSCHEMA, self.registry.as_ref());
         let test_expressions = nodes
             .iter()
             .map(|nn| expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(nn.as_ref())))
@@ -132,7 +141,7 @@ impl PropertyPathLoweringRule {
             .distinct()
     }
 
-    /// Reverses the inner path by swapping [COL_SOURCE] and [COL_TARGET].
+    /// Reverses the inner path by swapping [COL_PATH_SOURCE] and [COL_PATH_TARGET].
     fn rewrite_reverse(
         &self,
         graph: &ActiveGraph,
@@ -140,9 +149,9 @@ impl PropertyPathLoweringRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let inner = self.rewrite_property_path_expression(graph, inner)?;
         inner.project([
-            col(COL_GRAPH),
-            col(COL_TARGET).alias(COL_SOURCE),
-            col(COL_SOURCE).alias(COL_TARGET),
+            col(COL_PATH_GRAPH),
+            col(COL_PATH_TARGET).alias(COL_PATH_SOURCE),
+            col(COL_PATH_SOURCE).alias(COL_PATH_TARGET),
         ])
     }
 
@@ -158,7 +167,7 @@ impl PropertyPathLoweringRule {
         self.join_path_alternatives(lhs, rhs)?.distinct()
     }
 
-    /// Rewrites a sequence by joining the [COL_TARGET] of the lhs to the [COL_SOURCE] of the `rhs`.
+    /// Rewrites a sequence by joining the [COL_PATH_TARGET] of the lhs to the [COL_PATH_SOURCE] of the `rhs`.
     fn rewrite_sequence(
         &self,
         graph: &ActiveGraph,
@@ -212,14 +221,14 @@ impl PropertyPathLoweringRule {
     fn zero_length_paths(&self, graph: &ActiveGraph) -> DFResult<LogicalPlanBuilder> {
         // TODO: This must be optimized
         let subjects = self.scan_quads(graph, None)?.project([
-            col(COL_GRAPH).alias(COL_GRAPH),
-            col(COL_SOURCE).alias(COL_SOURCE),
-            col(COL_SOURCE).alias(COL_TARGET),
+            col(COL_PATH_GRAPH).alias(COL_PATH_GRAPH),
+            col(COL_PATH_SOURCE).alias(COL_PATH_SOURCE),
+            col(COL_PATH_SOURCE).alias(COL_PATH_TARGET),
         ])?;
         let objects = self.scan_quads(graph, None)?.project([
-            col(COL_GRAPH).alias(COL_GRAPH),
-            col(COL_TARGET).alias(COL_SOURCE),
-            col(COL_TARGET).alias(COL_TARGET),
+            col(COL_PATH_GRAPH).alias(COL_PATH_GRAPH),
+            col(COL_PATH_TARGET).alias(COL_PATH_SOURCE),
+            col(COL_PATH_TARGET).alias(COL_PATH_TARGET),
         ])?;
         subjects.union(objects.build()?)?.distinct()
     }
@@ -231,29 +240,42 @@ impl PropertyPathLoweringRule {
         lhs: LogicalPlanBuilder,
         rhs: LogicalPlanBuilder,
     ) -> DFResult<LogicalPlanBuilder> {
-        let expr_builder =
-            RdfFusionExprBuilder::new(&PATH_TABLE_DFSCHEMA, self.registry.as_ref());
-        let path_join_expr = expr_builder.same_term(
-            Expr::from(Column::new(Some("lhs"), COL_TARGET)),
-            Expr::from(Column::new(Some("rhs"), COL_SOURCE)),
+        let lhs = lhs.alias("lhs")?;
+        let rhs = rhs.alias("rhs")?;
+
+        let join_schema = lhs.schema().join(&rhs.schema())?;
+
+        let expr_builder = RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
+        let path_join_expr = expr_builder.is_compatible(
+            Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)),
+            Expr::from(Column::new(Some("rhs"), COL_PATH_SOURCE)),
         )?;
         let mut on_exprs = vec![path_join_expr];
 
         if !allows_cross_graph_paths(active_graph) {
-            let graph_expr = expr_builder.same_term(
-                Expr::from(Column::new(Some("lhs"), COL_GRAPH)),
-                Expr::from(Column::new(Some("rhs"), COL_GRAPH)),
+            let graph_expr = expr_builder.is_compatible(
+                Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)),
+                Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)),
             )?;
             on_exprs.push(graph_expr)
         }
+        let filter = on_exprs
+            .into_iter()
+            .reduce(or)
+            .expect("At least one expression must be present");
 
-        lhs.alias("lhs")?
-            .join_on(rhs.alias("rhs")?.build()?, JoinType::Inner, on_exprs)?
-            .project([
-                col(Column::new(Some("lhs"), COL_GRAPH)).alias(COL_GRAPH),
-                col(Column::new(Some("lhs"), COL_SOURCE)).alias(COL_SOURCE),
-                col(Column::new(Some("rhs"), COL_TARGET)).alias(COL_TARGET),
-            ])
+        let join_result = lhs.join_detailed(
+            rhs.build()?,
+            JoinType::Inner,
+            (Vec::<Column>::new(), Vec::<Column>::new()),
+            Some(filter),
+            false,
+        )?;
+        join_result.project([
+            col(Column::new(Some("lhs"), COL_PATH_GRAPH)).alias(COL_PATH_GRAPH),
+            col(Column::new(Some("lhs"), COL_PATH_SOURCE)).alias(COL_PATH_SOURCE),
+            col(Column::new(Some("rhs"), COL_PATH_TARGET)).alias(COL_PATH_TARGET),
+        ])
     }
 
     /// Creates a union that represents an alternative of two paths.
@@ -274,7 +296,7 @@ impl PropertyPathLoweringRule {
         let pattern = TriplePattern {
             subject: TermPattern::Variable(Variable::new_unchecked(COL_SUBJECT)),
             predicate: NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
-            object: TermPattern::Variable(Variable::new_unchecked(COL_TARGET)),
+            object: TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
         };
         let builder = RdfFusionLogicalPlanBuilder::new_from_pattern(
             Arc::clone(&self.registry),
@@ -292,9 +314,9 @@ impl PropertyPathLoweringRule {
 
         // Project columns to PATH_TABLE
         let query = builder.into_inner().project([
-            col(COL_GRAPH).alias(COL_GRAPH),
-            col(COL_SUBJECT).alias(COL_SOURCE),
-            col(COL_OBJECT).alias(COL_TARGET),
+            col(COL_GRAPH).alias(COL_PATH_GRAPH),
+            col(COL_SUBJECT).alias(COL_PATH_SOURCE),
+            col(COL_OBJECT).alias(COL_PATH_TARGET),
         ])?;
 
         Ok(query)

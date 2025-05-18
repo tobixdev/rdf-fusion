@@ -98,8 +98,8 @@ impl UserDefinedLogicalNodeCore for ExtendNode {
             );
         }
 
-        if exprs.len() == 1 {
-            return plan_err!("ExtendNode must exactly one expression.");
+        if exprs.len() != 1 {
+            return plan_err!("ExtendNode must have exactly one expression.");
         }
 
         Self::try_new(inputs[0].clone(), self.variable.clone(), exprs[0].clone())
@@ -112,7 +112,7 @@ fn compute_schema(
     expression: &Expr,
 ) -> DFResult<DFSchemaRef> {
     let column = Column::new_unqualified(variable.as_str());
-    let (data_type, _) = expression.data_type_and_nullable(inner.schema())?;
+    let (data_type, nullability) = expression.data_type_and_nullable(inner.schema())?;
 
     let mut fields = inner
         .schema()
@@ -120,7 +120,7 @@ fn compute_schema(
         .iter()
         .map(|f| f.as_ref().clone())
         .collect::<Vec<_>>();
-    fields.push(Field::new(column.name, data_type, false));
+    fields.push(Field::new(column.name, data_type, nullability));
 
     let fields = fields.into_iter().collect::<Fields>();
     let schema = DFSchema::from_unqualified_fields(fields, HashMap::new())?;

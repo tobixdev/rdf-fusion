@@ -1,14 +1,14 @@
 use crate::expr_builder::RdfFusionExprBuilder;
 use crate::patterns::PatternNode;
-use crate::DFResult;
+use crate::{check_same_schema, DFResult};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::Column;
-use datafusion::logical_expr::{and, col, Extension, LogicalPlan, LogicalPlanBuilder};
+use datafusion::logical_expr::{
+    and, col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode,
+};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
-use rdf_fusion_functions::registry::{
-    RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
-};
+use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use spargebra::term::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 
@@ -45,9 +45,10 @@ impl OptimizerRule for PatternLoweringRule {
                             None => plan,
                             Some(filter) => plan.filter(filter)?,
                         };
-                        let plan = project_to_variables(plan, node.patterns())?;
+                        let new_plan = project_to_variables(plan, node.patterns())?.build()?;
 
-                        Transformed::yes(plan.build()?)
+                        check_same_schema(node.schema(), new_plan.schema())?;
+                        Transformed::yes(new_plan)
                     } else {
                         Transformed::no(plan)
                     }
@@ -122,7 +123,10 @@ fn filter_same_variable(
         let new_constraints = columns
             .iter()
             .zip(columns.iter().skip(1))
-            .map(|(a, b)| expr_builder.same_term(a.clone(), b.clone()))
+            .map(|(a, b)| {
+                let same_term = expr_builder.same_term(a.clone(), b.clone())?;
+                expr_builder.effective_boolean_value(same_term)
+            })
             .collect::<DFResult<Vec<_>>>()?;
 
         let new_constraint = new_constraints.into_iter().reduce(Expr::and);
@@ -145,7 +149,8 @@ fn project_to_variables(
         .into_iter()
         .zip(patterns.iter())
         .filter_map(|(c, p)| match p {
-            Some(TermPattern::Variable(v)) => Some((c, v)),
+            Some(TermPattern::Variable(v)) => Some((c, v.as_str())),
+            Some(TermPattern::BlankNode(bnode)) => Some((c, bnode.as_str())),
             _ => None,
         });
 
@@ -155,7 +160,7 @@ fn project_to_variables(
         if !already_projected.contains(new_name) {
             already_projected.insert(new_name.clone());
 
-            let expr = Expr::from(old_name.clone()).alias(new_name.as_str());
+            let expr = Expr::from(old_name.clone()).alias(new_name);
             projections.push(expr);
         }
     }

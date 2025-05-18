@@ -20,7 +20,7 @@ pub use is_iri::IsIriSparqlOp;
 pub use is_literal::IsLiteralSparqlOp;
 pub use is_numeric::IsNumericSparqlOp;
 pub use lang::LangSparqlOp;
-pub use str::StrSparqlOp;
+pub use str::{StrTermOp, StrTypedValueOp};
 pub use strdt::StrDtSparqlOp;
 pub use strlang::StrLangSparqlOp;
 pub use struuid::StrUuidSparqlOp;

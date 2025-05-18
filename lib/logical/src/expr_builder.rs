@@ -12,7 +12,7 @@ use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncodin
 use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
 use rdf_fusion_functions::FunctionName;
-use rdf_fusion_model::{Iri, Literal, Term, TermRef, ThinError, VariableRef};
+use rdf_fusion_model::{GraphName, Iri, Literal, Term, TermRef, ThinError, VariableRef};
 use spargebra::term::NamedNode;
 use std::collections::HashMap;
 use std::ops::Not;
@@ -55,27 +55,39 @@ impl<'a> RdfFusionExprBuilder<'a> {
     /// Filters the expression based on the `active_graph`. While, in theory, this method can be
     /// used for filtering arbitrary columns, it is only sensible for those that directly refer
     /// to the graph column in the quads table.
-    pub(crate) fn filter_active_graph(
+    pub fn filter_active_graph(
         &self,
         expr: Expr,
         active_graph: &ActiveGraph,
-    ) -> DFResult<Expr> {
+    ) -> DFResult<Option<Expr>> {
         match active_graph {
-            ActiveGraph::DefaultGraph => Ok(expr.is_null()),
-            ActiveGraph::NamedGraphs(named_graphs) => {
+            ActiveGraph::DefaultGraph => Ok(Some(expr.is_null())),
+            ActiveGraph::Union(named_graphs) => {
                 let filters = named_graphs
                     .iter()
-                    .map(|g| self.filter_by_scalar(expr.clone(), g.as_ref().into()))
+                    .map(|name| self.filter_graph_name(expr.clone(), name))
                     .collect::<DFResult<Vec<_>>>()?;
-                Ok(filters
+                let filter = filters
                     .into_iter()
-                    .reduce(|a, b| self.and(a, b).expect("TODO"))
-                    .expect("At least one active graph"))
+                    .reduce(|a, b| self.or(a, b).expect("TODO"))
+                    .unwrap_or(lit(false));
+                Ok(Some(filter))
             }
-            ActiveGraph::AnyNamedGraph => Ok(expr.is_not_null()),
+            ActiveGraph::AnyNamedGraph => Ok(Some(expr.is_not_null())),
+            ActiveGraph::AllGraphs => Ok(None),
         }
     }
 
+    /// TODO
+    fn filter_graph_name(&self, to_filter: Expr, graph_name: &GraphName) -> DFResult<Expr> {
+        match graph_name {
+            GraphName::NamedNode(nn) => self.filter_by_scalar(to_filter, nn.into()),
+            GraphName::BlankNode(bnode) => self.filter_by_scalar(to_filter, bnode.into()),
+            GraphName::DefaultGraph => Ok(to_filter.is_null()),
+        }
+    }
+
+    /// TODO
     /// Creates a new aggregate expression that computes the average of the inner expression.
     ///
     /// If `distinct` is true, only distinct values are considered.
@@ -545,9 +557,11 @@ impl<'a> RdfFusionExprBuilder<'a> {
         self.apply_builtin(name, vec![p0])
     }
 
-    pub fn str(&self, p0: Expr) -> DFResult<Expr> {
-        let name = BuiltinName::Str;
-        self.apply_builtin(name, vec![p0])
+    pub fn str(&self, arg: Expr) -> DFResult<Expr> {
+        let udf = self
+            .registry
+            .create_udf(FunctionName::Builtin(BuiltinName::Str), HashMap::new())?;
+        Ok(udf.call(vec![arg]))
     }
 
     pub fn is_numeric(&self, p0: Expr) -> DFResult<Expr> {
@@ -659,6 +673,7 @@ impl<'a> RdfFusionExprBuilder<'a> {
         Ok(lit(scalar.into_scalar_value()))
     }
 
+    /// TODO
     pub fn null_literal(&self) -> DFResult<Expr> {
         let scalar = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
         Ok(lit(scalar.into_scalar_value()))
@@ -717,7 +732,28 @@ impl<'a> RdfFusionExprBuilder<'a> {
             );
         }
 
-        self.apply_builtin(BuiltinName::NativeBooleanAsTerm, vec![expr])
+        let udf = self.registry.create_udf(
+            FunctionName::Builtin(BuiltinName::NativeBooleanAsTerm),
+            HashMap::new(),
+        )?;
+        Ok(udf.call(vec![expr]))
+    }
+
+    /// TODO
+    pub fn native_int64_as_term(&self, expr: Expr) -> DFResult<Expr> {
+        let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
+        if data_type != DataType::Int64 {
+            return plan_err!(
+                "Expression must be an Int64 for {}.",
+                BuiltinName::NativeInt64AsTerm
+            );
+        }
+
+        let udf = self.registry.create_udf(
+            FunctionName::Builtin(BuiltinName::NativeInt64AsTerm),
+            HashMap::new(),
+        )?;
+        Ok(udf.call(vec![expr]))
     }
 
     /// TODO
@@ -728,12 +764,28 @@ impl<'a> RdfFusionExprBuilder<'a> {
 
     /// TODO
     pub fn same_term(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.apply_builtin(BuiltinName::SameTerm, vec![lhs, rhs])
+        let args = vec![lhs, rhs]
+            .into_iter()
+            .map(|e| self.with_encoding(e, EncodingName::PlainTerm))
+            .collect::<DFResult<Vec<_>>>()?;
+
+        let udf = self
+            .registry
+            .create_udf(FunctionName::Builtin(BuiltinName::SameTerm), HashMap::new())?;
+        Ok(udf.call(args))
     }
 
     /// TODO
     pub fn is_compatible(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        self.apply_builtin(BuiltinName::IsCompatible, vec![lhs, rhs])
+        let lhs = self.with_encoding(lhs, EncodingName::PlainTerm)?;
+        let rhs = self.with_encoding(rhs, EncodingName::PlainTerm)?;
+
+        // TODO pass encoding into function
+        let udf = self.registry.create_udf(
+            FunctionName::Builtin(BuiltinName::IsCompatible),
+            HashMap::new(),
+        )?;
+        Ok(udf.call(vec![lhs, rhs]))
     }
 
     /// TODO
@@ -798,7 +850,6 @@ impl<'a> RdfFusionExprBuilder<'a> {
             .map(|e| self.with_encoding(e, target_encoding))
             .collect::<DFResult<Vec<_>>>()?;
 
-        // TODO pass encoding into function
         let udf = self
             .registry
             .create_udf(FunctionName::Builtin(name), HashMap::new())?;

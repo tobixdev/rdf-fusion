@@ -1,15 +1,17 @@
 use crate::sparql::rewriting::expression_rewriter::ExpressionRewriter;
 use crate::sparql::QueryDataset;
 use crate::DFResult;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
-use rdf_fusion_encoding::EncodingName;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::{EncodingName, TermEncoding};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_logical::join::SparqlJoinType;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionExprBuilder, RdfFusionLogicalPlanBuilder};
-use rdf_fusion_model::Variable;
+use rdf_fusion_model::{GraphName, Variable};
 use rdf_fusion_model::{Iri, NamedOrBlankNode};
 use spargebra::algebra::{
     AggregateExpression, AggregateFunction, Expression, GraphPattern, OrderExpression,
@@ -31,11 +33,13 @@ impl GraphPatternRewriter {
         dataset: QueryDataset,
         base_iri: Option<Iri<String>>,
     ) -> Self {
+        let active_graph = compute_default_active_graph(&dataset);
+        let state = RewritingState::default().with_active_graph(active_graph);
         Self {
             registry,
             dataset,
             base_iri,
-            state: RefCell::default(),
+            state: RefCell::new(state),
         }
     }
 
@@ -112,8 +116,7 @@ impl GraphPatternRewriter {
                 let mut join_schema = lhs.schema().as_ref().clone();
                 join_schema.merge(rhs.schema());
 
-                let expr_builder =
-                    RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
+                let expr_builder = RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
                 let filter = expression
                     .as_ref()
                     .map(|f| self.rewrite_expression(expr_builder, f))
@@ -158,15 +161,7 @@ impl GraphPatternRewriter {
             }
             GraphPattern::Graph { name, inner } => {
                 let old_state = self.state.borrow().clone();
-                let active_graph = match name {
-                    NamedNodePattern::NamedNode(nn) => {
-                        ActiveGraph::NamedGraphs(vec![NamedOrBlankNode::NamedNode(nn.clone())])
-                    }
-                    NamedNodePattern::Variable(_) => match self.dataset.available_named_graphs() {
-                        None => ActiveGraph::AnyNamedGraph,
-                        Some(graphs) => ActiveGraph::NamedGraphs(graphs.to_vec()),
-                    },
-                };
+                let active_graph = compute_active_graph_for_pattern(&self.dataset, name);
                 let variable = match name {
                     NamedNodePattern::Variable(var) => Some(var.clone()),
                     _ => None,
@@ -362,35 +357,59 @@ impl RewritingState {
     }
 }
 
+fn compute_default_active_graph(dataset: &QueryDataset) -> ActiveGraph {
+    match dataset.default_graph_graphs() {
+        None => ActiveGraph::DefaultGraph,
+        Some(graphs) => ActiveGraph::Union(graphs.iter().cloned().collect()),
+    }
+}
+
+fn compute_active_graph_for_pattern(
+    dataset: &QueryDataset,
+    name: &NamedNodePattern,
+) -> ActiveGraph {
+    match name {
+        NamedNodePattern::NamedNode(nn) => {
+            ActiveGraph::Union(vec![GraphName::NamedNode(nn.clone())])
+        }
+        NamedNodePattern::Variable(_) => match dataset.available_named_graphs() {
+            None => ActiveGraph::AnyNamedGraph,
+            Some(graphs) => ActiveGraph::Union(graphs.iter().cloned().map(Into::into).collect()),
+        },
+    }
+}
+
 /// Ensures that all columns in the result are RDF terms. If not, a cast operation is inserted if
 /// possible.
 fn ensure_all_columns_are_rdf_terms(
     inner: RdfFusionLogicalPlanBuilder,
 ) -> DFResult<RdfFusionLogicalPlanBuilder> {
-    // let projections = inner
-    //     .schema()
-    //     .fields()
-    //     .into_iter()
-    //     .map(|f| {
-    //         let column = Expr::from(Column::new_unqualified(f.name().as_str()));
-    //         if f.data_type() == &RdfTermValueEncoding::datatype() {
-    //             Ok(column)
-    //         } else {
-    //             match f.data_type() {
-    //                 DataType::Int64 => Ok(ENC_INT64_AS_RDF_TERM.call(vec![column]).alias(f.name())),
-    //                 other => {
-    //                     if other == &SortableTerm::data_type() {
-    //                         Ok(ENC_WITH_REGULAR_ENCODING.call(vec![column]).alias(f.name()))
-    //                     } else {
-    //                         plan_err!("Unsupported data type {:?}", f.data_type())
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     })
-    //     .collect::<DFResult<Vec<_>>>()?;
-    // inner.project(projections)
-    todo!()
+    let projections = inner
+        .schema()
+        .fields()
+        .into_iter()
+        .map(|f| {
+            let column = Expr::from(Column::new_unqualified(f.name().as_str()));
+            if f.data_type() == &TypedValueEncoding::data_type() {
+                Ok(column)
+            } else {
+                let expr_builder = inner.expr_builder();
+                match f.data_type() {
+                    DataType::Int64 => {
+                        Ok(expr_builder.native_int64_as_term(column)?.alias(f.name()))
+                    }
+                    other => plan_err!("Unsupported data type {:?}", other),
+                }
+            }
+        })
+        .collect::<DFResult<Vec<_>>>()?;
+
+    let registry = Arc::clone(inner.registry());
+    let new_plan = inner.into_inner().project(projections)?;
+    Ok(RdfFusionLogicalPlanBuilder::new(
+        Arc::new(new_plan.build()?),
+        registry,
+    ))
 }
 
 /// Extracts sort expressions from possible solution modifiers.

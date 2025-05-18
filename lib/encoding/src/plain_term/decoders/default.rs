@@ -1,11 +1,11 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::plain_term::{PlainTermEncoding};
+use crate::plain_term::encoding::PlainTermType;
+use crate::plain_term::PlainTermEncoding;
 use crate::{EncodingScalar, TermEncoding};
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
 use datafusion::arrow::datatypes::UInt8Type;
 use datafusion::common::ScalarValue;
 use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
-use crate::plain_term::encoding::PlainTermType;
 
 #[derive(Debug)]
 pub struct DefaultPlainTermDecoder {}
@@ -71,8 +71,12 @@ fn decode_term<'data>(
     term_type: PlainTermType,
 ) -> TermRef<'data> {
     match term_type {
-        PlainTermType::NamedNode => TermRef::NamedNode(NamedNodeRef::new_unchecked(value.value(idx))),
-        PlainTermType::BlankNode => TermRef::BlankNode(BlankNodeRef::new_unchecked(value.value(idx))),
+        PlainTermType::NamedNode => {
+            TermRef::NamedNode(NamedNodeRef::new_unchecked(value.value(idx)))
+        }
+        PlainTermType::BlankNode => {
+            TermRef::BlankNode(BlankNodeRef::new_unchecked(value.value(idx)))
+        }
         PlainTermType::Literal => {
             if language.is_valid(idx) {
                 TermRef::Literal(LiteralRef::new_language_tagged_literal_unchecked(

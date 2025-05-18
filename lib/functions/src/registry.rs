@@ -6,18 +6,18 @@ use crate::builtin::logical::{sparql_and, sparql_or};
 use crate::builtin::native::{effective_boolean_value, native_boolean_as_term};
 use crate::builtin::query::is_compatible;
 use crate::builtin::BuiltinName;
+use crate::scalar::plain_term::same_term;
 use crate::scalar::typed_value::{
     abs_typed_value, add_typed_value, as_boolean_typed_value, as_date_time_typed_value,
     as_decimal_typed_value, as_double_typed_value, as_float_typed_value, as_int_typed_value,
-    as_integer_typed_value, as_string_typed_value, bnode_typed_value, bound_typed_value,
-    ceil_typed_value, coalesce_typed_value, concat_typed_value, contains_typed_value,
-    datatype_typed_value, day_typed_value, div_typed_value, encode_for_uri_typed_value,
-    eq_typed_value, floor_typed_value, greater_or_equal_typed_value, greater_than_typed_value,
-    hours_typed_value, if_typed_value, is_blank_typed_value, is_iri_typed_value,
-    is_literal_typed_value, is_numeric_typed_value, lang_matches_typed_value, lang_typed_value,
-    lcase_typed_value, less_or_equal_typed_value, less_than_typed_value, md5_typed_value,
-    minutes_typed_value, month_typed_value, mul_typed_value, rand_typed_value,
-    regex_binary_typed_value, replace_typed_value, round_typed_value, same_term_typed_value,
+    as_integer_typed_value, as_string_typed_value, bound_typed_value, ceil_typed_value,
+    coalesce_typed_value, concat_typed_value, contains_typed_value, datatype_typed_value,
+    day_typed_value, div_typed_value, encode_for_uri_typed_value, equal_typed_value,
+    floor_typed_value, greater_or_equal_typed_value, greater_than_typed_value, hours_typed_value,
+    if_typed_value, is_blank_typed_value, is_iri_typed_value, is_literal_typed_value,
+    is_numeric_typed_value, lang_matches_typed_value, lang_typed_value, lcase_typed_value,
+    less_or_equal_typed_value, less_than_typed_value, md5_typed_value, minutes_typed_value,
+    month_typed_value, mul_typed_value, rand_typed_value, replace_typed_value, round_typed_value,
     seconds_typed_value, sha1_typed_value, sha256_typed_value, sha384_typed_value,
     sha512_typed_value, str_after_typed_value, str_before_typed_value, str_dt_typed_value,
     str_ends_typed_value, str_lang_typed_value, str_len_typed_value, str_starts_typed_value,
@@ -25,6 +25,7 @@ use crate::scalar::typed_value::{
     timezone_typed_value, tz_typed_value, ucase_typed_value, unary_minus_typed_value,
     unary_plus_typed_value, uuid_typed_value, year_typed_value,
 };
+use crate::scalar::{bnode, regex, str};
 use crate::{DFResult, FunctionName};
 use datafusion::common::plan_err;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
@@ -65,12 +66,12 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     ) -> DFResult<Arc<ScalarUDF>> {
         match function_name {
             FunctionName::Builtin(builtin_name) => Ok(match builtin_name {
-                BuiltinName::Str => str_typed_value(),
+                BuiltinName::Str => str(),
                 BuiltinName::Lang => lang_typed_value(),
                 BuiltinName::LangMatches => lang_matches_typed_value(),
                 BuiltinName::Datatype => datatype_typed_value(),
                 BuiltinName::Iri => todo!("Group concat is not supported yet (extract base_iri)."),
-                BuiltinName::BNode => bnode_typed_value(),
+                BuiltinName::BNode => bnode(),
                 BuiltinName::Rand => rand_typed_value(),
                 BuiltinName::Abs => abs_typed_value(),
                 BuiltinName::Ceil => ceil_typed_value(),
@@ -109,12 +110,12 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::IsBlank => is_blank_typed_value(),
                 BuiltinName::IsLiteral => is_literal_typed_value(),
                 BuiltinName::IsNumeric => is_numeric_typed_value(),
-                BuiltinName::Regex => regex_binary_typed_value(),
+                BuiltinName::Regex => regex(),
                 BuiltinName::Bound => bound_typed_value(),
                 BuiltinName::Coalesce => coalesce_typed_value(),
                 BuiltinName::If => if_typed_value(),
-                BuiltinName::SameTerm => same_term_typed_value(),
-                BuiltinName::Equal => eq_typed_value(),
+                BuiltinName::SameTerm => same_term(),
+                BuiltinName::Equal => equal_typed_value(),
                 BuiltinName::GreaterThan => greater_than_typed_value(),
                 BuiltinName::GreaterOrEqual => greater_or_equal_typed_value(),
                 BuiltinName::LessThan => less_than_typed_value(),

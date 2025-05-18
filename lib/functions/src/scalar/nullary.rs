@@ -6,6 +6,7 @@ use datafusion::logical_expr::{
 use rdf_fusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
 use rdf_fusion_functions_scalar::{NullarySparqlOp, SparqlOpVolatility};
 use std::any::Any;
+use datafusion::common::exec_err;
 
 #[macro_export]
 macro_rules! impl_nullary_op {
@@ -85,6 +86,10 @@ where
         &self,
         args: ScalarFunctionArgs<'_>,
     ) -> datafusion::common::Result<ColumnarValue> {
+        if args.args.len() != 0 {
+            return exec_err!("Nullary function must have no arguments.")
+        }
+
         let results = (0..args.number_rows).map(|_| self.op.evaluate());
         let result = TEncoder::encode_terms(results)?;
         Ok(ColumnarValue::Array(result.into_array()))

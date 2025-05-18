@@ -71,7 +71,7 @@ impl PartialOrd for PropertyPathNode {
 
 impl UserDefinedLogicalNodeCore for PropertyPathNode {
     fn name(&self) -> &str {
-        "Path"
+        "PropertyPath"
     }
 
     fn inputs(&self) -> Vec<&LogicalPlan> {
@@ -94,7 +94,7 @@ impl UserDefinedLogicalNodeCore for PropertyPathNode {
             .unwrap_or_default();
         write!(
             f,
-            "Path: {}{} {} {}",
+            "PropertyPath: {}{} {} {}",
             &graph_name, &self.subject, &self.path, &self.object
         )
     }

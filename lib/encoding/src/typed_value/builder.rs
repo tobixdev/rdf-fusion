@@ -90,7 +90,18 @@ impl TypedValueArrayBuilder {
             xsd::FLOAT => self.append_float(literal.value().parse()?)?,
             xsd::DOUBLE => self.append_double(literal.value().parse()?)?,
             xsd::DECIMAL => self.append_decimal(literal.value().parse()?)?,
-            xsd::INTEGER => self.append_integer(literal.value().parse()?)?,
+            xsd::BYTE
+            | xsd::SHORT
+            | xsd::LONG
+            | xsd::UNSIGNED_BYTE
+            | xsd::UNSIGNED_SHORT
+            | xsd::UNSIGNED_INT
+            | xsd::UNSIGNED_LONG
+            | xsd::POSITIVE_INTEGER
+            | xsd::NEGATIVE_INTEGER
+            | xsd::NON_POSITIVE_INTEGER
+            | xsd::NON_NEGATIVE_INTEGER
+            | xsd::INTEGER=> self.append_integer(literal.value().parse()?)?,
             xsd::INT => self.append_int(literal.value().parse()?)?,
             xsd::DURATION => {
                 let duration: Duration = literal.value().parse()?;

@@ -1,7 +1,7 @@
 use crate::ThinResult;
 use crate::{BinarySparqlOp, SparqlOp};
-use rdf_fusion_model::ThinError;
 use rdf_fusion_model::{Boolean, TypedValueRef};
+use rdf_fusion_model::{TermRef, ThinError};
 use std::cmp::Ordering;
 
 macro_rules! create_binary_cmp_udf {
@@ -42,11 +42,42 @@ macro_rules! create_binary_cmp_udf {
     };
 }
 
-create_binary_cmp_udf!(EqSparqlOp, [Ordering::Equal]);
+create_binary_cmp_udf!(EqTypedValueSparqlOp, [Ordering::Equal]);
 create_binary_cmp_udf!(GreaterThanSparqlOp, [Ordering::Greater]);
 create_binary_cmp_udf!(GreaterOrEqualSparqlOp, [Ordering::Equal, Ordering::Greater]);
 create_binary_cmp_udf!(LessThanSparqlOp, [Ordering::Less]);
 create_binary_cmp_udf!(LessOrEqualSparqlOp, [Ordering::Less, Ordering::Equal]);
+
+#[derive(Debug)]
+pub struct EqPlainTermSparqlOp {}
+
+impl Default for EqPlainTermSparqlOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl EqPlainTermSparqlOp {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl SparqlOp for EqPlainTermSparqlOp {}
+
+impl BinarySparqlOp for EqPlainTermSparqlOp {
+    type ArgLhs<'data> = TermRef<'data>;
+    type ArgRhs<'data> = TermRef<'data>;
+    type Result<'data> = Boolean;
+
+    fn evaluate<'data>(
+        &self,
+        lhs: Self::ArgLhs<'data>,
+        rhs: Self::ArgRhs<'data>,
+    ) -> ThinResult<Self::Result<'data>> {
+        Ok((lhs == rhs).into())
+    }
+}
 
 #[cfg(test)]
 mod tests {

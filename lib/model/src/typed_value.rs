@@ -185,6 +185,13 @@ fn partial_cmp_literals(a: TypedValueRef<'_>, b: TypedValueRef<'_>) -> Option<Or
                 None
             }
         }
+        TypedValueRef::BooleanLiteral(a) => {
+            if let TypedValueRef::BooleanLiteral(b) = b {
+                a.partial_cmp(&b)
+            } else {
+                None
+            }
+        }
         TypedValueRef::NumericLiteral(a) => {
             if let TypedValueRef::NumericLiteral(b) = b {
                 a.partial_cmp(&b)
@@ -229,6 +236,16 @@ fn partial_cmp_literals(a: TypedValueRef<'_>, b: TypedValueRef<'_>) -> Option<Or
             TypedValueRef::DurationLiteral(b) => a.partial_cmp(&b),
             TypedValueRef::YearMonthDurationLiteral(b) => a.partial_cmp(&b),
             TypedValueRef::DayTimeDurationLiteral(b) => a.partial_cmp(&b),
+            _ => None,
+        },
+        TypedValueRef::OtherLiteral(a) => match b {
+            TypedValueRef::OtherLiteral(b) if a.datatype() == b.datatype() => {
+                if a.value() == b.value() {
+                    Some(Ordering::Equal)
+                } else {
+                    None
+                }
+            }
             _ => None,
         },
         _ => None,

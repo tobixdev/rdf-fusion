@@ -1,5 +1,5 @@
 use crate::{BinarySparqlOp, SparqlOp, ThinResult};
-use rdf_fusion_model::{Boolean, TypedValueRef};
+use rdf_fusion_model::{Boolean, TermRef};
 
 #[derive(Debug)]
 pub struct SameTermSparqlOp;
@@ -19,8 +19,8 @@ impl SameTermSparqlOp {
 impl SparqlOp for SameTermSparqlOp {}
 
 impl BinarySparqlOp for SameTermSparqlOp {
-    type ArgLhs<'data> = TypedValueRef<'data>;
-    type ArgRhs<'data> = TypedValueRef<'data>;
+    type ArgLhs<'data> = TermRef<'data>;
+    type ArgRhs<'data> = TermRef<'data>;
     type Result<'data> = Boolean;
 
     fn evaluate<'data>(
@@ -28,7 +28,6 @@ impl BinarySparqlOp for SameTermSparqlOp {
         lhs: Self::ArgLhs<'data>,
         rhs: Self::ArgRhs<'data>,
     ) -> ThinResult<Self::Result<'data>> {
-        // TODO: fix PartialEq for RdfValue to be SameTerm
         Ok((lhs == rhs).into())
     }
 }

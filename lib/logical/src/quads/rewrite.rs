@@ -1,10 +1,10 @@
 use crate::quads::QuadsNode;
-use crate::{DFResult, RdfFusionLogicalPlanBuilder};
+use crate::{check_same_schema, DFResult, RdfFusionLogicalPlanBuilder};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::datasource::DefaultTableSource;
-use datafusion::logical_expr::{col, Extension, LogicalPlan, LogicalPlanBuilder};
-use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
+use datafusion::logical_expr::{col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore};
+use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::TermRef;
@@ -24,6 +24,10 @@ impl OptimizerRule for QuadsLoweringRule {
         "quads-lowering"
     }
 
+    fn apply_order(&self) -> Option<ApplyOrder> {
+        Some(ApplyOrder::TopDown)
+    }
+
     fn rewrite(
         &self,
         plan: LogicalPlan,
@@ -33,7 +37,9 @@ impl OptimizerRule for QuadsLoweringRule {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<QuadsNode>() {
-                        Transformed::yes(self.rewrite_quads_node(node)?)
+                        let new_plan = self.rewrite_quads_node(node)?;
+                        check_same_schema(node.schema(), new_plan.schema())?;
+                        Transformed::yes(new_plan)
                     } else {
                         Transformed::no(plan)
                     }
@@ -64,13 +70,15 @@ impl QuadsLoweringRule {
             Arc::new(DefaultTableSource::new(Arc::clone(&self.quads_table))),
             None,
         )?;
-        let plan =
+        let mut plan =
             RdfFusionLogicalPlanBuilder::new(Arc::new(scan.build()?), Arc::clone(&self.registry));
 
         let active_graph_filter = plan
             .expr_builder()
             .filter_active_graph(col(COL_GRAPH), node.active_graph())?;
-        let mut plan = plan.filter(active_graph_filter)?;
+        if let Some(active_graph_filter) = active_graph_filter {
+            plan = plan.filter(active_graph_filter)?;
+        }
 
         if let Some(subject) = node.subject() {
             let filter = plan

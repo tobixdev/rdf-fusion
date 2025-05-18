@@ -98,6 +98,7 @@ pub enum BuiltinName {
     // Other Necessary Functions
     EffectiveBooleanValue,
     NativeBooleanAsTerm,
+    NativeInt64AsTerm,
     IsCompatible,
 }
 
@@ -170,6 +171,7 @@ impl fmt::Display for BuiltinName {
             Self::AsBoolean => "xsd:boolean",
             Self::EffectiveBooleanValue => "EFFECTIVE_BOOLEAN_VALUE",
             Self::NativeBooleanAsTerm => "BOOLEAN_AS_TERM",
+            Self::NativeInt64AsTerm => "INT64_AS_TERM",
             Self::Bound => "BOUND",
             Self::IsCompatible => "IS_COMPATIBLE",
             Self::Coalesce => "COALESCE",

@@ -1,25 +1,25 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use rdf_fusion_model::OwnedStringLiteral;
 use rdf_fusion_model::TypedValueRef;
+use rdf_fusion_model::{OwnedStringLiteral, SimpleLiteralRef, TermRef};
 
 #[derive(Debug)]
-pub struct StrSparqlOp;
+pub struct StrTypedValueOp;
 
-impl Default for StrSparqlOp {
+impl Default for StrTypedValueOp {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl StrSparqlOp {
+impl StrTypedValueOp {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl SparqlOp for StrSparqlOp {}
+impl SparqlOp for StrTypedValueOp {}
 
-impl UnarySparqlOp for StrSparqlOp {
+impl UnarySparqlOp for StrTypedValueOp {
     type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = OwnedStringLiteral;
 
@@ -40,5 +40,35 @@ impl UnarySparqlOp for StrSparqlOp {
             TypedValueRef::OtherLiteral(value) => value.value().to_owned(),
         };
         Ok(OwnedStringLiteral(result, None))
+    }
+}
+
+#[derive(Debug)]
+pub struct StrTermOp;
+
+impl Default for StrTermOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl StrTermOp {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl SparqlOp for StrTermOp {}
+
+impl UnarySparqlOp for StrTermOp {
+    type Arg<'data> = TermRef<'data>;
+    type Result<'data> = SimpleLiteralRef<'data>;
+
+    fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>> {
+        Ok(match value {
+            TermRef::NamedNode(v) => SimpleLiteralRef::new(v.as_str()),
+            TermRef::BlankNode(v) => SimpleLiteralRef::new(v.as_str()),
+            TermRef::Literal(v) => SimpleLiteralRef::new(v.value()),
+        })
     }
 }

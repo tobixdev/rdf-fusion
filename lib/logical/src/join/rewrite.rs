@@ -1,11 +1,11 @@
 use crate::join::{SparqlJoinNode, SparqlJoinType};
-use crate::DFResult;
 use crate::RdfFusionExprBuilder;
+use crate::{check_same_schema, DFResult};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{Column, JoinType};
 use datafusion::logical_expr::Expr;
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
-use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
+use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
@@ -22,6 +22,10 @@ impl OptimizerRule for SparqlJoinLoweringRule {
         "sparql-join-lowering"
     }
 
+    fn apply_order(&self) -> Option<ApplyOrder> {
+        Some(ApplyOrder::TopDown)
+    }
+
     fn rewrite(
         &self,
         plan: LogicalPlan,
@@ -31,17 +35,9 @@ impl OptimizerRule for SparqlJoinLoweringRule {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<SparqlJoinNode>() {
-                        let result = self.rewrite_sparql_join(node)?;
-
-                        if result.schema() != plan.schema() {
-                            panic!(
-                                "Schema mismatch!\n result_schema: {:?}\n\nplan_schema: {:?}",
-                                result.schema(),
-                                plan.schema()
-                            );
-                        }
-
-                        Transformed::yes(result)
+                        let new_plan = self.rewrite_sparql_join(node)?;
+                        check_same_schema(node.schema(), new_plan.schema())?;
+                        Transformed::yes(new_plan)
                     } else {
                         Transformed::no(plan)
                     }
@@ -103,6 +99,7 @@ impl SparqlJoinLoweringRule {
                 )
             })
             .collect::<DFResult<Vec<_>>>()?;
+
         if let Some(filter) = filter {
             let filter = filter
                 .transform(|e| {

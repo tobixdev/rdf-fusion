@@ -453,10 +453,7 @@ impl RdfFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn distinct_with_sort(
-        self,
-        sorts: Vec<SortExpr>,
-    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
+    pub fn distinct_with_sort(self, sorts: Vec<SortExpr>) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let schema = self.plan_builder.schema();
         let (on_expr, sorts) = create_distinct_on_expressions(self.expr_builder(), sorts.clone())?;
         let select_expr = schema.columns().into_iter().map(col).collect();
@@ -490,6 +487,11 @@ impl RdfFusionLogicalPlanBuilder {
     /// TODO
     pub fn schema(&self) -> &DFSchemaRef {
         self.plan_builder.schema()
+    }
+
+    /// TODO
+    pub fn registry(&self) -> &RdfFusionFunctionRegistryRef {
+        &self.registry
     }
 
     /// TODO

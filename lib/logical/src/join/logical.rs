@@ -102,7 +102,10 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
     }
 
     fn expressions(&self) -> Vec<Expr> {
-        vec![]
+        match &self.filter {
+            None => vec![],
+            Some(filter) => vec![filter.clone()],
+        }
     }
 
     fn fmt_for_explain(&self, f: &mut Formatter<'_>) -> fmt::Result {

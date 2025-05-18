@@ -376,7 +376,6 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         let expressions = rhs
             .iter()
             .map(|e| self.expr_builder.equal(lhs.clone(), self.rewrite(e)?))
-            .map(|res| res.and_then(|e| self.expr_builder.native_boolean_as_term(e)))
             .collect::<DFResult<Vec<_>>>()?;
 
         let false_literal = Literal::from(false);

@@ -10,7 +10,7 @@ use rdf_fusion_encoding::typed_value::encoders::{
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_functions_scalar::{
-    AddSparqlOp, ContainsSparqlOp, DivSparqlOp, EqSparqlOp, GreaterOrEqualSparqlOp,
+    AddSparqlOp, ContainsSparqlOp, DivSparqlOp, EqTypedValueSparqlOp, GreaterOrEqualSparqlOp,
     GreaterThanSparqlOp, LangMatchesSparqlOp, LessOrEqualSparqlOp, LessThanSparqlOp, MulSparqlOp,
     RegexSparqlOp, SameTermSparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrDtSparqlOp,
     StrEndsSparqlOp, StrLangSparqlOp, StrStartsSparqlOp, SubSparqlOp, SubStrSparqlOp,
@@ -22,17 +22,8 @@ impl_binary_sparql_op!(
     DefaultTypedValueDecoder,
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
-    same_term_typed_value,
-    SameTermSparqlOp,
-    FunctionName::Builtin(BuiltinName::SameTerm)
-);
-impl_binary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    DefaultTypedValueDecoder,
-    BooleanTermValueEncoder,
-    eq_typed_value,
-    EqSparqlOp,
+    equal_typed_value,
+    EqTypedValueSparqlOp,
     FunctionName::Builtin(BuiltinName::Equal)
 );
 impl_binary_sparql_op!(

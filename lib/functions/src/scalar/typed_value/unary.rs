@@ -20,7 +20,7 @@ use rdf_fusion_functions_scalar::{
     DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp, HoursSparqlOp, IriSparqlOp,
     IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LCaseSparqlOp,
     LangSparqlOp, Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp, RoundSparqlOp, SecondsSparqlOp,
-    Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrSparqlOp,
+    Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp,
     TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp,
     YearSparqlOp,
 };
@@ -301,7 +301,7 @@ impl_unary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,
     BlankNodeRefTermValueEncoder,
-    bnode_typed_value,
+    bnode_unary_typed_value,
     BNodeSparqlOp,
     FunctionName::Builtin(BuiltinName::BNode)
 );
@@ -358,7 +358,7 @@ impl_unary_sparql_op!(
     DefaultTypedValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     str_typed_value,
-    StrSparqlOp,
+    StrTypedValueOp,
     FunctionName::Builtin(BuiltinName::Str)
 );
 

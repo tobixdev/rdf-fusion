@@ -1,5 +1,6 @@
 use crate::planner::RdfFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
+use crate::sparql::QueryResults::Graph;
 use crate::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults};
 use crate::{DFResult, QuadStorage};
 use datafusion::dataframe::DataFrame;
@@ -18,7 +19,7 @@ use rdf_fusion_logical::patterns::PatternLoweringRule;
 use rdf_fusion_logical::quads::QuadsLoweringRule;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilder};
 use rdf_fusion_model::{
-    GraphNameRef, NamedNodeRef, NamedOrBlankNode, QuadRef, SubjectRef, TermRef,
+    GraphName, GraphNameRef, NamedNodeRef, NamedOrBlankNode, QuadRef, SubjectRef, TermRef,
 };
 use std::sync::Arc;
 
@@ -82,7 +83,7 @@ impl RdfFusionInstance {
 
     /// Checks whether `quad` is contained in the instance.
     pub async fn contains(&self, quad: &QuadRef<'_>) -> DFResult<bool> {
-        let active_graph_info = graph_name_to_active_graph(quad.graph_name);
+        let active_graph_info = graph_name_to_active_graph(Some(quad.graph_name));
         let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_quads(
             Arc::clone(&self.functions),
             active_graph_info,
@@ -111,9 +112,7 @@ impl RdfFusionInstance {
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
-        let active_graph_info = graph_name
-            .map(graph_name_to_active_graph)
-            .unwrap_or_default();
+        let active_graph_info = graph_name_to_active_graph(graph_name);
         let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_quads(
             Arc::clone(&self.functions),
             active_graph_info,
@@ -138,13 +137,17 @@ impl RdfFusionInstance {
     }
 }
 
-fn graph_name_to_active_graph(graph_name: GraphNameRef<'_>) -> ActiveGraph {
+fn graph_name_to_active_graph(graph_name: Option<GraphNameRef<'_>>) -> ActiveGraph {
+    let Some(graph_name) = graph_name else {
+        return ActiveGraph::AllGraphs;
+    };
+
     match graph_name {
         GraphNameRef::NamedNode(nn) => {
-            ActiveGraph::NamedGraphs(vec![NamedOrBlankNode::NamedNode(nn.into_owned())])
+            ActiveGraph::Union(vec![GraphName::NamedNode(nn.into_owned())])
         }
         GraphNameRef::BlankNode(bnode) => {
-            ActiveGraph::NamedGraphs(vec![NamedOrBlankNode::BlankNode(bnode.into_owned())])
+            ActiveGraph::Union(vec![GraphName::BlankNode(bnode.into_owned())])
         }
         GraphNameRef::DefaultGraph => ActiveGraph::DefaultGraph,
     }
