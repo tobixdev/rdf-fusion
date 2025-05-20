@@ -5,7 +5,7 @@ use crate::minus::MinusNode;
 use crate::paths::PropertyPathNode;
 use crate::patterns::PatternNode;
 use crate::quads::QuadsNode;
-use crate::{DFResult, RdfFusionExprBuilder};
+use crate::{DFResult, RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::{Column, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{
@@ -249,7 +249,10 @@ impl RdfFusionLogicalPlanBuilder {
             // If the expression already evaluates to a Boolean, we can use it directly.
             DataType::Boolean => expression,
             // Otherwise, obtain the EBV. This will trigger an error on an unknown encoding.
-            _ => self.expr_builder().effective_boolean_value(expression)?,
+            _ => self
+                .expr_builder(expression)
+                .effective_boolean_value()?
+                .build_boolean()?,
         };
 
         Ok(Self {
@@ -373,10 +376,9 @@ impl RdfFusionLogicalPlanBuilder {
         variables: &[Variable],
         aggregates: &[(Variable, Expr)],
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        let expr_builder = self.expr_builder();
         let group_expr = variables
             .iter()
-            .map(|v| expr_builder.variable(v.as_ref()))
+            .map(|v| self.expr_builder_root().variable(v.as_ref())?.build())
             .collect::<DFResult<Vec<_>>>()?;
         let aggr_expr = aggregates
             .iter()
@@ -399,7 +401,8 @@ impl RdfFusionLogicalPlanBuilder {
     /// TODO
     pub fn distinct_with_sort(self, sorts: Vec<SortExpr>) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let schema = self.plan_builder.schema();
-        let (on_expr, sorts) = create_distinct_on_expressions(self.expr_builder(), sorts.clone())?;
+        let (on_expr, sorts) =
+            create_distinct_on_expressions(self.expr_builder_root(), sorts.clone())?;
         let select_expr = schema.columns().into_iter().map(col).collect();
         let sorts = if sorts.is_empty() { None } else { Some(sorts) };
 
@@ -411,15 +414,17 @@ impl RdfFusionLogicalPlanBuilder {
 
     /// TODO
     pub fn with_plain_terms(self) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        let expr_builder = self.expr_builder();
         let with_correct_encoding = self
             .schema()
             .columns()
             .into_iter()
             .map(|c| {
-                expr_builder
-                    .with_encoding(col(c.clone()), EncodingName::PlainTerm)
-                    .map(|e| e.alias(c.name()))
+                let expr = self
+                    .expr_builder(col(c.clone()))
+                    .with_encoding(EncodingName::PlainTerm)?
+                    .build()?
+                    .alias(c.name());
+                Ok(expr)
             })
             .collect::<DFResult<Vec<_>>>()?;
         Ok(Self {
@@ -439,12 +444,6 @@ impl RdfFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn expr_builder(&self) -> RdfFusionExprBuilder<'_> {
-        let schema = self.schema().as_ref();
-        RdfFusionExprBuilder::new(schema, self.registry.as_ref())
-    }
-
-    /// TODO
     pub fn into_inner(self) -> LogicalPlanBuilder {
         self.plan_builder
     }
@@ -453,11 +452,22 @@ impl RdfFusionLogicalPlanBuilder {
     pub fn build(self) -> DFResult<LogicalPlan> {
         self.plan_builder.build()
     }
+
+    /// TODO
+    pub fn expr_builder_root(&self) -> RdfFusionExprBuilderRoot<'_> {
+        let schema = self.schema().as_ref();
+        RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema)
+    }
+
+    /// TODO
+    pub fn expr_builder(&self, expr: Expr) -> RdfFusionExprBuilder<'_> {
+        self.expr_builder_root().create_builder(expr)
+    }
 }
 
 /// TODO
 fn create_distinct_on_expressions(
-    expr_builder: RdfFusionExprBuilder<'_>,
+    expr_builder_root: RdfFusionExprBuilderRoot<'_>,
     mut sort_expr: Vec<SortExpr>,
 ) -> DFResult<(Vec<Expr>, Vec<SortExpr>)> {
     let mut on_expr = sort_expr
@@ -465,9 +475,12 @@ fn create_distinct_on_expressions(
         .map(|se| se.expr.clone())
         .collect::<Vec<_>>();
 
-    for column in expr_builder.schema().columns() {
+    for column in expr_builder_root.schema().columns() {
         let expr = col(column.clone());
-        let sortable_expr = expr_builder.with_encoding(expr.clone(), EncodingName::Sortable)?;
+        let sortable_expr = expr_builder_root
+            .create_builder(expr.clone())
+            .with_encoding(EncodingName::Sortable)?
+            .build()?;
 
         // If, initially, the sortable expression is already part of on_expr we don't re-add it.
         if !on_expr.contains(&sortable_expr) {

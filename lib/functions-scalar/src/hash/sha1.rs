@@ -1,6 +1,6 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use rdf_fusion_model::{OwnedStringLiteral, SimpleLiteralRef};
 use md5::Digest;
+use rdf_fusion_model::{OwnedStringLiteral, SimpleLiteralRef};
 use sha1::Sha1;
 
 #[derive(Debug)]

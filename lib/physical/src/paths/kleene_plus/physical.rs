@@ -12,6 +12,7 @@ use datafusion::physical_plan::{
     RecordBatchStream,
 };
 use futures::{Stream, StreamExt};
+use itertools::izip;
 use rdf_fusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
@@ -19,7 +20,6 @@ use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_logical::paths::PATH_TABLE_SCHEMA;
 use rdf_fusion_model::{GraphName, Term};
-use itertools::izip;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Formatter;

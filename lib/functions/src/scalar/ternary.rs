@@ -4,9 +4,9 @@ use datafusion::common::exec_datafusion_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
+use itertools::izip;
 use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_functions_scalar::{SparqlOpVolatility, TernarySparqlOp};
-use itertools::izip;
 use std::any::Any;
 
 #[macro_export]

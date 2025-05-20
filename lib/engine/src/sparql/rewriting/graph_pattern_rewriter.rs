@@ -6,11 +6,10 @@ use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, TermEncoding};
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use rdf_fusion_logical::join::SparqlJoinType;
-use rdf_fusion_logical::{ActiveGraph, RdfFusionExprBuilder, RdfFusionLogicalPlanBuilder};
+use rdf_fusion_logical::{ActiveGraph, RdfFusionExprBuilderRoot, RdfFusionLogicalPlanBuilder};
 use rdf_fusion_model::Iri;
 use rdf_fusion_model::{GraphName, Variable};
 use spargebra::algebra::{
@@ -47,6 +46,11 @@ impl GraphPatternRewriter {
             base_iri,
             state: RefCell::new(state),
         }
+    }
+
+    /// TODO
+    pub fn registry(&self) -> &dyn RdfFusionFunctionRegistry {
+        self.registry.as_ref()
     }
 
     /// TODO
@@ -88,7 +92,7 @@ impl GraphPatternRewriter {
             }
             GraphPattern::Filter { inner, expr } => {
                 let inner = self.rewrite_graph_pattern(inner.as_ref())?;
-                let expr = self.rewrite_expression(inner.expr_builder(), expr)?;
+                let expr = self.rewrite_expression(inner.schema(), expr)?;
                 inner.filter(expr)
             }
             GraphPattern::Extend {
@@ -97,7 +101,7 @@ impl GraphPatternRewriter {
                 variable,
             } => {
                 let inner = self.rewrite_graph_pattern(inner)?;
-                let expr = self.rewrite_expression(inner.expr_builder(), expression)?;
+                let expr = self.rewrite_expression(inner.schema(), expression)?;
                 inner.extend(variable.clone(), expr)
             }
             GraphPattern::Values {
@@ -124,10 +128,9 @@ impl GraphPatternRewriter {
                 let mut join_schema = lhs.schema().as_ref().clone();
                 join_schema.merge(rhs.schema());
 
-                let expr_builder = RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
                 let filter = expression
                     .as_ref()
-                    .map(|f| self.rewrite_expression(expr_builder, f))
+                    .map(|f| self.rewrite_expression(&join_schema, f))
                     .transpose()?;
 
                 lhs.join(rhs.build()?, SparqlJoinType::Left, filter)
@@ -150,7 +153,7 @@ impl GraphPatternRewriter {
 
                 let sort_exprs = sort_exprs
                     .iter()
-                    .map(|e| self.rewrite_order_expression(inner.expr_builder(), e))
+                    .map(|e| self.rewrite_order_expression(inner.schema(), e))
                     .collect::<Result<Vec<_>, _>>()?;
                 inner.distinct_with_sort(sort_exprs)
             }
@@ -158,7 +161,7 @@ impl GraphPatternRewriter {
                 let inner = self.rewrite_graph_pattern(inner)?;
                 let sort_exprs = expression
                     .iter()
-                    .map(|e| self.rewrite_order_expression(inner.expr_builder(), e))
+                    .map(|e| self.rewrite_order_expression(inner.schema(), e))
                     .collect::<Result<Vec<_>, _>>()?;
                 inner.order_by(&sort_exprs)
             }
@@ -236,30 +239,30 @@ impl GraphPatternRewriter {
     }
 
     /// Rewrites an [Expression].
-    fn rewrite_expression(
-        &self,
-        expr_builder: RdfFusionExprBuilder<'_>,
-        expression: &Expression,
-    ) -> DFResult<Expr> {
+    fn rewrite_expression(&self, schema: &DFSchema, expression: &Expression) -> DFResult<Expr> {
+        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema);
         let expression_rewriter =
-            ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder);
+            ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
         expression_rewriter.rewrite(expression)
     }
 
     /// Rewrites an [OrderExpression].
     fn rewrite_order_expression(
         &self,
-        expr_builder: RdfFusionExprBuilder<'_>,
+        schema: &DFSchema,
         expression: &OrderExpression,
     ) -> DFResult<SortExpr> {
+        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema);
         let expression_rewriter =
-            ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder);
+            ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
         let (asc, expression) = match expression {
             OrderExpression::Asc(inner) => (true, expression_rewriter.rewrite(inner)?),
             OrderExpression::Desc(inner) => (false, expression_rewriter.rewrite(inner)?),
         };
-        Ok(expr_builder
-            .with_encoding(expression, EncodingName::Sortable)?
+        Ok(expr_builder_root
+            .create_builder(expression)
+            .with_encoding(EncodingName::Sortable)?
+            .build()?
             .sort(asc, true))
     }
 
@@ -269,9 +272,9 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &AggregateExpression,
     ) -> DFResult<Expr> {
-        let expr_builder = RdfFusionExprBuilder::new(schema, self.registry.as_ref());
+        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema);
         let expression_rewriter =
-            ExpressionRewriter::new(self, self.base_iri.as_ref(), expr_builder);
+            ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
         match expression {
             AggregateExpression::CountSolutions { distinct } => match distinct {
                 false => Ok(count(Expr::Literal(COUNT_STAR_EXPANSION))),
@@ -299,21 +302,24 @@ impl GraphPatternRewriter {
                 distinct,
             } => {
                 let expr = expression_rewriter.rewrite(expr)?;
-                let expr = expr_builder.with_encoding(expr, EncodingName::TypedValue)?;
-                match name {
-                    AggregateFunction::Avg => expr_builder.avg(expr, *distinct),
-                    AggregateFunction::Count => expr_builder.count(expr, *distinct),
-                    AggregateFunction::Max => expr_builder.max(expr),
-                    AggregateFunction::Min => expr_builder.min(expr),
-                    AggregateFunction::Sample => expr_builder.sample(expr),
-                    AggregateFunction::Sum => expr_builder.sum(expr, *distinct),
+                let expr = expr_builder_root
+                    .create_builder(expr)
+                    .with_encoding(EncodingName::TypedValue)?;
+                Ok(match name {
+                    AggregateFunction::Avg => expr.avg(*distinct),
+                    AggregateFunction::Count => expr.count(*distinct),
+                    AggregateFunction::Max => expr.max(),
+                    AggregateFunction::Min => expr.min(),
+                    AggregateFunction::Sample => expr.sample(),
+                    AggregateFunction::Sum => expr.sum(*distinct),
                     AggregateFunction::GroupConcat { separator } => {
-                        expr_builder.group_concat(expr, *distinct, separator.as_deref())
+                        expr.group_concat(*distinct, separator.as_deref())
                     }
                     AggregateFunction::Custom(name) => {
                         plan_err!("Unsupported custom aggregate function: {name}")
                     }
-                }
+                }?
+                .build_any())
             }
         }
     }
@@ -399,14 +405,15 @@ fn ensure_all_columns_are_rdf_terms(
         .map(|f| {
             let column = Expr::from(Column::new_unqualified(f.name().as_str()));
             let encoding = EncodingName::try_from_data_type(f.data_type());
-            if matches!(encoding, Some(EncodingName::TypedValue) | Some(EncodingName::PlainTerm)) {
+            if matches!(
+                encoding,
+                Some(EncodingName::TypedValue) | Some(EncodingName::PlainTerm)
+            ) {
                 Ok(column)
             } else {
-                let expr_builder = inner.expr_builder();
+                let expr_builder = inner.expr_builder(column);
                 match f.data_type() {
-                    DataType::Int64 => {
-                        Ok(expr_builder.native_int64_as_term(column)?.alias(f.name()))
-                    }
+                    DataType::Int64 => Ok(expr_builder.native_int64_as_term()?.alias(f.name())),
                     other => plan_err!("Unsupported data type {:?}", other),
                 }
             }

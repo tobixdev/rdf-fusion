@@ -1,5 +1,5 @@
 use crate::minus::MinusNode;
-use crate::RdfFusionExprBuilder;
+use crate::RdfFusionExprBuilderRoot;
 use crate::{check_same_schema, DFResult};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, DFSchemaRef, JoinType};
@@ -97,16 +97,16 @@ impl MinusLoweringRule {
     ) -> DFResult<Option<Expr>> {
         let mut join_schema = lhs_schema.as_ref().clone();
         join_schema.merge(rhs_schema);
+        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
 
-        let expr_builder = RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
         let mut join_filters = Vec::new();
 
         // Filter based on the overlapping keys.
         for k in overlapping_keys {
-            let expr = expr_builder.is_compatible(
-                Expr::from(Column::new(Some("lhs"), k)),
-                Expr::from(Column::new(Some("rhs"), k)),
-            )?;
+            let expr = expr_builder_root
+                .create_builder(Expr::from(Column::new(Some("lhs"), k)))
+                .is_compatible(Expr::from(Column::new(Some("rhs"), k)))?
+                .build_boolean()?;
             join_filters.push(expr);
         }
 

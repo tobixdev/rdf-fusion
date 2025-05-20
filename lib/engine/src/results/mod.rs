@@ -4,8 +4,8 @@ use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 use datafusion::physical_plan::memory::MemoryStream;
 use futures::StreamExt;
-use rdf_fusion_model::{Variable, VariableRef};
 use oxrdfio::{RdfFormat, RdfSerializer};
+use rdf_fusion_model::{Variable, VariableRef};
 use sparesults::{
     QueryResultsFormat, QueryResultsParseError, QueryResultsParser, QueryResultsSerializer,
     ReaderQueryResultsParserOutput,
@@ -21,10 +21,10 @@ mod triples;
 
 use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
-use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
-use rdf_fusion_encoding::TermEncoding;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
+use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use rdf_fusion_encoding::TermEncoding;
 pub use sparesults::QuerySolution;
 pub use triples::QueryTripleStream;
 

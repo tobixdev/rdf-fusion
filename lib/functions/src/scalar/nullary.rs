@@ -1,23 +1,22 @@
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::exec_err;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use rdf_fusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
 use rdf_fusion_functions_scalar::{NullarySparqlOp, SparqlOpVolatility};
 use std::any::Any;
-use datafusion::common::exec_err;
 
 #[macro_export]
 macro_rules! impl_nullary_op {
     ($ENCODING: ty, $ENCODER: ty, $FUNCTION_NAME:ident, $SPARQL_OP:ty, $NAME: expr) => {
         pub fn $FUNCTION_NAME() -> std::sync::Arc<datafusion::logical_expr::ScalarUDF> {
             let op = <$SPARQL_OP>::new();
-            let udf_impl = crate::scalar::nullary::NullaryScalarUdfOp::<
-                $SPARQL_OP,
-                $ENCODING,
-                $ENCODER,
-            >::new($NAME, op);
+            let udf_impl =
+                crate::scalar::nullary::NullaryScalarUdfOp::<$SPARQL_OP, $ENCODING, $ENCODER>::new(
+                    $NAME, op,
+                );
             let udf = datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl);
             std::sync::Arc::new(udf)
         }
@@ -87,7 +86,7 @@ where
         args: ScalarFunctionArgs<'_>,
     ) -> datafusion::common::Result<ColumnarValue> {
         if args.args.len() != 0 {
-            return exec_err!("Nullary function must have no arguments.")
+            return exec_err!("Nullary function must have no arguments.");
         }
 
         let results = (0..args.number_rows).map(|_| self.op.evaluate());

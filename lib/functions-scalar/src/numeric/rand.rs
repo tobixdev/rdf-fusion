@@ -1,6 +1,6 @@
 use crate::{NullarySparqlOp, SparqlOp, ThinResult};
-use rdf_fusion_model::Double;
 use rand::random;
+use rdf_fusion_model::Double;
 
 #[derive(Debug)]
 pub struct RandSparqlOp;

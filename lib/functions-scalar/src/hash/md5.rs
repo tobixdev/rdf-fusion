@@ -1,6 +1,6 @@
 use crate::{SparqlOp, ThinResult, UnarySparqlOp};
-use rdf_fusion_model::{OwnedStringLiteral, SimpleLiteralRef};
 use md5::{Digest, Md5};
+use rdf_fusion_model::{OwnedStringLiteral, SimpleLiteralRef};
 
 #[derive(Debug)]
 pub struct Md5SparqlOp;

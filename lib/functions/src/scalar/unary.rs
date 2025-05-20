@@ -20,9 +20,7 @@ macro_rules! impl_unary_sparql_op {
                 $DECODER,
                 $ENCODER,
             >::new($NAME, op);
-            std::sync::Arc::new(
-                datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl),
-            )
+            std::sync::Arc::new(datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl))
         }
     };
 }

@@ -2,14 +2,14 @@ use crate::error::RdfFusionServerError;
 use crate::AppState;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use rdf_fusion::io::RdfFormat;
-use rdf_fusion::results::QueryResultsFormat;
 use headers::HeaderMapExt;
 use headers_accept::Accept;
 use mediatype::names::{
     APPLICATION, CSV, JSON, N3, N_QUADS, N_TRIPLES, PLAIN, TEXT, TRIG, TURTLE, XML,
 };
 use mediatype::{MediaType, Name};
+use rdf_fusion::io::RdfFormat;
+use rdf_fusion::results::QueryResultsFormat;
 
 /// Handles the content-negotiation for requests that return RDF data.
 impl FromRequestParts<AppState> for RdfFormat {

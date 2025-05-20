@@ -33,6 +33,7 @@
 use crate::error::{LoaderError, SerializerError};
 use crate::sparql::error::QueryEvaluationError;
 use futures::StreamExt;
+use oxrdfio::{RdfParser, RdfSerializer};
 use rdf_fusion_engine::error::StorageError;
 use rdf_fusion_engine::results::{QuadStream, QuerySolutionStream};
 use rdf_fusion_engine::sparql::{
@@ -44,7 +45,6 @@ use rdf_fusion_model::{
     TermRef, Variable,
 };
 use rdf_fusion_storage::MemoryQuadStorage;
-use oxrdfio::{RdfParser, RdfSerializer};
 use std::io::{Read, Write};
 use std::sync::{Arc, LazyLock};
 

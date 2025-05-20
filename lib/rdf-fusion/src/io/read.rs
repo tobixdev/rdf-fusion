@@ -3,9 +3,9 @@
 //! Utilities to read RDF graphs and datasets.
 
 use crate::io::{DatasetFormat, GraphFormat};
+use oxrdfio::{RdfParseError, RdfParser, ReaderQuadParser};
 use rdf_fusion_model::IriParseError;
 use rdf_fusion_model::{Quad, Triple};
-use oxrdfio::{RdfParseError, RdfParser, ReaderQuadParser};
 use std::io::Read;
 
 /// Parsers for RDF graph serialization formats.

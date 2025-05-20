@@ -24,9 +24,7 @@ impl IntoResponse for RdfFusionServerError {
                 StatusCode::FORBIDDEN,
                 "Server is in read-only mode".to_owned(),
             ),
-            RdfFusionServerError::Internal(e) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-            }
+            RdfFusionServerError::Internal(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
         };
 
         (status, message).into_response()

@@ -12,8 +12,8 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_functions_scalar::{
     AddSparqlOp, ContainsSparqlOp, DivSparqlOp, EqTypedValueSparqlOp, GreaterOrEqualSparqlOp,
     GreaterThanSparqlOp, LangMatchesSparqlOp, LessOrEqualSparqlOp, LessThanSparqlOp, MulSparqlOp,
-    RegexSparqlOp, SameTermSparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrDtSparqlOp,
-    StrEndsSparqlOp, StrLangSparqlOp, StrStartsSparqlOp, SubSparqlOp, SubStrSparqlOp,
+    RegexSparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrDtSparqlOp, StrEndsSparqlOp,
+    StrLangSparqlOp, StrStartsSparqlOp, SubSparqlOp, SubStrSparqlOp,
 };
 
 // Comparisons

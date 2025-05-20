@@ -43,7 +43,7 @@ impl_unary_sparql_op!(
     DateTimeTermValueEncoder,
     as_date_time_typed_value,
     AsDateTimeSparqlOp,
-    FunctionName::Builtin(BuiltinName::AsDateTime)
+    FunctionName::Builtin(BuiltinName::CastDateTime)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
@@ -51,7 +51,7 @@ impl_unary_sparql_op!(
     DecimalTermValueEncoder,
     as_decimal_typed_value,
     AsDecimalSparqlOp,
-    FunctionName::Builtin(BuiltinName::AsDecimal)
+    FunctionName::Builtin(BuiltinName::CastDecimal)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
@@ -59,7 +59,7 @@ impl_unary_sparql_op!(
     DoubleTermValueEncoder,
     as_double_typed_value,
     AsDoubleSparqlOp,
-    FunctionName::Builtin(BuiltinName::AsDouble)
+    FunctionName::Builtin(BuiltinName::CastDouble)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
@@ -67,7 +67,7 @@ impl_unary_sparql_op!(
     FloatTermValueEncoder,
     as_float_typed_value,
     AsFloatSparqlOp,
-    FunctionName::Builtin(BuiltinName::AsFloat)
+    FunctionName::Builtin(BuiltinName::CastFloat)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
@@ -83,7 +83,7 @@ impl_unary_sparql_op!(
     IntegerTermValueEncoder,
     as_integer_typed_value,
     AsIntegerSparqlOp,
-    FunctionName::Builtin(BuiltinName::AsInteger)
+    FunctionName::Builtin(BuiltinName::CastInteger)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,
@@ -91,7 +91,7 @@ impl_unary_sparql_op!(
     OwnedStringLiteralTermValueEncoder,
     as_string_typed_value,
     AsStringSparqlOp,
-    FunctionName::Builtin(BuiltinName::AsString)
+    FunctionName::Builtin(BuiltinName::CastString)
 );
 
 // Dates and Times

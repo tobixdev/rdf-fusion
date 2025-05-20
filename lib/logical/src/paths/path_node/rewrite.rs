@@ -1,10 +1,9 @@
-use crate::expr_builder::RdfFusionExprBuilder;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
-use crate::paths::{
-    PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET,
-};
+use crate::paths::{PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET};
 use crate::patterns::PatternNode;
-use crate::{check_same_schema, ActiveGraph, DFResult, RdfFusionLogicalPlanBuilder};
+use crate::{
+    check_same_schema, ActiveGraph, DFResult, RdfFusionExprBuilderRoot, RdfFusionLogicalPlanBuilder,
+};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, JoinType};
 use datafusion::logical_expr::{
@@ -115,10 +114,10 @@ impl PropertyPathLoweringRule {
         inf: &PropertyPathLoweringInformation,
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
-        let expr_builder =
-            RdfFusionExprBuilder::new(&DEFAULT_QUAD_DFSCHEMA, self.registry.as_ref());
-        let filter =
-            expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(node.as_ref()))?;
+        let filter = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &DEFAULT_QUAD_DFSCHEMA)
+            .create_builder(col(COL_PREDICATE))
+            .filter_by_scalar(TermRef::from(node.as_ref()))?
+            .build_boolean()?;
         self.scan_quads(&inf.active_graph, Some(filter))
     }
 
@@ -129,11 +128,18 @@ impl PropertyPathLoweringRule {
         inf: &PropertyPathLoweringInformation,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
-        let expr_builder =
-            RdfFusionExprBuilder::new(&DEFAULT_QUAD_DFSCHEMA, self.registry.as_ref());
+        let predicate_builder =
+            RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &DEFAULT_QUAD_DFSCHEMA)
+                .create_builder(col(COL_PREDICATE));
+
         let test_expressions = nodes
             .iter()
-            .map(|nn| expr_builder.filter_by_scalar(col(COL_PREDICATE), TermRef::from(nn.as_ref())))
+            .map(|nn| {
+                predicate_builder
+                    .clone()
+                    .filter_by_scalar(TermRef::from(nn.as_ref()))?
+                    .build_boolean()
+            })
             .collect::<DFResult<Vec<Expr>>>()?;
         let test_expression =
             test_expressions
@@ -252,20 +258,20 @@ impl PropertyPathLoweringRule {
         let rhs = rhs.alias("rhs")?;
 
         let join_schema = lhs.schema().join(&rhs.schema())?;
+        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
 
-        let expr_builder = RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
-        let path_join_expr = expr_builder.is_compatible(
-            Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)),
-            Expr::from(Column::new(Some("rhs"), COL_PATH_SOURCE)),
-        )?;
+        let path_join_expr = expr_builder_root
+            .create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)))
+            .is_compatible(Expr::from(Column::new(Some("rhs"), COL_PATH_SOURCE)))?
+            .build_boolean()?;
         let mut on_exprs = vec![path_join_expr];
 
         if inf.disallow_cross_graph_paths {
-            let graph_expr = expr_builder.same_term(
-                Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)),
-                Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)),
-            )?;
-            on_exprs.push(graph_expr)
+            let path_join_expr = expr_builder_root
+                .create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)))
+                .same_term(Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)))?
+                .build_boolean()?;
+            on_exprs.push(path_join_expr)
         }
         let filter = on_exprs
             .into_iter()

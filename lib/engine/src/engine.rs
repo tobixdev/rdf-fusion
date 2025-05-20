@@ -18,9 +18,7 @@ use rdf_fusion_logical::paths::PropertyPathLoweringRule;
 use rdf_fusion_logical::patterns::PatternLoweringRule;
 use rdf_fusion_logical::quads::QuadsLoweringRule;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilder};
-use rdf_fusion_model::{
-    GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef,
-};
+use rdf_fusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
 
 /// Represents an instance of a RdfFusion engine.

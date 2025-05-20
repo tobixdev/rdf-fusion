@@ -1,5 +1,5 @@
 use crate::join::{SparqlJoinNode, SparqlJoinType};
-use crate::RdfFusionExprBuilder;
+use crate::RdfFusionExprBuilderRoot;
 use crate::{check_same_schema, DFResult};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{Column, JoinType};
@@ -76,13 +76,13 @@ impl SparqlJoinLoweringRule {
 
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
+        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
 
-        let expr_builder = RdfFusionExprBuilder::new(&join_schema, self.registry.as_ref());
         let projections = node
             .schema()
             .columns()
             .into_iter()
-            .map(|c| value_from_joined(expr_builder, &lhs_keys, &rhs_keys, c.name()))
+            .map(|c| value_from_joined(expr_builder_root, &lhs_keys, &rhs_keys, c.name()))
             .collect::<DFResult<Vec<_>>>()?;
 
         // If both solutions are disjoint, use cross join.
@@ -93,10 +93,10 @@ impl SparqlJoinLoweringRule {
         let mut join_filters = lhs_keys
             .intersection(&rhs_keys)
             .map(|k| {
-                expr_builder.is_compatible(
-                    Expr::from(Column::new(Some("lhs"), k)),
-                    Expr::from(Column::new(Some("rhs"), k)),
-                )
+                expr_builder_root
+                    .create_builder(Expr::from(Column::new(Some("lhs"), k)))
+                    .is_compatible(Expr::from(Column::new(Some("rhs"), k)))?
+                    .build_boolean()
             })
             .collect::<DFResult<Vec<_>>>()?;
 
@@ -105,7 +105,7 @@ impl SparqlJoinLoweringRule {
                 .transform(|e| {
                     Ok(match e {
                         Expr::Column(c) => Transformed::yes(value_from_joined(
-                            expr_builder,
+                            expr_builder_root,
                             &lhs_keys,
                             &rhs_keys,
                             c.name(),
@@ -114,7 +114,11 @@ impl SparqlJoinLoweringRule {
                     })
                 })?
                 .data;
-            let filter = expr_builder.effective_boolean_value(filter)?;
+
+            let filter = expr_builder_root
+                .create_builder(filter)
+                .effective_boolean_value()?
+                .build_boolean()?;
             join_filters.push(filter);
         }
         let filter_expr = join_filters.into_iter().reduce(Expr::and);
@@ -137,7 +141,7 @@ impl SparqlJoinLoweringRule {
 /// Returns an expression that obtains value `variable` from either the lhs, the rhs, or both
 /// depending on the schema.
 fn value_from_joined(
-    expr_builder: RdfFusionExprBuilder<'_>,
+    expr_builder_root: RdfFusionExprBuilderRoot<'_>,
     lhs_keys: &HashSet<String>,
     rhs_keys: &HashSet<String>,
     variable: &str,
@@ -146,10 +150,11 @@ fn value_from_joined(
     let rhs_expr = Expr::from(Column::new(Some("rhs"), variable));
 
     let expr = match (lhs_keys.contains(variable), rhs_keys.contains(variable)) {
-        (true, true) => {
-            let coalesce = expr_builder.coalesce(vec![lhs_expr, rhs_expr])?;
-            expr_builder.with_encoding(coalesce, EncodingName::PlainTerm)?
-        }
+        (true, true) => expr_builder_root
+            .create_builder(lhs_expr)
+            .coalesce(vec![rhs_expr])?
+            .with_encoding(EncodingName::PlainTerm)?
+            .build()?,
         (true, false) => lhs_expr,
         (false, true) => rhs_expr,
         (false, false) => unreachable!("At least one of lhs or rhs must contain variable"),

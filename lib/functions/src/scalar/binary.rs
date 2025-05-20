@@ -26,7 +26,7 @@ macro_rules! impl_binary_sparql_op {
             let udf = datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl);
             std::sync::Arc::new(udf)
         }
-    }
+    };
 }
 
 #[derive(Debug)]

@@ -2,17 +2,19 @@ extern crate core;
 
 mod active_graph;
 mod expr_builder;
+mod expr_builder_root;
 pub mod extend;
 pub mod join;
 mod logical_plan_builder;
+pub mod minus;
 pub mod paths;
 pub mod patterns;
 pub mod quads;
-pub mod minus;
 
 pub use active_graph::ActiveGraph;
 use datafusion::common::{plan_err, DFSchema};
 pub use expr_builder::RdfFusionExprBuilder;
+pub use expr_builder_root::RdfFusionExprBuilderRoot;
 pub use logical_plan_builder::RdfFusionLogicalPlanBuilder;
 
 type DFResult<T> = datafusion::error::Result<T>;

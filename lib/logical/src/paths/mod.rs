@@ -3,10 +3,10 @@ mod path_node;
 
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::TermEncoding;
 pub use kleene_plus::*;
 pub use path_node::*;
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::TermEncoding;
 use std::clone::Clone;
 use std::sync::{Arc, LazyLock};
 

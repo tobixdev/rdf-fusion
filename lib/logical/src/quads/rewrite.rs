@@ -3,7 +3,9 @@ use crate::{check_same_schema, DFResult, RdfFusionLogicalPlanBuilder};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::datasource::DefaultTableSource;
-use datafusion::logical_expr::{col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore};
+use datafusion::logical_expr::{
+    col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore,
+};
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
@@ -74,30 +76,35 @@ impl QuadsLoweringRule {
             RdfFusionLogicalPlanBuilder::new(Arc::new(scan.build()?), Arc::clone(&self.registry));
 
         let active_graph_filter = plan
-            .expr_builder()
-            .filter_active_graph(col(COL_GRAPH), node.active_graph())?;
+            .expr_builder(col(COL_GRAPH))
+            .filter_active_graph(node.active_graph())?
+            .map(|expr| expr.build_boolean())
+            .transpose()?;
         if let Some(active_graph_filter) = active_graph_filter {
             plan = plan.filter(active_graph_filter)?;
         }
 
         if let Some(subject) = node.subject() {
             let filter = plan
-                .expr_builder()
-                .filter_by_scalar(col(COL_SUBJECT), TermRef::from(subject.as_ref()))?;
+                .expr_builder(col(COL_SUBJECT))
+                .filter_by_scalar(TermRef::from(subject.as_ref()))?
+                .build_boolean()?;
             plan = plan.filter(filter)?;
         }
 
         if let Some(predicate) = node.predicate() {
             let filter = plan
-                .expr_builder()
-                .filter_by_scalar(col(COL_PREDICATE), TermRef::from(predicate.as_ref()))?;
+                .expr_builder(col(COL_PREDICATE))
+                .filter_by_scalar(TermRef::from(predicate.as_ref()))?
+                .build_boolean()?;
             plan = plan.filter(filter)?;
         }
 
         if let Some(predicate) = node.object() {
             let filter = plan
-                .expr_builder()
-                .filter_by_scalar(col(COL_OBJECT), predicate.as_ref())?;
+                .expr_builder(col(COL_OBJECT))
+                .filter_by_scalar(predicate.as_ref())?
+                .build_boolean()?;
             plan = plan.filter(filter)?;
         }
 

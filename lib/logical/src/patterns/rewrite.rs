@@ -1,8 +1,7 @@
 use crate::expr_builder::RdfFusionExprBuilder;
 use crate::patterns::PatternNode;
-use crate::{check_same_schema, DFResult};
+use crate::{check_same_schema, DFResult, RdfFusionExprBuilderRoot};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::Column;
 use datafusion::logical_expr::{
     and, col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode,
 };
@@ -66,10 +65,10 @@ pub fn compute_filters_for_pattern(
     registry: &dyn RdfFusionFunctionRegistry,
     node: &PatternNode,
 ) -> DFResult<Option<Expr>> {
-    let expr_builder = RdfFusionExprBuilder::new(node.input().schema(), registry);
+    let expr_builder_root = RdfFusionExprBuilderRoot::new(registry, node.input().schema());
     let filters = [
-        filter_by_values(&expr_builder, node.patterns())?,
-        filter_same_variable(&expr_builder, node.patterns())?,
+        filter_by_values(expr_builder_root, node.patterns())?,
+        filter_same_variable(expr_builder_root, node.patterns())?,
     ];
     Ok(filters.into_iter().flatten().reduce(and))
 }
@@ -79,15 +78,18 @@ pub fn compute_filters_for_pattern(
 /// For example, for the pattern `?a foaf:knows ?b` this functions adds a filter that ensures that
 /// the predicate is `foaf:knows`.
 fn filter_by_values(
-    expr_builder: &RdfFusionExprBuilder<'_>,
+    expr_builder_root: RdfFusionExprBuilderRoot<'_>,
     pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
-    let filters = expr_builder
+    let filters = expr_builder_root
         .schema()
         .columns()
         .iter()
         .zip(pattern.iter())
-        .map(|(c, p)| create_filter_expression(expr_builder, c, p.as_ref()))
+        .map(|(c, p)| {
+            let builder = expr_builder_root.create_builder(col(c.clone()));
+            create_filter_expression(builder, p.as_ref())
+        })
         .collect::<DFResult<Vec<_>>>()?;
     Ok(filters.into_iter().flatten().reduce(and))
 }
@@ -98,12 +100,12 @@ fn filter_by_values(
 /// For example, for the pattern `?a ?a ?b` this functions adds a constraint that ensures that the
 /// subject is equal to the predicate.
 fn filter_same_variable(
-    expr_builder: &RdfFusionExprBuilder<'_>,
+    expr_builder_root: RdfFusionExprBuilderRoot<'_>,
     pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
     let mut mappings = HashMap::new();
 
-    let column_patterns = expr_builder
+    let column_patterns = expr_builder_root
         .schema()
         .columns()
         .into_iter()
@@ -124,8 +126,11 @@ fn filter_same_variable(
             .iter()
             .zip(columns.iter().skip(1))
             .map(|(a, b)| {
-                let same_term = expr_builder.same_term(a.clone(), b.clone())?;
-                expr_builder.effective_boolean_value(same_term)
+                expr_builder_root
+                    .create_builder(a.clone())
+                    .same_term(b.clone())?
+                    .effective_boolean_value()?
+                    .build_boolean()
             })
             .collect::<DFResult<Vec<_>>>()?;
 
@@ -170,18 +175,18 @@ fn project_to_variables(
 
 /// Creates an [Expr] that filters `column` based on the contents of this element.
 fn create_filter_expression(
-    expr_builder: &RdfFusionExprBuilder<'_>,
-    column: &Column,
+    expr_builder: RdfFusionExprBuilder<'_>,
     pattern: Option<&TermPattern>,
 ) -> DFResult<Option<Expr>> {
-    let result = match pattern {
-        Some(TermPattern::NamedNode(nn)) => Some(
-            expr_builder.filter_by_scalar(col(column.clone()), Term::from(nn.clone()).as_ref())?,
-        ),
-        Some(TermPattern::Literal(lit)) => Some(
-            expr_builder.filter_by_scalar(col(column.clone()), Term::from(lit.clone()).as_ref())?,
-        ),
+    match pattern {
+        Some(TermPattern::NamedNode(nn)) => {
+            Some(expr_builder.filter_by_scalar(Term::from(nn.clone()).as_ref())?)
+        }
+        Some(TermPattern::Literal(lit)) => {
+            Some(expr_builder.filter_by_scalar(Term::from(lit.clone()).as_ref())?)
+        }
         _ => None,
-    };
-    Ok(result)
+    }
+    .map(|b| b.build_boolean())
+    .transpose()
 }

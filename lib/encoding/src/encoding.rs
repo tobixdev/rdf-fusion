@@ -166,7 +166,7 @@ pub trait TermDecoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
     /// The creation of the iterator cannot fail by itself, as the invariants of the encodings
     /// should have been checked while creating `array`. However, the iterator may return an error
     /// on every new value. This could be due to the value being incompatible with the decoder.
-    fn decode_terms(array: &TEncoding::Array) -> impl Iterator<Item=ThinResult<Self::Term<'_>>>;
+    fn decode_terms(array: &TEncoding::Array) -> impl Iterator<Item = ThinResult<Self::Term<'_>>>;
 
     /// Allows extracting an iterator over all RDF terms in `array` that are _compatible_ with this
     /// decoder (see [TermDecoder] for more information).
