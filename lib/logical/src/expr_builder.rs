@@ -2,7 +2,6 @@ use crate::{ActiveGraph, DFResult};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_distinct};
-use datafusion::functions_window::expr_fn::first_value;
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable};
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
@@ -16,6 +15,7 @@ use rdf_fusion_model::{GraphName, Iri, Literal, Term, TermRef, ThinError, Variab
 use spargebra::term::NamedNode;
 use std::collections::HashMap;
 use std::ops::Not;
+use datafusion::functions_aggregate::first_last::first_value;
 
 /// A builder for expressions that make use of RdfFusion built-ins.
 ///
@@ -112,7 +112,7 @@ impl<'a> RdfFusionExprBuilder<'a> {
 
     /// Creates a new aggregate expression that returns any value of the inner expression.
     pub fn sample(&self, expr: Expr) -> DFResult<Expr> {
-        Ok(first_value(expr))
+        Ok(first_value(expr, None))
     }
 
     /// Creates a new aggregate expression that computes the sum of the inner expression.

@@ -20,17 +20,23 @@ use spargebra::term::NamedNodePattern;
 use std::cell::RefCell;
 use std::sync::Arc;
 
+/// TODO
 pub struct GraphPatternRewriter {
+    /// TODO
     registry: RdfFusionFunctionRegistryRef,
+    /// TODO
     dataset: QueryDataset,
+    /// TODO
     base_iri: Option<Iri<String>>,
+    /// TODO
     state: RefCell<RewritingState>,
 }
 
 impl GraphPatternRewriter {
+    /// TODO
     pub fn new(
         registry: RdfFusionFunctionRegistryRef,
-        dataset: QueryDataset,
+        dataset: QueryDataset, // TODO: Moving dataset and base_iri to rewrite allows reusing
         base_iri: Option<Iri<String>>,
     ) -> Self {
         let active_graph = compute_default_active_graph(&dataset);
@@ -43,11 +49,13 @@ impl GraphPatternRewriter {
         }
     }
 
+    /// TODO
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
         let plan = self.rewrite_graph_pattern(pattern)?;
         plan.with_plain_terms()?.build()
     }
 
+    /// TODO
     fn rewrite_graph_pattern(
         &self,
         pattern: &GraphPattern,
@@ -390,7 +398,8 @@ fn ensure_all_columns_are_rdf_terms(
         .into_iter()
         .map(|f| {
             let column = Expr::from(Column::new_unqualified(f.name().as_str()));
-            if f.data_type() == &TypedValueEncoding::data_type() {
+            let encoding = EncodingName::try_from_data_type(f.data_type());
+            if matches!(encoding, Some(EncodingName::TypedValue) | Some(EncodingName::PlainTerm)) {
                 Ok(column)
             } else {
                 let expr_builder = inner.expr_builder();
