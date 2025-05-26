@@ -5,7 +5,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
-use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
+use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, SortExpr};
 use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use rdf_fusion_logical::join::SparqlJoinType;
@@ -92,7 +92,7 @@ impl GraphPatternRewriter {
             }
             GraphPattern::Filter { inner, expr } => {
                 let inner = self.rewrite_graph_pattern(inner.as_ref())?;
-                let expr = self.rewrite_expression(inner.schema(), expr)?;
+                let expr = self.rewrite_to_boolean_expression(inner.schema(), expr)?;
                 inner.filter(expr)
             }
             GraphPattern::Extend {
@@ -130,7 +130,7 @@ impl GraphPatternRewriter {
 
                 let filter = expression
                     .as_ref()
-                    .map(|f| self.rewrite_expression(&join_schema, f))
+                    .map(|f| self.rewrite_to_boolean_expression(&join_schema, f))
                     .transpose()?;
 
                 lhs.join(rhs.build()?, SparqlJoinType::Left, filter)
@@ -246,6 +246,18 @@ impl GraphPatternRewriter {
         expression_rewriter.rewrite(expression)
     }
 
+    /// Rewrites an [Expression].
+    fn rewrite_to_boolean_expression(
+        &self,
+        schema: &DFSchema,
+        expression: &Expression,
+    ) -> DFResult<Expr> {
+        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema);
+        let expression_rewriter =
+            ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
+        expression_rewriter.rewrite_to_boolean(expression)
+    }
+
     /// Rewrites an [OrderExpression].
     fn rewrite_order_expression(
         &self,
@@ -260,7 +272,7 @@ impl GraphPatternRewriter {
             OrderExpression::Desc(inner) => (false, expression_rewriter.rewrite(inner)?),
         };
         Ok(expr_builder_root
-            .create_builder(expression)
+            .try_create_builder(expression)
             .with_encoding(EncodingName::Sortable)?
             .build()?
             .sort(asc, true))
@@ -303,7 +315,7 @@ impl GraphPatternRewriter {
             } => {
                 let expr = expression_rewriter.rewrite(expr)?;
                 let expr = expr_builder_root
-                    .create_builder(expr)
+                    .try_create_builder(expr)
                     .with_encoding(EncodingName::TypedValue)?;
                 Ok(match name {
                     AggregateFunction::Avg => expr.avg(*distinct),

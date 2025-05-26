@@ -115,8 +115,8 @@ impl PropertyPathLoweringRule {
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
         let filter = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &DEFAULT_QUAD_DFSCHEMA)
-            .create_builder(col(COL_PREDICATE))
-            .filter_by_scalar(TermRef::from(node.as_ref()))?
+            .try_create_builder(col(COL_PREDICATE))
+            .same_term_scalar(TermRef::from(node.as_ref()))?
             .build_boolean()?;
         self.scan_quads(&inf.active_graph, Some(filter))
     }
@@ -130,14 +130,14 @@ impl PropertyPathLoweringRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let predicate_builder =
             RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &DEFAULT_QUAD_DFSCHEMA)
-                .create_builder(col(COL_PREDICATE));
+                .try_create_builder(col(COL_PREDICATE));
 
         let test_expressions = nodes
             .iter()
             .map(|nn| {
                 predicate_builder
                     .clone()
-                    .filter_by_scalar(TermRef::from(nn.as_ref()))?
+                    .same_term_scalar(TermRef::from(nn.as_ref()))?
                     .build_boolean()
             })
             .collect::<DFResult<Vec<Expr>>>()?;
@@ -261,15 +261,16 @@ impl PropertyPathLoweringRule {
         let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
 
         let path_join_expr = expr_builder_root
-            .create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)))
+            .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)))
             .is_compatible(Expr::from(Column::new(Some("rhs"), COL_PATH_SOURCE)))?
             .build_boolean()?;
         let mut on_exprs = vec![path_join_expr];
 
         if inf.disallow_cross_graph_paths {
             let path_join_expr = expr_builder_root
-                .create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)))
+                .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)))
                 .same_term(Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)))?
+                .effective_boolean_value()?
                 .build_boolean()?;
             on_exprs.push(path_join_expr)
         }

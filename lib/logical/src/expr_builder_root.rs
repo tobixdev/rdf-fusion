@@ -1,5 +1,5 @@
 use crate::{DFResult, RdfFusionExprBuilder};
-use datafusion::common::{Column, DFSchema};
+use datafusion::common::{plan_err, Column, DFSchema};
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::{lit, Expr, ScalarUDF};
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
@@ -8,8 +8,7 @@ use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncodin
 use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
 use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
-use rdf_fusion_model::{Term, TermRef, ThinError, VariableRef};
-use std::collections::HashMap;
+use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::sync::Arc;
 
 /// TODO
@@ -38,8 +37,8 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     }
 
     /// TODO
-    pub fn create_builder(&self, expr: Expr) -> RdfFusionExprBuilder<'root> {
-        RdfFusionExprBuilder::new_from_root(*self, expr)
+    pub fn try_create_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'root>> {
+        RdfFusionExprBuilder::try_new_from_root(*self, expr)
     }
 
     /// Creates a new expression that evaluates to the first argument that does not produce an
@@ -54,19 +53,19 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     /// TODO
     pub fn bnode(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf(BuiltinName::BNode)?;
-        Ok(self.create_builder(udf.call(vec![])))
+        self.try_create_builder(udf.call(vec![]))
     }
 
     /// TODO
     pub fn uuid(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf(BuiltinName::Uuid)?;
-        Ok(self.create_builder(udf.call(vec![])))
+        self.try_create_builder(udf.call(vec![]))
     }
 
     /// TODO
     pub fn str_uuid(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf(BuiltinName::StrUuid)?;
-        Ok(self.create_builder(udf.call(vec![])))
+        self.try_create_builder(udf.call(vec![]))
     }
 
     /// TODO
@@ -82,7 +81,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     /// - [SPARQL 1.1 - Rand](https://www.w3.org/TR/sparql11-query/#idp2130040)
     pub fn rand(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf(BuiltinName::Rand)?;
-        Ok(self.create_builder(udf.call(vec![])))
+        self.try_create_builder(udf.call(vec![]))
     }
 
     /// TODO
@@ -94,7 +93,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
             let null = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
             lit(null.into_scalar_value())
         };
-        Ok(self.create_builder(expr))
+        Ok(self.try_create_builder(expr))
     }
 
     /// TODO
@@ -103,13 +102,13 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         term: impl Into<TermRef<'lit>>,
     ) -> DFResult<RdfFusionExprBuilder<'root>> {
         let scalar = DefaultPlainTermEncoder::encode_term(Ok(term.into()))?;
-        Ok(self.create_builder(lit(scalar.into_scalar_value())))
+        self.try_create_builder(lit(scalar.into_scalar_value()))
     }
 
     /// TODO
     pub fn null_literal(&'root self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let scalar = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
-        Ok(self.create_builder(lit(scalar.into_scalar_value())))
+        self.try_create_builder(lit(scalar.into_scalar_value()))
     }
 
     //
@@ -129,7 +128,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
 
         // Currently, UDAFs are only supported for typed values
         let arg = self
-            .create_builder(arg)
+            .try_create_builder(arg)?
             .with_encoding(EncodingName::TypedValue)?
             .build()?;
         let expr = Expr::AggregateFunction(AggregateFunction::new_udf(
@@ -140,7 +139,8 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
             None,
             None,
         ));
-        Ok(self.create_builder(expr))
+
+        self.try_create_builder(expr)
     }
 
     /// TODO
@@ -164,10 +164,14 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         let target_encoding = TypedValueEncoding::name();
         let args = args
             .into_iter()
-            .map(|expr| self.create_builder(expr))
-            .map(|e| e.with_encoding(target_encoding)?.build())
+            .map(|expr| {
+                self.try_create_builder(expr)?
+                    .with_encoding(target_encoding)?
+                    .build()
+            })
             .collect::<DFResult<Vec<_>>>()?;
-        Ok(self.create_builder(udf.call(args)))
+
+        self.try_create_builder(udf.call(args))
     }
 
     //

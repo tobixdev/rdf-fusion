@@ -25,9 +25,9 @@ use crate::scalar::typed_value::{
     round_typed_value, seconds_typed_value, sha1_typed_value, sha256_typed_value,
     sha384_typed_value, sha512_typed_value, str_after_typed_value, str_before_typed_value,
     str_dt_typed_value, str_ends_typed_value, str_lang_typed_value, str_len_typed_value,
-    str_starts_typed_value, str_uuid_typed_value, sub_str_ternary_typed_value, sub_typed_value,
-    timezone_typed_value, tz_typed_value, ucase_typed_value, unary_minus_typed_value,
-    unary_plus_typed_value, uuid_typed_value, year_typed_value,
+    str_starts_typed_value, str_uuid_typed_value, sub_typed_value, timezone_typed_value,
+    tz_typed_value, ucase_typed_value, unary_minus_typed_value, unary_plus_typed_value,
+    uuid_typed_value, year_typed_value,
 };
 use crate::scalar::{bnode, regex, str, sub_str};
 use crate::{DFResult, FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};

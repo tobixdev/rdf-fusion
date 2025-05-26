@@ -1,10 +1,14 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::DFResult;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{internal_err, plan_datafusion_err, plan_err, Column, Spans};
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
-use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
+use datafusion::logical_expr::{
+    lit, or, Expr, ExprSchemable, LogicalPlanBuilder, Operator, Subquery,
+};
 use datafusion::prelude::{and, exists};
+use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::Iri;
@@ -34,10 +38,19 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         }
     }
 
-    /// Rewrites an [Expression].
+    /// Rewrites an [Expression] to an [Expr] that computes an RDF term.
     pub fn rewrite(&self, expression: &Expression) -> DFResult<Expr> {
-        // TODO: try to move this to an API where the user must assert / rewrite_boolean, etc.
-        Ok(self.rewrite_internal(expression)?.build_any())
+        self.rewrite_internal(expression)?.build()
+    }
+
+    /// Rewrites an [Expression] to an [Expr] that computes a native Boolean.
+    pub fn rewrite_to_boolean(&self, expression: &Expression) -> DFResult<Expr> {
+        let expr = self.rewrite_internal(expression)?;
+        if expr.evaluates_to_boolean()? {
+            return expr.build();
+        }
+
+        expr.build_effective_boolean_value()?.build_boolean()
     }
 
     fn rewrite_internal(
@@ -53,7 +66,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                 .rewrite_internal(lhs)?
                 .rdf_term_equal(self.rewrite(rhs)?),
             Expression::SameTerm(lhs, rhs) => {
-                self.rewrite_internal(lhs)?.same_term(self.rewrite(rhs)?)
+                self.rewrite_internal(lhs)?.build_same_term(self.rewrite(rhs)?)
             }
             Expression::Greater(lhs, rhs) => {
                 self.rewrite_internal(lhs)?.greater_than(self.rewrite(rhs)?)
@@ -284,6 +297,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .map(|e| {
                 lhs.clone()
                     .rdf_term_equal(self.rewrite(e)?)?
+                    .build_effective_boolean_value()?
                     .build_boolean()
             })
             .collect::<DFResult<Vec<_>>>()?;
@@ -348,7 +362,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                     .map_err(|_| plan_datafusion_err!("Could not find column {} in schema.", k))?
                     .data_type();
                 exists_expr_builder_root
-                    .create_builder(Expr::OuterReferenceColumn(
+                    .try_create_builder(Expr::OuterReferenceColumn(
                         data_type.clone(),
                         Column::new_unqualified(k),
                     ))
@@ -384,10 +398,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         lhs: &Expression,
         rhs: &Expression,
     ) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
-        let lhs = self.rewrite_internal(lhs)?.effective_boolean_value()?;
+        let lhs = self.rewrite_internal(lhs)?.build_effective_boolean_value()?;
         let rhs = self
             .rewrite_internal(rhs)?
-            .effective_boolean_value()?
+            .build_effective_boolean_value()?
             .build_boolean()?;
 
         let result = match operator {
@@ -400,7 +414,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
 
     /// TODO
     fn expr_builder(&self, expr: Expr) -> RdfFusionExprBuilder<'rewriter> {
-        self.expr_builder_root.create_builder(expr)
+        self.expr_builder_root.try_create_builder(expr)
     }
 
     /// TODO

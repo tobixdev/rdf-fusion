@@ -11,9 +11,7 @@ use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::{
     RdfFusionBuiltinArgNames, RdfFusionFunctionArgs, RdfFusionFunctionArgsBuilder,
 };
-use rdf_fusion_model::{GraphName, Iri, Literal, Term, TermRef};
-use spargebra::term::NamedNode;
-use std::collections::HashMap;
+use rdf_fusion_model::{GraphName, Iri, TermRef};
 
 /// A builder for expressions that make use of RdfFusion built-ins.
 ///
@@ -30,8 +28,12 @@ pub struct RdfFusionExprBuilder<'root> {
 
 impl<'root> RdfFusionExprBuilder<'root> {
     /// Creates a new expression builder.
-    pub fn new_from_root(root: RdfFusionExprBuilderRoot<'root>, expr: Expr) -> Self {
-        Self { root, expr }
+    ///
+    /// Returns an `Err` if the expression does not evaluate to an RDF term.
+    pub fn try_new_from_root(root: RdfFusionExprBuilderRoot<'root>, expr: Expr) -> DFResult<Self> {
+        let result = Self { root, expr };
+        result.encoding()?;
+        Ok(result)
     }
 
     /// Returns the schema of the input data.
@@ -74,14 +76,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
         let root = self.root;
         let udf = root.create_builtin_udf(BuiltinName::And)?;
 
-        let rhs = self
-            .root
-            .create_builder(rhs)
-            .ensure_boolean()?
-            .build_boolean()?;
+        let rhs = self.root.try_create_builder(rhs)?.ensure_boolean()?;
         let lhs = self.ensure_boolean()?.build_boolean()?;
 
-        Ok(root.create_builder(udf.call(vec![lhs, rhs])))
+        Ok(root.try_create_builder(udf.call(vec![lhs, rhs])))
     }
 
     /// TODO
@@ -89,35 +87,15 @@ impl<'root> RdfFusionExprBuilder<'root> {
         let root = self.root;
         let udf = root.create_builtin_udf(BuiltinName::Or)?;
 
-        let rhs = self
-            .root
-            .create_builder(rhs)
-            .ensure_boolean()?
-            .build_boolean()?;
-        let lhs = self.ensure_boolean()?.build_boolean()?;
+        let rhs = self.root.try_create_builder(rhs)?.ensure_boolean()?;
+        let lhs = self.ensure_boolean()?;
 
-        Ok(root.create_builder(udf.call(vec![lhs, rhs])))
+        root.try_create_builder(udf.call(vec![lhs, rhs]))
     }
 
     /// TODO
     pub fn rdf_term_equal(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Equal, vec![rhs])
-    }
-
-    /// TODO
-    pub fn same_term(self, rhs: Expr) -> DFResult<Self> {
-        let args = vec![self.expr.clone(), rhs]
-            .into_iter()
-            .map(|e| {
-                self.root
-                    .create_builder(e)
-                    .with_encoding(EncodingName::PlainTerm)?
-                    .build()
-            })
-            .collect::<DFResult<Vec<_>>>()?;
-
-        let udf = self.root.create_builtin_udf(BuiltinName::SameTerm)?;
-        Ok(self.root.create_builder(udf.call(args)))
     }
 
     // TODO In/Not in
@@ -149,7 +127,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// TODO
     pub fn str(self) -> DFResult<Self> {
         let udf = self.root.create_builtin_udf(BuiltinName::Str)?;
-        Ok(self.root.create_builder(udf.call(vec![self.expr])))
+        self.root.try_create_builder(udf.call(vec![self.expr]))
     }
 
     /// TODO
@@ -518,7 +496,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// Casts the inner expression to an `xsd:boolean`.
     ///
     /// Note that this does _not_ encode the result as a native boolean array. Use
-    /// [Self::effective_boolean_value] for this purpose
+    /// [Self::build_effective_boolean_value] for this purpose
     ///
     /// # Relevant Resources
     /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
@@ -591,10 +569,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// TODO
     pub fn not(self) -> DFResult<Self> {
-        let ebv = self.effective_boolean_value()?;
+        let root = self.root;
+        let ebv = self.build_effective_boolean_value()?;
         let not = Self {
-            expr: Expr::Not(Box::new(ebv.expr)),
-            ..ebv
+            expr: Expr::Not(Box::new(ebv)),
+            root,
         };
         not.native_boolean_as_term()
     }
@@ -604,25 +583,25 @@ impl<'root> RdfFusionExprBuilder<'root> {
     //
 
     /// TODO
-    pub fn effective_boolean_value(self) -> DFResult<Self> {
+    pub fn build_effective_boolean_value(self) -> DFResult<Expr> {
         let name = BuiltinName::EffectiveBooleanValue;
-        self.apply_builtin(name, vec![])
+        self.apply_builtin(name, vec![])?.build_boolean()
     }
 
     /// TODO
-    pub fn is_compatible(self, rhs: Expr) -> DFResult<Self> {
+    pub fn build_is_compatible(self, rhs: Expr) -> DFResult<Self> {
         let root = self.root;
         let udf = root.create_builtin_udf(BuiltinName::IsCompatible)?;
 
         let rhs = self
             .root
-            .create_builder(rhs)
+            .try_create_builder(rhs)?
             .with_encoding(EncodingName::PlainTerm)?
             .build()?;
         let lhs = self.with_encoding(EncodingName::PlainTerm)?.build()?;
 
         // TODO pass encoding into function
-        Ok(root.create_builder(udf.call(vec![lhs, rhs])))
+        root.try_create_builder(udf.call(vec![lhs, rhs]))
     }
 
     //
@@ -638,7 +617,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
             ActiveGraph::Union(named_graphs) => {
                 let filter = named_graphs
                     .iter()
-                    .map(|name| self.clone().filter_graph_name(name))
+                    .map(|name| self.clone().same_term_graph_name(name))
                     .reduce(|a, b| a?.or(b?.build_boolean()?))
                     .unwrap_or(Ok(Self {
                         expr: lit(false),
@@ -653,10 +632,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
     }
 
     /// TODO
-    fn filter_graph_name(self, graph_name: &GraphName) -> DFResult<Self> {
+    fn same_term_graph_name(self, graph_name: &GraphName) -> DFResult<Self> {
         match graph_name {
-            GraphName::NamedNode(nn) => self.filter_by_scalar(nn.into()),
-            GraphName::BlankNode(bnode) => self.filter_by_scalar(bnode.into()),
+            GraphName::NamedNode(nn) => self.same_term_scalar(nn.into()),
+            GraphName::BlankNode(bnode) => self.same_term_scalar(bnode.into()),
             GraphName::DefaultGraph => Ok(Self {
                 expr: self.expr.is_null(),
                 ..self
@@ -665,7 +644,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     }
 
     /// TODO
-    pub fn filter_by_scalar(self, scalar: TermRef<'_>) -> DFResult<Self> {
+    pub fn same_term_scalar(self, scalar: TermRef<'_>) -> DFResult<Self> {
         let encoding_name = self.encoding()?;
         let literal = match encoding_name {
             EncodingName::PlainTerm => {
@@ -678,7 +657,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
                 return plan_err!("Filtering not supported for Sortable encoding.")
             }
         };
-        self.same_term(lit(literal))?.effective_boolean_value()
+        self.build_same_term(lit(literal))
     }
 
     //
@@ -753,8 +732,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
         let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
 
         EncodingName::try_from_data_type(&data_type).ok_or(plan_datafusion_err!(
-            "Expression does not have a valid RDF term encoding: {}",
-            &data_type
+            "Expression does not have a valid RDF term encoding. Data Type: {}, Expression: {}.",
+            &data_type,
+            &self.expr
         ))
     }
 
@@ -857,22 +837,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     ///
     /// If you want to build a boolean expression, see [Self::build_boolean].
     pub fn build(self) -> DFResult<Expr> {
-        if self.encoding().is_err() {
-            return plan_err!("Expression does not have a valid RDF term encoding.");
-        }
-
-        Ok(self.build_any())
-    }
-
-    /// Returns the expression that has been built and checks whether it evaluates to a Boolean.
-    ///
-    /// If you want to build an RDF term expression, see [Self::build].
-    pub fn build_boolean(self) -> DFResult<Expr> {
-        let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
-        if data_type != DataType::Boolean {
-            return plan_err!("Expression must be Boolean.");
-        }
-
+        self.encoding()?;
         Ok(self.build_any())
     }
 
@@ -881,17 +846,47 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self.expr
     }
 
+    /// TODO
+    pub fn build_same_term(self, rhs: Expr) -> DFResult<Expr> {
+        let args = vec![self.expr.clone(), rhs]
+            .into_iter()
+            .map(|e| {
+                self.root
+                    .try_create_builder(e)?
+                    .with_encoding(EncodingName::PlainTerm)?
+                    .build()
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+
+        let udf = self.root.create_builtin_udf(BuiltinName::SameTerm)?;
+        self.root
+            .try_create_builder(udf.call(args))?
+            .build_effective_boolean_value()
+    }
+
+    /// Returns the expression that has been built and checks whether it evaluates to a Boolean.
+    ///
+    /// If you want to build an RDF term expression, see [Self::build].
+    fn build_boolean(self) -> DFResult<Expr> {
+        let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
+        if data_type != DataType::Boolean {
+            return plan_err!("Expression must be Boolean.");
+        }
+
+        Ok(self.build_any())
+    }
+
     //
     // Helper Functions
     //
 
     /// TODO
-    fn ensure_boolean(self) -> DFResult<Self> {
+    fn ensure_boolean(self) -> DFResult<Expr> {
         let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
         if data_type == DataType::Boolean {
-            return Ok(self);
+            return Ok(self.build_boolean()?);
         }
 
-        self.effective_boolean_value()
+        self.build_effective_boolean_value()
     }
 }
