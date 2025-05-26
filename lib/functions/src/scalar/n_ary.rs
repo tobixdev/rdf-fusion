@@ -3,6 +3,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
+use datafusion::sql::sqlparser::keywords::Keyword::TO;
 use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_functions_scalar::NArySparqlOp;
 use rdf_fusion_functions_scalar::SparqlOpVolatility;
@@ -116,6 +117,12 @@ where
     TDecoder: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Args<'a>>,
     TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
 {
+    if args.is_empty() {
+        let results = (0..number_of_rows).map(|_| op.evaluate(&[]));
+        let result = TEncoder::encode_terms(results)?;
+        return Ok(ColumnarValue::Array(result.into_array()));
+    }
+
     let args = args
         .iter()
         .map(|a| TEncoding::try_new_datum(a.clone(), number_of_rows))
