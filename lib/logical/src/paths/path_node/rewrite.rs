@@ -115,9 +115,8 @@ impl PropertyPathLoweringRule {
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
         let filter = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &DEFAULT_QUAD_DFSCHEMA)
-            .try_create_builder(col(COL_PREDICATE))
-            .same_term_scalar(TermRef::from(node.as_ref()))?
-            .build_boolean()?;
+            .try_create_builder(col(COL_PREDICATE))?
+            .build_same_term_scalar(TermRef::from(node.as_ref()))?;
         self.scan_quads(&inf.active_graph, Some(filter))
     }
 
@@ -130,15 +129,14 @@ impl PropertyPathLoweringRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let predicate_builder =
             RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &DEFAULT_QUAD_DFSCHEMA)
-                .try_create_builder(col(COL_PREDICATE));
+                .try_create_builder(col(COL_PREDICATE))?;
 
         let test_expressions = nodes
             .iter()
             .map(|nn| {
                 predicate_builder
                     .clone()
-                    .same_term_scalar(TermRef::from(nn.as_ref()))?
-                    .build_boolean()
+                    .build_same_term_scalar(TermRef::from(nn.as_ref()))
             })
             .collect::<DFResult<Vec<Expr>>>()?;
         let test_expression =
@@ -261,17 +259,14 @@ impl PropertyPathLoweringRule {
         let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
 
         let path_join_expr = expr_builder_root
-            .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)))
-            .is_compatible(Expr::from(Column::new(Some("rhs"), COL_PATH_SOURCE)))?
-            .build_boolean()?;
+            .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)))?
+            .build_is_compatible(Expr::from(Column::new(Some("rhs"), COL_PATH_SOURCE)))?;
         let mut on_exprs = vec![path_join_expr];
 
         if inf.disallow_cross_graph_paths {
             let path_join_expr = expr_builder_root
-                .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)))
-                .same_term(Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)))?
-                .effective_boolean_value()?
-                .build_boolean()?;
+                .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)))?
+                .build_same_term(Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)))?;
             on_exprs.push(path_join_expr)
         }
         let filter = on_exprs

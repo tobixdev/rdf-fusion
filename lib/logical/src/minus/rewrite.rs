@@ -104,9 +104,8 @@ impl MinusLoweringRule {
         // Filter based on the overlapping keys.
         for k in overlapping_keys {
             let expr = expr_builder_root
-                .create_builder(Expr::from(Column::new(Some("lhs"), k)))
-                .is_compatible(Expr::from(Column::new(Some("rhs"), k)))?
-                .build_boolean()?;
+                .try_create_builder(Expr::from(Column::new(Some("lhs"), k)))?
+                .build_is_compatible(Expr::from(Column::new(Some("rhs"), k)))?;
             join_filters.push(expr);
         }
 

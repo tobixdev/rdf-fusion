@@ -1,7 +1,8 @@
 use crate::{DFResult, RdfFusionExprBuilder};
+use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_err, Column, DFSchema};
 use datafusion::logical_expr::expr::AggregateFunction;
-use datafusion::logical_expr::{lit, Expr, ScalarUDF};
+use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
@@ -93,7 +94,8 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
             let null = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
             lit(null.into_scalar_value())
         };
-        Ok(self.try_create_builder(expr))
+
+        self.try_create_builder(expr)
     }
 
     /// TODO
@@ -109,6 +111,78 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     pub fn null_literal(&'root self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let scalar = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
         self.try_create_builder(lit(scalar.into_scalar_value()))
+    }
+
+    //
+    // Native to Term
+    //
+
+    /// TODO
+    pub fn native_int64_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'root>> {
+        let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
+        if data_type != DataType::Int64 {
+            return plan_err!(
+                "Expected Int64 argument for {}, got {}",
+                BuiltinName::NativeInt64AsTerm,
+                data_type
+            );
+        }
+
+        let udf = self.create_builtin_udf(BuiltinName::NativeInt64AsTerm)?;
+        self.try_create_builder(udf.call(vec![expr]))
+    }
+
+    /// TODO
+    pub fn native_boolean_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'root>> {
+        let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
+        if data_type != DataType::Boolean {
+            return plan_err!(
+                "Expected boolean arguments for {}, got {}",
+                BuiltinName::NativeBooleanAsTerm,
+                data_type
+            );
+        }
+
+        let udf = self.create_builtin_udf(BuiltinName::NativeBooleanAsTerm)?;
+        self.try_create_builder(udf.call(vec![expr]))
+    }
+
+    //
+    // Logical
+    //
+
+    /// TODO
+    pub fn sparql_and(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
+        let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
+        let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
+        if lhs_data_type != DataType::Boolean || rhs_data_type != DataType::Boolean {
+            return plan_err!(
+                "Expected boolean arguments for {}, got {} and {}",
+                BuiltinName::And,
+                lhs_data_type,
+                rhs_data_type
+            );
+        }
+
+        let udf = self.create_builtin_udf(BuiltinName::And)?;
+        Ok(udf.call(vec![lhs, rhs]))
+    }
+
+    /// TODO
+    pub fn sparql_or(self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
+        let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
+        let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
+        if lhs_data_type != DataType::Boolean || rhs_data_type != DataType::Boolean {
+            return plan_err!(
+                "Expected boolean arguments for {}, got {} and {}",
+                BuiltinName::Or,
+                lhs_data_type,
+                rhs_data_type
+            );
+        }
+
+        let udf = self.create_builtin_udf(BuiltinName::Or)?;
+        Ok(udf.call(vec![lhs, rhs]))
     }
 
     //

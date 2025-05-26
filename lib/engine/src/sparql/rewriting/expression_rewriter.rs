@@ -1,14 +1,12 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::DFResult;
-use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{internal_err, plan_datafusion_err, plan_err, Column, Spans};
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{
-    lit, or, Expr, ExprSchemable, LogicalPlanBuilder, Operator, Subquery,
+    lit, or, Expr, LogicalPlanBuilder, Operator, Subquery,
 };
 use datafusion::prelude::{and, exists};
-use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::Iri;
@@ -45,12 +43,8 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
 
     /// Rewrites an [Expression] to an [Expr] that computes a native Boolean.
     pub fn rewrite_to_boolean(&self, expression: &Expression) -> DFResult<Expr> {
-        let expr = self.rewrite_internal(expression)?;
-        if expr.evaluates_to_boolean()? {
-            return expr.build();
-        }
-
-        expr.build_effective_boolean_value()?.build_boolean()
+        self.rewrite_internal(expression)?
+            .build_effective_boolean_value()
     }
 
     fn rewrite_internal(
@@ -66,7 +60,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                 .rewrite_internal(lhs)?
                 .rdf_term_equal(self.rewrite(rhs)?),
             Expression::SameTerm(lhs, rhs) => {
-                self.rewrite_internal(lhs)?.build_same_term(self.rewrite(rhs)?)
+                let boolean = self
+                    .rewrite_internal(lhs)?
+                    .build_same_term(self.rewrite(rhs)?)?;
+                self.expr_builder_root.native_boolean_as_term(boolean)
             }
             Expression::Greater(lhs, rhs) => {
                 self.rewrite_internal(lhs)?.greater_than(self.rewrite(rhs)?)
@@ -297,13 +294,12 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .map(|e| {
                 lhs.clone()
                     .rdf_term_equal(self.rewrite(e)?)?
-                    .build_effective_boolean_value()?
-                    .build_boolean()
+                    .build_effective_boolean_value()
             })
             .collect::<DFResult<Vec<_>>>()?;
 
         let result = expressions.into_iter().reduce(or).unwrap_or(lit(false));
-        self.expr_builder(result).native_boolean_as_term()
+        self.expr_builder_root.native_boolean_as_term(result)
     }
 
     /// Rewrites an EXISTS expression to a correlated subquery.
@@ -335,9 +331,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                 outer_ref_columns: vec![],
                 spans: Spans(vec![]),
             };
+
             return self
-                .expr_builder(Expr::ScalarSubquery(subquery).gt(lit(0)))
-                .native_boolean_as_term();
+                .expr_builder_root
+                .native_boolean_as_term(Expr::ScalarSubquery(subquery).gt(lit(0)));
         }
 
         // TODO: Investigate why we need this renaming and cannot refer to the unqualified column
@@ -365,9 +362,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                     .try_create_builder(Expr::OuterReferenceColumn(
                         data_type.clone(),
                         Column::new_unqualified(k),
-                    ))
-                    .is_compatible(Expr::from(Column::new_unqualified(format!("__inner__{k}"))))?
-                    .build_boolean()
+                    ))?
+                    .build_is_compatible(Expr::from(Column::new_unqualified(format!(
+                        "__inner__{k}"
+                    ))))
             })
             .collect::<DFResult<Vec<_>>>()?;
         let compatible_filter = compatible_filters
@@ -376,7 +374,8 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .unwrap_or(lit(true));
 
         let subquery = Arc::new(exists_pattern.filter(compatible_filter)?.build()?);
-        self.expr_builder(exists(subquery)).native_boolean_as_term()
+        self.expr_builder_root
+            .native_boolean_as_term(exists(subquery))
     }
 
     /// Rewrites an IF expression to a case expression.
@@ -398,29 +397,30 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         lhs: &Expression,
         rhs: &Expression,
     ) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
-        let lhs = self.rewrite_internal(lhs)?.build_effective_boolean_value()?;
+        let lhs = self
+            .rewrite_internal(lhs)?
+            .build_effective_boolean_value()?;
         let rhs = self
             .rewrite_internal(rhs)?
-            .build_effective_boolean_value()?
-            .build_boolean()?;
+            .build_effective_boolean_value()?;
 
         let result = match operator {
-            Operator::And => lhs.and(rhs)?,
-            Operator::Or => lhs.or(rhs)?,
+            Operator::And => self.expr_builder_root.sparql_and(lhs, rhs)?,
+            Operator::Or => self.expr_builder_root.sparql_or(lhs, rhs)?,
             _ => return plan_err!("Unsupported logical expression: {}", &operator),
         };
-        result.native_boolean_as_term()
+        self.expr_builder_root.native_boolean_as_term(result)
     }
 
     /// TODO
-    fn expr_builder(&self, expr: Expr) -> RdfFusionExprBuilder<'rewriter> {
+    fn expr_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
         self.expr_builder_root.try_create_builder(expr)
     }
 
     /// TODO
     fn unary_args(&self, args: Vec<Expr>) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
         match TryInto::<[Expr; 1]>::try_into(args) {
-            Ok([expr]) => Ok(self.expr_builder(expr)),
+            Ok([expr]) => Ok(self.expr_builder(expr)?),
             Err(_) => plan_err!("Unsupported argument list for unary function."),
         }
     }
@@ -429,7 +429,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     fn binary_args(&self, args: Vec<Expr>) -> DFResult<(RdfFusionExprBuilder<'rewriter>, Expr)> {
         match TryInto::<[Expr; 2]>::try_into(args) {
             Ok([lhs, rhs]) => {
-                let lhs = self.expr_builder(lhs);
+                let lhs = self.expr_builder(lhs)?;
                 Ok((lhs, rhs))
             }
             Err(_) => plan_err!("Unsupported argument list for unary function."),
@@ -443,7 +443,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     ) -> DFResult<(RdfFusionExprBuilder<'rewriter>, Expr, Expr)> {
         match TryInto::<[Expr; 3]>::try_into(args) {
             Ok([arg0, arg1, arg2]) => {
-                let arg0 = self.expr_builder(arg0);
+                let arg0 = self.expr_builder(arg0)?;
                 Ok((arg0, arg1, arg2))
             }
             Err(_) => plan_err!("Unsupported argument list for unary function."),
@@ -457,7 +457,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     ) -> DFResult<(RdfFusionExprBuilder<'rewriter>, Expr, Expr, Expr)> {
         match TryInto::<[Expr; 4]>::try_into(args) {
             Ok([arg0, arg1, arg2, arg3]) => {
-                let arg0 = self.expr_builder(arg0);
+                let arg0 = self.expr_builder(arg0)?;
                 Ok((arg0, arg1, arg2, arg3))
             }
             Err(_) => plan_err!("Unsupported argument list for unary function."),

@@ -72,28 +72,6 @@ impl<'root> RdfFusionExprBuilder<'root> {
     // TODO exists
 
     /// TODO
-    pub fn and(self: Self, rhs: Expr) -> DFResult<Self> {
-        let root = self.root;
-        let udf = root.create_builtin_udf(BuiltinName::And)?;
-
-        let rhs = self.root.try_create_builder(rhs)?.ensure_boolean()?;
-        let lhs = self.ensure_boolean()?.build_boolean()?;
-
-        Ok(root.try_create_builder(udf.call(vec![lhs, rhs])))
-    }
-
-    /// TODO
-    pub fn or(self, rhs: Expr) -> DFResult<Self> {
-        let root = self.root;
-        let udf = root.create_builtin_udf(BuiltinName::Or)?;
-
-        let rhs = self.root.try_create_builder(rhs)?.ensure_boolean()?;
-        let lhs = self.ensure_boolean()?;
-
-        root.try_create_builder(udf.call(vec![lhs, rhs]))
-    }
-
-    /// TODO
     pub fn rdf_term_equal(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Equal, vec![rhs])
     }
@@ -579,88 +557,6 @@ impl<'root> RdfFusionExprBuilder<'root> {
     }
 
     //
-    // Built-Ins for Query Evaluation
-    //
-
-    /// TODO
-    pub fn build_effective_boolean_value(self) -> DFResult<Expr> {
-        let name = BuiltinName::EffectiveBooleanValue;
-        self.apply_builtin(name, vec![])?.build_boolean()
-    }
-
-    /// TODO
-    pub fn build_is_compatible(self, rhs: Expr) -> DFResult<Self> {
-        let root = self.root;
-        let udf = root.create_builtin_udf(BuiltinName::IsCompatible)?;
-
-        let rhs = self
-            .root
-            .try_create_builder(rhs)?
-            .with_encoding(EncodingName::PlainTerm)?
-            .build()?;
-        let lhs = self.with_encoding(EncodingName::PlainTerm)?.build()?;
-
-        // TODO pass encoding into function
-        root.try_create_builder(udf.call(vec![lhs, rhs]))
-    }
-
-    //
-    // Functions for Building Filter Predicates
-    //
-
-    /// Filters the expression based on the `active_graph`. While, in theory, this method can be
-    /// used for filtering arbitrary columns, it is only sensible for those that directly refer
-    /// to the graph column in the quads table.
-    pub fn filter_active_graph(self, active_graph: &ActiveGraph) -> DFResult<Option<Self>> {
-        let expr = match active_graph {
-            ActiveGraph::DefaultGraph => Some(self.expr.is_null()),
-            ActiveGraph::Union(named_graphs) => {
-                let filter = named_graphs
-                    .iter()
-                    .map(|name| self.clone().same_term_graph_name(name))
-                    .reduce(|a, b| a?.or(b?.build_boolean()?))
-                    .unwrap_or(Ok(Self {
-                        expr: lit(false),
-                        ..self
-                    }))?;
-                Some(filter.build_boolean()?)
-            }
-            ActiveGraph::AnyNamedGraph => Some(self.expr.is_not_null()),
-            ActiveGraph::AllGraphs => None,
-        };
-        Ok(expr.map(|expr| Self { expr, ..self }))
-    }
-
-    /// TODO
-    fn same_term_graph_name(self, graph_name: &GraphName) -> DFResult<Self> {
-        match graph_name {
-            GraphName::NamedNode(nn) => self.same_term_scalar(nn.into()),
-            GraphName::BlankNode(bnode) => self.same_term_scalar(bnode.into()),
-            GraphName::DefaultGraph => Ok(Self {
-                expr: self.expr.is_null(),
-                ..self
-            }),
-        }
-    }
-
-    /// TODO
-    pub fn same_term_scalar(self, scalar: TermRef<'_>) -> DFResult<Self> {
-        let encoding_name = self.encoding()?;
-        let literal = match encoding_name {
-            EncodingName::PlainTerm => {
-                PlainTermEncoding::encode_scalar(scalar)?.into_scalar_value()
-            }
-            EncodingName::TypedValue => {
-                TypedValueEncoding::encode_scalar(scalar)?.into_scalar_value()
-            }
-            EncodingName::Sortable => {
-                return plan_err!("Filtering not supported for Sortable encoding.")
-            }
-        };
-        self.build_same_term(lit(literal))
-    }
-
-    //
     // Aggregate Functions
     //
 
@@ -864,29 +760,82 @@ impl<'root> RdfFusionExprBuilder<'root> {
             .build_effective_boolean_value()
     }
 
-    /// Returns the expression that has been built and checks whether it evaluates to a Boolean.
-    ///
-    /// If you want to build an RDF term expression, see [Self::build].
-    fn build_boolean(self) -> DFResult<Expr> {
-        let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
-        if data_type != DataType::Boolean {
-            return plan_err!("Expression must be Boolean.");
-        }
+    /// TODO
+    pub fn build_effective_boolean_value(self) -> DFResult<Expr> {
+        let args = vec![self.expr.clone()]
+            .into_iter()
+            .map(|e| {
+                self.root
+                    .try_create_builder(e)?
+                    .with_encoding(EncodingName::TypedValue)?
+                    .build()
+            })
+            .collect::<DFResult<Vec<_>>>()?;
 
-        Ok(self.build_any())
+        let udf = self.root.create_builtin_udf(BuiltinName::EffectiveBooleanValue)?;
+        Ok(udf.call(args))
     }
 
-    //
-    // Helper Functions
-    //
+    /// TODO
+    pub fn build_is_compatible(self, rhs: Expr) -> DFResult<Expr> {
+        let root = self.root;
+        let udf = root.create_builtin_udf(BuiltinName::IsCompatible)?;
+
+        let rhs = self
+            .root
+            .try_create_builder(rhs)?
+            .with_encoding(EncodingName::PlainTerm)?
+            .build()?;
+        let lhs = self.with_encoding(EncodingName::PlainTerm)?.build()?;
+
+        // TODO pass encoding into function
+        Ok(udf.call(vec![lhs, rhs]))
+    }
+
+    /// Filters the expression based on the `active_graph`. While, in theory, this method can be
+    /// used for filtering arbitrary columns, it is only sensible for those that directly refer
+    /// to the graph column in the quads table.
+    pub fn build_filter_active_graph(self, active_graph: &ActiveGraph) -> DFResult<Option<Expr>> {
+        let expr = match active_graph {
+            ActiveGraph::DefaultGraph => Some(self.expr.is_null()),
+            ActiveGraph::Union(named_graphs) => {
+                let filter = named_graphs
+                    .iter()
+                    .map(|name| self.clone().build_same_term_graph_name(name))
+                    .reduce(|a, b| self.root.sparql_or(a?, b?))
+                    .unwrap_or(Ok(lit(false)))?;
+                Some(filter)
+            }
+            ActiveGraph::AnyNamedGraph => Some(self.expr.is_not_null()),
+            ActiveGraph::AllGraphs => None,
+        };
+
+        Ok(expr)
+    }
 
     /// TODO
-    fn ensure_boolean(self) -> DFResult<Expr> {
-        let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
-        if data_type == DataType::Boolean {
-            return Ok(self.build_boolean()?);
+    fn build_same_term_graph_name(self, graph_name: &GraphName) -> DFResult<Expr> {
+        match graph_name {
+            GraphName::NamedNode(nn) => self.build_same_term_scalar(nn.into()),
+            GraphName::BlankNode(bnode) => self.build_same_term_scalar(bnode.into()),
+            GraphName::DefaultGraph => Ok(self.expr.is_null()),
         }
+    }
 
-        self.build_effective_boolean_value()
+    /// TODO
+    pub fn build_same_term_scalar(self, scalar: TermRef<'_>) -> DFResult<Expr> {
+        let encoding_name = self.encoding()?;
+        let literal = match encoding_name {
+            EncodingName::PlainTerm => {
+                PlainTermEncoding::encode_scalar(scalar)?.into_scalar_value()
+            }
+            EncodingName::TypedValue => {
+                TypedValueEncoding::encode_scalar(scalar)?.into_scalar_value()
+            }
+            EncodingName::Sortable => {
+                return plan_err!("Filtering not supported for Sortable encoding.")
+            }
+        };
+        self.build_same_term(lit(literal))
     }
 }

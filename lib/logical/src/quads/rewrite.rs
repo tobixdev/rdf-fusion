@@ -76,35 +76,30 @@ impl QuadsLoweringRule {
             RdfFusionLogicalPlanBuilder::new(Arc::new(scan.build()?), Arc::clone(&self.registry));
 
         let active_graph_filter = plan
-            .expr_builder(col(COL_GRAPH))
-            .filter_active_graph(node.active_graph())?
-            .map(|expr| expr.build_boolean())
-            .transpose()?;
+            .expr_builder(col(COL_GRAPH))?
+            .build_filter_active_graph(node.active_graph())?;
         if let Some(active_graph_filter) = active_graph_filter {
             plan = plan.filter(active_graph_filter)?;
         }
 
         if let Some(subject) = node.subject() {
             let filter = plan
-                .expr_builder(col(COL_SUBJECT))
-                .same_term_scalar(TermRef::from(subject.as_ref()))?
-                .build_boolean()?;
+                .expr_builder(col(COL_SUBJECT))?
+                .build_same_term_scalar(TermRef::from(subject.as_ref()))?;
             plan = plan.filter(filter)?;
         }
 
         if let Some(predicate) = node.predicate() {
             let filter = plan
-                .expr_builder(col(COL_PREDICATE))
-                .same_term_scalar(TermRef::from(predicate.as_ref()))?
-                .build_boolean()?;
+                .expr_builder(col(COL_PREDICATE))?
+                .build_same_term_scalar(TermRef::from(predicate.as_ref()))?;
             plan = plan.filter(filter)?;
         }
 
         if let Some(predicate) = node.object() {
             let filter = plan
-                .expr_builder(col(COL_OBJECT))
-                .same_term_scalar(predicate.as_ref())?
-                .build_boolean()?;
+                .expr_builder(col(COL_OBJECT))?
+                .build_same_term_scalar(predicate.as_ref())?;
             plan = plan.filter(filter)?;
         }
 

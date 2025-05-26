@@ -248,9 +248,8 @@ impl RdfFusionLogicalPlanBuilder {
             DataType::Boolean => expression,
             // Otherwise, obtain the EBV. This will trigger an error on an unknown encoding.
             _ => self
-                .expr_builder(expression)
-                .effective_boolean_value()?
-                .build_boolean()?,
+                .expr_builder(expression)?
+                .build_effective_boolean_value()?,
         };
 
         Ok(Self {
@@ -418,7 +417,7 @@ impl RdfFusionLogicalPlanBuilder {
             .into_iter()
             .map(|c| {
                 let expr = self
-                    .expr_builder(col(c.clone()))
+                    .expr_builder(col(c.clone()))?
                     .with_encoding(EncodingName::PlainTerm)?
                     .build()?
                     .alias(c.name());
@@ -458,8 +457,8 @@ impl RdfFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    pub fn expr_builder(&self, expr: Expr) -> RdfFusionExprBuilder<'_> {
-        self.expr_builder_root().create_builder(expr)
+    pub fn expr_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'_>> {
+        self.expr_builder_root().try_create_builder(expr)
     }
 }
 
@@ -476,7 +475,7 @@ fn create_distinct_on_expressions(
     for column in expr_builder_root.schema().columns() {
         let expr = col(column.clone());
         let sortable_expr = expr_builder_root
-            .create_builder(expr.clone())
+            .try_create_builder(expr.clone())?
             .with_encoding(EncodingName::Sortable)?
             .build()?;
 

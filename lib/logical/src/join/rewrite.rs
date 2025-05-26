@@ -94,9 +94,8 @@ impl SparqlJoinLoweringRule {
             .intersection(&rhs_keys)
             .map(|k| {
                 expr_builder_root
-                    .create_builder(Expr::from(Column::new(Some("lhs"), k)))
-                    .is_compatible(Expr::from(Column::new(Some("rhs"), k)))?
-                    .build_boolean()
+                    .try_create_builder(Expr::from(Column::new(Some("lhs"), k)))?
+                    .build_is_compatible(Expr::from(Column::new(Some("rhs"), k)))
             })
             .collect::<DFResult<Vec<_>>>()?;
 
@@ -116,9 +115,8 @@ impl SparqlJoinLoweringRule {
                 .data;
 
             let filter = expr_builder_root
-                .create_builder(filter)
-                .effective_boolean_value()?
-                .build_boolean()?;
+                .try_create_builder(filter)?
+                .build_effective_boolean_value()?;
             join_filters.push(filter);
         }
         let filter_expr = join_filters.into_iter().reduce(Expr::and);
@@ -151,7 +149,7 @@ fn value_from_joined(
 
     let expr = match (lhs_keys.contains(variable), rhs_keys.contains(variable)) {
         (true, true) => expr_builder_root
-            .create_builder(lhs_expr)
+            .try_create_builder(lhs_expr)?
             .coalesce(vec![rhs_expr])?
             .with_encoding(EncodingName::PlainTerm)?
             .build()?,

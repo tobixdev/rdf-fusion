@@ -5,7 +5,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
-use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, SortExpr};
+use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
 use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use rdf_fusion_logical::join::SparqlJoinType;
@@ -272,7 +272,7 @@ impl GraphPatternRewriter {
             OrderExpression::Desc(inner) => (false, expression_rewriter.rewrite(inner)?),
         };
         Ok(expr_builder_root
-            .try_create_builder(expression)
+            .try_create_builder(expression)?
             .with_encoding(EncodingName::Sortable)?
             .build()?
             .sort(asc, true))
@@ -315,7 +315,7 @@ impl GraphPatternRewriter {
             } => {
                 let expr = expression_rewriter.rewrite(expr)?;
                 let expr = expr_builder_root
-                    .try_create_builder(expr)
+                    .try_create_builder(expr)?
                     .with_encoding(EncodingName::TypedValue)?;
                 Ok(match name {
                     AggregateFunction::Avg => expr.avg(*distinct),
@@ -423,9 +423,12 @@ fn ensure_all_columns_are_rdf_terms(
             ) {
                 Ok(column)
             } else {
-                let expr_builder = inner.expr_builder(column);
                 match f.data_type() {
-                    DataType::Int64 => Ok(expr_builder.native_int64_as_term()?.alias(f.name())),
+                    DataType::Int64 => Ok(inner
+                        .expr_builder_root()
+                        .native_int64_as_term(column)?
+                        .build()?
+                        .alias(f.name())),
                     other => plan_err!("Unsupported data type {:?}", other),
                 }
             }

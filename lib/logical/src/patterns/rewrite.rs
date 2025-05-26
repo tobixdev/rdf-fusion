@@ -87,7 +87,7 @@ fn filter_by_values(
         .iter()
         .zip(pattern.iter())
         .map(|(c, p)| {
-            let builder = expr_builder_root.try_create_builder(col(c.clone()));
+            let builder = expr_builder_root.try_create_builder(col(c.clone()))?;
             create_filter_expression(builder, p.as_ref())
         })
         .collect::<DFResult<Vec<_>>>()?;
@@ -127,9 +127,8 @@ fn filter_same_variable(
             .zip(columns.iter().skip(1))
             .map(|(a, b)| {
                 expr_builder_root
-                    .try_create_builder(a.clone())
-                    .same_term(b.clone())?
-                    .build_boolean()
+                    .try_create_builder(a.clone())?
+                    .build_same_term(b.clone())
             })
             .collect::<DFResult<Vec<_>>>()?;
 
@@ -179,13 +178,11 @@ fn create_filter_expression(
 ) -> DFResult<Option<Expr>> {
     match pattern {
         Some(TermPattern::NamedNode(nn)) => {
-            Some(expr_builder.same_term_scalar(Term::from(nn.clone()).as_ref())?)
+            Some(expr_builder.build_same_term_scalar(Term::from(nn.clone()).as_ref())).transpose()
         }
         Some(TermPattern::Literal(lit)) => {
-            Some(expr_builder.same_term_scalar(Term::from(lit.clone()).as_ref())?)
+            Some(expr_builder.build_same_term_scalar(Term::from(lit.clone()).as_ref())).transpose()
         }
-        _ => None,
+        _ => Ok(None),
     }
-    .map(|b| b.build_boolean())
-    .transpose()
 }
