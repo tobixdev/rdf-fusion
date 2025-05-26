@@ -1,9 +1,11 @@
-use crate::aggregates::{avg_typed_value, max_typed_value, min_typed_value, sum_typed_value};
+use crate::aggregates::{
+    avg_typed_value, group_concat_typed_value, max_typed_value, min_typed_value, sum_typed_value,
+};
 use crate::builtin::encoding::{
     with_plain_term_encoding, with_sortable_term_encoding, with_typed_value_encoding,
 };
 use crate::builtin::logical::{sparql_and, sparql_or};
-use crate::builtin::native::{effective_boolean_value, native_boolean_as_term};
+use crate::builtin::native::{effective_boolean_value, native_boolean_as_term, native_int64_as_term};
 use crate::builtin::query::is_compatible;
 use crate::builtin::BuiltinName;
 use crate::scalar::plain_term::same_term;
@@ -14,23 +16,21 @@ use crate::scalar::typed_value::{
     coalesce_typed_value, concat_typed_value, contains_typed_value, datatype_typed_value,
     day_typed_value, div_typed_value, encode_for_uri_typed_value, equal_typed_value,
     floor_typed_value, greater_or_equal_typed_value, greater_than_typed_value, hours_typed_value,
-    if_typed_value, is_blank_typed_value, is_iri_typed_value, is_literal_typed_value,
-    is_numeric_typed_value, lang_matches_typed_value, lang_typed_value, lcase_typed_value,
-    less_or_equal_typed_value, less_than_typed_value, md5_typed_value, minutes_typed_value,
-    month_typed_value, mul_typed_value, rand_typed_value, replace_typed_value, round_typed_value,
-    seconds_typed_value, sha1_typed_value, sha256_typed_value, sha384_typed_value,
-    sha512_typed_value, str_after_typed_value, str_before_typed_value, str_dt_typed_value,
-    str_ends_typed_value, str_lang_typed_value, str_len_typed_value, str_starts_typed_value,
-    str_uuid_typed_value, sub_str_ternary_typed_value, sub_typed_value, timezone_typed_value,
-    tz_typed_value, ucase_typed_value, unary_minus_typed_value, unary_plus_typed_value,
-    uuid_typed_value, year_typed_value,
+    if_typed_value, iri_typed_value, is_blank_typed_value, is_iri_typed_value,
+    is_literal_typed_value, is_numeric_typed_value, lang_matches_typed_value, lang_typed_value,
+    lcase_typed_value, less_or_equal_typed_value, less_than_typed_value, md5_typed_value,
+    minutes_typed_value, month_typed_value, mul_typed_value, rand_typed_value, replace_typed_value,
+    round_typed_value, seconds_typed_value, sha1_typed_value, sha256_typed_value,
+    sha384_typed_value, sha512_typed_value, str_after_typed_value, str_before_typed_value,
+    str_dt_typed_value, str_ends_typed_value, str_lang_typed_value, str_len_typed_value,
+    str_starts_typed_value, str_uuid_typed_value, sub_str_ternary_typed_value, sub_typed_value,
+    timezone_typed_value, tz_typed_value, ucase_typed_value, unary_minus_typed_value,
+    unary_plus_typed_value, uuid_typed_value, year_typed_value,
 };
 use crate::scalar::{bnode, regex, str};
-use crate::{DFResult, FunctionName};
+use crate::{DFResult, FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
 use datafusion::common::plan_err;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
-use rdf_fusion_model::Term;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -43,14 +43,14 @@ pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
     fn create_udf(
         &self,
         function_name: FunctionName,
-        constant_args: HashMap<String, Term>,
+        constant_args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<ScalarUDF>>;
 
     /// Creates a DataFusion [AggregateUDF] given the `constant_args`.
     fn create_udaf(
         &self,
         function_name: FunctionName,
-        constant_args: HashMap<String, Term>,
+        constant_args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<AggregateUDF>>;
 }
 
@@ -62,7 +62,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     fn create_udf(
         &self,
         function_name: FunctionName,
-        constant_args: HashMap<String, Term>,
+        constant_args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<ScalarUDF>> {
         match function_name {
             FunctionName::Builtin(builtin_name) => Ok(match builtin_name {
@@ -70,7 +70,10 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Lang => lang_typed_value(),
                 BuiltinName::LangMatches => lang_matches_typed_value(),
                 BuiltinName::Datatype => datatype_typed_value(),
-                BuiltinName::Iri => todo!("Group concat is not supported yet (extract base_iri)."),
+                BuiltinName::Iri => {
+                    let iri = constant_args.get(RdfFusionBuiltinArgNames::BASE_IRI)?;
+                    iri_typed_value(iri)
+                }
                 BuiltinName::BNode => bnode(),
                 BuiltinName::Rand => rand_typed_value(),
                 BuiltinName::Abs => abs_typed_value(),
@@ -142,7 +145,8 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::EffectiveBooleanValue => effective_boolean_value(),
                 BuiltinName::NativeBooleanAsTerm => native_boolean_as_term(),
                 BuiltinName::IsCompatible => is_compatible(),
-                _ => return plan_err!("Unsupported scalar function"),
+                BuiltinName::NativeInt64AsTerm => native_int64_as_term(),
+                _ => return plan_err!("Unsupported scalar function: {}", builtin_name),
             }),
             FunctionName::Custom(_) => plan_err!("Custom functions are not supported yet."),
         }
@@ -151,7 +155,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     fn create_udaf(
         &self,
         function_name: FunctionName,
-        constant_args: HashMap<String, Term>,
+        constant_args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<AggregateUDF>> {
         match function_name {
             FunctionName::Builtin(builtin) => Ok(match builtin {
@@ -160,7 +164,8 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Max => max_typed_value(),
                 BuiltinName::Avg => avg_typed_value(),
                 BuiltinName::GroupConcat => {
-                    todo!("Group concat is not supported yet (extract seaprator).")
+                    let separator = constant_args.get(RdfFusionBuiltinArgNames::SEPARATOR)?;
+                    group_concat_typed_value(separator)
                 }
                 _ => return plan_err!("Unsupported aggregate function"),
             }),

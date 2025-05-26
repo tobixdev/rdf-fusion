@@ -119,8 +119,7 @@ fn validate_inner_udfs(name: &FunctionName, inner: &Vec<ScalarUDF>) -> DFResult<
 fn build_udf_mapping(inner: &Vec<ScalarUDF>) -> DFResult<HashMap<UDFKey, ScalarUDF>> {
     let keys_per_udf = inner
         .iter()
-        .enumerate()
-        .map(|(idx, udf)| match &udf.signature().type_signature {
+        .map(|udf| match &udf.signature().type_signature {
             TypeSignature::Uniform(arity, data_type) => Ok(data_type
                 .iter()
                 .map(|dt| (UDFKey(*arity, dt.clone()), udf.clone()))

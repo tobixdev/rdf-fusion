@@ -7,7 +7,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
 use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
-use rdf_fusion_functions::FunctionName;
+use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
 use rdf_fusion_model::{Term, TermRef, ThinError, VariableRef};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -121,7 +121,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         name: BuiltinName,
         arg: Expr,
         distinct: bool,
-        args: HashMap<String, Term>,
+        args: RdfFusionFunctionArgs,
     ) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udaf = self
             .registry
@@ -149,7 +149,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         name: BuiltinName,
         further_args: Vec<Expr>,
     ) -> DFResult<RdfFusionExprBuilder<'root>> {
-        self.apply_builtin_with_args(name, further_args, HashMap::new())
+        self.apply_builtin_with_args(name, further_args, RdfFusionFunctionArgs::empty())
     }
 
     /// TODO
@@ -157,7 +157,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         &self,
         name: BuiltinName,
         args: Vec<Expr>,
-        udf_args: HashMap<String, Term>,
+        udf_args: RdfFusionFunctionArgs,
     ) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf_with_args(name, udf_args)?;
 
@@ -176,13 +176,13 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
 
     pub(crate) fn create_builtin_udf(&self, name: BuiltinName) -> DFResult<Arc<ScalarUDF>> {
         self.registry
-            .create_udf(FunctionName::Builtin(name), HashMap::new())
+            .create_udf(FunctionName::Builtin(name), RdfFusionFunctionArgs::empty())
     }
 
     pub(crate) fn create_builtin_udf_with_args(
         &self,
         name: BuiltinName,
-        args: HashMap<String, Term>,
+        args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<ScalarUDF>> {
         self.registry.create_udf(FunctionName::Builtin(name), args)
     }

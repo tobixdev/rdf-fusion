@@ -8,6 +8,9 @@ use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoding};
 use rdf_fusion_functions::builtin::BuiltinName;
+use rdf_fusion_functions::{
+    RdfFusionBuiltinArgNames, RdfFusionFunctionArgs, RdfFusionFunctionArgsBuilder,
+};
 use rdf_fusion_model::{GraphName, Iri, Literal, Term, TermRef};
 use spargebra::term::NamedNode;
 use std::collections::HashMap;
@@ -161,11 +164,12 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// TODO
     pub fn iri(self, base_iri: Option<&Iri<String>>) -> DFResult<Self> {
-        let mut args = HashMap::new();
-        if let Some(base) = base_iri {
-            let literal = NamedNode::new_unchecked(base.as_str());
-            args.insert("base".to_owned(), Term::from(literal));
-        }
+        let args = RdfFusionFunctionArgsBuilder::new()
+            .with_optional_arg(
+                RdfFusionBuiltinArgNames::BASE_IRI.to_owned(),
+                base_iri.cloned(),
+            )
+            .build();
         self.apply_builtin_with_args(BuiltinName::Iri, vec![], args)
     }
 
@@ -686,7 +690,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     ///
     /// If `distinct` is true, only distinct values are considered.
     pub fn avg(self, distinct: bool) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Avg, distinct, HashMap::new())
+        self.apply_builtin_udaf(BuiltinName::Avg, distinct, RdfFusionFunctionArgs::empty())
     }
 
     /// Creates a new aggregate expression that computes the average of the inner expression.
@@ -704,12 +708,12 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// Creates a new aggregate expression that computes the maximum of the inner expression.
     pub fn max(self) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Max, false, HashMap::new())
+        self.apply_builtin_udaf(BuiltinName::Max, false, RdfFusionFunctionArgs::empty())
     }
 
     /// Creates a new aggregate expression that computes the minimum of the inner expression.
     pub fn min(self) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Min, false, HashMap::new())
+        self.apply_builtin_udaf(BuiltinName::Min, false, RdfFusionFunctionArgs::empty())
     }
 
     /// Creates a new aggregate expression that returns any value of the inner expression.
@@ -722,7 +726,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// Creates a new aggregate expression that computes the sum of the inner expression.
     pub fn sum(self, distinct: bool) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Sum, distinct, HashMap::new())
+        self.apply_builtin_udaf(BuiltinName::Sum, distinct, RdfFusionFunctionArgs::empty())
     }
 
     /// Creates a new aggregate expression that computes the concatenation of the inner expression.
@@ -731,12 +735,12 @@ impl<'root> RdfFusionExprBuilder<'root> {
     ///
     /// If `distinct` is true, only distinct values are considered.
     pub fn group_concat(self, distinct: bool, separator: Option<&str>) -> DFResult<Self> {
-        let separator = separator.map(|s| Term::from(Literal::new_simple_literal(s)));
-        let mut args = HashMap::new();
-        if let Some(separator) = separator {
-            args.insert("separator".to_owned(), separator);
-        }
-
+        let args = RdfFusionFunctionArgsBuilder::new()
+            .with_optional_arg::<String>(
+                RdfFusionBuiltinArgNames::SEPARATOR.to_owned(),
+                separator.map(Into::into),
+            )
+            .build();
         self.apply_builtin_udaf(BuiltinName::Sum, distinct, args)
     }
 
@@ -822,7 +826,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self,
         name: BuiltinName,
         distinct: bool,
-        udaf_args: HashMap<String, Term>,
+        udaf_args: RdfFusionFunctionArgs,
     ) -> DFResult<Self> {
         self.root
             .apply_builtin_udaf(name, self.expr, distinct, udaf_args)
@@ -830,7 +834,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// TODO
     fn apply_builtin(self, name: BuiltinName, further_args: Vec<Expr>) -> DFResult<Self> {
-        self.apply_builtin_with_args(name, further_args, HashMap::new())
+        self.apply_builtin_with_args(name, further_args, RdfFusionFunctionArgs::empty())
     }
 
     /// TODO
@@ -838,7 +842,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self,
         name: BuiltinName,
         further_args: Vec<Expr>,
-        udf_args: HashMap<String, Term>,
+        udf_args: RdfFusionFunctionArgs,
     ) -> DFResult<Self> {
         let mut args = vec![self.expr];
         args.extend(further_args);

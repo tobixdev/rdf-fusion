@@ -3,19 +3,23 @@ use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::cast::as_int64_array;
 use datafusion::common::exec_err;
-use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
-};
+use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature, Volatility};
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use rdf_fusion_encoding::TermEncoding;
 use std::any::Any;
+use std::sync::Arc;
+
+pub fn native_int64_as_term() -> Arc<ScalarUDF> {
+    let udf_impl = NativeInt64AsTerm::new();
+    Arc::new(ScalarUDF::new_from_impl(udf_impl))
+}
 
 #[derive(Debug)]
-pub struct EncInt64AsRdfTerm {
+pub struct NativeInt64AsTerm {
     signature: Signature,
 }
 
-impl EncInt64AsRdfTerm {
+impl NativeInt64AsTerm {
     pub fn new() -> Self {
         Self {
             signature: Signature::new(
@@ -26,7 +30,7 @@ impl EncInt64AsRdfTerm {
     }
 }
 
-impl ScalarUDFImpl for EncInt64AsRdfTerm {
+impl ScalarUDFImpl for NativeInt64AsTerm {
     fn as_any(&self) -> &dyn Any {
         self
     }

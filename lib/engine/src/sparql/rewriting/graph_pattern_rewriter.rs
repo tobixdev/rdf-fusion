@@ -6,7 +6,7 @@ use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
-use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use rdf_fusion_logical::join::SparqlJoinType;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionExprBuilderRoot, RdfFusionLogicalPlanBuilder};
