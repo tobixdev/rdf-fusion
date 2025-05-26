@@ -12,7 +12,7 @@ use rdf_fusion_model::{StringLiteralRef, ThinError};
 use std::sync::Arc;
 
 pub fn group_concat_typed_value(separator: Option<String>) -> Arc<AggregateUDF> {
-    let separator = separator.unwrap_or("".to_owned());
+    let separator = separator.unwrap_or(" ".to_owned());
     let udaf = create_udaf(
         "group_concat",
         vec![TypedValueEncoding::data_type()],

@@ -94,23 +94,20 @@ impl RdfFusionLogicalPlanBuilder {
         if bindings.is_empty() {
             let empty =
                 DefaultPlainTermEncoder::encode_term(ThinError::expected())?.into_scalar_value();
-            let values_node = LogicalPlan::Values(Values {
-                schema: Arc::new(schema),
-                values: vec![vec![lit(empty); variables.len()]],
-            });
+            let plan_builder = LogicalPlanBuilder::values_with_schema(
+                vec![vec![lit(empty); variables.len()]],
+                &Arc::new(schema),
+            )?;
             return Ok(Self {
-                plan_builder: LogicalPlanBuilder::new(values_node),
+                plan_builder,
                 registry,
             });
         }
 
-        let mut encoders = Vec::new();
-        for _ in variables {
-            encoders.push(Vec::new());
-        }
-
+        let mut rows = Vec::new();
         for solution in bindings {
-            for (vec, term) in encoders.iter_mut().zip(solution.iter()) {
+            let mut row = Vec::new();
+            for term in solution {
                 let literal = DefaultPlainTermEncoder::encode_term(match term {
                     None => ThinError::expected(),
                     Some(term) => Ok(match term {
@@ -119,13 +116,14 @@ impl RdfFusionLogicalPlanBuilder {
                     }),
                 })?
                 .into_scalar_value();
-                vec.push(lit(literal));
+                row.push(lit(literal));
             }
+            rows.push(row);
         }
 
         let values_node = LogicalPlan::Values(Values {
             schema: Arc::new(schema),
-            values: encoders,
+            values: rows,
         });
         Ok(Self {
             plan_builder: LogicalPlanBuilder::new(values_node),

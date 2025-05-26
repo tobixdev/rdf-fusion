@@ -741,7 +741,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
                 separator.map(Into::into),
             )
             .build();
-        self.apply_builtin_udaf(BuiltinName::Sum, distinct, args)
+        self.apply_builtin_udaf(BuiltinName::GroupConcat, distinct, args)
     }
 
     //
