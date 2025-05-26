@@ -1,10 +1,7 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dynamic_udf::DynamicRdfFusionUdf;
 use crate::scalar::plain_term::str_plain_term;
-use crate::scalar::typed_value::{
-    bnode_nullary_typed_value, bnode_unary_typed_value, regex_binary_typed_value,
-    regex_ternary_typed_value, str_typed_value,
-};
+use crate::scalar::typed_value::{bnode_nullary_typed_value, bnode_unary_typed_value, regex_binary_typed_value, regex_ternary_typed_value, str_typed_value, sub_str_ternary_typed_value, sub_str_binary_typed_value};
 use crate::FunctionName;
 use datafusion::logical_expr::ScalarUDF;
 use std::sync::Arc;
@@ -46,6 +43,18 @@ pub fn bnode() -> Arc<ScalarUDF> {
         ],
     )
     .expect("UDFs are combatible");
+    Arc::new(ScalarUDF::new_from_impl(udf))
+}
+
+pub fn sub_str() -> Arc<ScalarUDF> {
+    let udf = DynamicRdfFusionUdf::try_new(
+        FunctionName::Builtin(BuiltinName::SubStr),
+        vec![
+            sub_str_binary_typed_value().as_ref().clone(),
+            sub_str_ternary_typed_value().as_ref().clone(),
+        ],
+    )
+        .expect("UDFs are combatible");
     Arc::new(ScalarUDF::new_from_impl(udf))
 }
 

@@ -5,7 +5,9 @@ use crate::builtin::encoding::{
     with_plain_term_encoding, with_sortable_term_encoding, with_typed_value_encoding,
 };
 use crate::builtin::logical::{sparql_and, sparql_or};
-use crate::builtin::native::{effective_boolean_value, native_boolean_as_term, native_int64_as_term};
+use crate::builtin::native::{
+    effective_boolean_value, native_boolean_as_term, native_int64_as_term,
+};
 use crate::builtin::query::is_compatible;
 use crate::builtin::BuiltinName;
 use crate::scalar::plain_term::same_term;
@@ -27,7 +29,7 @@ use crate::scalar::typed_value::{
     timezone_typed_value, tz_typed_value, ucase_typed_value, unary_minus_typed_value,
     unary_plus_typed_value, uuid_typed_value, year_typed_value,
 };
-use crate::scalar::{bnode, regex, str};
+use crate::scalar::{bnode, regex, str, sub_str};
 use crate::{DFResult, FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
 use datafusion::common::plan_err;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
@@ -65,7 +67,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
         constant_args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<ScalarUDF>> {
         match function_name {
-            FunctionName::Builtin(builtin_name) => Ok(match builtin_name {
+            FunctionName::Builtin(builtin) => Ok(match builtin {
                 BuiltinName::Str => str(),
                 BuiltinName::Lang => lang_typed_value(),
                 BuiltinName::LangMatches => lang_matches_typed_value(),
@@ -81,7 +83,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Floor => floor_typed_value(),
                 BuiltinName::Round => round_typed_value(),
                 BuiltinName::Concat => concat_typed_value(),
-                BuiltinName::SubStr => sub_str_ternary_typed_value(),
+                BuiltinName::SubStr => sub_str(),
                 BuiltinName::StrLen => str_len_typed_value(),
                 BuiltinName::Replace => replace_typed_value(),
                 BuiltinName::UCase => ucase_typed_value(),
@@ -146,7 +148,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::NativeBooleanAsTerm => native_boolean_as_term(),
                 BuiltinName::IsCompatible => is_compatible(),
                 BuiltinName::NativeInt64AsTerm => native_int64_as_term(),
-                _ => return plan_err!("Unsupported scalar function: {}", builtin_name),
+                _ => return plan_err!("'{builtin}' is not a scalar function."),
             }),
             FunctionName::Custom(_) => plan_err!("Custom functions are not supported yet."),
         }
@@ -167,7 +169,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                     let separator = constant_args.get(RdfFusionBuiltinArgNames::SEPARATOR)?;
                     group_concat_typed_value(separator)
                 }
-                _ => return plan_err!("Unsupported aggregate function"),
+                _ => return plan_err!("'{builtin}' is not an aggregate function."),
             }),
             FunctionName::Custom(_) => plan_err!("Custom functions are not supported yet."),
         }

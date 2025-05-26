@@ -170,7 +170,7 @@ impl_binary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     IntegerTermValueDecoder,
     StringLiteralRefTermValueEncoder,
-    sub_str_typed_value,
+    sub_str_binary_typed_value,
     SubStrSparqlOp,
     FunctionName::Builtin(BuiltinName::SubStr)
 );
