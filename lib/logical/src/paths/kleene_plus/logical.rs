@@ -29,7 +29,10 @@ impl KleenePlusClosureNode {
     ///
     /// Returns an error if `inner` does not have the expected schema.
     pub fn try_new(inner: LogicalPlan, disallow_cross_graph_paths: bool) -> DFResult<Self> {
-        if inner.schema().as_ref() != PATH_TABLE_DFSCHEMA.as_ref() {
+        let matches_path_schema = inner
+            .schema()
+            .logically_equivalent_names_and_types(PATH_TABLE_DFSCHEMA.as_ref());
+        if !matches_path_schema {
             return plan_err!(
                 "Unexpected schema for inner path node. Expected: {:?} Schema: {:?}",
                 PATH_TABLE_DFSCHEMA.as_ref(),
