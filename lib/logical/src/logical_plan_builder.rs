@@ -7,7 +7,7 @@ use crate::patterns::PatternNode;
 use crate::quads::QuadsNode;
 use crate::{DFResult, RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
-use datafusion::common::{Column, DFSchema, DFSchemaRef};
+use datafusion::common::{Column, DFSchema, DFSchemaRef, DataFusionError};
 use datafusion::logical_expr::{
     col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
     UserDefinedLogicalNode, Values,
@@ -310,10 +310,23 @@ impl RdfFusionLogicalPlanBuilder {
 
     /// TODO
     pub fn order_by(self, exprs: &[SortExpr]) -> DFResult<RdfFusionLogicalPlanBuilder> {
+        let exprs = exprs
+            .iter()
+            .map(|sort| self.ensure_sortable(sort))
+            .collect::<DFResult<Vec<_>>>()?;
         Ok(Self {
             registry: self.registry,
-            plan_builder: self.plan_builder.sort(exprs.to_vec())?,
+            plan_builder: self.plan_builder.sort(exprs)?,
         })
+    }
+
+    /// Ensure that the [EncodingName::Sortable] is used.
+    fn ensure_sortable(&self, e: &SortExpr) -> DFResult<SortExpr> {
+        let expr = self
+            .expr_builder(e.expr.clone())?
+            .with_encoding(EncodingName::Sortable)?
+            .build()?;
+        Ok(SortExpr::new(expr, e.asc, e.nulls_first))
     }
 
     /// TODO
@@ -375,7 +388,7 @@ impl RdfFusionLogicalPlanBuilder {
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let group_expr = variables
             .iter()
-            .map(|v| self.expr_builder_root().variable(v.as_ref())?.build())
+            .map(|v| self.create_group_expr(v))
             .collect::<DFResult<Vec<_>>>()?;
         let aggr_expr = aggregates
             .iter()
@@ -388,6 +401,17 @@ impl RdfFusionLogicalPlanBuilder {
             registry: self.registry,
             plan_builder: self.plan_builder.aggregate(group_expr, aggr_expr)?,
         })
+    }
+
+    /// Creates an [Expr] that ensures that the grouped values uses an [EncodingName::PlainTerm]
+    /// encoding.
+    fn create_group_expr(&self, v: &Variable) -> DFResult<Expr> {
+        Ok(self
+            .expr_builder_root()
+            .variable(v.as_ref())?
+            .with_encoding(EncodingName::PlainTerm)?
+            .build()?
+            .alias(v.as_str()))
     }
 
     /// TODO

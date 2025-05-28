@@ -429,7 +429,7 @@ fn ensure_all_columns_are_rdf_terms(
                         .native_int64_as_term(column)?
                         .build()?
                         .alias(f.name())),
-                    other => plan_err!("Unsupported data type {:?}", other),
+                    other => plan_err!("Unsupported data type for aggregation result {:?}", other),
                 }
             }
         })
