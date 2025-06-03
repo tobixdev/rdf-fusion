@@ -64,22 +64,22 @@ fn do_store_query_and_update(c: &mut Criterion, data_size: usize) {
         .filter(|o| matches!(o, Operation::Query(_)))
         .cloned()
         .collect::<Vec<_>>();
-    let business_operations = bsbm_sparql_operation("businessIntelligence-1000.csv.bz2")
-        .into_iter()
-        .filter_map(|op| match op {
-            RawOperation::Query(q) => {
-                // TODO remove once describe is supported
-                if q.contains("DESCRIBE") {
-                    None
-                } else {
-                    Some(Operation::Query(
-                        Query::parse(&q.replace('#', ""), None).unwrap(),
-                    ))
-                }
-            }
-            RawOperation::Update(_) => unreachable!(),
-        })
-        .collect::<Vec<_>>();
+    // let business_operations = bsbm_sparql_operation("businessIntelligence-1000.csv.bz2")
+    //     .into_iter()
+    //     .filter_map(|op| match op {
+    //         RawOperation::Query(q) => {
+    //             // TODO remove once describe is supported
+    //             if q.contains("DESCRIBE") {
+    //                 None
+    //             } else {
+    //                 Some(Operation::Query(
+    //                     Query::parse(&q.replace('#', ""), None).unwrap(),
+    //                 ))
+    //             }
+    //         }
+    //         RawOperation::Update(_) => unreachable!(),
+    //     })
+    //     .collect::<Vec<_>>();
 
     let mut group = c.benchmark_group("store operations");
     group.sample_size(10);
@@ -100,13 +100,15 @@ fn do_store_query_and_update(c: &mut Criterion, data_size: usize) {
                     .iter(|| run_operation(&memory_store, &explore_operations));
             },
         );
-        group.bench_function(
-            format!("BSBM business intelligence {data_size} in memory"),
-            |b| {
-                b.to_async(Runtime::new().unwrap())
-                    .iter(|| run_operation(&memory_store, &business_operations));
-            },
-        );
+
+        // TODO enable later
+        // group.bench_function(
+        //     format!("BSBM business intelligence {data_size} in memory"),
+        //     |b| {
+        //         b.to_async(Runtime::new().unwrap())
+        //             .iter(|| run_operation(&memory_store, &business_operations));
+        //     },
+        // );
     }
 }
 
@@ -164,7 +166,7 @@ fn bsbm_sparql_operation(file_name: &str) -> Vec<RawOperation> {
         .collect::<Result<Vec<_>, _>>().unwrap()
         .into_iter()
         .rev()
-        .take(300) // We take only 10 groups
+        .take(1) // We take only 10 groups // TODO Increase to 300
         .map(|l| {
             match &l[1] {
                 "query" => RawOperation::Query(l[2].into()),
