@@ -1,7 +1,11 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dynamic_udf::DynamicRdfFusionUdf;
 use crate::scalar::plain_term::str_plain_term;
-use crate::scalar::typed_value::{bnode_nullary_typed_value, bnode_unary_typed_value, regex_binary_typed_value, regex_ternary_typed_value, str_typed_value, sub_str_ternary_typed_value, sub_str_binary_typed_value};
+use crate::scalar::typed_value::{
+    bnode_nullary_typed_value, bnode_unary_typed_value, regex_binary_typed_value,
+    regex_ternary_typed_value, replace_flags_typed_value, replace_typed_value, str_typed_value,
+    sub_str_binary_typed_value, sub_str_ternary_typed_value,
+};
 use crate::FunctionName;
 use datafusion::logical_expr::ScalarUDF;
 use std::sync::Arc;
@@ -30,7 +34,7 @@ pub fn str() -> Arc<ScalarUDF> {
             str_typed_value().as_ref().clone(),
         ],
     )
-    .expect("UDFs are combatible");
+    .expect("UDFs are compatible");
     Arc::new(ScalarUDF::new_from_impl(udf))
 }
 
@@ -42,7 +46,7 @@ pub fn bnode() -> Arc<ScalarUDF> {
             bnode_unary_typed_value().as_ref().clone(),
         ],
     )
-    .expect("UDFs are combatible");
+    .expect("UDFs are compatible");
     Arc::new(ScalarUDF::new_from_impl(udf))
 }
 
@@ -54,7 +58,7 @@ pub fn sub_str() -> Arc<ScalarUDF> {
             sub_str_ternary_typed_value().as_ref().clone(),
         ],
     )
-        .expect("UDFs are combatible");
+    .expect("UDFs are compatible");
     Arc::new(ScalarUDF::new_from_impl(udf))
 }
 
@@ -66,6 +70,18 @@ pub fn regex() -> Arc<ScalarUDF> {
             regex_ternary_typed_value().as_ref().clone(),
         ],
     )
-    .expect("UDFs are combatible");
+    .expect("UDFs are compatible");
+    Arc::new(ScalarUDF::new_from_impl(udf))
+}
+
+pub fn replace() -> Arc<ScalarUDF> {
+    let udf = DynamicRdfFusionUdf::try_new(
+        FunctionName::Builtin(BuiltinName::Replace),
+        vec![
+            replace_typed_value().as_ref().clone(),
+            replace_flags_typed_value().as_ref().clone(),
+        ],
+    )
+    .expect("UDFs are compatible");
     Arc::new(ScalarUDF::new_from_impl(udf))
 }

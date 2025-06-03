@@ -7,7 +7,7 @@ use crate::patterns::PatternNode;
 use crate::quads::QuadsNode;
 use crate::{DFResult, RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
-use datafusion::common::{Column, DFSchema, DFSchemaRef, DataFusionError};
+use datafusion::common::{Column, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{
     col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
     UserDefinedLogicalNode, Values,

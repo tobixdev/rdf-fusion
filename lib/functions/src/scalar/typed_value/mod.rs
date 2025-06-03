@@ -9,4 +9,5 @@ pub use binary::*;
 pub use n_ary::*;
 pub use nullary::*;
 pub use ternary::*;
+pub use quaternary::*;
 pub use unary::*;

@@ -7,7 +7,7 @@ use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
 use rdf_fusion_encoding::EncodingName;
-use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
+use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_logical::join::SparqlJoinType;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionExprBuilderRoot, RdfFusionLogicalPlanBuilder};
 use rdf_fusion_model::Iri;
@@ -46,11 +46,6 @@ impl GraphPatternRewriter {
             base_iri,
             state: RefCell::new(state),
         }
-    }
-
-    /// TODO
-    pub fn registry(&self) -> &dyn RdfFusionFunctionRegistry {
-        self.registry.as_ref()
     }
 
     /// TODO

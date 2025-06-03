@@ -15,7 +15,7 @@ impl_quarternary_sparql_op!(
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
-    regex_term_typed_value,
+    replace_flags_typed_value,
     ReplaceSparqlOp,
     FunctionName::Builtin(BuiltinName::Replace)
 );
