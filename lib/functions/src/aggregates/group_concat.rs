@@ -121,18 +121,13 @@ impl Accumulator for SparqlGroupConcat {
             return Ok(());
         }
 
-        let mut value_exists = self.value.is_some();
-        let mut value = self.value.take().unwrap_or_default();
-
         let old_values = states[1].as_string::<i32>();
         for old_value in old_values.iter().flatten() {
-            if value_exists {
-                value += self.separator.as_str();
-            }
-            value += old_value;
-            value_exists = true;
+            self.value = match self.value.take() {
+                None => Some(old_value.to_owned()),
+                Some(value) => Some(value + self.separator.as_str() + old_value),
+            };
         }
-        self.value = Some(value);
 
         let existing_language_error = states[2].as_boolean().iter().any(|e| e == Some(true));
         if existing_language_error {
@@ -143,14 +138,18 @@ impl Accumulator for SparqlGroupConcat {
 
         let old_languages = states[3].as_string::<i32>();
         for old_language in old_languages {
-            if let Some(lang) = &self.language {
-                if Some(lang.as_str()) != old_language {
-                    self.language_error = true;
-                    self.language = None;
+            self.language = match (self.language.take(), old_language) {
+                (None, other) => other.map(ToOwned::to_owned),
+                (other, None) => other,
+                (Some(language), Some(old_language)) => {
+                    if language.as_str() != old_language {
+                        self.language_error = true;
+                        None
+                    } else {
+                        Some(language)
+                    }
                 }
-            } else {
-                self.language = old_language.map(ToOwned::to_owned);
-            }
+            };
         }
 
         Ok(())
