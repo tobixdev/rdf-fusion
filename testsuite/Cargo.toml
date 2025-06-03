@@ -21,12 +21,5 @@ text-diff.workspace = true
 time = { workspace = true, features = ["formatting"] }
 tokio.workspace = true
 
-[dev-dependencies]
-criterion.workspace = true
-
 [lints]
 workspace = true
-
-[[bench]]
-name = "parser"
-harness = false

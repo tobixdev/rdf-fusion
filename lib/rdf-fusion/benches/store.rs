@@ -13,47 +13,6 @@ use std::path::{Path, PathBuf};
 use std::str;
 use tokio::runtime::Runtime;
 
-fn parse_nt(c: &mut Criterion) {
-    let data = read_data("explore-1000.nt.zst");
-    let mut group = c.benchmark_group("parse");
-    group.throughput(Throughput::Bytes(data.len() as u64));
-    group.sample_size(50);
-    group.bench_function("parse BSBM explore 1000", |b| {
-        b.iter(|| {
-            for r in RdfParser::from_format(RdfFormat::NTriples).for_slice(&data) {
-                r.unwrap();
-            }
-        })
-    });
-    group.bench_function("parse BSBM explore 1000 with Read", |b| {
-        b.iter(|| {
-            for r in RdfParser::from_format(RdfFormat::NTriples).for_reader(data.as_slice()) {
-                r.unwrap();
-            }
-        })
-    });
-    group.bench_function("parse BSBM explore 1000 unchecked", |b| {
-        b.iter(|| {
-            for r in RdfParser::from_format(RdfFormat::NTriples)
-                .unchecked()
-                .for_slice(&data)
-            {
-                r.unwrap();
-            }
-        })
-    });
-    group.bench_function("parse BSBM explore 1000 unchecked with Read", |b| {
-        b.iter(|| {
-            for r in RdfParser::from_format(RdfFormat::NTriples)
-                .unchecked()
-                .for_reader(data.as_slice())
-            {
-                r.unwrap();
-            }
-        })
-    });
-}
-
 fn store_load(c: &mut Criterion) {
     let data = read_data("explore-1000.nt.zst");
     let mut group = c.benchmark_group("store load");
@@ -173,39 +132,8 @@ async fn run_operation(store: &Store, operations: &[Operation], _with_opts: bool
     }
 }
 
-fn sparql_parsing(c: &mut Criterion) {
-    let operations = bsbm_sparql_operation();
-    let mut group = c.benchmark_group("sparql parsing");
-    group.sample_size(10);
-    group.throughput(Throughput::Bytes(
-        operations
-            .iter()
-            .map(|o| match o {
-                RawOperation::Query(q) => q.len(),
-                RawOperation::Update(u) => u.len(),
-            })
-            .sum::<usize>() as u64,
-    ));
-    group.bench_function("BSBM query and update set", |b| {
-        b.iter(|| {
-            for operation in &operations {
-                match operation {
-                    RawOperation::Query(q) => {
-                        Query::parse(q, None).unwrap();
-                    }
-                    RawOperation::Update(u) => {
-                        Update::parse(u, None).unwrap();
-                    }
-                }
-            }
-        })
-    });
-}
-
-criterion_group!(parse, parse_nt);
-criterion_group!(store, sparql_parsing, store_query_and_update, store_load);
-
-criterion_main!(parse, store);
+criterion_group!(store, store_query_and_update, store_load);
+criterion_main!(store);
 
 fn read_data(file: &str) -> Vec<u8> {
     if !Path::new(file).exists() {
