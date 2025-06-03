@@ -265,7 +265,7 @@ impl TypedValueArrayBuilder {
     /// Appends a `literal` that is encoded in the [TypedValueEncodingField::OtherLiteral].
     ///
     /// *CAVEAT*: Only call this function if you're positive that there is no specialized encoding
-    /// for the data type of the `literal`. Otherwise, call [Self::append_literal].
+    /// for the data type of the `literal`. Otherwise, call [Self::append_typed_value] instead.
     pub fn append_other_literal(&mut self, literal: LiteralRef<'_>) -> AResult<()> {
         self.append_type_id_and_offset(
             TypedValueEncodingField::OtherLiteral,

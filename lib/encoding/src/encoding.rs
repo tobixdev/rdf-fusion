@@ -140,7 +140,7 @@ pub trait TermEncoding: Debug + Send + Sync {
 ///
 /// This allows uesrs to access the inner values of an RDF term array. It allows one to
 /// obtain a typed iterator over the RDF terms in the array. A decoder is specialized for one
-/// encoding ([TEncoding]) and one value type ([Self::Term]).
+/// encoding and one value type ([Self::Term]).
 ///
 /// ### Compatibility
 ///
@@ -151,7 +151,7 @@ pub trait TermEncoding: Debug + Send + Sync {
 ///
 /// ### Performance
 ///
-/// Using a [TermDecoder] for accessing the array, performing an operation on [Self::Type], and then
+/// Using a [TermDecoder] for accessing the array, performing an operation on [Self::Term], and then
 /// re-encoding the resulting value using a [TermEncoder] may incur a performance penalty. However,
 /// we hope that this impact can be mitigated by compiler optimizations. We have yet to benchmark
 /// this impact to make a founded recommendation of when to use decoders and encoders. Users are
@@ -179,13 +179,13 @@ pub trait TermDecoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
 /// Allows encoding an iterator of a type into an [EncodingArray].
 ///
 /// This allows users to encode values in an RDF term array. An encoder is specialized for
-/// one encoding ([TEncoding]) and one value type ([Self::Term]). The value type may only represent
-/// a subset of all valid RDF terms (e.g., only [Boolean] values). However, it is recommended that
-/// there is one decoder per [TermEncoding] that allows users to encode all RDF terms.
+/// one encoding and one value type ([Self::Term]). The value type may only represent a subset of
+/// all valid RDF terms (e.g., only Boolean values). However, it is recommended that there is
+/// one decoder per [TermEncoding] that allows users to encode all RDF terms.
 ///
 /// ### Performance
 ///
-/// Using a [TermDecoder] for accessing the array, performing an operation on [Self::Type], and then
+/// Using a [TermDecoder] for accessing the array, performing an operation on [Self::Term], and then
 /// re-encoding the resulting value using a [TermEncoder] may incur a performance penalty. However,
 /// we hope that this impact can be mitigated by compiler optimizations. We have yet to benchmark
 /// this impact to make a founded recommendation of when to use decoders and encoders. Users are
@@ -194,12 +194,12 @@ pub trait TermEncoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
     /// The value type that is being encoded.
     type Term<'data>;
 
-    /// Allows encoding an iterator over RDF terms in an [TEncoding::Array].
+    /// Allows encoding an iterator over RDF terms in an Arrow array.
     fn encode_terms<'data>(
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<TEncoding::Array>;
 
-    /// Allows encoding a scalar RDF term in an [TEncoding::Scalar].
+    /// Allows encoding a scalar RDF term in an Arrow scalar.
     fn encode_term(term: ThinResult<Self::Term<'_>>) -> DFResult<TEncoding::Scalar> {
         let array = Self::encode_terms([term])?;
         let scalar = ScalarValue::try_from_array(array.array(), 0)?;
@@ -207,7 +207,7 @@ pub trait TermEncoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
     }
 }
 
-/// Represents either a [TEncoding::Array] or a [TEncoding::Scalar] for a given encoding.
+/// Represents either an array or a scalar for a given encoding.
 ///
 /// As the scalar variant also stores length information, one can obtain an iterator
 /// ([Self::term_iter]) independently on whether the underlying data is an array or a scalar. This
@@ -224,7 +224,7 @@ pub enum EncodingDatum<TEncoding: TermEncoding + ?Sized> {
 impl<TEncoding: TermEncoding + ?Sized> EncodingDatum<TEncoding> {
     /// Creates an iterator over the contents of this datum.
     ///
-    /// For an array, the iterator will simply return the result from the [TDecoder].
+    /// For an array, the iterator will simply return the result from the decoder.
     ///
     /// For a scalar, the value of the scalar will be cloned for each iteration, as dictated by the
     /// additional length.

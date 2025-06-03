@@ -23,9 +23,9 @@ type AResult<T> = Result<T, ArrowError>;
 
 /// Represents an instance of a RdfFusion encoding.
 pub enum RdfFusionEncodedArray {
-    /// Represents an Arrow array that contains entries with the [term_encoding].
+    /// Represents an Arrow array that contains entries with the [PlainTermEncoding].
     PlainTerm(PlainTermEncoding),
-    /// Represents an Arrow array that contains entries with the [value_encoding].
+    /// Represents an Arrow array that contains entries with the [TypedValueEncoding].
     Value(TypedValueEncoding),
     // Represents an Arrow array that contains entries with the [sortable_encoding].
     // Sortable(SortableEncodedArray),

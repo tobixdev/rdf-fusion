@@ -1,7 +1,7 @@
 use crate::{ThinError, ThinResult};
 use std::cmp::Ordering;
 
-/// https://www.w3.org/TR/sparql11-query/#func-string
+/// TODO
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StringLiteralRef<'value>(pub &'value str, pub Option<&'value str>);
 
@@ -29,7 +29,7 @@ impl Ord for StringLiteralRef<'_> {
 
 // TODO: This should only be a temporary solution once the results can write into the arrays.
 
-/// https://www.w3.org/TR/sparql11-query/#func-string
+/// TODO
 #[derive(PartialEq, Eq, Debug)]
 pub struct OwnedStringLiteral(pub String, pub Option<String>);
 
@@ -57,7 +57,8 @@ impl<'data> CompatibleStringArgs<'data> {
     /// Checks whether two [StringLiteralRef] are compatible and if they are return a new
     /// [CompatibleStringArgs].
     ///
-    /// https://www.w3.org/TR/2013/REC-sparql11-query-20130321/#func-arg-compatibility
+    /// Relevant Resources:
+    /// - [SPARQL 1.1 - Argument Compatibility Rules](https://www.w3.org/TR/2013/REC-sparql11-query-20130321/#func-arg-compatibility)
     pub fn try_from(
         lhs: StringLiteralRef<'data>,
         rhs: StringLiteralRef<'data>,
