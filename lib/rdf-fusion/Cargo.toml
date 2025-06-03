@@ -21,14 +21,16 @@ futures.workspace = true
 rdf-fusion-engine.workspace = true
 rdf-fusion-storage.workspace = true
 oxrdfio.workspace = true
-rand.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 sparesults.workspace = true
+csv.workspace = true
 
 [dev-dependencies]
+bzip2.workspace = true
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
+reqwest = { workspace = true, features = ["blocking"] }
 tokio-test.workspace = true
-criterion.workspace = true
 
 [lints]
 workspace = true
