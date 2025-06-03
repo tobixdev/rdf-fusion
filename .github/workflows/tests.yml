@@ -19,7 +19,7 @@ jobs:
       - name: Setup rust toolchain
         uses: moonrepo/setup-rust@v1
         with:
-          channel: stable
+          channel: 1.87
           cache-target: release
 
       - name: Install just
@@ -35,4 +35,3 @@ jobs:
 
       - name: Run CI Recipe
         run: just ci
-
