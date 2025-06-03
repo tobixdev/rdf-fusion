@@ -1,6 +1,7 @@
 use crate::DFResult;
+use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_err, DFSchemaRef};
-use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore};
 use rdf_fusion_encoding::EncodingName;
 use std::cmp::Ordering;
 use std::collections::HashSet;
@@ -45,6 +46,14 @@ impl SparqlJoinNode {
     ) -> DFResult<Self> {
         validate_inputs(&lhs, &rhs)?;
         let schema = compute_schema(&lhs, &rhs);
+
+        if let Some(filter) = &filter {
+            let (data_type, _) = filter.data_type_and_nullable(&schema)?;
+            if data_type != DataType::Boolean {
+                return plan_err!("Filter must be a boolean expression.");
+            }
+        }
+
         Ok(Self {
             lhs,
             rhs,

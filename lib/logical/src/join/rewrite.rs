@@ -113,10 +113,6 @@ impl SparqlJoinLoweringRule {
                     })
                 })?
                 .data;
-
-            let filter = expr_builder_root
-                .try_create_builder(filter)?
-                .build_effective_boolean_value()?;
             join_filters.push(filter);
         }
         let filter_expr = join_filters.into_iter().reduce(Expr::and);
