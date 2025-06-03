@@ -47,7 +47,7 @@ pub struct KleenePlusClosureExec {
     plan_properties: PlanProperties,
     /// The inner execution plan.
     inner: Arc<dyn ExecutionPlan>,
-    /// See [KleenePlusClosureNode::allow_cross_graph_paths] for details.
+    /// See [rdf_fusion_logical::paths::KleenePlusClosureNode::disallow_cross_graph_paths] for details.
     allow_cross_graph_paths: bool,
 }
 
@@ -55,7 +55,7 @@ impl KleenePlusClosureExec {
     /// Creates a new [KleenePlusClosureExec] over the `inner` [ExecutionPlan].
     ///
     /// The `allow_cross_graph_paths` argument indicates whether paths are created across multiple
-    /// graphs. See [KleenePlusClosureNode::allow_cross_graph_paths] for details.
+    /// graphs.
     pub fn try_new(inner: Arc<dyn ExecutionPlan>, allow_cross_graph_paths: bool) -> DFResult<Self> {
         if !inner
             .schema()
@@ -158,7 +158,7 @@ struct KleenePlusClosureStream {
     state: KleenePlusPathStreamState,
     /// The schema of the stream.
     schema: SchemaRef,
-    /// See [KleenePlusClosureNode::allow_cross_graph_paths].
+    /// See [KleenePlusClosureExec] for details on `allow_cross_graph_paths`.
     allow_cross_graph_paths: bool,
 
     // State
@@ -185,8 +185,7 @@ enum KleenePlusPathStreamState {
 impl KleenePlusClosureStream {
     /// Creates a new [KleenePlusClosureStream].
     ///
-    /// See [KleenePlusClosureNode::allow_cross_graph_paths] for details on
-    /// `allow_cross_graph_paths`.
+    /// See [KleenePlusClosureExec] for details on `allow_cross_graph_paths`.
     fn new(
         input: SendableRecordBatchStream,
         schema: SchemaRef,
