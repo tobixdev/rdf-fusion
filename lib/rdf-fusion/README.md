@@ -7,9 +7,9 @@ TBD
 Here is an example of using RdfFusion:
 ```rust
 use std::error::Error;
-use graphfusion::store::Store;
-use graphfusion::model::*;
-use graphfusion::sparql::QueryResults;
+use rdf_fusion::store::Store;
+use rdf_fusion::model::*;
+use rdf_fusion::sparql::QueryResults;
 use futures::StreamExt;
 
 #[tokio::main]
