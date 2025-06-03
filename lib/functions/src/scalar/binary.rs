@@ -10,19 +10,20 @@ use rdf_fusion_encoding::{TermEncoder, TermEncoding};
 use rdf_fusion_functions_scalar::{BinarySparqlOp, SparqlOpVolatility};
 use rdf_fusion_model::{ThinError, ThinResult};
 use std::any::Any;
+use std::marker::PhantomData;
 
 #[macro_export]
 macro_rules! impl_binary_sparql_op {
     ($ENCODING: ty, $DECODER_LHS: ty, $DECODER_RHS: ty, $ENCODER: ty, $FUNCTION_NAME: ident, $SPARQL_OP: ty, $NAME: expr) => {
         pub fn $FUNCTION_NAME() -> std::sync::Arc<datafusion::logical_expr::ScalarUDF> {
             let op = <$SPARQL_OP>::new();
-            let udf_impl = crate::scalar::binary::BinaryScalarUdfOp::<
+            let udf_impl = $crate::scalar::binary::BinaryScalarUdfOp::<
                 $SPARQL_OP,
                 $ENCODING,
                 $DECODER_LHS,
                 $DECODER_RHS,
                 $ENCODER,
-            >::new($NAME, op);
+            >::new(&$NAME, op);
             let udf = datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl);
             std::sync::Arc::new(udf)
         }
@@ -41,10 +42,10 @@ where
     name: String,
     op: TOp,
     signature: Signature,
-    _encoding: std::marker::PhantomData<TEncoding>,
-    _decoder_lhs: std::marker::PhantomData<TDecoderLhs>,
-    _decoder_rhs: std::marker::PhantomData<TDecoderRhs>,
-    _encoder: std::marker::PhantomData<TEncoder>,
+    _encoding: PhantomData<TEncoding>,
+    _decoder_lhs: PhantomData<TDecoderLhs>,
+    _decoder_rhs: PhantomData<TDecoderRhs>,
+    _encoder: PhantomData<TEncoder>,
 }
 
 impl<TOp, TEncoding, TDecoderLhs, TDecoderRhs, TEncoder>
@@ -56,7 +57,7 @@ where
     TDecoderRhs: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::ArgRhs<'a>> + 'static,
     TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>> + 'static,
 {
-    pub(crate) fn new(name: FunctionName, op: TOp) -> Self {
+    pub(crate) fn new(name: &FunctionName, op: TOp) -> Self {
         let volatility = match op.volatility() {
             SparqlOpVolatility::Immutable => Volatility::Immutable,
             SparqlOpVolatility::Stable => Volatility::Stable,
@@ -70,10 +71,10 @@ where
             name: name.to_string(),
             op,
             signature,
-            _encoding: Default::default(),
-            _decoder_lhs: Default::default(),
-            _decoder_rhs: Default::default(),
-            _encoder: Default::default(),
+            _encoding: PhantomData,
+            _decoder_lhs: PhantomData,
+            _decoder_rhs: PhantomData,
+            _encoder: PhantomData,
         }
     }
 }
@@ -118,22 +119,22 @@ where
             Ok([ColumnarValue::Scalar(lhs), ColumnarValue::Array(rhs)]) => {
                 dispatch_binary_scalar_array::<TEncoding, TDecoderLhs, TDecoderRhs, TEncoder, TOp>(
                     &self.op,
-                    &TEncoding::try_new_scalar(lhs.clone())?,
-                    &TEncoding::try_new_array(rhs.clone())?,
+                    &TEncoding::try_new_scalar(lhs)?,
+                    &TEncoding::try_new_array(rhs)?,
                 )
             }
             Ok([ColumnarValue::Array(lhs), ColumnarValue::Scalar(rhs)]) => {
                 dispatch_binary_array_scalar::<TEncoding, TDecoderLhs, TDecoderRhs, TEncoder, TOp>(
                     &self.op,
-                    &TEncoding::try_new_array(lhs.clone())?,
-                    &TEncoding::try_new_scalar(rhs.clone())?,
+                    &TEncoding::try_new_array(lhs)?,
+                    &TEncoding::try_new_scalar(rhs)?,
                 )
             }
             Ok([ColumnarValue::Scalar(lhs), ColumnarValue::Scalar(rhs)]) => {
                 dispatch_binary_scalar_scalar::<TEncoding, TDecoderLhs, TDecoderRhs, TEncoder, TOp>(
                     &self.op,
                     &TEncoding::try_new_scalar(lhs)?,
-                    &TEncoding::try_new_scalar(rhs.clone())?,
+                    &TEncoding::try_new_scalar(rhs)?,
                 )
             }
             _ => exec_err!("Unexpected type combination."),

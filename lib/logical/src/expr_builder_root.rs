@@ -24,7 +24,7 @@ pub struct RdfFusionExprBuilderRoot<'root> {
 impl<'root> RdfFusionExprBuilderRoot<'root> {
     /// Creates a new expression builder root.
     pub fn new(registry: &'root dyn RdfFusionFunctionRegistry, schema: &'root DFSchema) -> Self {
-        Self { schema, registry }
+        Self { registry, schema }
     }
 
     /// Returns the schema of the input data.

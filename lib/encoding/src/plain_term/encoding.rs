@@ -47,6 +47,7 @@ impl PlainTermEncodingField {
         }
     }
 
+    #[allow(clippy::match_same_arms)]
     pub fn data_type(self) -> DataType {
         match self {
             PlainTermEncodingField::TermType => DataType::UInt8,
@@ -56,6 +57,7 @@ impl PlainTermEncodingField {
         }
     }
 
+    #[allow(clippy::match_same_arms)]
     pub fn is_nullable(self) -> bool {
         match self {
             PlainTermEncodingField::TermType => false,
@@ -65,7 +67,7 @@ impl PlainTermEncodingField {
         }
     }
 
-    pub fn field(&self) -> Field {
+    pub fn field(self) -> Field {
         Field::new(self.name(), self.data_type(), self.is_nullable())
     }
 }

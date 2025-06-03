@@ -293,6 +293,7 @@ impl TypedValueArrayBuilder {
         Ok(())
     }
 
+    #[allow(clippy::expect_used, reason = "Fields must match type.")]
     pub fn finish(mut self) -> ArrayRef {
         Arc::new(
             UnionArray::try_new(

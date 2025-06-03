@@ -284,9 +284,9 @@ impl KleenePlusClosureStream {
     ///
     /// This adds all inner paths to the `initial_paths_map`, `all_paths`, and the `current_delta`.
     fn collect_next_batch(&mut self, batch: &RecordBatch) -> DFResult<()> {
-        let graph_names = PlainTermEncoding::try_new_array(batch.column(0).clone())?;
-        let starts = PlainTermEncoding::try_new_array(batch.column(1).clone())?;
-        let ends = PlainTermEncoding::try_new_array(batch.column(2).clone())?;
+        let graph_names = PlainTermEncoding::try_new_array(Arc::clone(batch.column(0)))?;
+        let starts = PlainTermEncoding::try_new_array(Arc::clone(batch.column(1)))?;
+        let ends = PlainTermEncoding::try_new_array(Arc::clone(batch.column(2)))?;
 
         let graph_names = GraphNameRefPlainTermDecoder::decode_terms(&graph_names);
         let starts = DefaultPlainTermDecoder::decode_terms(&starts);

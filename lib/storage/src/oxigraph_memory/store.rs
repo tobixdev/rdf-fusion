@@ -543,10 +543,7 @@ impl MemoryStorageWriter<'_> {
                 .or_insert_with(|| (Arc::downgrade(&node), 1));
 
             match quad.graph_name {
-                GraphNameRef::NamedNode(_) => {
-                    self.insert_encoded_named_graph(encoded.graph_name.clone());
-                }
-                GraphNameRef::BlankNode(_) => {
+                GraphNameRef::NamedNode(_) | GraphNameRef::BlankNode(_) => {
                     self.insert_encoded_named_graph(encoded.graph_name.clone());
                 }
                 GraphNameRef::DefaultGraph => (),

@@ -170,7 +170,7 @@ impl GraphPatternRewriter {
                 let active_graph = compute_active_graph_for_pattern(&self.dataset, name);
                 let variable = match name {
                     NamedNodePattern::Variable(var) => Some(var.clone()),
-                    _ => None,
+                    NamedNodePattern::NamedNode(_) => None,
                 };
                 let new_state = old_state
                     .with_active_graph(active_graph)
@@ -381,7 +381,7 @@ impl RewritingState {
 fn compute_default_active_graph(dataset: &QueryDataset) -> ActiveGraph {
     match dataset.default_graph_graphs() {
         None => ActiveGraph::DefaultGraph,
-        Some(graphs) => ActiveGraph::Union(graphs.iter().cloned().collect()),
+        Some(graphs) => ActiveGraph::Union(graphs.to_vec()),
     }
 }
 
@@ -414,7 +414,7 @@ fn ensure_all_columns_are_rdf_terms(
             let encoding = EncodingName::try_from_data_type(f.data_type());
             if matches!(
                 encoding,
-                Some(EncodingName::TypedValue) | Some(EncodingName::PlainTerm)
+                Some(EncodingName::TypedValue | EncodingName::PlainTerm)
             ) {
                 Ok(column)
             } else {

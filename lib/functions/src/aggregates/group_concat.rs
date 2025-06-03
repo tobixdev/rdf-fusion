@@ -59,7 +59,7 @@ impl Accumulator for SparqlGroupConcat {
         let mut value_exists = self.value.is_some();
         let mut value = self.value.take().unwrap_or_default();
 
-        let arr = TypedValueEncoding::try_new_array(values[0].clone())?;
+        let arr = TypedValueEncoding::try_new_array(Arc::clone(&values[0]))?;
         for string in StringLiteralRefTermValueDecoder::decode_terms(&arr) {
             if let Ok(string) = string {
                 if value_exists {
@@ -142,11 +142,11 @@ impl Accumulator for SparqlGroupConcat {
                 (None, other) => other.map(ToOwned::to_owned),
                 (other, None) => other,
                 (Some(language), Some(old_language)) => {
-                    if language.as_str() != old_language {
+                    if language.as_str() == old_language {
+                        Some(language)
+                    } else {
                         self.language_error = true;
                         None
-                    } else {
-                        Some(language)
                     }
                 }
             };

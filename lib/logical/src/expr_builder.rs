@@ -83,21 +83,25 @@ impl<'root> RdfFusionExprBuilder<'root> {
     //
 
     /// TODO
+    #[allow(clippy::wrong_self_convention)]
     pub fn is_iri(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::IsIri, vec![])
     }
 
     /// TODO
+    #[allow(clippy::wrong_self_convention)]
     pub fn is_blank(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::IsBlank, vec![])
     }
 
     /// TODO
+    #[allow(clippy::wrong_self_convention)]
     pub fn is_literal(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::IsLiteral, vec![])
     }
 
     /// TODO
+    #[allow(clippy::wrong_self_convention)]
     pub fn is_numeric(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::IsNumeric, vec![])
     }
@@ -497,21 +501,25 @@ impl<'root> RdfFusionExprBuilder<'root> {
     }
 
     /// TODO
+    #[allow(clippy::should_implement_trait)]
     pub fn add(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Add, vec![rhs])
     }
 
     /// TODO
+    #[allow(clippy::should_implement_trait)]
     pub fn sub(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Sub, vec![rhs])
     }
 
     /// TODO
+    #[allow(clippy::should_implement_trait)]
     pub fn mul(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Mul, vec![rhs])
     }
 
     /// TODO
+    #[allow(clippy::should_implement_trait)]
     pub fn div(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Div, vec![rhs])
     }
@@ -546,6 +554,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     }
 
     /// TODO
+    #[allow(clippy::should_implement_trait)]
     pub fn not(self) -> DFResult<Self> {
         let root = self.root;
         let ebv = self.build_effective_boolean_value()?;
@@ -571,6 +580,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// Creates a new aggregate expression that computes the average of the inner expression.
     ///
     /// If `distinct` is true, only distinct values are considered.
+    #[allow(
+        clippy::unnecessary_wraps,
+        reason = "Consistent API, Maybe Count becomes registerable"
+    )]
     pub fn count(self, distinct: bool) -> DFResult<Self> {
         Ok(if distinct {
             let expr = count_distinct(self.expr);
@@ -592,6 +605,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
     }
 
     /// Creates a new aggregate expression that returns any value of the inner expression.
+    #[allow(
+        clippy::unnecessary_wraps,
+        reason = "Consistent API, Maybe Sample becomes registerable"
+    )]
     pub fn sample(self) -> DFResult<Self> {
         Ok(Self {
             expr: first_value(self.expr, None),

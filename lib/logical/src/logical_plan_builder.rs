@@ -159,7 +159,7 @@ impl RdfFusionLogicalPlanBuilder {
             .reduce(|lhs, rhs| lhs?.join(rhs?.build()?, SparqlJoinType::Inner, None))
             .unwrap_or_else(|| {
                 Ok(RdfFusionLogicalPlanBuilder::new_with_empty_solution(
-                    Arc::clone(&registry),
+                    registry,
                 ))
             })
     }
@@ -212,13 +212,7 @@ impl RdfFusionLogicalPlanBuilder {
         subject: TermPattern,
         object: TermPattern,
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        let node = PropertyPathNode::new(
-            active_graph,
-            graph_variable.clone(),
-            subject.clone(),
-            path.clone(),
-            object.clone(),
-        )?;
+        let node = PropertyPathNode::new(active_graph, graph_variable, subject, path, object)?;
         Ok(Self {
             registry,
             plan_builder: create_extension_plan(node),
@@ -234,7 +228,7 @@ impl RdfFusionLogicalPlanBuilder {
         )?;
         Ok(Self {
             plan_builder,
-            registry: self.registry.clone(),
+            registry: Arc::clone(&self.registry),
         })
     }
 
@@ -373,7 +367,7 @@ impl RdfFusionLogicalPlanBuilder {
 
     /// TODO
     pub fn minus(self, rhs: LogicalPlan) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        let minus_node = MinusNode::new(self.plan_builder.build()?, rhs)?;
+        let minus_node = MinusNode::new(self.plan_builder.build()?, rhs);
         Ok(Self {
             registry: self.registry,
             plan_builder: create_extension_plan(minus_node),
@@ -422,8 +416,7 @@ impl RdfFusionLogicalPlanBuilder {
     /// TODO
     pub fn distinct_with_sort(self, sorts: Vec<SortExpr>) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let schema = self.plan_builder.schema();
-        let (on_expr, sorts) =
-            create_distinct_on_expressions(self.expr_builder_root(), sorts.clone())?;
+        let (on_expr, sorts) = create_distinct_on_expressions(self.expr_builder_root(), sorts)?;
         let select_expr = schema.columns().into_iter().map(col).collect();
         let sorts = if sorts.is_empty() { None } else { Some(sorts) };
 

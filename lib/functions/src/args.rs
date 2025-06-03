@@ -18,12 +18,14 @@ impl RdfFusionFunctionArgsBuilder {
     }
 
     /// TODO
+    #[must_use]
     pub fn with_arg<TArg: RdfFusionFunctionArg>(mut self, name: String, value: TArg) -> Self {
         self.values.insert(name, value.into_term());
         self
     }
 
     /// TODO
+    #[must_use]
     pub fn with_optional_arg<TArg: RdfFusionFunctionArg>(
         mut self,
         name: String,
@@ -38,6 +40,12 @@ impl RdfFusionFunctionArgsBuilder {
     /// TODO
     pub fn build(self) -> RdfFusionFunctionArgs {
         RdfFusionFunctionArgs::new(self.values)
+    }
+}
+
+impl Default for RdfFusionFunctionArgsBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

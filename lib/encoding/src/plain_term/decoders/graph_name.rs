@@ -5,7 +5,7 @@ use crate::TermEncoding;
 use rdf_fusion_model::{GraphNameRef, TermRef, ThinError, ThinResult};
 
 #[derive(Debug)]
-pub struct GraphNameRefPlainTermDecoder {}
+pub struct GraphNameRefPlainTermDecoder;
 
 /// Extracts a sequence of term references from the given array.
 impl TermDecoder<PlainTermEncoding> for GraphNameRefPlainTermDecoder {

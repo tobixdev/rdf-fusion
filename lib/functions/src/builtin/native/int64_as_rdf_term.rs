@@ -33,6 +33,12 @@ impl NativeInt64AsTerm {
     }
 }
 
+impl Default for NativeInt64AsTerm {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScalarUDFImpl for NativeInt64AsTerm {
     fn as_any(&self) -> &dyn Any {
         self

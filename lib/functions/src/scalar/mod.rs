@@ -26,10 +26,11 @@ mod unary;
 mod n_ary;
 mod dynamic_udf;
 
+#[allow(clippy::expect_used, reason = "UDFs are known at compile time")]
 pub fn str() -> Arc<ScalarUDF> {
     let udf = DynamicRdfFusionUdf::try_new(
-        FunctionName::Builtin(BuiltinName::Str),
-        vec![
+        &FunctionName::Builtin(BuiltinName::Str),
+        &[
             str_plain_term().as_ref().clone(),
             str_typed_value().as_ref().clone(),
         ],
@@ -38,10 +39,11 @@ pub fn str() -> Arc<ScalarUDF> {
     Arc::new(ScalarUDF::new_from_impl(udf))
 }
 
+#[allow(clippy::expect_used, reason = "UDFs are known at compile time")]
 pub fn bnode() -> Arc<ScalarUDF> {
     let udf = DynamicRdfFusionUdf::try_new(
-        FunctionName::Builtin(BuiltinName::BNode),
-        vec![
+        &FunctionName::Builtin(BuiltinName::BNode),
+        &[
             bnode_nullary_typed_value().as_ref().clone(),
             bnode_unary_typed_value().as_ref().clone(),
         ],
@@ -50,10 +52,11 @@ pub fn bnode() -> Arc<ScalarUDF> {
     Arc::new(ScalarUDF::new_from_impl(udf))
 }
 
+#[allow(clippy::expect_used, reason = "UDFs are known at compile time")]
 pub fn sub_str() -> Arc<ScalarUDF> {
     let udf = DynamicRdfFusionUdf::try_new(
-        FunctionName::Builtin(BuiltinName::SubStr),
-        vec![
+        &FunctionName::Builtin(BuiltinName::SubStr),
+        &[
             sub_str_binary_typed_value().as_ref().clone(),
             sub_str_ternary_typed_value().as_ref().clone(),
         ],
@@ -62,10 +65,11 @@ pub fn sub_str() -> Arc<ScalarUDF> {
     Arc::new(ScalarUDF::new_from_impl(udf))
 }
 
+#[allow(clippy::expect_used, reason = "UDFs are known at compile time")]
 pub fn regex() -> Arc<ScalarUDF> {
     let udf = DynamicRdfFusionUdf::try_new(
-        FunctionName::Builtin(BuiltinName::Regex),
-        vec![
+        &FunctionName::Builtin(BuiltinName::Regex),
+        &[
             regex_binary_typed_value().as_ref().clone(),
             regex_ternary_typed_value().as_ref().clone(),
         ],
@@ -74,10 +78,11 @@ pub fn regex() -> Arc<ScalarUDF> {
     Arc::new(ScalarUDF::new_from_impl(udf))
 }
 
+#[allow(clippy::expect_used, reason = "UDFs are known at compile time")]
 pub fn replace() -> Arc<ScalarUDF> {
     let udf = DynamicRdfFusionUdf::try_new(
-        FunctionName::Builtin(BuiltinName::Replace),
-        vec![
+        &FunctionName::Builtin(BuiltinName::Replace),
+        &[
             replace_typed_value().as_ref().clone(),
             replace_flags_typed_value().as_ref().clone(),
         ],

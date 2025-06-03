@@ -3,7 +3,7 @@ use crate::RdfFusionExprBuilderRoot;
 use crate::{check_same_schema, DFResult};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, DFSchemaRef, JoinType};
-use datafusion::logical_expr::{and, Expr};
+use datafusion::logical_expr::{and, Expr, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
@@ -66,7 +66,7 @@ impl MinusLoweringRule {
 
         let lhs = LogicalPlanBuilder::new(node.lhs().clone()).alias("lhs")?;
         let rhs = LogicalPlanBuilder::new(node.rhs().clone()).alias("rhs")?;
-        let lhs_schema = Arc::clone(&lhs.schema());
+        let lhs_schema = Arc::clone(lhs.schema());
 
         // Compute the result via a LeftAnti join.
         let filter_expr =

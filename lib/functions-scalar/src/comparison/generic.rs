@@ -49,7 +49,7 @@ create_binary_cmp_udf!(LessThanSparqlOp, [Ordering::Less]);
 create_binary_cmp_udf!(LessOrEqualSparqlOp, [Ordering::Less, Ordering::Equal]);
 
 #[derive(Debug)]
-pub struct EqPlainTermSparqlOp {}
+pub struct EqPlainTermSparqlOp;
 
 impl Default for EqPlainTermSparqlOp {
     fn default() -> Self {

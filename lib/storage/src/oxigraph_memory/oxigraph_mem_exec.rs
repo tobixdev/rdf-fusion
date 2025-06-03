@@ -99,7 +99,7 @@ impl ExecutionPlan for OxigraphMemExec {
             return internal_err!("OxigraphMemExec partition must be 1");
         }
         Ok(Box::pin(OxigraphMemStream::new(
-            Arc::clone(&self.reader),
+            &self.reader,
             self.schema(),
             context.session_config().batch_size(),
         )))
@@ -114,7 +114,7 @@ pub struct OxigraphMemStream {
 }
 
 impl OxigraphMemStream {
-    fn new(storage: Arc<MemoryStorageReader>, schema: SchemaRef, batch_size: usize) -> Self {
+    fn new(storage: &MemoryStorageReader, schema: SchemaRef, batch_size: usize) -> Self {
         let iterator = storage.quads_for_pattern(None, None, None, None);
         Self {
             schema,
@@ -134,11 +134,7 @@ impl Stream for OxigraphMemStream {
         let mut rb_builder = RdfQuadsRecordBatchBuilder::new(Arc::clone(&self.schema));
 
         while let Some(quad) = self.iterator.next() {
-            let result = rb_builder.encode_quad(&quad);
-            if let Err(err) = result {
-                return Poll::Ready(Some(Err(DataFusionError::External(Box::new(err)))));
-            }
-
+            rb_builder.encode_quad(&quad);
             if rb_builder.count() == self.batch_size {
                 break;
             }
@@ -197,7 +193,7 @@ impl RdfQuadsRecordBatchBuilder {
         self.count
     }
 
-    fn encode_quad(&mut self, quad: &EncodedQuad) -> AResult<()> {
+    fn encode_quad(&mut self, quad: &EncodedQuad) {
         if self.project_graph {
             encode_term(&mut self.graph, &quad.graph_name);
         }
@@ -211,7 +207,6 @@ impl RdfQuadsRecordBatchBuilder {
             encode_term(&mut self.object, &quad.object);
         }
         self.count += 1;
-        Ok(())
     }
 
     fn finish(self) -> AResult<Option<RecordBatch>> {

@@ -21,8 +21,7 @@ pub async fn evaluate_query(
         spargebra::Query::Select {
             pattern, base_iri, ..
         } => {
-            let dataframe =
-                create_dataframe(ctx, registry, &query.dataset, pattern, base_iri).await?;
+            let dataframe = create_dataframe(ctx, registry, &query.dataset, pattern, base_iri)?;
             let variables = create_variables(&dataframe);
             let batch_record_stream = dataframe.execute_stream().await?;
             let stream = QuerySolutionStream::new(variables, batch_record_stream);
@@ -35,8 +34,7 @@ pub async fn evaluate_query(
             base_iri,
             ..
         } => {
-            let dataframe =
-                create_dataframe(ctx, registry, &query.dataset, pattern, base_iri).await?;
+            let dataframe = create_dataframe(ctx, registry, &query.dataset, pattern, base_iri)?;
             let variables = create_variables(&dataframe);
             let batch_record_stream = dataframe.execute_stream().await?;
             let stream = QuerySolutionStream::new(variables, batch_record_stream);
@@ -49,8 +47,7 @@ pub async fn evaluate_query(
         spargebra::Query::Ask {
             pattern, base_iri, ..
         } => {
-            let dataframe =
-                create_dataframe(ctx, registry, &query.dataset, pattern, base_iri).await?;
+            let dataframe = create_dataframe(ctx, registry, &query.dataset, pattern, base_iri)?;
             let count = dataframe.limit(0, Some(1))?.count().await?;
             Ok((QueryResults::Boolean(count > 0), None))
         }
@@ -60,7 +57,7 @@ pub async fn evaluate_query(
     }
 }
 
-async fn create_dataframe(
+fn create_dataframe(
     ctx: &SessionContext,
     registry: RdfFusionFunctionRegistryRef,
     dataset: &QueryDataset,

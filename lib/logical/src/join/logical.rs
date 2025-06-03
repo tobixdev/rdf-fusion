@@ -54,10 +54,6 @@ impl SparqlJoinNode {
         })
     }
 
-    pub fn schema(&self) -> &DFSchemaRef {
-        &self.schema
-    }
-
     /// TODO
     pub fn lhs(&self) -> &LogicalPlan {
         &self.lhs
@@ -143,6 +139,7 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
 ///
 /// The following invariants are checked:
 /// - Join variables must have the PlainTermEncoding.
+#[allow(clippy::expect_used)]
 fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
     let lhs_fields = lhs
         .schema()
@@ -161,7 +158,7 @@ fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
         let lhs_field = lhs
             .schema()
             .field_with_unqualified_name(field_name)
-            .expect("Already checked");
+            .expect("Field name stems from the set of fields.");
         if EncodingName::try_from_data_type(lhs_field.data_type()) != Some(EncodingName::PlainTerm)
         {
             return plan_err!("Join variables must have the PlainTermEncoding.");
@@ -170,7 +167,7 @@ fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
         let rhs_field = rhs
             .schema()
             .field_with_unqualified_name(field_name)
-            .expect("Already checked");
+            .expect("Field name stems from the set of fields.");
         if EncodingName::try_from_data_type(rhs_field.data_type()) != Some(EncodingName::PlainTerm)
         {
             return plan_err!("Join variables must have the PlainTermEncoding.");

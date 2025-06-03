@@ -202,11 +202,7 @@ fn partial_cmp_literals(a: TypedValueRef<'_>, b: TypedValueRef<'_>) -> Option<Or
         },
         TypedValueRef::OtherLiteral(a) => match b {
             TypedValueRef::OtherLiteral(b) if a.datatype() == b.datatype() => {
-                if a.value() == b.value() {
-                    Some(Ordering::Equal)
-                } else {
-                    None
-                }
+                (a.value() == b.value()).then_some(Ordering::Equal)
             }
             _ => None,
         },
@@ -238,9 +234,9 @@ impl_from!(Date, TypedValueRef::DateLiteral);
 impl_from!(Time, TypedValueRef::TimeLiteral);
 impl_from!(DateTime, TypedValueRef::DateTimeLiteral);
 
-impl Into<Term> for TypedValueRef<'_> {
-    fn into(self) -> Term {
-        match self {
+impl From<TypedValueRef<'_>> for Term {
+    fn from(value: TypedValueRef<'_>) -> Self {
+        match value {
             TypedValueRef::NamedNode(value) => Term::NamedNode(value.into_owned()),
             TypedValueRef::BlankNode(value) => Term::BlankNode(value.into_owned()),
             TypedValueRef::BooleanLiteral(value) => Term::Literal(Literal::from(value.as_bool())),
@@ -356,7 +352,13 @@ impl<'data> TryFrom<LiteralRef<'data>> for TypedValueRef<'data> {
 }
 
 #[derive(Debug, Error)]
-pub struct TermToTypedValueError {}
+pub struct TermToTypedValueError;
+
+impl Default for TermToTypedValueError {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TermToTypedValueError {
     /// Creates a new [TermToTypedValueError].

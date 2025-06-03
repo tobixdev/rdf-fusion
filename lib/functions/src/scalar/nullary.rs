@@ -7,16 +7,18 @@ use datafusion::logical_expr::{
 use rdf_fusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
 use rdf_fusion_functions_scalar::{NullarySparqlOp, SparqlOpVolatility};
 use std::any::Any;
+use std::marker::PhantomData;
 
 #[macro_export]
 macro_rules! impl_nullary_op {
     ($ENCODING: ty, $ENCODER: ty, $FUNCTION_NAME:ident, $SPARQL_OP:ty, $NAME: expr) => {
         pub fn $FUNCTION_NAME() -> std::sync::Arc<datafusion::logical_expr::ScalarUDF> {
             let op = <$SPARQL_OP>::new();
-            let udf_impl =
-                crate::scalar::nullary::NullaryScalarUdfOp::<$SPARQL_OP, $ENCODING, $ENCODER>::new(
-                    $NAME, op,
-                );
+            let udf_impl = $crate::scalar::nullary::NullaryScalarUdfOp::<
+                $SPARQL_OP,
+                $ENCODING,
+                $ENCODER,
+            >::new(&$NAME, op);
             let udf = datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl);
             std::sync::Arc::new(udf)
         }
@@ -33,8 +35,8 @@ where
     name: String,
     op: TOp,
     signature: Signature,
-    _encoding: std::marker::PhantomData<TEncoding>,
-    _encoder: std::marker::PhantomData<TEncoder>,
+    _encoding: PhantomData<TEncoding>,
+    _encoder: PhantomData<TEncoder>,
 }
 
 impl<TOp, TEncoding, TEncoder> NullaryScalarUdfOp<TOp, TEncoding, TEncoder>
@@ -43,7 +45,7 @@ where
     TEncoding: TermEncoding,
     TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result>,
 {
-    pub(crate) fn new(name: FunctionName, op: TOp) -> Self {
+    pub(crate) fn new(name: &FunctionName, op: TOp) -> Self {
         let volatility = match op.volatility() {
             SparqlOpVolatility::Immutable => Volatility::Immutable,
             SparqlOpVolatility::Stable => Volatility::Stable,
@@ -53,8 +55,8 @@ where
             name: name.to_string(),
             op,
             signature: Signature::new(TypeSignature::Nullary, volatility),
-            _encoding: Default::default(),
-            _encoder: Default::default(),
+            _encoding: PhantomData,
+            _encoder: PhantomData,
         }
     }
 }
@@ -85,7 +87,7 @@ where
         &self,
         args: ScalarFunctionArgs<'_>,
     ) -> datafusion::common::Result<ColumnarValue> {
-        if args.args.len() != 0 {
+        if !args.args.is_empty() {
             return exec_err!("Nullary function must have no arguments.");
         }
 

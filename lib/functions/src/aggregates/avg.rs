@@ -48,7 +48,7 @@ impl Accumulator for SparqlAvg {
         if values.is_empty() || self.sum.is_err() {
             return Ok(());
         }
-        let arr = TypedValueEncoding::try_new_array(values[0].clone())?;
+        let arr = TypedValueEncoding::try_new_array(Arc::clone(&values[0]))?;
         let arr_len = u64::try_from(arr.array().len())
             .map_err(|_| exec_datafusion_err!("Array was too large."))?;
         self.count += arr_len;
@@ -127,7 +127,7 @@ impl Accumulator for SparqlAvg {
 
     #[allow(clippy::missing_asserts_for_indexing)]
     fn merge_batch(&mut self, states: &[ArrayRef]) -> DFResult<()> {
-        let arr = TypedValueEncoding::try_new_array(states[0].clone())?;
+        let arr = TypedValueEncoding::try_new_array(Arc::clone(&states[0]))?;
         let counts = states[1].as_primitive::<UInt64Type>();
         for (count, value) in counts
             .values()

@@ -107,7 +107,7 @@ fn to_query_solution(
                 ))?;
 
         // Convert the column to a PlainTermEncoding array
-        let array = PlainTermEncoding::try_new_array(column.clone()).map_err(|e| {
+        let array = PlainTermEncoding::try_new_array(Arc::clone(column)).map_err(|e| {
             QueryEvaluationError::InternalError(format!(
                 "Failed to convert column to PlainTermEncoding: {e}"
             ))
@@ -136,6 +136,7 @@ fn to_query_solution(
         let mut row_terms = Vec::with_capacity(column_terms.len());
 
         // Get the term at index i from each column
+        #[allow(clippy::expect_used)]
         for column in &mut column_terms {
             let term = column.next().expect("Length is guaranteed");
             row_terms.push(term);

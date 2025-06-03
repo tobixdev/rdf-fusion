@@ -29,7 +29,7 @@ impl ExtendNode {
             return plan_err!("Variable {} already exists in schema.", variable);
         }
 
-        let schema = compute_schema(inner.clone(), &variable, &expression)?;
+        let schema = compute_schema(&inner.clone(), &variable, &expression)?;
         Ok(Self {
             inner,
             variable,
@@ -107,7 +107,7 @@ impl UserDefinedLogicalNodeCore for ExtendNode {
 }
 
 fn compute_schema(
-    inner: LogicalPlan,
+    inner: &LogicalPlan,
     variable: &Variable,
     expression: &Expr,
 ) -> DFResult<DFSchemaRef> {

@@ -57,7 +57,7 @@ pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
 
 /// TODO
 #[derive(Debug, Default)]
-pub struct DefaultRdfFusionFunctionRegistry {}
+pub struct DefaultRdfFusionFunctionRegistry;
 
 impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     fn create_udf(

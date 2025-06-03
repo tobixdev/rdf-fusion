@@ -43,7 +43,7 @@ impl RdfFusionInstance {
         // TODO make a builder
 
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
-            Arc::new(DefaultRdfFusionFunctionRegistry::default());
+            Arc::new(DefaultRdfFusionFunctionRegistry);
 
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner))

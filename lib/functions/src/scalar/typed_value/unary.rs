@@ -369,6 +369,6 @@ pub fn iri_typed_value(base_iri: Option<Iri<String>>) -> Arc<ScalarUDF> {
         TypedValueEncoding,
         DefaultTypedValueDecoder,
         NamedNodeTermValueEncoder,
-    >::new(FunctionName::Builtin(BuiltinName::Iri), op);
+    >::new(&FunctionName::Builtin(BuiltinName::Iri), op);
     Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }

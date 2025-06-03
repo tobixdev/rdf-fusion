@@ -8,7 +8,7 @@ use datafusion::common::ScalarValue;
 use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
 
 #[derive(Debug)]
-pub struct DefaultPlainTermDecoder {}
+pub struct DefaultPlainTermDecoder;
 
 /// Extracts a sequence of term references from the given array.
 impl TermDecoder<PlainTermEncoding> for DefaultPlainTermDecoder {

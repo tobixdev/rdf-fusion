@@ -44,7 +44,7 @@ impl Accumulator for SparqlTypedValueSum {
 
         // TODO: Can we stop once we error?
 
-        let arr = TypedValueEncoding::try_new_array(values[0].clone())?;
+        let arr = TypedValueEncoding::try_new_array(Arc::clone(&values[0]))?;
         for value in NumericTermValueDecoder::decode_terms(&arr) {
             if let Ok(sum) = self.sum {
                 if let Ok(value) = value {

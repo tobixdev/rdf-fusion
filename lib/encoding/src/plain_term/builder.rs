@@ -89,9 +89,10 @@ impl PlainTermArrayBuilder {
         data_type: Option<&str>,
         language_tag: Option<&str>,
     ) {
-        if term_type == PlainTermType::Literal && data_type.is_none() {
-            panic!("Literal term must have a data type");
-        }
+        assert!(
+            !(term_type == PlainTermType::Literal && data_type.is_none()),
+            "Literal term must have a data type"
+        );
 
         self.builder
             .field_builder::<UInt8Builder>(PlainTermEncodingField::TermType.index())

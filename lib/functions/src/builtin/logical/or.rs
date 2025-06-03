@@ -33,6 +33,12 @@ impl SparqlOr {
     }
 }
 
+impl Default for SparqlOr {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScalarUDFImpl for SparqlOr {
     fn as_any(&self) -> &dyn Any {
         self

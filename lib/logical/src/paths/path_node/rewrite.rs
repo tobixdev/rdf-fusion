@@ -174,7 +174,7 @@ impl PropertyPathLoweringRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let lhs = self.rewrite_property_path_expression(inf, lhs)?;
         let rhs = self.rewrite_property_path_expression(inf, rhs)?;
-        self.join_path_alternatives(lhs, rhs)?.distinct()
+        join_path_alternatives(lhs, rhs)?.distinct()
     }
 
     /// Rewrites a sequence by joining the [COL_PATH_TARGET] of the lhs to the [COL_PATH_SOURCE] of the `rhs`.
@@ -197,7 +197,7 @@ impl PropertyPathLoweringRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let zero = self.zero_length_paths(inf)?;
         let repetition = self.rewrite_one_or_more(inf, inner)?;
-        self.join_path_alternatives(zero, repetition)?.distinct()
+        join_path_alternatives(zero, repetition)?.distinct()
     }
 
     /// Rewrites a one or more by building a recursive query.
@@ -222,7 +222,7 @@ impl PropertyPathLoweringRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let zero = self.zero_length_paths(inf)?;
         let one = self.rewrite_property_path_expression(inf, inner)?;
-        self.join_path_alternatives(zero, one)
+        join_path_alternatives(zero, one)
     }
 
     /// Returns a list of all subjects and objects in the graph where they both are the source and
@@ -255,24 +255,9 @@ impl PropertyPathLoweringRule {
         let lhs = lhs.alias("lhs")?;
         let rhs = rhs.alias("rhs")?;
 
-        let join_schema = lhs.schema().join(&rhs.schema())?;
+        let join_schema = lhs.schema().join(rhs.schema())?;
         let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
-
-        let path_join_expr = expr_builder_root
-            .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)))?
-            .build_is_compatible(Expr::from(Column::new(Some("rhs"), COL_PATH_SOURCE)))?;
-        let mut on_exprs = vec![path_join_expr];
-
-        if inf.disallow_cross_graph_paths {
-            let path_join_expr = expr_builder_root
-                .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)))?
-                .build_same_term(Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)))?;
-            on_exprs.push(path_join_expr)
-        }
-        let filter = on_exprs
-            .into_iter()
-            .reduce(or)
-            .expect("At least one expression must be present");
+        let filter = create_path_sequence_join_filter(inf, expr_builder_root)?;
 
         let join_result = lhs.join_detailed(
             rhs.build()?,
@@ -286,15 +271,6 @@ impl PropertyPathLoweringRule {
             col(Column::new(Some("lhs"), COL_PATH_SOURCE)).alias(COL_PATH_SOURCE),
             col(Column::new(Some("rhs"), COL_PATH_TARGET)).alias(COL_PATH_TARGET),
         ])
-    }
-
-    /// Creates a union that represents an alternative of two paths.
-    fn join_path_alternatives(
-        &self,
-        lhs: LogicalPlanBuilder,
-        rhs: LogicalPlanBuilder,
-    ) -> DFResult<LogicalPlanBuilder> {
-        lhs.union(rhs.build()?)
     }
 
     /// Scans the quads table and optionally filters it.
@@ -336,4 +312,37 @@ impl PropertyPathLoweringRule {
 struct PropertyPathLoweringInformation {
     active_graph: ActiveGraph,
     disallow_cross_graph_paths: bool,
+}
+
+/// Creates a filter [Expr] for joining a sequence of two paths.
+#[allow(clippy::unwrap_in_result)]
+#[allow(clippy::expect_used)]
+fn create_path_sequence_join_filter(
+    inf: &PropertyPathLoweringInformation,
+    expr_builder_root: RdfFusionExprBuilderRoot<'_>,
+) -> DFResult<Expr> {
+    let path_join_expr = expr_builder_root
+        .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)))?
+        .build_is_compatible(Expr::from(Column::new(Some("rhs"), COL_PATH_SOURCE)))?;
+    let mut on_exprs = vec![path_join_expr];
+
+    if inf.disallow_cross_graph_paths {
+        let path_join_expr = expr_builder_root
+            .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)))?
+            .build_same_term(Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)))?;
+        on_exprs.push(path_join_expr)
+    }
+
+    Ok(on_exprs
+        .into_iter()
+        .reduce(or)
+        .expect("At least one expression must be present"))
+}
+
+/// Creates a union that represents an alternative of two paths.
+fn join_path_alternatives(
+    lhs: LogicalPlanBuilder,
+    rhs: LogicalPlanBuilder,
+) -> DFResult<LogicalPlanBuilder> {
+    lhs.union(rhs.build()?)
 }

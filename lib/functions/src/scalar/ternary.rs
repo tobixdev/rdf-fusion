@@ -8,20 +8,21 @@ use itertools::izip;
 use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_functions_scalar::{SparqlOpVolatility, TernarySparqlOp};
 use std::any::Any;
+use std::marker::PhantomData;
 
 #[macro_export]
 macro_rules! impl_ternary_sparql_op {
     ($ENCODING: ty, $DECODER0: ty, $DECODER1: ty, $DECODER2: ty, $ENCODER: ty, $FUNCTION_NAME: ident, $SPARQL_OP: ty, $NAME: expr) => {
         pub fn $FUNCTION_NAME() -> std::sync::Arc<datafusion::logical_expr::ScalarUDF> {
             let op = <$SPARQL_OP>::new();
-            let udf_impl = crate::scalar::ternary::TernaryScalarUdfOp::<
+            let udf_impl = $crate::scalar::ternary::TernaryScalarUdfOp::<
                 $SPARQL_OP,
                 $ENCODING,
                 $DECODER0,
                 $DECODER1,
                 $DECODER2,
                 $ENCODER,
-            >::new($NAME, op);
+            >::new(&$NAME, op);
             let udf = datafusion::logical_expr::ScalarUDF::new_from_impl(udf_impl);
             std::sync::Arc::new(udf)
         }
@@ -41,11 +42,11 @@ where
     name: String,
     op: TOp,
     signature: Signature,
-    _encoding: std::marker::PhantomData<TEncoding>,
-    _decoder0: std::marker::PhantomData<TDecoder0>,
-    _decoder1: std::marker::PhantomData<TDecoder1>,
-    _decoder2: std::marker::PhantomData<TDecoder2>,
-    _encoder: std::marker::PhantomData<TEncoder>,
+    _encoding: PhantomData<TEncoding>,
+    _decoder0: PhantomData<TDecoder0>,
+    _decoder1: PhantomData<TDecoder1>,
+    _decoder2: PhantomData<TDecoder2>,
+    _encoder: PhantomData<TEncoder>,
 }
 
 impl<TOp, TEncoding, TDecoder0, TDecoder1, TDecoder2, TEncoder>
@@ -58,7 +59,7 @@ where
     TDecoder2: for<'a> TermDecoder<TEncoding, Term<'a> = TOp::Arg2<'a>>,
     TEncoder: for<'a> TermEncoder<TEncoding, Term<'a> = TOp::Result<'a>>,
 {
-    pub(crate) fn new(name: FunctionName, op: TOp) -> Self {
+    pub(crate) fn new(name: &FunctionName, op: TOp) -> Self {
         let volatility = match op.volatility() {
             SparqlOpVolatility::Immutable => Volatility::Immutable,
             SparqlOpVolatility::Stable => Volatility::Stable,
@@ -72,11 +73,11 @@ where
             name: name.to_string(),
             op,
             signature,
-            _encoding: Default::default(),
-            _decoder0: Default::default(),
-            _decoder1: Default::default(),
-            _decoder2: Default::default(),
-            _encoder: Default::default(),
+            _encoding: PhantomData,
+            _decoder0: PhantomData,
+            _decoder1: PhantomData,
+            _decoder2: PhantomData,
+            _encoder: PhantomData,
         }
     }
 }
@@ -113,7 +114,8 @@ where
     ) -> datafusion::common::Result<ColumnarValue> {
         dispatch_ternary::<TEncoding, TDecoder0, TDecoder1, TDecoder2, TEncoder, TOp>(
             &self.op,
-            args.args
+            &args
+                .args
                 .try_into()
                 .map_err(|_| exec_datafusion_err!("Unexpected arguments"))?,
             args.number_rows,
@@ -123,7 +125,7 @@ where
 
 pub(crate) fn dispatch_ternary<TEncoding, TDecoder0, TDecoder1, TDecoder2, TEncoder, TOp>(
     op: &TOp,
-    args: [ColumnarValue; 3],
+    args: &[ColumnarValue; 3],
     number_of_rows: usize,
 ) -> DFResult<ColumnarValue>
 where

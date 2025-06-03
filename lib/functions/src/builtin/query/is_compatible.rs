@@ -64,20 +64,20 @@ impl ScalarUDFImpl for IsCompatible {
             }
             Ok([ColumnarValue::Scalar(lhs), ColumnarValue::Array(rhs)]) => {
                 dispatch_binary_scalar_array(
-                    &PlainTermEncoding::try_new_scalar(lhs.clone())?,
-                    &PlainTermEncoding::try_new_array(rhs.clone())?,
+                    &PlainTermEncoding::try_new_scalar(lhs)?,
+                    &PlainTermEncoding::try_new_array(rhs)?,
                 )
             }
             Ok([ColumnarValue::Array(lhs), ColumnarValue::Scalar(rhs)]) => {
                 dispatch_binary_array_scalar(
-                    &PlainTermEncoding::try_new_array(lhs.clone())?,
-                    &PlainTermEncoding::try_new_scalar(rhs.clone())?,
+                    &PlainTermEncoding::try_new_array(lhs)?,
+                    &PlainTermEncoding::try_new_scalar(rhs)?,
                 )
             }
             Ok([ColumnarValue::Scalar(lhs), ColumnarValue::Scalar(rhs)]) => {
                 dispatch_binary_scalar_scalar(
                     &PlainTermEncoding::try_new_scalar(lhs)?,
-                    &PlainTermEncoding::try_new_scalar(rhs.clone())?,
+                    &PlainTermEncoding::try_new_scalar(rhs)?,
                 )
             }
             _ => exec_err!("Invalid arguments for IsCompatible"),

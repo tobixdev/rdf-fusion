@@ -9,7 +9,20 @@ use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 
 /// TODO
 #[derive(Debug)]
-pub struct ExtendLoweringRule {}
+pub struct ExtendLoweringRule;
+
+impl ExtendLoweringRule {
+    /// TODO
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for ExtendLoweringRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl OptimizerRule for ExtendLoweringRule {
     fn name(&self) -> &str {
@@ -29,7 +42,7 @@ impl OptimizerRule for ExtendLoweringRule {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<ExtendNode>() {
-                        let new_plan = self.rewrite_extend_node(node)?;
+                        let new_plan = rewrite_extend_node(node)?;
                         check_same_schema(node.schema(), new_plan.schema())?;
                         Transformed::yes(new_plan)
                     } else {
@@ -43,25 +56,18 @@ impl OptimizerRule for ExtendLoweringRule {
     }
 }
 
-impl ExtendLoweringRule {
-    /// TODO
-    pub fn new() -> Self {
-        Self {}
-    }
+/// TODO
+fn rewrite_extend_node(node: &ExtendNode) -> DFResult<LogicalPlan> {
+    let mut new_exprs: Vec<_> = node
+        .inner()
+        .schema()
+        .fields()
+        .iter()
+        .map(|f| col(Column::new_unqualified(f.name())))
+        .collect();
+    new_exprs.push(node.expression().clone().alias(node.variable().as_str()));
 
-    /// TODO
-    fn rewrite_extend_node(&self, node: &ExtendNode) -> DFResult<LogicalPlan> {
-        let mut new_exprs: Vec<_> = node
-            .inner()
-            .schema()
-            .fields()
-            .iter()
-            .map(|f| col(Column::new_unqualified(f.name())))
-            .collect();
-        new_exprs.push(node.expression().clone().alias(node.variable().as_str()));
-
-        LogicalPlanBuilder::new(node.inner().clone())
-            .project(new_exprs)?
-            .build()
-    }
+    LogicalPlanBuilder::new(node.inner().clone())
+        .project(new_exprs)?
+        .build()
 }

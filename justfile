@@ -7,11 +7,11 @@ setup:
     rustup component add clippy rustfmt
     cargo install cargo-deny
 
-# Run all checks (static & tests)
-check: check-static test rustdoc
+# Run all recipies executed by the CI
+ci: lint test rustdoc
 
-# Run all static checks (e.g., formatting, clippy)
-check-static: clippy deny
+# Run all lints (e.g., formatting, clippy)
+lint: clippy deny
     cargo fmt -- --check
 
 # Apply code formatting

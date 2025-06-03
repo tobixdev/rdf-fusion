@@ -3,7 +3,7 @@ use crate::RdfFusionExprBuilderRoot;
 use crate::{check_same_schema, DFResult};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{Column, JoinType};
-use datafusion::logical_expr::Expr;
+use datafusion::logical_expr::{Expr, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use rdf_fusion_encoding::EncodingName;

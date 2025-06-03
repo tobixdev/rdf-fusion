@@ -343,7 +343,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .map(|c| Expr::from(c.clone()).alias(format!("__inner__{}", c.name())))
             .collect::<Vec<_>>();
         let exists_pattern = exists_pattern.project(projections)?;
-        let exists_schema = Arc::clone(&exists_pattern.schema());
+        let exists_schema = Arc::clone(exists_pattern.schema());
         let exists_expr_builder_root = RdfFusionExprBuilderRoot::new(
             self.expr_builder_root.registry(),
             exists_schema.as_ref(),

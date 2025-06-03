@@ -24,11 +24,11 @@ pub struct DynamicRdfFusionUdf {
 
 impl DynamicRdfFusionUdf {
     /// TODO
-    pub fn try_new(name: FunctionName, inner: Vec<ScalarUDF>) -> DFResult<Self> {
-        validate_inner_udfs(&name, &inner)?;
+    pub fn try_new(name: &FunctionName, inner: &[ScalarUDF]) -> DFResult<Self> {
+        validate_inner_udfs(name, inner)?;
 
-        let udf_mapping = build_udf_mapping(&inner)?;
-        let volatility = get_safe_volatility(&inner);
+        let udf_mapping = build_udf_mapping(inner)?;
+        let volatility = get_safe_volatility(inner);
         let type_signature = inner
             .iter()
             .map(|udf| udf.signature().type_signature.clone())
@@ -97,18 +97,18 @@ impl ScalarUDFImpl for DynamicRdfFusionUdf {
 }
 
 /// TODO
-fn validate_inner_udfs(name: &FunctionName, inner: &Vec<ScalarUDF>) -> DFResult<()> {
+fn validate_inner_udfs(name: &FunctionName, inner: &[ScalarUDF]) -> DFResult<()> {
     if inner.is_empty() {
         return plan_err!("No UDFs provided for multi-arity SPARQL function.");
     }
 
-    let names = inner.iter().map(|udf| udf.name()).collect::<HashSet<_>>();
+    let names = inner.iter().map(ScalarUDF::name).collect::<HashSet<_>>();
     if names.len() != 1 {
         return plan_err!("All UDFs for multi-arity SPARQL function must have the same name.");
     }
 
     let inner_name = names.into_iter().next().unwrap();
-    if &name.to_string() != inner_name {
+    if name.to_string() != inner_name {
         return plan_err!("The names of the inner UDFs for multi-arity SPARQL function must match the name of the multi-arity SPARQL function.");
     }
 
@@ -116,7 +116,7 @@ fn validate_inner_udfs(name: &FunctionName, inner: &Vec<ScalarUDF>) -> DFResult<
 }
 
 /// TODO
-fn build_udf_mapping(inner: &Vec<ScalarUDF>) -> DFResult<HashMap<UDFKey, ScalarUDF>> {
+fn build_udf_mapping(inner: &[ScalarUDF]) -> DFResult<HashMap<UDFKey, ScalarUDF>> {
     let keys_per_udf = inner
         .iter()
         .map(|udf| match &udf.signature().type_signature {

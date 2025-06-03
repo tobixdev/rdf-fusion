@@ -21,7 +21,7 @@ type DFResult<T> = datafusion::error::Result<T>;
 
 /// TODO
 pub(crate) fn check_same_schema(old_schema: &DFSchema, new_schema: &DFSchema) -> DFResult<()> {
-    if !old_schema.logically_equivalent_names_and_types(&new_schema) {
+    if !old_schema.logically_equivalent_names_and_types(new_schema) {
         return plan_err!(
             "Schema of the new plan is not compatible with the old one. Old Schema: {:?}. New Schema: {:?}",
             old_schema,

@@ -1,4 +1,3 @@
-use crate::DFResult;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use std::cmp::Ordering;
@@ -15,13 +14,9 @@ pub struct MinusNode {
 
 impl MinusNode {
     /// TODO
-    pub fn new(lhs: LogicalPlan, rhs: LogicalPlan) -> DFResult<Self> {
-        let schema = Arc::clone(&lhs.schema());
-        Ok(Self { lhs, rhs, schema })
-    }
-
-    pub fn schema(&self) -> &DFSchemaRef {
-        &self.schema
+    pub fn new(lhs: LogicalPlan, rhs: LogicalPlan) -> Self {
+        let schema = Arc::clone(lhs.schema());
+        Self { lhs, rhs, schema }
     }
 
     /// TODO
@@ -73,7 +68,7 @@ impl UserDefinedLogicalNodeCore for MinusNode {
         exprs: Vec<Expr>,
         inputs: Vec<LogicalPlan>,
     ) -> datafusion::common::Result<Self> {
-        if exprs.len() != 0 {
+        if !exprs.is_empty() {
             return plan_err!("MinusNode must not have any expression.");
         }
 
@@ -82,6 +77,6 @@ impl UserDefinedLogicalNodeCore for MinusNode {
             return plan_err!("MinusNode must have exactly two inputs, actual: {input_len}");
         };
 
-        Self::new(lhs, rhs)
+        Ok(Self::new(lhs, rhs))
     }
 }
