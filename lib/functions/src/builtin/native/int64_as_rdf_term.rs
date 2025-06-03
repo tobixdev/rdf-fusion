@@ -3,7 +3,10 @@ use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::cast::as_int64_array;
 use datafusion::common::exec_err;
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature, Volatility};
+use datafusion::logical_expr::{
+    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
+    Volatility,
+};
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use rdf_fusion_encoding::TermEncoding;
 use std::any::Any;

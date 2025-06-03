@@ -3,9 +3,7 @@ use crate::DFResult;
 use datafusion::common::{internal_err, plan_datafusion_err, plan_err, Column, Spans};
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
-use datafusion::logical_expr::{
-    lit, or, Expr, LogicalPlanBuilder, Operator, Subquery,
-};
+use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
 use datafusion::prelude::{and, exists};
 use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
 use rdf_fusion_model::vocab::xsd;

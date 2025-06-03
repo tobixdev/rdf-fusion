@@ -772,7 +772,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
             })
             .collect::<DFResult<Vec<_>>>()?;
 
-        let udf = self.root.create_builtin_udf(BuiltinName::EffectiveBooleanValue)?;
+        let udf = self
+            .root
+            .create_builtin_udf(BuiltinName::EffectiveBooleanValue)?;
         Ok(udf.call(args))
     }
 
