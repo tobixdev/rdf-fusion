@@ -240,7 +240,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// Replaces all occurrences of a pattern with a given replacement.
     ///
-    /// In addition to the regular [Self::relace] functions, this allows providing flags used for
+    /// In addition to the regular [Self::replace] functions, this allows providing flags used for
     /// the regex matching process.
     ///
     /// # Relevant Resources
@@ -747,8 +747,6 @@ impl<'root> RdfFusionExprBuilder<'root> {
     //
 
     /// Returns the expression that has been build and checks whether it evaluates to an RDF term.
-    ///
-    /// If you want to build a boolean expression, see [Self::build_boolean].
     pub fn build(self) -> DFResult<Expr> {
         self.encoding()?;
         Ok(self.build_any())
