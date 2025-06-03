@@ -1,9 +1,0 @@
-// .devcontainer/devcontainer.json
-{
-  "name": "Rust CI",
-  "build": {
-    "dockerfile": "Containerfile"
-  },
-  "customizations": {
-  }
-}

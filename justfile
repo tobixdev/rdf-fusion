@@ -2,10 +2,13 @@
 default:
     @just --list
 
-# Install development tools and dependencies
-setup:
+# Install development tools and dependencies, Assumes Rustup and toolchain is installed
+dev-setup:
     rustup component add clippy rustfmt
     cargo install cargo-deny
+
+ci-setup: dev-setup
+    cargo install cargo-codspeed
 
 # Run all recipies executed by the CI
 ci: lint test rustdoc

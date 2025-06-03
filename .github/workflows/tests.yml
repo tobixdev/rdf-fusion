@@ -4,22 +4,35 @@ on:
   pull_request:
     branches:
       - main
-      - next
   push:
     branches:
       - main
-      - next
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  check:
+  ci:
     runs-on: ubuntu-latest
     steps:
-      - name: Build and run dev container task
-        uses: devcontainers/ci@v0.3
+      - name: Setup rust toolchain
+        uses: moonrepo/setup-rust@v1
         with:
-          # Change this to be your CI task/script
-          runCmd: just check
+          channel: stable
+          cache-target: release
+
+      - name: Install just
+        uses: extractions/setup-just@v3
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Run CI Setup
+        run: just ci-setup
+
+      - name: Run CI Recipe
+        run: just ci
+
