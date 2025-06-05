@@ -26,12 +26,16 @@ pub async fn execute_benchmark_operation(
     let benchmark = create_benchmark_instance(benchmark)?;
     match operation {
         Operation::Prepare => {
+            println!("Preparing benchmark '{}' ...", benchmark.name());
+
             for requirement in benchmark.requirements() {
                 context.prepare_requirement(requirement).await?;
             }
+
+            println!("Benchmark '{}' prepared.\n", benchmark.name());
         }
         Operation::Execute => {
-            println!("Executing benchmark {} ...\n", benchmark.name());
+            println!("Executing benchmark '{}' ...\n", benchmark.name());
 
             println!("Verifying requirements ...");
             for requirement in benchmark.requirements() {
@@ -41,7 +45,7 @@ pub async fn execute_benchmark_operation(
 
             println!("Executing benchmark ...");
             benchmark.execute(&context).await?;
-            println!("🎉 Benchmark {} done\n", benchmark.name());
+            println!("🎉 Benchmark '{}' done\n", benchmark.name());
         }
     }
     Ok(())

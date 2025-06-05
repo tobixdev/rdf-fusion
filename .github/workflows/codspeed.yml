@@ -33,7 +33,7 @@ jobs:
         run: just configure-toolchain-ci
 
       - name: Download Benchmark Data
-        run: just prepare-bench
+        run: cargo run --bin rdf-fusion-bench -- prepare bsbm
 
       - name: Build the benchmark target(s)
         run: cargo codspeed build
