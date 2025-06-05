@@ -30,7 +30,10 @@ jobs:
           submodules: true
 
       - name: Run CI Setup
-        run: just ci-setup
+        run: just configure-toolchain-ci
+
+      - name: Download Benchmark Data
+        run: just prepare-bench
 
       - name: Build the benchmark target(s)
         run: cargo codspeed build

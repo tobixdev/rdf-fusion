@@ -1,26 +1,21 @@
 #![allow(clippy::panic)]
 
-use bzip2::read::MultiBzDecoder;
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion, Throughput};
+use codspeed_criterion_compat::{
+    criterion_group, criterion_main, BenchmarkId, Criterion, Throughput,
+};
 use futures::StreamExt;
 use oxrdfio::RdfFormat;
 use rdf_fusion::store::Store;
 use rdf_fusion_engine::results::QueryResults;
 use rdf_fusion_engine::sparql::{Query, QueryOptions};
-use reqwest::Url;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::path::Path;
-use std::str;
-use std::str::FromStr;
-use tokio::runtime::Runtime;
+use std::{fs, str};
+use tokio::runtime::{Builder, Runtime};
 
 fn store_load(c: &mut Criterion) {
-    let data = read_bz2_data("https://zenodo.org/records/12663333/files/dataset-1000.nt.bz2");
-    let mut group = c.benchmark_group("store load");
+    let data = read_benchmark_file("dataset-1000.nt");
+    let mut group = c.benchmark_group("Store::load");
     group.throughput(Throughput::Bytes(data.len() as u64));
-    group.sample_size(10);
-    group.bench_function("load BSBM explore 1000 in memory", |b| {
+    group.bench_function(BenchmarkId::new("Load BSBM explore in memory", 1000), |b| {
         b.to_async(Runtime::new().unwrap()).iter(|| async {
             let store = Store::new();
             do_load(&store, &data).await;
@@ -35,17 +30,23 @@ async fn do_load(store: &Store, data: &[u8]) {
         .unwrap();
 }
 
-fn store_query_and_update(c: &mut Criterion) {
+fn store_bsbm_explore(c: &mut Criterion) {
     for data_size in [1_000, 5_000] {
-        do_store_query_and_update(c, data_size)
+        for num_threads in [1, 2, 4] {
+            execute_bsbm_explore(c, num_threads, data_size)
+        }
     }
 }
 
-fn do_store_query_and_update(c: &mut Criterion, data_size: usize) {
-    let data = read_bz2_data(&format!(
-        "https://zenodo.org/records/12663333/files/dataset-{data_size}.nt.bz2"
-    ));
-    let explore_operations = bsbm_sparql_operation("exploreAndUpdate-1000.csv.bz2")
+fn execute_bsbm_explore(c: &mut Criterion, num_threads: usize, data_size: usize) {
+    let runtime = Builder::new_multi_thread()
+        .worker_threads(num_threads)
+        .enable_all()
+        .build()
+        .expect("Could not build benchmark runtime");
+    let data = read_benchmark_file(&format!("dataset-{data_size}.nt"));
+
+    let explore_queries = bsbm_sparql_operation("exploreAndUpdate-1000.csv")
         .into_iter()
         .filter_map(|op| match op {
             RawOperation::Query(q) => {
@@ -59,56 +60,24 @@ fn do_store_query_and_update(c: &mut Criterion, data_size: usize) {
             RawOperation::Update(_) => None,
         })
         .collect::<Vec<_>>();
-    let explore_query_operations = explore_operations
-        .iter()
-        .filter(|o| matches!(o, Operation::Query(_)))
-        .cloned()
-        .collect::<Vec<_>>();
-    // let business_operations = bsbm_sparql_operation("businessIntelligence-1000.csv.bz2")
-    //     .into_iter()
-    //     .filter_map(|op| match op {
-    //         RawOperation::Query(q) => {
-    //             // TODO remove once describe is supported
-    //             if q.contains("DESCRIBE") {
-    //                 None
-    //             } else {
-    //                 Some(Operation::Query(
-    //                     Query::parse(&q.replace('#', ""), None).unwrap(),
-    //                 ))
-    //             }
-    //         }
-    //         RawOperation::Update(_) => unreachable!(),
-    //     })
-    //     .collect::<Vec<_>>();
 
-    let mut group = c.benchmark_group("store operations");
+    let mut group = c.benchmark_group("BSBM Explore");
     group.sample_size(10);
 
     {
-        let runtime = Runtime::new().unwrap();
         let memory_store = Store::new();
         runtime.block_on(do_load(&memory_store, &data));
 
-        group.bench_function(format!("BSBM explore {data_size} query in memory"), |b| {
-            b.to_async(Runtime::new().unwrap())
-                .iter(|| run_operation(&memory_store, &explore_query_operations));
-        });
         group.bench_function(
-            format!("BSBM explore {data_size} queryAndUpdate in memory"),
+            BenchmarkId::new(
+                "Query",
+                format!("num_threads={num_threads}, data_size={data_size}"),
+            ),
             |b| {
-                b.to_async(Runtime::new().unwrap())
-                    .iter(|| run_operation(&memory_store, &explore_operations));
+                b.to_async(&runtime)
+                    .iter(|| run_operation(&memory_store, &explore_queries));
             },
         );
-
-        // TODO enable later
-        // group.bench_function(
-        //     format!("BSBM business intelligence {data_size} in memory"),
-        //     |b| {
-        //         b.to_async(Runtime::new().unwrap())
-        //             .iter(|| run_operation(&memory_store, &business_operations));
-        //     },
-        // );
     }
 }
 
@@ -135,38 +104,16 @@ async fn run_operation(store: &Store, operations: &[Operation]) {
     }
 }
 
-criterion_group!(store, store_query_and_update, store_load);
-
-criterion_main!(store);
-
-fn read_bz2_data(url: &str) -> Vec<u8> {
-    let url = Url::from_str(url).unwrap();
-    let file_name = url.path().split('/').next_back().unwrap().to_owned();
-
-    if !Path::new(&file_name).exists() {
-        let client = reqwest::blocking::Client::new();
-        let response = client.get(url.clone()).send().unwrap();
-        assert!(response.status().is_success(), "{}", &url);
-
-        File::create(&file_name)
-            .unwrap()
-            .write_all(&response.bytes().unwrap())
-            .unwrap();
-    }
-
-    let mut buf = Vec::new();
-    MultiBzDecoder::new(File::open(&file_name).unwrap())
-        .read_to_end(&mut buf)
-        .unwrap();
-    buf
-}
+criterion_group!(store_write, store_load);
+criterion_group!(store_bsbm, store_bsbm_explore);
+criterion_main!(store_write, store_bsbm);
 
 fn bsbm_sparql_operation(file_name: &str) -> Vec<RawOperation> {
-    csv::Reader::from_reader(read_bz2_data(&format!("https://zenodo.org/records/12663333/files/{file_name}")).as_slice()).records()
+    csv::Reader::from_reader(read_benchmark_file(file_name).as_slice()).records()
         .collect::<Result<Vec<_>, _>>().unwrap()
         .into_iter()
         .rev()
-        .take(1) // We take only 10 groups // TODO Increase to 300
+        .take(10) // We take only 10 groups // TODO Increase to 300
         .map(|l| {
             match &l[1] {
                 "query" => RawOperation::Query(l[2].into()),
@@ -175,6 +122,12 @@ fn bsbm_sparql_operation(file_name: &str) -> Vec<RawOperation> {
             }
         })
         .collect()
+}
+
+fn read_benchmark_file(file_name: &str) -> Vec<u8> {
+    let file_name = format!("./benches-data/{file_name}");
+    fs::read(&file_name)
+        .expect(&format!("Did not find file '{file_name}') in the benches-data. Did you download the benchmark datasets?"))
 }
 
 #[allow(dead_code)]

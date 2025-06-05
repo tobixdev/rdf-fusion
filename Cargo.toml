@@ -26,7 +26,6 @@ anyhow = "1.0.72"
 assert_cmd = "2.0"
 assert_fs = "1.0"
 async-trait = "0.1.84"
-bzip2 = "0.5.2"
 clap = "4.0"
 clap_complete = "4.0"
 clap_mangen = "0.2.19"
@@ -41,7 +40,6 @@ md-5 = "0.10.6"
 predicates = ">=2.0, <4.0"
 rand = "0.8"
 regex = "1.11.1"
-reqwest = "0.12.19"
 rustc-hash = "2.1.0"
 sha1 = "0.10.6"
 sha2 = "0.10.8"
@@ -69,6 +67,16 @@ rdf-fusion-physical = { version = "=0.1.0", path = "lib/physical" }
 rdf-fusion-storage = { version = "=0.1.0", path = "lib/storage" }
 rdf-fusion = { version = "=0.1.0", path = "lib/rdf-fusion" }
 rdf-fusion-web = { version = "=0.1.0", path = "lib/web" }
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true
+
+[profile.bench]
+inherits = "release"
+debug = "line-tables-only"
+strip = false
 
 [workspace.lints.rust]
 absolute_paths_not_starting_with_crate = "warn"
@@ -270,12 +278,3 @@ verbose_bit_mask = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "warn"
 zero_sized_map_values = "warn"
-
-[profile.release]
-lto = true
-codegen-units = 1
-strip = "debuginfo"
-panic = "abort"
-
-[profile.bench]
-debug = true

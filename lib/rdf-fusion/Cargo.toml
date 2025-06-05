@@ -27,9 +27,7 @@ sparesults.workspace = true
 csv.workspace = true
 
 [dev-dependencies]
-bzip2.workspace = true
 codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
-reqwest = { workspace = true, features = ["blocking"] }
 tokio-test.workspace = true
 
 [lints]

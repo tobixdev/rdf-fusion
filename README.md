@@ -16,7 +16,7 @@ commands, also used for continuous integration builds.
 ```bash
 git clone --recursive https://github.com/tobixdev/graphfusion.git # Clone Repository
 git submodule update --init # Initialize submodules
-just check # Run checks 
+just test # Run tests 
 ```
 
 ## Help
