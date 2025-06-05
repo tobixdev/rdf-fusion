@@ -1,0 +1,30 @@
+use crate::benchmarks::BsbmDatasetSize;
+use clap::Subcommand;
+use std::fmt::{Display, Formatter};
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Subcommand)]
+pub enum BenchmarkName {
+    /// Runs a BSBM instance with already generated queries from Oxigraph.
+    Bsbm {
+        /// Indicates the scaling of the dataset.
+        #[arg(short, long, default_value = "1000")]
+        dataset_size: BsbmDatasetSize,
+        /// Provides an upper bound on the number of queries to be executed.
+        #[arg(short, long)]
+        max_query_count: Option<u64>,
+    },
+}
+
+impl Display for BenchmarkName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BenchmarkName::Bsbm {
+                dataset_size,
+                max_query_count,
+            } => match max_query_count {
+                Some(max_query_count) => write!(f, "bsbm-{}-{}", dataset_size, max_query_count),
+                None => write!(f, "bsbm-{}", dataset_size),
+            },
+        }
+    }
+}

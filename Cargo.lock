@@ -3263,7 +3263,6 @@ name = "rdf-fusion"
 version = "0.1.0"
 dependencies = [
  "codspeed-criterion-compat",
- "csv",
  "futures",
  "oxrdfio",
  "rdf-fusion-engine",
@@ -3283,6 +3282,7 @@ dependencies = [
  "async-trait",
  "bzip2",
  "clap",
+ "codspeed-criterion-compat",
  "csv",
  "futures",
  "rdf-fusion",

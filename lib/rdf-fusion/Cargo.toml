@@ -24,7 +24,6 @@ oxrdfio.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 sparesults.workspace = true
-csv.workspace = true
 
 [dev-dependencies]
 codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }

@@ -1,6 +1,6 @@
 #![allow(clippy::panic)]
 
-use codspeed_criterion_compat::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use rdf_fusion::model::Term;
 use rdf_fusion::store::Store;
 use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject};

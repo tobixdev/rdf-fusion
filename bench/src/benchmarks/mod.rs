@@ -2,9 +2,11 @@ use crate::prepare::PrepRequirement;
 use async_trait::async_trait;
 
 mod bsbm_explore;
+mod name;
 
 use crate::environment::BenchmarkingContext;
 pub use bsbm_explore::{BsbmDatasetSize, BsbmExploreBenchmark};
+pub use name::BenchmarkName;
 
 /// Represents a benchmark.
 #[async_trait]

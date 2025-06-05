@@ -27,7 +27,14 @@ rdf-fusion.workspace = true
 reqwest.workspace = true
 tokio.workspace = true
 
+[dev-dependencies]
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
+
 [lints]
 workspace = true
+
+[[bench]]
+name = "ci_benches"
+harness = false
 
 

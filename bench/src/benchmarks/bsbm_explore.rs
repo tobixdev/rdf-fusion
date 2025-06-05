@@ -1,6 +1,6 @@
 use crate::benchmarks::Benchmark;
 use crate::environment::BenchmarkingContext;
-use crate::opeartions::{list_raw_operations, SparqlOperation, SparqlRawOperation};
+use crate::operations::{list_raw_operations, SparqlOperation, SparqlRawOperation};
 use crate::prepare::PrepRequirement::FileDownload;
 use crate::prepare::{FileDownloadAction, PrepRequirement};
 use async_trait::async_trait;
@@ -152,7 +152,7 @@ fn create_file_download(file: &str) -> PrepRequirement {
 }
 
 /// Indicates the size of the dataset.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
 pub enum BsbmDatasetSize {
     #[value(name = "1000")]
     N1000,

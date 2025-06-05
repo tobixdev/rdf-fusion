@@ -1,59 +1,21 @@
-use crate::benchmarks::{Benchmark, BsbmDatasetSize, BsbmExploreBenchmark};
-use crate::cli::{Args, BenchmarkName, Operation};
-use crate::environment::BenchmarkingContext;
 use clap::Parser;
-use std::path::PathBuf;
-
-mod benchmarks;
-mod cli;
-mod environment;
-mod opeartions;
-mod prepare;
+use rdf_fusion_bench::benchmarks::BenchmarkName;
+use rdf_fusion_bench::{execute_benchmark_operation, Operation};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let matches = Args::parse();
-
-    let data = PathBuf::from("./data");
-    let context = BenchmarkingContext::new(data);
-
-    let benchmark = create_benchmark_instance(&matches)?;
-
-    match matches.operation {
-        Operation::Prepare => {
-            for requirement in benchmark.requirements() {
-                context.prepare_requirement(requirement).await?;
-            }
-        }
-        Operation::Execute => {
-            println!("Executing benchmark {} ... ", benchmark.name());
-
-            println!("Verifying requirements ...");
-            for requirement in benchmark.requirements() {
-                context.ensure_requirement(requirement)?;
-            }
-            println!("🎉 Requirements verified");
-
-            println!("Executing benchmark ...");
-            benchmark.execute(&context).await?;
-            println!("🎉 Benchmark done");
-        }
-    }
-
+    let args = RdfFusionBenchArgs::parse();
+    execute_benchmark_operation(args.operation, args.benchmark).await?;
     Ok(())
 }
 
-fn create_benchmark_instance(args: &Args) -> anyhow::Result<Box<dyn Benchmark>> {
-    match args.benchmark {
-        BenchmarkName::Bsbm {
-            dataset_size,
-            query_size,
-        } => {
-            let dataset_size = BsbmDatasetSize::try_from(dataset_size)?;
-            Ok(Box::new(BsbmExploreBenchmark::new(
-                dataset_size,
-                query_size,
-            )))
-        }
-    }
+#[derive(Parser)]
+#[command(about, version, name = "rdf-fusion-bench")]
+/// RdfFusion command line toolkit and SPARQL HTTP server
+pub struct RdfFusionBenchArgs {
+    /// Indicates whether the benchmark should be prepared or executed.
+    pub operation: Operation,
+    /// Indicates which benchmark should be executed.
+    #[clap(subcommand)]
+    pub benchmark: BenchmarkName,
 }
