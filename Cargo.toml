@@ -81,6 +81,12 @@ inherits = "release"
 debug = "line-tables-only"
 strip = false
 
+# We use an extra profile for the CI benchmarks as we often hit resource limits
+[profile.codspeed]
+inherits = "bench"
+codegen-units = 16
+lto = false
+
 [workspace.lints.rust]
 absolute_paths_not_starting_with_crate = "warn"
 elided_lifetimes_in_paths = "warn"

@@ -33,7 +33,7 @@ jobs:
 
       - name: Build the benchmark target(s)
         # Limiting the number of jobs is an attempt to not violate GitHub's runner resources.
-        run: cargo codspeed build --profile bench -j2
+        run: cargo codspeed build --profile codspeed
 
       - name: Download Benchmark Data
         run: cargo run --bin rdf-fusion-bench -- prepare bsbm
