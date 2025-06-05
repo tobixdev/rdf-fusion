@@ -28,26 +28,10 @@ test:
 rustdoc:
     RUSTDOCFLAGS="-D warnings" cargo doc
 
-# Downloads the necessary datasets for the benchmarks
-prepare-bench:
-    # Clean
-    rm -rf ./lib/rdf-fusion/benches-data/
-    mkdir -p ./lib/rdf-fusion/benches-data/
-
-    # Download datasets
-    curl https://zenodo.org/records/12663333/files/dataset-1000.nt.bz2 -o ./lib/rdf-fusion/benches-data/dataset-1000.nt.bz2
-    curl https://zenodo.org/records/12663333/files/dataset-5000.nt.bz2 -o ./lib/rdf-fusion/benches-data/dataset-5000.nt.bz2
-    curl https://zenodo.org/records/12663333/files/exploreAndUpdate-1000.csv.bz2 -o ./lib/rdf-fusion/benches-data/exploreAndUpdate-1000.csv.bz2
-
-    # Extract datasets
-    bzip2 -d ./lib/rdf-fusion/benches-data/dataset-1000.nt.bz2
-    bzip2 -d ./lib/rdf-fusion/benches-data/dataset-5000.nt.bz2
-    bzip2 -d ./lib/rdf-fusion/benches-data/exploreAndUpdate-1000.csv.bz2
-
-# Runs benchmarks in the code base.
-bench:
+# Runs micro benchmarks in the code base (criterion benchmarks).
+microbench:
     cargo bench
 
-# Runs benchmarks in the code base and creates a flamegraph.
-bench-flamegraph:
-    cargo bench --bench store
+# Runs micro benchmarks in the code base (criterion benchmarks) and creates a flamegraph.
+microbench-flamegraph bench:
+    cargo flamegraph --bench {{bench}} -- --bench

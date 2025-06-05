@@ -17,6 +17,14 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+bzip2.workspace = true
+clap = { workspace = true, features = ["derive"] }
+csv.workspace = true
+futures.workspace = true
+rdf-fusion.workspace = true
+reqwest.workspace = true
 tokio.workspace = true
 
 [lints]
