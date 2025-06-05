@@ -3096,6 +3096,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rdf-fusion-bench"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "rdf-fusion-cli"
 version = "0.1.0"
 dependencies = [
