@@ -11,7 +11,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
 
-/// An iterator returning the graph names contained in a [`Store`].
+/// An iterator yielding graph names.
 pub struct GraphNameStream {
     stream: QuerySolutionStream,
 }

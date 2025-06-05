@@ -1,6 +1,4 @@
 //! [SPARQL](https://www.w3.org/TR/sparql11-overview/) implementation.
-//!
-//! Stores execute SPARQL. See [`Store`](rdf_fusion::store::Store::query()) for an example.
 
 mod algebra;
 pub mod error;

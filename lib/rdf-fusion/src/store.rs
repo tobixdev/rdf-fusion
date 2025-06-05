@@ -412,7 +412,7 @@ impl Store {
 
     /// Loads a RDF file under into the store.
     ///
-    /// This function is atomic, quite slow and memory hungry. To get much better performances you might want to use the [`bulk_loader`](Store::bulk_loader).
+    /// This function is atomic, quite slow and memory hungry.
     ///
     /// Usage example:
     /// ```

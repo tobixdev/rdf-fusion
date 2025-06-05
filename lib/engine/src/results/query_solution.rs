@@ -15,7 +15,6 @@ use std::sync::Arc;
 use std::task::{ready, Context, Poll};
 
 /// A stream over [`QuerySolution`]s.
-/// ```
 pub struct QuerySolutionStream {
     /// TODO
     variables: Arc<[Variable]>,
