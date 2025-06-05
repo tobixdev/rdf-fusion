@@ -1,9 +1,8 @@
-name: CodSpeed
+name: Run Continuous Benchmarks
 
 on:
   workflow_run:
     workflows: [ "Run Tests" ]
-    branches: [ main ]
     types:
       - completed
   # `workflow_dispatch` allows CodSpeed to trigger backtest
@@ -12,7 +11,7 @@ on:
 
 jobs:
   benchmarks:
-    name: Run benchmarks
+    name: Run Benchmarks
     runs-on: ubuntu-latest
     steps:
       - name: Setup rust toolchain
@@ -32,11 +31,12 @@ jobs:
       - name: Run CI Setup
         run: just configure-toolchain-ci
 
+      - name: Build the benchmark target(s)
+        # Limiting the number of jobs is an attempt to not violate GitHub's runner resources.
+        run: cargo codspeed build --profile bench -j2
+
       - name: Download Benchmark Data
         run: cargo run --bin rdf-fusion-bench -- prepare bsbm
-
-      - name: Build the benchmark target(s)
-        run: cargo codspeed build
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3
