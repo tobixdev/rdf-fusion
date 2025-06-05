@@ -1,10 +1,12 @@
 name: Run Continuous Benchmarks
 
 on:
-  workflow_run:
-    workflows: [ "Run Tests" ]
-    types:
-      - completed
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
   # `workflow_dispatch` allows CodSpeed to trigger backtest
   # performance analysis in order to generate initial data.
   workflow_dispatch:
@@ -31,12 +33,12 @@ jobs:
       - name: Run CI Setup
         run: just configure-toolchain-ci
 
+      - name: Download Benchmark Data
+        run: cargo run --profile codspeed --bin rdf-fusion-bench -- prepare bsbm
+
       - name: Build the benchmark target(s)
         # Limiting the number of jobs is an attempt to not violate GitHub's runner resources.
-        run: cargo codspeed build --profile codspeed
-
-      - name: Download Benchmark Data
-        run: cargo run --bin rdf-fusion-bench -- prepare bsbm
+        run: cargo codspeed build --profile codspeed -j4
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3
