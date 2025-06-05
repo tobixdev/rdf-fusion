@@ -22,8 +22,8 @@ impl Display for BenchmarkName {
                 dataset_size,
                 max_query_count,
             } => match max_query_count {
-                Some(max_query_count) => write!(f, "bsbm-{}-{}", dataset_size, max_query_count),
-                None => write!(f, "bsbm-{}", dataset_size),
+                Some(max_query_count) => write!(f, "bsbm-{dataset_size}-{max_query_count}"),
+                None => write!(f, "bsbm-{dataset_size}"),
             },
         }
     }

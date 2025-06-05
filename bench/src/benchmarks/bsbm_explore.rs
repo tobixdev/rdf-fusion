@@ -51,7 +51,7 @@ impl BsbmExploreBenchmark {
                 .collect(),
             Some(max_query_count) => list_raw_operations(&queries_path)?
                 .filter_map(parse_query)
-                .take(max_query_count as usize)
+                .take(usize::try_from(max_query_count)?)
                 .collect(),
         })
     }
@@ -73,7 +73,7 @@ impl Benchmark for BsbmExploreBenchmark {
     async fn execute(&self, context: &BenchmarkingContext) -> anyhow::Result<()> {
         println!("Loading queries ...");
         let operations = self.list_operations(context)?;
-        println!("🎉 Queries loaded.");
+        println!("Queries loaded.");
 
         println!("Creating in-memory store and loading data ...");
         let data_path = context
@@ -83,7 +83,7 @@ impl Benchmark for BsbmExploreBenchmark {
         memory_store
             .load_from_reader(RdfFormat::NTriples, data.as_slice())
             .await?;
-        println!("🎉 Store created and data loaded.");
+        println!("Store created and data loaded.");
 
         println!("Evaluating queries ...");
         let result = context
@@ -98,7 +98,7 @@ impl Benchmark for BsbmExploreBenchmark {
                 Ok(())
             })
             .await;
-        println!("🎉 All queries evaluated.");
+        println!("All queries evaluated.");
 
         result
     }
@@ -119,7 +119,7 @@ fn parse_query(query: SparqlRawOperation) -> Option<SparqlOperation> {
 }
 
 async fn run_operation(store: &Store, operation: &SparqlOperation) {
-    let options = QueryOptions::default();
+    let options = QueryOptions;
     match operation {
         SparqlOperation::Query(q) => {
             match store.query_opt(q.clone(), options.clone()).await.unwrap() {
@@ -139,11 +139,11 @@ async fn run_operation(store: &Store, operation: &SparqlOperation) {
     }
 }
 
+#[allow(clippy::expect_used)]
 fn create_file_download(file: &str) -> PrepRequirement {
     FileDownload {
         url: Url::parse(&format!(
-            "https://zenodo.org/records/12663333/files/{}.bz2",
-            file
+            "https://zenodo.org/records/12663333/files/{file}.bz2",
         ))
         .expect("parse dataset-name"),
         file_name: PathBuf::from(file),

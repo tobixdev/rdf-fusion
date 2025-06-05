@@ -1,7 +1,7 @@
 use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
-use tokio::runtime::Builder;
 use rdf_fusion_bench::benchmarks::{BenchmarkName, BsbmDatasetSize};
 use rdf_fusion_bench::{execute_benchmark_operation, Operation};
+use tokio::runtime::Builder;
 
 fn bsbm_1000_100(c: &mut Criterion) {
     let benchmark = BenchmarkName::Bsbm {

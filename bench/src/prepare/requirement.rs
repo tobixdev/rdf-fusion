@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use reqwest::Url;
+use std::path::PathBuf;
 
 /// Defines a requirement of preparing for a benchmark.
 pub enum PrepRequirement {
@@ -10,12 +10,12 @@ pub enum PrepRequirement {
         /// The file name of the resulting file.
         file_name: PathBuf,
         /// An optional action that is applied to the downloaded file.
-        action: Option<FileDownloadAction>
+        action: Option<FileDownloadAction>,
     },
 }
 
 /// Represents an action that is applied to a downloaded file.
 pub enum FileDownloadAction {
     /// Unpacks a .bz2 file after its downloaded.
-    UnpackBz2
+    UnpackBz2,
 }

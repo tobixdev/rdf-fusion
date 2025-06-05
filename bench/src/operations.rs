@@ -2,7 +2,11 @@ use rdf_fusion::Query;
 use std::fs;
 use std::path::Path;
 
-pub fn list_raw_operations(path: &Path) -> anyhow::Result<impl Iterator<Item = SparqlRawOperation>> {
+#[allow(clippy::panic)]
+#[allow(clippy::panic_in_result_fn)]
+pub fn list_raw_operations(
+    path: &Path,
+) -> anyhow::Result<impl Iterator<Item = SparqlRawOperation>> {
     let reader = fs::read(path)?;
     let result = csv::Reader::from_reader(reader.as_slice())
         .records()

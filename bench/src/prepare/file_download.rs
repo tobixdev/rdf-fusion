@@ -3,15 +3,19 @@ use crate::prepare::FileDownloadAction;
 use anyhow::{bail, Context};
 use bzip2::read::MultiBzDecoder;
 use reqwest::Url;
-use std::{fs, path};
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::{fs, path};
 
-pub fn ensure_file_download(env: &BenchmarkingContext, file_name: PathBuf) -> anyhow::Result<()> {
-    let file_path = env.join_data_dir(&file_name)?;
+pub fn ensure_file_download(env: &BenchmarkingContext, file_name: &Path) -> anyhow::Result<()> {
+    let file_path = env.join_data_dir(file_name)?;
     if !file_path.exists() {
-        bail!("{:?} does not exist ({:?})", &file_path, &path::absolute(&file_path));
+        bail!(
+            "{:?} does not exist ({:?})",
+            &file_path,
+            &path::absolute(&file_path)
+        );
     }
     Ok(())
 }

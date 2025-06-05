@@ -40,7 +40,7 @@ impl BenchmarkingContext {
     pub fn ensure_requirement(&self, requirement: PrepRequirement) -> anyhow::Result<()> {
         match requirement {
             PrepRequirement::FileDownload { file_name, .. } => {
-                ensure_file_download(self, file_name)
+                ensure_file_download(self, file_name.as_path())
             }
         }
     }
