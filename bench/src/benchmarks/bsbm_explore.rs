@@ -1,5 +1,5 @@
-use crate::benchmarks::Benchmark;
-use crate::environment::BenchmarkingContext;
+use crate::benchmarks::{Benchmark, BenchmarkName};
+use crate::environment::{Bencher, BenchmarkingContext};
 use crate::operations::{list_raw_operations, SparqlOperation, SparqlRawOperation};
 use crate::prepare::PrepRequirement::FileDownload;
 use crate::prepare::{FileDownloadAction, PrepRequirement};
@@ -10,6 +10,7 @@ use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
 use rdf_fusion::{Query, QueryOptions, QueryResults};
 use reqwest::Url;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::fs;
 use std::path::PathBuf;
@@ -20,7 +21,7 @@ use std::path::PathBuf;
 /// This version of the benchmark uses the [pre-prepared datasets](https://zenodo.org/records/12663333)
 /// from Oxigraph.
 pub struct BsbmExploreBenchmark {
-    name: String,
+    name: BenchmarkName,
     dataset_size: BsbmDatasetSize,
     max_query_count: Option<u64>,
 }
@@ -28,9 +29,9 @@ pub struct BsbmExploreBenchmark {
 impl BsbmExploreBenchmark {
     /// Creates a new [BsbmExploreBenchmark] with the given sizes.
     pub fn new(dataset_size: BsbmDatasetSize, max_query_count: Option<u64>) -> Self {
-        let name = match max_query_count {
-            None => format!("bsbm-explore-{dataset_size}"),
-            Some(max_query_count) => format!("bsbm-explore-{dataset_size}-{max_query_count}"),
+        let name = BenchmarkName::Bsbm {
+            dataset_size,
+            max_query_count,
         };
         Self {
             name,
@@ -59,8 +60,8 @@ impl BsbmExploreBenchmark {
 
 #[async_trait]
 impl Benchmark for BsbmExploreBenchmark {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> BenchmarkName {
+        self.name
     }
 
     fn requirements(&self) -> Vec<PrepRequirement> {
@@ -70,13 +71,14 @@ impl Benchmark for BsbmExploreBenchmark {
         ]
     }
 
-    async fn execute(&self, context: &BenchmarkingContext) -> anyhow::Result<()> {
+    async fn execute(&self, bencher: &mut Bencher<'_>) -> anyhow::Result<()> {
         println!("Loading queries ...");
-        let operations = self.list_operations(context)?;
+        let operations = self.list_operations(bencher.context())?;
         println!("Queries loaded.");
 
         println!("Creating in-memory store and loading data ...");
-        let data_path = context
+        let data_path = bencher
+            .context()
             .join_data_dir(PathBuf::from(format!("dataset-{}.nt", self.dataset_size)).as_path())?;
         let data = fs::read(data_path)?;
         let memory_store = Store::new();
@@ -86,7 +88,7 @@ impl Benchmark for BsbmExploreBenchmark {
         println!("Store created and data loaded.");
 
         println!("Evaluating queries ...");
-        let result = context
+        let result = bencher
             .bench(async || {
                 let len = operations.len();
                 for (idx, operation) in operations.iter().enumerate() {
@@ -152,7 +154,7 @@ fn create_file_download(file: &str) -> PrepRequirement {
 }
 
 /// Indicates the size of the dataset.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, ValueEnum)]
 pub enum BsbmDatasetSize {
     #[value(name = "1000")]
     N1000,

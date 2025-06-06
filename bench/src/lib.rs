@@ -3,12 +3,14 @@
 use crate::benchmarks::{Benchmark, BenchmarkName, BsbmExploreBenchmark};
 use crate::environment::BenchmarkingContext;
 use clap::ValueEnum;
+use std::fs;
 use std::path::PathBuf;
 
 pub mod benchmarks;
 mod environment;
 mod operations;
 mod prepare;
+mod results;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
 pub enum Operation {
@@ -18,12 +20,22 @@ pub enum Operation {
     Execute,
 }
 
+#[allow(clippy::create_dir)]
 pub async fn execute_benchmark_operation(
     operation: Operation,
     benchmark: BenchmarkName,
 ) -> anyhow::Result<()> {
     let data = PathBuf::from("./data");
-    let context = BenchmarkingContext::new(data);
+    let results = PathBuf::from("./results");
+
+    println!(
+        "Cleaning results directory '{}' ...",
+        results.as_path().display()
+    );
+    fs::remove_dir_all(&results)?;
+    fs::create_dir(&results)?;
+
+    let mut context = BenchmarkingContext::new(data, results);
 
     let benchmark = create_benchmark_instance(benchmark);
     match operation {
@@ -46,7 +58,11 @@ pub async fn execute_benchmark_operation(
             println!("Requirements verified\n");
 
             println!("Executing benchmark ...");
-            benchmark.execute(&context).await?;
+            {
+                let mut bencher = context.create_bencher(benchmark.name())?;
+                benchmark.execute(&mut bencher).await?;
+                bencher.write_results()?;
+            }
             println!("Benchmark '{}' done\n", benchmark.name());
         }
     }

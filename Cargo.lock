@@ -3286,6 +3286,8 @@ dependencies = [
  "futures",
  "rdf-fusion",
  "reqwest",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
