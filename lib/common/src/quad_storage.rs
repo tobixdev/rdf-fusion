@@ -1,7 +1,13 @@
 use crate::error::StorageError;
+use crate::DFResult;
 use async_trait::async_trait;
 use datafusion::datasource::TableProvider;
-use rdf_fusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
+use datafusion::execution::SendableRecordBatchStream;
+use rdf_fusion_model::{
+    GraphName, GraphNameRef, NamedNode, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
+    Subject, Term,
+};
+use std::fmt::Debug;
 use std::sync::Arc;
 
 #[async_trait]
@@ -47,4 +53,18 @@ pub trait QuadStorage: Send + Sync {
 
     /// Removes the given quad from the storage.
     async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError>;
+}
+
+/// TODO
+#[async_trait]
+pub trait QuadPatternEvaluator: Debug + Send + Sync {
+    /// TODO
+    fn quads_for_pattern(
+        &self,
+        subject: Option<&Subject>,
+        predicate: Option<&NamedNode>,
+        object: Option<&Term>,
+        graph_name: Option<&GraphName>,
+        batch_size: usize,
+    ) -> DFResult<SendableRecordBatchStream>;
 }

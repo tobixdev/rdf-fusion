@@ -1,9 +1,9 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::QueryEvaluationError;
-use crate::DFResult;
 use datafusion::common::exec_err;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::{TermEncoding, COL_GRAPH};
 use rdf_fusion_model::{NamedOrBlankNode, Term, Variable};

@@ -1,4 +1,3 @@
-use crate::DFResult;
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -11,6 +10,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 pub fn max_typed_value() -> Arc<AggregateUDF> {
     Arc::new(create_udaf(

@@ -1,4 +1,4 @@
-use crate::{DFResult, FunctionName};
+use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_datafusion_err;
 use datafusion::logical_expr::{
@@ -9,6 +9,7 @@ use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoder, TermEncoding}
 use rdf_fusion_functions_scalar::{SparqlOpVolatility, TernarySparqlOp};
 use std::any::Any;
 use std::marker::PhantomData;
+use rdf_fusion_common::DFResult;
 
 #[macro_export]
 macro_rules! impl_ternary_sparql_op {

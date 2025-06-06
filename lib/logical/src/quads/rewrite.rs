@@ -1,5 +1,5 @@
 use crate::quads::QuadsNode;
-use crate::{check_same_schema, DFResult, RdfFusionLogicalPlanBuilder};
+use crate::{check_same_schema, RdfFusionLogicalPlanBuilder};
 use datafusion::catalog::TableProvider;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::datasource::DefaultTableSource;
@@ -11,8 +11,21 @@ use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TAB
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::TermRef;
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
-/// TODO
+/// Lowers a [QuadsNode] into a full scan of the quads table and a [PatternNode] that then filters
+/// and projects this result.
+///
+/// This can be used to support quad tables that do not have native support for evaluating quad
+/// patterns.
+///
+/// ### Performance
+///
+/// This rewriting rule will only exhibit good performance if the quad table provider supports a
+/// generic version of filter and predicate pushdowns. Otherwise, *every* quad pattern will require
+/// a full scan of the quads table, seriously affecting the performance of the query. This is the
+/// reason why this rewriting rule is not enabled by default. Use it with caution or for
+/// experiments.
 #[derive(Debug)]
 pub struct QuadsLoweringRule {
     /// Used for creating expressions with RdfFusion builtins.

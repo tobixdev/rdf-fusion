@@ -5,20 +5,21 @@ use crate::minus::MinusNode;
 use crate::paths::PropertyPathNode;
 use crate::patterns::PatternNode;
 use crate::quads::QuadsNode;
-use crate::{DFResult, RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
+use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::{Column, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{
     col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
     UserDefinedLogicalNode, Values,
 };
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::{NamedNode, Subject, Term, TermRef, ThinError, Variable};
 use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{GroundTerm, TermPattern, TriplePattern};
+use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -184,9 +185,9 @@ impl RdfFusionLogicalPlanBuilder {
         graph_variables: Option<Variable>,
         pattern: TriplePattern,
     ) -> DFResult<Self> {
-        let quad = QuadsNode::new(active_graph, None, None, None);
+        let quads = construct_quads_node_for_pattern(active_graph, pattern.clone());
+        let quads_plan = create_extension_plan(quads).build()?;
 
-        let quads_plan = create_extension_plan(quad).build()?;
         let pattern = PatternNode::try_new(
             quads_plan,
             vec![
@@ -477,6 +478,28 @@ impl RdfFusionLogicalPlanBuilder {
     pub fn expr_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'_>> {
         self.expr_builder_root().try_create_builder(expr)
     }
+}
+
+/// Creates a [QuadsNode] for the given pattern.
+fn construct_quads_node_for_pattern(
+    active_graph: ActiveGraph,
+    pattern: TriplePattern,
+) -> QuadsNode {
+    let subject = match pattern.subject {
+        TermPattern::NamedNode(nn) => Some(nn.into()),
+        _ => None,
+    };
+    let predicate = match pattern.predicate {
+        NamedNodePattern::NamedNode(nn) => Some(nn.into()),
+        _ => None,
+    };
+    let object = match pattern.object {
+        TermPattern::NamedNode(nn) => Some(nn.into()),
+        TermPattern::Literal(lit) => Some(lit.into()),
+        _ => None,
+    };
+
+    QuadsNode::new(active_graph, subject, predicate, object)
 }
 
 /// TODO

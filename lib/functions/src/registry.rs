@@ -29,9 +29,10 @@ use crate::scalar::typed_value::{
     unary_minus_typed_value, unary_plus_typed_value, uuid_typed_value, year_typed_value,
 };
 use crate::scalar::{bnode, regex, replace, str, sub_str};
-use crate::{DFResult, FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
+use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
 use datafusion::common::plan_err;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
+use rdf_fusion_common::DFResult;
 use std::fmt::Debug;
 use std::sync::Arc;
 

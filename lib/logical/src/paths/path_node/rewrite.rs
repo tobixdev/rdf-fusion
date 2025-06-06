@@ -2,7 +2,7 @@ use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET};
 use crate::patterns::PatternNode;
 use crate::{
-    check_same_schema, ActiveGraph, DFResult, RdfFusionExprBuilderRoot, RdfFusionLogicalPlanBuilder,
+    check_same_schema, ActiveGraph, RdfFusionExprBuilderRoot, RdfFusionLogicalPlanBuilder,
 };
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, JoinType};
@@ -18,6 +18,7 @@ use rdf_fusion_model::{NamedNode, TermRef};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 #[derive(Debug)]
 pub struct PropertyPathLoweringRule {

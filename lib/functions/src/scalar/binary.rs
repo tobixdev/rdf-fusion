@@ -1,4 +1,4 @@
-use crate::{DFResult, FunctionName};
+use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::{
@@ -11,6 +11,7 @@ use rdf_fusion_functions_scalar::{BinarySparqlOp, SparqlOpVolatility};
 use rdf_fusion_model::{ThinError, ThinResult};
 use std::any::Any;
 use std::marker::PhantomData;
+use rdf_fusion_common::DFResult;
 
 #[macro_export]
 macro_rules! impl_binary_sparql_op {

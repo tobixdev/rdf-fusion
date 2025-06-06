@@ -1,12 +1,12 @@
 use crate::planner::RdfFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults};
-use crate::{DFResult, QuadStorage};
 use datafusion::dataframe::DataFrame;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::SessionContext;
+use rdf_fusion_common::{DFResult, QuadPatternEvaluator, QuadStorage};
 use rdf_fusion_encoding::TABLE_QUADS;
 use rdf_fusion_functions::registry::{
     DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
@@ -16,7 +16,6 @@ use rdf_fusion_logical::join::SparqlJoinLoweringRule;
 use rdf_fusion_logical::minus::MinusLoweringRule;
 use rdf_fusion_logical::paths::PropertyPathLoweringRule;
 use rdf_fusion_logical::patterns::PatternLoweringRule;
-use rdf_fusion_logical::quads::QuadsLoweringRule;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilder};
 use rdf_fusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
@@ -39,14 +38,20 @@ pub struct RdfFusionInstance {
 
 impl RdfFusionInstance {
     /// Creates a new [RdfFusionInstance] with the default configuration and the given `storage`.
-    pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> DFResult<Self> {
+    pub fn new_with_storage(
+        storage: Arc<dyn QuadStorage>,
+        quad_pattern_evaluator: Arc<dyn QuadPatternEvaluator>,
+    ) -> DFResult<Self> {
         // TODO make a builder
 
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry);
 
         let state = SessionStateBuilder::new()
-            .with_query_planner(Arc::new(RdfFusionPlanner))
+            .with_query_planner(Arc::new(RdfFusionPlanner::new(
+                Arc::clone(&registry),
+                quad_pattern_evaluator,
+            )))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
             .with_optimizer_rule(Arc::new(MinusLoweringRule::new(Arc::clone(&registry))))
             .with_optimizer_rule(Arc::new(ExtendLoweringRule::new()))
@@ -55,10 +60,6 @@ impl RdfFusionInstance {
             ))))
             .with_optimizer_rule(Arc::new(SparqlJoinLoweringRule::new(Arc::clone(&registry))))
             .with_optimizer_rule(Arc::new(PatternLoweringRule::new(Arc::clone(&registry))))
-            .with_optimizer_rule(Arc::new(QuadsLoweringRule::new(
-                Arc::clone(&registry),
-                storage.table_provider(),
-            )))
             .build();
 
         let session_context = SessionContext::from(state);

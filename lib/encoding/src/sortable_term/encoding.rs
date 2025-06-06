@@ -1,13 +1,14 @@
 use crate::encoding::TermEncoding;
 use crate::sortable_term::encoders::TermRefSortableTermEncoder;
 use crate::sortable_term::{SortableTermArray, SortableTermScalar};
-use crate::{DFResult, EncodingName, TermEncoder};
+use crate::{EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;
 use rdf_fusion_model::{TermRef, ThinError};
 use std::clone::Clone;
 use std::sync::LazyLock;
+use rdf_fusion_common::DFResult;
 
 /// Represents a sortable term encoding field.
 ///

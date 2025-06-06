@@ -3,7 +3,7 @@ use datafusion::arrow::datatypes::{Schema, SchemaRef};
 
 use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::encoder::EncodedQuad;
-use crate::{AResult, DFResult};
+use crate::AResult;
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
@@ -13,6 +13,7 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, PlanProperties,
 };
 use futures::Stream;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
 use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_SCHEMA;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};

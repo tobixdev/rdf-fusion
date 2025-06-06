@@ -1,5 +1,5 @@
-use crate::DFResult;
 use datafusion::common::plan_err;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{Iri, NamedNode, Term};
 use std::collections::HashMap;

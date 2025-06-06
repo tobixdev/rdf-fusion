@@ -1,6 +1,5 @@
 use crate::sparql::rewriting::expression_rewriter::ExpressionRewriter;
 use crate::sparql::QueryDataset;
-use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
 use datafusion::functions_aggregate::count::{count, count_udaf};
@@ -18,6 +17,7 @@ use spargebra::algebra::{
 use spargebra::term::NamedNodePattern;
 use std::cell::RefCell;
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 /// TODO
 pub struct GraphPatternRewriter {

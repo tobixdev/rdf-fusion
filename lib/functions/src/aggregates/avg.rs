@@ -1,5 +1,4 @@
 use crate::builtin::BuiltinName;
-use crate::DFResult;
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::{DataType, UInt64Type};
 use datafusion::common::exec_datafusion_err;
@@ -16,6 +15,7 @@ use rdf_fusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncode
 use rdf_fusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
 use std::ops::Div;
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 pub fn avg_typed_value() -> Arc<AggregateUDF> {
     Arc::new(create_udaf(

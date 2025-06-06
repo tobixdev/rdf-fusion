@@ -1,13 +1,14 @@
 use crate::encoding::TermEncoding;
 use crate::plain_term::encoders::DefaultPlainTermEncoder;
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
-use crate::{DFResult, EncodingName, TermEncoder};
+use crate::{EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;
 use rdf_fusion_model::{TermRef, ThinError};
 use std::clone::Clone;
 use std::sync::LazyLock;
+use rdf_fusion_common::DFResult;
 
 /// Represents the fields of the [PlainTermEncoding].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

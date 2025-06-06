@@ -1,11 +1,12 @@
+use crate::check_same_schema;
 use crate::extend::ExtendNode;
-use crate::{check_same_schema, DFResult};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::Column;
 use datafusion::logical_expr::{
     col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore,
 };
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
+use rdf_fusion_common::DFResult;
 
 /// TODO
 #[derive(Debug)]

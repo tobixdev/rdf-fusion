@@ -1,7 +1,8 @@
 use crate::encoding::TermEncoder;
 use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use crate::{DFResult, TermEncoding};
+use crate::TermEncoding;
 use datafusion::common::exec_err;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{Numeric, ThinError, ThinResult, TypedValueRef};
 
 #[derive(Debug)]

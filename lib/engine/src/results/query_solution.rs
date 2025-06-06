@@ -1,5 +1,4 @@
 use crate::sparql::error::QueryEvaluationError;
-use crate::DFResult;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::common::exec_datafusion_err;
 use datafusion::execution::SendableRecordBatchStream;
@@ -13,6 +12,7 @@ pub use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
+use rdf_fusion_common::DFResult;
 
 /// A stream over [`QuerySolution`]s.
 pub struct QuerySolutionStream {

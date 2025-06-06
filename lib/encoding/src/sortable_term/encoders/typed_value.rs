@@ -1,6 +1,7 @@
+use rdf_fusion_common::DFResult;
 use crate::encoding::TermEncoder;
 use crate::sortable_term::{SortableTermArrayBuilder, SortableTermEncoding};
-use crate::{DFResult, TermEncoding};
+use crate::TermEncoding;
 use rdf_fusion_model::{ThinResult, TypedValueRef};
 
 #[derive(Debug)]

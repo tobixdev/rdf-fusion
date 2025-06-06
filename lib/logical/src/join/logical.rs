@@ -1,4 +1,3 @@
-use crate::DFResult;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore};
@@ -8,6 +7,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 /// TODO
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]

@@ -1,5 +1,4 @@
 use crate::builtin::BuiltinName;
-use crate::DFResult;
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
@@ -15,6 +14,7 @@ use rdf_fusion_model::{
 };
 use std::any::Any;
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 pub fn effective_boolean_value() -> Arc<ScalarUDF> {
     let udf_impl = EffectiveBooleanValue::new();

@@ -1,5 +1,4 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
-use crate::DFResult;
 use datafusion::common::{internal_err, plan_datafusion_err, plan_err, Column, Spans};
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
@@ -13,6 +12,7 @@ use rdf_fusion_model::{Literal, NamedNode};
 use spargebra::algebra::{Expression, Function, GraphPattern};
 use std::collections::HashSet;
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 pub(super) struct ExpressionRewriter<'rewriter> {
     graph_rewriter: &'rewriter GraphPatternRewriter,

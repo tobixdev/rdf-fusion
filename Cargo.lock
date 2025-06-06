@@ -3265,6 +3265,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "futures",
  "oxrdfio",
+ "rdf-fusion-common",
  "rdf-fusion-engine",
  "rdf-fusion-model",
  "rdf-fusion-storage",
@@ -3308,10 +3309,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rdf-fusion-common"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "datafusion",
+ "rdf-fusion-model",
+ "thiserror",
+]
+
+[[package]]
 name = "rdf-fusion-encoding"
 version = "0.1.0"
 dependencies = [
  "datafusion",
+ "rdf-fusion-common",
  "rdf-fusion-functions-scalar",
  "rdf-fusion-model",
  "thiserror",
@@ -3326,6 +3338,7 @@ dependencies = [
  "datafusion",
  "futures",
  "oxrdfio",
+ "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-functions",
  "rdf-fusion-logical",
@@ -3343,6 +3356,7 @@ version = "0.1.0"
 dependencies = [
  "datafusion",
  "itertools 0.14.0",
+ "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-functions-scalar",
  "rdf-fusion-model",
@@ -3368,6 +3382,7 @@ name = "rdf-fusion-logical"
 version = "0.1.0"
 dependencies = [
  "datafusion",
+ "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-functions",
  "rdf-fusion-model",
@@ -3392,7 +3407,9 @@ dependencies = [
  "datafusion",
  "futures",
  "itertools 0.14.0",
+ "rdf-fusion-common",
  "rdf-fusion-encoding",
+ "rdf-fusion-functions",
  "rdf-fusion-logical",
  "rdf-fusion-model",
 ]
@@ -3405,6 +3422,7 @@ dependencies = [
  "dashmap",
  "datafusion",
  "futures",
+ "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-engine",
  "rdf-fusion-model",

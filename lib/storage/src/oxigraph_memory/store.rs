@@ -5,12 +5,13 @@ use crate::oxigraph_memory::encoder::EncodedQuad;
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
-use rdf_fusion_engine::error::{CorruptionError, StorageError};
+use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_model::Quad;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
 use std::borrow::Borrow;
 use std::error::Error;
+use std::fmt::{Debug, Formatter};
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::mem::transmute;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -976,6 +977,12 @@ fn push_boxed_slice<T: Copy>(slice: &[T], element: T) -> Box<[T]> {
 
 fn pop_boxed_slice<T: Copy>(slice: &[T]) -> Box<[T]> {
     slice[..slice.len() - 1].into()
+}
+
+impl Debug for OxigraphMemoryStorage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "OxigraphMemoryStorage")
+    }
 }
 
 #[cfg(test)]

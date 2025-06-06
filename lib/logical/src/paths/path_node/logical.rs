@@ -1,11 +1,12 @@
 use crate::patterns::compute_schema_for_pattern;
-use crate::{ActiveGraph, DFResult};
+use crate::ActiveGraph;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{TermPattern, Variable};
 use std::cmp::Ordering;
 use std::fmt;
+use rdf_fusion_common::DFResult;
 
 #[derive(PartialEq, Eq, Hash)]
 pub struct PropertyPathNode {

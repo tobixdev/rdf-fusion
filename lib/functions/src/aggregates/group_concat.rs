@@ -1,4 +1,3 @@
-use crate::DFResult;
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
@@ -10,6 +9,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{StringLiteralRef, ThinError};
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 pub fn group_concat_typed_value(separator: Option<String>) -> Arc<AggregateUDF> {
     let separator = separator.unwrap_or(" ".to_owned());

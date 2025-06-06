@@ -1,5 +1,3 @@
-use datafusion::common::DataFusionError;
-
 pub(crate) mod aggregates;
 mod args;
 pub mod builtin;
@@ -12,5 +10,3 @@ pub use args::{
     RdfFusionFunctionArgsBuilder,
 };
 pub use name::FunctionName;
-
-type DFResult<T> = Result<T, DataFusionError>;

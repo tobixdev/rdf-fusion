@@ -1,5 +1,4 @@
 use crate::builtin::BuiltinName;
-use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
@@ -16,6 +15,7 @@ use rdf_fusion_encoding::{
 };
 use std::any::Any;
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 pub fn with_typed_value_encoding() -> Arc<ScalarUDF> {
     let udf_impl = WithTypedValueEncoding::new();

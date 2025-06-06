@@ -1,7 +1,8 @@
 use crate::encoding::EncodingScalar;
 use crate::typed_value::TypedValueEncoding;
-use crate::{DFResult, TermEncoding};
+use crate::TermEncoding;
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
+use rdf_fusion_common::DFResult;
 
 /// Represents an Arrow scalar with a [TypedValueEncoding].
 pub struct TermValueScalar {

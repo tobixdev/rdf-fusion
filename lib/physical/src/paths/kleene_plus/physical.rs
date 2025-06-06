@@ -1,4 +1,3 @@
-use crate::DFResult;
 use datafusion::arrow::array::RecordBatchOptions;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -13,6 +12,7 @@ use datafusion::physical_plan::{
 };
 use futures::{Stream, StreamExt};
 use itertools::izip;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };

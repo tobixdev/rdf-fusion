@@ -1,6 +1,6 @@
 use crate::expr_builder::RdfFusionExprBuilder;
 use crate::patterns::PatternNode;
-use crate::{check_same_schema, DFResult, RdfFusionExprBuilderRoot};
+use crate::{check_same_schema, RdfFusionExprBuilderRoot};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::logical_expr::{
     and, col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode,
@@ -10,6 +10,7 @@ use datafusion::prelude::Expr;
 use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use spargebra::term::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
+use rdf_fusion_common::DFResult;
 
 #[derive(Debug)]
 pub struct PatternLoweringRule {

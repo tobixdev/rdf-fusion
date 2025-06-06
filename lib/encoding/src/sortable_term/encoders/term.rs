@@ -3,8 +3,9 @@ use crate::sortable_term::encoders::TypedValueRefSortableTermEncoder;
 use crate::sortable_term::SortableTermEncoding;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use crate::{DFResult, TermDecoder, TermEncoding};
+use crate::{TermDecoder, TermEncoding};
 use datafusion::common::exec_err;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
 
 #[derive(Debug)]

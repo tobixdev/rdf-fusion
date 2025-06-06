@@ -1,4 +1,3 @@
-use crate::DFResult;
 use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::cast::as_int64_array;
@@ -11,6 +10,7 @@ use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncodin
 use rdf_fusion_encoding::TermEncoding;
 use std::any::Any;
 use std::sync::Arc;
+use rdf_fusion_common::DFResult;
 
 pub fn native_int64_as_term() -> Arc<ScalarUDF> {
     let udf_impl = NativeInt64AsTerm::new();

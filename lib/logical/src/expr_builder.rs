@@ -1,9 +1,10 @@
-use crate::{ActiveGraph, DFResult, RdfFusionExprBuilderRoot};
+use crate::{ActiveGraph, RdfFusionExprBuilderRoot};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoding};

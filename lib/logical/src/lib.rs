@@ -16,8 +16,7 @@ use datafusion::common::{plan_err, DFSchema};
 pub use expr_builder::RdfFusionExprBuilder;
 pub use expr_builder_root::RdfFusionExprBuilderRoot;
 pub use logical_plan_builder::RdfFusionLogicalPlanBuilder;
-
-type DFResult<T> = datafusion::error::Result<T>;
+use rdf_fusion_common::DFResult;
 
 /// TODO
 pub(crate) fn check_same_schema(old_schema: &DFSchema, new_schema: &DFSchema) -> DFResult<()> {

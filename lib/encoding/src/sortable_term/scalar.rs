@@ -1,7 +1,8 @@
 use crate::encoding::EncodingScalar;
 use crate::sortable_term::SortableTermEncoding;
-use crate::{DFResult, TermEncoding};
+use crate::TermEncoding;
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
+use rdf_fusion_common::DFResult;
 
 /// Represents an Arrow scalar with a [SortableTermEncoding].
 pub struct SortableTermScalar {

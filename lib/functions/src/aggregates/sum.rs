@@ -1,9 +1,9 @@
 use crate::builtin::BuiltinName;
-use crate::DFResult;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;

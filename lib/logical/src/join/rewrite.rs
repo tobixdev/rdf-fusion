@@ -1,6 +1,6 @@
+use crate::check_same_schema;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
 use crate::RdfFusionExprBuilderRoot;
-use crate::{check_same_schema, DFResult};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{Column, JoinType};
 use datafusion::logical_expr::{Expr, UserDefinedLogicalNode};
@@ -9,6 +9,7 @@ use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
+use rdf_fusion_common::DFResult;
 
 /// TODO
 #[derive(Debug)]
