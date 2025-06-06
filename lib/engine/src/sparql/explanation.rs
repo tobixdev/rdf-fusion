@@ -1,14 +1,13 @@
-use std::fs::File;
-use std::io;
-use std::io::BufWriter;
-use std::io::Write;
+use datafusion::logical_expr::LogicalPlan;
+use datafusion::physical_plan::ExecutionPlan;
+use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct QueryExplanation;
-
-impl QueryExplanation {
-    #[allow(clippy::unused_self)]
-    pub fn write_in_json(&self, writer: &mut BufWriter<File>) -> io::Result<()> {
-        write!(writer, "QueryExplanation")
-    }
+pub struct QueryExplanation {
+    /// The initial logical plan created from the SPARQL query.
+    pub initial_logical_plan: LogicalPlan,
+    /// The optimized logical plan.
+    pub optimized_logical_plan: LogicalPlan,
+    /// A reference to the root node of the plan that was actually executed.
+    pub executed_plan: Arc<dyn ExecutionPlan>,
 }

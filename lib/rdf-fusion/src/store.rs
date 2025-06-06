@@ -204,7 +204,7 @@ impl Store {
         &self,
         query: impl TryInto<Query, Error = impl Into<QueryEvaluationError> + std::fmt::Debug>,
         options: QueryOptions,
-    ) -> Result<(QueryResults, Option<QueryExplanation>), QueryEvaluationError> {
+    ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
         let query = query.try_into();
         match query {
             Ok(query) => self.engine.execute_query(&query, options).await,

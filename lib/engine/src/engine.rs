@@ -132,7 +132,7 @@ impl RdfFusionInstance {
         &self,
         query: &Query,
         options: QueryOptions,
-    ) -> Result<(QueryResults, Option<QueryExplanation>), QueryEvaluationError> {
+    ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
         evaluate_query(&self.ctx, Arc::clone(&self.functions), query, options).await
     }
 }
