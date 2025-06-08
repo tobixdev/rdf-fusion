@@ -20,20 +20,14 @@ pub enum Operation {
     Execute,
 }
 
-#[allow(clippy::create_dir)]
+/// TODO
 pub async fn execute_benchmark_operation(
     operation: Operation,
     benchmark: BenchmarkName,
 ) -> anyhow::Result<()> {
     let data = PathBuf::from("./data");
     let results = PathBuf::from("./results");
-
-    println!(
-        "Cleaning results directory '{}' ...",
-        results.as_path().display()
-    );
-    fs::remove_dir_all(&results)?;
-    fs::create_dir(&results)?;
+    fs::create_dir_all(&results)?;
 
     let mut context = BenchmarkingContext::new(data, results);
 

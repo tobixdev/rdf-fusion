@@ -66,7 +66,10 @@ impl BenchmarkingContext {
 
     /// Writes the results of a particular benchmark to disk.
     pub fn write_results_of(&self, benchmark_name: BenchmarkName) -> anyhow::Result<()> {
-        let results = self.results.get_runs(benchmark_name)?;
+        let results = self
+            .results
+            .get_runs(benchmark_name)
+            .context("Failed to get runs from Benchmark")?;
 
         let data_json_path = self.results_dir.join("data.json");
         let data_json_file = File::create(data_json_path)?;
@@ -97,6 +100,14 @@ impl BenchmarkingContext {
     /// Creates a new bencher and modifies the context for this benchmark.
     pub fn create_bencher(&mut self, benchmark_name: BenchmarkName) -> anyhow::Result<Bencher<'_>> {
         self.push_results_dir(&benchmark_name.dir_name())?;
+        if self.results_dir.exists() {
+            println!(
+                "Cleaning results directory '{}' ...",
+                self.results_dir.as_path().display()
+            );
+            fs::remove_dir_all(self.results_dir.as_path())?;
+            fs::create_dir(self.results_dir.as_path())?;
+        }
 
         Ok(Bencher {
             context: self,
