@@ -4,6 +4,7 @@ use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
 use datafusion::prelude::{and, exists};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::Iri;
@@ -12,7 +13,6 @@ use rdf_fusion_model::{Literal, NamedNode};
 use spargebra::algebra::{Expression, Function, GraphPattern};
 use std::collections::HashSet;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 pub(super) struct ExpressionRewriter<'rewriter> {
     graph_rewriter: &'rewriter GraphPatternRewriter,

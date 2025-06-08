@@ -6,13 +6,13 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_model::{TermRef, ThinError, ThinResult};
 use std::any::Any;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 pub fn is_compatible() -> Arc<ScalarUDF> {
     let udf_impl = IsCompatible::new();

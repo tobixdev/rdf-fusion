@@ -1,10 +1,10 @@
 use crate::patterns::compute_schema_for_pattern;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+use rdf_fusion_common::DFResult;
 use spargebra::term::TermPattern;
 use std::cmp::Ordering;
 use std::fmt;
-use rdf_fusion_common::DFResult;
 
 /// TODO
 #[derive(PartialEq, Eq, Hash)]

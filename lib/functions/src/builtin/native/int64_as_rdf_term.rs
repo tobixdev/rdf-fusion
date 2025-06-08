@@ -6,11 +6,11 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use rdf_fusion_encoding::TermEncoding;
 use std::any::Any;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 pub fn native_int64_as_term() -> Arc<ScalarUDF> {
     let udf_impl = NativeInt64AsTerm::new();

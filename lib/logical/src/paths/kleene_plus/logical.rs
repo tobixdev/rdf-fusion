@@ -1,9 +1,9 @@
 use crate::paths::PATH_TABLE_DFSCHEMA;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+use rdf_fusion_common::DFResult;
 use std::cmp::Ordering;
 use std::fmt;
-use rdf_fusion_common::DFResult;
 
 /// Represents a Kleene-plus path closure node. This node computes the Kleene plus closure
 /// of the inner paths. This closure is the result of the `+` operator in SPARQL property paths.

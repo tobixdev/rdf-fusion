@@ -6,6 +6,7 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::encoders::TermRefTypedValueEncoder;
@@ -15,7 +16,6 @@ use rdf_fusion_encoding::{
 };
 use std::any::Any;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 pub fn with_typed_value_encoding() -> Arc<ScalarUDF> {
     let udf_impl = WithTypedValueEncoding::new();

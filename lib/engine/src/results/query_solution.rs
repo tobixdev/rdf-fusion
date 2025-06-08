@@ -3,6 +3,7 @@ use datafusion::arrow::array::RecordBatch;
 use datafusion::common::exec_datafusion_err;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
@@ -12,7 +13,6 @@ pub use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{ready, Context, Poll};
-use rdf_fusion_common::DFResult;
 
 /// A stream over [`QuerySolution`]s.
 pub struct QuerySolutionStream {

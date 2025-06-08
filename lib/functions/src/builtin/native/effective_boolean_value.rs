@@ -6,6 +6,7 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
@@ -14,7 +15,6 @@ use rdf_fusion_model::{
 };
 use std::any::Any;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 pub fn effective_boolean_value() -> Arc<ScalarUDF> {
     let udf_impl = EffectiveBooleanValue::new();

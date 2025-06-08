@@ -1,12 +1,12 @@
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{plan_err, Column, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_model::Variable;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 /// TODO
 #[derive(PartialEq, Eq, Hash)]

@@ -11,6 +11,7 @@ use datafusion::logical_expr::{
 };
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
@@ -18,7 +19,6 @@ use rdf_fusion_model::{NamedNode, TermRef};
 use spargebra::algebra::PropertyPathExpression;
 use spargebra::term::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 #[derive(Debug)]
 pub struct PropertyPathLoweringRule {

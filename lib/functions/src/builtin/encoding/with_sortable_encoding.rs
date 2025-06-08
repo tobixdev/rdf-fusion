@@ -6,6 +6,7 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::sortable_term::encoders::{
@@ -19,7 +20,6 @@ use rdf_fusion_encoding::{
 };
 use std::any::Any;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 pub fn with_sortable_term_encoding() -> Arc<ScalarUDF> {
     let udf_impl = WithSortableEncoding::new();

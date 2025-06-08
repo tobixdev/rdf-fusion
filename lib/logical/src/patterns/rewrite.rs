@@ -7,10 +7,10 @@ use datafusion::logical_expr::{
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use spargebra::term::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
-use rdf_fusion_common::DFResult;
 
 #[derive(Debug)]
 pub struct PatternLoweringRule {

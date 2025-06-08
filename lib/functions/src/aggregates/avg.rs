@@ -5,6 +5,7 @@ use datafusion::common::exec_datafusion_err;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::{
     DecimalTermValueEncoder, DoubleTermValueEncoder, FloatTermValueEncoder,
@@ -15,7 +16,6 @@ use rdf_fusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncode
 use rdf_fusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
 use std::ops::Div;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 pub fn avg_typed_value() -> Arc<AggregateUDF> {
     Arc::new(create_udaf(

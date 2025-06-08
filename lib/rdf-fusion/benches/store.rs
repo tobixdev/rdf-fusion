@@ -20,30 +20,116 @@ fn store_load(c: &mut Criterion) {
     });
 }
 
-/// This benchmarks measure the duration of running a simple query (1 triple pattern) against an
-/// empty store. Hopefully, this can provide insights into the "baseline" overhead of the query
-/// engine.
-fn store_empty_query(c: &mut Criterion) {
-    c.bench_function("Store::query - Empty Store", |b| {
-        b.to_async(Runtime::new().unwrap()).iter(|| async {
-            let store = Store::new();
-            let result = store.query("SELECT ?s ?p ?o {  ?s ?p ?o }").await.unwrap();
-            match result {
-                QueryResults::Solutions(mut sol) => {
-                    assert!(matches!(sol.next().await, None), "No result expected");
-                }
-                _ => panic!("Unexpected QueryResults"),
-            }
-        });
+/// This benchmarks measure the duration of running a simple query (1 triple pattern). Hopefully,
+/// this can provide insights into the "baseline" overhead of the query engine.
+fn store_single_pattern(c: &mut Criterion) {
+    let runtime = Runtime::new().unwrap();
+
+    // No Quads
+    c.bench_function("Store::query - Single Pattern / No Quads", |b| {
+        let store = runtime.block_on(prepare_store_with_generated_triples(0));
+        b.to_async(&runtime)
+            .iter(|| async { trivial_query(&store, 0).await });
+    });
+    // One Quad
+    c.bench_function("Store::query - Single Pattern / Single Quad", |b| {
+        let store = runtime.block_on(prepare_store_with_generated_triples(1));
+        b.to_async(&runtime)
+            .iter(|| async { trivial_query(&store, 1).await });
+    });
+    // One Record Batch
+    c.bench_function("Store::query - Single Pattern / 8096 Quads", |b| {
+        let store = runtime.block_on(prepare_store_with_generated_triples(8096));
+        b.to_async(&runtime)
+            .iter(|| async { trivial_query(&store, 8096).await });
     });
 }
 
+/// This benchmarks measure the duration of running a simple query that fixes a single part of the
+/// pattern (i.e., subject, predicate, object, graph).
+fn store_single_pattern_with_fixed_element(c: &mut Criterion) {
+    let runtime = Runtime::new().unwrap();
+
+    // Graph
+    c.bench_function(
+        "Store::query - Single Pattern With Fixed Element (graph)",
+        |b| {
+            let store = runtime.block_on(prepare_store_with_generated_triples(8096));
+            b.to_async(&runtime).iter(|| async {
+                let result = store
+                    .query("SELECT ?s ?p ?o { GRAPH <http://example.com/graph0> { ?s ?p ?o } }")
+                    .await
+                    .unwrap();
+                assert_number_of_results(result, 1).await;
+            });
+        },
+    );
+
+    // Subject
+    c.bench_function(
+        "Store::query - Single Pattern With Fixed Element (subject)",
+        |b| {
+            let store = runtime.block_on(prepare_store_with_generated_triples(8096));
+            b.to_async(&runtime).iter(|| async {
+                let result = store
+                    .query("SELECT ?g ?p ?o { GRAPH ?g { <http://example.com/subject0> ?p ?o } }")
+                    .await
+                    .unwrap();
+                assert_number_of_results(result, 1).await;
+            });
+        },
+    );
+
+    // Predicate
+    c.bench_function(
+        "Store::query - Single Pattern With Fixed Element (predicate)",
+        |b| {
+            let store = runtime.block_on(prepare_store_with_generated_triples(8096));
+            b.to_async(&runtime).iter(|| async {
+                let result = store
+                    .query("SELECT ?g ?s ?o { GRAPH ?g { ?s <http://example.com/predicate0> ?o } }")
+                    .await
+                    .unwrap();
+                assert_number_of_results(result, 1).await;
+            });
+        },
+    );
+
+    // Object
+    c.bench_function(
+        "Store::query - Single Pattern With Fixed Element (object)",
+        |b| {
+            let store = runtime.block_on(prepare_store_with_generated_triples(8096));
+            b.to_async(&runtime).iter(|| async {
+                let result = store
+                    .query("SELECT ?g ?s ?p { GRAPH ?g { ?s ?p <http://example.com/object0> } }")
+                    .await
+                    .unwrap();
+                assert_number_of_results(result, 1).await;
+            });
+        },
+    );
+}
+
 criterion_group!(store_write, store_load);
-criterion_group!(store_query, store_empty_query);
+criterion_group!(
+    store_query,
+    store_single_pattern,
+    store_single_pattern_with_fixed_element
+);
 criterion_main!(store_write, store_query);
 
-fn generate_quads(count: u64) -> impl Iterator<Item = Quad> {
+async fn prepare_store_with_generated_triples(n: usize) -> Store {
+    let store = Store::new();
+    for quad in generate_quads(n) {
+        store.insert(quad.as_ref()).await.unwrap();
+    }
+    store
+}
+
+fn generate_quads(count: usize) -> impl Iterator<Item = Quad> {
     (0..count).map(|i| {
+        let graph = format!("http://example.com/graph{}", i);
         let subject = format!("http://example.com/subject{}", i);
         let predicate = format!("http://example.com/predicate{}", i);
         let object = format!("http://example.com/object{}", i);
@@ -51,7 +137,29 @@ fn generate_quads(count: u64) -> impl Iterator<Item = Quad> {
             Subject::NamedNode(NamedNode::new_unchecked(subject)),
             NamedNode::new_unchecked(predicate),
             Term::NamedNode(NamedNode::new_unchecked(object)),
-            GraphName::DefaultGraph,
+            GraphName::NamedNode(NamedNode::new_unchecked(graph)),
         )
     })
+}
+
+async fn trivial_query(store: &Store, n: usize) {
+    let result = store
+        .query("SELECT ?s ?p ?o { GRAPH ?g { ?s ?p ?o } }")
+        .await
+        .unwrap();
+    assert_number_of_results(result, n).await;
+}
+
+async fn assert_number_of_results(result: QueryResults, n: usize) {
+    match result {
+        QueryResults::Solutions(mut solutions) => {
+            let mut count = 0;
+            while let Some(sol) = solutions.next().await {
+                sol.unwrap();
+                count += 1;
+            }
+            assert_eq!(count, n);
+        }
+        _ => panic!("Unexpected QueryResults"),
+    }
 }

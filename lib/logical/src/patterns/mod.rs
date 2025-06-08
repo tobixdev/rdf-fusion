@@ -4,13 +4,13 @@ mod rewrite;
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{DFSchema, DFSchemaRef};
 pub use logical::*;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::TermEncoding;
 pub use rewrite::*;
 use spargebra::term::TermPattern;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 /// TODO
 pub fn compute_schema_for_pattern(patterns: &[Option<TermPattern>]) -> DFResult<DFSchemaRef> {

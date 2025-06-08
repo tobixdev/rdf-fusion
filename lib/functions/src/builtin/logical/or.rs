@@ -5,10 +5,10 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
+use rdf_fusion_common::DFResult;
 use std::any::Any;
 use std::ops::Not;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 pub fn sparql_or() -> Arc<ScalarUDF> {
     let udf_impl = SparqlOr::new();

@@ -7,11 +7,11 @@ use datafusion::logical_expr::{
     col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore,
 };
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT, TABLE_QUADS};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::TermRef;
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 /// Lowers a [QuadsNode] into a full scan of the quads table and a [PatternNode] that then filters
 /// and projects this result.

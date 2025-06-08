@@ -3,6 +3,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_err, Column, DFSchema};
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
@@ -11,7 +12,6 @@ use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
 use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::sync::Arc;
-use rdf_fusion_common::DFResult;
 
 /// TODO
 #[derive(Debug, Clone, Copy)]
