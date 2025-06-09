@@ -12,10 +12,29 @@ pub enum PrepRequirement {
         /// An optional action that is applied to the downloaded file.
         action: Option<FileDownloadAction>,
     },
+    /// Runs a command.
+    RunCommand {
+        /// The working directory.
+        workdir: PathBuf,
+        /// The program to run.
+        program: String,
+        /// The args for the program.
+        args: Vec<String>,
+        /// A checking function that can be used to check if the requirement is fulfilled.
+        check_requirement: Box<dyn Fn() -> anyhow::Result<bool>>,
+    },
 }
 
 /// Represents an action that is applied to a downloaded file.
 pub enum FileDownloadAction {
-    /// Unpacks a .bz2 file after its downloaded.
-    UnpackBz2,
+    /// Unpacks a file after it has been downloaded.
+    Unpack(ArchiveType),
+}
+
+/// Represents the type of archive.
+pub enum ArchiveType {
+    /// A .bz2 archive.
+    Bz2,
+    /// A .zip archive.
+    Zip,
 }

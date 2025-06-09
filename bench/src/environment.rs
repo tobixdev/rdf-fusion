@@ -1,6 +1,6 @@
 use crate::benchmarks::BenchmarkName;
-use crate::prepare::PrepRequirement;
 use crate::prepare::{ensure_file_download, prepare_file_download};
+use crate::prepare::{prepare_run_command, PrepRequirement};
 use crate::results::{BenchmarkResults, BenchmarkRun};
 use anyhow::{bail, Context};
 use pprof::Report;
@@ -53,6 +53,15 @@ impl BenchmarkingContext {
                 file_name,
                 action,
             } => prepare_file_download(self, url, file_name, action).await,
+            PrepRequirement::RunCommand {
+                workdir,
+                program,
+                args,
+                ..
+            } => {
+                let workdir = self.join_data_dir(&workdir)?;
+                prepare_run_command(&workdir, &program, &args)
+            }
         }
     }
 
@@ -61,6 +70,15 @@ impl BenchmarkingContext {
         match requirement {
             PrepRequirement::FileDownload { file_name, .. } => {
                 ensure_file_download(self, file_name.as_path())
+            }
+            PrepRequirement::RunCommand {
+                check_requirement, ..
+            } => {
+                if check_requirement()? {
+                    Ok(())
+                } else {
+                    bail!("Requirement check returned false.")
+                }
             }
         }
     }

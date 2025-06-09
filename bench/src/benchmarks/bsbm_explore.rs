@@ -1,8 +1,7 @@
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::{Bencher, BenchmarkingContext};
 use crate::operations::{list_raw_operations, SparqlOperation, SparqlRawOperation};
-use crate::prepare::PrepRequirement::FileDownload;
-use crate::prepare::{FileDownloadAction, PrepRequirement};
+use crate::prepare::{ArchiveType, FileDownloadAction, PrepRequirement};
 use async_trait::async_trait;
 use clap::ValueEnum;
 use futures::StreamExt;
@@ -13,6 +12,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::fs;
+use std::fs::File;
 use std::path::PathBuf;
 
 /// The [Berlin SPARQL Benchmark](http://wbsg.informatik.uni-mannheim.de/bizer/berlinsparqlbenchmark/)
@@ -64,10 +64,43 @@ impl Benchmark for BsbmExploreBenchmark {
         self.name
     }
 
+    #[allow(clippy::expect_used)]
     fn requirements(&self) -> Vec<PrepRequirement> {
+        let dataset_size = self.dataset_size;
+        let download_bsbm_tools = PrepRequirement::FileDownload {
+            url: Url::parse("https://sourceforge.net/projects/bsbmtools/files/bsbmtools/bsbmtools-0.2/bsbmtools-v0.2.zip/download")
+                .expect("parse dataset-name"),
+            file_name: PathBuf::from("bsbmtools"),
+            action: Some(FileDownloadAction::Unpack(ArchiveType::Zip)),
+        };
+        let generate_dataset = PrepRequirement::RunCommand {
+            workdir: PathBuf::from("./bsbmtools"),
+            program: "./generate".to_owned(),
+            args: vec![
+                "-fc".to_owned(),
+                "-pc".to_owned(),
+                format!("{}", dataset_size),
+                "-dir".to_owned(),
+                "../td_data".to_owned(),
+                "-fn".to_owned(),
+                format!("../dataset-{}", dataset_size),
+            ],
+            check_requirement: Box::new(move || {
+                let exists = File::open(format!("./data/dataset-{dataset_size}.nt")).is_ok();
+                Ok(exists)
+            }),
+        };
+        let download_pregenerated_queries = PrepRequirement::FileDownload {
+            url: Url::parse("https://zenodo.org/records/12663333/files/explore-1000.csv.bz2")
+                .expect("parse dataset-name"),
+            file_name: PathBuf::from("explore-1000.csv"),
+            action: Some(FileDownloadAction::Unpack(ArchiveType::Bz2)),
+        };
+
         vec![
-            create_file_download(&format!("dataset-{}.nt", self.dataset_size)),
-            create_file_download(&format!("explore-{}.csv", self.dataset_size)),
+            download_bsbm_tools,
+            generate_dataset,
+            download_pregenerated_queries,
         ]
     }
 
@@ -143,18 +176,6 @@ async fn run_operation(store: &Store, operation: &SparqlOperation) {
     }
 }
 
-#[allow(clippy::expect_used)]
-fn create_file_download(file: &str) -> PrepRequirement {
-    FileDownload {
-        url: Url::parse(&format!(
-            "https://zenodo.org/records/12663333/files/{file}.bz2",
-        ))
-        .expect("parse dataset-name"),
-        file_name: PathBuf::from(file),
-        action: Some(FileDownloadAction::UnpackBz2),
-    }
-}
-
 /// Indicates the size of the dataset.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, ValueEnum)]
 pub enum BsbmDatasetSize {
@@ -194,6 +215,6 @@ impl Display for BsbmDatasetSize {
             BsbmDatasetSize::N250_000 => "250000",
             BsbmDatasetSize::N500_000 => "500000",
         };
-        write!(f, "{}", string)
+        write!(f, "{string}")
     }
 }

@@ -29,6 +29,7 @@ reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+zip-extract.workspace = true
 
 [lints]
 workspace = true
