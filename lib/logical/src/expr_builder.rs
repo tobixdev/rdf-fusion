@@ -1,4 +1,4 @@
-use crate::{ActiveGraph, RdfFusionExprBuilderRoot};
+use crate::RdfFusionExprBuilderRoot;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
@@ -12,7 +12,7 @@ use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::{
     RdfFusionBuiltinArgNames, RdfFusionFunctionArgs, RdfFusionFunctionArgsBuilder,
 };
-use rdf_fusion_model::{GraphName, Iri, TermRef};
+use rdf_fusion_model::{Iri, TermRef};
 
 /// A builder for expressions that make use of RdfFusion built-ins.
 ///
@@ -808,36 +808,6 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
         // TODO pass encoding into function
         Ok(udf.call(vec![lhs, rhs]))
-    }
-
-    /// Filters the expression based on the `active_graph`. While, in theory, this method can be
-    /// used for filtering arbitrary columns, it is only sensible for those that directly refer
-    /// to the graph column in the quads table.
-    pub fn build_filter_active_graph(self, active_graph: &ActiveGraph) -> DFResult<Option<Expr>> {
-        let expr = match active_graph {
-            ActiveGraph::DefaultGraph => Some(self.expr.is_null()),
-            ActiveGraph::Union(named_graphs) => {
-                let filter = named_graphs
-                    .iter()
-                    .map(|name| self.clone().build_same_term_graph_name(name))
-                    .reduce(|a, b| self.root.sparql_or(a?, b?))
-                    .unwrap_or(Ok(lit(false)))?;
-                Some(filter)
-            }
-            ActiveGraph::AnyNamedGraph => Some(self.expr.is_not_null()),
-            ActiveGraph::AllGraphs => None,
-        };
-
-        Ok(expr)
-    }
-
-    /// TODO
-    fn build_same_term_graph_name(self, graph_name: &GraphName) -> DFResult<Expr> {
-        match graph_name {
-            GraphName::NamedNode(nn) => self.build_same_term_scalar(nn.into()),
-            GraphName::BlankNode(bnode) => self.build_same_term_scalar(bnode.into()),
-            GraphName::DefaultGraph => Ok(self.expr.is_null()),
-        }
     }
 
     /// TODO

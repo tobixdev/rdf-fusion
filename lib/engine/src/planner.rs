@@ -3,33 +3,21 @@ use datafusion::execution::context::QueryPlanner;
 use datafusion::execution::SessionState;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::ExecutionPlan;
-use datafusion::physical_planner::{DefaultPhysicalPlanner, PhysicalPlanner};
-use rdf_fusion_common::QuadPatternEvaluator;
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
+use datafusion::physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner};
+use rdf_fusion_common::QuadStorage;
 use rdf_fusion_physical::paths::KleenePlusPathPlanner;
-use rdf_fusion_physical::quads::QuadNodePlanner;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-#[derive(Default)]
 pub struct RdfFusionPlanner {
-    inner_planner: DefaultPhysicalPlanner,
+    /// The storage layer that is used to execute the query.
+    storage: Arc<dyn QuadStorage>,
 }
 
 impl RdfFusionPlanner {
     /// TODO
-    pub fn new(
-        function_registry: Arc<dyn RdfFusionFunctionRegistry>,
-        quad_pattern_evaluator: Arc<dyn QuadPatternEvaluator>,
-    ) -> Self {
-        let inner_planner = DefaultPhysicalPlanner::with_extension_planners(vec![
-            Arc::new(KleenePlusPathPlanner),
-            Arc::new(QuadNodePlanner::new(
-                function_registry,
-                quad_pattern_evaluator,
-            )),
-        ]);
-        Self { inner_planner }
+    pub fn new(storage: Arc<dyn QuadStorage>) -> Self {
+        Self { storage }
     }
 }
 
@@ -46,7 +34,12 @@ impl QueryPlanner for RdfFusionPlanner {
         logical_plan: &LogicalPlan,
         session_state: &SessionState,
     ) -> datafusion::common::Result<Arc<dyn ExecutionPlan>> {
-        self.inner_planner
+        let mut planners: Vec<Arc<dyn ExtensionPlanner + Send + Sync>> =
+            vec![Arc::new(KleenePlusPathPlanner)];
+        planners.extend(self.storage.planners());
+
+        let planner = DefaultPhysicalPlanner::with_extension_planners(planners);
+        planner
             .create_physical_plan(logical_plan, session_state)
             .await
     }

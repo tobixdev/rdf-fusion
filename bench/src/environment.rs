@@ -89,7 +89,15 @@ impl BenchmarkingContext {
     #[allow(clippy::create_dir)]
     pub fn push_results_dir(&mut self, dir: &str) -> anyhow::Result<()> {
         self.results_dir.push(dir);
-        fs::create_dir(&self.results_dir).context("Could not create results directory.")
+        if self.results_dir.exists() {
+            println!(
+                "Cleaning results directory '{}' ...",
+                self.results_dir.as_path().display()
+            );
+            fs::remove_dir_all(self.results_dir.as_path())?;
+            fs::create_dir(self.results_dir.as_path())?;
+        }
+        Ok(())
     }
 
     /// Pops the last directory from the stack.
@@ -100,15 +108,6 @@ impl BenchmarkingContext {
     /// Creates a new bencher and modifies the context for this benchmark.
     pub fn create_bencher(&mut self, benchmark_name: BenchmarkName) -> anyhow::Result<Bencher<'_>> {
         self.push_results_dir(&benchmark_name.dir_name())?;
-        if self.results_dir.exists() {
-            println!(
-                "Cleaning results directory '{}' ...",
-                self.results_dir.as_path().display()
-            );
-            fs::remove_dir_all(self.results_dir.as_path())?;
-            fs::create_dir(self.results_dir.as_path())?;
-        }
-
         Ok(Bencher {
             context: self,
             benchmark_name,

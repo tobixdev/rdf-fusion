@@ -3,9 +3,10 @@ use crate::DFResult;
 use async_trait::async_trait;
 use datafusion::datasource::TableProvider;
 use datafusion::execution::SendableRecordBatchStream;
+use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_model::{
-    GraphName, GraphNameRef, NamedNode, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
-    Subject, Term,
+    GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
+    TermRef,
 };
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -53,6 +54,10 @@ pub trait QuadStorage: Send + Sync {
 
     /// Removes the given quad from the storage.
     async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError>;
+
+    /// Returns a list of planners that support planning logical nodes requiring access to the
+    /// storage layer.
+    fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
 }
 
 /// TODO
@@ -61,10 +66,10 @@ pub trait QuadPatternEvaluator: Debug + Send + Sync {
     /// TODO
     fn quads_for_pattern(
         &self,
-        subject: Option<&Subject>,
-        predicate: Option<&NamedNode>,
-        object: Option<&Term>,
-        graph_name: Option<&GraphName>,
+        graph: GraphNameRef<'_>,
+        subject: Option<SubjectRef<'_>>,
+        predicate: Option<NamedNodeRef<'_>>,
+        object: Option<TermRef<'_>>,
         batch_size: usize,
     ) -> DFResult<SendableRecordBatchStream>;
 }

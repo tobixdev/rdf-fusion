@@ -11,7 +11,7 @@ pub mod paths;
 pub mod patterns;
 pub mod quads;
 
-pub use active_graph::ActiveGraph;
+pub use active_graph::{ActiveGraph, EnumeratedActiveGraph};
 use datafusion::common::{plan_err, DFSchema};
 pub use expr_builder::RdfFusionExprBuilder;
 pub use expr_builder_root::RdfFusionExprBuilderRoot;

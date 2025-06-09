@@ -132,7 +132,7 @@ impl OxigraphMemoryStorage {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MemoryStorageReader {
     storage: OxigraphMemoryStorage,
     snapshot_id: usize,

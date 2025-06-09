@@ -17,6 +17,19 @@ pub enum ActiveGraph {
     AnyNamedGraph,
 }
 
+/// Represents the active graph as an enumerated list of individual graphs.
+///
+/// This resolves concepts like [ActiveGraph::AnyNamedGraph] to a list of [GraphName].
+#[derive(Clone, Debug)]
+pub struct EnumeratedActiveGraph(pub Vec<GraphName>);
+
+impl EnumeratedActiveGraph {
+    /// Creates a new [EnumeratedActiveGraph].
+    pub fn new(graphs: Vec<GraphName>) -> Self {
+        Self(graphs)
+    }
+}
+
 impl Display for ActiveGraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

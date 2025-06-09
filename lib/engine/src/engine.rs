@@ -6,7 +6,7 @@ use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::SessionContext;
-use rdf_fusion_common::{DFResult, QuadPatternEvaluator, QuadStorage};
+use rdf_fusion_common::{DFResult, QuadStorage};
 use rdf_fusion_encoding::TABLE_QUADS;
 use rdf_fusion_functions::registry::{
     DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
@@ -38,20 +38,14 @@ pub struct RdfFusionInstance {
 
 impl RdfFusionInstance {
     /// Creates a new [RdfFusionInstance] with the default configuration and the given `storage`.
-    pub fn new_with_storage(
-        storage: Arc<dyn QuadStorage>,
-        quad_pattern_evaluator: Arc<dyn QuadPatternEvaluator>,
-    ) -> DFResult<Self> {
+    pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> DFResult<Self> {
         // TODO make a builder
 
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry);
 
         let state = SessionStateBuilder::new()
-            .with_query_planner(Arc::new(RdfFusionPlanner::new(
-                Arc::clone(&registry),
-                quad_pattern_evaluator,
-            )))
+            .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
             .with_optimizer_rule(Arc::new(MinusLoweringRule::new(Arc::clone(&registry))))
             .with_optimizer_rule(Arc::new(ExtendLoweringRule::new()))

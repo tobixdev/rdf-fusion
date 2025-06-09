@@ -104,9 +104,8 @@ impl Store {
     #[allow(clippy::expect_used)]
     pub fn new() -> Store {
         let storage = MemoryQuadStorage::new("memory_quads");
-        let engine =
-            RdfFusionInstance::new_with_storage(Arc::new(storage.clone()), Arc::new(storage))
-                .expect("Name of the storage is OK");
+        let engine = RdfFusionInstance::new_with_storage(Arc::new(storage.clone()))
+            .expect("Name of the storage is OK");
         Self { engine }
     }
 

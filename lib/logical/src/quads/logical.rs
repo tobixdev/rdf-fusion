@@ -9,6 +9,13 @@ use std::fmt;
 use std::fmt::Formatter;
 
 /// TODO
+///
+/// ### Planning QuadsNode
+///
+/// Planning the QuadsNode requires users to define a specialized planner for the used storage
+/// layer. This is because the planner should consider storage-specific problems like sharing a
+/// transaction across multiple scans of the quads table in a single query. The built-in storage
+/// layers of RdfFusion provide examples.
 #[derive(PartialEq, Eq, Hash)]
 pub struct QuadsNode {
     active_graph: ActiveGraph,
