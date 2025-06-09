@@ -1,10 +1,11 @@
 use anyhow::Context;
-use serde::{Deserialize, Serialize};
+use pprof::Report;
+use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
 /// Contains the runs of a single benchmark.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct BenchmarkRuns {
     /// The individual runs.
     runs: Vec<BenchmarkRun>,
@@ -26,10 +27,19 @@ impl BenchmarkRuns {
             .context("Too many samples for computing the average duration")?;
         let avg_duration =
             self.runs.iter().map(|run| run.duration).sum::<Duration>() / number_of_samples;
+        let reports = self
+            .runs
+            .iter()
+            .map(|r| Report {
+                data: r.report.data.clone(),
+                timing: r.report.timing.clone(),
+            })
+            .collect::<Vec<_>>();
 
         Ok(BenchmarkSummary {
             number_of_samples,
             avg_duration,
+            reports,
         })
     }
 }
@@ -41,19 +51,25 @@ impl Default for BenchmarkRuns {
 }
 
 /// Represents a single run of a benchmark.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct BenchmarkRun {
     /// The duration of the benchmark run.
     pub duration: Duration,
+    /// The profiling report of the benchmark run.
+    #[serde(skip_serializing)]
+    pub report: Report,
 }
 
 /// Holds the statistics computed over [BenchmarkRuns].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct BenchmarkSummary {
     /// Represents how often the benchmark was executed.
     pub number_of_samples: u32,
     /// The average duration over all benchmark runs.
     pub avg_duration: Duration,
+    /// All profiling reports.
+    #[serde(skip_serializing)]
+    pub reports: Vec<Report>,
 }
 
 impl Display for BenchmarkSummary {

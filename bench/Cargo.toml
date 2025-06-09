@@ -23,6 +23,7 @@ bzip2.workspace = true
 clap = { workspace = true, features = ["derive"] }
 csv.workspace = true
 futures.workspace = true
+pprof = { workspace = true, features = ["flamegraph"] }
 rdf-fusion.workspace = true
 reqwest.workspace = true
 serde.workspace = true

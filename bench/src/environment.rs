@@ -3,11 +3,12 @@ use crate::prepare::PrepRequirement;
 use crate::prepare::{ensure_file_download, prepare_file_download};
 use crate::results::{BenchmarkResults, BenchmarkRun};
 use anyhow::{bail, Context};
+use pprof::Report;
 use std::fs;
 use std::fs::File;
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use tokio::time::Instant;
+use std::time::Instant;
 
 /// Represents a context used to execute benchmarks.
 pub struct BenchmarkingContext {
@@ -75,8 +76,16 @@ impl BenchmarkingContext {
         let data_json_file = File::create(data_json_path)?;
         serde_json::to_writer_pretty(data_json_file, results)?;
 
+        let summary = results.summarize()?;
+
         let summary_path = self.results_dir.join("summary.txt");
-        fs::write(summary_path, results.summarize()?.to_string())?;
+        fs::write(summary_path, summary.to_string())?;
+
+        for (idx, report) in summary.reports.iter().enumerate() {
+            let flamegraph_path = self.results_dir.join(format!("flamegraph{idx}.svg"));
+            let file = File::create(flamegraph_path)?;
+            report.flamegraph(file)?;
+        }
 
         Ok(())
     }
@@ -144,22 +153,41 @@ impl<'ctx> Bencher<'ctx> {
     {
         println!("Warming up for 5 seconds...");
         let warmup_start = Instant::now();
-        while Instant::now() - warmup_start < std::time::Duration::from_secs(5) {
+        while warmup_start.elapsed() < std::time::Duration::from_secs(5) {
             body().await?;
         }
         println!("Warmup done.");
 
         println!("Benching...");
-        let start = Instant::now();
-        let result = body().await?;
-        let end = Instant::now();
+        let (start, end, report, output) = self.execute_benchmark(body).await?;
         println!("Benching done.");
 
         let duration = end - start;
-        let run = BenchmarkRun { duration };
+        let run = BenchmarkRun { duration, report };
         self.context.results.add_run(self.benchmark_name, run);
 
-        Ok(result)
+        Ok(output)
+    }
+
+    /// TODO
+    async fn execute_benchmark<F, R, O>(
+        &mut self,
+        body: F,
+    ) -> anyhow::Result<(Instant, Instant, Report, O)>
+    where
+        F: Fn() -> R,
+        R: Future<Output = anyhow::Result<O>>,
+    {
+        let guard = pprof::ProfilerGuardBuilder::default()
+            .frequency(1000)
+            .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+            .build()?;
+        let start = Instant::now();
+        let result = body().await?;
+        let end = Instant::now();
+        let report = guard.report().build()?;
+
+        Ok((start, end, report, result))
     }
 
     /// Instructs the benchmarking context to write the results of this benchmark to disk.
