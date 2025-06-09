@@ -4,9 +4,9 @@ mod encoder;
 mod oxigraph_mem_exec;
 mod planner;
 mod quad_storage;
+mod quad_storage_stream;
 mod small_string;
 mod store;
 mod table_provider;
-mod quad_storage_stream;
 
 pub use quad_storage::MemoryQuadStorage;

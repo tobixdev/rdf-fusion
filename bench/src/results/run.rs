@@ -28,9 +28,15 @@ impl BenchmarkRuns {
             self.runs.iter().map(|run| run.duration).sum::<Duration>() / number_of_samples;
 
         Ok(BenchmarkSummary {
-            avg_duration,
             number_of_samples,
+            avg_duration,
         })
+    }
+}
+
+impl Default for BenchmarkRuns {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -51,14 +57,10 @@ pub struct BenchmarkSummary {
 }
 
 impl Display for BenchmarkSummary {
+    #[allow(clippy::use_debug)]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Benchmark Summary:")?;
         writeln!(f, "Number of Samples: {}", self.number_of_samples)?;
-        write!(
-            f,
-            "Average Duration: {:\
-        ?}",
-            self.avg_duration
-        )
+        write!(f, "Average Duration: {:?}", self.avg_duration)
     }
 }

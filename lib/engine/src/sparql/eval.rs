@@ -27,7 +27,7 @@ pub async fn evaluate_query(
             pattern, base_iri, ..
         } => {
             let (stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), registry, &query, pattern, base_iri).await?;
+                graph_pattern_to_stream(ctx.state(), registry, query, pattern, base_iri).await?;
             Ok((QueryResults::Solutions(stream), explanation))
         }
         spargebra::Query::Construct {
@@ -37,7 +37,7 @@ pub async fn evaluate_query(
             ..
         } => {
             let (stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), registry, &query, pattern, base_iri).await?;
+                graph_pattern_to_stream(ctx.state(), registry, query, pattern, base_iri).await?;
             Ok((
                 QueryResults::Graph(QueryTripleStream::new(template.clone(), stream)),
                 explanation,
@@ -47,7 +47,7 @@ pub async fn evaluate_query(
             pattern, base_iri, ..
         } => {
             let (mut stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), registry, &query, pattern, base_iri).await?;
+                graph_pattern_to_stream(ctx.state(), registry, query, pattern, base_iri).await?;
             let count = stream.next().await;
             Ok((QueryResults::Boolean(count.is_some()), explanation))
         }

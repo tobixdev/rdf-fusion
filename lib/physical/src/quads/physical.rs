@@ -74,7 +74,7 @@ impl ExecutionPlan for QuadsExec {
         self: Arc<Self>,
         children: Vec<Arc<dyn ExecutionPlan>>,
     ) -> DFResult<Arc<dyn ExecutionPlan>> {
-        if children.len() != 0 {
+        if !children.is_empty() {
             return plan_err!("QuadsExec has no child, got {}", children.len());
         }
         Ok(Arc::new((*self).clone()))

@@ -25,14 +25,17 @@ pub struct OxigraphMemoryQuadNodePlanner {
 
 impl OxigraphMemoryQuadNodePlanner {
     /// Creates a new [OxigraphMemoryQuadNodePlanner].
-    pub fn new(storage: MemoryQuadStorage) -> Self {
+    pub fn new(storage: &MemoryQuadStorage) -> Self {
         Self {
             snapshot: storage.snapshot(),
         }
     }
 
     /// TODO
-    fn enumerate_active_graph(&self, active_graph: &ActiveGraph) -> DFResult<EnumeratedActiveGraph> {
+    fn enumerate_active_graph(
+        &self,
+        active_graph: &ActiveGraph,
+    ) -> DFResult<EnumeratedActiveGraph> {
         let graph_names = match active_graph {
             ActiveGraph::DefaultGraph => vec![GraphName::DefaultGraph],
             ActiveGraph::AllGraphs => {
@@ -90,7 +93,7 @@ impl ExtensionPlanner for OxigraphMemoryQuadNodePlanner {
 impl QuadPatternEvaluator for MemoryStorageReader {
     fn quads_for_pattern(
         &self,
-        graph_name: GraphNameRef<'_>,
+        graph: GraphNameRef<'_>,
         subject: Option<SubjectRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
@@ -100,7 +103,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             subject.map(EncodedTerm::from).as_ref(),
             predicate.map(EncodedTerm::from).as_ref(),
             object.map(EncodedTerm::from).as_ref(),
-            Some(&EncodedTerm::from(graph_name)),
+            Some(&EncodedTerm::from(graph)),
         );
         Ok(Box::pin(QuadIteratorBatchRecordStream::new(
             iterator, batch_size,

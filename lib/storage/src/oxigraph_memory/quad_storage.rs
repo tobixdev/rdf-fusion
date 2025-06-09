@@ -7,10 +7,7 @@ use datafusion::catalog::TableProvider;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_common::QuadStorage;
-use rdf_fusion_model::{
-    GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef
-    ,
-};
+use rdf_fusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -125,6 +122,6 @@ impl QuadStorage for MemoryQuadStorage {
     }
 
     fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
-        vec![Arc::new(OxigraphMemoryQuadNodePlanner::new(self.clone()))]
+        vec![Arc::new(OxigraphMemoryQuadNodePlanner::new(self))]
     }
 }

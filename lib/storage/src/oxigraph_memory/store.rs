@@ -165,6 +165,7 @@ impl MemoryStorageReader {
             .is_some_and(|node| self.is_node_in_range(&node))
     }
 
+    #[allow(clippy::same_name_method)]
     pub fn quads_for_pattern(
         &self,
         subject: Option<&EncodedTerm>,

@@ -490,8 +490,8 @@ fn construct_quads_node_for_pattern(
         _ => None,
     };
     let predicate = match pattern.predicate {
-        NamedNodePattern::NamedNode(nn) => Some(nn.into()),
-        _ => None,
+        NamedNodePattern::NamedNode(nn) => Some(nn),
+        NamedNodePattern::Variable(_) => None,
     };
     let object = match pattern.object {
         TermPattern::NamedNode(nn) => Some(nn.into()),

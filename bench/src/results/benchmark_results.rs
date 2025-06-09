@@ -24,7 +24,13 @@ impl BenchmarkResults {
 
     /// Adds a new run for a given `namer
     pub fn add_run(&mut self, name: BenchmarkName, run: BenchmarkRun) {
-        let runs = self.runs.entry(name).or_insert(BenchmarkRuns::new());
+        let runs = self.runs.entry(name).or_default();
         runs.add_run(run);
+    }
+}
+
+impl Default for BenchmarkResults {
+    fn default() -> Self {
+        Self::new()
     }
 }

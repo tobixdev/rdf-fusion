@@ -1,5 +1,7 @@
-use std::sync::Arc;
-use std::task::{Context, Poll};
+use crate::oxigraph_memory::encoded_term::EncodedTerm;
+use crate::oxigraph_memory::encoder::EncodedQuad;
+use crate::oxigraph_memory::store::QuadIterator;
+use crate::AResult;
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::Schema;
 use datafusion::common::DataFusionError;
@@ -9,10 +11,8 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
 use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_SCHEMA;
 use rdf_fusion_model::TermRef;
-use crate::AResult;
-use crate::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::oxigraph_memory::encoder::EncodedQuad;
-use crate::oxigraph_memory::store::QuadIterator;
+use std::sync::Arc;
+use std::task::{Context, Poll};
 
 /// Stream that generates record batches on demand
 pub struct QuadIteratorBatchRecordStream {
@@ -24,8 +24,8 @@ impl QuadIteratorBatchRecordStream {
     /// TODO
     pub fn new(iterator: QuadIterator, batch_size: usize) -> Self {
         Self {
-            batch_size,
             iterator,
+            batch_size,
         }
     }
 }
@@ -98,11 +98,12 @@ impl RdfQuadsRecordBatchBuilder {
             return Ok(None);
         }
 
-        let mut fields: Vec<Arc<dyn Array>> = Vec::new();
-        fields.push(Arc::new(self.graph.finish()));
-        fields.push(Arc::new(self.subject.finish()));
-        fields.push(Arc::new(self.predicate.finish()));
-        fields.push(Arc::new(self.object.finish()));
+        let fields: Vec<Arc<dyn Array>> = vec![
+            Arc::new(self.graph.finish()),
+            Arc::new(self.subject.finish()),
+            Arc::new(self.predicate.finish()),
+            Arc::new(self.object.finish()),
+        ];
 
         let options = RecordBatchOptions::default().with_row_count(Some(self.count));
         let record_batch =
