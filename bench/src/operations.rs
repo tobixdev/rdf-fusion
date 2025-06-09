@@ -12,11 +12,10 @@ pub fn list_raw_operations(
         .records()
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
-        .rev()
-        .map(|l| match &l[1] {
-            "query" => SparqlRawOperation::Query(l[2].into()),
-            "update" => SparqlRawOperation::Update(l[2].into()),
-            _ => panic!("Unexpected operation kind {}", &l[1]),
+        .map(|record| match &record[1] {
+            "query" => SparqlRawOperation::Query(record[2].into()),
+            "update" => SparqlRawOperation::Update(record[2].into()),
+            _ => panic!("Unexpected operation kind {}", &record[1]),
         });
     Ok(result)
 }

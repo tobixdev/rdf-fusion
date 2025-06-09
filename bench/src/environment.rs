@@ -95,8 +95,8 @@ impl BenchmarkingContext {
                 self.results_dir.as_path().display()
             );
             fs::remove_dir_all(self.results_dir.as_path())?;
-            fs::create_dir(self.results_dir.as_path())?;
         }
+        fs::create_dir(self.results_dir.as_path())?;
         Ok(())
     }
 
@@ -142,11 +142,18 @@ impl<'ctx> Bencher<'ctx> {
         F: Fn() -> R,
         R: Future<Output = anyhow::Result<O>>,
     {
-        // TODO: Investigate how much warm-up is needed for our workloads.
+        println!("Warming up for 5 seconds...");
+        let warmup_start = Instant::now();
+        while Instant::now() - warmup_start < std::time::Duration::from_secs(5) {
+            body().await?;
+        }
+        println!("Warmup done.");
 
+        println!("Benching...");
         let start = Instant::now();
         let result = body().await?;
         let end = Instant::now();
+        println!("Benching done.");
 
         let duration = end - start;
         let run = BenchmarkRun { duration };

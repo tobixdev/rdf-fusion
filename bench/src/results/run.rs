@@ -52,8 +52,8 @@ pub struct BenchmarkSummary {
 
 impl Display for BenchmarkSummary {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Benchmark Summary:")?;
-        write!(f, "Number of Samples: {}", self.number_of_samples)?;
+        writeln!(f, "Benchmark Summary:")?;
+        writeln!(f, "Number of Samples: {}", self.number_of_samples)?;
         write!(
             f,
             "Average Duration: {:\

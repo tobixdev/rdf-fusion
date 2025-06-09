@@ -97,6 +97,8 @@ impl Benchmark for BsbmExploreBenchmark {
                     }
                     run_operation(&memory_store, operation).await;
                 }
+                println!("Progress: {len}/{len}");
+
                 Ok(())
             })
             .await;
