@@ -6,7 +6,7 @@ use rdf_fusion::model::Term;
 use rdf_fusion::store::Store;
 use rdf_fusion_engine::results::QueryResults;
 use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject};
-use tokio::runtime::{Builder, Runtime};
+use tokio::runtime::Builder;
 
 /// This benchmark measures transactionally inserting synthetic quads into the store.
 fn store_load(c: &mut Criterion) {
@@ -24,7 +24,7 @@ fn store_load(c: &mut Criterion) {
 /// This benchmarks measure the duration of running a simple query (1 triple pattern). Hopefully,
 /// this can provide insights into the "baseline" overhead of the query engine.
 fn store_single_pattern(c: &mut Criterion) {
-    let runtime = Builder::new_current_thread().enable_all().unwrap();
+    let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
     // No Quads
     c.bench_function("Store::query - Single Pattern / No Quads", |b| {
