@@ -6,24 +6,25 @@ use rdf_fusion::model::Term;
 use rdf_fusion::store::Store;
 use rdf_fusion_engine::results::QueryResults;
 use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject};
-use tokio::runtime::Runtime;
+use tokio::runtime::{Builder, Runtime};
 
 /// This benchmark measures transactionally inserting synthetic quads into the store.
 fn store_load(c: &mut Criterion) {
     c.bench_function("Store::load", |b| {
-        b.to_async(Runtime::new().unwrap()).iter(|| async {
-            let store = Store::new();
-            for quad in generate_quads(10_000) {
-                store.insert(quad.as_ref()).await.unwrap();
-            }
-        });
+        b.to_async(&Builder::new_current_thread().enable_all().build().unwrap())
+            .iter(|| async {
+                let store = Store::new();
+                for quad in generate_quads(10_000) {
+                    store.insert(quad.as_ref()).await.unwrap();
+                }
+            });
     });
 }
 
 /// This benchmarks measure the duration of running a simple query (1 triple pattern). Hopefully,
 /// this can provide insights into the "baseline" overhead of the query engine.
 fn store_single_pattern(c: &mut Criterion) {
-    let runtime = Runtime::new().unwrap();
+    let runtime = Builder::new_current_thread().enable_all().unwrap();
 
     // No Quads
     c.bench_function("Store::query - Single Pattern / No Quads", |b| {
@@ -48,7 +49,7 @@ fn store_single_pattern(c: &mut Criterion) {
 /// This benchmarks measure the duration of running a simple query that fixes a single part of the
 /// pattern (i.e., subject, predicate, object, graph).
 fn store_single_pattern_with_fixed_element(c: &mut Criterion) {
-    let runtime = Runtime::new().unwrap();
+    let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
     // Graph
     c.bench_function(
