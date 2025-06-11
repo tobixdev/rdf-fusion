@@ -37,19 +37,24 @@ impl Stream for QuadIteratorBatchRecordStream {
         mut self: std::pin::Pin<&mut Self>,
         _ctx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        let mut rb_builder = RdfQuadsRecordBatchBuilder::new();
+        // Early return if the iterator is empty
+        let Some(first_quad) = self.iterator.next() else {
+            return Poll::Ready(None);
+        };
 
-        while let Some(quad) = self.iterator.next() {
-            rb_builder.encode_quad(&quad);
-            if rb_builder.count() == self.batch_size {
+        let mut rb_builder = RdfQuadsRecordBatchBuilder::new(self.batch_size);
+        rb_builder.encode_quad(&first_quad);
+
+        for _ in 0..(self.batch_size - 1) {
+            let Some(quad) = self.iterator.next() else {
                 break;
-            }
+            };
+            rb_builder.encode_quad(&quad);
         }
 
         let record_batch = rb_builder.finish();
         match record_batch {
-            Ok(Some(rb)) => Poll::Ready(Some(Ok(rb))),
-            Ok(None) => Poll::Ready(None),
+            Ok(rb) => Poll::Ready(Some(Ok(rb))),
             Err(err) => Poll::Ready(Some(Err(DataFusionError::External(Box::new(err))))),
         }
     }
@@ -71,18 +76,14 @@ struct RdfQuadsRecordBatchBuilder {
 }
 
 impl RdfQuadsRecordBatchBuilder {
-    fn new() -> Self {
+    fn new(capacity: usize) -> Self {
         Self {
-            graph: PlainTermArrayBuilder::new(0),
-            subject: PlainTermArrayBuilder::new(0),
-            predicate: PlainTermArrayBuilder::new(0),
-            object: PlainTermArrayBuilder::new(0),
+            graph: PlainTermArrayBuilder::new(capacity),
+            subject: PlainTermArrayBuilder::new(capacity),
+            predicate: PlainTermArrayBuilder::new(capacity),
+            object: PlainTermArrayBuilder::new(capacity),
             count: 0,
         }
-    }
-
-    fn count(&self) -> usize {
-        self.count
     }
 
     fn encode_quad(&mut self, quad: &EncodedQuad) {
@@ -93,11 +94,7 @@ impl RdfQuadsRecordBatchBuilder {
         self.count += 1;
     }
 
-    fn finish(self) -> AResult<Option<RecordBatch>> {
-        if self.count == 0 {
-            return Ok(None);
-        }
-
+    fn finish(self) -> AResult<RecordBatch> {
         let fields: Vec<Arc<dyn Array>> = vec![
             Arc::new(self.graph.finish()),
             Arc::new(self.subject.finish()),
@@ -108,7 +105,7 @@ impl RdfQuadsRecordBatchBuilder {
         let options = RecordBatchOptions::default().with_row_count(Some(self.count));
         let record_batch =
             RecordBatch::try_new_with_options(Arc::clone(&DEFAULT_QUAD_SCHEMA), fields, &options)?;
-        Ok(Some(record_batch))
+        Ok(record_batch)
     }
 }
 

@@ -21,7 +21,7 @@ fn store_load(c: &mut Criterion) {
     });
 }
 
-/// This benchmarks measure the duration of running a simple query (1 triple pattern). Hopefully,
+/// These benchmarks measure the duration of running a simple query (1 triple pattern). Hopefully,
 /// this can provide insights into the "baseline" overhead of the query engine.
 fn store_single_pattern(c: &mut Criterion) {
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
@@ -29,51 +29,33 @@ fn store_single_pattern(c: &mut Criterion) {
     // No Quads
     c.bench_function("Store::query - Single Pattern / No Quads", |b| {
         let store = runtime.block_on(prepare_store_with_generated_triples(0));
-        b.to_async(&runtime)
-            .iter(|| async { trivial_query(&store, 0).await });
+        b.to_async(&runtime).iter(|| trivial_query(&store, 0));
     });
     // One Quad
     c.bench_function("Store::query - Single Pattern / Single Quad", |b| {
         let store = runtime.block_on(prepare_store_with_generated_triples(1));
-        b.to_async(&runtime)
-            .iter(|| async { trivial_query(&store, 1).await });
+        b.to_async(&runtime).iter(|| trivial_query(&store, 1));
     });
     // One Record Batch
-    c.bench_function("Store::query - Single Pattern / 8096 Quads", |b| {
-        let store = runtime.block_on(prepare_store_with_generated_triples(8096));
-        b.to_async(&runtime)
-            .iter(|| async { trivial_query(&store, 8096).await });
+    c.bench_function("Store::query - Single Pattern / 8192 Quads", |b| {
+        let store = runtime.block_on(prepare_store_with_generated_triples(8192));
+        b.to_async(&runtime).iter(|| trivial_query(&store, 8192));
     });
 }
 
-/// This benchmarks measure the duration of running a simple query that fixes a single part of the
+/// These benchmarks measure the duration of running a simple query that fixes a single part of the
 /// pattern (i.e., subject, predicate, object, graph).
 fn store_single_pattern_with_fixed_element(c: &mut Criterion) {
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
-
-    // Graph
-    c.bench_function(
-        "Store::query - Single Pattern With Fixed Element (graph)",
-        |b| {
-            let store = runtime.block_on(prepare_store_with_generated_triples(8096));
-            b.to_async(&runtime).iter(|| async {
-                let result = store
-                    .query("SELECT ?s ?p ?o { GRAPH <http://example.com/graph0> { ?s ?p ?o } }")
-                    .await
-                    .unwrap();
-                assert_number_of_results(result, 1).await;
-            });
-        },
-    );
 
     // Subject
     c.bench_function(
         "Store::query - Single Pattern With Fixed Element (subject)",
         |b| {
-            let store = runtime.block_on(prepare_store_with_generated_triples(8096));
+            let store = runtime.block_on(prepare_store_with_generated_triples(8192));
             b.to_async(&runtime).iter(|| async {
                 let result = store
-                    .query("SELECT ?g ?p ?o { GRAPH ?g { <http://example.com/subject0> ?p ?o } }")
+                    .query("SELECT ?p ?o { <http://example.com/subject0> ?p ?o }")
                     .await
                     .unwrap();
                 assert_number_of_results(result, 1).await;
@@ -85,10 +67,10 @@ fn store_single_pattern_with_fixed_element(c: &mut Criterion) {
     c.bench_function(
         "Store::query - Single Pattern With Fixed Element (predicate)",
         |b| {
-            let store = runtime.block_on(prepare_store_with_generated_triples(8096));
+            let store = runtime.block_on(prepare_store_with_generated_triples(8192));
             b.to_async(&runtime).iter(|| async {
                 let result = store
-                    .query("SELECT ?g ?s ?o { GRAPH ?g { ?s <http://example.com/predicate0> ?o } }")
+                    .query("SELECT ?s ?o { ?s <http://example.com/predicate0> ?o }")
                     .await
                     .unwrap();
                 assert_number_of_results(result, 1).await;
@@ -100,10 +82,10 @@ fn store_single_pattern_with_fixed_element(c: &mut Criterion) {
     c.bench_function(
         "Store::query - Single Pattern With Fixed Element (object)",
         |b| {
-            let store = runtime.block_on(prepare_store_with_generated_triples(8096));
+            let store = runtime.block_on(prepare_store_with_generated_triples(8192));
             b.to_async(&runtime).iter(|| async {
                 let result = store
-                    .query("SELECT ?g ?s ?p { GRAPH ?g { ?s ?p <http://example.com/object0> } }")
+                    .query("SELECT ?s ?p { ?s ?p <http://example.com/object0> }")
                     .await
                     .unwrap();
                 assert_number_of_results(result, 1).await;
@@ -130,7 +112,6 @@ async fn prepare_store_with_generated_triples(n: usize) -> Store {
 
 fn generate_quads(count: usize) -> impl Iterator<Item = Quad> {
     (0..count).map(|i| {
-        let graph = format!("http://example.com/graph{}", i);
         let subject = format!("http://example.com/subject{}", i);
         let predicate = format!("http://example.com/predicate{}", i);
         let object = format!("http://example.com/object{}", i);
@@ -138,16 +119,13 @@ fn generate_quads(count: usize) -> impl Iterator<Item = Quad> {
             Subject::NamedNode(NamedNode::new_unchecked(subject)),
             NamedNode::new_unchecked(predicate),
             Term::NamedNode(NamedNode::new_unchecked(object)),
-            GraphName::NamedNode(NamedNode::new_unchecked(graph)),
+            GraphName::DefaultGraph,
         )
     })
 }
 
 async fn trivial_query(store: &Store, n: usize) {
-    let result = store
-        .query("SELECT ?s ?p ?o { GRAPH ?g { ?s ?p ?o } }")
-        .await
-        .unwrap();
+    let result = store.query("SELECT ?s ?p ?o { ?s ?p ?o }").await.unwrap();
     assert_number_of_results(result, n).await;
 }
 

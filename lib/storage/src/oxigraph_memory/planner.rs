@@ -89,6 +89,7 @@ impl ExtensionPlanner for OxigraphMemoryQuadNodePlanner {
         }
     }
 }
+
 #[async_trait]
 impl QuadPatternEvaluator for MemoryStorageReader {
     fn quads_for_pattern(

@@ -3576,12 +3576,10 @@ dependencies = [
 name = "rdf-fusion-encoding"
 version = "0.1.0"
 dependencies = [
+ "codspeed-criterion-compat",
  "datafusion",
  "rdf-fusion-common",
- "rdf-fusion-functions-scalar",
  "rdf-fusion-model",
- "thiserror",
- "uuid",
 ]
 
 [[package]]
