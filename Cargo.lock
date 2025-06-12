@@ -3586,6 +3586,7 @@ dependencies = [
  "async-trait",
  "bzip2",
  "clap",
+ "codspeed-criterion-compat",
  "csv",
  "futures",
  "pprof",

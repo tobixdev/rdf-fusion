@@ -31,5 +31,12 @@ serde.workspace = true
 tokio.workspace = true
 zip-extract.workspace = true
 
+[dev-dependencies]
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
+
 [lints]
 workspace = true
+
+[[bench]]
+name = "bsbm"
+harness = false
