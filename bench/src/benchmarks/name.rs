@@ -1,4 +1,4 @@
-use crate::benchmarks::BsbmDatasetSize;
+use crate::benchmarks::bsbm::BsbmDatasetSize;
 use clap::Subcommand;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};

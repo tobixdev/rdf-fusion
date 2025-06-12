@@ -1,22 +1,26 @@
+use crate::benchmarks::bsbm::explore::operation::{
+    list_raw_operations, BsbmExplorOperation, BsbmExploreRawOperation,
+};
+use crate::benchmarks::bsbm::explore::report::{ExploreReport, ExploreReportBuilder};
+use crate::benchmarks::bsbm::BsbmDatasetSize;
 use crate::benchmarks::{Benchmark, BenchmarkName};
-use crate::environment::{Bencher, BenchmarkingContext};
-use crate::operations::{list_raw_operations, SparqlOperation, SparqlRawOperation};
+use crate::environment::{BenchmarkContext, RdfFusionBenchContext};
 use crate::prepare::{ArchiveType, FileDownloadAction, PrepRequirement};
+use crate::report::BenchmarkReport;
+use crate::runs::BenchmarkRun;
 use async_trait::async_trait;
-use clap::ValueEnum;
 use futures::StreamExt;
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
 use rdf_fusion::{Query, QueryOptions, QueryResults};
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
+use tokio::time::Instant;
 
 /// The [Berlin SPARQL Benchmark](http://wbsg.informatik.uni-mannheim.de/bizer/berlinsparqlbenchmark/)
-/// is a widely adopted benchmarks that is built around an e-commerce use case.
+/// is a widely adopted benchmark built around an e-commerce use case.
 ///
 /// This version of the benchmark uses the [pre-prepared datasets](https://zenodo.org/records/12663333)
 /// from Oxigraph.
@@ -42,11 +46,15 @@ impl BsbmExploreBenchmark {
 
     /// The BSBM also generates many queries that are tailored to the generated data. This method
     /// returns a list of queries that should be executed during this run.
-    fn list_operations(&self, env: &BenchmarkingContext) -> anyhow::Result<Vec<SparqlOperation>> {
+    fn list_operations(
+        &self,
+        env: &RdfFusionBenchContext,
+    ) -> anyhow::Result<Vec<BsbmExplorOperation>> {
+        println!("Loading queries ...");
+
         let queries_path = env
             .join_data_dir(PathBuf::from(format!("explore-{}.csv", self.dataset_size)).as_path())?;
-
-        Ok(match self.max_query_count {
+        let result = match self.max_query_count {
             None => list_raw_operations(&queries_path)?
                 .filter_map(parse_query)
                 .collect(),
@@ -54,7 +62,24 @@ impl BsbmExploreBenchmark {
                 .filter_map(parse_query)
                 .take(usize::try_from(max_query_count)?)
                 .collect(),
-        })
+        };
+
+        println!("Queries loaded.");
+        Ok(result)
+    }
+
+    async fn prepare_store(&self, bench_context: &BenchmarkContext<'_>) -> anyhow::Result<Store> {
+        println!("Creating in-memory store and loading data ...");
+        let data_path = bench_context
+            .parent()
+            .join_data_dir(PathBuf::from(format!("dataset-{}.nt", self.dataset_size)).as_path())?;
+        let data = fs::read(data_path)?;
+        let memory_store = Store::new();
+        memory_store
+            .load_from_reader(RdfFormat::NTriples, data.as_slice())
+            .await?;
+        println!("Store created and data loaded.");
+        Ok(memory_store)
     }
 }
 
@@ -104,117 +129,93 @@ impl Benchmark for BsbmExploreBenchmark {
         ]
     }
 
-    async fn execute(&self, bencher: &mut Bencher<'_>) -> anyhow::Result<()> {
-        println!("Loading queries ...");
-        let operations = self.list_operations(bencher.context())?;
-        println!("Queries loaded.");
-
-        println!("Creating in-memory store and loading data ...");
-        let data_path = bencher
-            .context()
-            .join_data_dir(PathBuf::from(format!("dataset-{}.nt", self.dataset_size)).as_path())?;
-        let data = fs::read(data_path)?;
-        let memory_store = Store::new();
-        memory_store
-            .load_from_reader(RdfFormat::NTriples, data.as_slice())
-            .await?;
-        println!("Store created and data loaded.");
-
-        println!("Evaluating queries ...");
-        let result = bencher
-            .bench(async || {
-                let len = operations.len();
-                for (idx, operation) in operations.iter().enumerate() {
-                    if idx % 25 == 0 {
-                        println!("Progress: {idx}/{len}");
-                    }
-                    run_operation(&memory_store, operation).await;
-                }
-                println!("Progress: {len}/{len}");
-
-                Ok(())
-            })
-            .await;
-        println!("All queries evaluated.");
-
-        result
+    async fn execute(
+        &self,
+        bench_context: &BenchmarkContext<'_>,
+    ) -> anyhow::Result<Box<dyn BenchmarkReport>> {
+        let operations = self.list_operations(bench_context.parent())?;
+        let memory_store = self.prepare_store(bench_context).await?;
+        let report = execute_benchmark(operations, &memory_store).await?;
+        Ok(Box::new(report))
     }
 }
 
-fn parse_query(query: SparqlRawOperation) -> Option<SparqlOperation> {
+fn parse_query(query: BsbmExploreRawOperation) -> Option<BsbmExplorOperation> {
     match query {
-        SparqlRawOperation::Query(q) => {
+        BsbmExploreRawOperation::Query(name, query) => {
             // TODO remove once describe is supported
-            if q.contains("DESCRIBE") {
+            if query.contains("DESCRIBE") {
                 None
             } else {
-                Some(SparqlOperation::Query(Query::parse(&q, None).unwrap()))
+                Some(BsbmExplorOperation::Query(
+                    name,
+                    Query::parse(&query, None).unwrap(),
+                ))
             }
         }
-        SparqlRawOperation::Update(_) => None,
     }
 }
 
-async fn run_operation(store: &Store, operation: &SparqlOperation) {
+async fn execute_benchmark(
+    operations: Vec<BsbmExplorOperation>,
+    memory_store: &Store,
+) -> anyhow::Result<ExploreReport> {
+    println!("Evaluating queries ...");
+
+    let mut report = ExploreReportBuilder::new();
+    let len = operations.len();
+    for (idx, operation) in operations.iter().enumerate() {
+        if idx % 25 == 0 {
+            println!("Progress: {idx}/{len}");
+        }
+
+        run_operation(&mut report, memory_store, operation).await?;
+    }
+    let report = report.build();
+
+    println!("Progress: {len}/{len}");
+    println!("All queries evaluated.");
+
+    Ok(report)
+}
+
+/// TODO
+async fn run_operation(
+    report: &mut ExploreReportBuilder,
+    store: &Store,
+    operation: &BsbmExplorOperation,
+) -> anyhow::Result<()> {
+    let guard = pprof::ProfilerGuardBuilder::default()
+        .frequency(1000)
+        .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+        .build()?;
+    let start = Instant::now();
+
     let options = QueryOptions;
-    match operation {
-        SparqlOperation::Query(q) => {
-            match store.query_opt(q.clone(), options.clone()).await.unwrap() {
+    let name = match operation {
+        BsbmExplorOperation::Query(name, q) => {
+            match store.query_opt(q.clone(), options.clone()).await? {
                 QueryResults::Boolean(_) => (),
                 QueryResults::Solutions(mut s) => {
                     while let Some(s) = s.next().await {
-                        s.unwrap();
+                        s?;
                     }
                 }
                 QueryResults::Graph(mut g) => {
                     while let Some(t) = g.next().await {
-                        t.unwrap();
+                        t?;
                     }
                 }
             }
+            *name
         }
-    }
-}
+    };
 
-/// Indicates the size of the dataset.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, ValueEnum)]
-pub enum BsbmDatasetSize {
-    #[value(name = "1000")]
-    N1_000,
-    #[value(name = "2500")]
-    N2_500,
-    #[value(name = "5000")]
-    N5_000,
-    #[value(name = "7500")]
-    N7_500,
-    #[value(name = "10000")]
-    N10_000,
-    #[value(name = "25000")]
-    N25_000,
-    #[value(name = "50000")]
-    N50_000,
-    #[value(name = "75000")]
-    N75_000,
-    #[value(name = "250000")]
-    N250_000,
-    #[value(name = "500000")]
-    N500_000,
-}
+    let run = BenchmarkRun {
+        duration: start.elapsed(),
+        report: Some(guard.report().build()?),
+    };
+    report.add_run(name, run);
 
-impl Display for BsbmDatasetSize {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let string = match self {
-            BsbmDatasetSize::N1_000 => "1000",
-            BsbmDatasetSize::N2_500 => "2500",
-            BsbmDatasetSize::N5_000 => "5000",
-            BsbmDatasetSize::N7_500 => "7500",
-            BsbmDatasetSize::N10_000 => "10000",
-            BsbmDatasetSize::N25_000 => "25000",
-            BsbmDatasetSize::N50_000 => "50000",
-            BsbmDatasetSize::N75_000 => "75000",
-            BsbmDatasetSize::N250_000 => "250000",
-            BsbmDatasetSize::N500_000 => "500000",
-        };
-        write!(f, "{string}")
-    }
+    Ok(())
 }

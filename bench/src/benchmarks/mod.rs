@@ -1,11 +1,11 @@
 use crate::prepare::PrepRequirement;
 use async_trait::async_trait;
 
-mod bsbm_explore;
+pub mod bsbm;
 mod name;
 
-use crate::environment::Bencher;
-pub use bsbm_explore::{BsbmDatasetSize, BsbmExploreBenchmark};
+use crate::environment::BenchmarkContext;
+use crate::report::BenchmarkReport;
 pub use name::BenchmarkName;
 
 /// Represents a benchmark.
@@ -20,6 +20,9 @@ pub trait Benchmark {
     /// Returns a list of preparation requirements.
     fn requirements(&self) -> Vec<PrepRequirement>;
 
-    /// Executes the benchmark using the given `context`.
-    async fn execute(&self, bencher: &mut Bencher<'_>) -> anyhow::Result<()>;
+    /// Executes the benchmark using the given `bencher`.
+    async fn execute(
+        &self,
+        bench_context: &BenchmarkContext<'_>,
+    ) -> anyhow::Result<Box<dyn BenchmarkReport>>;
 }

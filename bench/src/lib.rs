@@ -1,16 +1,18 @@
 #![allow(clippy::print_stdout)]
 
-use crate::benchmarks::{Benchmark, BenchmarkName, BsbmExploreBenchmark};
-use crate::environment::BenchmarkingContext;
+use crate::benchmarks::bsbm::BsbmExploreBenchmark;
+use crate::benchmarks::{Benchmark, BenchmarkName};
+use crate::environment::RdfFusionBenchContext;
 use clap::ValueEnum;
 use std::fs;
 use std::path::PathBuf;
 
 pub mod benchmarks;
 mod environment;
-mod operations;
 mod prepare;
-mod results;
+mod report;
+mod runs;
+mod utils;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
 pub enum Operation {
@@ -29,7 +31,7 @@ pub async fn execute_benchmark_operation(
     let results = PathBuf::from("./results");
     fs::create_dir_all(&results)?;
 
-    let mut context = BenchmarkingContext::new(data, results);
+    let mut context = RdfFusionBenchContext::new(data, results);
 
     let benchmark = create_benchmark_instance(benchmark);
     match operation {
@@ -53,9 +55,9 @@ pub async fn execute_benchmark_operation(
 
             println!("Executing benchmark ...");
             {
-                let mut bencher = context.create_bencher(benchmark.name())?;
-                benchmark.execute(&mut bencher).await?;
-                bencher.write_results()?;
+                let bench_context = context.create_benchmark_context(benchmark.name())?;
+                let report = benchmark.execute(&bench_context).await?;
+                report.write_results(bench_context.results_dir())?;
             }
             println!("Benchmark '{}' done\n", benchmark.name());
         }
