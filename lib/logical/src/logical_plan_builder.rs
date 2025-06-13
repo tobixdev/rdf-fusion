@@ -185,6 +185,17 @@ impl RdfFusionLogicalPlanBuilder {
         graph_variables: Option<Variable>,
         pattern: TriplePattern,
     ) -> DFResult<Self> {
+        /// Constant patterns are already pushed into the quads node. Therefore, we can ignore them
+        /// here.
+        fn eliminate_constant_pattern(pattern: impl Into<TermPattern>) -> Option<TermPattern> {
+            match pattern.into() {
+                TermPattern::NamedNode(_) => None,
+                TermPattern::BlankNode(bnode) => Some(TermPattern::BlankNode(bnode)),
+                TermPattern::Literal(_) => None,
+                TermPattern::Variable(var) => Some(TermPattern::Variable(var)),
+            }
+        }
+
         let quads = construct_quads_node_for_pattern(active_graph, pattern.clone());
         let quads_plan = create_extension_plan(quads).build()?;
 
@@ -192,9 +203,9 @@ impl RdfFusionLogicalPlanBuilder {
             quads_plan,
             vec![
                 graph_variables.map(TermPattern::Variable),
-                Some(pattern.subject),
-                Some(pattern.predicate.into()),
-                Some(pattern.object),
+                eliminate_constant_pattern(pattern.subject),
+                eliminate_constant_pattern(pattern.predicate),
+                eliminate_constant_pattern(pattern.object),
             ],
         )?;
 

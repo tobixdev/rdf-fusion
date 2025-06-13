@@ -91,7 +91,21 @@ impl UserDefinedLogicalNodeCore for QuadsNode {
     }
 
     fn fmt_for_explain(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Quads")
+        write!(f, "Quads")?;
+
+        if let Some(subject) = &self.subject {
+            write!(f, " subject={}", subject)?;
+        }
+
+        if let Some(predicate) = &self.predicate {
+            write!(f, " predicate={}", predicate)?;
+        }
+
+        if let Some(object) = &self.object {
+            write!(f, " object={}", object)?;
+        }
+
+        Ok(())
     }
 
     fn with_exprs_and_inputs(
