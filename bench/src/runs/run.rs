@@ -7,7 +7,6 @@ pub struct BenchmarkRun {
     /// The duration of the benchmark run.
     pub duration: Duration,
     /// The profiling report of the benchmark run.
-    #[serde(skip_serializing)]
     pub report: Option<Report>,
 }
 

@@ -189,10 +189,9 @@ impl RdfFusionLogicalPlanBuilder {
         /// here.
         fn eliminate_constant_pattern(pattern: impl Into<TermPattern>) -> Option<TermPattern> {
             match pattern.into() {
-                TermPattern::NamedNode(_) => None,
                 TermPattern::BlankNode(bnode) => Some(TermPattern::BlankNode(bnode)),
-                TermPattern::Literal(_) => None,
                 TermPattern::Variable(var) => Some(TermPattern::Variable(var)),
+                _ => None,
             }
         }
 
