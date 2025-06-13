@@ -39,7 +39,8 @@ jobs:
           sudo apt-get install -y default-jre
 
       - name: Prepare BSBM Benchmark
-        run: cargo run  --bin rdf-fusion-bench --profile codspeed -- prepare bsbm --dataset-size 1000
+        working-directory: bench
+        run: cargo run --bin rdf-fusion-bench --profile codspeed -- prepare bsbm --dataset-size 1000
 
       - name: Build the benchmark target(s)
         # Limiting the number of jobs is an attempt to not violate GitHub's runner resources.
