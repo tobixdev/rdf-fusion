@@ -1,5 +1,4 @@
 use clap::ValueEnum;
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 mod explore;
@@ -7,7 +6,7 @@ mod explore;
 pub use explore::BsbmExploreBenchmark;
 
 /// Indicates the size of the dataset.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, ValueEnum)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
 pub enum BsbmDatasetSize {
     #[value(name = "1000")]
     N1_000,

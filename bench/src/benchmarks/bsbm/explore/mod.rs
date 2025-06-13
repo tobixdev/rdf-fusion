@@ -3,7 +3,6 @@ mod operation;
 mod report;
 
 use clap::ValueEnum;
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 pub use benchmark::BsbmExploreBenchmark;
@@ -25,7 +24,7 @@ pub(super) const BSBM_EXPLORE_QUERIES: [BsbmExploreQueryName; 11] = [
 /// The BSBM explore query names.
 ///
 /// Q6 is no longer part of the benchmark and is thus missing.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, ValueEnum)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
 pub(super) enum BsbmExploreQueryName {
     Q1,
     Q2,

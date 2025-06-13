@@ -5,12 +5,11 @@ use crate::runs::summary::BenchmarkRunsSummary;
 use anyhow::Context;
 use pprof::Frames;
 pub use run::*;
-use serde::Serialize;
 use std::collections::HashMap;
 use std::time::Duration;
 
 /// Contains the runs of a single benchmark.
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct BenchmarkRuns {
     /// The individual runs.
     runs: Vec<BenchmarkRun>,

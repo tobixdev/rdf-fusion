@@ -1,9 +1,8 @@
 use pprof::Report;
-use serde::Serialize;
 use std::time::Duration;
 
 /// Represents a single run of a benchmark.
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct BenchmarkRun {
     /// The duration of the benchmark run.
     pub duration: Duration,

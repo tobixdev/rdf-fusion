@@ -1,9 +1,8 @@
-use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
 /// Holds the statistics computed over [BenchmarkRuns].
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct BenchmarkRunsSummary {
     /// Represents how often the benchmark was executed.
     pub number_of_samples: u32,

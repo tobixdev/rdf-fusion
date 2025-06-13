@@ -3593,7 +3593,6 @@ dependencies = [
  "prettytable-rs",
  "rdf-fusion",
  "reqwest",
- "serde",
  "tokio",
  "zip-extract",
 ]

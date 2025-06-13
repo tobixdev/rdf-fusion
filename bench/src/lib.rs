@@ -8,7 +8,6 @@ use futures::StreamExt;
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
 use rdf_fusion::{QueryOptions, QueryResults};
-use std::fmt::Pointer;
 use std::fs;
 use std::path::PathBuf;
 

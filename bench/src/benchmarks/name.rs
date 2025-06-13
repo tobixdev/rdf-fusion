@@ -1,9 +1,8 @@
 use crate::benchmarks::bsbm::BsbmDatasetSize;
 use clap::Subcommand;
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Subcommand)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Subcommand)]
 pub enum BenchmarkName {
     /// Runs a BSBM instance with already generated queries from Oxigraph.
     Bsbm {
