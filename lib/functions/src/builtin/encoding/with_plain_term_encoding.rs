@@ -83,7 +83,7 @@ impl ScalarUDFImpl for WithPlainTermEncoding {
         Ok(PlainTermEncoding::data_type())
     }
 
-    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let args = TryInto::<[ColumnarValue; 1]>::try_into(args.args)
             .map_err(|_| exec_datafusion_err!("Invalid number of arguments."))?;
         let encoding_name = EncodingName::try_from_data_type(&args[0].data_type()).ok_or(

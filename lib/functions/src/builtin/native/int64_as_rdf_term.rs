@@ -56,7 +56,7 @@ impl ScalarUDFImpl for NativeInt64AsTerm {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         if args.args.len() != 1 {
             return exec_err!("Unexpected number of arguments");
         }

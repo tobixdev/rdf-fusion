@@ -111,7 +111,7 @@ where
 
     fn invoke_with_args(
         &self,
-        args: ScalarFunctionArgs<'_>,
+        args: ScalarFunctionArgs,
     ) -> datafusion::common::Result<ColumnarValue> {
         dispatch_ternary::<TEncoding, TDecoder0, TDecoder1, TDecoder2, TEncoder, TOp>(
             &self.op,

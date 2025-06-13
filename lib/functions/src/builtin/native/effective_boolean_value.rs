@@ -59,7 +59,7 @@ impl ScalarUDFImpl for EffectiveBooleanValue {
 
     fn invoke_with_args(
         &self,
-        args: ScalarFunctionArgs<'_>,
+        args: ScalarFunctionArgs,
     ) -> datafusion::common::Result<ColumnarValue> {
         match TryInto::<[_; 1]>::try_into(args.args) {
             Ok([ColumnarValue::Array(array)]) => {

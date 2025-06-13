@@ -52,7 +52,7 @@ impl ScalarUDFImpl for SparqlAnd {
 
     fn invoke_with_args(
         &self,
-        args: ScalarFunctionArgs<'_>,
+        args: ScalarFunctionArgs,
     ) -> datafusion::common::Result<ColumnarValue> {
         let lhs = args.args[0].to_array(args.number_rows)?;
         let rhs = args.args[1].to_array(args.number_rows)?;

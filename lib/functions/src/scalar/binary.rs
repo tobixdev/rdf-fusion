@@ -107,7 +107,7 @@ where
 
     fn invoke_with_args(
         &self,
-        args: ScalarFunctionArgs<'_>,
+        args: ScalarFunctionArgs,
     ) -> datafusion::common::Result<ColumnarValue> {
         match TryInto::<[_; 2]>::try_into(args.args) {
             Ok([ColumnarValue::Array(lhs), ColumnarValue::Array(rhs)]) => {

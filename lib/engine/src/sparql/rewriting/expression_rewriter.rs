@@ -322,8 +322,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         // TODO: Investigate why this causes issues and file an issue if necessary
         if outer_keys.is_disjoint(&exists_keys) {
             let group_expr: [Expr; 0] = [];
-            let count = exists_pattern
-                .aggregate(group_expr, [count(Expr::Literal(COUNT_STAR_EXPANSION))])?;
+            let count = exists_pattern.aggregate(
+                group_expr,
+                [count(Expr::Literal(COUNT_STAR_EXPANSION, None))],
+            )?;
             let subquery = Subquery {
                 subquery: count.build()?.into(),
                 outer_ref_columns: vec![],
@@ -417,20 +419,20 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
 
     /// TODO
     fn unary_args(&self, args: Vec<Expr>) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
-        match TryInto::<[Expr; 1]>::try_into(args) {
-            Ok([expr]) => Ok(self.expr_builder(expr)?),
-            Err(_) => plan_err!("Unsupported argument list for unary function."),
+        if let Ok([expr]) = TryInto::<[Expr; 1]>::try_into(args) {
+            Ok(self.expr_builder(expr)?)
+        } else {
+            plan_err!("Unsupported argument list for unary function.")
         }
     }
 
     /// TODO
     fn binary_args(&self, args: Vec<Expr>) -> DFResult<(RdfFusionExprBuilder<'rewriter>, Expr)> {
-        match TryInto::<[Expr; 2]>::try_into(args) {
-            Ok([lhs, rhs]) => {
-                let lhs = self.expr_builder(lhs)?;
-                Ok((lhs, rhs))
-            }
-            Err(_) => plan_err!("Unsupported argument list for unary function."),
+        if let Ok([lhs, rhs]) = TryInto::<[Expr; 2]>::try_into(args) {
+            let lhs = self.expr_builder(lhs)?;
+            Ok((lhs, rhs))
+        } else {
+            plan_err!("Unsupported argument list for unary function.")
         }
     }
 
@@ -439,12 +441,11 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         &self,
         args: Vec<Expr>,
     ) -> DFResult<(RdfFusionExprBuilder<'rewriter>, Expr, Expr)> {
-        match TryInto::<[Expr; 3]>::try_into(args) {
-            Ok([arg0, arg1, arg2]) => {
-                let arg0 = self.expr_builder(arg0)?;
-                Ok((arg0, arg1, arg2))
-            }
-            Err(_) => plan_err!("Unsupported argument list for unary function."),
+        if let Ok([arg0, arg1, arg2]) = TryInto::<[Expr; 3]>::try_into(args) {
+            let arg0 = self.expr_builder(arg0)?;
+            Ok((arg0, arg1, arg2))
+        } else {
+            plan_err!("Unsupported argument list for unary function.")
         }
     }
 
@@ -453,12 +454,11 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         &self,
         args: Vec<Expr>,
     ) -> DFResult<(RdfFusionExprBuilder<'rewriter>, Expr, Expr, Expr)> {
-        match TryInto::<[Expr; 4]>::try_into(args) {
-            Ok([arg0, arg1, arg2, arg3]) => {
-                let arg0 = self.expr_builder(arg0)?;
-                Ok((arg0, arg1, arg2, arg3))
-            }
-            Err(_) => plan_err!("Unsupported argument list for unary function."),
+        if let Ok([arg0, arg1, arg2, arg3]) = TryInto::<[Expr; 4]>::try_into(args) {
+            let arg0 = self.expr_builder(arg0)?;
+            Ok((arg0, arg1, arg2, arg3))
+        } else {
+            plan_err!("Unsupported argument list for unary function.")
         }
     }
 }

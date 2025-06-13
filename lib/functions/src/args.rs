@@ -105,9 +105,10 @@ impl RdfFusionFunctionArg for Iri<String> {
     }
 
     fn from_term(term: Term) -> DFResult<Self> {
-        match term {
-            Term::NamedNode(iri) => Ok(Iri::parse_unchecked(iri.as_str().to_owned())),
-            _ => plan_err!("Argument must be a NamedNode."),
+        if let Term::NamedNode(iri) = term {
+            Ok(Iri::parse_unchecked(iri.as_str().to_owned()))
+        } else {
+            plan_err!("Argument must be a NamedNode.")
         }
     }
 }

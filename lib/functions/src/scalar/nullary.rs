@@ -85,7 +85,7 @@ where
 
     fn invoke_with_args(
         &self,
-        args: ScalarFunctionArgs<'_>,
+        args: ScalarFunctionArgs,
     ) -> datafusion::common::Result<ColumnarValue> {
         if !args.args.is_empty() {
             return exec_err!("Nullary function must have no arguments.");

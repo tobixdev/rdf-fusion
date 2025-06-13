@@ -284,7 +284,7 @@ impl GraphPatternRewriter {
             ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
         match expression {
             AggregateExpression::CountSolutions { distinct } => match distinct {
-                false => Ok(count(Expr::Literal(COUNT_STAR_EXPANSION))),
+                false => Ok(count(Expr::Literal(COUNT_STAR_EXPANSION, None))),
                 true => {
                     let exprs = schema
                         .columns()

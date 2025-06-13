@@ -77,7 +77,7 @@ impl ScalarUDFImpl for DynamicRdfFusionUdf {
 
     fn invoke_with_args(
         &self,
-        args: ScalarFunctionArgs<'_>,
+        args: ScalarFunctionArgs,
     ) -> datafusion::common::Result<ColumnarValue> {
         let arity = args.args.len();
         let data_type = if arity == 0 {

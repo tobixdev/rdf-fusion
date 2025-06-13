@@ -98,7 +98,7 @@ where
         Ok(TEncoding::data_type())
     }
 
-    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         dispatch_n_ary::<TOp, TEncoding, TDecoder, TEncoder>(
             &self.op,
             args.args.as_slice(),

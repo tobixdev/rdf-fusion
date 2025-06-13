@@ -54,7 +54,7 @@ impl ScalarUDFImpl for IsCompatible {
         Ok(DataType::Boolean)
     }
 
-    fn invoke_with_args(&self, args: ScalarFunctionArgs<'_>) -> DFResult<ColumnarValue> {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         match TryInto::<[_; 2]>::try_into(args.args) {
             Ok([ColumnarValue::Array(lhs), ColumnarValue::Array(rhs)]) => {
                 dispatch_binary_array_array(
