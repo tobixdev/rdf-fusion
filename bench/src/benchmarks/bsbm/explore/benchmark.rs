@@ -93,7 +93,7 @@ impl Benchmark for BsbmExploreBenchmark {
     fn requirements(&self) -> Vec<PrepRequirement> {
         let dataset_size = self.dataset_size;
         let download_bsbm_tools = PrepRequirement::FileDownload {
-            url: Url::parse("https://sourceforge.net/projects/bsbmtools/files/bsbmtools/bsbmtools-0.2/bsbmtools-v0.2.zip/download")
+            url: Url::parse("https://github.com/Tpt/bsbm-tools/archive/59d0a8a605b26f21506789fa1a713beb5abf1cab.zip")
                 .expect("parse dataset-name"),
             file_name: PathBuf::from("bsbmtools"),
             action: Some(FileDownloadAction::Unpack(ArchiveType::Zip)),
