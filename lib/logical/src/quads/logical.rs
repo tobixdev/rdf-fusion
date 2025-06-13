@@ -94,15 +94,15 @@ impl UserDefinedLogicalNodeCore for QuadsNode {
         write!(f, "Quads")?;
 
         if let Some(subject) = &self.subject {
-            write!(f, " subject={}", subject)?;
+            write!(f, " subject={subject}")?;
         }
 
         if let Some(predicate) = &self.predicate {
-            write!(f, " predicate={}", predicate)?;
+            write!(f, " predicate={predicate}")?;
         }
 
         if let Some(object) = &self.object {
-            write!(f, " object={}", object)?;
+            write!(f, " object={object}")?;
         }
 
         Ok(())
