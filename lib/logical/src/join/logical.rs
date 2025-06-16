@@ -1,5 +1,5 @@
-use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{plan_err, DFSchemaRef};
+use datafusion::arrow::datatypes::{DataType, Fields};
+use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingName;
@@ -45,7 +45,7 @@ impl SparqlJoinNode {
         join_type: SparqlJoinType,
     ) -> DFResult<Self> {
         validate_inputs(&lhs, &rhs)?;
-        let schema = compute_schema(&lhs, &rhs);
+        let schema = compute_schema(join_type, &lhs, &rhs)?;
 
         if let Some(filter) = &filter {
             let (data_type, _) = filter.data_type_and_nullable(&schema)?;
@@ -187,8 +187,32 @@ fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
 }
 
 /// TODO
-fn compute_schema(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFSchemaRef {
-    let mut new_schema = lhs.schema().as_ref().clone();
-    new_schema.merge(rhs.schema());
-    Arc::new(new_schema)
+fn compute_schema(
+    join_type: SparqlJoinType,
+    lhs: &LogicalPlan,
+    rhs: &LogicalPlan,
+) -> DFResult<DFSchemaRef> {
+    Ok(match join_type {
+        SparqlJoinType::Inner => {
+            let mut new_schema = lhs.schema().as_ref().clone();
+            new_schema.merge(rhs.schema());
+            Arc::new(new_schema)
+        }
+        SparqlJoinType::Left => {
+            let optional_rhs_fields = rhs
+                .schema()
+                .fields()
+                .iter()
+                .map(|f| f.as_ref().clone().with_nullable(true))
+                .collect::<Fields>();
+            let rhs_schema = DFSchema::from_unqualified_fields(
+                optional_rhs_fields,
+                rhs.schema().metadata().clone(),
+            )?;
+
+            let mut new_schema = lhs.schema().as_ref().clone();
+            new_schema.merge(&rhs_schema);
+            Arc::new(new_schema)
+        }
+    })
 }

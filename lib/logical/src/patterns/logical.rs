@@ -31,7 +31,7 @@ impl PatternNode {
 
         // TODO: Check type
 
-        let schema = compute_schema_for_pattern(&patterns)?;
+        let schema = compute_schema_for_pattern(input.schema(), &patterns)?;
         Ok(Self {
             input,
             patterns,

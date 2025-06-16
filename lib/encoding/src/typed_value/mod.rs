@@ -14,12 +14,11 @@ pub use encoding::*;
 use std::sync::LazyLock;
 
 pub static DEFAULT_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {
-    // TODO: be less lenient with nullability
     SchemaRef::new(Schema::new(vec![
         Field::new(COL_GRAPH, PlainTermEncoding::data_type(), true),
-        Field::new(COL_SUBJECT, PlainTermEncoding::data_type(), true),
-        Field::new(COL_PREDICATE, PlainTermEncoding::data_type(), true),
-        Field::new(COL_OBJECT, PlainTermEncoding::data_type(), true),
+        Field::new(COL_SUBJECT, PlainTermEncoding::data_type(), false),
+        Field::new(COL_PREDICATE, PlainTermEncoding::data_type(), false),
+        Field::new(COL_OBJECT, PlainTermEncoding::data_type(), false),
     ]))
 });
 

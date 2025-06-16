@@ -1,3 +1,4 @@
+use crate::paths::PATH_TABLE_DFSCHEMA;
 use crate::patterns::compute_schema_for_pattern;
 use crate::ActiveGraph;
 use datafusion::common::{plan_err, DFSchemaRef};
@@ -127,5 +128,5 @@ fn compute_schema(
         Some(subject.clone()),
         Some(object.clone()),
     ];
-    compute_schema_for_pattern(&patterns)
+    compute_schema_for_pattern(&PATH_TABLE_DFSCHEMA, &patterns)
 }

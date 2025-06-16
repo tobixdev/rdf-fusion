@@ -69,7 +69,7 @@ impl SparqlJoinLoweringRule {
 
         let join_on = lhs_keys
             .intersection(&rhs_keys)
-            .map(|name| Column::new_unqualified(name))
+            .map(Column::new_unqualified)
             .collect::<Vec<_>>();
 
         // Try to reduce the SPARQL join to a regular join.
@@ -85,44 +85,43 @@ impl SparqlJoinLoweringRule {
     fn try_build_regular_join(
         &self,
         node: &SparqlJoinNode,
-        join_on: &Vec<Column>,
+        join_on: &[Column],
     ) -> DFResult<Option<LogicalPlan>> {
         let any_column_not_null = join_on
             .iter()
             .map(|col| {
-                let lhs_field = node.lhs().schema().field_from_column(&col)?;
-                let rhs_field = node.rhs().schema().field_from_column(&col)?;
+                let lhs_field = node.lhs().schema().field_from_column(col)?;
+                let rhs_field = node.rhs().schema().field_from_column(col)?;
                 DFResult::Ok(lhs_field.is_nullable() || rhs_field.is_nullable())
             })
             .reduce(|l, r| Ok(l? || r?))
             .transpose()?;
 
         Ok(match any_column_not_null {
-            // If there are no equi-join columns, do not special-handle this join.
-            None => None,
             // If no column is nullable, we can use a regular join.
             Some(false) => {
                 let lhs = LogicalPlanBuilder::new(node.lhs().clone()).alias("lhs")?;
                 let rhs = LogicalPlanBuilder::new(node.rhs().clone()).alias("rhs")?;
-                let projections = self.create_join_projections(node, &lhs, &rhs)?;
+                let projections = self.create_join_projections(node, &lhs, &rhs, false)?;
 
                 let filter = node
                     .filter()
-                    .map(|f| self.rewrite_filter_for_join(node, f))
+                    .map(|f| self.rewrite_filter_for_join(node, f, false))
                     .transpose()?;
                 let plan = lhs
                     .join(
                         rhs.build()?,
                         get_data_fusion_join_type(node),
-                        (join_on.clone(), join_on.clone()),
+                        (join_on.to_vec(), join_on.to_vec()),
                         filter,
                     )?
                     .project(projections)?
                     .build()?;
                 Some(plan)
             }
-            // If at least one column is nullable, we cannot use a regular join.
-            Some(true) => None,
+            // If at least one column is nullable, we cannot use a regular join. Furthermore, if
+            // there are no equi-join conditions, we skip this step.
+            Some(true) | None => None,
         })
     }
 
@@ -130,11 +129,11 @@ impl SparqlJoinLoweringRule {
     fn build_join_with_is_compatible(
         &self,
         node: &SparqlJoinNode,
-        join_on: &Vec<Column>,
+        join_on: &[Column],
     ) -> DFResult<LogicalPlan> {
         let lhs = LogicalPlanBuilder::new(node.lhs().clone()).alias("lhs")?;
         let rhs = LogicalPlanBuilder::new(node.rhs().clone()).alias("rhs")?;
-        let projections = self.create_join_projections(node, &lhs, &rhs)?;
+        let projections = self.create_join_projections(node, &lhs, &rhs, true)?;
 
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
@@ -150,7 +149,7 @@ impl SparqlJoinLoweringRule {
             .collect::<DFResult<Vec<_>>>()?;
 
         if let Some(filter) = node.filter() {
-            let filter = self.rewrite_filter_for_join(node, filter)?;
+            let filter = self.rewrite_filter_for_join(node, filter, true)?;
             join_filters.push(filter);
         }
         let filter_expr = join_filters.into_iter().reduce(Expr::and);
@@ -172,6 +171,7 @@ impl SparqlJoinLoweringRule {
         node: &SparqlJoinNode,
         lhs: &LogicalPlanBuilder,
         rhs: &LogicalPlanBuilder,
+        requires_coalesce: bool,
     ) -> DFResult<Vec<Expr>> {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
@@ -182,14 +182,27 @@ impl SparqlJoinLoweringRule {
             .schema()
             .columns()
             .into_iter()
-            .map(|c| value_from_joined(expr_builder_root, &lhs_keys, &rhs_keys, c.name()))
+            .map(|c| {
+                value_from_joined(
+                    expr_builder_root,
+                    &lhs_keys,
+                    &rhs_keys,
+                    c.name(),
+                    requires_coalesce,
+                )
+            })
             .collect::<DFResult<Vec<_>>>()?;
 
         Ok(projections)
     }
 
     /// TODO
-    fn rewrite_filter_for_join(&self, node: &SparqlJoinNode, filter: &Expr) -> DFResult<Expr> {
+    fn rewrite_filter_for_join(
+        &self,
+        node: &SparqlJoinNode,
+        filter: &Expr,
+        requires_coalesce: bool,
+    ) -> DFResult<Expr> {
         let lhs = LogicalPlanBuilder::new(node.lhs().clone()).alias("lhs")?;
         let rhs = LogicalPlanBuilder::new(node.rhs().clone()).alias("rhs")?;
 
@@ -207,6 +220,7 @@ impl SparqlJoinLoweringRule {
                         &lhs_keys,
                         &rhs_keys,
                         c.name(),
+                        requires_coalesce,
                     )?),
                     _ => Transformed::no(e),
                 })
@@ -223,16 +237,23 @@ fn value_from_joined(
     lhs_keys: &HashSet<String>,
     rhs_keys: &HashSet<String>,
     variable: &str,
+    requires_coalesce: bool,
 ) -> DFResult<Expr> {
     let lhs_expr = Expr::from(Column::new(Some("lhs"), variable));
     let rhs_expr = Expr::from(Column::new(Some("rhs"), variable));
 
     let expr = match (lhs_keys.contains(variable), rhs_keys.contains(variable)) {
-        (true, true) => expr_builder_root
-            .try_create_builder(lhs_expr)?
-            .coalesce(vec![rhs_expr])?
-            .with_encoding(EncodingName::PlainTerm)?
-            .build()?,
+        (true, true) => {
+            if requires_coalesce {
+                expr_builder_root
+                    .try_create_builder(lhs_expr)?
+                    .coalesce(vec![rhs_expr])?
+                    .with_encoding(EncodingName::PlainTerm)?
+                    .build()?
+            } else {
+                lhs_expr
+            }
+        }
         (true, false) => lhs_expr,
         (false, true) => rhs_expr,
         (false, false) => unreachable!("At least one of lhs or rhs must contain variable"),

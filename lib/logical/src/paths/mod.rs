@@ -17,8 +17,8 @@ pub const COL_PATH_TARGET: &str = "_target";
 pub static PATH_TABLE_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {
     Arc::new(Schema::new(vec![
         Field::new(COL_PATH_GRAPH, PlainTermEncoding::data_type(), true),
-        Field::new(COL_PATH_SOURCE, PlainTermEncoding::data_type(), true),
-        Field::new(COL_PATH_TARGET, PlainTermEncoding::data_type(), true),
+        Field::new(COL_PATH_SOURCE, PlainTermEncoding::data_type(), false),
+        Field::new(COL_PATH_TARGET, PlainTermEncoding::data_type(), false),
     ]))
 });
 
