@@ -341,35 +341,8 @@ impl RdfFusionLogicalPlanBuilder {
         let mut new_schema = self.schema().as_ref().clone();
         new_schema.merge(rhs.schema().as_ref());
 
-        let null = DefaultPlainTermEncoder::encode_term(ThinError::expected())?.into_scalar_value();
-        let lhs_projections = new_schema
-            .columns()
-            .iter()
-            .map(|c| {
-                if self.schema().has_column(c) {
-                    col(c.clone())
-                } else {
-                    lit(null.clone()).alias(c.name())
-                }
-            })
-            .collect::<Vec<_>>();
-        let rhs_projections = new_schema
-            .columns()
-            .iter()
-            .map(|c| {
-                if rhs.schema().has_column(c) {
-                    col(c.clone())
-                } else {
-                    lit(null.clone()).alias(c.name())
-                }
-            })
-            .collect::<Vec<_>>();
-
         let rhs = LogicalPlanBuilder::new(rhs);
-        let result = self
-            .plan_builder
-            .project(lhs_projections)?
-            .union(rhs.project(rhs_projections)?.build()?)?;
+        let result = self.plan_builder.union_by_name(rhs.build()?)?;
         Ok(Self {
             registry: self.registry,
             plan_builder: result,
