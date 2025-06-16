@@ -5,7 +5,7 @@ use datafusion::dataframe::DataFrame;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
-use datafusion::prelude::SessionContext;
+use datafusion::prelude::{SessionConfig, SessionContext};
 use rdf_fusion_common::{DFResult, QuadStorage};
 use rdf_fusion_encoding::TABLE_QUADS;
 use rdf_fusion_functions::registry::{
@@ -54,6 +54,8 @@ impl RdfFusionInstance {
             ))))
             .with_optimizer_rule(Arc::new(SparqlJoinLoweringRule::new(Arc::clone(&registry))))
             .with_optimizer_rule(Arc::new(PatternLoweringRule::new(Arc::clone(&registry))))
+            // TODO: For now we use only a single partition. This should be configurable.
+            .with_config(SessionConfig::new().with_target_partitions(1))
             .build();
 
         let session_context = SessionContext::from(state);
