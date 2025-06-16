@@ -156,38 +156,38 @@ fn bsbm_explore_q4(c: &mut Criterion) {
     });
 }
 
-// fn bsbm_explore_q5(c: &mut Criterion) {
-//     let runtime = create_runtime();
-//     let store = runtime.block_on(load_bsbm_1000()).unwrap();
-//
-//     c.bench_function("BSBM Explore 1000 - Query 5", |b| {
-//         b.to_async(&runtime).iter(|| async {
-//             let result = store.query_opt("
-//             PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-//             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-//             PREFIX bsbm: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
-//
-//             SELECT DISTINCT ?product ?productLabel WHERE {
-//                 ?product rdfs:label ?productLabel .
-//                 FILTER (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> != ?product)
-//
-//                 <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> bsbm:productFeature ?prodFeature .
-//                 ?product bsbm:productFeature ?prodFeature .
-//                 <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> bsbm:productPropertyNumeric1 ?origProperty1 .
-//                 ?product bsbm:productPropertyNumeric1 ?simProperty1 .
-//                 FILTER (?simProperty1 < (?origProperty1 + 120) && ?simProperty1 > (?origProperty1 - 120))
-//
-//                 <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> bsbm:productPropertyNumeric2 ?origProperty2 .
-//                 ?product bsbm:productPropertyNumeric2 ?simProperty2 .
-//                 FILTER (?simProperty2 < (?origProperty2 + 170) && ?simProperty2 > (?origProperty2 - 170))
-//             }
-//             ORDER BY ?productLabel
-//             LIMIT 5
-//             ", QueryOptions::default()).await.unwrap();
-//             assert_number_of_results(result, 0).await;
-//         });
-//     });
-// }
+fn bsbm_explore_q5(c: &mut Criterion) {
+    let runtime = create_runtime();
+    let store = runtime.block_on(load_bsbm_1000()).unwrap();
+
+    c.bench_function("BSBM Explore 1000 - Query 5", |b| {
+        b.to_async(&runtime).iter(|| async {
+            let result = store.query_opt("
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX bsbm: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
+
+            SELECT DISTINCT ?product ?productLabel WHERE {
+                ?product rdfs:label ?productLabel .
+                FILTER (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> != ?product)
+
+                <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> bsbm:productFeature ?prodFeature .
+                ?product bsbm:productFeature ?prodFeature .
+                <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> bsbm:productPropertyNumeric1 ?origProperty1 .
+                ?product bsbm:productPropertyNumeric1 ?simProperty1 .
+                FILTER (?simProperty1 < (?origProperty1 + 120) && ?simProperty1 > (?origProperty1 - 120))
+
+                <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> bsbm:productPropertyNumeric2 ?origProperty2 .
+                ?product bsbm:productPropertyNumeric2 ?simProperty2 .
+                FILTER (?simProperty2 < (?origProperty2 + 170) && ?simProperty2 > (?origProperty2 - 170))
+            }
+            ORDER BY ?productLabel
+            LIMIT 5
+            ", QueryOptions::default()).await.unwrap();
+            assert_number_of_results(result, 2).await;
+        });
+    });
+}
 
 fn bsbm_explore_q7(c: &mut Criterion) {
     let runtime = create_runtime();
@@ -368,7 +368,7 @@ criterion_group!(
     bsbm_explore_q2,
     bsbm_explore_q3,
     bsbm_explore_q4,
-    // bsbm_explore_q5, TODO investigate OOM
+    bsbm_explore_q5,
     bsbm_explore_q7,
     bsbm_explore_q8,
     bsbm_explore_q10,
