@@ -2,7 +2,7 @@ use crate::check_same_schema;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
 use crate::RdfFusionExprBuilderRoot;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, JoinType};
+use datafusion::common::{Column, ExprSchema, JoinType};
 use datafusion::logical_expr::{Expr, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
@@ -58,27 +58,126 @@ impl SparqlJoinLoweringRule {
 
     /// TODO
     fn rewrite_sparql_join(&self, node: &SparqlJoinNode) -> DFResult<LogicalPlan> {
+        let (lhs_keys, rhs_keys) = get_join_keys(node);
+
+        // If both solutions are disjoint and there is no filter, we can use a cross-join.
+        if lhs_keys.is_disjoint(&rhs_keys) && node.filter().is_none() {
+            return LogicalPlanBuilder::new(node.lhs().clone())
+                .cross_join(node.rhs().clone())?
+                .build();
+        }
+
+        let join_on = lhs_keys
+            .intersection(&rhs_keys)
+            .map(|name| Column::new_unqualified(name))
+            .collect::<Vec<_>>();
+
+        // Try to reduce the SPARQL join to a regular join.
+        if let Some(result) = self.try_build_regular_join(node, &join_on)? {
+            return Ok(result);
+        }
+
+        // Otherwise, use a join with a filter that checks if the values are compatible.
+        self.build_join_with_is_compatible(node, &join_on)
+    }
+
+    /// TODO
+    fn try_build_regular_join(
+        &self,
+        node: &SparqlJoinNode,
+        join_on: &Vec<Column>,
+    ) -> DFResult<Option<LogicalPlan>> {
+        let any_column_not_null = join_on
+            .iter()
+            .map(|col| {
+                let lhs_field = node.lhs().schema().field_from_column(&col)?;
+                let rhs_field = node.rhs().schema().field_from_column(&col)?;
+                DFResult::Ok(lhs_field.is_nullable() || rhs_field.is_nullable())
+            })
+            .reduce(|l, r| Ok(l? || r?))
+            .transpose()?;
+
+        Ok(match any_column_not_null {
+            // If there are no equi-join columns, do not special-handle this join.
+            None => None,
+            // If no column is nullable, we can use a regular join.
+            Some(false) => {
+                let lhs = LogicalPlanBuilder::new(node.lhs().clone()).alias("lhs")?;
+                let rhs = LogicalPlanBuilder::new(node.rhs().clone()).alias("rhs")?;
+                let projections = self.create_join_projections(node, &lhs, &rhs)?;
+
+                let filter = node
+                    .filter()
+                    .map(|f| self.rewrite_filter_for_join(node, f))
+                    .transpose()?;
+                let plan = lhs
+                    .join(
+                        rhs.build()?,
+                        get_data_fusion_join_type(node),
+                        (join_on.clone(), join_on.clone()),
+                        filter,
+                    )?
+                    .project(projections)?
+                    .build()?;
+                Some(plan)
+            }
+            // If at least one column is nullable, we cannot use a regular join.
+            Some(true) => None,
+        })
+    }
+
+    /// TODO
+    fn build_join_with_is_compatible(
+        &self,
+        node: &SparqlJoinNode,
+        join_on: &Vec<Column>,
+    ) -> DFResult<LogicalPlan> {
         let lhs = LogicalPlanBuilder::new(node.lhs().clone()).alias("lhs")?;
         let rhs = LogicalPlanBuilder::new(node.rhs().clone()).alias("rhs")?;
-        let filter = node.filter().cloned();
-
-        let lhs_keys: HashSet<_> = lhs
-            .schema()
-            .columns()
-            .into_iter()
-            .map(|c| c.name().to_owned())
-            .collect();
-        let rhs_keys: HashSet<_> = rhs
-            .schema()
-            .columns()
-            .into_iter()
-            .map(|c| c.name().to_owned())
-            .collect();
+        let projections = self.create_join_projections(node, &lhs, &rhs)?;
 
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
         let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
 
+        let mut join_filters = join_on
+            .iter()
+            .map(|col| {
+                expr_builder_root
+                    .try_create_builder(Expr::from(col.with_relation("lhs".into())))?
+                    .build_is_compatible(Expr::from(col.with_relation("rhs".into())))
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+
+        if let Some(filter) = node.filter() {
+            let filter = self.rewrite_filter_for_join(node, filter)?;
+            join_filters.push(filter);
+        }
+        let filter_expr = join_filters.into_iter().reduce(Expr::and);
+
+        let join = lhs.join_detailed(
+            rhs.build()?,
+            get_data_fusion_join_type(node),
+            (Vec::<Column>::new(), Vec::<Column>::new()),
+            filter_expr,
+            false,
+        )?;
+
+        join.project(projections)?.build()
+    }
+
+    /// TODO
+    fn create_join_projections(
+        &self,
+        node: &SparqlJoinNode,
+        lhs: &LogicalPlanBuilder,
+        rhs: &LogicalPlanBuilder,
+    ) -> DFResult<Vec<Expr>> {
+        let mut join_schema = lhs.schema().as_ref().clone();
+        join_schema.merge(rhs.schema());
+        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
+
+        let (lhs_keys, rhs_keys) = get_join_keys(node);
         let projections = node
             .schema()
             .columns()
@@ -86,50 +185,34 @@ impl SparqlJoinLoweringRule {
             .map(|c| value_from_joined(expr_builder_root, &lhs_keys, &rhs_keys, c.name()))
             .collect::<DFResult<Vec<_>>>()?;
 
-        // If both solutions are disjoint, use cross join.
-        if lhs_keys.is_disjoint(&rhs_keys) && filter.is_none() {
-            return lhs.cross_join(rhs.build()?)?.project(projections)?.build();
-        }
+        Ok(projections)
+    }
 
-        let mut join_filters = lhs_keys
-            .intersection(&rhs_keys)
-            .map(|k| {
-                expr_builder_root
-                    .try_create_builder(Expr::from(Column::new(Some("lhs"), k)))?
-                    .build_is_compatible(Expr::from(Column::new(Some("rhs"), k)))
-            })
-            .collect::<DFResult<Vec<_>>>()?;
+    /// TODO
+    fn rewrite_filter_for_join(&self, node: &SparqlJoinNode, filter: &Expr) -> DFResult<Expr> {
+        let lhs = LogicalPlanBuilder::new(node.lhs().clone()).alias("lhs")?;
+        let rhs = LogicalPlanBuilder::new(node.rhs().clone()).alias("rhs")?;
 
-        if let Some(filter) = filter {
-            let filter = filter
-                .transform(|e| {
-                    Ok(match e {
-                        Expr::Column(c) => Transformed::yes(value_from_joined(
-                            expr_builder_root,
-                            &lhs_keys,
-                            &rhs_keys,
-                            c.name(),
-                        )?),
-                        _ => Transformed::no(e),
-                    })
-                })?
-                .data;
-            join_filters.push(filter);
-        }
-        let filter_expr = join_filters.into_iter().reduce(Expr::and);
+        let mut join_schema = lhs.schema().as_ref().clone();
+        join_schema.merge(rhs.schema());
+        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
 
-        let join_type = match node.join_type() {
-            SparqlJoinType::Inner => JoinType::Inner,
-            SparqlJoinType::Left => JoinType::Left,
-        };
-        let join = lhs.join_detailed(
-            rhs.build()?,
-            join_type,
-            (Vec::<Column>::new(), Vec::<Column>::new()),
-            filter_expr,
-            false,
-        )?;
-        join.project(projections)?.build()
+        let (lhs_keys, rhs_keys) = get_join_keys(node);
+        let filter = filter
+            .clone()
+            .transform(|e| {
+                Ok(match e {
+                    Expr::Column(c) => Transformed::yes(value_from_joined(
+                        expr_builder_root,
+                        &lhs_keys,
+                        &rhs_keys,
+                        c.name(),
+                    )?),
+                    _ => Transformed::no(e),
+                })
+            })?
+            .data;
+        Ok(filter)
     }
 }
 
@@ -155,4 +238,30 @@ fn value_from_joined(
         (false, false) => unreachable!("At least one of lhs or rhs must contain variable"),
     };
     Ok(expr.alias(variable))
+}
+
+/// Returns the DataFusion [JoinType] type corresponding to the given [SparqlJoinType].
+fn get_data_fusion_join_type(node: &SparqlJoinNode) -> JoinType {
+    match node.join_type() {
+        SparqlJoinType::Inner => JoinType::Inner,
+        SparqlJoinType::Left => JoinType::Left,
+    }
+}
+
+fn get_join_keys(node: &SparqlJoinNode) -> (HashSet<String>, HashSet<String>) {
+    let lhs_keys: HashSet<_> = node
+        .lhs()
+        .schema()
+        .columns()
+        .into_iter()
+        .map(|c| c.name().to_owned())
+        .collect();
+    let rhs_keys: HashSet<_> = node
+        .rhs()
+        .schema()
+        .columns()
+        .into_iter()
+        .map(|c| c.name().to_owned())
+        .collect();
+    (lhs_keys, rhs_keys)
 }
