@@ -1,5 +1,5 @@
 use crate::benchmarks::bsbm::explore::operation::{
-    list_raw_operations, BsbmExplorOperation, BsbmExploreRawOperation,
+    list_raw_operations, BsbmExploreOperation, BsbmExploreRawOperation,
 };
 use crate::benchmarks::bsbm::explore::report::{ExploreReport, ExploreReportBuilder};
 use crate::benchmarks::bsbm::BsbmDatasetSize;
@@ -49,7 +49,7 @@ impl BsbmExploreBenchmark {
     fn list_operations(
         &self,
         env: &RdfFusionBenchContext,
-    ) -> anyhow::Result<Vec<BsbmExplorOperation>> {
+    ) -> anyhow::Result<Vec<BsbmExploreOperation>> {
         println!("Loading queries ...");
 
         let queries_path = env
@@ -140,14 +140,14 @@ impl Benchmark for BsbmExploreBenchmark {
     }
 }
 
-fn parse_query(query: BsbmExploreRawOperation) -> Option<BsbmExplorOperation> {
+fn parse_query(query: BsbmExploreRawOperation) -> Option<BsbmExploreOperation> {
     match query {
         BsbmExploreRawOperation::Query(name, query) => {
             // TODO remove once describe is supported
             if query.contains("DESCRIBE") {
                 None
             } else {
-                Some(BsbmExplorOperation::Query(
+                Some(BsbmExploreOperation::Query(
                     name,
                     Query::parse(&query, None).unwrap(),
                 ))
@@ -157,7 +157,7 @@ fn parse_query(query: BsbmExploreRawOperation) -> Option<BsbmExplorOperation> {
 }
 
 async fn execute_benchmark(
-    operations: Vec<BsbmExplorOperation>,
+    operations: Vec<BsbmExploreOperation>,
     memory_store: &Store,
 ) -> anyhow::Result<ExploreReport> {
     println!("Evaluating queries ...");
@@ -179,11 +179,12 @@ async fn execute_benchmark(
     Ok(report)
 }
 
-/// TODO
+/// Executes a single [BsbmExploreOperation], profiles the execution, and stores the results of the
+/// profiling in the `report`.
 async fn run_operation(
     report: &mut ExploreReportBuilder,
     store: &Store,
-    operation: &BsbmExplorOperation,
+    operation: &BsbmExploreOperation,
 ) -> anyhow::Result<()> {
     let guard = pprof::ProfilerGuardBuilder::default()
         .frequency(1000)
@@ -193,7 +194,7 @@ async fn run_operation(
 
     let options = QueryOptions;
     let name = match operation {
-        BsbmExplorOperation::Query(name, q) => {
+        BsbmExploreOperation::Query(name, q) => {
             match store.query_opt(q.clone(), options.clone()).await? {
                 QueryResults::Boolean(_) => (),
                 QueryResults::Solutions(mut s) => {

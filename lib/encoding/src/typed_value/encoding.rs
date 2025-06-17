@@ -134,7 +134,16 @@ static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
 });
 
-/// TODO
+/// The [TypedValueEncoding] stores the *value* of an RDF term as a union of possible types.
+///
+/// # Value Spaces
+///
+/// Each RDF literal type has an associated value space (e.g., `xsd:int` has the value space of
+/// 32-bit integers). Transforming the transformation from the lexical space to the value space
+/// might be a lossy transformation. For example, the two distinct RDF terms `"1"^^xsd::int` and
+/// `"01"^^xsd::int` map to the same value. The [TypedValueEncoding] cannot distinguish between
+/// these two terms and therefore should only be used for query parts that do not rely on this
+/// distinction.
 #[derive(Debug)]
 pub struct TypedValueEncoding;
 

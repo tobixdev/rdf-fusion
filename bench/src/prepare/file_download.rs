@@ -21,7 +21,8 @@ pub fn ensure_file_download(env: &RdfFusionBenchContext, file_name: &Path) -> an
     Ok(())
 }
 
-/// TODO
+/// Downloads a file from the given url and executes a possible `action` afterward
+/// (e.g., Extract Archive).
 pub async fn prepare_file_download(
     env: &RdfFusionBenchContext,
     url: Url,

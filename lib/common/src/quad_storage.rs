@@ -60,10 +60,23 @@ pub trait QuadStorage: Send + Sync {
     fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
 }
 
-/// TODO
+/// The quad pattern evaluator is responsible for accessing the storage and returning a stream of
+/// results that adhere to the given pattern.
+///
+/// # Consistency
+///
+/// A query plan most often contains multiple quad patterns that have access to the same storage.
+/// It is the responsibility of the storage layer to ensure that the quad patterns use the same
+/// snapshot of the storage layer.
 #[async_trait]
 pub trait QuadPatternEvaluator: Debug + Send + Sync {
-    /// TODO
+    /// Returns a stream of quads that match the given pattern.
+    ///
+    /// The resulting [RecordBatchStream] must provide a stream with a schema that is compatible
+    /// with the default schema for quads. Each emitted batch should have `batch_size` elements.
+    ///
+    /// While currently we can only filter for constant patterns, in the future this method
+    /// should be able to evaluate arbitrary patterns (i.e., including variables).
     fn quads_for_pattern(
         &self,
         graph: GraphNameRef<'_>,

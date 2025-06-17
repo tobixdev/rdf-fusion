@@ -22,7 +22,11 @@ pub enum Operation {
     Execute,
 }
 
-/// TODO
+/// Executes an `operation` of a given `benchmark`.
+///
+/// - [Operation::Prepare] prepares the data for the given benchmark.
+/// - [Operation::Execute] executes the given benchmark. The runner verifies the requirements before
+/// executing the benchmark (e.g., whether a file exists).
 pub async fn execute_benchmark_operation(
     operation: Operation,
     benchmark: BenchmarkName,

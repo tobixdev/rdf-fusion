@@ -35,6 +35,6 @@ pub(super) enum BsbmExploreRawOperation {
 
 #[allow(clippy::large_enum_variant, clippy::allow_attributes)]
 #[derive(Clone)]
-pub(super) enum BsbmExplorOperation {
+pub(super) enum BsbmExploreOperation {
     Query(BsbmExploreQueryName, Query),
 }

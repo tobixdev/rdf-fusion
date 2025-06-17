@@ -26,7 +26,13 @@ impl BenchmarkRuns {
         self.runs.push(run);
     }
 
-    /// TODO
+    /// Summarizes the [BenchmarkRuns].
+    ///
+    /// See [BenchmarkRunsSummary] for a list of computed metrics.
+    ///
+    /// # Errors
+    ///
+    /// This operation may fail if there are too many samples.
     pub fn summarize(&self) -> anyhow::Result<BenchmarkRunsSummary> {
         let number_of_samples = u32::try_from(self.runs.len())
             .context("Too many samples for computing the average duration")?;
@@ -38,7 +44,13 @@ impl BenchmarkRuns {
         })
     }
 
-    /// TODO
+    /// Accumulates the profiles of the individual runs.
+    ///
+    /// The result is a mapping from a [Frames] (i.e., stack trace) to a count. The higher the
+    /// count, the more often a stack configuration has been observed. This information can then
+    /// be plotted in a flamegraph.
+    ///
+    /// The goal is to obtain a single profile for multiple executions of the same benchmark.
     pub fn accumulate_profiles(&self) -> anyhow::Result<HashMap<Frames, isize>> {
         let mut result = HashMap::new();
 
