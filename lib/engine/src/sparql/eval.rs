@@ -84,6 +84,7 @@ async fn create_execution_plan(
     pattern: &GraphPattern,
     base_iri: &Option<Iri<String>>,
 ) -> Result<(Arc<dyn ExecutionPlan>, QueryExplanation), QueryEvaluationError> {
+    let planning_time_start = std::time::Instant::now();
     let logical_plan = GraphPatternRewriter::new(registry, dataset.clone(), base_iri.clone())
         .rewrite(pattern)
         .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
@@ -92,11 +93,13 @@ async fn create_execution_plan(
         .query_planner()
         .create_physical_plan(&optimized_plan, &state)
         .await?;
+    let planning_time = planning_time_start.elapsed();
 
     let explanation = QueryExplanation {
+        planning_time,
         initial_logical_plan: logical_plan,
         optimized_logical_plan: optimized_plan,
-        executed_plan: Arc::clone(&physical_plan),
+        execution_plan: Arc::clone(&physical_plan),
     };
     Ok((Arc::clone(&physical_plan), explanation))
 }

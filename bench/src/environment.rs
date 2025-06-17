@@ -1,12 +1,15 @@
 use crate::benchmarks::BenchmarkName;
 use crate::prepare::{ensure_file_download, prepare_file_download};
 use crate::prepare::{prepare_run_command, PrepRequirement};
+use crate::BenchmarkingOptions;
 use anyhow::bail;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Represents a context used to execute benchmarks.
 pub struct RdfFusionBenchContext {
+    /// General options for the benchmarks.
+    options: BenchmarkingOptions,
     /// The path to the data dir.
     data_dir: PathBuf,
     /// The path to the current directory. This might be different from the `data_dir` if a
@@ -16,11 +19,17 @@ pub struct RdfFusionBenchContext {
 
 impl RdfFusionBenchContext {
     /// Creates a new [RdfFusionBenchContext].
-    pub fn new(data_dir: PathBuf, results_dir: PathBuf) -> Self {
+    pub fn new(options: BenchmarkingOptions, data_dir: PathBuf, results_dir: PathBuf) -> Self {
         Self {
+            options,
             data_dir,
             results_dir,
         }
+    }
+
+    /// Returns the [BenchmarkingOptions] for this context.
+    pub fn options(&self) -> &BenchmarkingOptions {
+        &self.options
     }
 
     /// Resolves a relative path `file` against the data directory.

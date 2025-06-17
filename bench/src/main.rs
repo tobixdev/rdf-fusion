@@ -1,11 +1,15 @@
 use clap::Parser;
 use rdf_fusion_bench::benchmarks::BenchmarkName;
-use rdf_fusion_bench::{execute_benchmark_operation, Operation};
+use rdf_fusion_bench::{execute_benchmark_operation, BenchmarkingOptions, Operation};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = RdfFusionBenchArgs::parse();
-    execute_benchmark_operation(args.operation, args.benchmark).await?;
+
+    let options = BenchmarkingOptions {
+        verbose_results: args.verbose_results,
+    };
+    execute_benchmark_operation(options, args.operation, args.benchmark).await?;
     Ok(())
 }
 
@@ -15,6 +19,9 @@ async fn main() -> anyhow::Result<()> {
 pub struct RdfFusionBenchArgs {
     /// Indicates whether the benchmark should be prepared or executed.
     pub operation: Operation,
+    /// Indicates whether the benchmark results should be verbose.
+    #[arg(short, long, default_value = "false")]
+    pub verbose_results: bool,
     /// Indicates which benchmark should be executed.
     #[clap(subcommand)]
     pub benchmark: BenchmarkName,

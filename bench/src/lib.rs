@@ -22,20 +22,29 @@ pub enum Operation {
     Execute,
 }
 
+/// Provides options for the benchmarking process.
+pub struct BenchmarkingOptions {
+    /// Indicates whether the benchmarking results should be verbose.
+    ///
+    /// For example, while non-verbose results could show an aggregated version of multiple runs,
+    /// verbose results could write the results for each run.
+    pub verbose_results: bool,
+}
+
 /// Executes an `operation` of a given `benchmark`.
 ///
 /// - [Operation::Prepare] prepares the data for the given benchmark.
 /// - [Operation::Execute] executes the given benchmark. The runner verifies the requirements before
-/// executing the benchmark (e.g., whether a file exists).
+///   executing the benchmark (e.g., whether a file exists).
 pub async fn execute_benchmark_operation(
+    options: BenchmarkingOptions,
     operation: Operation,
     benchmark: BenchmarkName,
 ) -> anyhow::Result<()> {
     let data = PathBuf::from("./data");
     let results = PathBuf::from("./results");
     fs::create_dir_all(&results)?;
-
-    let mut context = RdfFusionBenchContext::new(data, results);
+    let mut context = RdfFusionBenchContext::new(options, data, results);
 
     let benchmark = create_benchmark_instance(benchmark);
     match operation {

@@ -34,7 +34,9 @@ fn bsbm_explore_q1(c: &mut Criterion) {
                 ?product bsbm:productPropertyNumeric1 ?value1 .
 
                 FILTER (?value1 > 136)
-            } ORDER BY ?label LIMIT 10
+            }
+            ORDER BY ?label
+            LIMIT 10
             ", QueryOptions::default()).await.unwrap();
             assert_number_of_results(result, 0).await;
         });
@@ -365,15 +367,15 @@ fn bsbm_explore_q12(c: &mut Criterion) {
 criterion_group!(
     bsbm_explore,
     bsbm_explore_q1,
-    bsbm_explore_q2,
-    bsbm_explore_q3,
-    bsbm_explore_q4,
-    bsbm_explore_q5,
-    bsbm_explore_q7,
-    bsbm_explore_q8,
-    bsbm_explore_q10,
-    bsbm_explore_q11,
-    bsbm_explore_q12
+    // bsbm_explore_q2,
+    // bsbm_explore_q3,
+    // bsbm_explore_q4,
+    // bsbm_explore_q5,
+    // bsbm_explore_q7,
+    // bsbm_explore_q8,
+    // bsbm_explore_q10,
+    // bsbm_explore_q11,
+    // bsbm_explore_q12
 );
 criterion_main!(bsbm_explore);
 

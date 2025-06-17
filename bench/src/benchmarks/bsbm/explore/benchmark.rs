@@ -135,7 +135,7 @@ impl Benchmark for BsbmExploreBenchmark {
     ) -> anyhow::Result<Box<dyn BenchmarkReport>> {
         let operations = self.list_operations(bench_context.parent())?;
         let memory_store = self.prepare_store(bench_context).await?;
-        let report = execute_benchmark(operations, &memory_store).await?;
+        let report = execute_benchmark(bench_context, operations, &memory_store).await?;
         Ok(Box::new(report))
     }
 }
@@ -157,6 +157,7 @@ fn parse_query(query: BsbmExploreRawOperation) -> Option<BsbmExploreOperation> {
 }
 
 async fn execute_benchmark(
+    context: &BenchmarkContext<'_>,
     operations: Vec<BsbmExploreOperation>,
     memory_store: &Store,
 ) -> anyhow::Result<ExploreReport> {
@@ -169,7 +170,7 @@ async fn execute_benchmark(
             println!("Progress: {idx}/{len}");
         }
 
-        run_operation(&mut report, memory_store, operation).await?;
+        run_operation(context, &mut report, memory_store, operation).await?;
     }
     let report = report.build();
 
@@ -182,6 +183,7 @@ async fn execute_benchmark(
 /// Executes a single [BsbmExploreOperation], profiles the execution, and stores the results of the
 /// profiling in the `report`.
 async fn run_operation(
+    context: &BenchmarkContext<'_>,
     report: &mut ExploreReportBuilder,
     store: &Store,
     operation: &BsbmExploreOperation,
@@ -193,9 +195,10 @@ async fn run_operation(
     let start = Instant::now();
 
     let options = QueryOptions;
-    let name = match operation {
+    let (name, explanation) = match operation {
         BsbmExploreOperation::Query(name, q) => {
-            match store.query_opt(q.clone(), options.clone()).await? {
+            let (result, explanation) = store.explain_query_opt(q.clone(), options.clone()).await?;
+            match result {
                 QueryResults::Boolean(_) => (),
                 QueryResults::Solutions(mut s) => {
                     while let Some(s) = s.next().await {
@@ -208,7 +211,7 @@ async fn run_operation(
                     }
                 }
             }
-            *name
+            (*name, explanation)
         }
     };
 
@@ -217,6 +220,9 @@ async fn run_operation(
         report: Some(guard.report().build()?),
     };
     report.add_run(name, run);
+    if context.parent().options().verbose_results {
+        report.add_explanation(explanation);
+    }
 
     Ok(())
 }

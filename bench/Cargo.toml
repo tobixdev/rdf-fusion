@@ -22,6 +22,7 @@ async-trait.workspace = true
 bzip2.workspace = true
 clap = { workspace = true, features = ["derive"] }
 csv.workspace = true
+datafusion.workspace = true
 futures.workspace = true
 pprof = { workspace = true, features = ["flamegraph"] }
 prettytable-rs.workspace = true

@@ -3,7 +3,9 @@ use crate::report::BenchmarkReport;
 use crate::runs::{BenchmarkRun, BenchmarkRuns};
 use crate::utils::write_flamegraph;
 use anyhow::{bail, Context};
+use datafusion::physical_plan::displayable;
 use prettytable::{row, Table};
+use rdf_fusion::QueryExplanation;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -14,6 +16,8 @@ pub struct ExploreReport {
     /// Stores all runs of the benchmark grouped by the query name.
     /// A single query name can have multiple instances (with random variables) in BSBM.
     runs: HashMap<BsbmExploreQueryName, BenchmarkRuns>,
+    /// Query explanations for each run.
+    explanations: Vec<QueryExplanation>,
 }
 
 impl ExploreReport {
@@ -68,6 +72,74 @@ impl ExploreReport {
 
         Ok(())
     }
+
+    fn write_query_results(&self, output_directory: &Path, index: usize) -> anyhow::Result<()> {
+        let query_i_path = output_directory.join(format!("query{index}"));
+        fs::create_dir_all(&query_i_path).context("Cannot create query directory")?;
+
+        let summary_file = query_i_path.join("0_summary.txt");
+        let initial_logical_plan_file = query_i_path.join("1_initial_logical_plan.txt");
+        let optimized_logical_plan_file = query_i_path.join("2_optimized_logical_plan.txt");
+        let execution_plan_file = query_i_path.join("3_execution_plan.txt");
+
+        let explanation = self
+            .explanations
+            .get(index)
+            .context("Cannot get explanation")?;
+
+        // Write the initial logical plan
+        fs::write(
+            &summary_file,
+            format!("Planning Time:{:?}", explanation.planning_time),
+        )
+        .with_context(|| {
+            format!(
+                "Failed to write summary plan to {}",
+                initial_logical_plan_file.display()
+            )
+        })?;
+
+        // Write the initial logical plan
+        let initial_logical_plan = explanation.initial_logical_plan.to_string();
+        fs::write(
+            &initial_logical_plan_file,
+            format!("Initial Logical Plan:\n\n{initial_logical_plan}"),
+        )
+        .with_context(|| {
+            format!(
+                "Failed to write initial logical plan to {}",
+                initial_logical_plan_file.display()
+            )
+        })?;
+
+        // Write the optimized logical plan
+        let optimized_logical_plan = explanation.optimized_logical_plan.to_string();
+        fs::write(
+            &optimized_logical_plan_file,
+            format!("Optimized Logical Plan:\n\n{optimized_logical_plan}"),
+        )
+        .with_context(|| {
+            format!(
+                "Failed to write optimized logical plan to {}",
+                optimized_logical_plan_file.display()
+            )
+        })?;
+
+        // Write the execution plan
+        let execution_plan = displayable(explanation.execution_plan.as_ref()).indent(false);
+        fs::write(
+            &execution_plan_file,
+            format!("Execution Plan:\n\n{execution_plan}"),
+        )
+        .with_context(|| {
+            format!(
+                "Failed to write execution plan to {}",
+                execution_plan_file.display()
+            )
+        })?;
+
+        Ok(())
+    }
 }
 
 impl BenchmarkReport for ExploreReport {
@@ -80,6 +152,14 @@ impl BenchmarkReport for ExploreReport {
         fs::create_dir_all(&flamegraphs_dir)
             .context("Cannot create flamegraphs directory before writing flamegraphs")?;
         self.write_aggregated_flamegraphs(&flamegraphs_dir)?;
+
+        if !self.explanations.is_empty() {
+            let queries_path = output_dir.join("queries");
+            fs::create_dir_all(&queries_path).context("Cannot create queries directory")?;
+            for i in 0..self.explanations.len() {
+                self.write_query_results(&queries_path, i)?;
+            }
+        }
 
         Ok(())
     }
@@ -99,6 +179,7 @@ impl ExploreReportBuilder {
         Self {
             report: ExploreReport {
                 runs: HashMap::new(),
+                explanations: Vec::new(),
             },
         }
     }
@@ -107,6 +188,13 @@ impl ExploreReportBuilder {
     pub(super) fn add_run(&mut self, name: BsbmExploreQueryName, run: BenchmarkRun) {
         let runs = self.report.runs.entry(name).or_default();
         runs.add_run(run);
+    }
+
+    /// Adds an explanation for a particular query.
+    ///
+    /// It is expected that the n-th call of this method is the explanation of the n-th query.
+    pub(super) fn add_explanation(&mut self, explanation: QueryExplanation) {
+        self.report.explanations.push(explanation)
     }
 
     /// Finalizes the report.

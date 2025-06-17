@@ -3634,6 +3634,7 @@ dependencies = [
  "clap",
  "codspeed-criterion-compat",
  "csv",
+ "datafusion",
  "futures",
  "pprof",
  "prettytable-rs",
