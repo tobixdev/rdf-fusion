@@ -72,8 +72,8 @@ pub trait QuadStorage: Send + Sync {
 pub trait QuadPatternEvaluator: Debug + Send + Sync {
     /// Returns a stream of quads that match the given pattern.
     ///
-    /// The resulting [RecordBatchStream] must provide a stream with a schema that is compatible
-    /// with the default schema for quads. Each emitted batch should have `batch_size` elements.
+    /// The resulting stream must have a schema that is compatible with the default schema for
+    /// quads. Each emitted batch should have `batch_size` elements.
     ///
     /// While currently we can only filter for constant patterns, in the future this method
     /// should be able to evaluate arbitrary patterns (i.e., including variables).
