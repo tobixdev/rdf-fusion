@@ -34,7 +34,7 @@ impl OptimizerRule for PatternLoweringRule {
         plan: LogicalPlan,
         _config: &dyn OptimizerConfig,
     ) -> DFResult<Transformed<LogicalPlan>> {
-        plan.transform(|plan| {
+        plan.transform_up(|plan| {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<PatternNode>() {

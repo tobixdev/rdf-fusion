@@ -5,7 +5,7 @@ use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, DFSchemaRef, JoinType};
 use datafusion::logical_expr::{and, Expr, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
-use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
+use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
@@ -23,16 +23,12 @@ impl OptimizerRule for MinusLoweringRule {
         "minus-lowering"
     }
 
-    fn apply_order(&self) -> Option<ApplyOrder> {
-        Some(ApplyOrder::TopDown)
-    }
-
     fn rewrite(
         &self,
         plan: LogicalPlan,
         _config: &dyn OptimizerConfig,
     ) -> DFResult<Transformed<LogicalPlan>> {
-        plan.transform(|plan| {
+        plan.transform_up(|plan| {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<MinusNode>() {

@@ -9,7 +9,7 @@ use datafusion::common::{plan_datafusion_err, Column, JoinType};
 use datafusion::logical_expr::{
     col, Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode,
 };
-use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
+use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
@@ -31,16 +31,12 @@ impl OptimizerRule for PropertyPathLoweringRule {
         "property-path-lowering"
     }
 
-    fn apply_order(&self) -> Option<ApplyOrder> {
-        Some(ApplyOrder::TopDown)
-    }
-
     fn rewrite(
         &self,
         plan: LogicalPlan,
         _config: &dyn OptimizerConfig,
     ) -> DFResult<Transformed<LogicalPlan>> {
-        plan.transform(|plan| {
+        plan.transform_up(|plan| {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<PropertyPathNode>() {

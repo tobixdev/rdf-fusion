@@ -5,7 +5,7 @@ use datafusion::common::Column;
 use datafusion::logical_expr::{
     col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore,
 };
-use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
+use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_common::DFResult;
 
 /// TODO
@@ -30,16 +30,12 @@ impl OptimizerRule for ExtendLoweringRule {
         "extend-lowering"
     }
 
-    fn apply_order(&self) -> Option<ApplyOrder> {
-        Some(ApplyOrder::TopDown)
-    }
-
     fn rewrite(
         &self,
         plan: LogicalPlan,
         _config: &dyn OptimizerConfig,
     ) -> DFResult<Transformed<LogicalPlan>> {
-        plan.transform(|plan| {
+        plan.transform_up(|plan| {
             let new_plan = match &plan {
                 LogicalPlan::Extension(Extension { node }) => {
                     if let Some(node) = node.as_any().downcast_ref::<ExtendNode>() {
