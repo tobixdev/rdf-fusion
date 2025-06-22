@@ -3,11 +3,13 @@ use crate::extend::ExtendNode;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
 use crate::minus::MinusNode;
 use crate::paths::PropertyPathNode;
-use crate::patterns::PatternNode;
-use crate::quads::QuadsNode;
+use crate::quad_pattern::QuadPatternNode;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
+use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
-use datafusion::common::{Column, DFSchema, DFSchemaRef};
+use datafusion::common::{Column, DFSchema, DFSchemaRef, DataFusionError};
+use datafusion::logical_expr::builder::project;
+use datafusion::logical_expr::select_expr::SelectExpr;
 use datafusion::logical_expr::{
     col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
     UserDefinedLogicalNode, Values,
@@ -15,11 +17,16 @@ use datafusion::logical_expr::{
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
+use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
+use rdf_fusion_encoding::{
+    EncodingName, EncodingScalar, TermEncoder, TermEncoding, COL_GRAPH, COL_OBJECT, COL_PREDICATE,
+    COL_SUBJECT,
+};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
-use rdf_fusion_model::{NamedNode, Subject, Term, TermRef, ThinError, Variable};
-use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
+use rdf_fusion_model::{
+    GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Subject, Term, TermPattern,
+    TermRef, ThinError, TriplePattern, Variable,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -51,22 +58,88 @@ impl RdfFusionLogicalPlanBuilder {
     /// Creates a new [RdfFusionLogicalPlanBuilder] that matches Quads.
     ///
     /// The `active_graph` dictates which graphs should be considered, while the optional constants
-    /// (`subject`, `predicate`, `object`) allows filtering the resulting solution sequence.
+    /// (`subject`, `predicate`, `object`) allow filtering the resulting solution sequence.
     ///
-    /// This does not allow you to bind values to custom variable. See [Self::new_from_pattern] for
+    /// This does not allow you to bind values to variables. See [Self::new_from_pattern] for
     /// this purpose.
-    pub fn new_from_quads(
+    #[allow(clippy::expect_used, reason = "Indicates programming error")]
+    pub fn new_from_matching_quads(
         registry: RdfFusionFunctionRegistryRef,
         active_graph: ActiveGraph,
         subject: Option<Subject>,
         predicate: Option<NamedNode>,
         object: Option<Term>,
     ) -> Self {
-        let node = QuadsNode::new(active_graph, subject, predicate, object);
+        let partial_quads = Self::create_pattern_node_from_constants(
+            active_graph,
+            subject.clone(),
+            predicate.clone(),
+            object.clone(),
+        );
+        let filled_quads =
+            Self::fill_quads_with_constants(partial_quads, subject, predicate, object)
+                .expect("Variables are fixed, Terms are encodable");
+
         Self {
-            plan_builder: create_extension_plan(node),
+            plan_builder: LogicalPlanBuilder::new(filled_quads),
             registry,
         }
+    }
+
+    /// Creates a pattern node for the constant values provided.
+    ///
+    /// If a constant is `None`, the default name of the column (e.g., `?subject`) is used for the
+    /// pattern.
+    fn create_pattern_node_from_constants(
+        active_graph: ActiveGraph,
+        subject: Option<Subject>,
+        predicate: Option<NamedNode>,
+        object: Option<Term>,
+    ) -> QuadPatternNode {
+        let triple_pattern = TriplePattern {
+            subject: subject.map_or(
+                TermPattern::Variable(Variable::new_unchecked(COL_SUBJECT)),
+                |s| TermPattern::from(Term::from(s)),
+            ),
+            predicate: predicate.map_or(
+                NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
+                NamedNodePattern::from,
+            ),
+            object: object.map_or(
+                TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
+                TermPattern::from,
+            ),
+        };
+
+        QuadPatternNode::new(
+            active_graph,
+            Some(Variable::new_unchecked(COL_GRAPH)),
+            triple_pattern,
+        )
+    }
+
+    /// Fills missing columns in the quads with the constants.
+    fn fill_quads_with_constants(
+        inner: QuadPatternNode,
+        subject: Option<Subject>,
+        predicate: Option<NamedNode>,
+        object: Option<Term>,
+    ) -> DFResult<LogicalPlan> {
+        let graph = col(COL_GRAPH);
+        let subject = column_or_literal(subject, COL_SUBJECT)?;
+        let predicate = column_or_literal(predicate, COL_PREDICATE)?;
+        let object = column_or_literal(object, COL_OBJECT)?;
+
+        let inner = LogicalPlan::Extension(Extension {
+            node: Arc::new(inner),
+        });
+
+        project(
+            inner,
+            [graph, subject, predicate, object]
+                .into_iter()
+                .map(SelectExpr::from),
+        )
     }
 
     /// Creates a new [RdfFusionLogicalPlanBuilder] that that returns a single empty solution.
@@ -157,6 +230,7 @@ impl RdfFusionLogicalPlanBuilder {
                     p.clone(),
                 )
             })
+            .map(Ok)
             .reduce(|lhs, rhs| lhs?.join(rhs?.build()?, SparqlJoinType::Inner, None))
             .unwrap_or_else(|| {
                 Ok(RdfFusionLogicalPlanBuilder::new_with_empty_solution(
@@ -182,36 +256,14 @@ impl RdfFusionLogicalPlanBuilder {
     pub fn new_from_pattern(
         registry: RdfFusionFunctionRegistryRef,
         active_graph: ActiveGraph,
-        graph_variables: Option<Variable>,
+        graph_variable: Option<Variable>,
         pattern: TriplePattern,
-    ) -> DFResult<Self> {
-        /// Constant patterns are already pushed into the quads node. Therefore, we can ignore them
-        /// here.
-        fn eliminate_constant_pattern(pattern: impl Into<TermPattern>) -> Option<TermPattern> {
-            match pattern.into() {
-                TermPattern::BlankNode(bnode) => Some(TermPattern::BlankNode(bnode)),
-                TermPattern::Variable(var) => Some(TermPattern::Variable(var)),
-                _ => None,
-            }
-        }
-
-        let quads = construct_quads_node_for_pattern(active_graph, pattern.clone());
-        let quads_plan = create_extension_plan(quads).build()?;
-
-        let pattern = PatternNode::try_new(
-            quads_plan,
-            vec![
-                graph_variables.map(TermPattern::Variable),
-                eliminate_constant_pattern(pattern.subject),
-                eliminate_constant_pattern(pattern.predicate),
-                eliminate_constant_pattern(pattern.object),
-            ],
-        )?;
-
-        Ok(Self {
-            plan_builder: create_extension_plan(pattern),
+    ) -> Self {
+        let quads = QuadPatternNode::new(active_graph, graph_variable, pattern);
+        Self {
+            plan_builder: create_extension_plan(quads),
             registry,
-        })
+        }
     }
 
     /// TODO
@@ -222,12 +274,12 @@ impl RdfFusionLogicalPlanBuilder {
         path: PropertyPathExpression,
         subject: TermPattern,
         object: TermPattern,
-    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        let node = PropertyPathNode::new(active_graph, graph_variable, subject, path, object)?;
-        Ok(Self {
+    ) -> RdfFusionLogicalPlanBuilder {
+        let node = PropertyPathNode::new(active_graph, graph_variable, subject, path, object);
+        Self {
             registry,
             plan_builder: create_extension_plan(node),
-        })
+        }
     }
 
     /// TODO
@@ -463,28 +515,6 @@ impl RdfFusionLogicalPlanBuilder {
     }
 }
 
-/// Creates a [QuadsNode] for the given pattern.
-fn construct_quads_node_for_pattern(
-    active_graph: ActiveGraph,
-    pattern: TriplePattern,
-) -> QuadsNode {
-    let subject = match pattern.subject {
-        TermPattern::NamedNode(nn) => Some(nn.into()),
-        _ => None,
-    };
-    let predicate = match pattern.predicate {
-        NamedNodePattern::NamedNode(nn) => Some(nn),
-        NamedNodePattern::Variable(_) => None,
-    };
-    let object = match pattern.object {
-        TermPattern::NamedNode(nn) => Some(nn.into()),
-        TermPattern::Literal(lit) => Some(lit.into()),
-        _ => None,
-    };
-
-    QuadsNode::new(active_graph, subject, predicate, object)
-}
-
 /// TODO
 fn create_distinct_on_expressions(
     expr_builder_root: RdfFusionExprBuilderRoot<'_>,
@@ -517,4 +547,16 @@ fn create_extension_plan(node: impl UserDefinedLogicalNode + 'static) -> Logical
     LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
         node: Arc::new(node),
     }))
+}
+
+fn column_or_literal(term: Option<impl Into<Term>>, col_name: &str) -> DFResult<Expr> {
+    Ok(term
+        .map(|s| {
+            Ok::<Expr, DataFusionError>(
+                lit(PlainTermEncoding::encode_scalar(s.into().as_ref())?.into_scalar_value())
+                    .alias(col_name),
+            )
+        })
+        .transpose()?
+        .unwrap_or(col(col_name)))
 }

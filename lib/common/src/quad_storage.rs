@@ -5,8 +5,8 @@ use datafusion::datasource::TableProvider;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_model::{
-    GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
-    TermRef,
+    GraphName, GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, TriplePattern,
+    Variable,
 };
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -72,17 +72,13 @@ pub trait QuadStorage: Send + Sync {
 pub trait QuadPatternEvaluator: Debug + Send + Sync {
     /// Returns a stream of quads that match the given pattern.
     ///
-    /// The resulting stream must have a schema that is compatible with the default schema for
-    /// quads. Each emitted batch should have `batch_size` elements.
-    ///
-    /// While currently we can only filter for constant patterns, in the future this method
-    /// should be able to evaluate arbitrary patterns (i.e., including variables).
-    fn quads_for_pattern(
+    /// The resulting stream must have a schema that projects to the variables provided in the
+    /// arguments. Each emitted batch should have `batch_size` elements.
+    fn evaluate_pattern(
         &self,
-        graph: GraphNameRef<'_>,
-        subject: Option<SubjectRef<'_>>,
-        predicate: Option<NamedNodeRef<'_>>,
-        object: Option<TermRef<'_>>,
+        graph: GraphName,
+        graph_variable: Option<Variable>,
+        pattern: TriplePattern,
         batch_size: usize,
     ) -> DFResult<SendableRecordBatchStream>;
 }

@@ -58,9 +58,12 @@ uuid = "1.14.0"
 zip-extract = "0.3.0"
 
 # Upstream Oxigraph dependencies
-oxttl = "0.1.7"
-oxrdfio = "0.1.7"
-sparesults = "0.2.4"
+oxttl = "0.1.8"
+oxiri = "0.2.11"
+oxrdf = "0.2.4"
+oxrdfio = "0.1.8"
+oxsdatatypes = "0.2.2"
+sparesults = "0.2.5"
 spargebra = "0.3.5"
 
 # Internal dependencies

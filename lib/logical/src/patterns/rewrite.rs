@@ -9,7 +9,7 @@ use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
-use spargebra::term::{Term, TermPattern};
+use rdf_fusion_model::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]

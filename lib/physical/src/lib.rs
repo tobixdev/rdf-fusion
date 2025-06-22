@@ -1,4 +1,4 @@
 extern crate core;
 
 pub mod paths;
-pub mod quads;
+pub mod quad_pattern;
