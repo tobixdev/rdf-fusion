@@ -1,11 +1,10 @@
-use datafusion::common::{internal_err, plan_err};
+use datafusion::common::{exec_err, internal_err, plan_err};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties};
-use rdf_fusion_common::{DFResult, QuadPatternEvaluator};
-use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
-use rdf_fusion_logical::patterns::compute_schema_for_pattern;
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult, QuadPatternEvaluator};
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::EnumeratedActiveGraph;
 use rdf_fusion_model::{TriplePattern, Variable};
 use std::any::Any;
@@ -25,6 +24,8 @@ pub struct QuadPatternExec {
     graph_variable: Option<Variable>,
     /// The triple pattern to match.
     triple_pattern: TriplePattern,
+    /// How to interpret blank nodes.
+    blank_node_mode: BlankNodeMatchingMode,
     /// The execution properties of this operator.
     plan_properties: PlanProperties,
 }
@@ -36,16 +37,13 @@ impl QuadPatternExec {
         active_graph: EnumeratedActiveGraph,
         graph_variable: Option<Variable>,
         triple_pattern: TriplePattern,
+        blank_node_mode: BlankNodeMatchingMode,
     ) -> Self {
         let schema = Arc::clone(
-            compute_schema_for_pattern(
-                DEFAULT_QUAD_DFSCHEMA.as_ref(),
-                &[
-                    graph_variable.as_ref().map(|v| v.clone().into()),
-                    Some(triple_pattern.subject.clone()),
-                    Some(triple_pattern.predicate.clone().into()),
-                    Some(triple_pattern.object.clone()),
-                ],
+            compute_schema_for_triple_pattern(
+                graph_variable.as_ref().map(|v| v.as_ref()),
+                &triple_pattern,
+                blank_node_mode,
             )
             .inner(),
         );
@@ -60,6 +58,7 @@ impl QuadPatternExec {
             active_graph,
             graph_variable,
             triple_pattern,
+            blank_node_mode,
             plan_properties,
         }
     }
@@ -105,12 +104,18 @@ impl ExecutionPlan for QuadPatternExec {
             );
         }
 
-        self.quads_evaluator.evaluate_pattern(
+        let result = self.quads_evaluator.evaluate_pattern(
             self.active_graph.0[partition].clone(),
             self.graph_variable.clone(),
             self.triple_pattern.clone(),
+            self.blank_node_mode,
             context.session_config().batch_size(),
-        )
+        )?;
+        if result.schema() != self.schema() {
+            return exec_err!("Unexpected schema for quad pattern stream.");
+        }
+
+        Ok(result)
     }
 }
 

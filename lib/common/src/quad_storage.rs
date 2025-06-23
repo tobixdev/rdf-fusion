@@ -1,5 +1,5 @@
 use crate::error::StorageError;
-use crate::DFResult;
+use crate::{BlankNodeMatchingMode, DFResult};
 use async_trait::async_trait;
 use datafusion::datasource::TableProvider;
 use datafusion::execution::SendableRecordBatchStream;
@@ -79,6 +79,7 @@ pub trait QuadPatternEvaluator: Debug + Send + Sync {
         graph: GraphName,
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
+        blank_node_mode: BlankNodeMatchingMode,
         batch_size: usize,
     ) -> DFResult<SendableRecordBatchStream>;
 }

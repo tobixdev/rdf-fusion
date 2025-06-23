@@ -5,7 +5,6 @@ use crate::minus::MinusNode;
 use crate::paths::PropertyPathNode;
 use crate::quad_pattern::QuadPatternNode;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
-use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::{Column, DFSchema, DFSchemaRef, DataFusionError};
 use datafusion::logical_expr::builder::project;
@@ -80,6 +79,12 @@ impl RdfFusionLogicalPlanBuilder {
             Self::fill_quads_with_constants(partial_quads, subject, predicate, object)
                 .expect("Variables are fixed, Terms are encodable");
 
+        assert_eq!(
+            filled_quads.schema().as_ref(),
+            DEFAULT_QUAD_DFSCHEMA.as_ref(),
+            "Unexpected schema for matching quads."
+        );
+
         Self {
             plan_builder: LogicalPlanBuilder::new(filled_quads),
             registry,
@@ -111,7 +116,7 @@ impl RdfFusionLogicalPlanBuilder {
             ),
         };
 
-        QuadPatternNode::new(
+        QuadPatternNode::new_with_blank_nodes_as_filter(
             active_graph,
             Some(Variable::new_unchecked(COL_GRAPH)),
             triple_pattern,

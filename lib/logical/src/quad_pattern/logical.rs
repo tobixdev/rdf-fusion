@@ -2,6 +2,7 @@ use crate::active_graph::ActiveGraph;
 use crate::patterns::compute_schema_for_triple_pattern;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable, VariableRef};
@@ -26,6 +27,8 @@ pub struct QuadPatternNode {
     graph_variable: Option<Variable>,
     /// The triple pattern to match.
     pattern: TriplePattern,
+    /// How to handle blank nodes in the pattern.
+    blank_node_mode: BlankNodeMatchingMode,
     /// The schema of the result.
     schema: DFSchemaRef,
 }
@@ -40,10 +43,35 @@ impl QuadPatternNode {
         let schema = compute_schema_for_triple_pattern(
             graph_variable.as_ref().map(|v| v.as_ref()),
             &pattern,
+            BlankNodeMatchingMode::Variable,
         );
         Self {
             active_graph,
             graph_variable,
+            blank_node_mode: BlankNodeMatchingMode::Variable,
+            pattern,
+            schema,
+        }
+    }
+
+    /// Creates a new [QuadPatternNode].
+    ///
+    /// Contrary to [Self::new], blank nodes are not treated as a variable. They are used for
+    /// filtering the quad set.
+    pub fn new_with_blank_nodes_as_filter(
+        active_graph: ActiveGraph,
+        graph_variable: Option<Variable>,
+        pattern: TriplePattern,
+    ) -> Self {
+        let schema = compute_schema_for_triple_pattern(
+            graph_variable.as_ref().map(|v| v.as_ref()),
+            &pattern,
+            BlankNodeMatchingMode::Filter,
+        );
+        Self {
+            active_graph,
+            graph_variable,
+            blank_node_mode: BlankNodeMatchingMode::Filter,
             pattern,
             schema,
         }
@@ -60,6 +88,7 @@ impl QuadPatternNode {
                 predicate: NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
                 object: TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
             },
+            blank_node_mode: BlankNodeMatchingMode::Filter, // Doesn't matter here
             schema: Arc::clone(&DEFAULT_QUAD_DFSCHEMA),
         }
     }
@@ -77,6 +106,11 @@ impl QuadPatternNode {
     /// The triple pattern to match.
     pub fn pattern(&self) -> &TriplePattern {
         &self.pattern
+    }
+
+    /// The blank node matching mode.
+    pub fn blank_node_mode(&self) -> BlankNodeMatchingMode {
+        self.blank_node_mode
     }
 }
 
@@ -123,11 +157,7 @@ impl UserDefinedLogicalNodeCore for QuadPatternNode {
         write!(f, "{})", &self.pattern)
     }
 
-    fn with_exprs_and_inputs(
-        &self,
-        exprs: Vec<Expr>,
-        inputs: Vec<LogicalPlan>,
-    ) -> datafusion::common::Result<Self> {
+    fn with_exprs_and_inputs(&self, exprs: Vec<Expr>, inputs: Vec<LogicalPlan>) -> DFResult<Self> {
         if !inputs.is_empty() {
             return plan_err!("QuadPatternNode has no inputs, got {}.", inputs.len());
         }
@@ -136,10 +166,18 @@ impl UserDefinedLogicalNodeCore for QuadPatternNode {
             return plan_err!("QuadPatternNode has no expressions, got {}.", exprs.len());
         }
 
-        Ok(Self::new(
-            self.active_graph.clone(),
-            self.graph_variable.clone(),
-            self.pattern.clone(),
-        ))
+        let cloned = match self.blank_node_mode {
+            BlankNodeMatchingMode::Variable => Self::new(
+                self.active_graph.clone(),
+                self.graph_variable.clone(),
+                self.pattern.clone(),
+            ),
+            BlankNodeMatchingMode::Filter => Self::new_with_blank_nodes_as_filter(
+                self.active_graph.clone(),
+                self.graph_variable.clone(),
+                self.pattern.clone(),
+            ),
+        };
+        Ok(cloned)
     }
 }

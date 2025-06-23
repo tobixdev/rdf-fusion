@@ -4,23 +4,25 @@ use crate::oxigraph_memory::store::QuadIterator;
 use crate::AResult;
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::{Field, Schema};
-use datafusion::common::DataFusionError;
+use datafusion::common::{Column, DataFusionError};
 use datafusion::execution::RecordBatchStream;
 use futures::Stream;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
-use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_SCHEMA;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TermRef, TriplePattern, Variable};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
 /// Stream that generates record batches on demand
 pub struct QuadPatternBatchRecordStream {
+    schema: Arc<Schema>,
     iterator: QuadIterator,
     graph_variable: Option<Variable>,
     pattern: TriplePattern,
+    blank_node_mode: BlankNodeMatchingMode,
     batch_size: usize,
     equalities: Option<QuadEqualities>,
 }
@@ -31,13 +33,25 @@ impl QuadPatternBatchRecordStream {
         iterator: QuadIterator,
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
+        blank_node_mode: BlankNodeMatchingMode,
         batch_size: usize,
     ) -> Self {
-        let equalities = QuadEqualities::try_new(graph_variable.as_ref(), &pattern);
+        let schema = Arc::clone(
+            compute_schema_for_triple_pattern(
+                graph_variable.as_ref().map(|v| v.as_ref()),
+                &pattern,
+                blank_node_mode,
+            )
+            .inner(),
+        );
+        let equalities =
+            QuadEqualities::try_new(graph_variable.as_ref(), &pattern, blank_node_mode);
         Self {
+            schema,
             iterator,
             graph_variable,
             pattern,
+            blank_node_mode,
             batch_size,
             equalities,
         }
@@ -45,8 +59,11 @@ impl QuadPatternBatchRecordStream {
 
     /// Creates a builder for the record batches.
     fn create_builder(&self) -> RdfQuadsRecordBatchBuilder {
-        let [graph, subject, predicate, object] =
-            extract_variables(self.graph_variable.as_ref(), &self.pattern);
+        let [graph, subject, predicate, object] = extract_columns(
+            self.graph_variable.as_ref(),
+            &self.pattern,
+            self.blank_node_mode,
+        );
         RdfQuadsRecordBatchBuilder::new(graph, subject, predicate, object, self.batch_size)
     }
 }
@@ -96,27 +113,33 @@ impl Stream for QuadPatternBatchRecordStream {
 
 impl RecordBatchStream for QuadPatternBatchRecordStream {
     fn schema(&self) -> Arc<Schema> {
-        Arc::clone(&DEFAULT_QUAD_SCHEMA)
+        Arc::clone(&self.schema)
     }
 }
 
 #[allow(clippy::struct_excessive_bools)]
 struct RdfQuadsRecordBatchBuilder {
-    graph: Option<(Variable, PlainTermArrayBuilder)>,
-    subject: Option<(Variable, PlainTermArrayBuilder)>,
-    predicate: Option<(Variable, PlainTermArrayBuilder)>,
-    object: Option<(Variable, PlainTermArrayBuilder)>,
+    graph: Option<(Column, PlainTermArrayBuilder)>,
+    subject: Option<(Column, PlainTermArrayBuilder)>,
+    predicate: Option<(Column, PlainTermArrayBuilder)>,
+    object: Option<(Column, PlainTermArrayBuilder)>,
     count: usize,
 }
 
 impl RdfQuadsRecordBatchBuilder {
     fn new(
-        graph: Option<Variable>,
-        subject: Option<Variable>,
-        predicate: Option<Variable>,
-        object: Option<Variable>,
+        mut graph: Option<Column>,
+        mut subject: Option<Column>,
+        mut predicate: Option<Column>,
+        mut object: Option<Column>,
         capacity: usize,
     ) -> Self {
+        let mut seen = HashSet::new();
+        deduplicate(&mut seen, &mut graph);
+        deduplicate(&mut seen, &mut subject);
+        deduplicate(&mut seen, &mut predicate);
+        deduplicate(&mut seen, &mut object);
+
         Self {
             graph: graph.map(|v| (v, PlainTermArrayBuilder::new(capacity))),
             subject: subject.map(|v| (v, PlainTermArrayBuilder::new(capacity))),
@@ -169,12 +192,12 @@ impl RdfQuadsRecordBatchBuilder {
         fn try_add_column(
             fields: &mut Vec<Field>,
             arrays: &mut Vec<Arc<dyn Array>>,
-            column: Option<(Variable, PlainTermArrayBuilder)>,
+            column: Option<(Column, PlainTermArrayBuilder)>,
             nullable: bool,
         ) {
             if let Some((var, builder)) = column {
                 fields.push(Field::new(
-                    var.as_str(),
+                    var.name(),
                     PlainTermEncoding::data_type(),
                     nullable,
                 ));
@@ -201,10 +224,14 @@ struct QuadEqualities(Vec<[u8; 4]>);
 
 impl QuadEqualities {
     /// Creates a new [QuadEqualities] fom the variables of the quads.
-    fn try_new(graph_variable: Option<&Variable>, pattern: &TriplePattern) -> Option<Self> {
-        let vars = extract_variables(graph_variable, pattern);
+    fn try_new(
+        graph_variable: Option<&Variable>,
+        pattern: &TriplePattern,
+        blank_node_matching_mode: BlankNodeMatchingMode,
+    ) -> Option<Self> {
+        let vars = extract_columns(graph_variable, pattern, blank_node_matching_mode);
 
-        let mut mapping: HashMap<&Variable, [u8; 4]> = HashMap::new();
+        let mut mapping: HashMap<&Column, [u8; 4]> = HashMap::new();
 
         for i in 0..4 {
             if let Some(var) = &vars[i] {
@@ -255,7 +282,7 @@ impl QuadEqualities {
     fn evaluate(&self, quad: &EncodedQuad) -> bool {
         for equality in &self.0 {
             for i in 0..4 {
-                for j in i..4 {
+                for j in (i + 1)..4 {
                     if equality[i] == 1 && equality[j] == 1 {
                         let quad = [
                             &quad.graph_name,
@@ -294,23 +321,41 @@ fn encode_term(builder: &mut PlainTermArrayBuilder, term: &EncodedTerm) {
     clippy::match_wildcard_for_single_variants,
     reason = "We are only interested in variables"
 )]
-fn extract_variables(
+fn extract_columns(
     graph_variable: Option<&Variable>,
     pattern: &TriplePattern,
-) -> [Option<Variable>; 4] {
+    blank_node_mode: BlankNodeMatchingMode,
+) -> [Option<Column>; 4] {
     [
-        graph_variable.cloned(),
+        graph_variable
+            .cloned()
+            .map(|v| Column::new_unqualified(v.as_str())),
         match &pattern.subject {
-            TermPattern::Variable(v) => Some(v.clone()),
+            TermPattern::Variable(v) => Some(Column::new_unqualified(v.as_str())),
+            TermPattern::BlankNode(bnode) if blank_node_mode == BlankNodeMatchingMode::Variable => {
+                Some(Column::new_unqualified(bnode.as_str()))
+            }
             _ => None,
         },
         match &pattern.predicate {
-            NamedNodePattern::Variable(v) => Some(v.clone()),
+            NamedNodePattern::Variable(v) => Some(Column::new_unqualified(v.as_str())),
             _ => None,
         },
         match &pattern.object {
-            TermPattern::Variable(v) => Some(v.clone()),
+            TermPattern::Variable(v) => Some(Column::new_unqualified(v.as_str())),
+            TermPattern::BlankNode(bnode) if blank_node_mode == BlankNodeMatchingMode::Variable => {
+                Some(Column::new_unqualified(bnode.as_str()))
+            }
             _ => None,
         },
     ]
+}
+
+fn deduplicate(seen: &mut HashSet<Column>, value: &mut Option<Column>) {
+    if let Some(value_taken) = value.take() {
+        if !seen.contains(&value_taken) {
+            seen.insert(value_taken.clone());
+            *value = Some(value_taken);
+        }
+    }
 }

@@ -1,7 +1,7 @@
 use crate::patterns::compute_schema_for_pattern;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_model::TermPattern;
 use std::cmp::Ordering;
 use std::fmt;
@@ -31,7 +31,8 @@ impl PatternNode {
 
         // TODO: Check type
 
-        let schema = compute_schema_for_pattern(input.schema(), &patterns);
+        let schema =
+            compute_schema_for_pattern(input.schema(), &patterns, BlankNodeMatchingMode::Variable);
         Ok(Self {
             input,
             patterns,

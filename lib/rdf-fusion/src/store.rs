@@ -271,13 +271,7 @@ impl Store {
     /// # }).unwrap();
     /// ```
     pub async fn stream(&self) -> Result<QuadStream, QueryEvaluationError> {
-        let record_batch_stream = self
-            .engine
-            .quads_for_pattern(None, None, None, None)
-            .await
-            .map_err(QueryEvaluationError::from)?;
-        let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
-        QuadStream::try_new(solution_stream).map_err(QueryEvaluationError::InternalError)
+        self.quads_for_pattern(None, None, None, None).await
     }
 
     /// Checks if this store contains a given quad.

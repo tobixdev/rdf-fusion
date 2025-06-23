@@ -112,6 +112,7 @@ fn filter_same_variable(
         .into_iter()
         .zip(pattern.iter());
     for (column, pattern) in column_patterns {
+        // TODO: Support blank nodes?
         if let Some(TermPattern::Variable(variable)) = pattern {
             if !mappings.contains_key(variable) {
                 mappings.insert(variable.clone(), Vec::new());

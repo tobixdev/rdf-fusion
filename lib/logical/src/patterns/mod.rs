@@ -4,15 +4,18 @@ mod rewrite;
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{DFSchema, DFSchemaRef};
 pub use logical::*;
+use rdf_fusion_common::BlankNodeMatchingMode;
 use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
 use rdf_fusion_model::{TermPattern, TriplePattern, VariableRef};
 pub use rewrite::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+/// TODO
 pub fn compute_schema_for_triple_pattern(
     graph_variable: Option<VariableRef<'_>>,
     pattern: &TriplePattern,
+    blank_node_mode: BlankNodeMatchingMode,
 ) -> DFSchemaRef {
     compute_schema_for_pattern(
         &DEFAULT_QUAD_DFSCHEMA,
@@ -24,6 +27,7 @@ pub fn compute_schema_for_triple_pattern(
             Some(pattern.predicate.clone().into()),
             Some(pattern.object.clone()),
         ],
+        blank_node_mode,
     )
 }
 
@@ -32,6 +36,7 @@ pub fn compute_schema_for_triple_pattern(
 pub fn compute_schema_for_pattern(
     inner_schema: &DFSchema,
     patterns: &[Option<TermPattern>],
+    blank_node_mode: BlankNodeMatchingMode,
 ) -> DFSchemaRef {
     let mut seen: HashSet<&str> = HashSet::new();
     let mut fields: Vec<(&str, &Field)> = Vec::new();
@@ -44,7 +49,10 @@ pub fn compute_schema_for_pattern(
                     fields.push((variable.as_str(), field));
                 }
             }
-            Some(TermPattern::BlankNode(bnode)) => {
+            // A blank node only leads to an output variable if it is matched like a variable
+            Some(TermPattern::BlankNode(bnode))
+                if blank_node_mode == BlankNodeMatchingMode::Variable =>
+            {
                 if !seen.contains(bnode.as_str()) {
                     seen.insert(bnode.as_str());
                     fields.push((bnode.as_str(), field));

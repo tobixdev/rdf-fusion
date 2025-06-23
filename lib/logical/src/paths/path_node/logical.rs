@@ -3,7 +3,7 @@ use crate::patterns::compute_schema_for_pattern;
 use crate::ActiveGraph;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_model::{PropertyPathExpression, TermPattern, Variable};
 use std::cmp::Ordering;
 use std::fmt;
@@ -127,5 +127,9 @@ fn compute_schema(
         Some(subject.clone()),
         Some(object.clone()),
     ];
-    compute_schema_for_pattern(&PATH_TABLE_DFSCHEMA, &patterns)
+    compute_schema_for_pattern(
+        &PATH_TABLE_DFSCHEMA,
+        &patterns,
+        BlankNodeMatchingMode::Variable,
+    )
 }
