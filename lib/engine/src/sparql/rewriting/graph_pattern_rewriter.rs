@@ -186,14 +186,14 @@ impl GraphPatternRewriter {
                 object,
             } => {
                 let state = self.state.borrow();
-                RdfFusionLogicalPlanBuilder::new_from_property_path(
+                Ok(RdfFusionLogicalPlanBuilder::new_from_property_path(
                     Arc::clone(&self.registry),
                     state.active_graph.clone(),
                     state.graph_name_var.clone(),
                     path.clone(),
                     subject.clone(),
                     object.clone(),
-                )
+                ))
             }
             GraphPattern::Minus { left, right } => {
                 let left = self.rewrite_graph_pattern(left)?;

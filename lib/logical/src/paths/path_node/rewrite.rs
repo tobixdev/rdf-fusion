@@ -15,9 +15,10 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
-use rdf_fusion_model::{NamedNode, TermRef};
-use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{NamedNodePattern, TermPattern, TriplePattern, Variable};
+use rdf_fusion_model::{
+    NamedNode, NamedNodePattern, PropertyPathExpression, TermPattern, TermRef, TriplePattern,
+    Variable,
+};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -286,7 +287,7 @@ impl PropertyPathLoweringRule {
             active_graph.clone(),
             Some(Variable::new_unchecked(COL_GRAPH)),
             pattern,
-        )?;
+        );
 
         // Apply filter if present
         let builder = if let Some(filter) = filter {

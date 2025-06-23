@@ -3,9 +3,8 @@ use crate::patterns::compute_schema_for_pattern;
 use crate::ActiveGraph;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use rdf_fusion_common::DFResult;
-use spargebra::algebra::PropertyPathExpression;
-use spargebra::term::{TermPattern, Variable};
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use rdf_fusion_model::{PropertyPathExpression, TermPattern, Variable};
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -26,16 +25,16 @@ impl PropertyPathNode {
         subject: TermPattern,
         path: PropertyPathExpression,
         object: TermPattern,
-    ) -> DFResult<Self> {
-        let schema = compute_schema(graph_name_var.as_ref(), &subject, &object)?;
-        Ok(Self {
+    ) -> Self {
+        let schema = compute_schema(graph_name_var.as_ref(), &subject, &object);
+        Self {
             active_graph,
             graph_name_var,
             subject,
             path,
             object,
             schema,
-        })
+        }
     }
 
     pub fn active_graph(&self) -> &ActiveGraph {
@@ -108,13 +107,13 @@ impl UserDefinedLogicalNodeCore for PropertyPathNode {
         if !exprs.is_empty() {
             return plan_err!("Expected 0 expressions but got {}", exprs.len());
         }
-        Self::new(
+        Ok(Self::new(
             self.active_graph.clone(),
             self.graph_name_var.clone(),
             self.subject.clone(),
             self.path.clone(),
             self.object.clone(),
-        )
+        ))
     }
 }
 
@@ -122,11 +121,15 @@ fn compute_schema(
     graph: Option<&Variable>,
     subject: &TermPattern,
     object: &TermPattern,
-) -> DFResult<DFSchemaRef> {
+) -> DFSchemaRef {
     let patterns = vec![
         graph.map(|v| TermPattern::Variable(v.clone())),
         Some(subject.clone()),
         Some(object.clone()),
     ];
-    compute_schema_for_pattern(&PATH_TABLE_DFSCHEMA, &patterns)
+    compute_schema_for_pattern(
+        &PATH_TABLE_DFSCHEMA,
+        &patterns,
+        BlankNodeMatchingMode::Variable,
+    )
 }

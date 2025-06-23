@@ -168,10 +168,10 @@ impl MemoryStorageReader {
     #[allow(clippy::same_name_method)]
     pub fn quads_for_pattern(
         &self,
+        graph_name: Option<&EncodedTerm>,
         subject: Option<&EncodedTerm>,
         predicate: Option<&EncodedTerm>,
         object: Option<&EncodedTerm>,
-        graph_name: Option<&EncodedTerm>,
     ) -> QuadIterator {
         fn get_start_and_count(
             map: &DashMap<EncodedTerm, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,

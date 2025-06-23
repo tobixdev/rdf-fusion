@@ -17,3 +17,5 @@ pub use oxrdf::{
     QuadRef, Subject, SubjectRef, Term, TermParseError, TermRef, Triple, TripleRef, Variable,
     VariableNameParseError, VariableRef,
 };
+pub use spargebra::algebra::PropertyPathExpression;
+pub use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};

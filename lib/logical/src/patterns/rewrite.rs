@@ -9,7 +9,7 @@ use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
-use spargebra::term::{Term, TermPattern};
+use rdf_fusion_model::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
@@ -112,6 +112,7 @@ fn filter_same_variable(
         .into_iter()
         .zip(pattern.iter());
     for (column, pattern) in column_patterns {
+        // TODO: Support blank nodes?
         if let Some(TermPattern::Variable(variable)) = pattern {
             if !mappings.contains_key(variable) {
                 mappings.insert(variable.clone(), Vec::new());

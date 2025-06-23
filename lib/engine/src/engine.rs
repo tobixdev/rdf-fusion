@@ -80,7 +80,7 @@ impl RdfFusionInstance {
     /// Checks whether `quad` is contained in the instance.
     pub async fn contains(&self, quad: &QuadRef<'_>) -> DFResult<bool> {
         let active_graph_info = graph_name_to_active_graph(Some(quad.graph_name));
-        let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_quads(
+        let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_matching_quads(
             Arc::clone(&self.functions),
             active_graph_info,
             Some(quad.subject.into_owned()),
@@ -109,7 +109,7 @@ impl RdfFusionInstance {
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
         let active_graph_info = graph_name_to_active_graph(graph_name);
-        let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_quads(
+        let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_matching_quads(
             Arc::clone(&self.functions),
             active_graph_info,
             subject.map(SubjectRef::into_owned),

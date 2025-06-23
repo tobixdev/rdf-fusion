@@ -12,7 +12,6 @@ rdf-fusion-encoding.workspace = true
 rdf-fusion-functions.workspace = true
 datafusion.workspace = true
 rdf-fusion-model.workspace = true
-spargebra.workspace = true
 
 [lints]
 workspace = true
