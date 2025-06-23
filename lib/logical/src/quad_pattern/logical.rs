@@ -77,7 +77,7 @@ impl QuadPatternNode {
         }
     }
 
-    /// Creates a new [QuadPatternNode] that returns all quads in [active_graph] using the default
+    /// Creates a new [QuadPatternNode] that returns all quads in `active_graph` using the default
     /// quads schema.
     pub fn new_all_quads(active_graph: ActiveGraph) -> Self {
         Self {
