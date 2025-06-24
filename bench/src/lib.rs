@@ -1,6 +1,6 @@
 #![allow(clippy::print_stdout)]
 
-use crate::benchmarks::bsbm::BsbmExploreBenchmark;
+use crate::benchmarks::bsbm::{BsbmBusinessIntelligenceBenchmark, BsbmExploreBenchmark};
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::RdfFusionBenchContext;
 use clap::ValueEnum;
@@ -80,9 +80,16 @@ pub async fn execute_benchmark_operation(
 
 fn create_benchmark_instance(benchmark: BenchmarkName) -> Box<dyn Benchmark> {
     match benchmark {
-        BenchmarkName::Bsbm {
+        BenchmarkName::BsbmExplore {
             dataset_size,
             max_query_count: query_size,
         } => Box::new(BsbmExploreBenchmark::new(dataset_size, query_size)),
+        BenchmarkName::BsbmBusinessIntelligence {
+            dataset_size,
+            max_query_count: query_size,
+        } => Box::new(BsbmBusinessIntelligenceBenchmark::new(
+            dataset_size,
+            query_size,
+        )),
     }
 }
