@@ -12,7 +12,7 @@ use rdf_fusion_functions::registry::{
     DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
 use rdf_fusion_logical::extend::ExtendLoweringRule;
-use rdf_fusion_logical::join::SparqlJoinLoweringRule;
+use rdf_fusion_logical::join::{SparqlJoinLoweringRule, SparqlJoinReorderingRule};
 use rdf_fusion_logical::minus::MinusLoweringRule;
 use rdf_fusion_logical::paths::PropertyPathLoweringRule;
 use rdf_fusion_logical::patterns::PatternLoweringRule;
@@ -20,7 +20,7 @@ use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilder};
 use rdf_fusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
 
-/// Represents an instance of a RdfFusion engine.
+/// Represents an instance of an RDF Fusion engine.
 ///
 /// A RdfFusion instance consists of:
 /// - A [SessionContext]. This is the primary interaction point with DataFusion.
@@ -47,6 +47,7 @@ impl RdfFusionInstance {
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
+            .with_optimizer_rule(Arc::new(SparqlJoinReorderingRule::new()))
             .with_optimizer_rule(Arc::new(MinusLoweringRule::new(Arc::clone(&registry))))
             .with_optimizer_rule(Arc::new(ExtendLoweringRule::new()))
             .with_optimizer_rule(Arc::new(PropertyPathLoweringRule::new(Arc::clone(

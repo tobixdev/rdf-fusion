@@ -10,7 +10,7 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 /// TODO
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SparqlJoinType {
     /// TODO
     Inner,
@@ -27,7 +27,7 @@ impl Display for SparqlJoinType {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct SparqlJoinNode {
     lhs: LogicalPlan,
     rhs: LogicalPlan,
@@ -81,6 +81,11 @@ impl SparqlJoinNode {
     /// TODO
     pub fn join_type(&self) -> SparqlJoinType {
         self.join_type
+    }
+
+    /// TODO
+    pub fn destruct(self) -> (LogicalPlan, LogicalPlan, Option<Expr>, SparqlJoinType) {
+        (self.lhs, self.rhs, self.filter, self.join_type)
     }
 }
 
