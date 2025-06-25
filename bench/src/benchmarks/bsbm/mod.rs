@@ -1,8 +1,10 @@
 use clap::ValueEnum;
 use std::fmt::{Display, Formatter};
 
+mod business_intelligence;
 mod explore;
 
+pub use business_intelligence::BsbmBusinessIntelligenceBenchmark;
 pub use explore::BsbmExploreBenchmark;
 
 /// Indicates the size of the dataset.

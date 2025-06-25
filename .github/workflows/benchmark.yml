@@ -40,7 +40,9 @@ jobs:
 
       - name: Prepare BSBM Benchmark
         working-directory: bench
-        run: cargo run --bin rdf-fusion-bench --profile codspeed -- prepare bsbm --dataset-size 1000
+        run: |
+          cargo run --bin rdf-fusion-bench --profile codspeed -- prepare bsbm-explore --dataset-size 1000
+          cargo run --bin rdf-fusion-bench --profile codspeed -- prepare bsbm-business-intelligence --dataset-size 1000
 
       - name: Build the benchmark target(s)
         # Limiting the number of jobs is an attempt to not violate GitHub's runner resources.

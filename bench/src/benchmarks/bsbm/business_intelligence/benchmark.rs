@@ -1,7 +1,9 @@
-use crate::benchmarks::bsbm::explore::operation::{
-    list_raw_operations, BsbmExploreOperation, BsbmExploreRawOperation,
+use crate::benchmarks::bsbm::business_intelligence::operation::{
+    list_raw_operations, BsbmBusinessIntelligenceOperation, BsbmBusinessIntelligenceRawOperation,
 };
-use crate::benchmarks::bsbm::explore::report::{ExploreReport, ExploreReportBuilder};
+use crate::benchmarks::bsbm::business_intelligence::report::{
+    BusinessIntelligenceReport, BusinessIntelligenceReportBuilder,
+};
 use crate::benchmarks::bsbm::BsbmDatasetSize;
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::{BenchmarkContext, RdfFusionBenchContext};
@@ -24,16 +26,16 @@ use tokio::time::Instant;
 ///
 /// This version of the benchmark uses the [pre-prepared datasets](https://zenodo.org/records/12663333)
 /// from Oxigraph.
-pub struct BsbmExploreBenchmark {
+pub struct BsbmBusinessIntelligenceBenchmark {
     name: BenchmarkName,
     dataset_size: BsbmDatasetSize,
     max_query_count: Option<u64>,
 }
 
-impl BsbmExploreBenchmark {
-    /// Creates a new [BsbmExploreBenchmark] with the given sizes.
+impl BsbmBusinessIntelligenceBenchmark {
+    /// Creates a new [BsbmBusinessIntelligenceBenchmark] with the given sizes.
     pub fn new(dataset_size: BsbmDatasetSize, max_query_count: Option<u64>) -> Self {
-        let name = BenchmarkName::BsbmExplore {
+        let name = BenchmarkName::BsbmBusinessIntelligence {
             dataset_size,
             max_query_count,
         };
@@ -49,11 +51,12 @@ impl BsbmExploreBenchmark {
     fn list_operations(
         &self,
         env: &RdfFusionBenchContext,
-    ) -> anyhow::Result<Vec<BsbmExploreOperation>> {
+    ) -> anyhow::Result<Vec<BsbmBusinessIntelligenceOperation>> {
         println!("Loading queries ...");
 
-        let queries_path = env
-            .join_data_dir(PathBuf::from(format!("explore-{}.csv", self.dataset_size)).as_path())?;
+        let queries_path = env.join_data_dir(
+            PathBuf::from(format!("businessIntelligence-{}.csv", self.dataset_size)).as_path(),
+        )?;
         let result = match self.max_query_count {
             None => list_raw_operations(&queries_path)?
                 .filter_map(parse_query)
@@ -84,7 +87,7 @@ impl BsbmExploreBenchmark {
 }
 
 #[async_trait]
-impl Benchmark for BsbmExploreBenchmark {
+impl Benchmark for BsbmBusinessIntelligenceBenchmark {
     fn name(&self) -> BenchmarkName {
         self.name
     }
@@ -116,9 +119,11 @@ impl Benchmark for BsbmExploreBenchmark {
             }),
         };
         let download_pregenerated_queries = PrepRequirement::FileDownload {
-            url: Url::parse("https://zenodo.org/records/12663333/files/explore-1000.csv.bz2")
-                .expect("parse dataset-name"),
-            file_name: PathBuf::from("explore-1000.csv"),
+            url: Url::parse(
+                "https://zenodo.org/records/12663333/files/businessIntelligence-1000.csv.bz2",
+            )
+            .expect("parse dataset-name"),
+            file_name: PathBuf::from("businessIntelligence-1000.csv"),
             action: Some(FileDownloadAction::Unpack(ArchiveType::Bz2)),
         };
 
@@ -140,16 +145,18 @@ impl Benchmark for BsbmExploreBenchmark {
     }
 }
 
-fn parse_query(query: BsbmExploreRawOperation) -> Option<BsbmExploreOperation> {
+fn parse_query(
+    query: BsbmBusinessIntelligenceRawOperation,
+) -> Option<BsbmBusinessIntelligenceOperation> {
     match query {
-        BsbmExploreRawOperation::Query(name, query) => {
+        BsbmBusinessIntelligenceRawOperation::Query(name, query) => {
             // TODO remove once describe is supported
             if query.contains("DESCRIBE") {
                 None
             } else {
-                Some(BsbmExploreOperation::Query(
+                Some(BsbmBusinessIntelligenceOperation::Query(
                     name,
-                    Query::parse(&query, None).unwrap(),
+                    Query::parse(&query.replace('#', ""), None).unwrap(),
                 ))
             }
         }
@@ -158,12 +165,12 @@ fn parse_query(query: BsbmExploreRawOperation) -> Option<BsbmExploreOperation> {
 
 async fn execute_benchmark(
     context: &BenchmarkContext<'_>,
-    operations: Vec<BsbmExploreOperation>,
+    operations: Vec<BsbmBusinessIntelligenceOperation>,
     memory_store: &Store,
-) -> anyhow::Result<ExploreReport> {
+) -> anyhow::Result<BusinessIntelligenceReport> {
     println!("Evaluating queries ...");
 
-    let mut report = ExploreReportBuilder::new();
+    let mut report = BusinessIntelligenceReportBuilder::new();
     let len = operations.len();
     for (idx, operation) in operations.iter().enumerate() {
         if idx % 25 == 0 {
@@ -180,13 +187,13 @@ async fn execute_benchmark(
     Ok(report)
 }
 
-/// Executes a single [BsbmExploreOperation], profiles the execution, and stores the results of the
-/// profiling in the `report`.
+/// Executes a single [BsbmBusinessIntelligenceOperation], profiles the execution, and stores the
+/// results of the profiling in the `report`.
 async fn run_operation(
     context: &BenchmarkContext<'_>,
-    report: &mut ExploreReportBuilder,
+    report: &mut BusinessIntelligenceReportBuilder,
     store: &Store,
-    operation: &BsbmExploreOperation,
+    operation: &BsbmBusinessIntelligenceOperation,
 ) -> anyhow::Result<()> {
     let guard = pprof::ProfilerGuardBuilder::default()
         .frequency(1000)
@@ -196,7 +203,7 @@ async fn run_operation(
 
     let options = QueryOptions;
     let (name, explanation) = match operation {
-        BsbmExploreOperation::Query(name, q) => {
+        BsbmBusinessIntelligenceOperation::Query(name, q) => {
             let (result, explanation) = store.explain_query_opt(q.clone(), options.clone()).await?;
             match result {
                 QueryResults::Boolean(_) => (),
