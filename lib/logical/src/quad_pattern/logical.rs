@@ -144,17 +144,18 @@ impl UserDefinedLogicalNodeCore for QuadPatternNode {
     }
 
     fn fmt_for_explain(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "QuadPattern ")?;
+        write!(f, "QuadPattern (")?;
+
+        if let Some(graph_variable) = &self.graph_variable {
+            write!(f, "{graph_variable} ")?;
+        }
+        write!(f, "{})", &self.pattern)?;
 
         if self.active_graph != ActiveGraph::DefaultGraph {
             write!(f, "active_graph: {} ", self.active_graph)?;
         }
 
-        write!(f, "(")?;
-        if let Some(graph_variable) = &self.graph_variable {
-            write!(f, "{graph_variable} ")?;
-        }
-        write!(f, "{})", &self.pattern)
+        Ok(())
     }
 
     fn with_exprs_and_inputs(&self, exprs: Vec<Expr>, inputs: Vec<LogicalPlan>) -> DFResult<Self> {
