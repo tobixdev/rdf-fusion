@@ -342,13 +342,7 @@ impl RdfFusionLogicalPlanBuilder {
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let registry = Arc::clone(&self.registry);
 
-        // TODO: We could be more conservative here and only transform join variables.
-        let lhs = self.with_plain_terms()?.plan_builder.build()?;
-        let rhs = Self::new(Arc::new(rhs), Arc::clone(&registry))
-            .with_plain_terms()?
-            .plan_builder
-            .build()?;
-
+        let lhs = self.plan_builder.build()?;
         let join_node = SparqlJoinNode::try_new(lhs, rhs, filter, join_type)?;
         Ok(Self {
             registry,
