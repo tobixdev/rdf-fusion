@@ -163,12 +163,21 @@ struct KleenePlusClosureStream {
     /// See [KleenePlusClosureExec] for details on `allow_cross_graph_paths`.
     allow_cross_graph_paths: bool,
 
-    // State
-    /// TODO
+    // State for the transitive closure computation
+    /// A map from graph names to sets of direct (start, end) path pairs.
+    /// 
+    /// This stores the initial paths grouped by graph name, which serves as the
+    /// base case for the transitive closure computation.
     initial_paths_map: HashMap<GraphName, HashSet<(Term, Term)>>,
-    /// TODO
+    /// The set of all paths discovered so far in the transitive closure.
+    ///
+    /// This accumulates all paths (direct and transitive) during the computation
+    /// and is used to avoid duplicates.
     all_paths: HashSet<Path>,
-    /// TODO
+    /// The current set of newly discovered paths in this iteration.
+    ///
+    /// This represents the "delta" or frontier of paths discovered in the current
+    /// iteration that will be used to find new paths in the next iteration.
     current_delta: Vec<Path>,
 }
 
