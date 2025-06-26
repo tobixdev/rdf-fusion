@@ -65,6 +65,13 @@ pub trait UnarySparqlOp: SparqlOp {
     /// Evaluates the operation and returns a result.
     fn evaluate<'data>(&self, value: Self::Arg<'data>) -> ThinResult<Self::Result<'data>>;
 
+    /// Evaluates the operation with errors present.
+    ///
+    /// It is guaranteed that the input is an error.
+    fn evaluate_error<'data>(&self) -> ThinResult<Self::Result<'data>> {
+        ThinError::expected()
+    }
+
     /// Indicates whether the result of the operation is volatile.
     fn volatility(&self) -> SparqlOpVolatility {
         SparqlOpVolatility::Stable

@@ -31,11 +31,13 @@ use std::task::{ready, Context, Poll};
 /// Represents a path in the closure.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 struct Path {
-    /// TODO
+    /// The graph name that this path belongs to.
+    ///
+    /// This is important if cross-graph paths are disabled.
     graph: GraphName,
-    /// TODO
+    /// The start of the path.
     start: Term,
-    /// TODO
+    /// The end of the path.
     end: Term,
 }
 
