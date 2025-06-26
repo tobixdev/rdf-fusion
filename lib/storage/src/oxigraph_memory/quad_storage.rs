@@ -32,7 +32,15 @@ impl MemoryQuadStorage {
         }
     }
 
-    /// TODO
+    /// Creates a read-only snapshot of the current storage state.
+    ///
+    /// This method returns a read-only view of the storage at the current point in time.
+    /// The snapshot can be used to query the storage without being affected by concurrent
+    /// modifications.
+    /// This is useful for consistent reads across multiple operations.
+    ///
+    /// # Returns
+    /// A read-only snapshot of the storage
     pub fn snapshot(&self) -> MemoryStorageReader {
         self.storage.snapshot()
     }

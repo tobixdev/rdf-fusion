@@ -412,12 +412,27 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         self.expr_builder_root.native_boolean_as_term(result)
     }
 
-    /// TODO
+    /// Creates an expression builder from a DataFusion expression.
+    ///
+    /// This helper method wraps the expression in an RDF Fusion expression builder
+    /// to enable RDF-specific operations on the expression.
+    ///
+    /// # Arguments
+    /// * `expr` - The DataFusion expression to wrap
     fn expr_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
         self.expr_builder_root.try_create_builder(expr)
     }
 
-    /// TODO
+    /// Processes arguments for a unary function.
+    ///
+    /// This helper method extracts a single argument from a vector of expressions
+    /// and wraps it in an RDF Fusion expression builder.
+    ///
+    /// # Arguments
+    /// * `args` - A vector containing exactly one expression
+    ///
+    /// # Returns
+    /// An expression builder for the single argument
     fn unary_args(&self, args: Vec<Expr>) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
         if let Ok([expr]) = TryInto::<[Expr; 1]>::try_into(args) {
             Ok(self.expr_builder(expr)?)
@@ -426,7 +441,16 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         }
     }
 
-    /// TODO
+    /// Processes arguments for a binary function.
+    ///
+    /// This helper method extracts two arguments from a vector of expressions,
+    /// wraps the first in an RDF Fusion expression builder, and returns both.
+    ///
+    /// # Arguments
+    /// * `args` - A vector containing exactly two expressions
+    ///
+    /// # Returns
+    /// A tuple containing an expression builder for the first argument and the second argument
     fn binary_args(&self, args: Vec<Expr>) -> DFResult<(RdfFusionExprBuilder<'rewriter>, Expr)> {
         if let Ok([lhs, rhs]) = TryInto::<[Expr; 2]>::try_into(args) {
             let lhs = self.expr_builder(lhs)?;
@@ -436,7 +460,16 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         }
     }
 
-    /// TODO
+    /// Processes arguments for a ternary function.
+    ///
+    /// This helper method extracts three arguments from a vector of expressions,
+    /// wraps the first in an RDF Fusion expression builder, and returns all three.
+    ///
+    /// # Arguments
+    /// * `args` - A vector containing exactly three expressions
+    ///
+    /// # Returns
+    /// A tuple containing an expression builder for the first argument and the second and third arguments
     fn ternary_args(
         &self,
         args: Vec<Expr>,
@@ -449,7 +482,16 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         }
     }
 
-    /// TODO
+    /// Processes arguments for a quaternary function.
+    ///
+    /// This helper method extracts four arguments from a vector of expressions,
+    /// wraps the first in an RDF Fusion expression builder, and returns all four.
+    ///
+    /// # Arguments
+    /// * `args` - A vector containing exactly four expressions
+    ///
+    /// # Returns
+    /// A tuple containing an expression builder for the first argument and the second, third, and fourth arguments
     fn quarternary_args(
         &self,
         args: Vec<Expr>,

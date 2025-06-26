@@ -1,7 +1,9 @@
 use crate::{ThinError, ThinResult};
 use std::cmp::Ordering;
 
-/// TODO
+/// A reference to a string literal in RDF, consisting of a value and an optional language tag.
+///
+/// This struct provides a borrowed view of a string literal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StringLiteralRef<'value>(pub &'value str, pub Option<&'value str>);
 
@@ -29,7 +31,9 @@ impl Ord for StringLiteralRef<'_> {
 
 // TODO: This should only be a temporary solution once the results can write into the arrays.
 
-/// TODO
+/// An owned string literal in RDF, consisting of a value and an optional language tag.
+///
+/// This struct provides an owned version of a string literal.
 #[derive(PartialEq, Eq, Debug)]
 pub struct OwnedStringLiteral(pub String, pub Option<String>);
 
