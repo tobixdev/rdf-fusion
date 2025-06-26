@@ -8,7 +8,22 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{NamedNodePattern, TermPattern};
 use std::sync::Arc;
 
-/// TODO
+/// An optimizer rule that reorders SPARQL joins to improve query performance.
+///
+/// This rule analyzes join patterns in SPARQL queries and reorders them based on
+/// cardinality estimates and join selectivity to reduce the amount of intermediate
+/// data processed during query execution.
+///
+/// This rule only reorders directly nested inner joins that have no filter. Here is
+/// an example of a logical plan that can be re-orderd:
+///
+/// ```text
+/// SparqlJoin:
+///     SparqlJoin:
+///         QuadPattern ...
+///         QuadPattern ...
+///     QuadPattern ...
+/// ```
 #[derive(Debug)]
 pub struct SparqlJoinReorderingRule;
 
@@ -40,12 +55,18 @@ impl OptimizerRule for SparqlJoinReorderingRule {
 }
 
 impl SparqlJoinReorderingRule {
-    /// TODO
+    /// Creates a [SparqlJoinReorderingRule].
     pub fn new() -> Self {
         Self {}
     }
 
-    /// TODO
+    /// Reorders a SPARQL join to optimize query execution.
+    ///
+    /// This is done in two steps:
+    /// - Identifying the re-orderable components of the nested SPARQL joins, including
+    ///   separating between connected components (i.e., overlapping variables)
+    /// - Reordering the elements of each connected component, transforming it to a
+    ///   [LogicalPlan], and combining them via a cross-join.
     fn reorder_sparql_join(
         &self,
         node: &SparqlJoinNode,

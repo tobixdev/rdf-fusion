@@ -11,7 +11,13 @@ use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
 
-/// TODO
+/// A rewriting rule that transforms SPARQL join operations into DataFusion join operations.
+///
+/// The rewriting rule incorporates nullability information to reduce the is_compatible check
+/// to equality if the joined columns cannot be null.
+///
+/// # Additional Resources
+/// /// - [SPARQL 1.1 - Compatibile Mappings](https://www.w3.org/TR/sparql11-query/#defn_algCompatibleMapping)
 #[derive(Debug)]
 pub struct SparqlJoinLoweringRule {
     /// Used for creating expressions with RdfFusion builtins.
@@ -47,12 +53,24 @@ impl OptimizerRule for SparqlJoinLoweringRule {
 }
 
 impl SparqlJoinLoweringRule {
-    /// TODO
+    /// Creates a new instance of the SPARQL join lowering rule.
+    ///
+    /// # Arguments
+    /// * `registry` - A reference to the RDF Fusion function registry, used for creating
+    ///                expressions with RDF-specific functions during the lowering process.
     pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
         Self { registry }
     }
 
-    /// TODO
+    /// Rewrites a SPARQL join node into a DataFusion join operation.
+    ///
+    /// This method analyzes the join conditions and chooses the most efficient join implementation:
+    /// - For disjoint solutions with no filter, it uses a cross join
+    /// - For compatible columns, it attempts to use a regular join
+    /// - Otherwise, it uses a join with compatibility checks
+    ///
+    /// # Additional Resources
+    /// - SPARQL Join Semantics: https://www.w3.org/TR/sparql11-query/#BasicGraphPatterns
     fn rewrite_sparql_join(&self, node: &SparqlJoinNode) -> DFResult<LogicalPlan> {
         let (lhs_keys, rhs_keys) = get_join_keys(node);
 
@@ -77,7 +95,19 @@ impl SparqlJoinLoweringRule {
         self.build_join_with_is_compatible(node, &join_on)
     }
 
-    /// TODO
+    /// Attempts to build a regular DataFusion join from a SPARQL join node.
+    ///
+    /// This method checks if the join can be implemented as a standard DataFusion join
+    /// by verifying that none of the join columns are nullable. If all join columns
+    /// are non-nullable, it creates a regular join; otherwise, it returns None.
+    ///
+    /// # Arguments
+    /// * `node` - The SPARQL join node to rewrite
+    /// * `join_on` - The columns to join on
+    ///
+    /// # Returns
+    /// * `Some(LogicalPlan)` if a regular join can be built
+    /// * `None` if a regular join cannot be used (e.g., due to nullable columns)
     fn try_build_regular_join(
         &self,
         node: &SparqlJoinNode,
@@ -121,7 +151,19 @@ impl SparqlJoinLoweringRule {
         })
     }
 
-    /// TODO
+    /// Builds a join with compatibility checks for SPARQL semantics.
+    ///
+    /// This method creates a join that uses the `is_compatible` function to check
+    /// if values from the left and right sides are compatible according to SPARQL
+    /// semantics. This is used when a regular join cannot be applied, typically
+    /// due to nullable columns or when SPARQL-specific compatibility is required.
+    ///
+    /// # Arguments
+    /// * `node` - The SPARQL join node to rewrite
+    /// * `join_on` - The columns to join on
+    ///
+    /// # Additional Resources
+    /// - [SPARQL 1.1 - Value Compatibility](https://www.w3.org/TR/sparql11-query/#func-RDFterm-equal)
     fn build_join_with_is_compatible(
         &self,
         node: &SparqlJoinNode,
@@ -161,7 +203,20 @@ impl SparqlJoinLoweringRule {
         join.project(projections)?.build()
     }
 
-    /// TODO
+    /// Creates projection expressions for the output of a join operation.
+    ///
+    /// This method generates the expressions needed to project the correct columns
+    /// after a join operation. It handles the merging of columns from both sides
+    /// of the join and applies coalescing when necessary to maintain SPARQL semantics.
+    ///
+    /// # Arguments
+    /// * `node` - The SPARQL join node being processed
+    /// * `lhs` - The left-hand side logical plan builder
+    /// * `rhs` - The right-hand side logical plan builder
+    /// * `requires_coalesce` - Whether coalescing is required for overlapping columns
+    ///
+    /// # Returns
+    /// A vector of expressions to be used in the projection after the join
     fn create_join_projections(
         &self,
         node: &SparqlJoinNode,
@@ -192,7 +247,19 @@ impl SparqlJoinLoweringRule {
         Ok(projections)
     }
 
-    /// TODO
+    /// Rewrites a filter expression to work with the joined data.
+    ///
+    /// This method transforms column references in the filter expression to correctly
+    /// reference columns in the joined result. It handles the aliasing of tables and
+    /// applies coalescing when necessary to maintain SPARQL filter semantics.
+    ///
+    /// # Arguments
+    /// * `node` - The SPARQL join node being processed
+    /// * `filter` - The filter expression to rewrite
+    /// * `requires_coalesce` - Whether coalescing is required for overlapping columns
+    ///
+    /// # Additional Resources
+    /// - SPARQL Filter Evaluation: https://www.w3.org/TR/sparql11-query/#expressions
     fn rewrite_filter_for_join(
         &self,
         node: &SparqlJoinNode,

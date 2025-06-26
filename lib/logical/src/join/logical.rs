@@ -174,7 +174,9 @@ fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
     Ok(())
 }
 
-/// TODO
+/// Computes the schema for a SPARQL join operation based on the join type.
+///
+/// This function creates a new schema by merging the schemas of the left and right inputs.
 fn compute_schema(
     join_type: SparqlJoinType,
     lhs: &LogicalPlan,
@@ -205,7 +207,16 @@ fn compute_schema(
     })
 }
 
-/// Computes the columns that are being joined in a
+/// Computes the columns that are being joined in a SPARQL join operation.
+///
+/// This function identifies the common columns between the left and right schemas
+/// and returns a mapping of column names to their RDF Term encodings.
+///
+/// # Errors
+///
+/// This function returns an error if a join column is not an RDF Term. It does *not*
+/// produce an error if they have a different encoding. It is up to the caller to
+/// handle this situation.
 pub fn compute_sparql_join_columns(
     lhs: &DFSchema,
     rhs: &DFSchema,

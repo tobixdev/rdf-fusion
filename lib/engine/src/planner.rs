@@ -15,7 +15,7 @@ pub struct RdfFusionPlanner {
 }
 
 impl RdfFusionPlanner {
-    /// TODO
+    /// Creates a new [RdfFusionPlanner].
     pub fn new(storage: Arc<dyn QuadStorage>) -> Self {
         Self { storage }
     }
