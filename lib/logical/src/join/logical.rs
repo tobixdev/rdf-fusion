@@ -1,10 +1,10 @@
 use datafusion::arrow::datatypes::{DataType, Fields};
-use datafusion::common::{plan_err, DFSchema, DFSchemaRef};
+use datafusion::common::{plan_datafusion_err, plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingName;
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
@@ -155,36 +155,19 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
 /// - Join variables must have the PlainTermEncoding.
 #[allow(clippy::expect_used)]
 fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
-    let lhs_fields = lhs
-        .schema()
-        .fields()
-        .iter()
-        .map(|f| f.name())
-        .collect::<HashSet<_>>();
-    let rhs_fields = rhs
-        .schema()
-        .fields()
-        .iter()
-        .map(|f| f.name())
-        .collect::<HashSet<_>>();
+    let join_column = compute_sparql_join_columns(lhs.schema(), rhs.schema())?;
 
-    for field_name in lhs_fields.intersection(&rhs_fields) {
-        let lhs_field = lhs
-            .schema()
-            .field_with_unqualified_name(field_name)
-            .expect("Field name stems from the set of fields.");
-        if EncodingName::try_from_data_type(lhs_field.data_type()) != Some(EncodingName::PlainTerm)
-        {
-            return plan_err!("Join variables must have the PlainTermEncoding.");
+    for (field_name, encodings) in join_column {
+        if encodings.len() > 1 {
+            return plan_err!("Join column '{field_name}' has multiple encodings.");
         }
 
-        let rhs_field = rhs
-            .schema()
-            .field_with_unqualified_name(field_name)
-            .expect("Field name stems from the set of fields.");
-        if EncodingName::try_from_data_type(rhs_field.data_type()) != Some(EncodingName::PlainTerm)
-        {
-            return plan_err!("Join variables must have the PlainTermEncoding.");
+        let encoding = encodings
+            .into_iter()
+            .next()
+            .expect("Length already checked");
+        if encoding != EncodingName::PlainTerm {
+            return plan_err!("Join column '{field_name}' must have the PlainTermEncoding.");
         }
     }
 
@@ -220,4 +203,47 @@ fn compute_schema(
             Arc::new(new_schema)
         }
     })
+}
+
+/// Computes the columns that are being joined in a
+pub fn compute_sparql_join_columns(
+    lhs: &DFSchema,
+    rhs: &DFSchema,
+) -> DFResult<HashMap<String, HashSet<EncodingName>>> {
+    /// Extracts the encoding of a field.
+    ///
+    /// It is expected that `name` is part of `schema`.
+    #[allow(clippy::expect_used, reason = "Local function, Guarantees met below")]
+    fn extract_encoding(schema: &DFSchema, name: &str) -> DFResult<EncodingName> {
+        let field = schema
+            .field_with_unqualified_name(name)
+            .expect("Field name stems from the set of fields.");
+        EncodingName::try_from_data_type(field.data_type()).ok_or(plan_datafusion_err!(
+            "Field '{}' must be an RDF Term.",
+            name
+        ))
+    }
+
+    let lhs_fields = lhs
+        .fields()
+        .iter()
+        .map(|f| f.name().to_owned())
+        .collect::<HashSet<_>>();
+    let rhs_fields = rhs
+        .fields()
+        .iter()
+        .map(|f| f.name().to_owned())
+        .collect::<HashSet<_>>();
+
+    let mut result = HashMap::new();
+    for field_name in lhs_fields.intersection(&rhs_fields) {
+        let lhs_encoding = extract_encoding(lhs, field_name)?;
+        let rhs_encoding = extract_encoding(rhs, field_name)?;
+        result.insert(
+            field_name.clone(),
+            vec![lhs_encoding, rhs_encoding].into_iter().collect(),
+        );
+    }
+
+    Ok(result)
 }

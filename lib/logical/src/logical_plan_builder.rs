@@ -1,6 +1,6 @@
 use crate::active_graph::ActiveGraph;
 use crate::extend::ExtendNode;
-use crate::join::{SparqlJoinNode, SparqlJoinType};
+use crate::join::{compute_sparql_join_columns, SparqlJoinNode, SparqlJoinType};
 use crate::minus::MinusNode;
 use crate::paths::PropertyPathNode;
 use crate::quad_pattern::QuadPatternNode;
@@ -342,7 +342,24 @@ impl RdfFusionLogicalPlanBuilder {
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let registry = Arc::clone(&self.registry);
 
-        let lhs = self.plan_builder.build()?;
+        let join_columns = compute_sparql_join_columns(self.schema(), rhs.schema())?;
+        let any_non_plainterm = join_columns.iter().any(|(_, encodings)| {
+            encodings.len() > 1 || encodings.iter().next() != Some(&EncodingName::PlainTerm)
+        });
+
+        let (lhs, rhs) = if any_non_plainterm {
+            // TODO: maybe we can be more conservative here and only apply the plain term encoding
+            // to the join columns
+            let lhs = self.with_plain_terms()?.plan_builder.build()?;
+            let rhs = Self::new(Arc::new(rhs), Arc::clone(&registry))
+                .with_plain_terms()?
+                .plan_builder
+                .build()?;
+            (lhs, rhs)
+        } else {
+            (self.plan_builder.build()?, rhs)
+        };
+
         let join_node = SparqlJoinNode::try_new(lhs, rhs, filter, join_type)?;
         Ok(Self {
             registry,

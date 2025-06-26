@@ -22,7 +22,6 @@ impl OptimizerRule for SparqlJoinReorderingRule {
         plan: LogicalPlan,
         config: &dyn OptimizerConfig,
     ) -> DFResult<Transformed<LogicalPlan>> {
-        // TODO implement bound variable analysis
         plan.transform_down(|plan| {
             let new_plan = match plan {
                 LogicalPlan::Extension(Extension { node }) => {
@@ -159,6 +158,15 @@ fn identify_join_components_from_logical_plan(plan: LogicalPlan) -> JoinComponen
             let node = extension.node.as_any();
             if let Some(node) = node.downcast_ref::<SparqlJoinNode>() {
                 let (lhs, rhs, _, _) = node.clone().destruct();
+
+                // Currently, we only support inner joins without filters.
+                if node.filter().is_some() || node.join_type() != SparqlJoinType::Inner {
+                    return JoinComponents(vec![ConnectedJoinComponent(
+                        vec![LogicalPlan::Extension(extension)],
+                        vars,
+                    )]);
+                }
+
                 identify_join_components(lhs, rhs)
             } else {
                 JoinComponents(vec![ConnectedJoinComponent(

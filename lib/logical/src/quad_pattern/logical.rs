@@ -152,7 +152,7 @@ impl UserDefinedLogicalNodeCore for QuadPatternNode {
         write!(f, "{})", &self.pattern)?;
 
         if self.active_graph != ActiveGraph::DefaultGraph {
-            write!(f, "active_graph: {} ", self.active_graph)?;
+            write!(f, ", active_graph: {} ", self.active_graph)?;
         }
 
         Ok(())
