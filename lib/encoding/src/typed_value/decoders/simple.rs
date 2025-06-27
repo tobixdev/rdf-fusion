@@ -12,7 +12,7 @@ use rdf_fusion_model::{ThinResult, TypedValueRef};
 macro_rules! make_simple_term_value_decoder {
     ($STRUCT_NAME: ident, $VALUE_TYPE: ty, $MAPPING_EXPRESSION: expr) => {
         #[derive(Debug)]
-        pub struct $STRUCT_NAME {}
+        pub struct $STRUCT_NAME;
 
         impl TermDecoder<TypedValueEncoding> for $STRUCT_NAME {
             type Term<'data> = $VALUE_TYPE;
