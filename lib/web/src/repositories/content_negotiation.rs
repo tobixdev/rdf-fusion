@@ -27,7 +27,7 @@ impl FromRequestParts<AppState> for RdfFormat {
             MediaType::new(APPLICATION, TURTLE),
             MediaType::new(APPLICATION, N3),
             MediaType::new(APPLICATION, XML),
-            MediaType::new(APPLICATION, Name::new_unchecked("rdf-xml")),
+            MediaType::new(APPLICATION, Name::new_unchecked("rdf+xml")),
         ];
         static DEFAULT_MEDIA_TYPE: MediaType<'_> = MediaType::new(APPLICATION, N_QUADS);
 
