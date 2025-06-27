@@ -63,7 +63,7 @@ impl FromRequestParts<AppState> for SparqlQueryParams {
 
         let result = SparqlQueryParams {
             query: raw_params.query,
-            base_uri: parts.uri.to_string(),
+            base_uri: "http://localhost:7878".to_owned(), // TODO
             named_graph_uris: raw_params.using_named_graph_uri,
             default_graph_uris: raw_params.using_graph_uri,
             default_graph_as_union: use_default_graph_as_union,

@@ -50,7 +50,7 @@ impl QueryTripleStream {
         // If we do not have buffered results, create them
         let solution = match ready!(self.inner.poll_next_unpin(cx)) {
             None => return Poll::Ready(None),
-            Some(Ok(tuple)) => tuple,
+            Some(Ok(solution)) => solution,
             Some(Err(error)) => return Poll::Ready(Some(Err(error))),
         };
 

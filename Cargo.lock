@@ -3814,6 +3814,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "futures",
  "headers",
  "headers-accept",
  "mediatype",

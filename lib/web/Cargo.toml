@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 axum = "0.8.3"
+futures.workspace = true
 headers = "0.4.0"
 headers-accept = "0.1.4"
 mediatype = "0.19.20"
