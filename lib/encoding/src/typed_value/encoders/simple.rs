@@ -17,7 +17,7 @@ use rdf_fusion_model::{
 macro_rules! make_simple_term_value_encoder {
     ($STRUCT_NAME: ident, $VALUE_TYPE: ty, $BUILDER_INVOCATION: expr) => {
         #[derive(Debug)]
-        pub struct $STRUCT_NAME {}
+        pub struct $STRUCT_NAME;
 
         impl TermEncoder<TypedValueEncoding> for $STRUCT_NAME {
             type Term<'data> = $VALUE_TYPE;

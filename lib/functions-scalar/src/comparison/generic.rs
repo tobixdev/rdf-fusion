@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 macro_rules! create_binary_cmp_udf {
     ($STRUCT: ident, $ORDERINGS: expr) => {
         #[derive(Debug)]
-        pub struct $STRUCT {}
+        pub struct $STRUCT;
 
         impl Default for $STRUCT {
             fn default() -> Self {
