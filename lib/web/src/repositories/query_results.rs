@@ -4,40 +4,33 @@ use axum::response::{IntoResponse, Response};
 use futures::{Stream, StreamExt};
 use rdf_fusion::io::{RdfFormat, RdfSerializer};
 use rdf_fusion::results::{QueryResultsFormat, QueryResultsSerializer};
-use rdf_fusion::{QueryResults, QuerySolutionStream, QueryTripleStream};
+use rdf_fusion::{QuerySolutionStream, QueryTripleStream};
 use serde::de::StdError;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll};
 
-/// Wraps a [QueryResults] that can be converted into a [Response].
+/// Wraps query results that can be converted into a [Response].
 #[allow(unused)]
-pub struct QueryResultsResponse(QueryResults, RdfFormat, QueryResultsFormat);
-
-impl QueryResultsResponse {
-    /// Creates a new [QueryResultsResponse].
-    pub fn new(
-        query_results: QueryResults,
-        rdf_format: RdfFormat,
-        query_result_format: QueryResultsFormat,
-    ) -> Self {
-        Self(query_results, rdf_format, query_result_format)
-    }
+pub enum QueryResultsResponse {
+    Solutions(QuerySolutionStream, QueryResultsFormat),
+    Boolean(bool, QueryResultsFormat),
+    Graph(QueryTripleStream, RdfFormat),
 }
 
 impl IntoResponse for QueryResultsResponse {
     fn into_response(self) -> Response {
-        match self.0 {
-            QueryResults::Solutions(solutions) => {
-                let solutions = QuerySolutionStreamResponseBody(solutions, self.2);
+        match self {
+            QueryResultsResponse::Solutions(solutions, format) => {
+                let solutions = QuerySolutionStreamResponseBody(solutions, format);
                 let body = Body::from_stream(solutions);
                 Response::builder()
                     .status(StatusCode::OK)
                     .body(body)
                     .unwrap()
             }
-            QueryResults::Boolean(value) => {
+            QueryResultsResponse::Boolean(value, format) => {
                 let mut buffer = Vec::new();
-                let serializer = QueryResultsSerializer::from_format(self.2);
+                let serializer = QueryResultsSerializer::from_format(format);
                 serializer
                     .serialize_boolean_to_writer(&mut buffer, value)
                     .unwrap();
@@ -48,8 +41,8 @@ impl IntoResponse for QueryResultsResponse {
                     .body(Body::from(buffer))
                     .unwrap()
             }
-            QueryResults::Graph(triples) => {
-                let solutions = QueryTripleStreamResponseBody(triples, self.1);
+            QueryResultsResponse::Graph(triples, format) => {
+                let solutions = QueryTripleStreamResponseBody(triples, format);
                 let body = Body::from_stream(solutions);
                 Response::builder()
                     .status(StatusCode::OK)
@@ -100,7 +93,9 @@ impl Stream for QueryTripleStreamResponseBody {
         let mut serializer = serializer.for_writer(&mut buffer);
 
         while let Some(triple) = ready!(self.0.poll_next_unpin(cx)) {
-            serializer.serialize_triple(triple.unwrap().as_ref()).unwrap();
+            serializer
+                .serialize_triple(triple.unwrap().as_ref())
+                .unwrap();
         }
 
         serializer.finish().unwrap();

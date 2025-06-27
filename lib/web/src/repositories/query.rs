@@ -1,4 +1,9 @@
 use crate::error::RdfFusionServerError;
+use crate::repositories::query_results::QueryResultsResponse;
+use crate::repositories::service_description::{
+    generate_service_description, EndpointKind, ServiceDescription,
+};
+use crate::repositories::sparql_query_params::SparqlQueryParams;
 use crate::AppState;
 use anyhow::anyhow;
 use axum::extract::State;
@@ -7,20 +12,17 @@ use rdf_fusion::io::RdfFormat;
 use rdf_fusion::model::{GraphName, IriParseError, NamedNode, NamedOrBlankNode};
 use rdf_fusion::results::QueryResultsFormat;
 use rdf_fusion::store::Store;
-use crate::repositories::query_results::QueryResultsResponse;
-use crate::repositories::service_description::{generate_service_description, EndpointKind, ServiceDescription};
-use crate::repositories::sparql_query_params::SparqlQueryParams;
+use rdf_fusion::QueryResults;
 
 pub async fn handle_query_get(
     State(state): State<AppState>,
     query_params: SparqlQueryParams,
-    rdf_format: RdfFormat,
-    query_format: QueryResultsFormat,
+    rdf_format: Result<RdfFormat, RdfFusionServerError>,
+    query_format: Result<QueryResultsFormat, RdfFusionServerError>,
 ) -> Result<HandleQueryResponse, RdfFusionServerError> {
-
     let Some(query) = &query_params.query else {
         return Ok(generate_service_description(
-            rdf_format,
+            rdf_format?,
             EndpointKind::Query,
             query_params.default_graph_as_union,
         )
@@ -29,24 +31,26 @@ pub async fn handle_query_get(
 
     if query.is_empty() {
         return Ok(generate_service_description(
-            rdf_format,
+            rdf_format?,
             EndpointKind::Query,
             query_params.default_graph_as_union,
         )
         .into());
     }
 
-    Ok(evaluate_sparql_query(&state.store, &query_params, query, rdf_format, query_format)
-        .await?
-        .into())
+    Ok(
+        evaluate_sparql_query(&state.store, &query_params, query, rdf_format, query_format)
+            .await?
+            .into(),
+    )
 }
 
 async fn evaluate_sparql_query(
     store: &Store,
     params: &SparqlQueryParams,
     query: &str,
-    rdf_format: RdfFormat,
-    query_format: QueryResultsFormat,
+    rdf_format: Result<RdfFormat, RdfFusionServerError>,
+    query_format: Result<QueryResultsFormat, RdfFusionServerError>,
 ) -> Result<QueryResultsResponse, RdfFusionServerError> {
     let mut query = rdf_fusion::Query::parse(query, Some(params.base_uri.as_str()))
         .map_err(|e| RdfFusionServerError::BadRequest(e.to_string()))?;
@@ -72,11 +76,18 @@ async fn evaluate_sparql_query(
         );
     }
 
-    store
+    let query_result = store
         .query_opt(query, params.to_query_options())
         .await
-        .map(|q| QueryResultsResponse::new(q, rdf_format, query_format))
-        .map_err(|e| RdfFusionServerError::Internal(anyhow!(e)))
+        .map_err(|e| RdfFusionServerError::Internal(anyhow!(e)))?;
+
+    Ok(match query_result {
+        QueryResults::Solutions(solution) => {
+            QueryResultsResponse::Solutions(solution, query_format?)
+        }
+        QueryResults::Boolean(result) => QueryResultsResponse::Boolean(result, query_format?),
+        QueryResults::Graph(triples) => QueryResultsResponse::Graph(triples, rdf_format?),
+    })
 }
 
 /// Holds any of the possible responses from a query request.

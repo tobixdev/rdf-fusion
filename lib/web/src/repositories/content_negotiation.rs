@@ -27,7 +27,12 @@ impl FromRequestParts<AppState> for RdfFormat {
             MediaType::new(APPLICATION, TURTLE),
             MediaType::new(APPLICATION, N3),
             MediaType::new(APPLICATION, XML),
-            MediaType::new(APPLICATION, Name::new_unchecked("rdf+xml")),
+            MediaType::from_parts(
+                APPLICATION,
+                Name::new_unchecked("rdf"),
+                Some(Name::new_unchecked("xml")),
+                &[],
+            ),
         ];
         static DEFAULT_MEDIA_TYPE: MediaType<'_> = MediaType::new(APPLICATION, N_QUADS);
 
@@ -60,8 +65,18 @@ impl FromRequestParts<AppState> for QueryResultsFormat {
             MediaType::new(TEXT, CSV),
             MediaType::new(TEXT, Name::new_unchecked("tsv")),
             MediaType::new(APPLICATION, JSON),
-            MediaType::new(APPLICATION, Name::new_unchecked("sparql-results+json")),
-            MediaType::new(APPLICATION, Name::new_unchecked("sparql-results+xml")),
+            MediaType::from_parts(
+                APPLICATION,
+                Name::new_unchecked("sparql-results"),
+                Some(Name::new_unchecked("json")),
+                &[],
+            ),
+            MediaType::from_parts(
+                APPLICATION,
+                Name::new_unchecked("sparql-results"),
+                Some(Name::new_unchecked("xml")),
+                &[],
+            ),
             MediaType::new(APPLICATION, Name::new_unchecked("tab-separated-values")),
             MediaType::new(APPLICATION, XML),
         ];
@@ -104,33 +119,24 @@ fn content_negotiation<'media>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::http::{HeaderMap, HeaderValue};
     use headers::HeaderMapExt;
     use headers_accept::Accept;
-    use axum::http::{HeaderMap, HeaderValue};
 
-    static MEDIA_TYPES: [MediaType<'_>; 1] = [
-        MediaType::new(APPLICATION, JSON)
-    ];
+    static MEDIA_TYPES: [MediaType<'_>; 1] = [MediaType::new(APPLICATION, JSON)];
     static DEFAULT_MEDIA_TYPE: MediaType<'_> = MediaType::new(APPLICATION, JSON);
 
     #[test]
     fn test_content_negotiation_no_accept_returns_default() {
-
-        let result = content_negotiation(
-            None,
-            &MEDIA_TYPES,
-            &DEFAULT_MEDIA_TYPE,
-            "application/json",
-        );
+        let result =
+            content_negotiation(None, &MEDIA_TYPES, &DEFAULT_MEDIA_TYPE, "application/json");
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), MediaType::new(APPLICATION, JSON));
     }
 
     #[test]
     fn test_content_negotiation_with_match() {
-        static MEDIA_TYPES: [MediaType<'_>; 1] = [
-            MediaType::new(APPLICATION, JSON)
-        ];
+        static MEDIA_TYPES: [MediaType<'_>; 1] = [MediaType::new(APPLICATION, JSON)];
         let mut headers = HeaderMap::new();
         headers.insert("accept", HeaderValue::from_static("application/json"));
         let accept = headers.typed_get::<Accept>();
@@ -148,9 +154,7 @@ mod tests {
 
     #[test]
     fn test_content_negotiation_with_no_match() {
-        static MEDIA_TYPES: [MediaType<'_>; 1] = [
-            MediaType::new(APPLICATION, JSON)
-        ];
+        static MEDIA_TYPES: [MediaType<'_>; 1] = [MediaType::new(APPLICATION, JSON)];
         let mut headers = HeaderMap::new();
         headers.insert("accept", HeaderValue::from_static("application/xml"));
         let accept = headers.typed_get::<Accept>();
