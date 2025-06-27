@@ -36,7 +36,7 @@ impl FromRequestParts<AppState> for RdfFormat {
             accept,
             &MEDIA_TYPES,
             &DEFAULT_MEDIA_TYPE,
-            "application/sparql-results+json or text/tsv",
+            "application/turtle",
         )?;
 
         RdfFormat::from_media_type(media_type.to_string().as_str()).ok_or(
@@ -98,5 +98,70 @@ fn content_negotiation<'media>(
             "The accept header does not provide any accepted format like {example}."
         ))),
         Some(result) => Ok(result.clone()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use headers::HeaderMapExt;
+    use headers_accept::Accept;
+    use axum::http::{HeaderMap, HeaderValue};
+
+    static MEDIA_TYPES: [MediaType<'_>; 1] = [
+        MediaType::new(APPLICATION, JSON)
+    ];
+    static DEFAULT_MEDIA_TYPE: MediaType<'_> = MediaType::new(APPLICATION, JSON);
+
+    #[test]
+    fn test_content_negotiation_no_accept_returns_default() {
+
+        let result = content_negotiation(
+            None,
+            &MEDIA_TYPES,
+            &DEFAULT_MEDIA_TYPE,
+            "application/json",
+        );
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), MediaType::new(APPLICATION, JSON));
+    }
+
+    #[test]
+    fn test_content_negotiation_with_match() {
+        static MEDIA_TYPES: [MediaType<'_>; 1] = [
+            MediaType::new(APPLICATION, JSON)
+        ];
+        let mut headers = HeaderMap::new();
+        headers.insert("accept", HeaderValue::from_static("application/json"));
+        let accept = headers.typed_get::<Accept>();
+
+        let result = content_negotiation(
+            accept,
+            &MEDIA_TYPES,
+            &DEFAULT_MEDIA_TYPE,
+            "application/json",
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), MediaType::new(APPLICATION, JSON));
+    }
+
+    #[test]
+    fn test_content_negotiation_with_no_match() {
+        static MEDIA_TYPES: [MediaType<'_>; 1] = [
+            MediaType::new(APPLICATION, JSON)
+        ];
+        let mut headers = HeaderMap::new();
+        headers.insert("accept", HeaderValue::from_static("application/xml"));
+        let accept = headers.typed_get::<Accept>();
+
+        let result = content_negotiation(
+            accept,
+            &MEDIA_TYPES,
+            &DEFAULT_MEDIA_TYPE,
+            "application/json",
+        );
+
+        assert!(result.is_err());
     }
 }
