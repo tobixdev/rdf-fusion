@@ -47,6 +47,7 @@ rand = "0.9.1"
 regex = "1.11.1"
 reqwest = "0.12.19"
 rustc-hash = "2.1.0"
+serde = { version = "1.0.219", features = ["derive"] }
 sha1 = "0.10.6"
 sha2 = "0.10.8"
 text-diff = "0.4"
@@ -56,6 +57,19 @@ tokio = { version = "1.44.2", features = ["rt", "rt-multi-thread"] }
 tokio-test = "0.4.4"
 uuid = "1.14.0"
 zip-extract = "0.3.0"
+
+# Logging / Tracing
+
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+
+# Web Dependencies
+
+axum = "0.8.4"
+headers = "0.4.1"
+headers-accept = "0.1.4"
+mediatype = "0.19.20"
+tower-http = { version = "0.6.2", features = ["cors", "trace"] }
 
 # Upstream Oxigraph dependencies
 oxttl = "0.1.8"
