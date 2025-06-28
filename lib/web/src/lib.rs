@@ -1,12 +1,9 @@
-use axum::body::{Body, HttpBody};
-use axum::extract::rejection::LengthLimitError;
+use axum::body::Body;
 use axum::extract::DefaultBodyLimit;
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::{middleware, routing::get, Router};
-use futures::future::err;
-use std::error::Error;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tower_http::trace::{HttpMakeClassifier, TraceLayer};
@@ -65,8 +62,7 @@ fn create_tracing_layer() -> TraceLayer<HttpMakeClassifier> {
 }
 
 /// Logs the body of an error response.
-pub async fn log_error_responses(req: Request<Body>, next: Next) -> impl IntoResponse
-{
+pub async fn log_error_responses(req: Request<Body>, next: Next) -> impl IntoResponse {
     let response = next.run(req).await;
     let status = response.status();
 

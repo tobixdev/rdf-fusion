@@ -3719,6 +3719,7 @@ dependencies = [
  "async-trait",
  "datafusion",
  "futures",
+ "itertools 0.14.0",
  "oxrdfio",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
