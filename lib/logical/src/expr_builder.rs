@@ -14,9 +14,9 @@ use rdf_fusion_functions::{
 };
 use rdf_fusion_model::{Iri, TermRef};
 
-/// A builder for expressions that make use of RdfFusion built-ins.
+/// A builder for expressions that make use of RDF Fusion built-ins.
 ///
-/// Users of RdfFusion can override all built-ins with custom implementations. As a result,
+/// Users of RDF Fusion can override all built-ins with custom implementations. As a result,
 /// constructing expressions requires access to some `state` that holds the set of registered
 /// built-ins. This struct provides an abstraction over using this `registry`.
 #[derive(Debug, Clone)]
@@ -46,7 +46,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
     // Functional Forms
     //
 
-    /// TODO
+    /// Creates an expression that checks if a variable is bound.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - BOUND](https://www.w3.org/TR/sparql11-query/#func-bound)
     pub fn bound(self) -> DFResult<Self> {
         let name = BuiltinName::Bound;
         self.apply_builtin(name, Vec::new())
@@ -72,7 +75,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     // TODO exists
 
-    /// TODO
+    /// Creates an expression that checks for RDF term equality.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - RDFterm-equal](https://www.w3.org/TR/sparql11-query/#func-RDFterm-equal)
     pub fn rdf_term_equal(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Equal, vec![rhs])
     }
@@ -83,47 +89,74 @@ impl<'root> RdfFusionExprBuilder<'root> {
     // Functions on RDF Terms
     //
 
-    /// TODO
+    /// Creates an expression that checks if the inner expression is an IRI.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - isIRI](https://www.w3.org/TR/sparql11-query/#func-isIRI)
     #[allow(clippy::wrong_self_convention)]
     pub fn is_iri(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::IsIri, vec![])
     }
 
-    /// TODO
+    /// Creates an expression that checks if the inner expression is a blank node.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - isBlank](https://www.w3.org/TR/sparql11-query/#func-isBlank)
     #[allow(clippy::wrong_self_convention)]
     pub fn is_blank(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::IsBlank, vec![])
     }
 
-    /// TODO
+    /// Creates an expression that checks if the inner expression is a literal.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - isLiteral](https://www.w3.org/TR/sparql11-query/#func-isLiteral)
     #[allow(clippy::wrong_self_convention)]
     pub fn is_literal(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::IsLiteral, vec![])
     }
 
-    /// TODO
+    /// Creates an expression that checks if the inner expression is a numeric value.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - isNumeric](https://www.w3.org/TR/sparql11-query/#func-isNumeric)
     #[allow(clippy::wrong_self_convention)]
     pub fn is_numeric(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::IsNumeric, vec![])
     }
 
-    /// TODO
+    /// Creates an expression that returns the string representation of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - STR](https://www.w3.org/TR/sparql11-query/#func-str)
     pub fn str(self) -> DFResult<Self> {
         let udf = self.root.create_builtin_udf(BuiltinName::Str)?;
         self.root.try_create_builder(udf.call(vec![self.expr]))
     }
 
-    /// TODO
+    /// Creates an expression that returns the language tag of a literal.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - LANG](https://www.w3.org/TR/sparql11-query/#func-lang)
     pub fn lang(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Lang, vec![])
     }
 
-    /// TODO
+    /// Creates an expression that returns the datatype of a literal.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - DATATYPE](https://www.w3.org/TR/sparql11-query/#func-datatype)
     pub fn datatype(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Datatype, vec![])
     }
 
-    /// TODO
+    /// Creates an expression that constructs an IRI from a string.
+    ///
+    /// An optional `base_iri` can be provided to resolve relative IRIs. If no `base_iri` is
+    /// provided, relative IRIs will produce an error.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - IRI](https://www.w3.org/TR/sparql11-query/#func-iri)
     pub fn iri(self, base_iri: Option<&Iri<String>>) -> DFResult<Self> {
         let args = RdfFusionFunctionArgsBuilder::new()
             .with_optional_arg(
@@ -134,17 +167,26 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self.apply_builtin_with_args(BuiltinName::Iri, vec![], args)
     }
 
-    /// TODO
+    /// Creates an expression that constructs a blank node from a string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - BNODE](https://www.w3.org/TR/sparql11-query/#func-bnode)
     pub fn bnode_from(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::BNode, vec![])
     }
 
-    /// TODO
+    /// Creates a literal with a specified datatype from a simple literal.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - STRDT](https://www.w3.org/TR/sparql11-query/#func-strdt)
     pub fn strdt(self, datatype_iri: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::StrDt, vec![datatype_iri])
     }
 
-    /// TODO
+    /// Creates a literal with a specified language tag from a simple literal.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - STRLANG](https://www.w3.org/TR/sparql11-query/#func-strlang)
     pub fn strlang(self, lang_tag: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::StrLang, vec![lang_tag])
     }
@@ -153,77 +195,124 @@ impl<'root> RdfFusionExprBuilder<'root> {
     // Functions on Strings
     //
 
-    /// TODO
+    /// Creates an expression that returns the length of a string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - STRLEN](https://www.w3.org/TR/sparql11-query/#func-strlen)
     pub fn strlen(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::StrLen, Vec::new())
     }
 
-    /// TODO
+    /// Creates an expression that returns a substring of a string, starting at a given location.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - SUBSTR](https://www.w3.org/TR/sparql11-query/#func-substr)
     pub fn substr(self, starting_loc: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::SubStr, vec![starting_loc])
     }
 
-    /// TODO
+    /// Creates an expression that returns a substring of a string, with a given length.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - SUBSTR](https://www.w3.org/TR/sparql11-query/#func-substr)
     pub fn substr_with_length(self, starting_loc: Expr, length: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::SubStr, vec![starting_loc, length])
     }
 
-    /// TODO
+    /// Creates an expression that converts a string to uppercase.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - UCASE](https://www.w3.org/TR/sparql11-query/#func-ucase)
     pub fn ucase(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::UCase, vec![])
     }
 
-    /// TODO
+    /// Creates an expression that converts a string to lowercase.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - LCASE](https://www.w3.org/TR/sparql11-query/#func-lcase)
     pub fn lcase(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::LCase, vec![])
     }
 
-    /// TODO
+    /// Creates an expression that checks if a string starts with another string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - STRSTARTS](https://www.w3.org/TR/sparql11-query/#func-strstarts)
     pub fn str_starts(self, arg2: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::StrStarts, vec![arg2])
     }
 
-    /// TODO
+    /// Creates an expression that checks if a string ends with another string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - STRENDS](https://www.w3.org/TR/sparql11-query/#func-strends)
     pub fn str_ends(self, arg2: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::StrEnds, vec![arg2])
     }
 
-    /// TODO
+    /// Creates an expression that checks if a string contains another string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - CONTAINS](https://www.w3.org/TR/sparql11-query/#func-contains)
     pub fn contains(self, arg2: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Contains, vec![arg2])
     }
 
-    /// TODO
+    /// Creates an expression that returns the part of a string before the first occurrence of
+    /// another string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - STRBEFORE](https://www.w3.org/TR/sparql11-query/#func-strbefore)
     pub fn str_before(self, arg2: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::StrBefore, vec![arg2])
     }
 
-    /// TODO
+    /// Creates an expression that returns the part of a string after the first occurrence
+    /// of another string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - STRAFTER](https://www.w3.org/TR/sparql11-query/#func-strafter)
     pub fn str_after(self, arg2: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::StrAfter, vec![arg2])
     }
 
-    /// TODO
+    /// Creates an expression that encodes a string for use in a URI.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - ENCODE_FOR_URI](https://www.w3.org/TR/sparql11-query/#func-encode)
     pub fn encode_for_uri(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::EncodeForUri, vec![])
     }
 
-    /// TODO
+    /// Creates an expression that concatenates multiple strings.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - CONCAT](https://www.w3.org/TR/sparql11-query/#func-concat)
     pub fn concat(self, args: Vec<Expr>) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Concat, args)
     }
 
-    /// TODO
+    /// Creates an expression that checks if a language tag matches a language range.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - LANGMATCHES](https://www.w3.org/TR/sparql11-query/#func-langMatches)
     pub fn lang_matches(self, language_range: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::LangMatches, vec![language_range])
     }
 
-    /// TODO
+    /// Creates an expression that applies a regular expression to a string.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - REGEX](https://www.w3.org/TR/sparql11-query/#func-regex)
     pub fn regex(self, pattern: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Regex, vec![pattern])
     }
 
-    /// TODO
+    /// Creates an expression that applies a regular expression to a string, with flags.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - REGEX](https://www.w3.org/TR/sparql11-query/#func-regex)
     pub fn regex_with_flags(self, pattern: Expr, flags: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Regex, vec![pattern, flags])
     }
@@ -278,12 +367,18 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self.apply_builtin(BuiltinName::Round, vec![])
     }
 
-    /// TODO
+    /// Computes the ceiling of a numeric literal.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - CEIL](https://www.w3.org/TR/sparql11-query/#func-ceil)
     pub fn ceil(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Ceil, vec![])
     }
 
-    /// TODO
+    /// Computes the floor of a numeric literal.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - FLOOR](https://www.w3.org/TR/sparql11-query/#func-floor)
     pub fn floor(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Floor, vec![])
     }
@@ -491,35 +586,53 @@ impl<'root> RdfFusionExprBuilder<'root> {
     // Operators
     //
 
-    /// TODO
+    /// Creates an expression for the unary plus operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     pub fn unary_plus(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::UnaryPlus, vec![])
     }
 
-    /// TODO
+    /// Creates an expression for the unary minus operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     pub fn unary_minus(self) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::UnaryMinus, vec![])
     }
 
-    /// TODO
+    /// Creates an expression for the addition operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     #[allow(clippy::should_implement_trait)]
     pub fn add(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Add, vec![rhs])
     }
 
-    /// TODO
+    /// Creates an expression for the subtraction operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     #[allow(clippy::should_implement_trait)]
     pub fn sub(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Sub, vec![rhs])
     }
 
-    /// TODO
+    /// Creates an expression for the multiplication operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     #[allow(clippy::should_implement_trait)]
     pub fn mul(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Mul, vec![rhs])
     }
 
-    /// TODO
+    /// Creates an expression for the division operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     #[allow(clippy::should_implement_trait)]
     pub fn div(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Div, vec![rhs])
@@ -529,32 +642,50 @@ impl<'root> RdfFusionExprBuilder<'root> {
     // Comparison Operators
     //
 
-    /// TODO
+    /// Creates an expression for the equality operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     pub fn equal(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Equal, vec![rhs])
     }
 
-    /// TODO
+    /// Creates an expression for the greater than operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     pub fn greater_than(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::GreaterThan, vec![rhs])
     }
 
-    /// TODO
+    /// Creates an expression for the greater than or equal operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     pub fn greater_or_equal(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::GreaterOrEqual, vec![rhs])
     }
 
-    /// TODO
+    /// Creates an expression for the less than operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     pub fn less_than(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::LessThan, vec![rhs])
     }
 
-    /// TODO
+    /// Creates an expression for the less than or equal operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     pub fn less_or_equal(self, rhs: Expr) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::LessOrEqual, vec![rhs])
     }
 
-    /// TODO
+    /// Creates an expression for the logical not operator.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     #[allow(clippy::should_implement_trait)]
     pub fn not(self) -> DFResult<Self> {
         let root = self.root;
@@ -570,10 +701,12 @@ impl<'root> RdfFusionExprBuilder<'root> {
     // Aggregate Functions
     //
 
-    /// TODO
     /// Creates a new aggregate expression that computes the average of the inner expression.
     ///
     /// If `distinct` is true, only distinct values are considered.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Avg](https://www.w3.org/TR/sparql11-query/#defn_aggAvg)
     pub fn avg(self, distinct: bool) -> DFResult<Self> {
         self.apply_builtin_udaf(BuiltinName::Avg, distinct, RdfFusionFunctionArgs::empty())
     }
@@ -581,6 +714,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// Creates a new aggregate expression that computes the average of the inner expression.
     ///
     /// If `distinct` is true, only distinct values are considered.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Count](https://www.w3.org/TR/sparql11-query/#defn_aggCount)
     #[allow(
         clippy::unnecessary_wraps,
         reason = "Consistent API, Maybe Count becomes registerable"
@@ -596,16 +732,25 @@ impl<'root> RdfFusionExprBuilder<'root> {
     }
 
     /// Creates a new aggregate expression that computes the maximum of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Max](https://www.w3.org/TR/sparql11-query/#defn_aggMax)
     pub fn max(self) -> DFResult<Self> {
         self.apply_builtin_udaf(BuiltinName::Max, false, RdfFusionFunctionArgs::empty())
     }
 
     /// Creates a new aggregate expression that computes the minimum of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Min](https://www.w3.org/TR/sparql11-query/#defn_aggMin)
     pub fn min(self) -> DFResult<Self> {
         self.apply_builtin_udaf(BuiltinName::Min, false, RdfFusionFunctionArgs::empty())
     }
 
     /// Creates a new aggregate expression that returns any value of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Sample](https://www.w3.org/TR/sparql11-query/#defn_aggSample)
     #[allow(
         clippy::unnecessary_wraps,
         reason = "Consistent API, Maybe Sample becomes registerable"
@@ -618,6 +763,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
     }
 
     /// Creates a new aggregate expression that computes the sum of the inner expression.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Sum](https://www.w3.org/TR/sparql11-query/#defn_aggSum)
     pub fn sum(self, distinct: bool) -> DFResult<Self> {
         self.apply_builtin_udaf(BuiltinName::Sum, distinct, RdfFusionFunctionArgs::empty())
     }
@@ -627,6 +775,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// The `separator` parameter can be used to use a custom separator for combining strings.
     ///
     /// If `distinct` is true, only distinct values are considered.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - GroupConcat](https://www.w3.org/TR/sparql11-query/#defn_aggGroupConcat)
     pub fn group_concat(self, distinct: bool, separator: Option<&str>) -> DFResult<Self> {
         let args = RdfFusionFunctionArgsBuilder::new()
             .with_optional_arg::<String>(
@@ -677,7 +828,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
         })
     }
 
-    /// TODO
+    /// Converts a native boolean expression to a term-encoded expression.
     pub fn native_boolean_as_term(self) -> DFResult<Self> {
         let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
         if data_type != DataType::Boolean {
@@ -696,7 +847,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
         })
     }
 
-    /// TODO
+    /// Converts a native i64 expression to a term-encoded expression.
     pub fn native_int64_as_term(self) -> DFResult<Expr> {
         let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
         if data_type != DataType::Int64 {
@@ -726,12 +877,12 @@ impl<'root> RdfFusionExprBuilder<'root> {
             .apply_builtin_udaf(name, self.expr, distinct, udaf_args)
     }
 
-    /// TODO
+    /// Applies a built-in function to the current expression.
     fn apply_builtin(self, name: BuiltinName, further_args: Vec<Expr>) -> DFResult<Self> {
         self.apply_builtin_with_args(name, further_args, RdfFusionFunctionArgs::empty())
     }
 
-    /// TODO
+    /// Applies a built-in function with additional arguments to the current expression.
     fn apply_builtin_with_args(
         self,
         name: BuiltinName,
@@ -758,7 +909,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self.expr
     }
 
-    /// TODO
+    /// Builds an expression that checks for SPARQL `sameTerm` equality.
+    ///
+    /// This is a terminating builder function as it no longer produces an RDF term as output.
     pub fn build_same_term(self, rhs: Expr) -> DFResult<Expr> {
         let args = vec![self.expr.clone(), rhs]
             .into_iter()
@@ -776,7 +929,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
             .build_effective_boolean_value()
     }
 
-    /// TODO
+    /// Builds an expression that computes the effective boolean value of the inner expression.
+    ///
+    /// This is a terminating builder function as it no longer produces an RDF term as output.
     pub fn build_effective_boolean_value(self) -> DFResult<Expr> {
         let args = vec![self.expr.clone()]
             .into_iter()
@@ -794,7 +949,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
         Ok(udf.call(args))
     }
 
-    /// TODO
+    /// Builds an expression that checks if two terms are compatible for a join.
+    ///
+    /// This is a terminating builder function as it no longer produces an RDF term as output.
     pub fn build_is_compatible(self, rhs: Expr) -> DFResult<Expr> {
         let root = self.root;
         let udf = root.create_builtin_udf(BuiltinName::IsCompatible)?;
@@ -810,7 +967,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
         Ok(udf.call(vec![lhs, rhs]))
     }
 
-    /// TODO
+    /// Builds an expression that checks for `sameTerm` equality with a scalar value.
+    ///
+    /// This is a terminating builder function as it no longer produces an RDF term as output.
     pub fn build_same_term_scalar(self, scalar: TermRef<'_>) -> DFResult<Expr> {
         let encoding_name = self.encoding()?;
         let literal = match encoding_name {

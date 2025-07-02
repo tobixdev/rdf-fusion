@@ -5,6 +5,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::sync::Arc;
 
+/// A logical node that represents the SPARQL `Minus` operator.
 #[derive(PartialEq, Eq, Hash)]
 pub struct MinusNode {
     lhs: LogicalPlan,
@@ -13,18 +14,18 @@ pub struct MinusNode {
 }
 
 impl MinusNode {
-    /// TODO
+    /// Creates a new [MinusNode].
     pub fn new(lhs: LogicalPlan, rhs: LogicalPlan) -> Self {
         let schema = Arc::clone(lhs.schema());
         Self { lhs, rhs, schema }
     }
 
-    /// TODO
+    /// Returns the left-hand side of the node.
     pub fn lhs(&self) -> &LogicalPlan {
         &self.lhs
     }
 
-    /// TODO
+    /// Returns the right-hand side of the node.
     pub fn rhs(&self) -> &LogicalPlan {
         &self.rhs
     }

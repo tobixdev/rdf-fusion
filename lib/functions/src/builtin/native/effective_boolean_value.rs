@@ -28,7 +28,7 @@ struct EffectiveBooleanValue {
 }
 
 impl EffectiveBooleanValue {
-    /// TODO
+    /// Creates a new [EffectiveBooleanValue].
     pub fn new() -> Self {
         Self {
             name: BuiltinName::EffectiveBooleanValue.to_string(),

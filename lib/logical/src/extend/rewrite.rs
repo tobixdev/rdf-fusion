@@ -8,12 +8,12 @@ use datafusion::logical_expr::{
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_common::DFResult;
 
-/// TODO
+/// An optimizer rule that lowers an [ExtendNode] into a projection.
 #[derive(Debug)]
 pub struct ExtendLoweringRule;
 
 impl ExtendLoweringRule {
-    /// TODO
+    /// Creates a new [ExtendLoweringRule].
     pub fn new() -> Self {
         Self {}
     }
@@ -53,7 +53,7 @@ impl OptimizerRule for ExtendLoweringRule {
     }
 }
 
-/// TODO
+/// Rewrites an [ExtendNode] into a projection.
 fn rewrite_extend_node(node: &ExtendNode) -> DFResult<LogicalPlan> {
     let mut new_exprs: Vec<_> = node
         .inner()

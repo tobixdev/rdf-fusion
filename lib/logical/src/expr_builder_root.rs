@@ -13,7 +13,14 @@ use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::sync::Arc;
 
-/// TODO
+/// An expression builder for creating SPARQL expressions.
+///
+/// This is the builder root, which can be used to create expression builders. Each builder root has
+/// an associated schema. This schema is used for, for example, inferring the type of built
+/// expressions and is therefore crucial.
+///
+/// Furthermore, the root holds a reference to an [RdfFusionFunctionRegistry] that is used to
+/// resolve the registered built-ins and user-defined functions.
 #[derive(Debug, Clone, Copy)]
 pub struct RdfFusionExprBuilderRoot<'root> {
     /// Provides access to the builtin functions.
@@ -38,7 +45,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         self.registry
     }
 
-    /// TODO
+    /// Creates a new [RdfFusionExprBuilder] from an existing [Expr].
     pub fn try_create_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'root>> {
         RdfFusionExprBuilder::try_new_from_root(*self, expr)
     }
@@ -52,25 +59,37 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         self.apply_builtin(BuiltinName::Coalesce, args)
     }
 
-    /// TODO
+    /// Creates an expression that generates a new blank node.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - BNODE](https://www.w3.org/TR/sparql11-query/#func-bnode)
     pub fn bnode(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf(BuiltinName::BNode)?;
         self.try_create_builder(udf.call(vec![]))
     }
 
-    /// TODO
+    /// Creates an expression that computes a fresh IRI from the `urn:uuid:` scheme.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - UUID](https://www.w3.org/TR/sparql11-query/#func-uuid)
     pub fn uuid(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf(BuiltinName::Uuid)?;
         self.try_create_builder(udf.call(vec![]))
     }
 
-    /// TODO
+    /// Creates an expression that computes a string literal representation of a UUID.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - STRUUID](https://www.w3.org/TR/sparql11-query/#func-struuid)
     pub fn str_uuid(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf(BuiltinName::StrUuid)?;
         self.try_create_builder(udf.call(vec![]))
     }
 
-    /// TODO
+    /// Creates an expression that concatenates the string representations of its arguments.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - CONCAT](https://www.w3.org/TR/sparql11-query/#func-concat)
     pub fn concat(&self, args: Vec<Expr>) -> DFResult<RdfFusionExprBuilder<'root>> {
         self.apply_builtin(BuiltinName::Concat, args)
     }
@@ -86,7 +105,10 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         self.try_create_builder(udf.call(vec![]))
     }
 
-    /// TODO
+    /// Creates an expression from a SPARQL variable.
+    ///
+    /// If the variable is not bound in the current context (i.e., not in the schema),
+    /// the expression evaluates to a null literal.
     pub fn variable(&self, variable: VariableRef<'_>) -> DFResult<RdfFusionExprBuilder<'root>> {
         let column = Column::new_unqualified(variable.as_str());
         let expr = if self.schema.has_column(&column) {
@@ -99,7 +121,9 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         self.try_create_builder(expr)
     }
 
-    /// TODO
+    /// Creates a literal expression from an RDF term.
+    ///
+    /// The term is encoded using the [PlainTermEncoding](rdf_fusion_encoding::plain_term::PlainTermEncoding).
     pub fn literal<'lit>(
         &self,
         term: impl Into<TermRef<'lit>>,
@@ -108,7 +132,9 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         self.try_create_builder(lit(scalar.into_scalar_value()))
     }
 
-    /// TODO
+    /// Creates a null literal expression.
+    ///
+    /// This is used to represent unbound variables or errors.
     pub fn null_literal(&'root self) -> DFResult<RdfFusionExprBuilder<'root>> {
         let scalar = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
         self.try_create_builder(lit(scalar.into_scalar_value()))
@@ -118,7 +144,9 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     // Native to Term
     //
 
-    /// TODO
+    /// Creates an expression that converts a native `i64` value into an RDF term.
+    ///
+    /// This is done by encoding the literal and calling [BuiltinName::NativeInt64AsTerm].
     pub fn native_int64_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'root>> {
         let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
         if data_type != DataType::Int64 {
@@ -133,7 +161,9 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         self.try_create_builder(udf.call(vec![expr]))
     }
 
-    /// TODO
+    /// Creates an expression that converts a native boolean value into an RDF term.
+    ///
+    /// This is done by encoding the literal and calling [BuiltinName::NativeBooleanAsTerm].
     pub fn native_boolean_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'root>> {
         let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
         if data_type != DataType::Boolean {
@@ -152,7 +182,13 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     // Logical
     //
 
-    /// TODO
+    /// Creates a SPARQL logical AND expression.
+    ///
+    /// This differs from a standard AND by its error treatment.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Logical-and](https://www.w3.org/TR/sparql11-query/#func-logical-and)
+    /// - [SPARQL 1.1 - Filter Evaluation](https://www.w3.org/TR/sparql11-query/#evaluation)
     pub fn sparql_and(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
         let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
         let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
@@ -169,7 +205,13 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         Ok(udf.call(vec![lhs, rhs]))
     }
 
-    /// TODO
+    /// Creates a SPARQL logical OR expression.
+    ///
+    /// This differs from a standard OR by its error treatment.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Logical-or](https://www.w3.org/TR/sparql11-query/#func-logical-or)
+    /// - [SPARQL 1.1 - Filter Evaluation](https://www.w3.org/TR/sparql11-query/#evaluation)
     pub fn sparql_or(self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
         let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
         let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
@@ -190,6 +232,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     // Built-Ins
     //
 
+    /// Applies a built-in SPARQL aggregate function to a list of arguments.
     pub(crate) fn apply_builtin_udaf(
         &self,
         name: BuiltinName,
@@ -218,7 +261,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         self.try_create_builder(expr)
     }
 
-    /// TODO
+    /// Applies a built-in SPARQL function to a list of arguments.
     pub(crate) fn apply_builtin(
         &self,
         name: BuiltinName,
@@ -227,7 +270,10 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         self.apply_builtin_with_args(name, further_args, RdfFusionFunctionArgs::empty())
     }
 
-    /// TODO
+    /// Applies a built-in SPARQL function to a list of arguments, with additional arguments
+    /// for the user-defined function itself.
+    ///
+    /// This can be used to support functions like `IRI` that requires a base IRI.
     pub(crate) fn apply_builtin_with_args(
         &self,
         name: BuiltinName,

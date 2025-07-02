@@ -19,7 +19,7 @@ pub const COL_OBJECT: &str = "object";
 
 type AResult<T> = Result<T, ArrowError>;
 
-/// Represents an instance of a RdfFusion encoding.
+/// Represents an instance of an RDF Fusion encoding.
 pub enum RdfFusionEncodedArray {
     /// Represents an Arrow array that contains entries with the [PlainTermEncoding].
     PlainTerm(PlainTermEncoding),

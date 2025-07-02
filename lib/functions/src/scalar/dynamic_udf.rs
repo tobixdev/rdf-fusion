@@ -12,19 +12,24 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct UDFKey(usize, DataType);
 
-/// TODO
+/// A dynamic user-defined function that dispatches to other UDFs based on arity and data type.
+///
+/// This is used to implement SPARQL functions that can have multiple signatures,
+/// for example, `SUBSTR` which can have 2 or 3 arguments.
+///
+/// In the future we plan to have a better concept handling this issue.
 #[derive(Debug)]
 pub struct DynamicRdfFusionUdf {
-    /// TODO
+    /// The name of the function.
     name: String,
-    /// TODO
+    /// The signature of the function.
     signature: Signature,
-    /// TODO
+    /// A mapping from (arity, data type) to the actual UDF.
     arity_to_udf_mapping: HashMap<UDFKey, ScalarUDF>,
 }
 
 impl DynamicRdfFusionUdf {
-    /// TODO
+    /// Creates a new [DynamicRdfFusionUdf].
     pub fn try_new(name: &FunctionName, inner: &[ScalarUDF]) -> DFResult<Self> {
         validate_inner_udfs(name, inner)?;
 
@@ -97,7 +102,7 @@ impl ScalarUDFImpl for DynamicRdfFusionUdf {
     }
 }
 
-/// TODO
+/// Validates that all inner UDFs have the same name and that the name matches the dynamic UDF.
 fn validate_inner_udfs(name: &FunctionName, inner: &[ScalarUDF]) -> DFResult<()> {
     if inner.is_empty() {
         return plan_err!("No UDFs provided for multi-arity SPARQL function.");
@@ -116,7 +121,7 @@ fn validate_inner_udfs(name: &FunctionName, inner: &[ScalarUDF]) -> DFResult<()>
     Ok(())
 }
 
-/// TODO
+/// Builds a mapping from (arity, data type) to UDF.
 fn build_udf_mapping(inner: &[ScalarUDF]) -> DFResult<HashMap<UDFKey, ScalarUDF>> {
     let keys_per_udf = inner
         .iter()
@@ -143,7 +148,9 @@ fn build_udf_mapping(inner: &[ScalarUDF]) -> DFResult<HashMap<UDFKey, ScalarUDF>
     Ok(arity_to_udf_mapping)
 }
 
-/// TODO
+/// Returns the safest volatility of all UDFs.
+///
+/// The order of safety is: Volatile > Stable > Immutable.
 fn get_safe_volatility(udfs: &[ScalarUDF]) -> Volatility {
     let volatilities = udfs
         .iter()

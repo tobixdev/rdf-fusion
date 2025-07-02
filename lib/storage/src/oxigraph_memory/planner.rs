@@ -34,7 +34,7 @@ impl OxigraphMemoryQuadNodePlanner {
         }
     }
 
-    /// TODO
+    /// Enumerates the graphs in the active graph, expanding wildcards.
     fn enumerate_active_graph(
         &self,
         active_graph: &ActiveGraph,
@@ -52,7 +52,7 @@ impl OxigraphMemoryQuadNodePlanner {
         Ok(EnumeratedActiveGraph::new(graph_names))
     }
 
-    /// TODO
+    /// Enumerates all named graphs in the store.
     fn enumerate_named_graphs(&self) -> DFResult<Vec<GraphName>> {
         self.snapshot
             .named_graphs()

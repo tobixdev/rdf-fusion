@@ -4,27 +4,30 @@ use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{Iri, NamedNode, Term};
 use std::collections::HashMap;
 
+/// A builder for creating `RdfFusionFunctionArgs`.
 pub struct RdfFusionFunctionArgsBuilder {
-    /// TODO
+    /// The arguments as a map from name to term.
     values: HashMap<String, Term>,
 }
 
 impl RdfFusionFunctionArgsBuilder {
-    /// TODO
+    /// Creates a new, empty builder.
     pub fn new() -> Self {
         Self {
             values: HashMap::new(),
         }
     }
 
-    /// TODO
+    /// Adds an argument to the builder.
     #[must_use]
     pub fn with_arg<TArg: RdfFusionFunctionArg>(mut self, name: String, value: TArg) -> Self {
         self.values.insert(name, value.into_term());
         self
     }
 
-    /// TODO
+    /// Adds an optional argument to the builder.
+    ///
+    /// If the value is `None`, the argument is not added.
     #[must_use]
     pub fn with_optional_arg<TArg: RdfFusionFunctionArg>(
         mut self,
@@ -37,7 +40,7 @@ impl RdfFusionFunctionArgsBuilder {
         self
     }
 
-    /// TODO
+    /// Builds the `RdfFusionFunctionArgs`.
     pub fn build(self) -> RdfFusionFunctionArgs {
         RdfFusionFunctionArgs::new(self.values)
     }
@@ -49,26 +52,33 @@ impl Default for RdfFusionFunctionArgsBuilder {
     }
 }
 
-/// TODO
+/// A collection of arguments for an RDF Fusion function.
+///
+/// This is used to pass arguments to user-defined functions that are not part of the
+/// standard SPARQL function signature. For example, the `IRI` function requires a base IRI for
+/// resolving relative IRIs.
 pub struct RdfFusionFunctionArgs {
-    /// TODO
+    /// The arguments as a map from name to term.
     values: HashMap<String, Term>,
 }
 
 impl RdfFusionFunctionArgs {
-    /// TODO
+    /// Creates a new [RdfFusionFunctionArgs] from a map of values.
     pub fn new(values: HashMap<String, Term>) -> Self {
         Self { values }
     }
 
-    /// TODO
+    /// Creates an empty set of arguments.
     pub fn empty() -> Self {
         Self {
             values: HashMap::new(),
         }
     }
 
-    /// TODO
+    /// Gets an argument by name.
+    ///
+    /// Returns `Ok(None)` if the argument is not found. Returns an error if the
+    /// argument cannot be converted to the requested type.
     pub fn get<TArg: RdfFusionFunctionArg>(&self, name: &str) -> DFResult<Option<TArg>> {
         self.values
             .get(name)
@@ -77,7 +87,7 @@ impl RdfFusionFunctionArgs {
     }
 }
 
-/// TODO
+/// Defines the names of built-in arguments that can be passed to RDF Fusion functions.
 pub enum RdfFusionBuiltinArgNames {}
 
 impl RdfFusionBuiltinArgNames {
@@ -88,12 +98,14 @@ impl RdfFusionBuiltinArgNames {
     pub const SEPARATOR: &'static str = "separator";
 }
 
-/// TODO
+/// A trait for types that can be used as arguments to RDF Fusion functions.
+///
+/// This allows converting between native Rust types and RDF terms.
 pub trait RdfFusionFunctionArg {
-    /// TODO
+    /// Converts the argument into an RDF term.
     fn into_term(self) -> Term;
 
-    /// TODO
+    /// Converts an RDF term into the argument type.
     fn from_term(term: Term) -> DFResult<Self>
     where
         Self: Sized;

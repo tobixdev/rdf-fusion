@@ -15,7 +15,10 @@ use rdf_fusion_model::Variable;
 use spargebra::algebra::GraphPattern;
 use std::sync::Arc;
 
-/// TODO
+/// Evaluates a SPARQL query and returns the results along with execution information.
+///
+/// Most users should refrain from directly using this function, as there are higher-level
+/// abstractions that provide APIs for querying.
 pub async fn evaluate_query(
     ctx: &SessionContext,
     registry: RdfFusionFunctionRegistryRef,
@@ -57,7 +60,7 @@ pub async fn evaluate_query(
     }
 }
 
-/// TODO
+/// Converts a SPARQL graph pattern to a stream of query solutions.
 async fn graph_pattern_to_stream(
     state: SessionState,
     registry: RdfFusionFunctionRegistryRef,
@@ -76,7 +79,8 @@ async fn graph_pattern_to_stream(
     Ok((stream, explanation))
 }
 
-/// TODO
+/// Creates a physical execution plan from a SPARQL graph pattern, doing further processing on the
+/// resulting query plan (e.g., optimization).
 async fn create_execution_plan(
     state: SessionState,
     registry: RdfFusionFunctionRegistryRef,

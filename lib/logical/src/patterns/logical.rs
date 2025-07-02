@@ -6,14 +6,16 @@ use rdf_fusion_model::TermPattern;
 use std::cmp::Ordering;
 use std::fmt;
 
-/// TODO
+/// A logical node that represents a pattern match on a generic input.
 #[derive(PartialEq, Eq, Hash)]
 pub struct PatternNode {
-    /// TODO
+    /// The input plan
     input: LogicalPlan,
-    /// TODO
+    /// The patterns to match. Each pattern corresponds to a column in the input plan.
+    /// A `None` value means that the column is not part of the output and should not partake
+    /// in the matching process.
     patterns: Vec<Option<TermPattern>>,
-    /// TODO
+    /// The schema of the output.
     schema: DFSchemaRef,
 }
 

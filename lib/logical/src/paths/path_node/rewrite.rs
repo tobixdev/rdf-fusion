@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PropertyPathLoweringRule {
-    /// Used for creating expressions with RdfFusion builtins.
+    /// Used for creating expressions with RDF Fusion builtins.
     registry: RdfFusionFunctionRegistryRef,
 }
 
@@ -60,7 +60,7 @@ impl PropertyPathLoweringRule {
         Self { registry }
     }
 
-    /// TODO
+    /// Rewrites a [PropertyPathNode] into a regular logical plan.
     fn rewrite_property_path_node(&self, node: &PropertyPathNode) -> DFResult<LogicalPlan> {
         let inf = PropertyPathLoweringInformation {
             disallow_cross_graph_paths: node.graph_name_var().is_some(),

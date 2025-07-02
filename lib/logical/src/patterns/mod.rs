@@ -11,7 +11,22 @@ pub use rewrite::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-/// TODO
+/// Computes a DataFusion schema for a SPARQL triple pattern.
+///
+/// This function creates a schema that includes fields for all variables in the triple pattern.
+/// The schema is used to represent the structure of the data that will be produced when
+/// evaluating the triple pattern against an RDF dataset.
+///
+/// # Arguments
+/// * `graph_variable` - An optional variable representing the graph name
+/// * `pattern` - The triple pattern to compute the schema for
+/// * `blank_node_mode` - How blank nodes in the pattern should be treated
+///
+/// # Returns
+/// A reference-counted schema containing fields for all variables in the pattern
+///
+/// # Additional Resources
+/// - [SPARQL 1.1 Query Language - Triple Patterns](https://www.w3.org/TR/sparql11-query/#QSynTriples)
 pub fn compute_schema_for_triple_pattern(
     graph_variable: Option<VariableRef<'_>>,
     pattern: &TriplePattern,
@@ -31,7 +46,23 @@ pub fn compute_schema_for_triple_pattern(
     )
 }
 
-/// TODO
+/// Computes a DataFusion schema for a general pattern of RDF terms.
+///
+/// This lower-level function creates a schema that includes fields for all variables
+/// in the given pattern array. It extracts variable names from the pattern elements
+/// and creates corresponding fields in the output schema.
+///
+/// # Arguments
+/// * `inner_schema` - The base schema containing field types
+/// * `patterns` - An array of optional term patterns (variables, constants, or blank nodes)
+/// * `blank_node_mode` - How blank nodes in the pattern should be treated
+///
+/// # Returns
+/// A reference-counted schema containing fields for all variables in the pattern
+///
+/// # Implementation Note
+/// This function assumes that variable names do not clash, which is enforced by
+/// the SPARQL syntax.
 #[allow(clippy::expect_used, reason = "Variables should not clash")]
 pub fn compute_schema_for_pattern(
     inner_schema: &DFSchema,

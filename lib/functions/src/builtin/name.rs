@@ -1,6 +1,6 @@
 use std::fmt;
 
-/// A RdfFusion builtin name.
+/// An RDF Fusion builtin name.
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
 pub enum BuiltinName {
     // SPARQL Builtin Scalar Functions

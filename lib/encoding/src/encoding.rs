@@ -11,7 +11,7 @@ use std::fmt::Debug;
 
 /// Represents the name of a single [TermEncoding].
 ///
-/// RdfFusion allows users to define multiple encodings for RDF terms. This allows specializing the
+/// RDF Fusion allows users to define multiple encodings for RDF terms. This allows specializing the
 /// Arrow arrays used for holding the results of queries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EncodingName {

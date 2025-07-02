@@ -1,3 +1,10 @@
+//! SPARQL logical query plan.
+//!
+//! This crate contains the building blocks for creating a SPARQL logical query plan
+//! that can be optimized and executed by Apache DataFusion. It provides builders
+//! for constructing the plan programmatically and defines custom logical nodes
+//! for SPARQL-specific operations.
+
 extern crate core;
 
 mod active_graph;
@@ -18,7 +25,7 @@ pub use expr_builder_root::RdfFusionExprBuilderRoot;
 pub use logical_plan_builder::RdfFusionLogicalPlanBuilder;
 use rdf_fusion_common::DFResult;
 
-/// TODO
+/// Checks if two schemas are logically equivalent in terms of names and types.
 pub(crate) fn check_same_schema(old_schema: &DFSchema, new_schema: &DFSchema) -> DFResult<()> {
     if !old_schema.logically_equivalent_names_and_types(new_schema) {
         return plan_err!(

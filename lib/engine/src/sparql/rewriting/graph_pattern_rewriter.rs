@@ -19,20 +19,27 @@ use spargebra::term::NamedNodePattern;
 use std::cell::RefCell;
 use std::sync::Arc;
 
-/// TODO
+/// A rewriter that transforms SPARQL graph patterns into a DataFusion logical plan.
+///
+/// The resulting logical plans can then be optimized and executed using the query engine.
 pub struct GraphPatternRewriter {
-    /// TODO
+    /// Registry of functions that can be used during rewriting.
     registry: RdfFusionFunctionRegistryRef,
-    /// TODO
+    /// The dataset against which the query is evaluated.
     dataset: QueryDataset,
-    /// TODO
+    /// The base IRI used for resolving relative IRIs in the query.
     base_iri: Option<Iri<String>>,
-    /// TODO
+    /// The current state of the rewriting process.
     state: RefCell<RewritingState>,
 }
 
 impl GraphPatternRewriter {
-    /// TODO
+    /// Creates a new `GraphPatternRewriter` with the specified registry, dataset, and base IRI.
+    ///
+    /// # Arguments
+    /// * `registry` - A reference to the RDF Fusion function registry
+    /// * `dataset` - The dataset against which the query will be evaluated
+    /// * `base_iri` - The base IRI used for resolving relative IRIs in the query
     pub fn new(
         registry: RdfFusionFunctionRegistryRef,
         dataset: QueryDataset, // TODO: Moving dataset and base_iri to rewrite allows reusing
@@ -48,13 +55,16 @@ impl GraphPatternRewriter {
         }
     }
 
-    /// TODO
+    /// Rewrites a SPARQL graph pattern into a DataFusion logical plan.
+    ///
+    /// The method ensures that all results are encoded as plain terms and can be displayed to
+    /// users.
     pub fn rewrite(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
         let plan = self.rewrite_graph_pattern(pattern)?;
         plan.with_plain_terms()?.build()
     }
 
-    /// TODO
+    /// Rewrites a SPARQL graph pattern into a logical plan builder.
     fn rewrite_graph_pattern(
         &self,
         pattern: &GraphPattern,
@@ -350,7 +360,7 @@ impl Default for RewritingState {
 }
 
 impl RewritingState {
-    /// TODO
+    /// Uses the new `variable` for the graph name variable.
     #[allow(clippy::unused_self)]
     fn with_graph_variable(&self, variable: Option<Variable>) -> RewritingState {
         RewritingState {
@@ -359,7 +369,7 @@ impl RewritingState {
         }
     }
 
-    /// TODO
+    /// Removes the current graph name variable.
     #[allow(clippy::unused_self)]
     fn without_graph_variable(&self) -> RewritingState {
         RewritingState {
@@ -368,7 +378,7 @@ impl RewritingState {
         }
     }
 
-    /// TODO
+    /// Uses the new `active_graph` for the active graph of the query.
     #[allow(clippy::unused_self)]
     fn with_active_graph(&self, active_graph: ActiveGraph) -> RewritingState {
         RewritingState {

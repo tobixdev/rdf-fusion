@@ -16,11 +16,16 @@ use std::task::{ready, Context, Poll};
 
 /// A stream over [`QuerySolution`]s.
 pub struct QuerySolutionStream {
-    /// TODO
+    /// The variables used in the query solutions.
     variables: Arc<[Variable]>,
-    /// TODO
+    /// The underlying DataFusion record batch stream that provides the raw data.
+    ///
+    /// This is wrapped in an Option for termination handling.
     inner: Option<SendableRecordBatchStream>,
-    /// TODO
+    /// The current batch of solutions being processed.
+    ///
+    /// When a new batch is loaded from `inner`, it's converted to query solutions
+    /// and stored here until all solutions in the batch are consumed.
     current: Option<<Vec<QuerySolution> as IntoIterator>::IntoIter>,
 }
 
@@ -205,7 +210,7 @@ mod tests {
                     Some(Literal::from(1.33).into()),
                     Some(Literal::from(false).into()),
                 ],
-                // TODO #3: Quoted Triples
+                //F TODO #3: Quoted Triples
                 // vec![
                 //     Some(
                 //         Triple::new(

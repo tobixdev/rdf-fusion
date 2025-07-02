@@ -11,7 +11,10 @@ use std::any::Any;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
-/// TODO
+/// Physical execution plan for matching quad patterns.
+///
+/// This operator is responsible for scanning the underlying storage for quads that match
+/// a given pattern. It can produce multiple partitions by partitioning on the active graph.
 ///
 /// Storage layers are expected to provide a custom planner that provides a custom quads_evaluator.
 #[derive(Debug, Clone)]
@@ -31,7 +34,7 @@ pub struct QuadPatternExec {
 }
 
 impl QuadPatternExec {
-    /// TODO
+    /// Creates a new [QuadPatternExec].
     pub fn new(
         quads_evaluator: Arc<dyn QuadPatternEvaluator>,
         active_graph: EnumeratedActiveGraph,

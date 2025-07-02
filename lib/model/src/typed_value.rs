@@ -12,31 +12,70 @@ use thiserror::Error;
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub enum TypedValue {
-    /// TODO
+    /// An RDF named node (IRI).
+    ///
+    /// # Additional Resources
+    /// - [RDF 1.1 Concepts - IRIs](https://www.w3.org/TR/rdf11-concepts/#section-IRIs)
     NamedNode(NamedNode),
-    /// TODO
+    /// An RDF blank node.
+    ///
+    /// # Additional Resources
+    /// - [RDF 1.1 Concepts - Blank Nodes](https://www.w3.org/TR/rdf11-concepts/#section-blank-nodes)
     BlankNode(BlankNode),
-    /// TODO
+    /// A boolean literal with datatype xsd:boolean.
+    ///
+    /// # Additional Resources
+    /// - [XSD Boolean Datatype](https://www.w3.org/TR/xmlschema11-2/#boolean)
     BooleanLiteral(Boolean),
-    /// TODO
+    /// A numeric literal (integer, decimal, float, or double).
+    ///
+    /// # Additional Resources
+    /// - [XSD Numeric Datatypes](https://www.w3.org/TR/xmlschema11-2/#built-in-datatypes)
     NumericLiteral(Numeric),
-    /// TODO
+    /// A simple string literal without a language tag.
+    ///
+    /// # Additional Resources
+    /// - [RDF 1.1 Concepts - Literals](https://www.w3.org/TR/rdf11-concepts/#section-Graph-Literal)
     SimpleLiteral(SimpleLiteral),
-    /// TODO
+    /// A string literal with a language tag.
+    ///
+    /// # Additional Resources
+    /// - [RDF 1.1 Concepts - Language-tagged Strings](https://www.w3.org/TR/rdf11-concepts/#dfn-language-tagged-string)
     LanguageStringLiteral(LanguageString),
-    /// TODO
+    /// A dateTime literal with datatype xsd:dateTime.
+    ///
+    /// # Additional Resources
+    /// - [XSD DateTime Datatype](https://www.w3.org/TR/xmlschema11-2/#dateTime)
     DateTimeLiteral(DateTime),
-    /// TODO
+    /// A time literal with datatype xsd:time.
+    ///
+    /// # Additional Resources
+    /// - [XSD Time Datatype](https://www.w3.org/TR/xmlschema11-2/#time)
     TimeLiteral(Time),
-    /// TODO
+    /// A date literal with datatype xsd:date.
+    ///
+    /// # Additional Resources
+    /// - [XSD Date Datatype](https://www.w3.org/TR/xmlschema11-2/#date)
     DateLiteral(Date),
-    /// TODO
+    /// A duration literal with datatype xsd:duration.
+    ///
+    /// # Additional Resources
+    /// - [XSD Duration Datatype](https://www.w3.org/TR/xmlschema11-2/#duration)
     DurationLiteral(Duration),
-    /// TODO
+    /// A year-month duration literal with datatype xsd:yearMonthDuration.
+    ///
+    /// # Additional Resources
+    /// - [XSD YearMonthDuration Datatype](https://www.w3.org/TR/xmlschema11-2/#yearMonthDuration)
     YearMonthDurationLiteral(YearMonthDuration),
-    /// TODO
+    /// A day-time duration literal with datatype xsd:dayTimeDuration.
+    ///
+    /// # Additional Resources
+    /// - [XSD DayTimeDuration Datatype](https://www.w3.org/TR/xmlschema11-2/#dayTimeDuration)
     DayTimeDurationLiteral(DayTimeDuration),
-    /// TODO
+    /// A literal with a datatype not specifically handled by other variants.
+    ///
+    /// # Additional Resources
+    /// - [RDF 1.1 Concepts - Datatypes](https://www.w3.org/TR/rdf11-concepts/#section-Datatypes)
     OtherLiteral(Literal),
 }
 
