@@ -54,10 +54,6 @@ impl OptimizerRule for SparqlJoinLoweringRule {
 
 impl SparqlJoinLoweringRule {
     /// Creates a new instance of the SPARQL join lowering rule.
-    ///
-    /// # Arguments
-    /// * `registry` - A reference to the RDF Fusion function registry, used for creating
-    ///                expressions with RDF-specific functions during the lowering process.
     pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
         Self { registry }
     }
@@ -65,12 +61,12 @@ impl SparqlJoinLoweringRule {
     /// Rewrites a SPARQL join node into a DataFusion join operation.
     ///
     /// This method analyzes the join conditions and chooses the most efficient join implementation:
-    /// - For disjoint solutions with no filter, it uses a cross join
-    /// - For compatible columns, it attempts to use a regular join
+    /// - For disjoint solutions with no filter, it uses a cross-join
+    /// - For non-null columns, it attempts to use a regular join
     /// - Otherwise, it uses a join with compatibility checks
     ///
     /// # Additional Resources
-    /// - SPARQL Join Semantics: https://www.w3.org/TR/sparql11-query/#BasicGraphPatterns
+    /// - [SPARQL Join Semantics](https://www.w3.org/TR/sparql11-query/#BasicGraphPatterns)
     fn rewrite_sparql_join(&self, node: &SparqlJoinNode) -> DFResult<LogicalPlan> {
         let (lhs_keys, rhs_keys) = get_join_keys(node);
 

@@ -16,8 +16,8 @@ use std::sync::Arc;
 /// An expression builder for creating SPARQL expressions.
 ///
 /// This is the builder root, which can be used to create expression builders. Each builder root has
-/// an associated schema. This schema is used for, for example, inferring the type inference of
-/// built expressions.
+/// an associated schema. This schema is used for, for example, inferring the type of built
+/// expressions and is therefore crucial.
 ///
 /// Furthermore, the root holds a reference to an [RdfFusionFunctionRegistry] that is used to
 /// resolve the registered built-ins and user-defined functions.
