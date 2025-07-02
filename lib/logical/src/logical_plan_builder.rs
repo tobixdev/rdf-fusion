@@ -31,7 +31,38 @@ use std::sync::Arc;
 
 /// A convenient builder for programmatically creating SPARQL queries.
 ///
-/// TODO example
+/// # Example
+///
+/// ```
+/// use std::sync::Arc;
+/// use datafusion::logical_expr::LogicalPlan;
+/// use rdf_fusion_logical::RdfFusionLogicalPlanBuilder;
+/// use rdf_fusion_functions::registry::{DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry};
+/// use rdf_fusion_model::{TriplePattern, TermPattern, Variable, NamedNodePattern};
+/// use rdf_fusion_logical::ActiveGraph;
+///
+/// let subject = Variable::new_unchecked("s");
+/// let predicate = Variable::new_unchecked("p");
+/// let object = Variable::new_unchecked("o");
+///
+/// let pattern = TriplePattern {
+///     subject: TermPattern::Variable(subject.clone()),
+///     predicate: NamedNodePattern::Variable(predicate),
+///     object: TermPattern::Variable(object),
+/// };
+///
+/// let pattern = RdfFusionLogicalPlanBuilder::new_from_pattern(
+///     Arc::new(DefaultRdfFusionFunctionRegistry::default()),
+///     ActiveGraph::default(),
+///     None,
+///     pattern,
+/// );
+/// let plan: LogicalPlan = pattern
+///     .project(&[subject])
+///     .unwrap()
+///     .build()
+///     .unwrap();
+/// ```
 #[derive(Debug, Clone)]
 pub struct RdfFusionLogicalPlanBuilder {
     /// The inner DataFusion [LogicalPlanBuilder].
@@ -213,10 +244,6 @@ impl RdfFusionLogicalPlanBuilder {
     /// Creates a new [RdfFusionLogicalPlanBuilder] that matches the given basic graph pattern
     /// and returns all solutions.
     ///
-    /// # Example
-    ///
-    /// TODO
-    ///
     /// # Relevant Specifications
     /// - [SPARQL 1.1 - Basic Graph Patterns](https://www.w3.org/TR/sparql11-query/#BasicGraphPatterns)
     pub fn new_from_bgp(
@@ -247,10 +274,6 @@ impl RdfFusionLogicalPlanBuilder {
     /// Creates a new [RdfFusionLogicalPlanBuilder] that matches a single `pattern` on the
     /// `active_graph`.
     ///
-    /// # Example
-    ///
-    /// TODO
-    ///
     /// # Active Graph
     ///
     /// The `active_graph` is interpreted from the viewpoint of the quad store, not the query. This
@@ -271,7 +294,10 @@ impl RdfFusionLogicalPlanBuilder {
         }
     }
 
-    /// TODO
+    /// Creates a new [RdfFusionLogicalPlanBuilder] from a SPARQL [PropertyPathExpression].
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Property Paths](https://www.w3.org/TR/sparql11-query/#propertypaths)
     pub fn new_from_property_path(
         registry: RdfFusionFunctionRegistryRef,
         active_graph: ActiveGraph,
@@ -287,7 +313,7 @@ impl RdfFusionLogicalPlanBuilder {
         }
     }
 
-    /// TODO
+    /// Projects the current plan to a new set of variables.
     pub fn project(self, variables: &[Variable]) -> DFResult<Self> {
         let plan_builder = self.plan_builder.project(
             variables
@@ -302,7 +328,14 @@ impl RdfFusionLogicalPlanBuilder {
 
     /// Applies a filter using `expression`.
     ///
-    /// TODO talk about handling fo terms
+    /// The filter expression is evaluated for each solution. If the effective boolean value of the
+    /// expression is `true`, the solution is kept; otherwise, it is discarded.
+    ///
+    /// If the expression does not evaluate to a boolean, its effective boolean value is
+    /// determined according to SPARQL rules.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - Effective Boolean Value (EBV)](https://www.w3.org/TR/sparql11-query/#ebv)
     pub fn filter(self, expression: Expr) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let (datatype, _) = expression.data_type_and_nullable(self.schema())?;
         let expression = match datatype {
@@ -320,7 +353,7 @@ impl RdfFusionLogicalPlanBuilder {
         })
     }
 
-    /// TODO
+    /// Extends the current plan with a new variable binding.
     pub fn extend(self, variable: Variable, expr: Expr) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let inner = self.plan_builder.build()?;
         let extend_node = ExtendNode::try_new(inner, variable, expr)?;
@@ -381,7 +414,7 @@ impl RdfFusionLogicalPlanBuilder {
         })
     }
 
-    /// TODO
+    /// Sorts the current plan by a given set of expressions.
     pub fn order_by(self, exprs: &[SortExpr]) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let exprs = exprs
             .iter()
@@ -402,7 +435,7 @@ impl RdfFusionLogicalPlanBuilder {
         Ok(SortExpr::new(expr, e.asc, e.nulls_first))
     }
 
-    /// TODO
+    /// Creates a union of the current plan and another plan.
     pub fn union(self, rhs: LogicalPlan) -> DFResult<RdfFusionLogicalPlanBuilder> {
         // TODO check types
 
@@ -417,7 +450,7 @@ impl RdfFusionLogicalPlanBuilder {
         })
     }
 
-    /// TODO
+    /// Subtracts the results of another plan from the current plan.
     pub fn minus(self, rhs: LogicalPlan) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let minus_node = MinusNode::new(self.plan_builder.build()?, rhs);
         Ok(Self {
@@ -426,7 +459,7 @@ impl RdfFusionLogicalPlanBuilder {
         })
     }
 
-    /// TODO
+    /// Groups the current plan by a set of variables and applies aggregate expressions.
     pub fn group(
         self,
         variables: &[Variable],
@@ -460,12 +493,12 @@ impl RdfFusionLogicalPlanBuilder {
             .alias(v.as_str()))
     }
 
-    /// TODO
+    /// Removes duplicate solutions from the current plan.
     pub fn distinct(self) -> DFResult<RdfFusionLogicalPlanBuilder> {
         self.distinct_with_sort(Vec::new())
     }
 
-    /// TODO
+    /// Removes duplicate solutions from the current plan, with additional sorting.
     pub fn distinct_with_sort(self, sorts: Vec<SortExpr>) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let schema = self.plan_builder.schema();
         let (on_expr, sorts) = create_distinct_on_expressions(self.expr_builder_root(), sorts)?;
@@ -478,7 +511,7 @@ impl RdfFusionLogicalPlanBuilder {
         })
     }
 
-    /// TODO
+    /// Ensures all columns are encoded as plain terms.
     pub fn with_plain_terms(self) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let with_correct_encoding = self
             .schema()
@@ -499,39 +532,38 @@ impl RdfFusionLogicalPlanBuilder {
         })
     }
 
-    /// TODO
+    /// Returns the schema of the current plan.
     pub fn schema(&self) -> &DFSchemaRef {
         self.plan_builder.schema()
     }
 
-    /// TODO
+    /// Returns the function registry.
     pub fn registry(&self) -> &RdfFusionFunctionRegistryRef {
         &self.registry
     }
 
-    /// TODO
+    /// Consumes the builder and returns the inner `LogicalPlanBuilder`.
     pub fn into_inner(self) -> LogicalPlanBuilder {
         self.plan_builder
     }
 
-    /// TODO
+    /// Builds the `LogicalPlan`.
     pub fn build(self) -> DFResult<LogicalPlan> {
         self.plan_builder.build()
     }
 
-    /// TODO
+    /// Returns a new [RdfFusionExprBuilderRoot].
     pub fn expr_builder_root(&self) -> RdfFusionExprBuilderRoot<'_> {
         let schema = self.schema().as_ref();
         RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema)
     }
 
-    /// TODO
+    /// Returns a new [RdfFusionExprBuilder] for a given expression.
     pub fn expr_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'_>> {
         self.expr_builder_root().try_create_builder(expr)
     }
 }
 
-/// TODO
 fn create_distinct_on_expressions(
     expr_builder_root: RdfFusionExprBuilderRoot<'_>,
     mut sort_expr: Vec<SortExpr>,
@@ -558,7 +590,7 @@ fn create_distinct_on_expressions(
     Ok((on_expr, sort_expr))
 }
 
-/// TODO
+/// Creates a `LogicalPlanBuilder` from a user-defined logical node.
 fn create_extension_plan(node: impl UserDefinedLogicalNode + 'static) -> LogicalPlanBuilder {
     LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
         node: Arc::new(node),

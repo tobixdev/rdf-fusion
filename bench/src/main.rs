@@ -15,7 +15,7 @@ async fn main() -> anyhow::Result<()> {
 
 #[derive(Parser)]
 #[command(about, version, name = "rdf-fusion-bench")]
-/// RdfFusion command line toolkit and SPARQL HTTP server
+/// RDF Fusion command line toolkit and SPARQL HTTP server
 pub struct RdfFusionBenchArgs {
     /// Indicates whether the benchmark should be prepared or executed.
     pub operation: Operation,

@@ -11,14 +11,23 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::sync::Arc;
 
-/// TODO
+/// A logical node that represents a scan of quads matching a pattern.
+///
+/// This node is the main entry point for accessing RDF data in the query plan.
+/// It is responsible for retrieving quads from the underlying storage that match
+/// the given `active_graph` and `pattern`.
+///
+/// ### Blank Node Matching
+///
+/// The `blank_node_mode` determines how blank nodes in the pattern are handled.
+/// See [BlankNodeMatchingMode] for more details.
 ///
 /// ### Planning [QuadPatternNode]
 ///
 /// Planning the [QuadPatternNode] requires users to define a specialized planner for the used
 /// storage layer. This is because the planner should consider storage-specific problems like
 /// sharing a transaction across multiple scans of the quads table in a single query. The built-in
-/// storage layers of RdfFusion provide examples.
+/// storage layers of RDF Fusion provide examples.
 #[derive(PartialEq, Eq, Hash)]
 pub struct QuadPatternNode {
     /// The active graph to query.

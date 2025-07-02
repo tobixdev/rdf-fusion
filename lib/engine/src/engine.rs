@@ -22,10 +22,10 @@ use std::sync::Arc;
 
 /// Represents an instance of an RDF Fusion engine.
 ///
-/// A RdfFusion instance consists of:
+/// An RDF Fusion instance consists of:
 /// - A [SessionContext]. This is the primary interaction point with DataFusion.
-/// - A reference to a storage backend that holds quads. This reference is used for updates via the
-///   store API.
+/// - An [RdfFusionFunctionRegistry] that holds the currently registered RDF Fusion built-ins.
+/// - A reference to a quad storage.
 #[derive(Clone)]
 pub struct RdfFusionInstance {
     /// The DataFusion [SessionContext].

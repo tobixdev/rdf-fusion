@@ -28,7 +28,14 @@ pub struct QuadPatternBatchRecordStream {
 }
 
 impl QuadPatternBatchRecordStream {
-    /// TODO
+    /// Creates a new `QuadPatternBatchRecordStream`.
+    ///
+    /// # Arguments
+    /// * `iterator`: An iterator over quads from the store.
+    /// * `graph_variable`: The variable for the graph component, if any.
+    /// * `pattern`: The triple pattern to match.
+    /// * `blank_node_mode`: How to handle blank nodes.
+    /// * `batch_size`: The number of quads to include in each record batch.
     pub fn new(
         iterator: QuadIterator,
         graph_variable: Option<Variable>,

@@ -11,10 +11,10 @@ use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-/// TODO
+/// An optimizer rule that lowers a [MinusNode] into a left-anti join.
 #[derive(Debug)]
 pub struct MinusLoweringRule {
-    /// Holds a reference to the RdfFusion function registry.
+    /// Holds a reference to the RDF Fusion function registry.
     registry: RdfFusionFunctionRegistryRef,
 }
 
@@ -47,12 +47,12 @@ impl OptimizerRule for MinusLoweringRule {
 }
 
 impl MinusLoweringRule {
-    /// TODO
+    /// Creates a new [MinusLoweringRule].
     pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
         Self { registry }
     }
 
-    /// TODO
+    /// Rewrites a [MinusNode] into a left-anti join.
     fn rewrite_minus(&self, node: &MinusNode) -> DFResult<LogicalPlan> {
         let overlapping_keys = compute_join_keys(node);
 
@@ -85,7 +85,11 @@ impl MinusLoweringRule {
         join_result.project(projections)?.build()
     }
 
-    /// TODO
+    /// Computes the filter expression for the left-anti join.
+    ///
+    /// The filter expression ensures that solutions from the right-hand side are only
+    /// considered if they are compatible with the left-hand side, according to SPARQL
+    /// semantics.
     fn compute_filter_expression(
         &self,
         lhs_schema: &DFSchemaRef,

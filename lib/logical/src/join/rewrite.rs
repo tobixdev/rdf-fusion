@@ -20,7 +20,7 @@ use std::collections::HashSet;
 /// /// - [SPARQL 1.1 - Compatibile Mappings](https://www.w3.org/TR/sparql11-query/#defn_algCompatibleMapping)
 #[derive(Debug)]
 pub struct SparqlJoinLoweringRule {
-    /// Used for creating expressions with RdfFusion builtins.
+    /// Used for creating expressions with RDF Fusion builtins.
     registry: RdfFusionFunctionRegistryRef,
 }
 

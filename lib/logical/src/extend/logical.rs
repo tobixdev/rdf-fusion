@@ -8,21 +8,24 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
-/// TODO
+/// A logical node that represents the SPARQL `Extend` operator.
+///
+/// This node is used to add a new variable to the solution sequence, bound to the
+/// result of evaluating an expression.
 #[derive(PartialEq, Eq, Hash)]
 pub struct ExtendNode {
-    /// TODO
+    /// The input plan.
     inner: LogicalPlan,
-    /// TODO
+    /// The variable to bind.
     variable: Variable,
-    /// TODO
+    /// The expression to evaluate.
     expression: Expr,
-    /// TODO
+    /// The schema of the output.
     schema: DFSchemaRef,
 }
 
 impl ExtendNode {
-    /// TODO
+    /// Creates a new [ExtendNode].
     pub fn try_new(inner: LogicalPlan, variable: Variable, expression: Expr) -> DFResult<Self> {
         let column = Column::new_unqualified(variable.as_str());
         if inner.schema().has_column(&column) {
@@ -38,16 +41,17 @@ impl ExtendNode {
         })
     }
 
-    /// TODO
+    /// Returns the input plan.
     pub fn inner(&self) -> &LogicalPlan {
         &self.inner
     }
 
+    /// Returns the variable to bind.
     pub fn variable(&self) -> &Variable {
         &self.variable
     }
 
-    /// TODO
+    /// Returns the expression to evaluate.
     pub fn expression(&self) -> &Expr {
         &self.expression
     }

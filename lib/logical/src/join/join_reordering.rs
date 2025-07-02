@@ -152,9 +152,7 @@ impl JoinComponents {
 
 /// Represents a single connected join component.
 ///
-/// TODO language
-///
-/// Within a connected join component, the individual parts share variables with each other. Iff
+/// Within a connected join component, the individual parts share variables with each other. If
 /// two parts are part of the join component, they either share a variable directly or they share
 /// a variable with another part of the component that then (transitively) shares a variable with
 /// the other part.
