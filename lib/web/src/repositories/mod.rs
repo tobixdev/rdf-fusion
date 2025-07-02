@@ -7,7 +7,6 @@ use axum::Router;
 mod content_negotiation;
 mod data;
 mod query;
-mod query_results;
 mod service_description;
 mod sparql_query_params;
 
