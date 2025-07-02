@@ -165,7 +165,7 @@ struct KleenePlusClosureStream {
 
     // State for the transitive closure computation
     /// A map from graph names to sets of direct (start, end) path pairs.
-    /// 
+    ///
     /// This stores the initial paths grouped by graph name, which serves as the
     /// base case for the transitive closure computation.
     initial_paths_map: HashMap<GraphName, HashSet<(Term, Term)>>,

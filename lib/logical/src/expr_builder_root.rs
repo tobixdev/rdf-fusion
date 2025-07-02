@@ -1,4 +1,4 @@
-'''use crate::RdfFusionExprBuilder;
+use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_err, Column, DFSchema};
 use datafusion::logical_expr::expr::AggregateFunction;
@@ -12,7 +12,6 @@ use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
 use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::sync::Arc;
-use crate::RdfFusionExprBuilder;
 
 /// An expression builder for creating SPARQL expressions.
 ///
