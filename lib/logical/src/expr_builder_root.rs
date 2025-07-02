@@ -123,7 +123,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
 
     /// Creates a literal expression from an RDF term.
     ///
-    /// The term is encoded using the [rdf_fusion_encoding::plain_term::PlainTermEncoding](PlainTermEncoding).
+    /// The term is encoded using the [PlainTermEncoding](rdf_fusion_encoding::plain_term::PlainTermEncoding).
     pub fn literal<'lit>(
         &self,
         term: impl Into<TermRef<'lit>>,
