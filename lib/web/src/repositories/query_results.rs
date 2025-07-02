@@ -30,8 +30,7 @@ impl IntoResponse for QueryResultsResponse {
             }
             QueryResultsResponse::Boolean(value, format) => {
                 let mut buffer = Vec::new();
-                let serializer = QueryResultsSerializer::from_format(format);
-                serializer
+                QueryResultsSerializer::from_format(format)
                     .serialize_boolean_to_writer(&mut buffer, value)
                     .unwrap();
 
@@ -74,6 +73,8 @@ impl Stream for QuerySolutionStreamResponseBody {
             }
         }
 
+        serializer.finish()?;
+
         if count == 0 {
             return Poll::Ready(None);
         }
@@ -98,7 +99,7 @@ impl Stream for QueryTripleStreamResponseBody {
                 .unwrap();
         }
 
-        serializer.finish().unwrap();
+        serializer.finish()?;
 
         Poll::Ready(Some(Ok(Bytes::from(buffer))))
     }
