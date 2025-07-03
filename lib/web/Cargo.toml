@@ -7,13 +7,15 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-axum = "0.8.3"
-headers = "0.4.0"
-headers-accept = "0.1.4"
-mediatype = "0.19.20"
-serde = { version = "1.0.219", features = ["derive"] }
+axum.workspace = true
+futures.workspace = true
+headers.workspace = true
+headers-accept.workspace = true
+mediatype.workspace = true
+serde.workspace = true
 thiserror.workspace = true
-tower-http = { version = "0.6.2", features = ["cors"] }
+tower-http.workspace = true
+tracing.workspace = true
 
 rdf-fusion.workspace = true
 tokio.workspace = true

@@ -9,10 +9,12 @@ use datafusion::execution::SessionState;
 use datafusion::physical_plan::{execute_stream, ExecutionPlan};
 use datafusion::prelude::SessionContext;
 use futures::StreamExt;
+use itertools::izip;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::Iri;
 use rdf_fusion_model::Variable;
 use spargebra::algebra::GraphPattern;
+use spargebra::term::{BlankNode, TriplePattern};
 use std::sync::Arc;
 
 /// Evaluates a SPARQL query and returns the results along with execution information.
@@ -54,9 +56,52 @@ pub async fn evaluate_query(
             let count = stream.next().await;
             Ok((QueryResults::Boolean(count.is_some()), explanation))
         }
-        spargebra::Query::Describe { .. } => Err(QueryEvaluationError::NotImplemented(
-            String::from("Query form not implemented"),
-        )),
+        spargebra::Query::Describe {
+            pattern, base_iri, ..
+        } => {
+            let mut vars = Vec::new();
+            pattern.on_in_scope_variable(|v| vars.push(v.clone()));
+            let labels = (0..vars.len())
+                .map(|_| BlankNode::default())
+                .collect::<Vec<_>>();
+            let comments = (0..vars.len())
+                .map(|_| BlankNode::default())
+                .collect::<Vec<_>>();
+
+            let describe_pattern = izip!(vars, labels.iter(), comments.iter())
+                .map(|(variable, label, comment)| {
+                    vec![
+                        TriplePattern {
+                            subject: variable.clone().into(),
+                            predicate: rdf_fusion_model::vocab::rdfs::LABEL.into_owned().into(),
+                            object: label.clone().into(),
+                        },
+                        TriplePattern {
+                            subject: variable.clone().into(),
+                            predicate: rdf_fusion_model::vocab::rdfs::COMMENT.into_owned().into(),
+                            object: comment.clone().into(),
+                        },
+                    ]
+                    .into_iter()
+                })
+                .flatten()
+                .collect::<Vec<_>>();
+
+            // Compute the label / comment results
+            let pattern = GraphPattern::Join {
+                left: Box::new(pattern.clone()),
+                right: Box::new(GraphPattern::Bgp {
+                    patterns: describe_pattern.clone(),
+                }),
+            };
+            let (stream, explanation) =
+                graph_pattern_to_stream(ctx.state(), registry, query, &pattern, base_iri).await?;
+
+            Ok((
+                QueryResults::Graph(QueryTripleStream::new(describe_pattern, stream)),
+                explanation,
+            ))
+        }
     }
 }
 

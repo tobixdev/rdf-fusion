@@ -11,11 +11,20 @@ use std::fs::File;
 use std::io::{self, stdin, stdout, BufWriter, Read, Write};
 use std::path::Path;
 use std::str;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 mod cli;
 
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     let matches = Args::parse();
     match matches.command {
         Command::Serve {

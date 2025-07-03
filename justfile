@@ -35,3 +35,7 @@ microbench:
 # Runs micro benchmarks in the code base (criterion benchmarks) and creates a flamegraph.
 microbench-flamegraph bench:
     cargo flamegraph --bench {{bench}} -- --bench
+
+# Starts a webserver that can answer SPARQL queries
+serve:
+    cargo run --bin rdf-fusion -- serve --bind 0.0.0.0:7878

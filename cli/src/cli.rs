@@ -19,13 +19,14 @@ pub enum Command {
         /// Allows cross-origin requests
         #[arg(long)]
         cors: bool,
-        /// If the SPARQL queries should look for triples in all the dataset graphs by default (ie. without `GRAPH` operations)
+        /// If the SPARQL queries should look for triples in all the dataset graphs by default
+        /// (i.e., without `GRAPH` operations).
         ///
         /// This is equivalent as setting the union-default-graph option in all SPARQL queries
         #[arg(long)]
         union_default_graph: bool,
     },
-    /// Convert a RDF serialization from one format to an other
+    /// Convert RDF serializations from one format into another
     Convert {
         /// File to convert from
         ///

@@ -272,6 +272,24 @@ fn bsbm_explore_q8(c: &mut Criterion) {
     });
 }
 
+fn bsbm_explore_q9(c: &mut Criterion) {
+    let runtime = create_runtime();
+    let store = runtime.block_on(load_bsbm_1000()).unwrap();
+
+    c.bench_function("BSBM Explore 1000 - Query 9", |b| {
+        b.to_async(&runtime).iter(|| async {
+            let result = store.query_opt("
+            PREFIX rev: <http://purl.org/stuff/rev#>
+
+            DESCRIBE ?x WHERE {
+                <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromRatingSite1/Review4194> rev:reviewer ?x
+            }
+            ", QueryOptions::default()).await.unwrap();
+            assert_number_of_results(result, 0).await;
+        });
+    });
+}
+
 fn bsbm_explore_q10(c: &mut Criterion) {
     let runtime = create_runtime();
     let store = runtime.block_on(load_bsbm_1000()).unwrap();
@@ -373,6 +391,7 @@ criterion_group!(
     bsbm_explore_q5,
     bsbm_explore_q7,
     bsbm_explore_q8,
+    bsbm_explore_q9,
     bsbm_explore_q10,
     bsbm_explore_q11,
     bsbm_explore_q12
