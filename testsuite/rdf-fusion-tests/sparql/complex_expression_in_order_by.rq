@@ -1,0 +1,9 @@
+prefix ex: <http://example.com#>
+prefix xsd: <http://www.w3.org/2001/XMLSchema#>
+
+Select (xsd:float(?dividend) As ?result)
+{
+    [] ex:hasDividend ?dividend ;
+        ex:hasDivisor ?divisor .
+}
+Order by xsd:float(?dividend)

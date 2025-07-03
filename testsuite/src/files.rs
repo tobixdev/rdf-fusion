@@ -11,6 +11,11 @@ pub fn read_file(url: &str) -> Result<impl Read> {
     let path =
         Path::new(env!("CARGO_MANIFEST_DIR")).join(if url.starts_with("https://w3c.github.io/") {
             url.replace("https://w3c.github.io/", "")
+        } else if url.starts_with("https://github.com/tobixdev/rdf-fusion/blob/main/testsuite/rdf-fusion-tests/") {
+            url.replace(
+                "https://github.com/tobixdev/rdf-fusion/blob/main/testsuite/rdf-fusion-tests/",
+                "rdf-fusion-tests/",
+            )
         } else if url.starts_with("https://github.com/oxigraph/oxigraph/tests/") {
             url.replace(
                 "https://github.com/oxigraph/oxigraph/tests/",
