@@ -39,11 +39,7 @@ pub async fn handle_query_get(
         .into());
     }
 
-    Ok(
-        evaluate_sparql_query(&state.store, &query_params, query, rdf_format, query_format)
-            .await?
-            .into(),
-    )
+    evaluate_sparql_query(&state.store, &query_params, query, rdf_format, query_format).await
 }
 
 async fn evaluate_sparql_query(

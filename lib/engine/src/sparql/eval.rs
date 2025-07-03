@@ -81,7 +81,7 @@ pub async fn evaluate_query(
                     ]
                     .into_iter()
                 })
-                .flat_map(|tps| tps)
+                .flatten()
                 .collect::<Vec<_>>();
 
             // Compute the label / comment results
