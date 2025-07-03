@@ -374,12 +374,12 @@ criterion_group!(
     bsbm_business_intelligence,
     bsbm_business_intelligence_q1,
     bsbm_business_intelligence_q2,
-    // bsbm_business_intelligence_q3, TODO failing
-    // bsbm_business_intelligence_q4, TODO failing
+    bsbm_business_intelligence_q3,
+    // bsbm_business_intelligence_q4,
     bsbm_business_intelligence_q5,
     bsbm_business_intelligence_q6,
     bsbm_business_intelligence_q7,
-    // bsbm_business_intelligence_q8, TODO failing
+    bsbm_business_intelligence_q8,
 );
 criterion_main!(bsbm_business_intelligence);
 

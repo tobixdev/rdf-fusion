@@ -1,24 +1,17 @@
 <?xml version="1.0"?>
 <sparql xmlns="http://www.w3.org/2005/sparql-results#">
   <head>
-    <variable name="dividend"/>
-    <variable name="divisor"/>
+    <variable name="result"/>
   </head>
   <results>
     <result>
-      <binding name="dividend">
+      <binding name="result">
         <literal datatype="http://www.w3.org/2001/XMLSchema#float">10</literal>
-      </binding>
-      <binding name="divisor">
-        <literal datatype="http://www.w3.org/2001/XMLSchema#float">5</literal>
       </binding>
     </result>
     <result>
-      <binding name="dividend">
+      <binding name="result">
         <literal datatype="http://www.w3.org/2001/XMLSchema#float">100</literal>
-      </binding>
-      <binding name="divisor">
-        <literal datatype="http://www.w3.org/2001/XMLSchema#float">20</literal>
       </binding>
     </result>
   </results>

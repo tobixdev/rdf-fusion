@@ -10,7 +10,7 @@ use datafusion::common::{Column, DFSchema, DFSchemaRef, DataFusionError};
 use datafusion::logical_expr::builder::project;
 use datafusion::logical_expr::select_expr::SelectExpr;
 use datafusion::logical_expr::{
-    col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, SortExpr,
+    col, lit, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
     UserDefinedLogicalNode, Values,
 };
 use rdf_fusion_common::DFResult;
@@ -420,9 +420,17 @@ impl RdfFusionLogicalPlanBuilder {
             .iter()
             .map(|sort| self.ensure_sortable(sort))
             .collect::<DFResult<Vec<_>>>()?;
+
+        let registry = Arc::clone(&self.registry);
+        let plan = LogicalPlan::Sort(Sort {
+            input: Arc::new(self.build()?),
+            expr: exprs,
+            fetch: None,
+        });
+
         Ok(Self {
-            registry: self.registry,
-            plan_builder: self.plan_builder.sort(exprs)?,
+            registry,
+            plan_builder: LogicalPlanBuilder::new(plan),
         })
     }
 

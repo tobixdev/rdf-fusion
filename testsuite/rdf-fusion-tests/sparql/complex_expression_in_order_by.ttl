@@ -1,8 +1,5 @@
 PREFIX ex: <http://example.com/>
 PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
 
-ex:a ex:hasDividend "10"^^xsd:float .
-ex:a ex:hasDivisor "5"^^xsd:float .
-
-ex:b ex:hasDividend "100"^^xsd:float .
-ex:b ex:hasDivisor "20"^^xsd:float .
+ex:a ex:hasValue "10"^^xsd:float .
+ex:b ex:hasValue "100"^^xsd:float .
