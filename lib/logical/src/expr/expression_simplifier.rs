@@ -70,7 +70,7 @@ fn try_rewrite_expression(
         Expr::ScalarFunction(scalar_function) => {
             try_rewrite_scalar_function(scalar_function, input_schema)
         }
-        expr => Ok(Transformed::no(expr)),
+        _ => Ok(Transformed::no(expr)),
     })
 }
 
