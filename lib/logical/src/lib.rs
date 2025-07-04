@@ -8,6 +8,7 @@
 extern crate core;
 
 mod active_graph;
+pub mod expr;
 mod expr_builder;
 mod expr_builder_root;
 pub mod extend;
