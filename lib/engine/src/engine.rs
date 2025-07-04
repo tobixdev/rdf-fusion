@@ -5,12 +5,14 @@ use datafusion::dataframe::DataFrame;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
+use datafusion::optimizer::{Optimizer, OptimizerRule};
 use datafusion::prelude::{SessionConfig, SessionContext};
 use rdf_fusion_common::{DFResult, QuadStorage};
 use rdf_fusion_encoding::TABLE_QUADS;
 use rdf_fusion_functions::registry::{
     DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
+use rdf_fusion_logical::expr::SimplifySparqlExpressionsRule;
 use rdf_fusion_logical::extend::ExtendLoweringRule;
 use rdf_fusion_logical::join::{SparqlJoinLoweringRule, SparqlJoinReorderingRule};
 use rdf_fusion_logical::minus::MinusLoweringRule;
@@ -47,14 +49,7 @@ impl RdfFusionInstance {
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            .with_optimizer_rule(Arc::new(SparqlJoinReorderingRule::new()))
-            .with_optimizer_rule(Arc::new(MinusLoweringRule::new(Arc::clone(&registry))))
-            .with_optimizer_rule(Arc::new(ExtendLoweringRule::new()))
-            .with_optimizer_rule(Arc::new(PropertyPathLoweringRule::new(Arc::clone(
-                &registry,
-            ))))
-            .with_optimizer_rule(Arc::new(SparqlJoinLoweringRule::new(Arc::clone(&registry))))
-            .with_optimizer_rule(Arc::new(PatternLoweringRule::new(Arc::clone(&registry))))
+            .with_optimizer_rules(create_default_optimizer_rules(&registry))
             // TODO: For now we use only a single partition. This should be configurable.
             .with_config(SessionConfig::new().with_target_partitions(1))
             .build();
@@ -132,6 +127,25 @@ impl RdfFusionInstance {
     ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
         evaluate_query(&self.ctx, Arc::clone(&self.functions), query, options).await
     }
+}
+
+fn create_default_optimizer_rules(
+    registry: &RdfFusionFunctionRegistryRef,
+) -> Vec<Arc<dyn OptimizerRule + Send + Sync>> {
+    let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = vec![
+        Arc::new(SparqlJoinReorderingRule::new()),
+        Arc::new(MinusLoweringRule::new(Arc::clone(registry))),
+        Arc::new(ExtendLoweringRule::new()),
+        Arc::new(PropertyPathLoweringRule::new(Arc::clone(registry))),
+        Arc::new(SparqlJoinLoweringRule::new(Arc::clone(registry))),
+        Arc::new(PatternLoweringRule::new(Arc::clone(registry))),
+    ];
+
+    rules.extend(Optimizer::default().rules);
+
+    rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+
+    rules
 }
 
 fn graph_name_to_active_graph(graph_name: Option<GraphNameRef<'_>>) -> ActiveGraph {

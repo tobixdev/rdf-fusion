@@ -1,0 +1,8 @@
+prefix ex: <http://example.com/>
+prefix xsd: <http://www.w3.org/2001/XMLSchema#>
+
+Select (xsd:float(?value) As ?result)
+{
+    [] ex:hasValue ?value .
+}
+Order by xsd:float(?value)
