@@ -16,7 +16,7 @@ pub use bnode::BNodeSparqlOp;
 pub use datatype::DatatypeSparqlOp;
 pub use iri::IriSparqlOp;
 pub use is_blank::IsBlankSparqlOp;
-pub use is_iri::IsIriSparqlOp;
+pub use is_iri::IsIriLegacySparqlOp;
 pub use is_literal::IsLiteralSparqlOp;
 pub use is_numeric::IsNumericSparqlOp;
 pub use lang::LangSparqlOp;

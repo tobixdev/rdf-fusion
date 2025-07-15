@@ -3,23 +3,23 @@ use rdf_fusion_model::Boolean;
 use rdf_fusion_model::TypedValueRef;
 
 #[derive(Debug)]
-pub struct IsIriSparqlOp;
+pub struct IsIriLegacySparqlOp;
 
-impl Default for IsIriSparqlOp {
+impl Default for IsIriLegacySparqlOp {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl IsIriSparqlOp {
+impl IsIriLegacySparqlOp {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl SparqlOp for IsIriSparqlOp {}
+impl SparqlOp for IsIriLegacySparqlOp {}
 
-impl UnarySparqlOp for IsIriSparqlOp {
+impl UnarySparqlOp for IsIriLegacySparqlOp {
     type Arg<'data> = TypedValueRef<'data>;
     type Result<'data> = Boolean;
 
