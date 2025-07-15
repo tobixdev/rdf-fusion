@@ -18,7 +18,7 @@ use rdf_fusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
     AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
     DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp, HoursSparqlOp, IriSparqlOp,
-    IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LCaseSparqlOp,
+    IsBlankSparqlOp, IsIriLegacySparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LCaseSparqlOp,
     LangSparqlOp, Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp, RoundSparqlOp, SecondsSparqlOp,
     Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp,
     TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp,
@@ -326,7 +326,7 @@ impl_unary_sparql_op!(
     DefaultTypedValueDecoder,
     BooleanTermValueEncoder,
     is_iri_typed_value,
-    IsIriSparqlOp,
+    IsIriLegacySparqlOp,
     FunctionName::Builtin(BuiltinName::IsIri)
 );
 impl_unary_sparql_op!(

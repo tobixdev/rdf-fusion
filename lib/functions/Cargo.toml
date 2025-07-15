@@ -13,7 +13,14 @@ rdf-fusion-encoding.workspace = true
 rdf-fusion-functions-scalar.workspace = true
 rdf-fusion-model.workspace = true
 itertools.workspace = true
-spargebra.workspace = true
+
+[dev-dependencies]
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
+tokio-test.workspace = true
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "scalar"
+harness = false
