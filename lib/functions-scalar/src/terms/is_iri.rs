@@ -2,6 +2,7 @@ use crate::{SparqlOp, ThinResult, UnarySparqlOp};
 use rdf_fusion_model::Boolean;
 use rdf_fusion_model::TypedValueRef;
 
+/// TODO #20 Remove
 #[derive(Debug)]
 pub struct IsIriLegacySparqlOp;
 

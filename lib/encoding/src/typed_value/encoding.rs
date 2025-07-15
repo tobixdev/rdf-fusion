@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoding;
-use crate::typed_value::array::TermValueArray;
+use crate::typed_value::array::TypedValueArray;
 use crate::typed_value::encoders::TermRefTypedValueEncoder;
-use crate::typed_value::scalar::TermValueScalar;
+use crate::typed_value::scalar::TypedValueScalar;
 use crate::{EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
@@ -174,8 +174,8 @@ impl TypedValueEncoding {
 }
 
 impl TermEncoding for TypedValueEncoding {
-    type Array = TermValueArray;
-    type Scalar = TermValueScalar;
+    type Array = TypedValueArray;
+    type Scalar = TypedValueScalar;
 
     fn name() -> EncodingName {
         EncodingName::TypedValue

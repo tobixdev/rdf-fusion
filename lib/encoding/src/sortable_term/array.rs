@@ -4,6 +4,7 @@ use crate::TermEncoding;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::common::exec_err;
 use datafusion::error::DataFusionError;
+use crate::plain_term::PlainTermEncoding;
 
 /// Represents an Arrow array with a [SortableTermArray].
 pub struct SortableTermArray {
@@ -13,6 +14,8 @@ pub struct SortableTermArray {
 impl SortableTermArray {}
 
 impl EncodingArray for SortableTermArray {
+    type Encoding = PlainTermEncoding;
+
     fn array(&self) -> &ArrayRef {
         &self.inner
     }

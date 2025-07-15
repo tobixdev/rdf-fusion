@@ -11,6 +11,7 @@ use crate::builtin::native::{
 use crate::builtin::query::is_compatible;
 use crate::builtin::BuiltinName;
 use crate::scalar::plain_term::same_term;
+use crate::scalar::terms::IsIriSparqlOp;
 use crate::scalar::typed_value::{
     abs_typed_value, add_typed_value, as_boolean_typed_value, as_date_time_typed_value,
     as_decimal_typed_value, as_double_typed_value, as_float_typed_value, as_int_typed_value,
@@ -18,17 +19,17 @@ use crate::scalar::typed_value::{
     coalesce_typed_value, concat_typed_value, contains_typed_value, datatype_typed_value,
     day_typed_value, div_typed_value, encode_for_uri_typed_value, equal_typed_value,
     floor_typed_value, greater_or_equal_typed_value, greater_than_typed_value, hours_typed_value,
-    if_typed_value, iri_typed_value, is_blank_typed_value, is_iri_typed_value,
-    is_literal_typed_value, is_numeric_typed_value, lang_matches_typed_value, lang_typed_value,
-    lcase_typed_value, less_or_equal_typed_value, less_than_typed_value, md5_typed_value,
-    minutes_typed_value, month_typed_value, mul_typed_value, rand_typed_value, round_typed_value,
-    seconds_typed_value, sha1_typed_value, sha256_typed_value, sha384_typed_value,
-    sha512_typed_value, str_after_typed_value, str_before_typed_value, str_dt_typed_value,
-    str_ends_typed_value, str_lang_typed_value, str_len_typed_value, str_starts_typed_value,
-    str_uuid_typed_value, sub_typed_value, timezone_typed_value, tz_typed_value, ucase_typed_value,
+    if_typed_value, iri_typed_value, is_blank_typed_value, is_literal_typed_value,
+    is_numeric_typed_value, lang_matches_typed_value, lang_typed_value, lcase_typed_value,
+    less_or_equal_typed_value, less_than_typed_value, md5_typed_value, minutes_typed_value,
+    month_typed_value, mul_typed_value, rand_typed_value, round_typed_value, seconds_typed_value,
+    sha1_typed_value, sha256_typed_value, sha384_typed_value, sha512_typed_value,
+    str_after_typed_value, str_before_typed_value, str_dt_typed_value, str_ends_typed_value,
+    str_lang_typed_value, str_len_typed_value, str_starts_typed_value, str_uuid_typed_value,
+    sub_typed_value, timezone_typed_value, tz_typed_value, ucase_typed_value,
     unary_minus_typed_value, unary_plus_typed_value, uuid_typed_value, year_typed_value,
 };
-use crate::scalar::{bnode, regex, replace, str, sub_str};
+use crate::scalar::{bnode, regex, replace, str, sub_str, ScalarSparqlOp, ScalarSparqlOpAdapter};
 use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
 use datafusion::common::plan_err;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
@@ -128,7 +129,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Sha512 => sha512_typed_value(),
                 BuiltinName::StrLang => str_lang_typed_value(),
                 BuiltinName::StrDt => str_dt_typed_value(),
-                BuiltinName::IsIri => is_iri_typed_value(),
+                BuiltinName::IsIri => create_scalar_sparql_op::<IsIriSparqlOp>(),
                 BuiltinName::IsBlank => is_blank_typed_value(),
                 BuiltinName::IsLiteral => is_literal_typed_value(),
                 BuiltinName::IsNumeric => is_numeric_typed_value(),
@@ -191,4 +192,13 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
             FunctionName::Custom(_) => plan_err!("Custom functions are not supported yet."),
         }
     }
+}
+
+fn create_scalar_sparql_op<TSparqlOp>() -> Arc<ScalarUDF>
+where
+    TSparqlOp: Default + ScalarSparqlOp + 'static,
+{
+    let op = TSparqlOp::default();
+    let adapter = ScalarSparqlOpAdapter::new(op);
+    Arc::new(ScalarUDF::new_from_impl(adapter))
 }

@@ -24,7 +24,15 @@ pub(crate) mod typed_value;
 mod unary;
 #[macro_use]
 mod n_ary;
+mod args;
 mod dynamic_udf;
+mod signature;
+mod sparql_op;
+pub mod terms;
+
+pub use args::*;
+pub use signature::*;
+pub use sparql_op::*;
 
 #[allow(clippy::expect_used, reason = "UDFs are known at compile time")]
 pub fn str() -> Arc<ScalarUDF> {

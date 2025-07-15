@@ -7,6 +7,7 @@ mod scalar;
 
 use crate::plain_term::PlainTermEncoding;
 use crate::{TermEncoding, COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+pub use array::TypedValueArray;
 pub use builder::TypedValueArrayBuilder;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};

@@ -9,13 +9,14 @@ use datafusion::arrow::datatypes::{
     Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
 };
 use datafusion::common::{exec_err, DataFusionError};
+use crate::plain_term::PlainTermEncoding;
 
 /// Represents an Arrow array with a [TypedValueEncoding].
-pub struct TermValueArray {
+pub struct TypedValueArray {
     inner: ArrayRef,
 }
 
-impl TermValueArray {
+impl TypedValueArray {
     /// Returns a reference to all the child arrays contained in this array. It is expected to call
     /// this method once and work on the resulting [TermValueArrayParts].
     ///
@@ -100,7 +101,7 @@ impl TermValueArray {
     }
 }
 
-impl TryFrom<ArrayRef> for TermValueArray {
+impl TryFrom<ArrayRef> for TypedValueArray {
     type Error = DataFusionError;
 
     fn try_from(value: ArrayRef) -> Result<Self, Self::Error> {
@@ -111,7 +112,9 @@ impl TryFrom<ArrayRef> for TermValueArray {
     }
 }
 
-impl EncodingArray for TermValueArray {
+impl EncodingArray for TypedValueArray {
+    type Encoding = PlainTermEncoding;
+
     fn array(&self) -> &ArrayRef {
         &self.inner
     }
