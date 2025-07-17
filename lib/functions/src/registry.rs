@@ -26,26 +26,25 @@ use crate::scalar::dates_and_times::TimezoneSparqlOp;
 use crate::scalar::dates_and_times::YearSparqlOp;
 use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
 use crate::scalar::functional_form::BoundSparqlOp;
-use crate::scalar::numeric::CeilSparqlOp;
 use crate::scalar::numeric::FloorSparqlOp;
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
+use crate::scalar::numeric::{CeilSparqlOp, RandSparqlOp};
 use crate::scalar::plain_term::same_term;
 use crate::scalar::strings::{
     EncodeForUriSparqlOp, LCaseSparqlOp, Md5SparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp,
-    Sha512SparqlOp, StrLenSparqlOp, UCaseSparqlOp,
+    Sha512SparqlOp, StrLenSparqlOp, StrUuidSparqlOp, UCaseSparqlOp,
 };
 use crate::scalar::terms::{
     BNodeSparqlOp, DatatypeSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp,
-    IsLiteralSparqlOp, IsNumericSparqlOp, LangSparqlOp, StrSparqlOp,
+    IsLiteralSparqlOp, IsNumericSparqlOp, LangSparqlOp, StrSparqlOp, UuidSparqlOp,
 };
 use crate::scalar::typed_value::{
     add_typed_value, coalesce_typed_value, concat_typed_value, contains_typed_value,
     div_typed_value, equal_typed_value, greater_or_equal_typed_value, greater_than_typed_value,
     if_typed_value, lang_matches_typed_value, less_or_equal_typed_value, less_than_typed_value,
-    mul_typed_value, rand_typed_value, str_after_typed_value, str_before_typed_value,
-    str_dt_typed_value, str_ends_typed_value, str_lang_typed_value, str_starts_typed_value,
-    str_uuid_typed_value, sub_typed_value, uuid_typed_value,
+    mul_typed_value, str_after_typed_value, str_before_typed_value, str_dt_typed_value,
+    str_ends_typed_value, str_lang_typed_value, str_starts_typed_value, sub_typed_value,
 };
 use crate::scalar::{regex, replace, sub_str, ScalarSparqlOp, ScalarSparqlOpAdapter};
 use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
@@ -114,7 +113,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                     create_scalar_udf(op)
                 }
                 BuiltinName::BNode => create_scalar_sparql_op::<BNodeSparqlOp>(),
-                BuiltinName::Rand => rand_typed_value(),
+                BuiltinName::Rand => create_scalar_sparql_op::<RandSparqlOp>(),
                 BuiltinName::Abs => create_scalar_sparql_op::<AbsSparqlOp>(),
                 BuiltinName::Ceil => create_scalar_sparql_op::<CeilSparqlOp>(),
                 BuiltinName::Floor => create_scalar_sparql_op::<FloorSparqlOp>(),
@@ -139,8 +138,8 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Seconds => create_scalar_sparql_op::<SecondsSparqlOp>(),
                 BuiltinName::Timezone => create_scalar_sparql_op::<TimezoneSparqlOp>(),
                 BuiltinName::Tz => create_scalar_sparql_op::<TzSparqlOp>(),
-                BuiltinName::Uuid => uuid_typed_value(),
-                BuiltinName::StrUuid => str_uuid_typed_value(),
+                BuiltinName::Uuid => create_scalar_sparql_op::<UuidSparqlOp>(),
+                BuiltinName::StrUuid => create_scalar_sparql_op::<StrUuidSparqlOp>(),
                 BuiltinName::Md5 => create_scalar_sparql_op::<Md5SparqlOp>(),
                 BuiltinName::Sha1 => create_scalar_sparql_op::<Sha1SparqlOp>(),
                 BuiltinName::Sha256 => create_scalar_sparql_op::<Sha256SparqlOp>(),

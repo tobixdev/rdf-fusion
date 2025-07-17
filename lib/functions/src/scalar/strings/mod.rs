@@ -6,6 +6,7 @@ mod sha256;
 mod sha384;
 mod sha512;
 mod strlen;
+mod struuid;
 mod ucase;
 
 pub use encode_for_uri::EncodeForUriSparqlOp;
@@ -16,4 +17,5 @@ pub use sha256::Sha256SparqlOp;
 pub use sha384::Sha384SparqlOp;
 pub use sha512::Sha512SparqlOp;
 pub use strlen::StrLenSparqlOp;
+pub use struuid::StrUuidSparqlOp;
 pub use ucase::UCaseSparqlOp;

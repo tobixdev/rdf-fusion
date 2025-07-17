@@ -3741,6 +3741,7 @@ dependencies = [
  "datafusion",
  "itertools 0.14.0",
  "md-5",
+ "rand 0.9.1",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-functions-scalar",

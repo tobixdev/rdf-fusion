@@ -6,7 +6,6 @@ use crate::scalar::dispatch::{dispatch_unary_owned_typed_value, dispatch_unary_p
 use crate::scalar::{ScalarSparqlOp, UnaryArgs};
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::exec_err;
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;

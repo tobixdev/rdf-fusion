@@ -7,6 +7,7 @@ mod is_literal;
 mod is_numeric;
 mod lang;
 mod str;
+mod uuid;
 
 pub use bnode::BNodeSparqlOp;
 pub use datatype::DatatypeSparqlOp;
@@ -17,3 +18,4 @@ pub use is_literal::IsLiteralSparqlOp;
 pub use is_numeric::IsNumericSparqlOp;
 pub use lang::LangSparqlOp;
 pub use str::StrSparqlOp;
+pub use uuid::UuidSparqlOp;
