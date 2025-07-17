@@ -12,6 +12,7 @@ pub use builder::TypedValueArrayBuilder;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
 pub use encoding::*;
+pub use scalar::TypedValueScalar;
 use std::sync::LazyLock;
 
 pub static DEFAULT_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {

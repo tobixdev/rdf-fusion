@@ -29,6 +29,7 @@ mod dynamic_udf;
 mod signature;
 mod sparql_op;
 pub mod terms;
+mod dispatch;
 
 pub use args::*;
 pub use signature::*;
