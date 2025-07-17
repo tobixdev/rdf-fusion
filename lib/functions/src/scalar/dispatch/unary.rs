@@ -1,12 +1,15 @@
 use datafusion::common::exec_err;
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
+use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
+use rdf_fusion_encoding::plain_term::{PlainTermArray, PlainTermEncoding, PlainTermScalar};
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueScalar};
 use rdf_fusion_encoding::TermEncoder;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermDecoder};
-use rdf_fusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
+use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValue, TypedValueRef};
 
 pub fn dispatch_unary_typed_value<'data>(
     arg0: &'data EncodingDatum<TypedValueEncoding>,
@@ -106,5 +109,47 @@ fn dispatch_unary_owned_typed_value_scalar(
         Err(err) => Err(err.clone()),
     };
     let result = DefaultTypedValueEncoder::encode_term(result_ref)?;
+    Ok(ColumnarValue::Scalar(result.into_scalar_value()))
+}
+
+pub fn dispatch_unary_plain_term<'data>(
+    arg0: &'data EncodingDatum<PlainTermEncoding>,
+    op: impl for<'a> Fn(TermRef<'a>) -> ThinResult<TermRef<'a>>,
+    error_op: impl Fn() -> ThinResult<TermRef<'static>>,
+) -> DFResult<ColumnarValue> {
+    match arg0 {
+        EncodingDatum::Array(arg0) => dispatch_unary_plain_term_array(arg0, op, error_op),
+        EncodingDatum::Scalar(arg0, _) => dispatch_unary_plain_term_scalar(&arg0, op, error_op),
+    }
+}
+
+fn dispatch_unary_plain_term_array<'data>(
+    values: &'data PlainTermArray,
+    op: impl for<'a> Fn(TermRef<'a>) -> ThinResult<TermRef<'a>>,
+    error_op: impl Fn() -> ThinResult<TermRef<'static>>,
+) -> DFResult<ColumnarValue> {
+    let results = DefaultPlainTermDecoder::decode_terms(values).map(|v| match v {
+        Ok(value) => op(value),
+        Err(ThinError::Expected) => error_op(),
+        Err(internal_err) => Err(internal_err),
+    });
+    let result = DefaultPlainTermEncoder::encode_terms(results)?;
+    Ok(ColumnarValue::Array(result.into_array()))
+}
+
+fn dispatch_unary_plain_term_scalar<'data>(
+    value: &'data PlainTermScalar,
+    op: impl for<'a> Fn(TermRef<'a>) -> ThinResult<TermRef<'a>>,
+    error_op: impl Fn() -> ThinResult<TermRef<'static>>,
+) -> DFResult<ColumnarValue> {
+    let value = DefaultPlainTermDecoder::decode_term(value);
+    let result = match value {
+        Ok(value) => op(value),
+        Err(ThinError::Expected) => error_op(),
+        Err(ThinError::InternalError(error)) => {
+            return exec_err!("InternalError in UDF: {}", error)
+        }
+    };
+    let result = DefaultPlainTermEncoder::encode_term(result)?;
     Ok(ColumnarValue::Scalar(result.into_scalar_value()))
 }

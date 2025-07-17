@@ -1,6 +1,6 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
-use crate::scalar::{ScalarSparqlOp, SparqlOpSignature, UnaryArgs, UnarySparqlOpSignature};
+use crate::scalar::{ScalarSparqlOp, UnaryArgs};
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -22,7 +22,6 @@ impl Default for Sha256SparqlOp {
 
 impl Sha256SparqlOp {
     const NAME: FunctionName = FunctionName::Builtin(BuiltinName::Sha256);
-    const SIGNATURE: UnarySparqlOpSignature = UnarySparqlOpSignature;
 
     pub fn new() -> Self {
         Self {}
@@ -30,31 +29,30 @@ impl Sha256SparqlOp {
 }
 
 impl ScalarSparqlOp for Sha256SparqlOp {
-    type Encoding = TypedValueEncoding;
-    type Signature = UnarySparqlOpSignature;
+    type Args<TEncoding: TermEncoding> = UnaryArgs<TEncoding>;
 
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn signature(&self) -> &Self::Signature {
-        &Self::SIGNATURE
+    fn supported_encodings(&self) -> &[EncodingName] {
+        &[EncodingName::TypedValue]
     }
 
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
 
-    fn return_type(&self, target_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        if !matches!(target_encoding, Some(EncodingName::TypedValue)) {
-            return exec_err!("Unexpected target encoding: {:?}", target_encoding);
+    fn return_type(&self, input_encoding: Option<EncodingName>) -> DFResult<DataType> {
+        if !matches!(input_encoding, Some(EncodingName::TypedValue)) {
+            return exec_err!("Unexpected target encoding: {:?}", input_encoding);
         }
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke(
+    fn invoke_typed_value_encoding(
         &self,
-        UnaryArgs(arg): <Self::Signature as SparqlOpSignature<Self::Encoding>>::Args,
+        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
     ) -> DFResult<ColumnarValue> {
         dispatch_unary_owned_typed_value(
             &arg,

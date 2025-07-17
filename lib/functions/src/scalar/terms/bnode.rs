@@ -1,12 +1,8 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_typed_value;
-use crate::scalar::{
-    NullaryArgs, NullaryOrUnaryArgs, NullaryOrUnarySparqlOpSignature, ScalarSparqlOp,
-    SparqlOpSignature, UnaryArgs,
-};
+use crate::scalar::{NullaryArgs, NullaryOrUnaryArgs, ScalarSparqlOp, UnaryArgs};
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::exec_err;
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
@@ -24,7 +20,6 @@ impl Default for BNodeSparqlOp {
 
 impl BNodeSparqlOp {
     const NAME: FunctionName = FunctionName::Builtin(BuiltinName::BNode);
-    const SIGNATURE: NullaryOrUnarySparqlOpSignature = NullaryOrUnarySparqlOpSignature;
 
     pub fn new() -> Self {
         Self {}
@@ -32,36 +27,29 @@ impl BNodeSparqlOp {
 }
 
 impl ScalarSparqlOp for BNodeSparqlOp {
-    type Encoding = TypedValueEncoding;
-    type Signature = NullaryOrUnarySparqlOpSignature;
+    type Args<TEncoding: TermEncoding> = NullaryOrUnaryArgs<TypedValueEncoding>;
 
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn signature(&self) -> &Self::Signature {
-        &Self::SIGNATURE
+    fn supported_encodings(&self) -> &[EncodingName] {
+        &[EncodingName::TypedValue]
     }
 
     fn volatility(&self) -> Volatility {
-        Volatility::Immutable
+        Volatility::Volatile
     }
 
-    fn return_type(&self, target_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        if matches!(
-            target_encoding,
-            Some(EncodingName::PlainTerm) | Some(EncodingName::Sortable)
-        ) {
-            return exec_err!("Unexpected target encoding: {:?}", target_encoding);
-        }
+    fn return_type(&self, _input_encoding: Option<EncodingName>) -> DFResult<DataType> {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke(
+    fn invoke_typed_value_encoding(
         &self,
-        arg: <Self::Signature as SparqlOpSignature<Self::Encoding>>::Args,
+        args: Self::Args<TypedValueEncoding>,
     ) -> DFResult<ColumnarValue> {
-        match arg {
+        match args {
             NullaryOrUnaryArgs::Nullary(NullaryArgs { number_rows }) => {
                 let mut builder = TypedValueArrayBuilder::default();
                 for _ in 0..number_rows {

@@ -1,4 +1,5 @@
 use crate::encoding::EncodingArray;
+use crate::plain_term::PlainTermEncoding;
 use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use crate::TermEncoding;
 use datafusion::arrow::array::{
@@ -9,7 +10,6 @@ use datafusion::arrow::datatypes::{
     Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
 };
 use datafusion::common::{exec_err, DataFusionError};
-use crate::plain_term::PlainTermEncoding;
 
 /// Represents an Arrow array with a [TypedValueEncoding].
 pub struct TypedValueArray {

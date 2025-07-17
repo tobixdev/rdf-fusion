@@ -16,7 +16,6 @@ mod dispatch;
 mod dynamic_udf;
 pub mod functional_form;
 pub mod numeric;
-mod signature;
 mod sparql_op;
 pub mod strings;
 pub mod terms;
@@ -31,7 +30,6 @@ use crate::scalar::typed_value::{
 use crate::FunctionName;
 pub use args::*;
 use datafusion::logical_expr::ScalarUDF;
-pub use signature::*;
 pub use sparql_op::*;
 use std::sync::Arc;
 

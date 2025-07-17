@@ -1,5 +1,5 @@
 use datafusion::common::{exec_datafusion_err, exec_err};
-use datafusion::logical_expr::ScalarFunctionArgs;
+use datafusion::logical_expr::{ScalarFunctionArgs, TypeSignature};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::{EncodingDatum, TermEncoding};
 
@@ -9,6 +9,9 @@ pub trait SparqlOpArgs {
     fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self>
     where
         Self: Sized;
+
+    /// TODO
+    fn type_signature() -> TypeSignature;
 }
 
 pub struct NullaryArgs {
@@ -23,6 +26,10 @@ impl SparqlOpArgs for NullaryArgs {
         Ok(Self {
             number_rows: args.number_rows,
         })
+    }
+
+    fn type_signature() -> TypeSignature {
+        TypeSignature::Nullary
     }
 }
 
@@ -42,6 +49,10 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for UnaryArgs<TEncoding> {
 
         Ok(Self(arg0))
     }
+
+    fn type_signature() -> TypeSignature {
+        TypeSignature::Uniform(1, vec![TEncoding::data_type()])
+    }
 }
 
 pub enum NullaryOrUnaryArgs<TEncoding: TermEncoding> {
@@ -56,5 +67,12 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for NullaryOrUnaryArgs<TEncoding> {
         } else {
             Ok(Self::Unary(UnaryArgs::try_from_args(args)?))
         }
+    }
+
+    fn type_signature() -> TypeSignature {
+        TypeSignature::OneOf(vec![
+            NullaryArgs::type_signature(),
+            UnaryArgs::<TEncoding>::type_signature(),
+        ])
     }
 }

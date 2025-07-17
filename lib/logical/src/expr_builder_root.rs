@@ -282,12 +282,12 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf_with_args(name, udf_args)?;
 
-        let target_encoding = TypedValueEncoding::name();
+        let input_encoding = TypedValueEncoding::name();
         let args = args
             .into_iter()
             .map(|expr| {
                 self.try_create_builder(expr)?
-                    .with_encoding(target_encoding)?
+                    .with_encoding(input_encoding)?
                     .build()
             })
             .collect::<DFResult<Vec<_>>>()?;
