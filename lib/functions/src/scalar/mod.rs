@@ -25,11 +25,13 @@ mod unary;
 #[macro_use]
 mod n_ary;
 mod args;
+pub mod dates_and_times;
+mod dispatch;
 mod dynamic_udf;
+pub mod numeric;
 mod signature;
 mod sparql_op;
 pub mod terms;
-mod dispatch;
 
 pub use args::*;
 pub use signature::*;

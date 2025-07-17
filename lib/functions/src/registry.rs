@@ -10,24 +10,22 @@ use crate::builtin::native::{
 };
 use crate::builtin::query::is_compatible;
 use crate::builtin::BuiltinName;
+use crate::scalar::numeric::abs::AbsSparqlOp;
 use crate::scalar::plain_term::same_term;
-use crate::scalar::terms::IsIriSparqlOp;
+use crate::scalar::terms::{IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp};
 use crate::scalar::typed_value::{
-    abs_typed_value, add_typed_value, as_boolean_typed_value, as_date_time_typed_value,
-    as_decimal_typed_value, as_double_typed_value, as_float_typed_value, as_int_typed_value,
-    as_integer_typed_value, as_string_typed_value, bound_typed_value, ceil_typed_value,
-    coalesce_typed_value, concat_typed_value, contains_typed_value, datatype_typed_value,
-    day_typed_value, div_typed_value, encode_for_uri_typed_value, equal_typed_value,
-    floor_typed_value, greater_or_equal_typed_value, greater_than_typed_value, hours_typed_value,
-    if_typed_value, iri_typed_value, is_blank_typed_value, is_literal_typed_value,
-    is_numeric_typed_value, lang_matches_typed_value, lang_typed_value, lcase_typed_value,
-    less_or_equal_typed_value, less_than_typed_value, md5_typed_value, minutes_typed_value,
-    month_typed_value, mul_typed_value, rand_typed_value, round_typed_value, seconds_typed_value,
-    sha1_typed_value, sha256_typed_value, sha384_typed_value, sha512_typed_value,
+    add_typed_value, as_boolean_typed_value, as_date_time_typed_value, as_decimal_typed_value,
+    as_double_typed_value, as_float_typed_value, as_int_typed_value, as_integer_typed_value,
+    as_string_typed_value, bound_typed_value, coalesce_typed_value, concat_typed_value,
+    contains_typed_value, datatype_typed_value, div_typed_value, encode_for_uri_typed_value,
+    equal_typed_value, greater_or_equal_typed_value, greater_than_typed_value, if_typed_value,
+    iri_typed_value, lang_matches_typed_value, lang_typed_value, lcase_typed_value,
+    less_or_equal_typed_value, less_than_typed_value, md5_typed_value, mul_typed_value,
+    rand_typed_value, sha1_typed_value, sha256_typed_value, sha384_typed_value, sha512_typed_value,
     str_after_typed_value, str_before_typed_value, str_dt_typed_value, str_ends_typed_value,
     str_lang_typed_value, str_len_typed_value, str_starts_typed_value, str_uuid_typed_value,
-    sub_typed_value, timezone_typed_value, tz_typed_value, ucase_typed_value,
-    unary_minus_typed_value, unary_plus_typed_value, uuid_typed_value, year_typed_value,
+    sub_typed_value, tz_typed_value, ucase_typed_value, unary_minus_typed_value,
+    unary_plus_typed_value, uuid_typed_value,
 };
 use crate::scalar::{bnode, regex, replace, str, sub_str, ScalarSparqlOp, ScalarSparqlOpAdapter};
 use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
@@ -36,6 +34,16 @@ use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_common::DFResult;
 use std::fmt::Debug;
 use std::sync::Arc;
+use crate::scalar::dates_and_times::day::DaySparqlOp;
+use crate::scalar::dates_and_times::hours::HoursSparqlOp;
+use crate::scalar::dates_and_times::minutes::MinutesSparqlOp;
+use crate::scalar::dates_and_times::month::MonthSparqlOp;
+use crate::scalar::dates_and_times::seconds::SecondsSparqlOp;
+use crate::scalar::dates_and_times::timezone::TimezoneSparqlOp;
+use crate::scalar::dates_and_times::year::YearSparqlOp;
+use crate::scalar::numeric::ceil::CeilSparqlOp;
+use crate::scalar::numeric::floor::FloorSparqlOp;
+use crate::scalar::numeric::round::RoundSparqlOp;
 
 /// A reference-counted pointer to an implementation of the `RdfFusionFunctionRegistry` trait.
 ///
@@ -96,10 +104,10 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 }
                 BuiltinName::BNode => bnode(),
                 BuiltinName::Rand => rand_typed_value(),
-                BuiltinName::Abs => abs_typed_value(),
-                BuiltinName::Ceil => ceil_typed_value(),
-                BuiltinName::Floor => floor_typed_value(),
-                BuiltinName::Round => round_typed_value(),
+                BuiltinName::Abs => create_scalar_sparql_op::<AbsSparqlOp>(),
+                BuiltinName::Ceil => create_scalar_sparql_op::<CeilSparqlOp>(),
+                BuiltinName::Floor => create_scalar_sparql_op::<FloorSparqlOp>(),
+                BuiltinName::Round => create_scalar_sparql_op::<RoundSparqlOp>(),
                 BuiltinName::Concat => concat_typed_value(),
                 BuiltinName::SubStr => sub_str(),
                 BuiltinName::StrLen => str_len_typed_value(),
@@ -112,13 +120,13 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::StrEnds => str_ends_typed_value(),
                 BuiltinName::StrBefore => str_before_typed_value(),
                 BuiltinName::StrAfter => str_after_typed_value(),
-                BuiltinName::Year => year_typed_value(),
-                BuiltinName::Month => month_typed_value(),
-                BuiltinName::Day => day_typed_value(),
-                BuiltinName::Hours => hours_typed_value(),
-                BuiltinName::Minutes => minutes_typed_value(),
-                BuiltinName::Seconds => seconds_typed_value(),
-                BuiltinName::Timezone => timezone_typed_value(),
+                BuiltinName::Year => create_scalar_sparql_op::<YearSparqlOp>(),
+                BuiltinName::Month => create_scalar_sparql_op::<MonthSparqlOp>(),
+                BuiltinName::Day => create_scalar_sparql_op::<DaySparqlOp>(),
+                BuiltinName::Hours => create_scalar_sparql_op::<HoursSparqlOp>(),
+                BuiltinName::Minutes => create_scalar_sparql_op::<MinutesSparqlOp>(),
+                BuiltinName::Seconds => create_scalar_sparql_op::<SecondsSparqlOp>(),
+                BuiltinName::Timezone => create_scalar_sparql_op::<TimezoneSparqlOp>(),
                 BuiltinName::Tz => tz_typed_value(),
                 BuiltinName::Uuid => uuid_typed_value(),
                 BuiltinName::StrUuid => str_uuid_typed_value(),
@@ -130,9 +138,9 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::StrLang => str_lang_typed_value(),
                 BuiltinName::StrDt => str_dt_typed_value(),
                 BuiltinName::IsIri => create_scalar_sparql_op::<IsIriSparqlOp>(),
-                BuiltinName::IsBlank => is_blank_typed_value(),
-                BuiltinName::IsLiteral => is_literal_typed_value(),
-                BuiltinName::IsNumeric => is_numeric_typed_value(),
+                BuiltinName::IsBlank => create_scalar_sparql_op::<IsBlankSparqlOp>(),
+                BuiltinName::IsLiteral => create_scalar_sparql_op::<IsLiteralSparqlOp>(),
+                BuiltinName::IsNumeric => create_scalar_sparql_op::<IsNumericSparqlOp>(),
                 BuiltinName::Regex => regex(),
                 BuiltinName::Bound => bound_typed_value(),
                 BuiltinName::Coalesce => coalesce_typed_value(),

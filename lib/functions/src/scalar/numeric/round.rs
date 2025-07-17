@@ -1,0 +1,75 @@
+use crate::builtin::BuiltinName;
+use crate::scalar::dispatch::dispatch_unary_typed_value;
+use crate::scalar::{ScalarSparqlOp, SparqlOpSignature, UnarySparqlOpArgs, UnarySparqlOpSignature};
+use crate::FunctionName;
+use datafusion::arrow::datatypes::DataType;
+use datafusion::common::exec_err;
+use datafusion::logical_expr::{ColumnarValue, Volatility};
+use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_model::{Numeric, ThinError, TypedValueRef};
+
+#[derive(Debug)]
+pub struct RoundSparqlOp {}
+
+impl Default for RoundSparqlOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RoundSparqlOp {
+    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::Round);
+    const SIGNATURE: UnarySparqlOpSignature = UnarySparqlOpSignature;
+
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl ScalarSparqlOp for RoundSparqlOp {
+    type Encoding = TypedValueEncoding;
+    type Signature = UnarySparqlOpSignature;
+
+    fn name(&self) -> &FunctionName {
+        &Self::NAME
+    }
+
+    fn signature(&self) -> &Self::Signature {
+        &Self::SIGNATURE
+    }
+
+    fn volatility(&self) -> Volatility {
+        Volatility::Immutable
+    }
+
+    fn return_type(&self, target_encoding: Option<EncodingName>) -> DFResult<DataType> {
+        if !matches!(target_encoding, Some(EncodingName::TypedValue)) {
+            return exec_err!("Unexpected target encoding: {:?}", target_encoding);
+        }
+        Ok(TypedValueEncoding::data_type())
+    }
+
+    fn invoke(
+        &self,
+        UnarySparqlOpArgs(arg): <Self::Signature as SparqlOpSignature<Self::Encoding>>::Args,
+    ) -> DFResult<ColumnarValue> {
+        dispatch_unary_typed_value(
+            &arg,
+            |value| match value {
+                TypedValueRef::NumericLiteral(numeric) => {
+                    let result = match numeric {
+                        Numeric::Float(v) => Ok(Numeric::Float(v.round())),
+                        Numeric::Double(v) => Ok(Numeric::Double(v.round())),
+                        Numeric::Decimal(v) => v.checked_round().map(Numeric::Decimal),
+                        _ => Ok(numeric),
+                    };
+                    result.map(TypedValueRef::NumericLiteral)
+                }
+                _ => ThinError::expected(),
+            },
+            || ThinError::expected(),
+        )
+    }
+}

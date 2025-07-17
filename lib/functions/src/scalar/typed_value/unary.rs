@@ -8,23 +8,19 @@ use rdf_fusion_encoding::typed_value::decoders::{
 };
 use rdf_fusion_encoding::typed_value::encoders::{
     BlankNodeRefTermValueEncoder, BooleanTermValueEncoder, DateTimeTermValueEncoder,
-    DayTimeDurationTermValueEncoder, DecimalTermValueEncoder, DoubleTermValueEncoder,
-    FloatTermValueEncoder, IntTermValueEncoder, IntegerTermValueEncoder,
-    NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder, NumericTypedValueEncoder,
-    OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
+    DecimalTermValueEncoder, DoubleTermValueEncoder, FloatTermValueEncoder, IntTermValueEncoder,
+    IntegerTermValueEncoder, NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder,
+    NumericTypedValueEncoder, OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_functions_scalar::{
-    AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
-    AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
-    DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp, HoursSparqlOp, IriSparqlOp,
-    IsBlankSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LCaseSparqlOp, LangSparqlOp,
-    Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp, RoundSparqlOp, SecondsSparqlOp, Sha1SparqlOp,
-    Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp,
-    TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp,
-    YearSparqlOp,
-};
 use rdf_fusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp};
+use rdf_fusion_functions_scalar::{
+    AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp, AsIntegerSparqlOp,
+    AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, DatatypeSparqlOp, EncodeForUriSparqlOp,
+    IriSparqlOp, LCaseSparqlOp, LangSparqlOp, Md5SparqlOp, Sha1SparqlOp, Sha256SparqlOp,
+    Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp, TzSparqlOp, UCaseSparqlOp,
+    UnaryMinusSparqlOp, UnaryPlusSparqlOp,
+};
 use rdf_fusion_model::Iri;
 use std::sync::Arc;
 
@@ -98,66 +94,10 @@ impl_unary_sparql_op!(
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DateTimeTermValueDecoder,
-    IntegerTermValueEncoder,
-    day_typed_value,
-    DaySparqlOp,
-    FunctionName::Builtin(BuiltinName::Day)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DateTimeTermValueDecoder,
-    IntegerTermValueEncoder,
-    hours_typed_value,
-    HoursSparqlOp,
-    FunctionName::Builtin(BuiltinName::Hours)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DateTimeTermValueDecoder,
-    IntegerTermValueEncoder,
-    minutes_typed_value,
-    MinutesSparqlOp,
-    FunctionName::Builtin(BuiltinName::Minutes)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DateTimeTermValueDecoder,
-    IntegerTermValueEncoder,
-    month_typed_value,
-    MonthSparqlOp,
-    FunctionName::Builtin(BuiltinName::Month)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DateTimeTermValueDecoder,
-    DecimalTermValueEncoder,
-    seconds_typed_value,
-    SecondsSparqlOp,
-    FunctionName::Builtin(BuiltinName::Seconds)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DateTimeTermValueDecoder,
-    DayTimeDurationTermValueEncoder,
-    timezone_typed_value,
-    TimezoneSparqlOp,
-    FunctionName::Builtin(BuiltinName::Timezone)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DateTimeTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     tz_typed_value,
     TzSparqlOp,
     FunctionName::Builtin(BuiltinName::Tz)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DateTimeTermValueDecoder,
-    IntegerTermValueEncoder,
-    year_typed_value,
-    YearSparqlOp,
-    FunctionName::Builtin(BuiltinName::Year)
 );
 
 // Functional Form
@@ -213,38 +153,6 @@ impl_unary_sparql_op!(
 );
 
 // Numeric
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    NumericTermValueDecoder,
-    NumericTypedValueEncoder,
-    abs_typed_value,
-    AbsSparqlOp,
-    FunctionName::Builtin(BuiltinName::Abs)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    NumericTermValueDecoder,
-    NumericTypedValueEncoder,
-    ceil_typed_value,
-    CeilSparqlOp,
-    FunctionName::Builtin(BuiltinName::Ceil)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    NumericTermValueDecoder,
-    NumericTypedValueEncoder,
-    floor_typed_value,
-    FloorSparqlOp,
-    FunctionName::Builtin(BuiltinName::Floor)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    NumericTermValueDecoder,
-    NumericTypedValueEncoder,
-    round_typed_value,
-    RoundSparqlOp,
-    FunctionName::Builtin(BuiltinName::Round)
-);
 impl_unary_sparql_op!(
     TypedValueEncoding,
     NumericTermValueDecoder,
@@ -312,30 +220,6 @@ impl_unary_sparql_op!(
     datatype_typed_value,
     DatatypeSparqlOp,
     FunctionName::Builtin(BuiltinName::Datatype)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    BooleanTermValueEncoder,
-    is_blank_typed_value,
-    IsBlankSparqlOp,
-    FunctionName::Builtin(BuiltinName::IsBlank)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    BooleanTermValueEncoder,
-    is_literal_typed_value,
-    IsLiteralSparqlOp,
-    FunctionName::Builtin(BuiltinName::IsLiteral)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    BooleanTermValueEncoder,
-    is_numeric_typed_value,
-    IsNumericSparqlOp,
-    FunctionName::Builtin(BuiltinName::IsNumeric)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,

@@ -2,7 +2,7 @@ use crate::xsd::decimal::Decimal;
 use crate::xsd::double::Double;
 use crate::xsd::float::Float;
 use crate::xsd::integer::Integer;
-use crate::Int;
+use crate::{Int, ThinResult};
 use std::cmp::Ordering;
 use std::hash::Hash;
 
@@ -16,6 +16,16 @@ pub enum Numeric {
 }
 
 impl Numeric {
+    pub fn abs(&self) -> ThinResult<Numeric> {
+        match self {
+            Numeric::Int(value) => value.checked_abs().map(Numeric::Int),
+            Numeric::Integer(value) => Ok(Numeric::Integer(value.checked_abs()?)),
+            Numeric::Float(value) => Ok(Numeric::Float(value.abs())),
+            Numeric::Double(value) => Ok(Numeric::Double(value.abs())),
+            Numeric::Decimal(value) => value.checked_abs().map(Numeric::Decimal),
+        }
+    }
+
     #[must_use]
     pub fn format_value(&self) -> String {
         match self {
