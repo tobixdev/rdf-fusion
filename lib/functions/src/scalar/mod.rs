@@ -32,6 +32,7 @@ mod dynamic_udf;
 pub mod numeric;
 mod signature;
 mod sparql_op;
+pub mod strings;
 pub mod terms;
 
 pub use args::*;

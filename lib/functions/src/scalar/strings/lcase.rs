@@ -1,6 +1,3 @@
-use rdf_fusion_model::ThinError;
-use rdf_fusion_model::{SimpleLiteral, TypedValue, TypedValueRef};
-
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
 use crate::scalar::{ScalarSparqlOp, SparqlOpSignature, UnarySparqlOpArgs, UnarySparqlOpSignature};
@@ -11,18 +8,19 @@ use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_model::{LanguageString, SimpleLiteral, ThinError, TypedValue, TypedValueRef};
 
 #[derive(Debug)]
-pub struct CastStringSparqlOp;
+pub struct LCaseSparqlOp;
 
-impl Default for CastStringSparqlOp {
+impl Default for LCaseSparqlOp {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl CastStringSparqlOp {
-    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::CastBoolean);
+impl LCaseSparqlOp {
+    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::LCase);
     const SIGNATURE: UnarySparqlOpSignature = UnarySparqlOpSignature;
 
     pub fn new() -> Self {
@@ -30,7 +28,7 @@ impl CastStringSparqlOp {
     }
 }
 
-impl ScalarSparqlOp for CastStringSparqlOp {
+impl ScalarSparqlOp for LCaseSparqlOp {
     type Encoding = TypedValueEncoding;
     type Signature = UnarySparqlOpSignature;
 
@@ -59,25 +57,19 @@ impl ScalarSparqlOp for CastStringSparqlOp {
     ) -> DFResult<ColumnarValue> {
         dispatch_unary_owned_typed_value(
             &arg,
-            |value| {
-                let converted = match value {
-                    TypedValueRef::NamedNode(value) => value.as_str().to_owned(),
-                    TypedValueRef::BlankNode(_) => return ThinError::expected(),
-                    TypedValueRef::BooleanLiteral(value) => value.to_string(),
-                    TypedValueRef::NumericLiteral(value) => value.format_value(),
-                    TypedValueRef::SimpleLiteral(value) => value.value.to_owned(),
-                    TypedValueRef::LanguageStringLiteral(value) => value.value.to_owned(),
-                    TypedValueRef::DateTimeLiteral(value) => value.to_string(),
-                    TypedValueRef::TimeLiteral(value) => value.to_string(),
-                    TypedValueRef::DateLiteral(value) => value.to_string(),
-                    TypedValueRef::DurationLiteral(value) => value.to_string(),
-                    TypedValueRef::YearMonthDurationLiteral(value) => value.to_string(),
-                    TypedValueRef::DayTimeDurationLiteral(value) => value.to_string(),
-                    TypedValueRef::OtherLiteral(value) => value.value().to_owned(),
-                };
-                Ok(TypedValue::SimpleLiteral(SimpleLiteral {
-                    value: converted,
-                }))
+            |value| match value {
+                TypedValueRef::SimpleLiteral(value) => {
+                    Ok(TypedValue::SimpleLiteral(SimpleLiteral {
+                        value: value.value.to_lowercase(),
+                    }))
+                }
+                TypedValueRef::LanguageStringLiteral(value) => {
+                    Ok(TypedValue::LanguageStringLiteral(LanguageString {
+                        value: value.value.to_lowercase(),
+                        language: value.language.to_owned(),
+                    }))
+                }
+                _ => ThinError::expected(),
             },
             || ThinError::expected(),
         )

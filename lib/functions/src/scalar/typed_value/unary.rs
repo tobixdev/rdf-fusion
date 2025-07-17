@@ -4,19 +4,18 @@ use crate::{impl_unary_sparql_op, FunctionName};
 use datafusion::logical_expr::ScalarUDF;
 use rdf_fusion_encoding::typed_value::decoders::{
     DateTimeTermValueDecoder, DefaultTypedValueDecoder, NumericTermValueDecoder,
-    SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
+    SimpleLiteralRefTermValueDecoder,
 };
 use rdf_fusion_encoding::typed_value::encoders::{
-    BlankNodeRefTermValueEncoder, BooleanTermValueEncoder, IntegerTermValueEncoder,
-    NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder, NumericTypedValueEncoder,
-    OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
+    BlankNodeRefTermValueEncoder, BooleanTermValueEncoder, NamedNodeRefTermValueEncoder,
+    NamedNodeTermValueEncoder, NumericTypedValueEncoder, OwnedStringLiteralTermValueEncoder,
+    SimpleLiteralRefTermValueEncoder,
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_functions_scalar::{
-    BNodeSparqlOp, BoundSparqlOp, DatatypeSparqlOp, EncodeForUriSparqlOp, IriSparqlOp,
-    LCaseSparqlOp, LangSparqlOp, Md5SparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp,
-    Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp,
-    UnaryPlusSparqlOp,
+    BNodeSparqlOp, BoundSparqlOp, DatatypeSparqlOp, IriSparqlOp, LangSparqlOp, Md5SparqlOp,
+    Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrTypedValueOp, TzSparqlOp,
+    UnaryMinusSparqlOp, UnaryPlusSparqlOp,
 };
 use rdf_fusion_model::Iri;
 use std::sync::Arc;
@@ -99,40 +98,6 @@ impl_unary_sparql_op!(
     unary_plus_typed_value,
     UnaryPlusSparqlOp,
     FunctionName::Builtin(BuiltinName::UnaryPlus)
-);
-
-// Strings
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    StringLiteralRefTermValueDecoder,
-    OwnedStringLiteralTermValueEncoder,
-    encode_for_uri_typed_value,
-    EncodeForUriSparqlOp,
-    FunctionName::Builtin(BuiltinName::EncodeForUri)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    StringLiteralRefTermValueDecoder,
-    OwnedStringLiteralTermValueEncoder,
-    lcase_typed_value,
-    LCaseSparqlOp,
-    FunctionName::Builtin(BuiltinName::LCase)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    StringLiteralRefTermValueDecoder,
-    IntegerTermValueEncoder,
-    str_len_typed_value,
-    StrLenSparqlOp,
-    FunctionName::Builtin(BuiltinName::StrLen)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    StringLiteralRefTermValueDecoder,
-    OwnedStringLiteralTermValueEncoder,
-    ucase_typed_value,
-    UCaseSparqlOp,
-    FunctionName::Builtin(BuiltinName::UCase)
 );
 
 // Terms

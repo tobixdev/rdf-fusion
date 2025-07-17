@@ -8,19 +8,19 @@ use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, TermEncoding};
-use rdf_fusion_model::{Boolean, Numeric, ThinError, TypedValueRef};
+use rdf_fusion_model::{Numeric, ThinError, TypedValueRef};
 
 #[derive(Debug)]
-pub struct CastBooleanSparqlOp;
+pub struct StrLenSparqlOp;
 
-impl Default for CastBooleanSparqlOp {
+impl Default for StrLenSparqlOp {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl CastBooleanSparqlOp {
-    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::CastBoolean);
+impl StrLenSparqlOp {
+    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::StrLen);
     const SIGNATURE: UnarySparqlOpSignature = UnarySparqlOpSignature;
 
     pub fn new() -> Self {
@@ -28,7 +28,7 @@ impl CastBooleanSparqlOp {
     }
 }
 
-impl ScalarSparqlOp for CastBooleanSparqlOp {
+impl ScalarSparqlOp for StrLenSparqlOp {
     type Encoding = TypedValueEncoding;
     type Signature = UnarySparqlOpSignature;
 
@@ -58,19 +58,15 @@ impl ScalarSparqlOp for CastBooleanSparqlOp {
         dispatch_unary_typed_value(
             &arg,
             |value| {
-                let converted = match value {
-                    TypedValueRef::BooleanLiteral(v) => v.into(),
-                    TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
-                    TypedValueRef::NumericLiteral(numeric) => match numeric {
-                        Numeric::Int(v) => Boolean::from(v),
-                        Numeric::Integer(v) => Boolean::from(v),
-                        Numeric::Float(v) => Boolean::from(v),
-                        Numeric::Double(v) => Boolean::from(v),
-                        Numeric::Decimal(v) => Boolean::from(v),
-                    },
+                let string = match value {
+                    TypedValueRef::SimpleLiteral(value) => value.value,
+                    TypedValueRef::LanguageStringLiteral(value) => value.value,
                     _ => return ThinError::expected(),
                 };
-                Ok(TypedValueRef::from(converted))
+                let value: i64 = string.len().try_into()?;
+                Ok(TypedValueRef::NumericLiteral(Numeric::Integer(
+                    value.into(),
+                )))
             },
             || ThinError::expected(),
         )

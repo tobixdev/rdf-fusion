@@ -579,7 +579,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn cast_boolean(self) -> DFResult<Self> {
-        self.apply_builtin(BuiltinName::AsBoolean, vec![])
+        self.apply_builtin(BuiltinName::CastBoolean, vec![])
     }
 
     //

@@ -17,6 +17,7 @@ use crate::scalar::conversion::cast_double::CastDoubleSparqlOp;
 use crate::scalar::conversion::cast_float::CastFloatSparqlOp;
 use crate::scalar::conversion::cast_int::CastIntSparqlOp;
 use crate::scalar::conversion::cast_integer::CastIntegerSparqlOp;
+use crate::scalar::conversion::cast_string::CastStringSparqlOp;
 use crate::scalar::dates_and_times::day::DaySparqlOp;
 use crate::scalar::dates_and_times::hours::HoursSparqlOp;
 use crate::scalar::dates_and_times::minutes::MinutesSparqlOp;
@@ -29,17 +30,17 @@ use crate::scalar::numeric::ceil::CeilSparqlOp;
 use crate::scalar::numeric::floor::FloorSparqlOp;
 use crate::scalar::numeric::round::RoundSparqlOp;
 use crate::scalar::plain_term::same_term;
+use crate::scalar::strings::{EncodeForUriSparqlOp, LCaseSparqlOp, StrLenSparqlOp, UCaseSparqlOp};
 use crate::scalar::terms::{IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp};
 use crate::scalar::typed_value::{
     add_typed_value, bound_typed_value, coalesce_typed_value, concat_typed_value,
-    contains_typed_value, datatype_typed_value, div_typed_value, encode_for_uri_typed_value,
-    equal_typed_value, greater_or_equal_typed_value, greater_than_typed_value, if_typed_value,
-    iri_typed_value, lang_matches_typed_value, lang_typed_value, lcase_typed_value,
-    less_or_equal_typed_value, less_than_typed_value, md5_typed_value, mul_typed_value,
-    rand_typed_value, sha1_typed_value, sha256_typed_value, sha384_typed_value, sha512_typed_value,
-    str_after_typed_value, str_before_typed_value, str_dt_typed_value, str_ends_typed_value,
-    str_lang_typed_value, str_len_typed_value, str_starts_typed_value, str_uuid_typed_value,
-    sub_typed_value, tz_typed_value, ucase_typed_value, unary_minus_typed_value,
+    contains_typed_value, datatype_typed_value, div_typed_value, equal_typed_value,
+    greater_or_equal_typed_value, greater_than_typed_value, if_typed_value, iri_typed_value,
+    lang_matches_typed_value, lang_typed_value, less_or_equal_typed_value, less_than_typed_value,
+    md5_typed_value, mul_typed_value, rand_typed_value, sha1_typed_value, sha256_typed_value,
+    sha384_typed_value, sha512_typed_value, str_after_typed_value, str_before_typed_value,
+    str_dt_typed_value, str_ends_typed_value, str_lang_typed_value, str_starts_typed_value,
+    str_uuid_typed_value, sub_typed_value, tz_typed_value, unary_minus_typed_value,
     unary_plus_typed_value, uuid_typed_value,
 };
 use crate::scalar::{bnode, regex, replace, str, sub_str, ScalarSparqlOp, ScalarSparqlOpAdapter};
@@ -49,7 +50,6 @@ use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_common::DFResult;
 use std::fmt::Debug;
 use std::sync::Arc;
-use crate::scalar::conversion::cast_string::CastStringSparqlOp;
 
 /// A reference-counted pointer to an implementation of the `RdfFusionFunctionRegistry` trait.
 ///
@@ -116,11 +116,11 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Round => create_scalar_sparql_op::<RoundSparqlOp>(),
                 BuiltinName::Concat => concat_typed_value(),
                 BuiltinName::SubStr => sub_str(),
-                BuiltinName::StrLen => str_len_typed_value(),
+                BuiltinName::StrLen => create_scalar_sparql_op::<StrLenSparqlOp>(),
                 BuiltinName::Replace => replace(),
-                BuiltinName::UCase => ucase_typed_value(),
-                BuiltinName::LCase => lcase_typed_value(),
-                BuiltinName::EncodeForUri => encode_for_uri_typed_value(),
+                BuiltinName::UCase => create_scalar_sparql_op::<UCaseSparqlOp>(),
+                BuiltinName::LCase => create_scalar_sparql_op::<LCaseSparqlOp>(),
+                BuiltinName::EncodeForUri => create_scalar_sparql_op::<EncodeForUriSparqlOp>(),
                 BuiltinName::Contains => contains_typed_value(),
                 BuiltinName::StrStarts => str_starts_typed_value(),
                 BuiltinName::StrEnds => str_ends_typed_value(),
@@ -172,7 +172,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::CastDouble => create_scalar_sparql_op::<CastDoubleSparqlOp>(),
                 BuiltinName::CastDecimal => create_scalar_sparql_op::<CastDecimalSparqlOp>(),
                 BuiltinName::CastDateTime => create_scalar_sparql_op::<CastDateTimeSparqlOp>(),
-                BuiltinName::AsBoolean => create_scalar_sparql_op::<CastBooleanSparqlOp>(),
+                BuiltinName::CastBoolean => create_scalar_sparql_op::<CastBooleanSparqlOp>(),
                 BuiltinName::WithSortableEncoding => with_sortable_term_encoding(),
                 BuiltinName::WithTypedValueEncoding => with_typed_value_encoding(),
                 BuiltinName::WithPlainTermEncoding => with_plain_term_encoding(),
