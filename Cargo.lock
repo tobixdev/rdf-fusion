@@ -3740,11 +3740,15 @@ dependencies = [
  "codspeed-criterion-compat",
  "datafusion",
  "itertools 0.14.0",
+ "md-5",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-functions-scalar",
  "rdf-fusion-model",
+ "sha1",
+ "sha2",
  "tokio-test",
+ "uuid",
 ]
 
 [[package]]

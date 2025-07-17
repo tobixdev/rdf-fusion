@@ -10,40 +10,44 @@ use crate::builtin::native::{
 };
 use crate::builtin::query::is_compatible;
 use crate::builtin::BuiltinName;
-use crate::scalar::conversion::cast_boolean::CastBooleanSparqlOp;
-use crate::scalar::conversion::cast_datetime::CastDateTimeSparqlOp;
-use crate::scalar::conversion::cast_decimal::CastDecimalSparqlOp;
-use crate::scalar::conversion::cast_double::CastDoubleSparqlOp;
-use crate::scalar::conversion::cast_float::CastFloatSparqlOp;
-use crate::scalar::conversion::cast_int::CastIntSparqlOp;
-use crate::scalar::conversion::cast_integer::CastIntegerSparqlOp;
-use crate::scalar::conversion::cast_string::CastStringSparqlOp;
-use crate::scalar::dates_and_times::day::DaySparqlOp;
-use crate::scalar::dates_and_times::hours::HoursSparqlOp;
-use crate::scalar::dates_and_times::minutes::MinutesSparqlOp;
-use crate::scalar::dates_and_times::month::MonthSparqlOp;
-use crate::scalar::dates_and_times::seconds::SecondsSparqlOp;
-use crate::scalar::dates_and_times::timezone::TimezoneSparqlOp;
-use crate::scalar::dates_and_times::year::YearSparqlOp;
-use crate::scalar::numeric::abs::AbsSparqlOp;
-use crate::scalar::numeric::ceil::CeilSparqlOp;
-use crate::scalar::numeric::floor::FloorSparqlOp;
-use crate::scalar::numeric::round::RoundSparqlOp;
+use crate::scalar::conversion::CastBooleanSparqlOp;
+use crate::scalar::conversion::CastDateTimeSparqlOp;
+use crate::scalar::conversion::CastDecimalSparqlOp;
+use crate::scalar::conversion::CastDoubleSparqlOp;
+use crate::scalar::conversion::CastFloatSparqlOp;
+use crate::scalar::conversion::CastIntSparqlOp;
+use crate::scalar::conversion::CastIntegerSparqlOp;
+use crate::scalar::conversion::CastStringSparqlOp;
+use crate::scalar::dates_and_times::HoursSparqlOp;
+use crate::scalar::dates_and_times::MinutesSparqlOp;
+use crate::scalar::dates_and_times::MonthSparqlOp;
+use crate::scalar::dates_and_times::SecondsSparqlOp;
+use crate::scalar::dates_and_times::TimezoneSparqlOp;
+use crate::scalar::dates_and_times::YearSparqlOp;
+use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
+use crate::scalar::functional_form::BoundSparqlOp;
+use crate::scalar::numeric::CeilSparqlOp;
+use crate::scalar::numeric::FloorSparqlOp;
+use crate::scalar::numeric::RoundSparqlOp;
+use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
 use crate::scalar::plain_term::same_term;
-use crate::scalar::strings::{EncodeForUriSparqlOp, LCaseSparqlOp, StrLenSparqlOp, UCaseSparqlOp};
-use crate::scalar::terms::{IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp};
-use crate::scalar::typed_value::{
-    add_typed_value, bound_typed_value, coalesce_typed_value, concat_typed_value,
-    contains_typed_value, datatype_typed_value, div_typed_value, equal_typed_value,
-    greater_or_equal_typed_value, greater_than_typed_value, if_typed_value, iri_typed_value,
-    lang_matches_typed_value, lang_typed_value, less_or_equal_typed_value, less_than_typed_value,
-    md5_typed_value, mul_typed_value, rand_typed_value, sha1_typed_value, sha256_typed_value,
-    sha384_typed_value, sha512_typed_value, str_after_typed_value, str_before_typed_value,
-    str_dt_typed_value, str_ends_typed_value, str_lang_typed_value, str_starts_typed_value,
-    str_uuid_typed_value, sub_typed_value, tz_typed_value, unary_minus_typed_value,
-    unary_plus_typed_value, uuid_typed_value,
+use crate::scalar::strings::{
+    EncodeForUriSparqlOp, LCaseSparqlOp, Md5SparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp,
+    Sha512SparqlOp, StrLenSparqlOp, UCaseSparqlOp,
 };
-use crate::scalar::{bnode, regex, replace, str, sub_str, ScalarSparqlOp, ScalarSparqlOpAdapter};
+use crate::scalar::terms::{
+    BNodeSparqlOp, DatatypeSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp,
+    IsLiteralSparqlOp, IsNumericSparqlOp, LangSparqlOp, StrSparqlOp,
+};
+use crate::scalar::typed_value::{
+    add_typed_value, coalesce_typed_value, concat_typed_value, contains_typed_value,
+    div_typed_value, equal_typed_value, greater_or_equal_typed_value, greater_than_typed_value,
+    if_typed_value, lang_matches_typed_value, less_or_equal_typed_value, less_than_typed_value,
+    mul_typed_value, rand_typed_value, str_after_typed_value, str_before_typed_value,
+    str_dt_typed_value, str_ends_typed_value, str_lang_typed_value, str_starts_typed_value,
+    str_uuid_typed_value, sub_typed_value, uuid_typed_value,
+};
+use crate::scalar::{regex, replace, sub_str, ScalarSparqlOp, ScalarSparqlOpAdapter};
 use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
 use datafusion::common::plan_err;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
@@ -100,15 +104,16 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     ) -> DFResult<Arc<ScalarUDF>> {
         match function_name {
             FunctionName::Builtin(builtin) => Ok(match builtin {
-                BuiltinName::Str => str(),
-                BuiltinName::Lang => lang_typed_value(),
+                BuiltinName::Str => create_scalar_sparql_op::<StrSparqlOp>(),
+                BuiltinName::Lang => create_scalar_sparql_op::<LangSparqlOp>(),
                 BuiltinName::LangMatches => lang_matches_typed_value(),
-                BuiltinName::Datatype => datatype_typed_value(),
+                BuiltinName::Datatype => create_scalar_sparql_op::<DatatypeSparqlOp>(),
                 BuiltinName::Iri => {
                     let iri = constant_args.get(RdfFusionBuiltinArgNames::BASE_IRI)?;
-                    iri_typed_value(iri)
+                    let op = IriSparqlOp::new(iri);
+                    create_scalar_udf(op)
                 }
-                BuiltinName::BNode => bnode(),
+                BuiltinName::BNode => create_scalar_sparql_op::<BNodeSparqlOp>(),
                 BuiltinName::Rand => rand_typed_value(),
                 BuiltinName::Abs => create_scalar_sparql_op::<AbsSparqlOp>(),
                 BuiltinName::Ceil => create_scalar_sparql_op::<CeilSparqlOp>(),
@@ -133,14 +138,14 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Minutes => create_scalar_sparql_op::<MinutesSparqlOp>(),
                 BuiltinName::Seconds => create_scalar_sparql_op::<SecondsSparqlOp>(),
                 BuiltinName::Timezone => create_scalar_sparql_op::<TimezoneSparqlOp>(),
-                BuiltinName::Tz => tz_typed_value(),
+                BuiltinName::Tz => create_scalar_sparql_op::<TzSparqlOp>(),
                 BuiltinName::Uuid => uuid_typed_value(),
                 BuiltinName::StrUuid => str_uuid_typed_value(),
-                BuiltinName::Md5 => md5_typed_value(),
-                BuiltinName::Sha1 => sha1_typed_value(),
-                BuiltinName::Sha256 => sha256_typed_value(),
-                BuiltinName::Sha384 => sha384_typed_value(),
-                BuiltinName::Sha512 => sha512_typed_value(),
+                BuiltinName::Md5 => create_scalar_sparql_op::<Md5SparqlOp>(),
+                BuiltinName::Sha1 => create_scalar_sparql_op::<Sha1SparqlOp>(),
+                BuiltinName::Sha256 => create_scalar_sparql_op::<Sha256SparqlOp>(),
+                BuiltinName::Sha384 => create_scalar_sparql_op::<Sha384SparqlOp>(),
+                BuiltinName::Sha512 => create_scalar_sparql_op::<Sha512SparqlOp>(),
                 BuiltinName::StrLang => str_lang_typed_value(),
                 BuiltinName::StrDt => str_dt_typed_value(),
                 BuiltinName::IsIri => create_scalar_sparql_op::<IsIriSparqlOp>(),
@@ -148,7 +153,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::IsLiteral => create_scalar_sparql_op::<IsLiteralSparqlOp>(),
                 BuiltinName::IsNumeric => create_scalar_sparql_op::<IsNumericSparqlOp>(),
                 BuiltinName::Regex => regex(),
-                BuiltinName::Bound => bound_typed_value(),
+                BuiltinName::Bound => create_scalar_sparql_op::<BoundSparqlOp>(),
                 BuiltinName::Coalesce => coalesce_typed_value(),
                 BuiltinName::If => if_typed_value(),
                 BuiltinName::SameTerm => same_term(),
@@ -161,8 +166,8 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Div => div_typed_value(),
                 BuiltinName::Mul => mul_typed_value(),
                 BuiltinName::Sub => sub_typed_value(),
-                BuiltinName::UnaryMinus => unary_minus_typed_value(),
-                BuiltinName::UnaryPlus => unary_plus_typed_value(),
+                BuiltinName::UnaryMinus => create_scalar_sparql_op::<UnaryMinusSparqlOp>(),
+                BuiltinName::UnaryPlus => create_scalar_sparql_op::<UnaryPlusSparqlOp>(),
                 BuiltinName::And => sparql_and(),
                 BuiltinName::Or => sparql_or(),
                 BuiltinName::CastString => create_scalar_sparql_op::<CastStringSparqlOp>(),
@@ -213,6 +218,13 @@ where
     TSparqlOp: Default + ScalarSparqlOp + 'static,
 {
     let op = TSparqlOp::default();
+    create_scalar_udf(op)
+}
+
+fn create_scalar_udf<TSparqlOp>(op: TSparqlOp) -> Arc<ScalarUDF>
+where
+    TSparqlOp: ScalarSparqlOp + 'static,
+{
     let adapter = ScalarSparqlOpAdapter::new(op);
     Arc::new(ScalarUDF::new_from_impl(adapter))
 }

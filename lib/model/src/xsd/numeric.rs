@@ -5,6 +5,7 @@ use crate::xsd::integer::Integer;
 use crate::{Int, ThinResult};
 use std::cmp::Ordering;
 use std::hash::Hash;
+use std::ops::Neg;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Numeric {
@@ -23,6 +24,16 @@ impl Numeric {
             Numeric::Float(value) => Ok(Numeric::Float(value.abs())),
             Numeric::Double(value) => Ok(Numeric::Double(value.abs())),
             Numeric::Decimal(value) => value.checked_abs().map(Numeric::Decimal),
+        }
+    }
+
+    pub fn neg(&self) -> ThinResult<Numeric> {
+        match self {
+            Numeric::Int(value) => value.checked_neg().map(Numeric::Int),
+            Numeric::Integer(value) => Ok(Numeric::Integer(value.checked_neg()?)),
+            Numeric::Float(value) => Ok(Numeric::Float(value.neg())),
+            Numeric::Double(value) => Ok(Numeric::Double(value.neg())),
+            Numeric::Decimal(value) => value.checked_neg().map(Numeric::Decimal),
         }
     }
 

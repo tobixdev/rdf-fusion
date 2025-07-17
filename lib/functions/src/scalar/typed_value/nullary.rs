@@ -1,19 +1,11 @@
 use crate::builtin::BuiltinName;
 use crate::FunctionName;
 use rdf_fusion_encoding::typed_value::encoders::{
-    BlankNodeTermValueEncoder, DoubleTermValueEncoder, NamedNodeTermValueEncoder,
-    OwnedStringLiteralTermValueEncoder,
+    DoubleTermValueEncoder, NamedNodeTermValueEncoder, OwnedStringLiteralTermValueEncoder,
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_functions_scalar::{BNodeSparqlOp, RandSparqlOp, StrUuidSparqlOp, UuidSparqlOp};
+use rdf_fusion_functions_scalar::{RandSparqlOp, StrUuidSparqlOp, UuidSparqlOp};
 
-impl_nullary_op!(
-    TypedValueEncoding,
-    BlankNodeTermValueEncoder,
-    bnode_nullary_typed_value,
-    BNodeSparqlOp,
-    FunctionName::Builtin(BuiltinName::BNode)
-);
 impl_nullary_op!(
     TypedValueEncoding,
     DoubleTermValueEncoder,

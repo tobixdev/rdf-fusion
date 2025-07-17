@@ -1,0 +1,73 @@
+use crate::builtin::BuiltinName;
+use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
+use crate::scalar::{ScalarSparqlOp, SparqlOpSignature, UnarySparqlOpArgs, UnarySparqlOpSignature};
+use crate::FunctionName;
+use datafusion::arrow::datatypes::DataType;
+use datafusion::common::exec_err;
+use datafusion::logical_expr::{ColumnarValue, Volatility};
+use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_model::{SimpleLiteral, ThinError, TypedValue, TypedValueRef};
+
+#[derive(Debug)]
+pub struct TzSparqlOp;
+
+impl Default for TzSparqlOp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TzSparqlOp {
+    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::Tz);
+    const SIGNATURE: UnarySparqlOpSignature = UnarySparqlOpSignature;
+
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl ScalarSparqlOp for TzSparqlOp {
+    type Encoding = TypedValueEncoding;
+    type Signature = UnarySparqlOpSignature;
+
+    fn name(&self) -> &FunctionName {
+        &Self::NAME
+    }
+
+    fn signature(&self) -> &Self::Signature {
+        &Self::SIGNATURE
+    }
+
+    fn volatility(&self) -> Volatility {
+        Volatility::Immutable
+    }
+
+    fn return_type(&self, target_encoding: Option<EncodingName>) -> DFResult<DataType> {
+        if !matches!(target_encoding, Some(EncodingName::TypedValue)) {
+            return exec_err!("Unexpected target encoding: {:?}", target_encoding);
+        }
+        Ok(TypedValueEncoding::data_type())
+    }
+
+    fn invoke(
+        &self,
+        UnarySparqlOpArgs(arg): <Self::Signature as SparqlOpSignature<Self::Encoding>>::Args,
+    ) -> DFResult<ColumnarValue> {
+        dispatch_unary_owned_typed_value(
+            &arg,
+            |value| {
+                let tz = match value {
+                    TypedValueRef::DateTimeLiteral(v) => v
+                        .timezone_offset()
+                        .map(|offset| offset.to_string())
+                        .unwrap_or_default(),
+                    _ => return ThinError::expected(),
+                };
+                Ok(TypedValue::SimpleLiteral(SimpleLiteral { value: tz }))
+            },
+            || ThinError::expected(),
+        )
+    }
+}

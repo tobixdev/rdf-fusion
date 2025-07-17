@@ -1,15 +1,11 @@
 mod comparison;
-mod dates_and_times;
 mod functional_forms;
-mod hash;
 mod numeric;
 mod strings;
 mod terms;
 
 pub use comparison::*;
-pub use dates_and_times::*;
 pub use functional_forms::*;
-pub use hash::*;
 pub use numeric::*;
 use std::fmt::Debug;
 pub use strings::*;

@@ -1,8 +1,17 @@
-pub mod cast_boolean;
-pub mod cast_datetime;
-pub mod cast_decimal;
-pub mod cast_double;
-pub mod cast_float;
-pub mod cast_int;
-pub mod cast_integer;
-pub mod cast_string;
+mod cast_boolean;
+mod cast_datetime;
+mod cast_decimal;
+mod cast_double;
+mod cast_float;
+mod cast_int;
+mod cast_integer;
+mod cast_string;
+
+pub use cast_boolean::CastBooleanSparqlOp;
+pub use cast_datetime::CastDateTimeSparqlOp;
+pub use cast_decimal::CastDecimalSparqlOp;
+pub use cast_double::CastDoubleSparqlOp;
+pub use cast_float::CastFloatSparqlOp;
+pub use cast_int::CastIntSparqlOp;
+pub use cast_integer::CastIntegerSparqlOp;
+pub use cast_string::CastStringSparqlOp;
