@@ -18,9 +18,9 @@ use rdf_fusion_functions_scalar::{
     AbsSparqlOp, AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp,
     AsIntegerSparqlOp, AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, CeilSparqlOp,
     DatatypeSparqlOp, DaySparqlOp, EncodeForUriSparqlOp, FloorSparqlOp, HoursSparqlOp, IriSparqlOp,
-    IsBlankSparqlOp, IsIriLegacySparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LCaseSparqlOp,
-    LangSparqlOp, Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp, RoundSparqlOp, SecondsSparqlOp,
-    Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp,
+    IsBlankSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LCaseSparqlOp, LangSparqlOp,
+    Md5SparqlOp, MinutesSparqlOp, MonthSparqlOp, RoundSparqlOp, SecondsSparqlOp, Sha1SparqlOp,
+    Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp,
     TimezoneSparqlOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp,
     YearSparqlOp,
 };
@@ -320,14 +320,6 @@ impl_unary_sparql_op!(
     is_blank_typed_value,
     IsBlankSparqlOp,
     FunctionName::Builtin(BuiltinName::IsBlank)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    BooleanTermValueEncoder,
-    is_iri_typed_value,
-    IsIriLegacySparqlOp,
-    FunctionName::Builtin(BuiltinName::IsIri)
 );
 impl_unary_sparql_op!(
     TypedValueEncoding,

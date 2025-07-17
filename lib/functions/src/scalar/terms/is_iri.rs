@@ -1,15 +1,14 @@
 use crate::builtin::BuiltinName;
+use crate::scalar::dispatch::dispatch_unary_typed_value;
 use crate::scalar::{ScalarSparqlOp, SparqlOpSignature, UnarySparqlOpArgs, UnarySparqlOpSignature};
 use crate::FunctionName;
-use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::exec_err;
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::{
-    TypedValueArray, TypedValueArrayBuilder, TypedValueEncoding, TypedValueEncodingField,
-};
-use rdf_fusion_encoding::{EncodingDatum, EncodingName, EncodingScalar, TermEncoding};
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_model::{ThinError, TypedValueRef};
 
 /// TODO
 #[derive(Debug)]
@@ -58,33 +57,14 @@ impl ScalarSparqlOp for IsIriSparqlOp {
         &self,
         UnarySparqlOpArgs(arg): <Self::Signature as SparqlOpSignature<Self::Encoding>>::Args,
     ) -> DFResult<ColumnarValue> {
-        match arg {
-            EncodingDatum::Array(array) => {
-                let array = invoke_typed_value_array(array)?;
-                Ok(ColumnarValue::Array(array))
-            }
-            EncodingDatum::Scalar(scalar, _) => {
-                let array = scalar.to_array(1)?;
-                let array_result = invoke_typed_value_array(array)?;
-                let scalar_result = ScalarValue::try_from_array(&array_result, 0)?;
-                Ok(ColumnarValue::Scalar(scalar_result))
-            }
-        }
+        dispatch_unary_typed_value(
+            &arg,
+            |value| {
+                Ok(TypedValueRef::BooleanLiteral(
+                    matches!(value, TypedValueRef::NamedNode(_)).into(),
+                ))
+            },
+            || ThinError::expected(),
+        )
     }
-}
-
-fn invoke_typed_value_array(array: TypedValueArray) -> DFResult<ArrayRef> {
-    let parts = array.parts_as_ref();
-
-    let mut result = TypedValueArrayBuilder::default();
-    for type_id in parts.array.type_ids() {
-        if *type_id == TypedValueEncodingField::Null.type_id() {
-            result.append_null()?;
-        } else {
-            let boolean = *type_id == TypedValueEncodingField::NamedNode.type_id();
-            result.append_boolean(boolean.into())?;
-        }
-    }
-
-    Ok(result.finish())
 }
