@@ -1,6 +1,6 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
-use crate::scalar::{ScalarSparqlOp, SparqlOpSignature, UnarySparqlOpArgs, UnarySparqlOpSignature};
+use crate::scalar::{ScalarSparqlOp, SparqlOpSignature, UnaryArgs, UnarySparqlOpSignature};
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -54,7 +54,7 @@ impl ScalarSparqlOp for Md5SparqlOp {
 
     fn invoke(
         &self,
-        UnarySparqlOpArgs(arg): <Self::Signature as SparqlOpSignature<Self::Encoding>>::Args,
+        UnaryArgs(arg): <Self::Signature as SparqlOpSignature<Self::Encoding>>::Args,
     ) -> DFResult<ColumnarValue> {
         dispatch_unary_owned_typed_value(
             &arg,

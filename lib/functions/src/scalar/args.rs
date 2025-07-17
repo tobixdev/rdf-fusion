@@ -11,20 +11,24 @@ pub trait SparqlOpArgs {
         Self: Sized;
 }
 
-pub struct NullarySparqlOpArgs;
+pub struct NullaryArgs {
+    pub number_rows: usize,
+}
 
-impl SparqlOpArgs for NullarySparqlOpArgs {
+impl SparqlOpArgs for NullaryArgs {
     fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
         if args.args.len() != 0 {
             return exec_err!("Expected 0 arguments, got {}", args.args.len());
         }
-        Ok(Self)
+        Ok(Self {
+            number_rows: args.number_rows,
+        })
     }
 }
 
-pub struct UnarySparqlOpArgs<TEncoding: TermEncoding>(pub EncodingDatum<TEncoding>);
+pub struct UnaryArgs<TEncoding: TermEncoding>(pub EncodingDatum<TEncoding>);
 
-impl<TEncoding: TermEncoding> SparqlOpArgs for UnarySparqlOpArgs<TEncoding> {
+impl<TEncoding: TermEncoding> SparqlOpArgs for UnaryArgs<TEncoding> {
     fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
         let args = args
             .args
@@ -37,5 +41,20 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for UnarySparqlOpArgs<TEncoding> {
             .map_err(|_| exec_datafusion_err!("Expected 1 argument, got {}", len))?;
 
         Ok(Self(arg0))
+    }
+}
+
+pub enum NullaryOrUnaryArgs<TEncoding: TermEncoding> {
+    Nullary(NullaryArgs),
+    Unary(UnaryArgs<TEncoding>),
+}
+
+impl<TEncoding: TermEncoding> SparqlOpArgs for NullaryOrUnaryArgs<TEncoding> {
+    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+        if args.args.len() == 0 {
+            Ok(Self::Nullary(NullaryArgs::try_from_args(args)?))
+        } else {
+            Ok(Self::Unary(UnaryArgs::try_from_args(args)?))
+        }
     }
 }

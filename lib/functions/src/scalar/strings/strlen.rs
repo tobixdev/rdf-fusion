@@ -1,6 +1,6 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_typed_value;
-use crate::scalar::{ScalarSparqlOp, SparqlOpSignature, UnarySparqlOpArgs, UnarySparqlOpSignature};
+use crate::scalar::{ScalarSparqlOp, SparqlOpSignature, UnaryArgs, UnarySparqlOpSignature};
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -53,7 +53,7 @@ impl ScalarSparqlOp for StrLenSparqlOp {
 
     fn invoke(
         &self,
-        UnarySparqlOpArgs(arg): <Self::Signature as SparqlOpSignature<Self::Encoding>>::Args,
+        UnaryArgs(arg): <Self::Signature as SparqlOpSignature<Self::Encoding>>::Args,
     ) -> DFResult<ColumnarValue> {
         dispatch_unary_typed_value(
             &arg,
@@ -63,7 +63,7 @@ impl ScalarSparqlOp for StrLenSparqlOp {
                     TypedValueRef::LanguageStringLiteral(value) => value.value,
                     _ => return ThinError::expected(),
                 };
-                let value: i64 = string.len().try_into()?;
+                let value: i64 = string.chars().count().try_into()?;
                 Ok(TypedValueRef::NumericLiteral(Numeric::Integer(
                     value.into(),
                 )))

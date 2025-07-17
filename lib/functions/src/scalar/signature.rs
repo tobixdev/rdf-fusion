@@ -1,4 +1,4 @@
-use crate::scalar::{NullarySparqlOpArgs, SparqlOpArgs, UnarySparqlOpArgs};
+use crate::scalar::{NullaryOrUnaryArgs, NullaryArgs, SparqlOpArgs, UnaryArgs};
 use datafusion::logical_expr::TypeSignature;
 use rdf_fusion_encoding::TermEncoding;
 use std::fmt::Debug;
@@ -23,7 +23,7 @@ impl<TEncoding> SparqlOpSignature<TEncoding> for NullarySparqlOpSignature
 where
     TEncoding: TermEncoding,
 {
-    type Args = NullarySparqlOpArgs;
+    type Args = NullaryArgs;
 
     fn type_signature(&self) -> TypeSignature {
         TypeSignature::Nullary
@@ -38,9 +38,27 @@ impl<TEncoding> SparqlOpSignature<TEncoding> for UnarySparqlOpSignature
 where
     TEncoding: TermEncoding,
 {
-    type Args = UnarySparqlOpArgs<TEncoding>;
+    type Args = UnaryArgs<TEncoding>;
 
     fn type_signature(&self) -> TypeSignature {
         TypeSignature::Uniform(1, vec![TEncoding::data_type()])
+    }
+}
+
+/// TODO
+#[derive(Debug)]
+pub struct NullaryOrUnarySparqlOpSignature;
+
+impl<TEncoding> SparqlOpSignature<TEncoding> for NullaryOrUnarySparqlOpSignature
+where
+    TEncoding: TermEncoding,
+{
+    type Args = NullaryOrUnaryArgs<TEncoding>;
+
+    fn type_signature(&self) -> TypeSignature {
+        TypeSignature::OneOf(vec![
+            TypeSignature::Nullary,
+            TypeSignature::Uniform(1, vec![TEncoding::data_type()]),
+        ])
     }
 }
