@@ -1,5 +1,4 @@
 mod comparison;
-mod conversion;
 mod dates_and_times;
 mod functional_forms;
 mod hash;
@@ -8,7 +7,6 @@ mod strings;
 mod terms;
 
 pub use comparison::*;
-pub use conversion::*;
 pub use dates_and_times::*;
 pub use functional_forms::*;
 pub use hash::*;

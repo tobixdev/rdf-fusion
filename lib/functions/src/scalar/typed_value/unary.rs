@@ -13,23 +13,13 @@ use rdf_fusion_encoding::typed_value::encoders::{
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_functions_scalar::{
-    AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, DatatypeSparqlOp, EncodeForUriSparqlOp,
-    IriSparqlOp, LCaseSparqlOp, LangSparqlOp, Md5SparqlOp, Sha1SparqlOp, Sha256SparqlOp,
-    Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp, TzSparqlOp, UCaseSparqlOp,
-    UnaryMinusSparqlOp, UnaryPlusSparqlOp,
+    BNodeSparqlOp, BoundSparqlOp, DatatypeSparqlOp, EncodeForUriSparqlOp, IriSparqlOp,
+    LCaseSparqlOp, LangSparqlOp, Md5SparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp,
+    Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp, TzSparqlOp, UCaseSparqlOp, UnaryMinusSparqlOp,
+    UnaryPlusSparqlOp,
 };
 use rdf_fusion_model::Iri;
 use std::sync::Arc;
-
-// Conversion
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    OwnedStringLiteralTermValueEncoder,
-    as_string_typed_value,
-    AsStringSparqlOp,
-    FunctionName::Builtin(BuiltinName::CastString)
-);
 
 // Dates and Times
 impl_unary_sparql_op!(

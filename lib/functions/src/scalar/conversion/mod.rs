@@ -1,7 +1,8 @@
-pub mod as_boolean;
-pub mod as_datetime;
-pub mod as_decimal;
-pub mod as_double;
-pub mod as_float;
-pub mod as_int;
-pub mod as_integer;
+pub mod cast_boolean;
+pub mod cast_datetime;
+pub mod cast_decimal;
+pub mod cast_double;
+pub mod cast_float;
+pub mod cast_int;
+pub mod cast_integer;
+pub mod cast_string;
