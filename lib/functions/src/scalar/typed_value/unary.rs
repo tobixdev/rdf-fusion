@@ -7,15 +7,12 @@ use rdf_fusion_encoding::typed_value::decoders::{
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
 use rdf_fusion_encoding::typed_value::encoders::{
-    BlankNodeRefTermValueEncoder, BooleanTermValueEncoder, DateTimeTermValueEncoder,
-    DecimalTermValueEncoder, DoubleTermValueEncoder, FloatTermValueEncoder, IntTermValueEncoder,
-    IntegerTermValueEncoder, NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder,
-    NumericTypedValueEncoder, OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
+    BlankNodeRefTermValueEncoder, BooleanTermValueEncoder, IntegerTermValueEncoder,
+    NamedNodeRefTermValueEncoder, NamedNodeTermValueEncoder, NumericTypedValueEncoder,
+    OwnedStringLiteralTermValueEncoder, SimpleLiteralRefTermValueEncoder,
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_functions_scalar::{AsBooleanSparqlOp, AsDateTimeSparqlOp};
 use rdf_fusion_functions_scalar::{
-    AsDecimalSparqlOp, AsDoubleSparqlOp, AsFloatSparqlOp, AsIntSparqlOp, AsIntegerSparqlOp,
     AsStringSparqlOp, BNodeSparqlOp, BoundSparqlOp, DatatypeSparqlOp, EncodeForUriSparqlOp,
     IriSparqlOp, LCaseSparqlOp, LangSparqlOp, Md5SparqlOp, Sha1SparqlOp, Sha256SparqlOp,
     Sha384SparqlOp, Sha512SparqlOp, StrLenSparqlOp, StrTypedValueOp, TzSparqlOp, UCaseSparqlOp,
@@ -25,62 +22,6 @@ use rdf_fusion_model::Iri;
 use std::sync::Arc;
 
 // Conversion
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    BooleanTermValueEncoder,
-    as_boolean_typed_value,
-    AsBooleanSparqlOp,
-    FunctionName::Builtin(BuiltinName::AsBoolean)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    DateTimeTermValueEncoder,
-    as_date_time_typed_value,
-    AsDateTimeSparqlOp,
-    FunctionName::Builtin(BuiltinName::CastDateTime)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    DecimalTermValueEncoder,
-    as_decimal_typed_value,
-    AsDecimalSparqlOp,
-    FunctionName::Builtin(BuiltinName::CastDecimal)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    DoubleTermValueEncoder,
-    as_double_typed_value,
-    AsDoubleSparqlOp,
-    FunctionName::Builtin(BuiltinName::CastDouble)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    FloatTermValueEncoder,
-    as_float_typed_value,
-    AsFloatSparqlOp,
-    FunctionName::Builtin(BuiltinName::CastFloat)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    IntTermValueEncoder,
-    as_int_typed_value,
-    AsIntSparqlOp,
-    FunctionName::Builtin(BuiltinName::AsInt)
-);
-impl_unary_sparql_op!(
-    TypedValueEncoding,
-    DefaultTypedValueDecoder,
-    IntegerTermValueEncoder,
-    as_integer_typed_value,
-    AsIntegerSparqlOp,
-    FunctionName::Builtin(BuiltinName::CastInteger)
-);
 impl_unary_sparql_op!(
     TypedValueEncoding,
     DefaultTypedValueDecoder,

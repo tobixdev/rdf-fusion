@@ -25,6 +25,7 @@ mod unary;
 #[macro_use]
 mod n_ary;
 mod args;
+pub mod conversion;
 pub mod dates_and_times;
 mod dispatch;
 mod dynamic_udf;

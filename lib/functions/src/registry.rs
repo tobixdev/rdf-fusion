@@ -10,22 +10,37 @@ use crate::builtin::native::{
 };
 use crate::builtin::query::is_compatible;
 use crate::builtin::BuiltinName;
+use crate::scalar::conversion::as_boolean::CastBooleanSparqlOp;
+use crate::scalar::conversion::as_datetime::CastDateTimeSparqlOp;
+use crate::scalar::conversion::as_decimal::CastDecimalSparqlOp;
+use crate::scalar::conversion::as_double::CastDoubleSparqlOp;
+use crate::scalar::conversion::as_float::CastFloatSparqlOp;
+use crate::scalar::conversion::as_int::CastIntSparqlOp;
+use crate::scalar::conversion::as_integer::CastIntegerSparqlOp;
+use crate::scalar::dates_and_times::day::DaySparqlOp;
+use crate::scalar::dates_and_times::hours::HoursSparqlOp;
+use crate::scalar::dates_and_times::minutes::MinutesSparqlOp;
+use crate::scalar::dates_and_times::month::MonthSparqlOp;
+use crate::scalar::dates_and_times::seconds::SecondsSparqlOp;
+use crate::scalar::dates_and_times::timezone::TimezoneSparqlOp;
+use crate::scalar::dates_and_times::year::YearSparqlOp;
 use crate::scalar::numeric::abs::AbsSparqlOp;
+use crate::scalar::numeric::ceil::CeilSparqlOp;
+use crate::scalar::numeric::floor::FloorSparqlOp;
+use crate::scalar::numeric::round::RoundSparqlOp;
 use crate::scalar::plain_term::same_term;
 use crate::scalar::terms::{IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp};
 use crate::scalar::typed_value::{
-    add_typed_value, as_boolean_typed_value, as_date_time_typed_value, as_decimal_typed_value,
-    as_double_typed_value, as_float_typed_value, as_int_typed_value, as_integer_typed_value,
-    as_string_typed_value, bound_typed_value, coalesce_typed_value, concat_typed_value,
-    contains_typed_value, datatype_typed_value, div_typed_value, encode_for_uri_typed_value,
-    equal_typed_value, greater_or_equal_typed_value, greater_than_typed_value, if_typed_value,
-    iri_typed_value, lang_matches_typed_value, lang_typed_value, lcase_typed_value,
-    less_or_equal_typed_value, less_than_typed_value, md5_typed_value, mul_typed_value,
-    rand_typed_value, sha1_typed_value, sha256_typed_value, sha384_typed_value, sha512_typed_value,
-    str_after_typed_value, str_before_typed_value, str_dt_typed_value, str_ends_typed_value,
-    str_lang_typed_value, str_len_typed_value, str_starts_typed_value, str_uuid_typed_value,
-    sub_typed_value, tz_typed_value, ucase_typed_value, unary_minus_typed_value,
-    unary_plus_typed_value, uuid_typed_value,
+    add_typed_value, as_string_typed_value, bound_typed_value, coalesce_typed_value,
+    concat_typed_value, contains_typed_value, datatype_typed_value, div_typed_value,
+    encode_for_uri_typed_value, equal_typed_value, greater_or_equal_typed_value,
+    greater_than_typed_value, if_typed_value, iri_typed_value, lang_matches_typed_value,
+    lang_typed_value, lcase_typed_value, less_or_equal_typed_value, less_than_typed_value,
+    md5_typed_value, mul_typed_value, rand_typed_value, sha1_typed_value, sha256_typed_value,
+    sha384_typed_value, sha512_typed_value, str_after_typed_value, str_before_typed_value,
+    str_dt_typed_value, str_ends_typed_value, str_lang_typed_value, str_len_typed_value,
+    str_starts_typed_value, str_uuid_typed_value, sub_typed_value, tz_typed_value,
+    ucase_typed_value, unary_minus_typed_value, unary_plus_typed_value, uuid_typed_value,
 };
 use crate::scalar::{bnode, regex, replace, str, sub_str, ScalarSparqlOp, ScalarSparqlOpAdapter};
 use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
@@ -34,16 +49,6 @@ use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_common::DFResult;
 use std::fmt::Debug;
 use std::sync::Arc;
-use crate::scalar::dates_and_times::day::DaySparqlOp;
-use crate::scalar::dates_and_times::hours::HoursSparqlOp;
-use crate::scalar::dates_and_times::minutes::MinutesSparqlOp;
-use crate::scalar::dates_and_times::month::MonthSparqlOp;
-use crate::scalar::dates_and_times::seconds::SecondsSparqlOp;
-use crate::scalar::dates_and_times::timezone::TimezoneSparqlOp;
-use crate::scalar::dates_and_times::year::YearSparqlOp;
-use crate::scalar::numeric::ceil::CeilSparqlOp;
-use crate::scalar::numeric::floor::FloorSparqlOp;
-use crate::scalar::numeric::round::RoundSparqlOp;
 
 /// A reference-counted pointer to an implementation of the `RdfFusionFunctionRegistry` trait.
 ///
@@ -160,13 +165,13 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::And => sparql_and(),
                 BuiltinName::Or => sparql_or(),
                 BuiltinName::CastString => as_string_typed_value(),
-                BuiltinName::CastInteger => as_integer_typed_value(),
-                BuiltinName::AsInt => as_int_typed_value(),
-                BuiltinName::CastFloat => as_float_typed_value(),
-                BuiltinName::CastDouble => as_double_typed_value(),
-                BuiltinName::CastDecimal => as_decimal_typed_value(),
-                BuiltinName::CastDateTime => as_date_time_typed_value(),
-                BuiltinName::AsBoolean => as_boolean_typed_value(),
+                BuiltinName::CastInteger => create_scalar_sparql_op::<CastIntegerSparqlOp>(),
+                BuiltinName::AsInt => create_scalar_sparql_op::<CastIntSparqlOp>(),
+                BuiltinName::CastFloat => create_scalar_sparql_op::<CastFloatSparqlOp>(),
+                BuiltinName::CastDouble => create_scalar_sparql_op::<CastDoubleSparqlOp>(),
+                BuiltinName::CastDecimal => create_scalar_sparql_op::<CastDecimalSparqlOp>(),
+                BuiltinName::CastDateTime => create_scalar_sparql_op::<CastDateTimeSparqlOp>(),
+                BuiltinName::AsBoolean => create_scalar_sparql_op::<CastBooleanSparqlOp>(),
                 BuiltinName::WithSortableEncoding => with_sortable_term_encoding(),
                 BuiltinName::WithTypedValueEncoding => with_typed_value_encoding(),
                 BuiltinName::WithPlainTermEncoding => with_plain_term_encoding(),
