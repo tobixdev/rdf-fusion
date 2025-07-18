@@ -1,3 +1,4 @@
+mod concat;
 mod contains;
 mod encode_for_uri;
 mod lang_matches;
@@ -18,6 +19,7 @@ mod struuid;
 mod sub_str;
 mod ucase;
 
+pub use concat::ConcatSparqlOp;
 pub use contains::ContainsSparqlOp;
 pub use encode_for_uri::EncodeForUriSparqlOp;
 pub use lang_matches::LangMatchesSparqlOp;

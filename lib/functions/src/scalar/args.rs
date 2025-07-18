@@ -133,6 +133,27 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for QuaternaryArgs<TEncoding> {
     }
 }
 
+pub struct NAryArgs<TEncoding: TermEncoding>(pub Vec<EncodingDatum<TEncoding>>, pub usize);
+
+impl<TEncoding: TermEncoding> SparqlOpArgs for NAryArgs<TEncoding> {
+    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+        let number_rows = args.number_rows;
+        let args = args
+            .args
+            .into_iter()
+            .map(|cv| TEncoding::try_new_datum(cv, args.number_rows))
+            .collect::<DFResult<Vec<_>>>()?;
+        Ok(Self(args, number_rows))
+    }
+
+    fn type_signature() -> TypeSignature {
+        TypeSignature::OneOf(vec![
+            TypeSignature::Nullary,
+            TypeSignature::Variadic(vec![TEncoding::data_type()]),
+        ])
+    }
+}
+
 pub enum NullaryOrUnaryArgs<TEncoding: TermEncoding> {
     Nullary(NullaryArgs),
     Unary(UnaryArgs<TEncoding>),

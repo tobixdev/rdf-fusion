@@ -1,9 +1,4 @@
-mod functional_forms;
-mod strings;
-
-pub use functional_forms::*;
 use std::fmt::Debug;
-pub use strings::*;
 
 use rdf_fusion_model::{ThinError, ThinResult};
 

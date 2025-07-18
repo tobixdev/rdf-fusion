@@ -29,23 +29,17 @@ use crate::scalar::dates_and_times::SecondsSparqlOp;
 use crate::scalar::dates_and_times::TimezoneSparqlOp;
 use crate::scalar::dates_and_times::YearSparqlOp;
 use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
-use crate::scalar::functional_form::{BoundSparqlOp, IfSparqlOp};
+use crate::scalar::functional_form::{BoundSparqlOp, CoalesceSparqlOp, IfSparqlOp};
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
 use crate::scalar::numeric::{AddSparqlOp, DivSparqlOp, FloorSparqlOp, MulSparqlOp, SubSparqlOp};
 use crate::scalar::numeric::{CeilSparqlOp, RandSparqlOp};
-use crate::scalar::strings::{
-    ContainsSparqlOp, EncodeForUriSparqlOp, LCaseSparqlOp, LangMatchesSparqlOp, Md5SparqlOp,
-    RegexSparqlOp, ReplaceSparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp,
-    StrAfterSparqlOp, StrBeforeSparqlOp, StrEndsSparqlOp, StrLenSparqlOp, StrStartsSparqlOp,
-    StrUuidSparqlOp, SubStrSparqlOp, UCaseSparqlOp,
-};
+use crate::scalar::strings::{ConcatSparqlOp, ContainsSparqlOp, EncodeForUriSparqlOp, LCaseSparqlOp, LangMatchesSparqlOp, Md5SparqlOp, RegexSparqlOp, ReplaceSparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrEndsSparqlOp, StrLenSparqlOp, StrStartsSparqlOp, StrUuidSparqlOp, SubStrSparqlOp, UCaseSparqlOp};
 use crate::scalar::terms::{
     BNodeSparqlOp, DatatypeSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp,
     IsLiteralSparqlOp, IsNumericSparqlOp, LangSparqlOp, StrDtSparqlOp, StrLangSparqlOp,
     StrSparqlOp, UuidSparqlOp,
 };
-use crate::scalar::typed_value::{coalesce_typed_value, concat_typed_value};
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
 use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
 use datafusion::common::plan_err;
@@ -118,7 +112,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Ceil => create_scalar_sparql_op::<CeilSparqlOp>(),
                 BuiltinName::Floor => create_scalar_sparql_op::<FloorSparqlOp>(),
                 BuiltinName::Round => create_scalar_sparql_op::<RoundSparqlOp>(),
-                BuiltinName::Concat => concat_typed_value(),
+                BuiltinName::Concat => create_scalar_sparql_op::<ConcatSparqlOp>(),
                 BuiltinName::SubStr => create_scalar_sparql_op::<SubStrSparqlOp>(),
                 BuiltinName::StrLen => create_scalar_sparql_op::<StrLenSparqlOp>(),
                 BuiltinName::Replace => create_scalar_sparql_op::<ReplaceSparqlOp>(),
@@ -153,7 +147,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::IsNumeric => create_scalar_sparql_op::<IsNumericSparqlOp>(),
                 BuiltinName::Regex => create_scalar_sparql_op::<RegexSparqlOp>(),
                 BuiltinName::Bound => create_scalar_sparql_op::<BoundSparqlOp>(),
-                BuiltinName::Coalesce => coalesce_typed_value(),
+                BuiltinName::Coalesce => create_scalar_sparql_op::<CoalesceSparqlOp>(),
                 BuiltinName::If => create_scalar_sparql_op::<IfSparqlOp>(),
                 BuiltinName::SameTerm => create_scalar_sparql_op::<SameTermSparqlOp>(),
                 BuiltinName::Equal => create_scalar_sparql_op::<EqualSparqlOp>(),
