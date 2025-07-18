@@ -12,7 +12,7 @@ use rdf_fusion_model::{CompatibleStringArgs, StringLiteralRef, ThinError, TypedV
 
 /// Implementation of the SPARQL `strends` function.
 #[derive(Debug)]
-pub struct StrEndsSparqlOp {}
+pub struct StrEndsSparqlOp;
 
 impl Default for StrEndsSparqlOp {
     fn default() -> Self {
@@ -36,10 +36,6 @@ impl ScalarSparqlOp for StrEndsSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -51,22 +47,23 @@ impl ScalarSparqlOp for StrEndsSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        BinaryArgs(lhs, rhs): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_binary_typed_value(
-            &lhs,
-            &rhs,
-            |lhs_value, rhs_value| {
-                let lhs_value = StringLiteralRef::try_from(lhs_value)?;
-                let rhs_value = StringLiteralRef::try_from(rhs_value)?;
-                let args = CompatibleStringArgs::try_from(lhs_value, rhs_value)?;
-                Ok(TypedValueRef::BooleanLiteral(
-                    args.lhs.ends_with(args.rhs).into(),
-                ))
-            },
-            |_, _| ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|BinaryArgs(lhs, rhs)| {
+            dispatch_binary_typed_value(
+                &lhs,
+                &rhs,
+                |lhs_value, rhs_value| {
+                    let lhs_value = StringLiteralRef::try_from(lhs_value)?;
+                    let rhs_value = StringLiteralRef::try_from(rhs_value)?;
+                    let args = CompatibleStringArgs::try_from(lhs_value, rhs_value)?;
+                    Ok(TypedValueRef::BooleanLiteral(
+                        args.lhs.ends_with(args.rhs).into(),
+                    ))
+                },
+                |_, _| ThinError::expected(),
+            )
+        }))
     }
 }

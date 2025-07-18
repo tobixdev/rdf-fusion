@@ -34,10 +34,6 @@ impl ScalarSparqlOp for RandSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Volatile
     }
@@ -46,16 +42,17 @@ impl ScalarSparqlOp for RandSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        NullaryArgs { number_rows }: Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        let mut rng = rand::rng();
-        let values = (0..number_rows).map(|_| {
-            let value = rng.random::<f64>();
-            Ok(TypedValueRef::NumericLiteral(Numeric::Double(value.into())))
-        });
-        let array = DefaultTypedValueEncoder::encode_terms(values)?;
-        Ok(ColumnarValue::Array(array.into_array()))
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|NullaryArgs { number_rows }| {
+            let mut rng = rand::rng();
+            let values = (0..number_rows).map(|_| {
+                let value = rng.random::<f64>();
+                Ok(TypedValueRef::NumericLiteral(Numeric::Double(value.into())))
+            });
+            let array = DefaultTypedValueEncoder::encode_terms(values)?;
+            Ok(ColumnarValue::Array(array.into_array()))
+        }))
     }
 }

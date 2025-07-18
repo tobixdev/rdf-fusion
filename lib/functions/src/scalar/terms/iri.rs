@@ -30,10 +30,6 @@ impl ScalarSparqlOp for IriSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -45,27 +41,29 @@ impl ScalarSparqlOp for IriSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_owned_typed_value(
-            &arg,
-            |value| match value {
-                TypedValueRef::NamedNode(named_node) => {
-                    Ok(TypedValue::NamedNode(named_node.into_owned()))
-                }
-                TypedValueRef::SimpleLiteral(simple_literal) => {
-                    let resolving_result = if let Some(base_iri) = &self.base_iri {
-                        base_iri.resolve(simple_literal.value)?
-                    } else {
-                        Iri::parse(simple_literal.value.to_owned())?
-                    };
-                    Ok(TypedValue::NamedNode(NamedNode::from(resolving_result)))
-                }
-                _ => ThinError::expected(),
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        let base_iri = self.base_iri.clone();
+        Some(Box::new(move |UnaryArgs(arg)| {
+            dispatch_unary_owned_typed_value(
+                &arg,
+                |value| match value {
+                    TypedValueRef::NamedNode(named_node) => {
+                        Ok(TypedValue::NamedNode(named_node.into_owned()))
+                    }
+                    TypedValueRef::SimpleLiteral(simple_literal) => {
+                        let resolving_result = if let Some(base_iri) = &base_iri {
+                            base_iri.resolve(simple_literal.value)?
+                        } else {
+                            Iri::parse(simple_literal.value.to_owned())?
+                        };
+                        Ok(TypedValue::NamedNode(NamedNode::from(resolving_result)))
+                    }
+                    _ => ThinError::expected(),
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

@@ -13,7 +13,7 @@ use std::cmp::Ordering;
 
 /// Implementation of the SPARQL `>` operator.
 #[derive(Debug)]
-pub struct GreaterThanSparqlOp {}
+pub struct GreaterThanSparqlOp;
 
 impl Default for GreaterThanSparqlOp {
     fn default() -> Self {
@@ -37,10 +37,6 @@ impl ScalarSparqlOp for GreaterThanSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -52,22 +48,23 @@ impl ScalarSparqlOp for GreaterThanSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        BinaryArgs(lhs, rhs): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_binary_typed_value(
-            &lhs,
-            &rhs,
-            |lhs_value, rhs_value| {
-                lhs_value
-                    .partial_cmp(&rhs_value)
-                    .map(|o| o == Ordering::Greater)
-                    .map(Into::into)
-                    .map(TypedValueRef::BooleanLiteral)
-                    .ok_or(ThinError::Expected)
-            },
-            |_, _| ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|BinaryArgs(lhs, rhs)| {
+            dispatch_binary_typed_value(
+                &lhs,
+                &rhs,
+                |lhs_value, rhs_value| {
+                    lhs_value
+                        .partial_cmp(&rhs_value)
+                        .map(|o| o == Ordering::Greater)
+                        .map(Into::into)
+                        .map(TypedValueRef::BooleanLiteral)
+                        .ok_or(ThinError::Expected)
+                },
+                |_, _| ThinError::expected(),
+            )
+        }))
     }
 }

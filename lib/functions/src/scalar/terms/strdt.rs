@@ -12,7 +12,7 @@ use rdf_fusion_model::{LiteralRef, ThinError, TypedValueRef};
 
 /// TODO
 #[derive(Debug)]
-pub struct StrDtSparqlOp {}
+pub struct StrDtSparqlOp;
 
 impl Default for StrDtSparqlOp {
     fn default() -> Self {
@@ -36,10 +36,6 @@ impl ScalarSparqlOp for StrDtSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -51,27 +47,28 @@ impl ScalarSparqlOp for StrDtSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        BinaryArgs(lhs, rhs): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_binary_typed_value(
-            &lhs,
-            &rhs,
-            |lhs_value, rhs_value| {
-                if let (
-                    TypedValueRef::SimpleLiteral(lhs_literal),
-                    TypedValueRef::NamedNode(rhs_named_node),
-                ) = (lhs_value, rhs_value)
-                {
-                    let plain_literal =
-                        LiteralRef::new_typed_literal(lhs_literal.value, rhs_named_node);
-                    TypedValueRef::try_from(plain_literal).map_err(|_| ThinError::Expected)
-                } else {
-                    ThinError::expected()
-                }
-            },
-            |_, _| ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|BinaryArgs(lhs, rhs)| {
+            dispatch_binary_typed_value(
+                &lhs,
+                &rhs,
+                |lhs_value, rhs_value| {
+                    if let (
+                        TypedValueRef::SimpleLiteral(lhs_literal),
+                        TypedValueRef::NamedNode(rhs_named_node),
+                    ) = (lhs_value, rhs_value)
+                    {
+                        let plain_literal =
+                            LiteralRef::new_typed_literal(lhs_literal.value, rhs_named_node);
+                        TypedValueRef::try_from(plain_literal).map_err(|_| ThinError::Expected)
+                    } else {
+                        ThinError::expected()
+                    }
+                },
+                |_, _| ThinError::expected(),
+            )
+        }))
     }
 }

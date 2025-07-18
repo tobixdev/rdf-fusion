@@ -12,7 +12,7 @@ use rdf_fusion_model::{Numeric, NumericPair, ThinError, TypedValueRef};
 
 /// Implementation of the SPARQL `*` operator.
 #[derive(Debug)]
-pub struct MulSparqlOp {}
+pub struct MulSparqlOp;
 
 impl Default for MulSparqlOp {
     fn default() -> Self {
@@ -36,10 +36,6 @@ impl ScalarSparqlOp for MulSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -51,36 +47,37 @@ impl ScalarSparqlOp for MulSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        BinaryArgs(lhs, rhs): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_binary_typed_value(
-            &lhs,
-            &rhs,
-            |lhs_value, rhs_value| {
-                if let (
-                    TypedValueRef::NumericLiteral(lhs_numeric),
-                    TypedValueRef::NumericLiteral(rhs_numeric),
-                ) = (lhs_value, rhs_value)
-                {
-                    match NumericPair::with_casts_from(lhs_numeric, rhs_numeric) {
-                        NumericPair::Int(lhs, rhs) => lhs.checked_mul(rhs).map(Numeric::Int),
-                        NumericPair::Integer(lhs, rhs) => {
-                            lhs.checked_mul(rhs).map(Numeric::Integer)
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|BinaryArgs(lhs, rhs)| {
+            dispatch_binary_typed_value(
+                &lhs,
+                &rhs,
+                |lhs_value, rhs_value| {
+                    if let (
+                        TypedValueRef::NumericLiteral(lhs_numeric),
+                        TypedValueRef::NumericLiteral(rhs_numeric),
+                    ) = (lhs_value, rhs_value)
+                    {
+                        match NumericPair::with_casts_from(lhs_numeric, rhs_numeric) {
+                            NumericPair::Int(lhs, rhs) => lhs.checked_mul(rhs).map(Numeric::Int),
+                            NumericPair::Integer(lhs, rhs) => {
+                                lhs.checked_mul(rhs).map(Numeric::Integer)
+                            }
+                            NumericPair::Float(lhs, rhs) => Ok(Numeric::Float(lhs * rhs)),
+                            NumericPair::Double(lhs, rhs) => Ok(Numeric::Double(lhs * rhs)),
+                            NumericPair::Decimal(lhs, rhs) => {
+                                lhs.checked_mul(rhs).map(Numeric::Decimal)
+                            }
                         }
-                        NumericPair::Float(lhs, rhs) => Ok(Numeric::Float(lhs * rhs)),
-                        NumericPair::Double(lhs, rhs) => Ok(Numeric::Double(lhs * rhs)),
-                        NumericPair::Decimal(lhs, rhs) => {
-                            lhs.checked_mul(rhs).map(Numeric::Decimal)
-                        }
+                        .map(TypedValueRef::NumericLiteral)
+                    } else {
+                        ThinError::expected()
                     }
-                    .map(TypedValueRef::NumericLiteral)
-                } else {
-                    ThinError::expected()
-                }
-            },
-            |_, _| ThinError::expected(),
-        )
+                },
+                |_, _| ThinError::expected(),
+            )
+        }))
     }
 }

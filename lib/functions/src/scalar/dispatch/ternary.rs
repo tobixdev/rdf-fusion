@@ -59,7 +59,7 @@ pub fn dispatch_ternary_owned_typed_value<'data>(
         .collect::<Vec<_>>();
     let results_iter = results.iter().map(|r| match r {
         Ok(res) => Ok(res.as_ref()),
-        Err(err) => Err(err.clone()),
+        Err(err) => Err(*err),
     });
     let result = DefaultTypedValueEncoder::encode_terms(results_iter)?;
     Ok(ColumnarValue::Array(result.into_array()))

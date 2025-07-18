@@ -34,10 +34,6 @@ impl ScalarSparqlOp for EncodeForUriSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,49 +45,50 @@ impl ScalarSparqlOp for EncodeForUriSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_owned_typed_value(
-            &arg,
-            |value| {
-                let string = match value {
-                    TypedValueRef::SimpleLiteral(value) => value.value,
-                    TypedValueRef::LanguageStringLiteral(value) => value.value,
-                    _ => return ThinError::expected(),
-                };
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_owned_typed_value(
+                &arg,
+                |value| {
+                    let string = match value {
+                        TypedValueRef::SimpleLiteral(value) => value.value,
+                        TypedValueRef::LanguageStringLiteral(value) => value.value,
+                        _ => return ThinError::expected(),
+                    };
 
-                // Based on oxigraph/lib/spareval/src/eval.rs
-                // Maybe we can use a library in the future?
-                let mut result = Vec::with_capacity(string.len());
-                for c in string.bytes() {
-                    match c {
-                        b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                            result.push(c)
-                        }
-                        _ => {
-                            result.push(b'%');
-                            let high = c / 16;
-                            let low = c % 16;
-                            result.push(if high < 10 {
-                                b'0' + high
-                            } else {
-                                b'A' + (high - 10)
-                            });
-                            result.push(if low < 10 {
-                                b'0' + low
-                            } else {
-                                b'A' + (low - 10)
-                            });
+                    // Based on oxigraph/lib/spareval/src/eval.rs
+                    // Maybe we can use a library in the future?
+                    let mut result = Vec::with_capacity(string.len());
+                    for c in string.bytes() {
+                        match c {
+                            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                                result.push(c)
+                            }
+                            _ => {
+                                result.push(b'%');
+                                let high = c / 16;
+                                let low = c % 16;
+                                result.push(if high < 10 {
+                                    b'0' + high
+                                } else {
+                                    b'A' + (high - 10)
+                                });
+                                result.push(if low < 10 {
+                                    b'0' + low
+                                } else {
+                                    b'A' + (low - 10)
+                                });
+                            }
                         }
                     }
-                }
 
-                let value = String::from_utf8(result)?;
-                Ok(TypedValue::SimpleLiteral(SimpleLiteral { value }))
-            },
-            || ThinError::expected(),
-        )
+                    let value = String::from_utf8(result)?;
+                    Ok(TypedValue::SimpleLiteral(SimpleLiteral { value }))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

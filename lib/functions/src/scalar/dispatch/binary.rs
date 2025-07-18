@@ -21,16 +21,16 @@ pub fn dispatch_binary_typed_value<'data>(
 ) -> DFResult<ColumnarValue> {
     match (lhs, rhs) {
         (EncodingDatum::Array(lhs), EncodingDatum::Array(rhs)) => {
-            dispatch_binary_typed_value_array_array(&lhs, &rhs, op, error_op)
+            dispatch_binary_typed_value_array_array(lhs, rhs, op, error_op)
         }
         (EncodingDatum::Scalar(lhs, _), EncodingDatum::Array(rhs)) => {
-            dispatch_binary_typed_value_scalar_array(&lhs, &rhs, op, error_op)
+            dispatch_binary_typed_value_scalar_array(lhs, rhs, op, error_op)
         }
         (EncodingDatum::Array(lhs), EncodingDatum::Scalar(rhs, _)) => {
-            dispatch_binary_typed_value_array_scalar(&lhs, &rhs, op, error_op)
+            dispatch_binary_typed_value_array_scalar(lhs, rhs, op, error_op)
         }
         (EncodingDatum::Scalar(lhs, _), EncodingDatum::Scalar(rhs, _)) => {
-            dispatch_binary_typed_value_scalar_scalar(&lhs, &rhs, op, error_op)
+            dispatch_binary_typed_value_scalar_scalar(lhs, rhs, op, error_op)
         }
     }
 }
@@ -171,7 +171,7 @@ fn dispatch_binary_owned_array_array(
         .iter()
         .map(|result| match result {
             Ok(value) => Ok(value.as_ref()),
-            Err(err) => Err(err.clone()),
+            Err(err) => Err(*err),
         })
         .collect::<Vec<_>>();
     let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
@@ -198,7 +198,7 @@ fn dispatch_binary_owned_scalar_array(
         .iter()
         .map(|result| match result {
             Ok(value) => Ok(value.as_ref()),
-            Err(err) => Err(err.clone()),
+            Err(err) => Err(*err),
         })
         .collect::<Vec<_>>();
     let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
@@ -225,7 +225,7 @@ fn dispatch_binary_owned_array_scalar(
         .iter()
         .map(|result| match result {
             Ok(value) => Ok(value.as_ref()),
-            Err(err) => Err(err.clone()),
+            Err(err) => Err(*err),
         })
         .collect::<Vec<_>>();
     let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
@@ -247,7 +247,7 @@ fn dispatch_binary_owned_scalar_scalar(
     let result = apply_binary_owned_op(lhs, rhs, &op, &error_op);
     let result_ref = match result.as_ref() {
         Ok(typed_value) => Ok(typed_value.as_ref()),
-        Err(err) => Err(err.clone()),
+        Err(err) => Err(*err),
     };
     Ok(ColumnarValue::Scalar(
         DefaultTypedValueEncoder::encode_term(result_ref)?.into_scalar_value(),
@@ -284,16 +284,16 @@ pub fn dispatch_binary_plain_term<'data>(
 ) -> DFResult<ColumnarValue> {
     match (lhs, rhs) {
         (EncodingDatum::Array(lhs), EncodingDatum::Array(rhs)) => {
-            dispatch_binary_plain_term_array_array(&lhs, &rhs, op, error_op)
+            dispatch_binary_plain_term_array_array(lhs, rhs, op, error_op)
         }
         (EncodingDatum::Scalar(lhs, _), EncodingDatum::Array(rhs)) => {
-            dispatch_binary_plain_term_scalar_array(&lhs, &rhs, op, error_op)
+            dispatch_binary_plain_term_scalar_array(lhs, rhs, op, error_op)
         }
         (EncodingDatum::Array(lhs), EncodingDatum::Scalar(rhs, _)) => {
-            dispatch_binary_plain_term_array_scalar(&lhs, &rhs, op, error_op)
+            dispatch_binary_plain_term_array_scalar(lhs, rhs, op, error_op)
         }
         (EncodingDatum::Scalar(lhs, _), EncodingDatum::Scalar(rhs, _)) => {
-            dispatch_binary_plain_term_scalar_scalar(&lhs, &rhs, op, error_op)
+            dispatch_binary_plain_term_scalar_scalar(lhs, rhs, op, error_op)
         }
     }
 }

@@ -18,7 +18,7 @@ pub fn dispatch_unary_typed_value<'data>(
 ) -> DFResult<ColumnarValue> {
     match arg0 {
         EncodingDatum::Array(arg0) => dispatch_unary_array(arg0, op, error_op),
-        EncodingDatum::Scalar(arg0, _) => dispatch_unary_scalar(&arg0, op, error_op),
+        EncodingDatum::Scalar(arg0, _) => dispatch_unary_scalar(arg0, op, error_op),
     }
 }
 
@@ -61,7 +61,7 @@ pub fn dispatch_unary_owned_typed_value(
     match arg0 {
         EncodingDatum::Array(arg0) => dispatch_unary_owned_typed_value_array(arg0, op, error_op),
         EncodingDatum::Scalar(arg0, _) => {
-            dispatch_unary_owned_typed_value_scalar(&arg0, op, error_op)
+            dispatch_unary_owned_typed_value_scalar(arg0, op, error_op)
         }
     }
 }
@@ -83,7 +83,7 @@ fn dispatch_unary_owned_typed_value_array(
         .iter()
         .map(|result| match result {
             Ok(value) => Ok(value.as_ref()),
-            Err(err) => Err(err.clone()),
+            Err(err) => Err(*err),
         })
         .collect::<Vec<_>>();
     let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
@@ -106,7 +106,7 @@ fn dispatch_unary_owned_typed_value_scalar(
 
     let result_ref = match result.as_ref() {
         Ok(typed_value) => Ok(typed_value.as_ref()),
-        Err(err) => Err(err.clone()),
+        Err(err) => Err(*err),
     };
     let result = DefaultTypedValueEncoder::encode_term(result_ref)?;
     Ok(ColumnarValue::Scalar(result.into_scalar_value()))
@@ -119,7 +119,7 @@ pub fn dispatch_unary_plain_term<'data>(
 ) -> DFResult<ColumnarValue> {
     match arg0 {
         EncodingDatum::Array(arg0) => dispatch_unary_plain_term_array(arg0, op, error_op),
-        EncodingDatum::Scalar(arg0, _) => dispatch_unary_plain_term_scalar(&arg0, op, error_op),
+        EncodingDatum::Scalar(arg0, _) => dispatch_unary_plain_term_scalar(arg0, op, error_op),
     }
 }
 

@@ -34,10 +34,6 @@ impl ScalarSparqlOp for CastDecimalSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,28 +45,29 @@ impl ScalarSparqlOp for CastDecimalSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| {
-                let converted = match value {
-                    TypedValueRef::BooleanLiteral(v) => Decimal::from(v),
-                    TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
-                    TypedValueRef::NumericLiteral(numeric) => match numeric {
-                        Numeric::Int(v) => Decimal::from(v),
-                        Numeric::Integer(v) => Decimal::from(v),
-                        Numeric::Float(v) => Decimal::try_from(v)?,
-                        Numeric::Double(v) => Decimal::try_from(v)?,
-                        Numeric::Decimal(v) => v.into(),
-                    },
-                    _ => return ThinError::expected(),
-                };
-                Ok(TypedValueRef::NumericLiteral(Numeric::from(converted)))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| {
+                    let converted = match value {
+                        TypedValueRef::BooleanLiteral(v) => Decimal::from(v),
+                        TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+                        TypedValueRef::NumericLiteral(numeric) => match numeric {
+                            Numeric::Int(v) => Decimal::from(v),
+                            Numeric::Integer(v) => Decimal::from(v),
+                            Numeric::Float(v) => Decimal::try_from(v)?,
+                            Numeric::Double(v) => Decimal::try_from(v)?,
+                            Numeric::Decimal(v) => v,
+                        },
+                        _ => return ThinError::expected(),
+                    };
+                    Ok(TypedValueRef::NumericLiteral(Numeric::from(converted)))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

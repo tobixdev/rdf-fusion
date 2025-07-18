@@ -11,7 +11,7 @@ use rdf_fusion_encoding::{EncodingName, TermEncoding};
 use rdf_fusion_model::{Numeric, ThinError, TypedValueRef};
 
 #[derive(Debug)]
-pub struct RoundSparqlOp {}
+pub struct RoundSparqlOp;
 
 impl Default for RoundSparqlOp {
     fn default() -> Self {
@@ -34,10 +34,6 @@ impl ScalarSparqlOp for RoundSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,25 +45,26 @@ impl ScalarSparqlOp for RoundSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| match value {
-                TypedValueRef::NumericLiteral(numeric) => {
-                    let result = match numeric {
-                        Numeric::Float(v) => Ok(Numeric::Float(v.round())),
-                        Numeric::Double(v) => Ok(Numeric::Double(v.round())),
-                        Numeric::Decimal(v) => v.checked_round().map(Numeric::Decimal),
-                        _ => Ok(numeric),
-                    };
-                    result.map(TypedValueRef::NumericLiteral)
-                }
-                _ => ThinError::expected(),
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| match value {
+                    TypedValueRef::NumericLiteral(numeric) => {
+                        let result = match numeric {
+                            Numeric::Float(v) => Ok(Numeric::Float(v.round())),
+                            Numeric::Double(v) => Ok(Numeric::Double(v.round())),
+                            Numeric::Decimal(v) => v.checked_round().map(Numeric::Decimal),
+                            _ => Ok(numeric),
+                        };
+                        result.map(TypedValueRef::NumericLiteral)
+                    }
+                    _ => ThinError::expected(),
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

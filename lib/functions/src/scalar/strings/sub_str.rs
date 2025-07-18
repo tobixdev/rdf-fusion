@@ -15,7 +15,7 @@ use rdf_fusion_model::{
 
 /// Implementation of the SPARQL `substr` function (binary version).
 #[derive(Debug)]
-pub struct SubStrSparqlOp {}
+pub struct SubStrSparqlOp;
 
 impl Default for SubStrSparqlOp {
     fn default() -> Self {
@@ -39,10 +39,6 @@ impl ScalarSparqlOp for SubStrSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -54,11 +50,10 @@ impl ScalarSparqlOp for SubStrSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        args: Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        match args {
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|args| match args {
             BinaryOrTernaryArgs::Binary(BinaryArgs(lhs, rhs)) => dispatch_binary_typed_value(
                 &lhs,
                 &rhs,
@@ -83,7 +78,7 @@ impl ScalarSparqlOp for SubStrSparqlOp {
                     |_, _, _| ThinError::expected(),
                 )
             }
-        }
+        }))
     }
 }
 

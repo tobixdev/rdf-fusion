@@ -34,10 +34,6 @@ impl ScalarSparqlOp for LangSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,25 +45,26 @@ impl ScalarSparqlOp for LangSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_owned_typed_value(
-            &arg,
-            |value| {
-                let result = match value {
-                    TypedValueRef::NamedNode(_) | TypedValueRef::BlankNode(_) => {
-                        return ThinError::expected()
-                    }
-                    TypedValueRef::LanguageStringLiteral(value) => value.language,
-                    _ => "",
-                };
-                Ok(TypedValue::SimpleLiteral(SimpleLiteral {
-                    value: result.to_owned(),
-                }))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_owned_typed_value(
+                &arg,
+                |value| {
+                    let result = match value {
+                        TypedValueRef::NamedNode(_) | TypedValueRef::BlankNode(_) => {
+                            return ThinError::expected()
+                        }
+                        TypedValueRef::LanguageStringLiteral(value) => value.language,
+                        _ => "",
+                    };
+                    Ok(TypedValue::SimpleLiteral(SimpleLiteral {
+                        value: result.to_owned(),
+                    }))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

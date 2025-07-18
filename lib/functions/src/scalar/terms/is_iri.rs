@@ -12,7 +12,7 @@ use rdf_fusion_model::{ThinError, TypedValueRef};
 
 /// TODO
 #[derive(Debug)]
-pub struct IsIriSparqlOp {}
+pub struct IsIriSparqlOp;
 
 impl Default for IsIriSparqlOp {
     fn default() -> Self {
@@ -36,10 +36,6 @@ impl ScalarSparqlOp for IsIriSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -51,18 +47,19 @@ impl ScalarSparqlOp for IsIriSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| {
-                Ok(TypedValueRef::BooleanLiteral(
-                    matches!(value, TypedValueRef::NamedNode(_)).into(),
-                ))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| {
+                    Ok(TypedValueRef::BooleanLiteral(
+                        matches!(value, TypedValueRef::NamedNode(_)).into(),
+                    ))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

@@ -34,10 +34,6 @@ impl ScalarSparqlOp for StrUuidSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Volatile
     }
@@ -46,19 +42,20 @@ impl ScalarSparqlOp for StrUuidSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        NullaryArgs { number_rows }: Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        let values = (0..number_rows)
-            .map(|_| {
-                let result = Uuid::new_v4().to_string();
-                TypedValue::SimpleLiteral(SimpleLiteral { value: result })
-            })
-            .collect::<Vec<_>>();
-        let array = DefaultTypedValueEncoder::encode_terms(
-            values.iter().map(|result| Ok(result.as_ref())),
-        )?;
-        Ok(ColumnarValue::Array(array.into_array()))
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|NullaryArgs { number_rows }| {
+            let values = (0..number_rows)
+                .map(|_| {
+                    let result = Uuid::new_v4().to_string();
+                    TypedValue::SimpleLiteral(SimpleLiteral { value: result })
+                })
+                .collect::<Vec<_>>();
+            let array = DefaultTypedValueEncoder::encode_terms(
+                values.iter().map(|result| Ok(result.as_ref())),
+            )?;
+            Ok(ColumnarValue::Array(array.into_array()))
+        }))
     }
 }

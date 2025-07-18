@@ -12,7 +12,7 @@ use rdf_fusion_model::{LanguageString, ThinError, TypedValue, TypedValueRef};
 
 /// TODO
 #[derive(Debug)]
-pub struct StrLangSparqlOp {}
+pub struct StrLangSparqlOp;
 
 impl Default for StrLangSparqlOp {
     fn default() -> Self {
@@ -36,10 +36,6 @@ impl ScalarSparqlOp for StrLangSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -51,28 +47,29 @@ impl ScalarSparqlOp for StrLangSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        BinaryArgs(lhs, rhs): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_binary_owned_typed_value(
-            &lhs,
-            &rhs,
-            |lhs_value, rhs_value| {
-                if let (
-                    TypedValueRef::SimpleLiteral(lhs_literal),
-                    TypedValueRef::SimpleLiteral(rhs_literal),
-                ) = (lhs_value, rhs_value)
-                {
-                    Ok(TypedValue::LanguageStringLiteral(LanguageString {
-                        value: lhs_literal.value.to_owned(),
-                        language: rhs_literal.value.to_ascii_lowercase(),
-                    }))
-                } else {
-                    ThinError::expected()
-                }
-            },
-            |_, _| ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|BinaryArgs(lhs, rhs)| {
+            dispatch_binary_owned_typed_value(
+                &lhs,
+                &rhs,
+                |lhs_value, rhs_value| {
+                    if let (
+                        TypedValueRef::SimpleLiteral(lhs_literal),
+                        TypedValueRef::SimpleLiteral(rhs_literal),
+                    ) = (lhs_value, rhs_value)
+                    {
+                        Ok(TypedValue::LanguageStringLiteral(LanguageString {
+                            value: lhs_literal.value.to_owned(),
+                            language: rhs_literal.value.to_ascii_lowercase(),
+                        }))
+                    } else {
+                        ThinError::expected()
+                    }
+                },
+                |_, _| ThinError::expected(),
+            )
+        }))
     }
 }

@@ -12,7 +12,7 @@ use rdf_fusion_model::{LiteralRef, TermRef, ThinError};
 
 /// Implementation of the SPARQL `SAME_TERM` operator.
 #[derive(Debug)]
-pub struct SameTermSparqlOp {}
+pub struct SameTermSparqlOp;
 
 impl Default for SameTermSparqlOp {
     fn default() -> Self {
@@ -36,10 +36,6 @@ impl ScalarSparqlOp for SameTermSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::PlainTerm]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -48,25 +44,26 @@ impl ScalarSparqlOp for SameTermSparqlOp {
         Ok(PlainTermEncoding::data_type())
     }
 
-    fn invoke_plain_term_encoding(
+    fn plain_term_encoding_op(
         &self,
-        BinaryArgs(lhs, rhs): Self::Args<PlainTermEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_binary_plain_term(
-            &lhs,
-            &rhs,
-            |lhs_value, rhs_value| {
-                let value = if lhs_value == rhs_value {
-                    "true"
-                } else {
-                    "false"
-                };
-                Ok(TermRef::Literal(LiteralRef::new_typed_literal(
-                    value,
-                    xsd::BOOLEAN,
-                )))
-            },
-            |_, _| ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<PlainTermEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|BinaryArgs(lhs, rhs)| {
+            dispatch_binary_plain_term(
+                &lhs,
+                &rhs,
+                |lhs_value, rhs_value| {
+                    let value = if lhs_value == rhs_value {
+                        "true"
+                    } else {
+                        "false"
+                    };
+                    Ok(TermRef::Literal(LiteralRef::new_typed_literal(
+                        value,
+                        xsd::BOOLEAN,
+                    )))
+                },
+                |_, _| ThinError::expected(),
+            )
+        }))
     }
 }

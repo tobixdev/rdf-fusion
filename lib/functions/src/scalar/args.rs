@@ -20,7 +20,7 @@ pub struct NullaryArgs {
 
 impl SparqlOpArgs for NullaryArgs {
     fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
-        if args.args.len() != 0 {
+        if !args.args.is_empty() {
             return exec_err!("Expected 0 arguments, got {}", args.args.len());
         }
         Ok(Self {
@@ -161,7 +161,7 @@ pub enum NullaryOrUnaryArgs<TEncoding: TermEncoding> {
 
 impl<TEncoding: TermEncoding> SparqlOpArgs for NullaryOrUnaryArgs<TEncoding> {
     fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
-        if args.args.len() == 0 {
+        if args.args.is_empty() {
             Ok(Self::Nullary(NullaryArgs::try_from_args(args)?))
         } else {
             Ok(Self::Unary(UnaryArgs::try_from_args(args)?))

@@ -33,10 +33,6 @@ impl ScalarSparqlOp for BNodeSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Volatile
     }
@@ -45,11 +41,10 @@ impl ScalarSparqlOp for BNodeSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        args: Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        match args {
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|args| match args {
             NullaryOrUnaryArgs::Nullary(NullaryArgs { number_rows }) => {
                 let mut builder = TypedValueArrayBuilder::default();
                 for _ in 0..number_rows {
@@ -61,13 +56,13 @@ impl ScalarSparqlOp for BNodeSparqlOp {
                 &arg,
                 |value| match value {
                     TypedValueRef::SimpleLiteral(value) => {
-                        let bnode = BlankNodeRef::new(&value.value)?;
+                        let bnode = BlankNodeRef::new(value.value)?;
                         Ok(TypedValueRef::BlankNode(bnode))
                     }
                     _ => ThinError::expected(),
                 },
-                || ThinError::expected(),
+                ThinError::expected,
             ),
-        }
+        }))
     }
 }

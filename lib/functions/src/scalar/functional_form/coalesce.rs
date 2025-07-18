@@ -33,10 +33,6 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -45,19 +41,20 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        NAryArgs(args, number_rows): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_n_ary_typed_value(
-            &args,
-            number_rows,
-            |args| args.first().copied().ok_or(ThinError::Expected),
-            |args| {
-                args.iter()
-                    .find_map(|arg| arg.ok())
-                    .ok_or(ThinError::Expected)
-            },
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|NAryArgs(args, number_rows)| {
+            dispatch_n_ary_typed_value(
+                &args,
+                number_rows,
+                |args| args.first().copied().ok_or(ThinError::Expected),
+                |args| {
+                    args.iter()
+                        .find_map(|arg| arg.ok())
+                        .ok_or(ThinError::Expected)
+                },
+            )
+        }))
     }
 }

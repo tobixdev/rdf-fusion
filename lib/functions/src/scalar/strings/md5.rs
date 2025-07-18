@@ -35,10 +35,6 @@ impl ScalarSparqlOp for Md5SparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -50,27 +46,28 @@ impl ScalarSparqlOp for Md5SparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_owned_typed_value(
-            &arg,
-            |value| {
-                let string = match value {
-                    TypedValueRef::SimpleLiteral(value) => value.value,
-                    TypedValueRef::LanguageStringLiteral(value) => value.value,
-                    _ => return ThinError::expected(),
-                };
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_owned_typed_value(
+                &arg,
+                |value| {
+                    let string = match value {
+                        TypedValueRef::SimpleLiteral(value) => value.value,
+                        TypedValueRef::LanguageStringLiteral(value) => value.value,
+                        _ => return ThinError::expected(),
+                    };
 
-                let mut hasher = Md5::new();
-                hasher.update(string);
-                let result = hasher.finalize();
-                let value = format!("{:x}", result);
+                    let mut hasher = Md5::new();
+                    hasher.update(string);
+                    let result = hasher.finalize();
+                    let value = format!("{result:x}");
 
-                Ok(TypedValue::SimpleLiteral(SimpleLiteral { value }))
-            },
-            || ThinError::expected(),
-        )
+                    Ok(TypedValue::SimpleLiteral(SimpleLiteral { value }))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

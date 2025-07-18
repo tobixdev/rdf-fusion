@@ -11,7 +11,7 @@ use rdf_fusion_encoding::{EncodingName, TermEncoding};
 use rdf_fusion_model::{ThinError, TypedValueRef};
 
 #[derive(Debug)]
-pub struct AbsSparqlOp {}
+pub struct AbsSparqlOp;
 
 impl Default for AbsSparqlOp {
     fn default() -> Self {
@@ -34,10 +34,6 @@ impl ScalarSparqlOp for AbsSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,19 +45,20 @@ impl ScalarSparqlOp for AbsSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| match value {
-                TypedValueRef::NumericLiteral(numeric) => {
-                    numeric.abs().map(TypedValueRef::NumericLiteral)
-                }
-                _ => ThinError::expected(),
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| match value {
+                    TypedValueRef::NumericLiteral(numeric) => {
+                        numeric.abs().map(TypedValueRef::NumericLiteral)
+                    }
+                    _ => ThinError::expected(),
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

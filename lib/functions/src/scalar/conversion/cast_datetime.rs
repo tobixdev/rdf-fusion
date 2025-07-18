@@ -33,10 +33,6 @@ impl ScalarSparqlOp for CastDateTimeSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -45,21 +41,22 @@ impl ScalarSparqlOp for CastDateTimeSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| {
-                let converted = match value {
-                    TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
-                    TypedValueRef::DateTimeLiteral(v) => v.into(),
-                    _ => return ThinError::expected(),
-                };
-                Ok(TypedValueRef::DateTimeLiteral(converted))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| {
+                    let converted = match value {
+                        TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+                        TypedValueRef::DateTimeLiteral(v) => v,
+                        _ => return ThinError::expected(),
+                    };
+                    Ok(TypedValueRef::DateTimeLiteral(converted))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

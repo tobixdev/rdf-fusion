@@ -6,6 +6,7 @@ use crate::scalar::dispatch::{dispatch_unary_owned_typed_value, dispatch_unary_p
 use crate::scalar::{ScalarSparqlOp, UnaryArgs};
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::exec_err;
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
@@ -36,10 +37,6 @@ impl ScalarSparqlOp for StrSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::PlainTerm, EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,55 +46,57 @@ impl ScalarSparqlOp for StrSparqlOp {
             None => unreachable!("There must be an input encoding"),
             Some(EncodingName::PlainTerm) => Ok(PlainTermEncoding::data_type()),
             Some(EncodingName::TypedValue) => Ok(TypedValueEncoding::data_type()),
-            Some(_) => todo!("Unsupported encoding"),
+            Some(_) => exec_err!("Unsupported encoding"),
         }
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_owned_typed_value(
-            &arg,
-            |value| {
-                let converted = match value {
-                    TypedValueRef::NamedNode(value) => value.as_str().to_owned(),
-                    TypedValueRef::BlankNode(value) => value.as_str().to_owned(),
-                    TypedValueRef::BooleanLiteral(value) => value.to_string(),
-                    TypedValueRef::NumericLiteral(value) => value.format_value(),
-                    TypedValueRef::SimpleLiteral(value) => value.value.to_owned(),
-                    TypedValueRef::LanguageStringLiteral(value) => value.value.to_owned(),
-                    TypedValueRef::DateTimeLiteral(value) => value.to_string(),
-                    TypedValueRef::TimeLiteral(value) => value.to_string(),
-                    TypedValueRef::DateLiteral(value) => value.to_string(),
-                    TypedValueRef::DurationLiteral(value) => value.to_string(),
-                    TypedValueRef::YearMonthDurationLiteral(value) => value.to_string(),
-                    TypedValueRef::DayTimeDurationLiteral(value) => value.to_string(),
-                    TypedValueRef::OtherLiteral(value) => value.value().to_owned(),
-                };
-                Ok(TypedValue::SimpleLiteral(SimpleLiteral {
-                    value: converted,
-                }))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_owned_typed_value(
+                &arg,
+                |value| {
+                    let converted = match value {
+                        TypedValueRef::NamedNode(value) => value.as_str().to_owned(),
+                        TypedValueRef::BlankNode(value) => value.as_str().to_owned(),
+                        TypedValueRef::BooleanLiteral(value) => value.to_string(),
+                        TypedValueRef::NumericLiteral(value) => value.format_value(),
+                        TypedValueRef::SimpleLiteral(value) => value.value.to_owned(),
+                        TypedValueRef::LanguageStringLiteral(value) => value.value.to_owned(),
+                        TypedValueRef::DateTimeLiteral(value) => value.to_string(),
+                        TypedValueRef::TimeLiteral(value) => value.to_string(),
+                        TypedValueRef::DateLiteral(value) => value.to_string(),
+                        TypedValueRef::DurationLiteral(value) => value.to_string(),
+                        TypedValueRef::YearMonthDurationLiteral(value) => value.to_string(),
+                        TypedValueRef::DayTimeDurationLiteral(value) => value.to_string(),
+                        TypedValueRef::OtherLiteral(value) => value.value().to_owned(),
+                    };
+                    Ok(TypedValue::SimpleLiteral(SimpleLiteral {
+                        value: converted,
+                    }))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 
-    fn invoke_plain_term_encoding(
+    fn plain_term_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<PlainTermEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_plain_term(
-            &arg,
-            |value| {
-                let converted = match value {
-                    TermRef::NamedNode(value) => value.as_str(),
-                    TermRef::BlankNode(value) => value.as_str(),
-                    TermRef::Literal(value) => value.value(),
-                };
-                Ok(TermRef::Literal(LiteralRef::new_simple_literal(converted)))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<PlainTermEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_plain_term(
+                &arg,
+                |value| {
+                    let converted = match value {
+                        TermRef::NamedNode(value) => value.as_str(),
+                        TermRef::BlankNode(value) => value.as_str(),
+                        TermRef::Literal(value) => value.value(),
+                    };
+                    Ok(TermRef::Literal(LiteralRef::new_simple_literal(converted)))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

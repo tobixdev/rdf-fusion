@@ -35,10 +35,6 @@ impl ScalarSparqlOp for ConcatSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -47,42 +43,43 @@ impl ScalarSparqlOp for ConcatSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        NAryArgs(args, number_rows): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_n_ary_owned_typed_value(
-            &args,
-            number_rows,
-            |args| {
-                let args = args
-                    .iter()
-                    .map(|arg| StringLiteralRef::try_from(*arg))
-                    .collect::<ThinResult<Vec<_>>>()?;
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|NAryArgs(args, number_rows)| {
+            dispatch_n_ary_owned_typed_value(
+                &args,
+                number_rows,
+                |args| {
+                    let args = args
+                        .iter()
+                        .map(|arg| StringLiteralRef::try_from(*arg))
+                        .collect::<ThinResult<Vec<_>>>()?;
 
-                let mut result = String::default();
-                let mut language = None;
+                    let mut result = String::default();
+                    let mut language = None;
 
-                for arg in args {
-                    if let Some(lang) = &language {
-                        if *lang != arg.1 {
-                            language = Some(None)
+                    for arg in args {
+                        if let Some(lang) = &language {
+                            if *lang != arg.1 {
+                                language = Some(None)
+                            }
+                        } else {
+                            language = Some(arg.1)
                         }
-                    } else {
-                        language = Some(arg.1)
+                        result += arg.0;
                     }
-                    result += arg.0;
-                }
 
-                Ok(match language.flatten().map(ToOwned::to_owned) {
-                    Some(language) => TypedValue::LanguageStringLiteral(LanguageString {
-                        value: result,
-                        language,
-                    }),
-                    None => TypedValue::SimpleLiteral(SimpleLiteral { value: result }),
-                })
-            },
-            |_| ThinError::expected(),
-        )
+                    Ok(match language.flatten().map(ToOwned::to_owned) {
+                        Some(language) => TypedValue::LanguageStringLiteral(LanguageString {
+                            value: result,
+                            language,
+                        }),
+                        None => TypedValue::SimpleLiteral(SimpleLiteral { value: result }),
+                    })
+                },
+                |_| ThinError::expected(),
+            )
+        }))
     }
 }

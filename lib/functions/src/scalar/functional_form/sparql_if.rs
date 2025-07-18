@@ -34,10 +34,6 @@ impl ScalarSparqlOp for IfSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,30 +45,31 @@ impl ScalarSparqlOp for IfSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        TernaryArgs(arg0, arg1, arg2): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_ternary_typed_value(
-            &arg0,
-            &arg1,
-            &arg2,
-            |arg0, arg1, arg2| {
-                let test = Boolean::try_from(arg0)?;
-                if test.as_bool() {
-                    Ok(arg1)
-                } else {
-                    Ok(arg2)
-                }
-            },
-            |arg0, arg1, arg2| {
-                let test = Boolean::try_from(arg0?)?;
-                if test.as_bool() {
-                    arg1
-                } else {
-                    arg2
-                }
-            },
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|TernaryArgs(arg0, arg1, arg2)| {
+            dispatch_ternary_typed_value(
+                &arg0,
+                &arg1,
+                &arg2,
+                |arg0, arg1, arg2| {
+                    let test = Boolean::try_from(arg0)?;
+                    if test.as_bool() {
+                        Ok(arg1)
+                    } else {
+                        Ok(arg2)
+                    }
+                },
+                |arg0, arg1, arg2| {
+                    let test = Boolean::try_from(arg0?)?;
+                    if test.as_bool() {
+                        arg1
+                    } else {
+                        arg2
+                    }
+                },
+            )
+        }))
     }
 }

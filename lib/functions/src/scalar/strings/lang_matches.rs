@@ -12,7 +12,7 @@ use rdf_fusion_model::{SimpleLiteralRef, ThinError, TypedValueRef};
 
 /// Implementation of the SPARQL `langMatches` function.
 #[derive(Debug)]
-pub struct LangMatchesSparqlOp {}
+pub struct LangMatchesSparqlOp;
 
 impl Default for LangMatchesSparqlOp {
     fn default() -> Self {
@@ -36,10 +36,6 @@ impl ScalarSparqlOp for LangMatchesSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -51,34 +47,34 @@ impl ScalarSparqlOp for LangMatchesSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        BinaryArgs(lhs, rhs): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_binary_typed_value(
-            &lhs,
-            &rhs,
-            |lhs_value, rhs_value| {
-                let lhs_value = SimpleLiteralRef::try_from(lhs_value)?;
-                let rhs_value = SimpleLiteralRef::try_from(rhs_value)?;
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|BinaryArgs(lhs, rhs)| {
+            dispatch_binary_typed_value(
+                &lhs,
+                &rhs,
+                |lhs_value, rhs_value| {
+                    let lhs_value = SimpleLiteralRef::try_from(lhs_value)?;
+                    let rhs_value = SimpleLiteralRef::try_from(rhs_value)?;
 
-                let matches = if rhs_value.value == "*" {
-                    !lhs_value.value.is_empty()
-                } else {
-                    !ZipLongest::new(rhs_value.value.split('-'), lhs_value.value.split('-')).any(
-                        |parts| match parts {
-                            (Some(range_subtag), Some(language_subtag)) => {
-                                !range_subtag.eq_ignore_ascii_case(language_subtag)
-                            }
-                            (Some(_), None) => true,
-                            (None, _) => false,
-                        },
-                    )
-                };
-                Ok(TypedValueRef::BooleanLiteral(matches.into()))
-            },
-            |_, _| ThinError::expected(),
-        )
+                    let matches = if rhs_value.value == "*" {
+                        !lhs_value.value.is_empty()
+                    } else {
+                        !ZipLongest::new(rhs_value.value.split('-'), lhs_value.value.split('-'))
+                            .any(|parts| match parts {
+                                (Some(range_subtag), Some(language_subtag)) => {
+                                    !range_subtag.eq_ignore_ascii_case(language_subtag)
+                                }
+                                (Some(_), None) => true,
+                                (None, _) => false,
+                            })
+                    };
+                    Ok(TypedValueRef::BooleanLiteral(matches.into()))
+                },
+                |_, _| ThinError::expected(),
+            )
+        }))
     }
 }
 

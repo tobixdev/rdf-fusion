@@ -34,10 +34,6 @@ impl ScalarSparqlOp for StrLenSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,24 +45,25 @@ impl ScalarSparqlOp for StrLenSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| {
-                let string = match value {
-                    TypedValueRef::SimpleLiteral(value) => value.value,
-                    TypedValueRef::LanguageStringLiteral(value) => value.value,
-                    _ => return ThinError::expected(),
-                };
-                let value: i64 = string.chars().count().try_into()?;
-                Ok(TypedValueRef::NumericLiteral(Numeric::Integer(
-                    value.into(),
-                )))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| {
+                    let string = match value {
+                        TypedValueRef::SimpleLiteral(value) => value.value,
+                        TypedValueRef::LanguageStringLiteral(value) => value.value,
+                        _ => return ThinError::expected(),
+                    };
+                    let value: i64 = string.chars().count().try_into()?;
+                    Ok(TypedValueRef::NumericLiteral(Numeric::Integer(
+                        value.into(),
+                    )))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

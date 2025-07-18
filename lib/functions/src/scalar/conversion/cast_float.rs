@@ -34,10 +34,6 @@ impl ScalarSparqlOp for CastFloatSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,28 +45,29 @@ impl ScalarSparqlOp for CastFloatSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| {
-                let converted = match value {
-                    TypedValueRef::BooleanLiteral(v) => Float::from(v),
-                    TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
-                    TypedValueRef::NumericLiteral(numeric) => match numeric {
-                        Numeric::Int(v) => Float::from(v),
-                        Numeric::Integer(v) => Float::from(v),
-                        Numeric::Float(v) => v.into(),
-                        Numeric::Double(v) => Float::from(v),
-                        Numeric::Decimal(v) => Float::from(v),
-                    },
-                    _ => return ThinError::expected(),
-                };
-                Ok(TypedValueRef::NumericLiteral(Numeric::from(converted)))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| {
+                    let converted = match value {
+                        TypedValueRef::BooleanLiteral(v) => Float::from(v),
+                        TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+                        TypedValueRef::NumericLiteral(numeric) => match numeric {
+                            Numeric::Int(v) => Float::from(v),
+                            Numeric::Integer(v) => Float::from(v),
+                            Numeric::Float(v) => v,
+                            Numeric::Double(v) => Float::from(v),
+                            Numeric::Decimal(v) => Float::from(v),
+                        },
+                        _ => return ThinError::expected(),
+                    };
+                    Ok(TypedValueRef::NumericLiteral(Numeric::from(converted)))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

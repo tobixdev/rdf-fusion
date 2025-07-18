@@ -11,7 +11,7 @@ use rdf_fusion_encoding::{EncodingName, TermEncoding};
 use rdf_fusion_model::{Numeric, ThinError, TypedValueRef};
 
 #[derive(Debug)]
-pub struct CeilSparqlOp {}
+pub struct CeilSparqlOp;
 
 impl Default for CeilSparqlOp {
     fn default() -> Self {
@@ -34,10 +34,6 @@ impl ScalarSparqlOp for CeilSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,25 +45,26 @@ impl ScalarSparqlOp for CeilSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| match value {
-                TypedValueRef::NumericLiteral(numeric) => {
-                    let result = match numeric {
-                        Numeric::Float(v) => Ok(Numeric::Float(v.ceil())),
-                        Numeric::Double(v) => Ok(Numeric::Double(v.ceil())),
-                        Numeric::Decimal(v) => v.checked_ceil().map(Numeric::Decimal),
-                        _ => Ok(numeric),
-                    };
-                    result.map(TypedValueRef::NumericLiteral)
-                }
-                _ => ThinError::expected(),
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| match value {
+                    TypedValueRef::NumericLiteral(numeric) => {
+                        let result = match numeric {
+                            Numeric::Float(v) => Ok(Numeric::Float(v.ceil())),
+                            Numeric::Double(v) => Ok(Numeric::Double(v.ceil())),
+                            Numeric::Decimal(v) => v.checked_ceil().map(Numeric::Decimal),
+                            _ => Ok(numeric),
+                        };
+                        result.map(TypedValueRef::NumericLiteral)
+                    }
+                    _ => ThinError::expected(),
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

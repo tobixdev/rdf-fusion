@@ -19,7 +19,7 @@ use std::borrow::Cow;
 
 /// Implementation of the SPARQL `regex` function (binary version).
 #[derive(Debug)]
-pub struct ReplaceSparqlOp {}
+pub struct ReplaceSparqlOp;
 
 impl Default for ReplaceSparqlOp {
     fn default() -> Self {
@@ -43,10 +43,6 @@ impl ScalarSparqlOp for ReplaceSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -58,11 +54,10 @@ impl ScalarSparqlOp for ReplaceSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        args: Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        match args {
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|args| match args {
             TernaryOrQuaternaryArgs::Ternary(TernaryArgs(arg0, arg1, arg2)) => {
                 dispatch_ternary_owned_typed_value(
                     &arg0,
@@ -82,7 +77,7 @@ impl ScalarSparqlOp for ReplaceSparqlOp {
                     |_, _, _, _| ThinError::expected(),
                 )
             }
-        }
+        }))
     }
 }
 

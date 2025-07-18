@@ -22,30 +22,23 @@ pub trait ScalarSparqlOp: Debug + Send + Sync {
     fn name(&self) -> &FunctionName;
 
     /// TODO
-    fn supported_encodings(&self) -> &[EncodingName];
-
-    /// TODO
     fn volatility(&self) -> Volatility;
 
     /// TODO
     fn return_type(&self, input_encoding: Option<EncodingName>) -> DFResult<DataType>;
 
     /// TODO
-    #[allow(unused_variables, reason = "Necessary in implementations.")]
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        args: Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        exec_err!("TypedValue encoding not supported by {}.", self.name())
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        None
     }
 
     /// TODO
-    #[allow(unused_variables, reason = "Necessary in implementations.")]
-    fn invoke_plain_term_encoding(
+    fn plain_term_encoding_op(
         &self,
-        args: Self::Args<PlainTermEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        exec_err!("PlainTerm value encoding not supported by {}.", self.name())
+    ) -> Option<Box<dyn Fn(Self::Args<PlainTermEncoding>) -> DFResult<ColumnarValue>>> {
+        None
     }
 }
 
@@ -62,25 +55,18 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
         let name = op.name().to_string();
 
         let mut type_signatures = Vec::new();
-        for encoding in op.supported_encodings() {
-            match encoding {
-                EncodingName::PlainTerm => {
-                    type_signatures
-                        .push(TScalarSparqlOp::Args::<PlainTermEncoding>::type_signature());
-                }
-                EncodingName::TypedValue => {
-                    type_signatures
-                        .push(TScalarSparqlOp::Args::<TypedValueEncoding>::type_signature());
-                }
-                EncodingName::Sortable => {
-                    todo!("Not supported")
-                }
-            }
+        if op.plain_term_encoding_op().is_some() {
+            type_signatures.push(TScalarSparqlOp::Args::<PlainTermEncoding>::type_signature());
+        }
+        if op.typed_value_encoding_op().is_some() {
+            type_signatures.push(TScalarSparqlOp::Args::<TypedValueEncoding>::type_signature());
         }
 
         let volatility = op.volatility();
         let type_signature = if type_signatures.len() == 1 {
             type_signatures.pop().unwrap()
+        } else if type_signatures.is_empty() {
+            TypeSignature::Variadic(vec![]) // Or handle this case as an error if no encodings are supported
         } else {
             TypeSignature::OneOf(type_signatures)
         };
@@ -123,20 +109,36 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
         let encoding = detect_input_encoding(&data_types)?;
 
         let encoding = match encoding {
-            None => self.op.supported_encodings().first().unwrap().clone(),
+            None => {
+                if self.op.typed_value_encoding_op().is_some() {
+                    EncodingName::TypedValue
+                } else if self.op.plain_term_encoding_op().is_some() {
+                    EncodingName::PlainTerm
+                } else {
+                    return exec_err!("No supported encodings");
+                }
+            }
             Some(encoding) => encoding,
         };
 
         match encoding {
             EncodingName::PlainTerm => {
                 let args = TScalarSparqlOp::Args::<PlainTermEncoding>::try_from_args(args)?;
-                self.op.invoke_plain_term_encoding(args)
+                if let Some(op) = self.op.plain_term_encoding_op() {
+                    op(args)
+                } else {
+                    exec_err!("PlainTerm encoding not supported for this operation")
+                }
             }
             EncodingName::TypedValue => {
                 let args = TScalarSparqlOp::Args::<TypedValueEncoding>::try_from_args(args)?;
-                self.op.invoke_typed_value_encoding(args)
+                if let Some(op) = self.op.typed_value_encoding_op() {
+                    op(args)
+                } else {
+                    exec_err!("TypedValue encoding not supported for this operation")
+                }
             }
-            EncodingName::Sortable => todo!("Not supported"),
+            EncodingName::Sortable => exec_err!("Not supported"),
         }
     }
 }

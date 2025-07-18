@@ -11,7 +11,7 @@ use rdf_fusion_encoding::{EncodingName, TermEncoding};
 use rdf_fusion_model::{ThinError, TypedValueRef};
 
 #[derive(Debug)]
-pub struct IsNumericSparqlOp {}
+pub struct IsNumericSparqlOp;
 
 impl Default for IsNumericSparqlOp {
     fn default() -> Self {
@@ -34,10 +34,6 @@ impl ScalarSparqlOp for IsNumericSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,18 +45,19 @@ impl ScalarSparqlOp for IsNumericSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| {
-                Ok(TypedValueRef::BooleanLiteral(
-                    matches!(value, TypedValueRef::NumericLiteral(_)).into(),
-                ))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| {
+                    Ok(TypedValueRef::BooleanLiteral(
+                        matches!(value, TypedValueRef::NumericLiteral(_)).into(),
+                    ))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

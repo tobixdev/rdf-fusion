@@ -35,10 +35,6 @@ impl ScalarSparqlOp for DatatypeSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -50,38 +46,39 @@ impl ScalarSparqlOp for DatatypeSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| {
-                let iri = match value {
-                    TypedValueRef::BlankNode(_) | TypedValueRef::NamedNode(_) => {
-                        return ThinError::expected()
-                    }
-                    TypedValueRef::SimpleLiteral(_) => xsd::STRING,
-                    TypedValueRef::NumericLiteral(value) => match value {
-                        Numeric::Int(_) => xsd::INT,
-                        Numeric::Integer(_) => xsd::INTEGER,
-                        Numeric::Float(_) => xsd::FLOAT,
-                        Numeric::Double(_) => xsd::DOUBLE,
-                        Numeric::Decimal(_) => xsd::DECIMAL,
-                    },
-                    TypedValueRef::BooleanLiteral(_) => xsd::BOOLEAN,
-                    TypedValueRef::LanguageStringLiteral(_) => rdf::LANG_STRING,
-                    TypedValueRef::DateTimeLiteral(_) => xsd::DATE_TIME,
-                    TypedValueRef::TimeLiteral(_) => xsd::TIME,
-                    TypedValueRef::DateLiteral(_) => xsd::DATE,
-                    TypedValueRef::DurationLiteral(_) => xsd::DURATION,
-                    TypedValueRef::YearMonthDurationLiteral(_) => xsd::YEAR_MONTH_DURATION,
-                    TypedValueRef::DayTimeDurationLiteral(_) => xsd::DAY_TIME_DURATION,
-                    TypedValueRef::OtherLiteral(value) => value.datatype(),
-                };
-                Ok(TypedValueRef::NamedNode(iri))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| {
+                    let iri = match value {
+                        TypedValueRef::BlankNode(_) | TypedValueRef::NamedNode(_) => {
+                            return ThinError::expected()
+                        }
+                        TypedValueRef::SimpleLiteral(_) => xsd::STRING,
+                        TypedValueRef::NumericLiteral(value) => match value {
+                            Numeric::Int(_) => xsd::INT,
+                            Numeric::Integer(_) => xsd::INTEGER,
+                            Numeric::Float(_) => xsd::FLOAT,
+                            Numeric::Double(_) => xsd::DOUBLE,
+                            Numeric::Decimal(_) => xsd::DECIMAL,
+                        },
+                        TypedValueRef::BooleanLiteral(_) => xsd::BOOLEAN,
+                        TypedValueRef::LanguageStringLiteral(_) => rdf::LANG_STRING,
+                        TypedValueRef::DateTimeLiteral(_) => xsd::DATE_TIME,
+                        TypedValueRef::TimeLiteral(_) => xsd::TIME,
+                        TypedValueRef::DateLiteral(_) => xsd::DATE,
+                        TypedValueRef::DurationLiteral(_) => xsd::DURATION,
+                        TypedValueRef::YearMonthDurationLiteral(_) => xsd::YEAR_MONTH_DURATION,
+                        TypedValueRef::DayTimeDurationLiteral(_) => xsd::DAY_TIME_DURATION,
+                        TypedValueRef::OtherLiteral(value) => value.datatype(),
+                    };
+                    Ok(TypedValueRef::NamedNode(iri))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

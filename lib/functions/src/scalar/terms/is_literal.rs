@@ -11,7 +11,7 @@ use rdf_fusion_encoding::{EncodingName, TermEncoding};
 use rdf_fusion_model::{ThinError, TypedValueRef};
 
 #[derive(Debug)]
-pub struct IsLiteralSparqlOp {}
+pub struct IsLiteralSparqlOp;
 
 impl Default for IsLiteralSparqlOp {
     fn default() -> Self {
@@ -34,10 +34,6 @@ impl ScalarSparqlOp for IsLiteralSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,20 +45,21 @@ impl ScalarSparqlOp for IsLiteralSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_typed_value(
-            &arg,
-            |value| {
-                let result = match value {
-                    TypedValueRef::NamedNode(_) | TypedValueRef::BlankNode(_) => false,
-                    _ => true,
-                };
-                Ok(TypedValueRef::BooleanLiteral(result.into()))
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_typed_value(
+                &arg,
+                |value| {
+                    let result = !matches!(
+                        value,
+                        TypedValueRef::NamedNode(_) | TypedValueRef::BlankNode(_)
+                    );
+                    Ok(TypedValueRef::BooleanLiteral(result.into()))
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }

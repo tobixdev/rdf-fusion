@@ -34,10 +34,6 @@ impl ScalarSparqlOp for UCaseSparqlOp {
         &Self::NAME
     }
 
-    fn supported_encodings(&self) -> &[EncodingName] {
-        &[EncodingName::TypedValue]
-    }
-
     fn volatility(&self) -> Volatility {
         Volatility::Immutable
     }
@@ -49,27 +45,28 @@ impl ScalarSparqlOp for UCaseSparqlOp {
         Ok(TypedValueEncoding::data_type())
     }
 
-    fn invoke_typed_value_encoding(
+    fn typed_value_encoding_op(
         &self,
-        UnaryArgs(arg): Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue> {
-        dispatch_unary_owned_typed_value(
-            &arg,
-            |value| match value {
-                TypedValueRef::SimpleLiteral(value) => {
-                    Ok(TypedValue::SimpleLiteral(SimpleLiteral {
-                        value: value.value.to_uppercase(),
-                    }))
-                }
-                TypedValueRef::LanguageStringLiteral(value) => {
-                    Ok(TypedValue::LanguageStringLiteral(LanguageString {
-                        value: value.value.to_uppercase(),
-                        language: value.language.to_owned(),
-                    }))
-                }
-                _ => ThinError::expected(),
-            },
-            || ThinError::expected(),
-        )
+    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+        Some(Box::new(|UnaryArgs(arg)| {
+            dispatch_unary_owned_typed_value(
+                &arg,
+                |value| match value {
+                    TypedValueRef::SimpleLiteral(value) => {
+                        Ok(TypedValue::SimpleLiteral(SimpleLiteral {
+                            value: value.value.to_uppercase(),
+                        }))
+                    }
+                    TypedValueRef::LanguageStringLiteral(value) => {
+                        Ok(TypedValue::LanguageStringLiteral(LanguageString {
+                            value: value.value.to_uppercase(),
+                            language: value.language.to_owned(),
+                        }))
+                    }
+                    _ => ThinError::expected(),
+                },
+                ThinError::expected,
+            )
+        }))
     }
 }
