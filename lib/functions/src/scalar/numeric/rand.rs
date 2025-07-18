@@ -1,13 +1,12 @@
 use crate::builtin::BuiltinName;
+use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
 use crate::scalar::{NullaryArgs, ScalarSparqlOp};
 use crate::FunctionName;
-use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rand::Rng;
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::{EncodingArray, EncodingName, TermEncoder, TermEncoding};
+use rdf_fusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
 use rdf_fusion_model::{Numeric, TypedValueRef};
 
 #[derive(Debug)]
@@ -38,21 +37,19 @@ impl ScalarSparqlOp for RandSparqlOp {
         Volatility::Volatile
     }
 
-    fn return_type(&self, _target_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        Ok(TypedValueEncoding::data_type())
-    }
-
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
-        Some(Box::new(|NullaryArgs { number_rows }| {
-            let mut rng = rand::rng();
-            let values = (0..number_rows).map(|_| {
-                let value = rng.random::<f64>();
-                Ok(TypedValueRef::NumericLiteral(Numeric::Double(value.into())))
-            });
-            let array = DefaultTypedValueEncoder::encode_terms(values)?;
-            Ok(ColumnarValue::Array(array.into_array()))
-        }))
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
+        Some(create_typed_value_sparql_op_impl(
+            |NullaryArgs { number_rows }| {
+                let mut rng = rand::rng();
+                let values = (0..number_rows).map(|_| {
+                    let value = rng.random::<f64>();
+                    Ok(TypedValueRef::NumericLiteral(Numeric::Double(value.into())))
+                });
+                let array = DefaultTypedValueEncoder::encode_terms(values)?;
+                Ok(ColumnarValue::Array(array.into_array()))
+            },
+        ))
     }
 }

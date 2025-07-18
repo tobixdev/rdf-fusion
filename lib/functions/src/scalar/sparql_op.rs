@@ -1,4 +1,5 @@
 use crate::scalar::args::SparqlOpArgs;
+use crate::scalar::sparql_op_impl::SparqlOpImpl;
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
@@ -25,19 +26,16 @@ pub trait ScalarSparqlOp: Debug + Send + Sync {
     fn volatility(&self) -> Volatility;
 
     /// TODO
-    fn return_type(&self, input_encoding: Option<EncodingName>) -> DFResult<DataType>;
-
-    /// TODO
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
         None
     }
 
     /// TODO
     fn plain_term_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<PlainTermEncoding>) -> DFResult<ColumnarValue>>> {
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<PlainTermEncoding>>>> {
         None
     }
 }
@@ -97,7 +95,39 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
 
     fn return_type(&self, arg_types: &[DataType]) -> DFResult<DataType> {
         let encoding_name = detect_input_encoding(arg_types)?;
-        self.op.return_type(encoding_name)
+        match encoding_name {
+            None => {
+                if let Some(op_impl) = self.op.plain_term_encoding_op() {
+                    Ok(op_impl.return_type())
+                } else if let Some(op_impl) = self.op.typed_value_encoding_op() {
+                    Ok(op_impl.return_type())
+                } else {
+                    exec_err!(
+                        "The SPARQL operation '{}' does not support any encoding.",
+                        &self.name
+                    )
+                }
+            }
+            Some(EncodingName::PlainTerm) => self
+                .op
+                .plain_term_encoding_op()
+                .ok_or(exec_datafusion_err!(
+                    "The SPARQL operation '{}' does not support the PlainTerm encoding.",
+                    &self.name
+                ))
+                .map(|op_impl| op_impl.return_type()),
+            Some(EncodingName::TypedValue) => self
+                .op
+                .typed_value_encoding_op()
+                .ok_or(exec_datafusion_err!(
+                    "The SPARQL operation '{}' does not support the TypedValue encoding.",
+                    &self.name
+                ))
+                .map(|op_impl| op_impl.return_type()),
+            Some(EncodingName::Sortable) => {
+                exec_err!("The SparqlOp infrastructure does not support the Sortable encoding.")
+            }
+        }
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
@@ -125,7 +155,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             EncodingName::PlainTerm => {
                 let args = TScalarSparqlOp::Args::<PlainTermEncoding>::try_from_args(args)?;
                 if let Some(op) = self.op.plain_term_encoding_op() {
-                    op(args)
+                    op.invoke(args)
                 } else {
                     exec_err!("PlainTerm encoding not supported for this operation")
                 }
@@ -133,7 +163,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             EncodingName::TypedValue => {
                 let args = TScalarSparqlOp::Args::<TypedValueEncoding>::try_from_args(args)?;
                 if let Some(op) = self.op.typed_value_encoding_op() {
-                    op(args)
+                    op.invoke(args)
                 } else {
                     exec_err!("TypedValue encoding not supported for this operation")
                 }

@@ -1,13 +1,11 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
+use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
 use crate::scalar::{ScalarSparqlOp, UnaryArgs};
 use crate::FunctionName;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::common::exec_err;
-use datafusion::logical_expr::{ColumnarValue, Volatility};
-use rdf_fusion_common::DFResult;
+use datafusion::logical_expr::Volatility;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_model::{Iri, NamedNode, ThinError, TypedValue, TypedValueRef};
 
 #[derive(Debug)]
@@ -34,18 +32,11 @@ impl ScalarSparqlOp for IriSparqlOp {
         Volatility::Immutable
     }
 
-    fn return_type(&self, input_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        if !matches!(input_encoding, Some(EncodingName::TypedValue)) {
-            return exec_err!("Unexpected target encoding: {:?}", input_encoding);
-        }
-        Ok(TypedValueEncoding::data_type())
-    }
-
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
         let base_iri = self.base_iri.clone();
-        Some(Box::new(move |UnaryArgs(arg)| {
+        Some(create_typed_value_sparql_op_impl(move |UnaryArgs(arg)| {
             dispatch_unary_owned_typed_value(
                 &arg,
                 |value| match value {

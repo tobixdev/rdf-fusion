@@ -1,12 +1,11 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_typed_value;
+use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
 use crate::scalar::{NullaryArgs, NullaryOrUnaryArgs, ScalarSparqlOp, UnaryArgs};
 use crate::FunctionName;
-use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{ColumnarValue, Volatility};
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_model::{BlankNode, BlankNodeRef, ThinError, TypedValueRef};
 
 #[derive(Debug)]
@@ -37,14 +36,10 @@ impl ScalarSparqlOp for BNodeSparqlOp {
         Volatility::Volatile
     }
 
-    fn return_type(&self, _input_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        Ok(TypedValueEncoding::data_type())
-    }
-
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
-        Some(Box::new(|args| match args {
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
+        Some(create_typed_value_sparql_op_impl(|args| match args {
             NullaryOrUnaryArgs::Nullary(NullaryArgs { number_rows }) => {
                 let mut builder = TypedValueArrayBuilder::default();
                 for _ in 0..number_rows {

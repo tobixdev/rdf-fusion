@@ -6,6 +6,7 @@ mod dispatch;
 pub mod functional_form;
 pub mod numeric;
 mod sparql_op;
+mod sparql_op_impl;
 pub mod strings;
 pub mod terms;
 

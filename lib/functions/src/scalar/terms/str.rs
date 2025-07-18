@@ -3,15 +3,15 @@ use rdf_fusion_model::{SimpleLiteral, TypedValue, TypedValueRef};
 
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::{dispatch_unary_owned_typed_value, dispatch_unary_plain_term};
+use crate::scalar::sparql_op_impl::{
+    create_plain_term_sparql_op_impl, create_typed_value_sparql_op_impl, SparqlOpImpl,
+};
 use crate::scalar::{ScalarSparqlOp, UnaryArgs};
 use crate::FunctionName;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::common::exec_err;
-use datafusion::logical_expr::{ColumnarValue, Volatility};
-use rdf_fusion_common::DFResult;
+use datafusion::logical_expr::Volatility;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_encoding::TermEncoding;
 
 #[derive(Debug)]
 pub struct StrSparqlOp;
@@ -41,19 +41,10 @@ impl ScalarSparqlOp for StrSparqlOp {
         Volatility::Immutable
     }
 
-    fn return_type(&self, input_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        match input_encoding {
-            None => unreachable!("There must be an input encoding"),
-            Some(EncodingName::PlainTerm) => Ok(PlainTermEncoding::data_type()),
-            Some(EncodingName::TypedValue) => Ok(TypedValueEncoding::data_type()),
-            Some(_) => exec_err!("Unsupported encoding"),
-        }
-    }
-
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
-        Some(Box::new(|UnaryArgs(arg)| {
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
+        Some(create_typed_value_sparql_op_impl(|UnaryArgs(arg)| {
             dispatch_unary_owned_typed_value(
                 &arg,
                 |value| {
@@ -83,8 +74,8 @@ impl ScalarSparqlOp for StrSparqlOp {
 
     fn plain_term_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<PlainTermEncoding>) -> DFResult<ColumnarValue>>> {
-        Some(Box::new(|UnaryArgs(arg)| {
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<PlainTermEncoding>>>> {
+        Some(create_plain_term_sparql_op_impl(|UnaryArgs(arg)| {
             dispatch_unary_plain_term(
                 &arg,
                 |value| {

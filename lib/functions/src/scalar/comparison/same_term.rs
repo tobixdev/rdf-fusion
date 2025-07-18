@@ -1,12 +1,11 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_binary_plain_term;
+use crate::scalar::sparql_op_impl::{create_plain_term_sparql_op_impl, SparqlOpImpl};
 use crate::scalar::{BinaryArgs, ScalarSparqlOp};
 use crate::FunctionName;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, Volatility};
-use rdf_fusion_common::DFResult;
+use datafusion::logical_expr::Volatility;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{LiteralRef, TermRef, ThinError};
 
@@ -40,14 +39,10 @@ impl ScalarSparqlOp for SameTermSparqlOp {
         Volatility::Immutable
     }
 
-    fn return_type(&self, _input_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        Ok(PlainTermEncoding::data_type())
-    }
-
     fn plain_term_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<PlainTermEncoding>) -> DFResult<ColumnarValue>>> {
-        Some(Box::new(|BinaryArgs(lhs, rhs)| {
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<PlainTermEncoding>>>> {
+        Some(create_plain_term_sparql_op_impl(|BinaryArgs(lhs, rhs)| {
             dispatch_binary_plain_term(
                 &lhs,
                 &rhs,

@@ -1,12 +1,11 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_typed_value;
+use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
 use crate::scalar::{ScalarSparqlOp, UnaryArgs};
 use crate::FunctionName;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, Volatility};
-use rdf_fusion_common::DFResult;
+use datafusion::logical_expr::Volatility;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_model::{ThinError, TypedValueRef};
 
 #[derive(Debug)]
@@ -37,14 +36,10 @@ impl ScalarSparqlOp for CastDateTimeSparqlOp {
         Volatility::Immutable
     }
 
-    fn return_type(&self, _input_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        Ok(TypedValueEncoding::data_type())
-    }
-
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
-        Some(Box::new(|UnaryArgs(arg)| {
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
+        Some(create_typed_value_sparql_op_impl(|UnaryArgs(arg)| {
             dispatch_unary_typed_value(
                 &arg,
                 |value| {

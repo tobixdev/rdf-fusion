@@ -1,12 +1,11 @@
 use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_n_ary_owned_typed_value;
+use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
 use crate::scalar::{NAryArgs, ScalarSparqlOp};
 use crate::FunctionName;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{ColumnarValue, Volatility};
-use rdf_fusion_common::DFResult;
+use datafusion::logical_expr::Volatility;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_model::{
     LanguageString, SimpleLiteral, StringLiteralRef, ThinError, ThinResult, TypedValue,
 };
@@ -39,47 +38,45 @@ impl ScalarSparqlOp for ConcatSparqlOp {
         Volatility::Immutable
     }
 
-    fn return_type(&self, _input_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        Ok(TypedValueEncoding::data_type())
-    }
-
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn Fn(Self::Args<TypedValueEncoding>) -> DFResult<ColumnarValue>>> {
-        Some(Box::new(|NAryArgs(args, number_rows)| {
-            dispatch_n_ary_owned_typed_value(
-                &args,
-                number_rows,
-                |args| {
-                    let args = args
-                        .iter()
-                        .map(|arg| StringLiteralRef::try_from(*arg))
-                        .collect::<ThinResult<Vec<_>>>()?;
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
+        Some(create_typed_value_sparql_op_impl(
+            |NAryArgs(args, number_rows)| {
+                dispatch_n_ary_owned_typed_value(
+                    &args,
+                    number_rows,
+                    |args| {
+                        let args = args
+                            .iter()
+                            .map(|arg| StringLiteralRef::try_from(*arg))
+                            .collect::<ThinResult<Vec<_>>>()?;
 
-                    let mut result = String::default();
-                    let mut language = None;
+                        let mut result = String::default();
+                        let mut language = None;
 
-                    for arg in args {
-                        if let Some(lang) = &language {
-                            if *lang != arg.1 {
-                                language = Some(None)
+                        for arg in args {
+                            if let Some(lang) = &language {
+                                if *lang != arg.1 {
+                                    language = Some(None)
+                                }
+                            } else {
+                                language = Some(arg.1)
                             }
-                        } else {
-                            language = Some(arg.1)
+                            result += arg.0;
                         }
-                        result += arg.0;
-                    }
 
-                    Ok(match language.flatten().map(ToOwned::to_owned) {
-                        Some(language) => TypedValue::LanguageStringLiteral(LanguageString {
-                            value: result,
-                            language,
-                        }),
-                        None => TypedValue::SimpleLiteral(SimpleLiteral { value: result }),
-                    })
-                },
-                |_| ThinError::expected(),
-            )
-        }))
+                        Ok(match language.flatten().map(ToOwned::to_owned) {
+                            Some(language) => TypedValue::LanguageStringLiteral(LanguageString {
+                                value: result,
+                                language,
+                            }),
+                            None => TypedValue::SimpleLiteral(SimpleLiteral { value: result }),
+                        })
+                    },
+                    |_| ThinError::expected(),
+                )
+            },
+        ))
     }
 }
