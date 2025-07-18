@@ -18,12 +18,12 @@ pub struct TypedValueArray {
 
 impl TypedValueArray {
     /// Returns a reference to all the child arrays contained in this array. It is expected to call
-    /// this method once and work on the resulting [TermValueArrayParts].
+    /// this method once and work on the resulting [TypedValueArrayParts].
     ///
     /// Using this has multiple benefits:
     /// - Can reduce runtime checks for accessing and downcasting child arrays
     /// - A bit more static guarantees, as the struct will change if a child array is removed
-    pub fn parts_as_ref(&self) -> TermValueArrayParts<'_> {
+    pub fn parts_as_ref(&self) -> TypedValueArrayParts<'_> {
         let array = self.inner.as_union();
         let strings_array = array
             .child(TypedValueEncodingField::String.type_id())
@@ -44,7 +44,7 @@ impl TypedValueArray {
             .child(TypedValueEncodingField::OtherLiteral.type_id())
             .as_struct();
 
-        TermValueArrayParts {
+        TypedValueArrayParts {
             array,
             null_count: array
                 .child(TypedValueEncodingField::Null.type_id())
@@ -125,7 +125,7 @@ impl EncodingArray for TypedValueArray {
 }
 
 #[derive(Debug, Clone)]
-pub struct TermValueArrayParts<'data> {
+pub struct TypedValueArrayParts<'data> {
     pub array: &'data UnionArray,
     pub null_count: usize,
     pub named_nodes: &'data GenericStringArray<i32>,

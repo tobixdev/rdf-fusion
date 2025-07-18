@@ -1,5 +1,5 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::typed_value::array::{DurationParts, StringParts, TermValueArrayParts, TimestampParts};
+use crate::typed_value::array::{DurationParts, StringParts, TimestampParts, TypedValueArrayParts};
 use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use crate::{EncodingScalar, TermEncoding};
 use datafusion::arrow::array::{Array, AsArray};
@@ -117,7 +117,7 @@ impl TermDecoder<TypedValueEncoding> for DefaultTypedValueDecoder {
 
 /// Extracts a [TypedValueRef] from `parts` at `index`.
 fn extract_term_value<'data>(
-    parts: &TermValueArrayParts<'data>,
+    parts: &TypedValueArrayParts<'data>,
     index: usize,
 ) -> ThinResult<TypedValueRef<'data>> {
     let field = TypedValueEncodingField::try_from(parts.array.type_id(index))
