@@ -1,6 +1,6 @@
 use crate::builtin::BuiltinName;
-use crate::scalar::dispatch::dispatch_binary_typed_value;
-use crate::scalar::{BinaryArgs, BinaryOrTernaryArgs, ScalarSparqlOp};
+use crate::scalar::dispatch::{dispatch_binary_typed_value, dispatch_ternary_typed_value};
+use crate::scalar::{BinaryArgs, BinaryOrTernaryArgs, ScalarSparqlOp, TernaryArgs};
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -8,7 +8,7 @@ use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, TermEncoding};
-use rdf_fusion_model::{ThinError, ThinResult, TypedValueRef};
+use rdf_fusion_model::{SimpleLiteralRef, ThinError, ThinResult, TypedValueRef};
 use regex::{Regex, RegexBuilder};
 use std::borrow::Cow;
 
@@ -79,12 +79,34 @@ impl ScalarSparqlOp for RegexSparqlOp {
                 },
                 |_, _| ThinError::expected(),
             ),
-            BinaryOrTernaryArgs::Ternary(_) => todo!("Dispatch")
+            BinaryOrTernaryArgs::Ternary(TernaryArgs(arg0, arg1, arg2)) => {
+                dispatch_ternary_typed_value(
+                    &arg0,
+                    &arg1,
+                    &arg2,
+                    |arg0, arg1, arg2| {
+                        let arg1 = SimpleLiteralRef::try_from(arg1)?;
+                        let arg2 = SimpleLiteralRef::try_from(arg2)?;
+
+                        let regex = compile_pattern(arg1.value, Some(arg2.value))?;
+                        match arg0 {
+                            TypedValueRef::SimpleLiteral(value) => Ok(
+                                TypedValueRef::BooleanLiteral(regex.is_match(value.value).into()),
+                            ),
+                            TypedValueRef::LanguageStringLiteral(value) => Ok(
+                                TypedValueRef::BooleanLiteral(regex.is_match(value.value).into()),
+                            ),
+                            _ => ThinError::expected(),
+                        }
+                    },
+                    |_, _, _| ThinError::expected(),
+                )
+            }
         }
     }
 }
 
-fn compile_pattern(pattern: &str, flags: Option<&str>) -> ThinResult<Regex> {
+pub(super) fn compile_pattern(pattern: &str, flags: Option<&str>) -> ThinResult<Regex> {
     const REGEX_SIZE_LIMIT: usize = 1_000_000;
 
     let mut pattern = Cow::Borrowed(pattern);

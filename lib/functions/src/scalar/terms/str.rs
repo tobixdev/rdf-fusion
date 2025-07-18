@@ -49,7 +49,7 @@ impl ScalarSparqlOp for StrSparqlOp {
             None => unreachable!("There must be an input encoding"),
             Some(EncodingName::PlainTerm) => Ok(PlainTermEncoding::data_type()),
             Some(EncodingName::TypedValue) => Ok(TypedValueEncoding::data_type()),
-            Some(_) => todo!("Unsupported encoding")
+            Some(_) => todo!("Unsupported encoding"),
         }
     }
 

@@ -1,16 +1,14 @@
 use crate::builtin::BuiltinName;
+use crate::scalar::dispatch::dispatch_binary_plain_term;
 use crate::scalar::{BinaryArgs, ScalarSparqlOp};
 use crate::FunctionName;
-use datafusion::arrow::compute::kernels::cmp::eq;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::ScalarValue;
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use rdf_fusion_encoding::{
-    EncodingArray, EncodingDatum, EncodingName, EncodingScalar, TermEncoding,
-};
+use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_model::vocab::xsd;
+use rdf_fusion_model::{LiteralRef, TermRef, ThinError};
 
 /// Implementation of the SPARQL `SAME_TERM` operator.
 #[derive(Debug)]
@@ -47,36 +45,28 @@ impl ScalarSparqlOp for SameTermSparqlOp {
     }
 
     fn return_type(&self, _input_encoding: Option<EncodingName>) -> DFResult<DataType> {
-        Ok(TypedValueEncoding::data_type())
+        Ok(PlainTermEncoding::data_type())
     }
 
     fn invoke_plain_term_encoding(
         &self,
         BinaryArgs(lhs, rhs): Self::Args<PlainTermEncoding>,
     ) -> DFResult<ColumnarValue> {
-        let result = match (lhs, rhs) {
-            (EncodingDatum::Array(lhs), EncodingDatum::Array(rhs)) => eq(lhs.array(), rhs.array()),
-            (EncodingDatum::Array(lhs), EncodingDatum::Scalar(rhs, _)) => {
-                eq(lhs.array(), &rhs.scalar_value().to_scalar()?)
-            }
-            (EncodingDatum::Scalar(lhs, _), EncodingDatum::Array(rhs)) => {
-                eq(&lhs.scalar_value().to_scalar()?, rhs.array())
-            }
-            (EncodingDatum::Scalar(lhs, _), EncodingDatum::Scalar(rhs, _)) => {
-                let scalar_result = lhs.scalar_value() == rhs.scalar_value();
-                return Ok(ColumnarValue::Scalar(ScalarValue::Boolean(Some(
-                    scalar_result,
-                ))));
-            }
-        }?;
-
-        let mut result_builder = TypedValueArrayBuilder::default();
-        for boolean in result.into_iter() {
-            match boolean {
-                Some(value) => result_builder.append_boolean(value.into())?,
-                None => result_builder.append_null()?,
-            }
-        }
-        Ok(ColumnarValue::Array(result_builder.finish()))
+        dispatch_binary_plain_term(
+            &lhs,
+            &rhs,
+            |lhs_value, rhs_value| {
+                let value = if lhs_value == rhs_value {
+                    "true"
+                } else {
+                    "false"
+                };
+                Ok(TermRef::Literal(LiteralRef::new_typed_literal(
+                    value,
+                    xsd::BOOLEAN,
+                )))
+            },
+            |_, _| ThinError::expected(),
+        )
     }
 }

@@ -2,7 +2,7 @@ use crate::xsd::decimal::Decimal;
 use crate::xsd::double::Double;
 use crate::xsd::float::Float;
 use crate::xsd::integer::Integer;
-use crate::Int;
+use crate::{Int, ThinError, TypedValueRef};
 use std::fmt;
 use std::str::{FromStr, ParseBoolError};
 
@@ -87,6 +87,17 @@ impl From<Boolean> for bool {
     #[inline]
     fn from(value: Boolean) -> Self {
         value.value
+    }
+}
+
+impl TryFrom<TypedValueRef<'_>> for Boolean {
+    type Error = ThinError;
+
+    fn try_from(value: TypedValueRef<'_>) -> Result<Self, Self::Error> {
+        match value {
+            TypedValueRef::BooleanLiteral(lit) => Ok(lit),
+            _ => ThinError::expected(),
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::builtin::BuiltinName;
-use crate::scalar::dispatch::dispatch_binary_typed_value;
-use crate::scalar::{BinaryArgs, BinaryOrTernaryArgs, ScalarSparqlOp};
+use crate::scalar::dispatch::{dispatch_binary_typed_value, dispatch_ternary_typed_value};
+use crate::scalar::{BinaryArgs, BinaryOrTernaryArgs, ScalarSparqlOp, TernaryArgs};
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -69,7 +69,20 @@ impl ScalarSparqlOp for SubStrSparqlOp {
                 },
                 |_, _| ThinError::expected(),
             ),
-            BinaryOrTernaryArgs::Ternary(_) => todo!("Dispatch")
+            BinaryOrTernaryArgs::Ternary(TernaryArgs(arg0, arg1, arg2)) => {
+                dispatch_ternary_typed_value(
+                    &arg0,
+                    &arg1,
+                    &arg2,
+                    |arg0, arg1, arg2| {
+                        let arg0 = StringLiteralRef::try_from(arg0)?;
+                        let arg1 = Integer::try_from(arg1)?;
+                        let arg2 = Integer::try_from(arg2)?;
+                        evaluate_substr(arg0, arg1, Some(arg2))
+                    },
+                    |_, _, _| ThinError::expected(),
+                )
+            }
         }
     }
 }

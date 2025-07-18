@@ -62,7 +62,9 @@ impl ScalarSparqlOp for StrStartsSparqlOp {
                 let lhs_value = StringLiteralRef::try_from(lhs_value)?;
                 let rhs_value = StringLiteralRef::try_from(rhs_value)?;
                 let args = CompatibleStringArgs::try_from(lhs_value, rhs_value)?;
-                Ok(TypedValueRef::BooleanLiteral(args.lhs.starts_with(args.rhs).into()))
+                Ok(TypedValueRef::BooleanLiteral(
+                    args.lhs.starts_with(args.rhs).into(),
+                ))
             },
             |_, _| ThinError::expected(),
         )

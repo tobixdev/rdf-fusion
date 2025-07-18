@@ -1,6 +1,6 @@
 use crate::builtin::BuiltinName;
-use crate::scalar::dispatch::dispatch_binary_typed_value;
-use crate::scalar::{BinaryArgs, ScalarSparqlOp};
+use crate::scalar::dispatch::dispatch_ternary_typed_value;
+use crate::scalar::{ScalarSparqlOp, TernaryArgs};
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
@@ -8,30 +8,27 @@ use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, TermEncoding};
-use rdf_fusion_model::{ThinError, TypedValueRef};
-use std::cmp::Ordering;
+use rdf_fusion_model::Boolean;
 
-/// Implementation of the SPARQL `<` operator.
 #[derive(Debug)]
-pub struct LessThanSparqlOp {}
+pub struct IfSparqlOp;
 
-impl Default for LessThanSparqlOp {
+impl Default for IfSparqlOp {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl LessThanSparqlOp {
-    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::LessThan);
+impl IfSparqlOp {
+    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::Bound);
 
-    /// Creates a new [LessThanSparqlOp].
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl ScalarSparqlOp for LessThanSparqlOp {
-    type Args<TEncoding: TermEncoding> = BinaryArgs<TEncoding>;
+impl ScalarSparqlOp for IfSparqlOp {
+    type Args<TEncoding: TermEncoding> = TernaryArgs<TEncoding>;
 
     fn name(&self) -> &FunctionName {
         &Self::NAME
@@ -54,20 +51,28 @@ impl ScalarSparqlOp for LessThanSparqlOp {
 
     fn invoke_typed_value_encoding(
         &self,
-        BinaryArgs(lhs, rhs): Self::Args<TypedValueEncoding>,
+        TernaryArgs(arg0, arg1, arg2): Self::Args<TypedValueEncoding>,
     ) -> DFResult<ColumnarValue> {
-        dispatch_binary_typed_value(
-            &lhs,
-            &rhs,
-            |lhs_value, rhs_value| {
-                lhs_value
-                    .partial_cmp(&rhs_value)
-                    .map(|o| o == Ordering::Less)
-                    .map(Into::into)
-                    .map(TypedValueRef::BooleanLiteral)
-                    .ok_or(ThinError::Expected)
+        dispatch_ternary_typed_value(
+            &arg0,
+            &arg1,
+            &arg2,
+            |arg0, arg1, arg2| {
+                let test = Boolean::try_from(arg0)?;
+                if test.as_bool() {
+                    Ok(arg1)
+                } else {
+                    Ok(arg2)
+                }
             },
-            |_, _| ThinError::expected(),
+            |arg0, arg1, arg2| {
+                let test = Boolean::try_from(arg0?)?;
+                if test.as_bool() {
+                    arg1
+                } else {
+                    arg2
+                }
+            },
         )
     }
 }

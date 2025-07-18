@@ -106,6 +106,33 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for TernaryArgs<TEncoding> {
     }
 }
 
+pub struct QuaternaryArgs<TEncoding: TermEncoding>(
+    pub EncodingDatum<TEncoding>,
+    pub EncodingDatum<TEncoding>,
+    pub EncodingDatum<TEncoding>,
+    pub EncodingDatum<TEncoding>,
+);
+
+impl<TEncoding: TermEncoding> SparqlOpArgs for QuaternaryArgs<TEncoding> {
+    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+        let args = args
+            .args
+            .into_iter()
+            .map(|cv| TEncoding::try_new_datum(cv, args.number_rows))
+            .collect::<DFResult<Vec<_>>>()?;
+
+        let len = args.len();
+        let [arg0, arg1, arg2, arg3] = TryInto::<[EncodingDatum<TEncoding>; 4]>::try_into(args)
+            .map_err(|_| exec_datafusion_err!("Expected 2 argument, got {}", len))?;
+
+        Ok(Self(arg0, arg1, arg2, arg3))
+    }
+
+    fn type_signature() -> TypeSignature {
+        TypeSignature::Uniform(4, vec![TEncoding::data_type()])
+    }
+}
+
 pub enum NullaryOrUnaryArgs<TEncoding: TermEncoding> {
     Nullary(NullaryArgs),
     Unary(UnaryArgs<TEncoding>),
@@ -146,6 +173,28 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for BinaryOrTernaryArgs<TEncoding> {
         TypeSignature::OneOf(vec![
             BinaryArgs::<TEncoding>::type_signature(),
             TernaryArgs::<TEncoding>::type_signature(),
+        ])
+    }
+}
+
+pub enum TernaryOrQuaternaryArgs<TEncoding: TermEncoding> {
+    Ternary(TernaryArgs<TEncoding>),
+    Quaternary(QuaternaryArgs<TEncoding>),
+}
+
+impl<TEncoding: TermEncoding> SparqlOpArgs for TernaryOrQuaternaryArgs<TEncoding> {
+    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+        if args.args.len() == 3 {
+            Ok(Self::Ternary(TernaryArgs::try_from_args(args)?))
+        } else {
+            Ok(Self::Quaternary(QuaternaryArgs::try_from_args(args)?))
+        }
+    }
+
+    fn type_signature() -> TypeSignature {
+        TypeSignature::OneOf(vec![
+            TernaryArgs::<TEncoding>::type_signature(),
+            QuaternaryArgs::<TEncoding>::type_signature(),
         ])
     }
 }

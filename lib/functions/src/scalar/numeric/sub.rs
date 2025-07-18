@@ -62,14 +62,20 @@ impl ScalarSparqlOp for SubSparqlOp {
                 if let (
                     TypedValueRef::NumericLiteral(lhs_numeric),
                     TypedValueRef::NumericLiteral(rhs_numeric),
-                ) = (lhs_value, rhs_value) {
+                ) = (lhs_value, rhs_value)
+                {
                     match NumericPair::with_casts_from(lhs_numeric, rhs_numeric) {
                         NumericPair::Int(lhs, rhs) => lhs.checked_sub(rhs).map(Numeric::Int),
-                        NumericPair::Integer(lhs, rhs) => lhs.checked_sub(rhs).map(Numeric::Integer),
+                        NumericPair::Integer(lhs, rhs) => {
+                            lhs.checked_sub(rhs).map(Numeric::Integer)
+                        }
                         NumericPair::Float(lhs, rhs) => Ok(Numeric::Float(lhs - rhs)),
                         NumericPair::Double(lhs, rhs) => Ok(Numeric::Double(lhs - rhs)),
-                        NumericPair::Decimal(lhs, rhs) => lhs.checked_sub(rhs).map(Numeric::Decimal),
-                    }.map(TypedValueRef::NumericLiteral)
+                        NumericPair::Decimal(lhs, rhs) => {
+                            lhs.checked_sub(rhs).map(Numeric::Decimal)
+                        }
+                    }
+                    .map(TypedValueRef::NumericLiteral)
                 } else {
                     ThinError::expected()
                 }
