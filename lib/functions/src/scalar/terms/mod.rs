@@ -9,6 +9,7 @@ mod lang;
 mod str;
 mod uuid;
 mod strdt;
+mod strlang;
 
 pub use bnode::BNodeSparqlOp;
 pub use datatype::DatatypeSparqlOp;
@@ -21,3 +22,4 @@ pub use lang::LangSparqlOp;
 pub use str::StrSparqlOp;
 pub use uuid::UuidSparqlOp;
 pub use strdt::StrDtSparqlOp;
+pub use strlang::StrLangSparqlOp;

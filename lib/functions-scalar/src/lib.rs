@@ -2,14 +2,12 @@ mod comparison;
 mod functional_forms;
 mod numeric;
 mod strings;
-mod terms;
 
 pub use comparison::*;
 pub use functional_forms::*;
 pub use numeric::*;
 use std::fmt::Debug;
 pub use strings::*;
-pub use terms::*;
 
 use rdf_fusion_model::{ThinError, ThinResult};
 

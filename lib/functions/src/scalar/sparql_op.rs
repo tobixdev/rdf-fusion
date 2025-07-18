@@ -37,7 +37,7 @@ pub trait ScalarSparqlOp: Debug + Send + Sync {
     ) -> DFResult<ColumnarValue>;
 
     /// TODO
-    #[allow(clippy::unused_variables, reason = "Necessary in implementations.")]
+    #[allow(unused_variables, reason = "Necessary in implementations.")]
     fn invoke_plain_term_encoding(
         &self,
         args: Self::Args<PlainTermEncoding>,

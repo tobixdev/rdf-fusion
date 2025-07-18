@@ -5,15 +5,14 @@ use rdf_fusion_encoding::typed_value::decoders::{
     SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
 use rdf_fusion_encoding::typed_value::encoders::{
-    BooleanTermValueEncoder, NumericTypedValueEncoder, OwnedStringLiteralTermValueEncoder,
-    StringLiteralRefTermValueEncoder,
+    BooleanTermValueEncoder, NumericTypedValueEncoder, StringLiteralRefTermValueEncoder,
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_functions_scalar::{
     AddSparqlOp, ContainsSparqlOp, DivSparqlOp, EqTypedValueSparqlOp, GreaterOrEqualSparqlOp,
     GreaterThanSparqlOp, LangMatchesSparqlOp, LessOrEqualSparqlOp, LessThanSparqlOp, MulSparqlOp,
-    RegexSparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrEndsSparqlOp, StrLangSparqlOp,
-    StrStartsSparqlOp, SubSparqlOp, SubStrSparqlOp,
+    RegexSparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrEndsSparqlOp, StrStartsSparqlOp,
+    SubSparqlOp, SubStrSparqlOp,
 };
 
 // Comparisons
@@ -173,15 +172,4 @@ impl_binary_sparql_op!(
     sub_str_binary_typed_value,
     SubStrSparqlOp,
     FunctionName::Builtin(BuiltinName::SubStr)
-);
-
-// Terms
-impl_binary_sparql_op!(
-    TypedValueEncoding,
-    SimpleLiteralRefTermValueDecoder,
-    SimpleLiteralRefTermValueDecoder,
-    OwnedStringLiteralTermValueEncoder,
-    str_lang_typed_value,
-    StrLangSparqlOp,
-    FunctionName::Builtin(BuiltinName::StrLang)
 );
