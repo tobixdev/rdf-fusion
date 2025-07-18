@@ -13,6 +13,8 @@ pub struct PlainTermArray {
 impl PlainTermArray {}
 
 impl EncodingArray for PlainTermArray {
+    type Encoding = PlainTermEncoding;
+
     fn array(&self) -> &ArrayRef {
         &self.inner
     }

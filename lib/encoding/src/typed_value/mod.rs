@@ -7,10 +7,12 @@ mod scalar;
 
 use crate::plain_term::PlainTermEncoding;
 use crate::{TermEncoding, COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+pub use array::{TypedValueArray, TypedValueArrayParts};
 pub use builder::TypedValueArrayBuilder;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
 pub use encoding::*;
+pub use scalar::TypedValueScalar;
 use std::sync::LazyLock;
 
 pub static DEFAULT_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {

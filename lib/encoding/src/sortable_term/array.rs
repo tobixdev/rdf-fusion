@@ -1,4 +1,5 @@
 use crate::encoding::EncodingArray;
+use crate::plain_term::PlainTermEncoding;
 use crate::sortable_term::SortableTermEncoding;
 use crate::TermEncoding;
 use datafusion::arrow::array::{Array, ArrayRef};
@@ -13,6 +14,8 @@ pub struct SortableTermArray {
 impl SortableTermArray {}
 
 impl EncodingArray for SortableTermArray {
+    type Encoding = PlainTermEncoding;
+
     fn array(&self) -> &ArrayRef {
         &self.inner
     }

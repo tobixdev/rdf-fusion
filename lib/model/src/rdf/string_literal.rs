@@ -1,4 +1,4 @@
-use crate::{ThinError, ThinResult};
+use crate::{ThinError, ThinResult, TypedValueRef};
 use std::cmp::Ordering;
 
 /// A reference to a string literal in RDF, consisting of a value and an optional language tag.
@@ -26,6 +26,18 @@ impl PartialOrd for StringLiteralRef<'_> {
 impl Ord for StringLiteralRef<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.0.cmp(other.0)
+    }
+}
+
+impl<'a> TryFrom<TypedValueRef<'a>> for StringLiteralRef<'a> {
+    type Error = ThinError;
+
+    fn try_from(value: TypedValueRef<'a>) -> Result<Self, Self::Error> {
+        match value {
+            TypedValueRef::SimpleLiteral(lit) => Ok(Self(lit.value, None)),
+            TypedValueRef::LanguageStringLiteral(lit) => Ok(Self(lit.value, Some(lit.language))),
+            _ => ThinError::expected(),
+        }
     }
 }
 

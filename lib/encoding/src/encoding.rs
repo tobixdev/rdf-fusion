@@ -54,11 +54,22 @@ impl EncodingName {
 /// The constructors of types that implement [EncodingArray] are meant to ensure that the
 /// [ArrayRef] upholds all invariants of the encoding.
 pub trait EncodingArray {
+    /// The encoding used by this array.
+    type Encoding: TermEncoding;
+
     /// Returns a reference to the inner array.
     fn array(&self) -> &ArrayRef;
 
     /// Consumes `self` and returns the inner array.
     fn into_array(self) -> ArrayRef;
+
+    /// Extracts a scalar from this array at `index`.
+    ///
+    /// Returns an error if the `index` is out of bounds.
+    fn try_as_scalar(&self, index: usize) -> DFResult<<Self::Encoding as TermEncoding>::Scalar> {
+        let scalar = ScalarValue::try_from_array(self.array(), index)?;
+        Self::Encoding::try_new_scalar(scalar)
+    }
 }
 
 /// Represents an Arrow [ScalarValue] with a specific [TermEncoding].
@@ -66,11 +77,20 @@ pub trait EncodingArray {
 /// The constructors of types that implement [EncodingScalar] are meant to ensure that the
 /// [ScalarValue] upholds all invariants of the encoding.
 pub trait EncodingScalar {
+    /// The encoding used by this scalar.
+    type Encoding: TermEncoding;
+
     /// Returns a reference to the inner scalar value.
     fn scalar_value(&self) -> &ScalarValue;
 
     /// Consumes `self` and returns the inner scalar value.
     fn into_scalar_value(self) -> ScalarValue;
+
+    /// Produces a new array with `number_of_rows`.
+    fn to_array(&self, number_of_rows: usize) -> DFResult<<Self::Encoding as TermEncoding>::Array> {
+        let array = self.scalar_value().to_array_of_size(number_of_rows)?;
+        Self::Encoding::try_new_array(array)
+    }
 }
 
 /// A term encoding defines how RDF terms are represented in Arrow arrays.

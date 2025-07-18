@@ -5,12 +5,13 @@ use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 use rdf_fusion_common::DFResult;
 
 /// Represents an Arrow scalar with a [TypedValueEncoding].
-pub struct TermValueScalar {
+pub struct TypedValueScalar {
+    /// The actual [ScalarValue].
     inner: ScalarValue,
 }
 
-impl TermValueScalar {
-    /// Tries to create a new [TermValueScalar] from a regular [ScalarValue].
+impl TypedValueScalar {
+    /// Tries to create a new [TypedValueScalar] from a regular [ScalarValue].
     ///
     /// # Errors
     ///
@@ -25,13 +26,13 @@ impl TermValueScalar {
         Ok(Self::new_unchecked(value))
     }
 
-    /// Creates a new [TermValueScalar] without checking invariants.
+    /// Creates a new [TypedValueScalar] without checking invariants.
     pub fn new_unchecked(inner: ScalarValue) -> Self {
         Self { inner }
     }
 }
 
-impl TryFrom<ScalarValue> for TermValueScalar {
+impl TryFrom<ScalarValue> for TypedValueScalar {
     type Error = DataFusionError;
 
     fn try_from(value: ScalarValue) -> Result<Self, Self::Error> {
@@ -39,7 +40,9 @@ impl TryFrom<ScalarValue> for TermValueScalar {
     }
 }
 
-impl EncodingScalar for TermValueScalar {
+impl EncodingScalar for TypedValueScalar {
+    type Encoding = TypedValueEncoding;
+
     fn scalar_value(&self) -> &ScalarValue {
         &self.inner
     }

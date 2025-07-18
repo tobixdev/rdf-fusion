@@ -40,6 +40,8 @@ impl TryFrom<ScalarValue> for PlainTermScalar {
 }
 
 impl EncodingScalar for PlainTermScalar {
+    type Encoding = PlainTermEncoding;
+
     fn scalar_value(&self) -> &ScalarValue {
         &self.inner
     }

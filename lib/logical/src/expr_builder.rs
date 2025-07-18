@@ -579,7 +579,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - XPath Constructor Functions](https://www.w3.org/TR/sparql11-query/#FunctionMapping)
     pub fn cast_boolean(self) -> DFResult<Self> {
-        self.apply_builtin(BuiltinName::AsBoolean, vec![])
+        self.apply_builtin(BuiltinName::CastBoolean, vec![])
     }
 
     //
@@ -806,16 +806,16 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// Ensures that the expression is of a certain encoding.
     ///
     /// Generally one of the following things happens:
-    /// - The expression already is in the `target_encoding` and the builder itself is returns.
+    /// - The expression already is in the `input_encoding` and the builder itself is returns.
     /// - The expression is in another encoding and the builder tries to cast the expression.
     /// - The expression is not an RDF term and an error is returned.
-    pub fn with_encoding(self, target_encoding: EncodingName) -> DFResult<Self> {
+    pub fn with_encoding(self, input_encoding: EncodingName) -> DFResult<Self> {
         let actual_encoding = self.encoding()?;
-        if actual_encoding == target_encoding {
+        if actual_encoding == input_encoding {
             return Ok(self);
         }
 
-        let builtin = match target_encoding {
+        let builtin = match input_encoding {
             EncodingName::PlainTerm => BuiltinName::WithPlainTermEncoding,
             EncodingName::TypedValue => BuiltinName::WithTypedValueEncoding,
             EncodingName::Sortable => BuiltinName::WithSortableEncoding,

@@ -10,10 +10,22 @@ rust-version.workspace = true
 datafusion.workspace = true
 rdf-fusion-common.workspace = true
 rdf-fusion-encoding.workspace = true
-rdf-fusion-functions-scalar.workspace = true
 rdf-fusion-model.workspace = true
 itertools.workspace = true
-spargebra.workspace = true
+md-5 = { workspace = true }
+sha1 = { workspace = true }
+sha2 = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+rand = { workspace = true }
+regex = { workspace = true }
+
+[dev-dependencies]
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
+tokio-test.workspace = true
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "scalar"
+harness = false

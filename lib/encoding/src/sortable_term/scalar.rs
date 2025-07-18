@@ -1,4 +1,5 @@
 use crate::encoding::EncodingScalar;
+use crate::plain_term::PlainTermEncoding;
 use crate::sortable_term::SortableTermEncoding;
 use crate::TermEncoding;
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
@@ -40,6 +41,8 @@ impl TryFrom<ScalarValue> for SortableTermScalar {
 }
 
 impl EncodingScalar for SortableTermScalar {
+    type Encoding = PlainTermEncoding;
+
     fn scalar_value(&self) -> &ScalarValue {
         &self.inner
     }

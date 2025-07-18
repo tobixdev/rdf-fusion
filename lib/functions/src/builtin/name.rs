@@ -88,7 +88,7 @@ pub enum BuiltinName {
     CastDouble,
     CastDecimal,
     CastDateTime,
-    AsBoolean,
+    CastBoolean,
 
     // Encoding
     WithSortableEncoding,
@@ -168,7 +168,7 @@ impl fmt::Display for BuiltinName {
             Self::CastDouble => "xsd:double",
             Self::CastDecimal => "xsd:decimal",
             Self::CastDateTime => "xsd:dataTime",
-            Self::AsBoolean => "xsd:boolean",
+            Self::CastBoolean => "xsd:boolean",
             Self::EffectiveBooleanValue => "EFFECTIVE_BOOLEAN_VALUE",
             Self::NativeBooleanAsTerm => "BOOLEAN_AS_TERM",
             Self::NativeInt64AsTerm => "INT64_AS_TERM",
