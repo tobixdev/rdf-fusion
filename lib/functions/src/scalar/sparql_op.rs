@@ -31,10 +31,13 @@ pub trait ScalarSparqlOp: Debug + Send + Sync {
     fn return_type(&self, input_encoding: Option<EncodingName>) -> DFResult<DataType>;
 
     /// TODO
+    #[allow(unused_variables, reason = "Necessary in implementations.")]
     fn invoke_typed_value_encoding(
         &self,
         args: Self::Args<TypedValueEncoding>,
-    ) -> DFResult<ColumnarValue>;
+    ) -> DFResult<ColumnarValue> {
+        exec_err!("TypedValue encoding not supported by {}.", self.name())
+    }
 
     /// TODO
     #[allow(unused_variables, reason = "Necessary in implementations.")]
@@ -42,7 +45,7 @@ pub trait ScalarSparqlOp: Debug + Send + Sync {
         &self,
         args: Self::Args<PlainTermEncoding>,
     ) -> DFResult<ColumnarValue> {
-        exec_err!("Typed value encoding not supported by {}.", self.name())
+        exec_err!("PlainTerm value encoding not supported by {}.", self.name())
     }
 }
 

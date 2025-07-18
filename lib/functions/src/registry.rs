@@ -10,6 +10,10 @@ use crate::builtin::native::{
 };
 use crate::builtin::query::is_compatible;
 use crate::builtin::BuiltinName;
+use crate::scalar::comparison::{
+    EqualSparqlOp, GreaterOrEqualSparqlOp, GreaterThanSparqlOp, LessOrEqualSparqlOp,
+    LessThanSparqlOp, SameTermSparqlOp,
+};
 use crate::scalar::conversion::CastBooleanSparqlOp;
 use crate::scalar::conversion::CastDateTimeSparqlOp;
 use crate::scalar::conversion::CastDecimalSparqlOp;
@@ -26,24 +30,18 @@ use crate::scalar::dates_and_times::TimezoneSparqlOp;
 use crate::scalar::dates_and_times::YearSparqlOp;
 use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
 use crate::scalar::functional_form::BoundSparqlOp;
-use crate::scalar::numeric::FloorSparqlOp;
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
+use crate::scalar::numeric::{AddSparqlOp, DivSparqlOp, FloorSparqlOp, MulSparqlOp, SubSparqlOp};
 use crate::scalar::numeric::{CeilSparqlOp, RandSparqlOp};
-use crate::scalar::plain_term::same_term;
-use crate::scalar::strings::{
-    EncodeForUriSparqlOp, LCaseSparqlOp, Md5SparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp,
-    Sha512SparqlOp, StrLenSparqlOp, StrUuidSparqlOp, UCaseSparqlOp,
+use crate::scalar::strings::{ContainsSparqlOp, EncodeForUriSparqlOp, LCaseSparqlOp, LangMatchesSparqlOp, Md5SparqlOp, RegexSparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrEndsSparqlOp, StrLenSparqlOp, StrStartsSparqlOp, StrUuidSparqlOp, SubStrSparqlOp, UCaseSparqlOp};
+use crate::scalar::terms::{
+    BNodeSparqlOp, DatatypeSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp,
+    IsLiteralSparqlOp, IsNumericSparqlOp, LangSparqlOp, StrDtSparqlOp, StrLangSparqlOp,
+    StrSparqlOp, UuidSparqlOp,
 };
-use crate::scalar::terms::{BNodeSparqlOp, DatatypeSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LangSparqlOp, StrDtSparqlOp, StrLangSparqlOp, StrSparqlOp, UuidSparqlOp};
-use crate::scalar::typed_value::{
-    add_typed_value, coalesce_typed_value, concat_typed_value, contains_typed_value,
-    div_typed_value, equal_typed_value, greater_or_equal_typed_value, greater_than_typed_value,
-    if_typed_value, lang_matches_typed_value, less_or_equal_typed_value, less_than_typed_value,
-    mul_typed_value, str_after_typed_value, str_before_typed_value, str_ends_typed_value,
-    str_starts_typed_value, sub_typed_value,
-};
-use crate::scalar::{regex, replace, sub_str, ScalarSparqlOp, ScalarSparqlOpAdapter};
+use crate::scalar::typed_value::{coalesce_typed_value, concat_typed_value, if_typed_value};
+use crate::scalar::{replace, ScalarSparqlOp, ScalarSparqlOpAdapter};
 use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
 use datafusion::common::plan_err;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
@@ -102,7 +100,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
             FunctionName::Builtin(builtin) => Ok(match builtin {
                 BuiltinName::Str => create_scalar_sparql_op::<StrSparqlOp>(),
                 BuiltinName::Lang => create_scalar_sparql_op::<LangSparqlOp>(),
-                BuiltinName::LangMatches => lang_matches_typed_value(),
+                BuiltinName::LangMatches => create_scalar_sparql_op::<LangMatchesSparqlOp>(),
                 BuiltinName::Datatype => create_scalar_sparql_op::<DatatypeSparqlOp>(),
                 BuiltinName::Iri => {
                     let iri = constant_args.get(RdfFusionBuiltinArgNames::BASE_IRI)?;
@@ -116,17 +114,17 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Floor => create_scalar_sparql_op::<FloorSparqlOp>(),
                 BuiltinName::Round => create_scalar_sparql_op::<RoundSparqlOp>(),
                 BuiltinName::Concat => concat_typed_value(),
-                BuiltinName::SubStr => sub_str(),
+                BuiltinName::SubStr => create_scalar_sparql_op::<SubStrSparqlOp>(),
                 BuiltinName::StrLen => create_scalar_sparql_op::<StrLenSparqlOp>(),
                 BuiltinName::Replace => replace(),
                 BuiltinName::UCase => create_scalar_sparql_op::<UCaseSparqlOp>(),
                 BuiltinName::LCase => create_scalar_sparql_op::<LCaseSparqlOp>(),
                 BuiltinName::EncodeForUri => create_scalar_sparql_op::<EncodeForUriSparqlOp>(),
-                BuiltinName::Contains => contains_typed_value(),
-                BuiltinName::StrStarts => str_starts_typed_value(),
-                BuiltinName::StrEnds => str_ends_typed_value(),
-                BuiltinName::StrBefore => str_before_typed_value(),
-                BuiltinName::StrAfter => str_after_typed_value(),
+                BuiltinName::Contains => create_scalar_sparql_op::<ContainsSparqlOp>(),
+                BuiltinName::StrStarts => create_scalar_sparql_op::<StrStartsSparqlOp>(),
+                BuiltinName::StrEnds => create_scalar_sparql_op::<StrEndsSparqlOp>(),
+                BuiltinName::StrBefore => create_scalar_sparql_op::<StrBeforeSparqlOp>(),
+                BuiltinName::StrAfter => create_scalar_sparql_op::<StrAfterSparqlOp>(),
                 BuiltinName::Year => create_scalar_sparql_op::<YearSparqlOp>(),
                 BuiltinName::Month => create_scalar_sparql_op::<MonthSparqlOp>(),
                 BuiltinName::Day => create_scalar_sparql_op::<DaySparqlOp>(),
@@ -148,20 +146,20 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::IsBlank => create_scalar_sparql_op::<IsBlankSparqlOp>(),
                 BuiltinName::IsLiteral => create_scalar_sparql_op::<IsLiteralSparqlOp>(),
                 BuiltinName::IsNumeric => create_scalar_sparql_op::<IsNumericSparqlOp>(),
-                BuiltinName::Regex => regex(),
+                BuiltinName::Regex => create_scalar_sparql_op::<RegexSparqlOp>(),
                 BuiltinName::Bound => create_scalar_sparql_op::<BoundSparqlOp>(),
                 BuiltinName::Coalesce => coalesce_typed_value(),
                 BuiltinName::If => if_typed_value(),
-                BuiltinName::SameTerm => same_term(),
-                BuiltinName::Equal => equal_typed_value(),
-                BuiltinName::GreaterThan => greater_than_typed_value(),
-                BuiltinName::GreaterOrEqual => greater_or_equal_typed_value(),
-                BuiltinName::LessThan => less_than_typed_value(),
-                BuiltinName::LessOrEqual => less_or_equal_typed_value(),
-                BuiltinName::Add => add_typed_value(),
-                BuiltinName::Div => div_typed_value(),
-                BuiltinName::Mul => mul_typed_value(),
-                BuiltinName::Sub => sub_typed_value(),
+                BuiltinName::SameTerm => create_scalar_sparql_op::<SameTermSparqlOp>(),
+                BuiltinName::Equal => create_scalar_sparql_op::<EqualSparqlOp>(),
+                BuiltinName::GreaterThan => create_scalar_sparql_op::<GreaterThanSparqlOp>(),
+                BuiltinName::GreaterOrEqual => create_scalar_sparql_op::<GreaterOrEqualSparqlOp>(),
+                BuiltinName::LessThan => create_scalar_sparql_op::<LessThanSparqlOp>(),
+                BuiltinName::LessOrEqual => create_scalar_sparql_op::<LessOrEqualSparqlOp>(),
+                BuiltinName::Add => create_scalar_sparql_op::<AddSparqlOp>(),
+                BuiltinName::Div => create_scalar_sparql_op::<DivSparqlOp>(),
+                BuiltinName::Mul => create_scalar_sparql_op::<MulSparqlOp>(),
+                BuiltinName::Sub => create_scalar_sparql_op::<SubSparqlOp>(),
                 BuiltinName::UnaryMinus => create_scalar_sparql_op::<UnaryMinusSparqlOp>(),
                 BuiltinName::UnaryPlus => create_scalar_sparql_op::<UnaryPlusSparqlOp>(),
                 BuiltinName::And => sparql_and(),

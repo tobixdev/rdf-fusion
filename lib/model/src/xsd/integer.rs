@@ -1,4 +1,4 @@
-use crate::{Boolean, Decimal, Double, Float, Int, ThinError, ThinResult};
+use crate::{Boolean, Decimal, Double, Float, Int, Numeric, ThinError, ThinResult, TypedValueRef};
 use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
@@ -281,6 +281,31 @@ impl TryFrom<Double> for Integer {
         Decimal::try_from(value)
             .map_err(|_| TooLargeForIntegerError)?
             .try_into()
+    }
+}
+
+impl TryFrom<Numeric> for Integer {
+    type Error = ThinError;
+
+    fn try_from(value: Numeric) -> Result<Self, Self::Error> {
+        match value {
+            Numeric::Int(v) => Ok(Integer::from(v)),
+            Numeric::Integer(v) => Ok(v),
+            Numeric::Float(v) => Integer::try_from(v).map_err(|_| ThinError::Expected),
+            Numeric::Double(v) => Integer::try_from(v).map_err(|_| ThinError::Expected),
+            Numeric::Decimal(v) => Integer::try_from(v).map_err(|_| ThinError::Expected),
+        }
+    }
+}
+
+impl TryFrom<TypedValueRef<'_>> for Integer {
+    type Error = ThinError;
+
+    fn try_from(value: TypedValueRef<'_>) -> Result<Self, Self::Error> {
+        match value {
+            TypedValueRef::NumericLiteral(lit) => Integer::try_from(lit),
+            _ => ThinError::expected(),
+        }
     }
 }
 

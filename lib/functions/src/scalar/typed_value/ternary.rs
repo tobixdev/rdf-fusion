@@ -1,15 +1,14 @@
 use crate::builtin::BuiltinName;
 use crate::FunctionName;
 use rdf_fusion_encoding::typed_value::decoders::{
-    BooleanTermValueDecoder, DefaultTypedValueDecoder, IntegerTermValueDecoder,
-    SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
+    BooleanTermValueDecoder, DefaultTypedValueDecoder, SimpleLiteralRefTermValueDecoder,
+    StringLiteralRefTermValueDecoder,
 };
 use rdf_fusion_encoding::typed_value::encoders::{
-    BooleanTermValueEncoder, DefaultTypedValueEncoder, OwnedStringLiteralTermValueEncoder,
-    StringLiteralRefTermValueEncoder,
+    DefaultTypedValueEncoder, OwnedStringLiteralTermValueEncoder,
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_functions_scalar::{IfSparqlOp, RegexSparqlOp, ReplaceSparqlOp, SubStrSparqlOp};
+use rdf_fusion_functions_scalar::{IfSparqlOp, ReplaceSparqlOp};
 
 // Functional Forms
 impl_ternary_sparql_op!(
@@ -29,28 +28,8 @@ impl_ternary_sparql_op!(
     StringLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
     SimpleLiteralRefTermValueDecoder,
-    BooleanTermValueEncoder,
-    regex_ternary_typed_value,
-    RegexSparqlOp,
-    FunctionName::Builtin(BuiltinName::Regex)
-);
-impl_ternary_sparql_op!(
-    TypedValueEncoding,
-    StringLiteralRefTermValueDecoder,
-    SimpleLiteralRefTermValueDecoder,
-    SimpleLiteralRefTermValueDecoder,
     OwnedStringLiteralTermValueEncoder,
     replace_typed_value,
     ReplaceSparqlOp,
     FunctionName::Builtin(BuiltinName::Replace)
-);
-impl_ternary_sparql_op!(
-    TypedValueEncoding,
-    StringLiteralRefTermValueDecoder,
-    IntegerTermValueDecoder,
-    IntegerTermValueDecoder,
-    StringLiteralRefTermValueEncoder,
-    sub_str_ternary_typed_value,
-    SubStrSparqlOp,
-    FunctionName::Builtin(BuiltinName::SubStr)
 );

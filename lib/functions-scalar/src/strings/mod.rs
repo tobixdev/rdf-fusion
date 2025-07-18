@@ -1,21 +1,9 @@
 mod concat;
-mod contains;
-mod lang_matches;
 mod regex;
 mod replace;
-mod strafter;
-mod strbefore;
-mod strends;
-mod strstarts;
 mod substr;
 
 pub use concat::ConcatSparqlOp;
-pub use contains::ContainsSparqlOp;
-pub use lang_matches::LangMatchesSparqlOp;
 pub use regex::RegexSparqlOp;
 pub use replace::ReplaceSparqlOp;
-pub use strafter::StrAfterSparqlOp;
-pub use strbefore::StrBeforeSparqlOp;
-pub use strends::StrEndsSparqlOp;
-pub use strstarts::StrStartsSparqlOp;
 pub use substr::SubStrSparqlOp;

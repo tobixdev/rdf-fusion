@@ -1,11 +1,7 @@
-mod comparison;
 mod functional_forms;
-mod numeric;
 mod strings;
 
-pub use comparison::*;
 pub use functional_forms::*;
-pub use numeric::*;
 use std::fmt::Debug;
 pub use strings::*;
 
