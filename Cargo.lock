@@ -3744,26 +3744,11 @@ dependencies = [
  "rand 0.9.1",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
- "rdf-fusion-functions-scalar",
  "rdf-fusion-model",
  "regex",
  "sha1",
  "sha2",
  "tokio-test",
- "uuid",
-]
-
-[[package]]
-name = "rdf-fusion-functions-scalar"
-version = "0.1.0"
-dependencies = [
- "hex",
- "md-5",
- "rand 0.9.1",
- "rdf-fusion-model",
- "regex",
- "sha1",
- "sha2",
  "uuid",
 ]
 

@@ -10,7 +10,6 @@ rust-version.workspace = true
 datafusion.workspace = true
 rdf-fusion-common.workspace = true
 rdf-fusion-encoding.workspace = true
-rdf-fusion-functions-scalar.workspace = true
 rdf-fusion-model.workspace = true
 itertools.workspace = true
 md-5 = { workspace = true }
