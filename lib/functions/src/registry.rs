@@ -35,16 +35,13 @@ use crate::scalar::strings::{
     EncodeForUriSparqlOp, LCaseSparqlOp, Md5SparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp,
     Sha512SparqlOp, StrLenSparqlOp, StrUuidSparqlOp, UCaseSparqlOp,
 };
-use crate::scalar::terms::{
-    BNodeSparqlOp, DatatypeSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp,
-    IsLiteralSparqlOp, IsNumericSparqlOp, LangSparqlOp, StrSparqlOp, UuidSparqlOp,
-};
+use crate::scalar::terms::{BNodeSparqlOp, DatatypeSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp, IsLiteralSparqlOp, IsNumericSparqlOp, LangSparqlOp, StrDtSparqlOp, StrSparqlOp, UuidSparqlOp};
 use crate::scalar::typed_value::{
     add_typed_value, coalesce_typed_value, concat_typed_value, contains_typed_value,
     div_typed_value, equal_typed_value, greater_or_equal_typed_value, greater_than_typed_value,
     if_typed_value, lang_matches_typed_value, less_or_equal_typed_value, less_than_typed_value,
-    mul_typed_value, str_after_typed_value, str_before_typed_value, str_dt_typed_value,
-    str_ends_typed_value, str_lang_typed_value, str_starts_typed_value, sub_typed_value,
+    mul_typed_value, str_after_typed_value, str_before_typed_value, str_ends_typed_value,
+    str_lang_typed_value, str_starts_typed_value, sub_typed_value,
 };
 use crate::scalar::{regex, replace, sub_str, ScalarSparqlOp, ScalarSparqlOpAdapter};
 use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
@@ -146,7 +143,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
                 BuiltinName::Sha384 => create_scalar_sparql_op::<Sha384SparqlOp>(),
                 BuiltinName::Sha512 => create_scalar_sparql_op::<Sha512SparqlOp>(),
                 BuiltinName::StrLang => str_lang_typed_value(),
-                BuiltinName::StrDt => str_dt_typed_value(),
+                BuiltinName::StrDt => create_scalar_sparql_op::<StrDtSparqlOp>(),
                 BuiltinName::IsIri => create_scalar_sparql_op::<IsIriSparqlOp>(),
                 BuiltinName::IsBlank => create_scalar_sparql_op::<IsBlankSparqlOp>(),
                 BuiltinName::IsLiteral => create_scalar_sparql_op::<IsLiteralSparqlOp>(),

@@ -8,6 +8,7 @@ mod is_numeric;
 mod lang;
 mod str;
 mod uuid;
+mod strdt;
 
 pub use bnode::BNodeSparqlOp;
 pub use datatype::DatatypeSparqlOp;
@@ -19,3 +20,4 @@ pub use is_numeric::IsNumericSparqlOp;
 pub use lang::LangSparqlOp;
 pub use str::StrSparqlOp;
 pub use uuid::UuidSparqlOp;
+pub use strdt::StrDtSparqlOp;

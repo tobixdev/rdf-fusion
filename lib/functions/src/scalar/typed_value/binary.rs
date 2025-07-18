@@ -1,19 +1,19 @@
 use crate::builtin::BuiltinName;
 use crate::FunctionName;
 use rdf_fusion_encoding::typed_value::decoders::{
-    DefaultTypedValueDecoder, IntegerTermValueDecoder, NamedNodeRefTermValueDecoder,
-    NumericTermValueDecoder, SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
+    DefaultTypedValueDecoder, IntegerTermValueDecoder, NumericTermValueDecoder,
+    SimpleLiteralRefTermValueDecoder, StringLiteralRefTermValueDecoder,
 };
 use rdf_fusion_encoding::typed_value::encoders::{
-    BooleanTermValueEncoder, LiteralRefTermValueEncoder, NumericTypedValueEncoder,
-    OwnedStringLiteralTermValueEncoder, StringLiteralRefTermValueEncoder,
+    BooleanTermValueEncoder, NumericTypedValueEncoder, OwnedStringLiteralTermValueEncoder,
+    StringLiteralRefTermValueEncoder,
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_functions_scalar::{
     AddSparqlOp, ContainsSparqlOp, DivSparqlOp, EqTypedValueSparqlOp, GreaterOrEqualSparqlOp,
     GreaterThanSparqlOp, LangMatchesSparqlOp, LessOrEqualSparqlOp, LessThanSparqlOp, MulSparqlOp,
-    RegexSparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrDtSparqlOp, StrEndsSparqlOp,
-    StrLangSparqlOp, StrStartsSparqlOp, SubSparqlOp, SubStrSparqlOp,
+    RegexSparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrEndsSparqlOp, StrLangSparqlOp,
+    StrStartsSparqlOp, SubSparqlOp, SubStrSparqlOp,
 };
 
 // Comparisons
@@ -176,15 +176,6 @@ impl_binary_sparql_op!(
 );
 
 // Terms
-impl_binary_sparql_op!(
-    TypedValueEncoding,
-    SimpleLiteralRefTermValueDecoder,
-    NamedNodeRefTermValueDecoder,
-    LiteralRefTermValueEncoder,
-    str_dt_typed_value,
-    StrDtSparqlOp,
-    FunctionName::Builtin(BuiltinName::StrDt)
-);
 impl_binary_sparql_op!(
     TypedValueEncoding,
     SimpleLiteralRefTermValueDecoder,

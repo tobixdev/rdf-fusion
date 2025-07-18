@@ -55,6 +55,31 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for UnaryArgs<TEncoding> {
     }
 }
 
+pub struct BinaryArgs<TEncoding: TermEncoding>(
+    pub EncodingDatum<TEncoding>,
+    pub EncodingDatum<TEncoding>,
+);
+
+impl<TEncoding: TermEncoding> SparqlOpArgs for BinaryArgs<TEncoding> {
+    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+        let args = args
+            .args
+            .into_iter()
+            .map(|cv| TEncoding::try_new_datum(cv, args.number_rows))
+            .collect::<DFResult<Vec<_>>>()?;
+
+        let len = args.len();
+        let [arg0, arg1] = TryInto::<[EncodingDatum<TEncoding>; 2]>::try_into(args)
+            .map_err(|_| exec_datafusion_err!("Expected 2 argument, got {}", len))?;
+
+        Ok(Self(arg0, arg1))
+    }
+
+    fn type_signature() -> TypeSignature {
+        TypeSignature::Uniform(2, vec![TEncoding::data_type()])
+    }
+}
+
 pub enum NullaryOrUnaryArgs<TEncoding: TermEncoding> {
     Nullary(NullaryArgs),
     Unary(UnaryArgs<TEncoding>),
