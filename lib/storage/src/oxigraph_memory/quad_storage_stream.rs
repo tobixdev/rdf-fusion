@@ -8,7 +8,7 @@ use datafusion::common::{Column, DataFusionError};
 use datafusion::execution::RecordBatchStream;
 use futures::Stream;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TermRef, TriplePattern, Variable};
@@ -205,7 +205,7 @@ impl RdfQuadsRecordBatchBuilder {
             if let Some((var, builder)) = column {
                 fields.push(Field::new(
                     var.name(),
-                    PlainTermEncoding::data_type(),
+                    PLAIN_TERM_ENCODING.data_type(),
                     nullable,
                 ));
                 arrays.push(builder.finish());

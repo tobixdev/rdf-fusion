@@ -5,8 +5,8 @@ use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoding};
 use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::{
@@ -973,12 +973,12 @@ impl<'root> RdfFusionExprBuilder<'root> {
     pub fn build_same_term_scalar(self, scalar: TermRef<'_>) -> DFResult<Expr> {
         let encoding_name = self.encoding()?;
         let literal = match encoding_name {
-            EncodingName::PlainTerm => {
-                PlainTermEncoding::encode_scalar(scalar)?.into_scalar_value()
-            }
-            EncodingName::TypedValue => {
-                TypedValueEncoding::encode_scalar(scalar)?.into_scalar_value()
-            }
+            EncodingName::PlainTerm => PLAIN_TERM_ENCODING
+                .encode_term(Ok(scalar))?
+                .into_scalar_value(),
+            EncodingName::TypedValue => TYPED_VALUE_ENCODING
+                .encode_term(Ok(scalar))?
+                .into_scalar_value(),
             EncodingName::Sortable => {
                 return plan_err!("Filtering not supported for Sortable encoding.")
             }

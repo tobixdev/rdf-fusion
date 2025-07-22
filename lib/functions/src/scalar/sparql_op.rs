@@ -1,5 +1,5 @@
-use crate::scalar::args::SparqlOpArgs;
 use crate::scalar::sparql_op_impl::SparqlOpImpl;
+use crate::scalar::SparqlOpArgs;
 use crate::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
@@ -7,8 +7,8 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
+use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TYPED_VALUE_ENCODING};
 use rdf_fusion_encoding::{EncodingName, TermEncoding};
 use std::any::Any;
 use std::collections::HashSet;
@@ -17,7 +17,7 @@ use std::fmt::Debug;
 /// TODO
 pub trait ScalarSparqlOp: Debug + Send + Sync {
     /// TODO
-    type Args<TEncoding: TermEncoding>: SparqlOpArgs;
+    type Args<TEncoding: TermEncoding>: SparqlOpArgs<TEncoding>;
 
     /// TODO
     fn name(&self) -> &FunctionName;
@@ -54,10 +54,14 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
 
         let mut type_signatures = Vec::new();
         if op.plain_term_encoding_op().is_some() {
-            type_signatures.push(TScalarSparqlOp::Args::<PlainTermEncoding>::type_signature());
+            type_signatures.push(TScalarSparqlOp::Args::<PlainTermEncoding>::type_signature(
+                &PLAIN_TERM_ENCODING,
+            ));
         }
         if op.typed_value_encoding_op().is_some() {
-            type_signatures.push(TScalarSparqlOp::Args::<TypedValueEncoding>::type_signature());
+            type_signatures.push(TScalarSparqlOp::Args::<TypedValueEncoding>::type_signature(
+                &TYPED_VALUE_ENCODING,
+            ));
         }
 
         let volatility = op.volatility();
@@ -153,7 +157,10 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
 
         match encoding {
             EncodingName::PlainTerm => {
-                let args = TScalarSparqlOp::Args::<PlainTermEncoding>::try_from_args(args)?;
+                let args = TScalarSparqlOp::Args::<PlainTermEncoding>::try_from_args(
+                    &PLAIN_TERM_ENCODING,
+                    args,
+                )?;
                 if let Some(op) = self.op.plain_term_encoding_op() {
                     op.invoke(args)
                 } else {
@@ -161,7 +168,10 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                 }
             }
             EncodingName::TypedValue => {
-                let args = TScalarSparqlOp::Args::<TypedValueEncoding>::try_from_args(args)?;
+                let args = TScalarSparqlOp::Args::<TypedValueEncoding>::try_from_args(
+                    &TYPED_VALUE_ENCODING,
+                    args,
+                )?;
                 if let Some(op) = self.op.typed_value_encoding_op() {
                     op.invoke(args)
                 } else {

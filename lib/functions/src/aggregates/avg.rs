@@ -11,7 +11,7 @@ use rdf_fusion_encoding::typed_value::encoders::{
     DecimalTermValueEncoder, DoubleTermValueEncoder, FloatTermValueEncoder,
     IntegerTermValueEncoder, NumericTypedValueEncoder,
 };
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
 use std::ops::Div;
@@ -20,11 +20,11 @@ use std::sync::Arc;
 pub fn avg_typed_value() -> Arc<AggregateUDF> {
     Arc::new(create_udaf(
         BuiltinName::Avg.to_string().as_str(),
-        vec![TypedValueEncoding::data_type()],
-        Arc::new(TypedValueEncoding::data_type()),
+        vec![TYPED_VALUE_ENCODING.data_type()],
+        Arc::new(TYPED_VALUE_ENCODING.data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlAvg::new()))),
-        Arc::new(vec![TypedValueEncoding::data_type(), DataType::UInt64]),
+        Arc::new(vec![TYPED_VALUE_ENCODING.data_type(), DataType::UInt64]),
     ))
 }
 
@@ -48,7 +48,7 @@ impl Accumulator for SparqlAvg {
         if values.is_empty() || self.sum.is_err() {
             return Ok(());
         }
-        let arr = TypedValueEncoding::try_new_array(Arc::clone(&values[0]))?;
+        let arr = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&values[0]))?;
         let arr_len = u64::try_from(arr.array().len())
             .map_err(|_| exec_datafusion_err!("Array was too large."))?;
         self.count += arr_len;
@@ -80,12 +80,14 @@ impl Accumulator for SparqlAvg {
         if self.count == 0 {
             let count = i64::try_from(self.count)
                 .map_err(|_| exec_datafusion_err!("Count too large for current xsd::Integer"))?;
-            return IntegerTermValueEncoder::encode_term(Ok(Integer::from(count)))
+            return IntegerTermValueEncoder::encode_terms([Ok(Integer::from(count))])?
+                .try_as_scalar(0)
                 .map(EncodingScalar::into_scalar_value);
         }
 
         let Ok(sum) = self.sum else {
-            return IntegerTermValueEncoder::encode_term(ThinError::expected())
+            return IntegerTermValueEncoder::encode_terms([ThinError::expected()])?
+                .try_as_scalar(0)
                 .map(EncodingScalar::into_scalar_value);
         };
 
@@ -94,20 +96,27 @@ impl Accumulator for SparqlAvg {
             NumericPair::Int(_, _) => unreachable!("Starts with Integer"),
             NumericPair::Integer(lhs, rhs) => {
                 let value = lhs.checked_div(rhs);
-                IntegerTermValueEncoder::encode_term(value).map(EncodingScalar::into_scalar_value)
+                IntegerTermValueEncoder::encode_terms([value])?
+                    .try_as_scalar(0)
+                    .map(EncodingScalar::into_scalar_value)
             }
             NumericPair::Float(lhs, rhs) => {
                 let value = lhs.div(rhs);
-                FloatTermValueEncoder::encode_term(Ok(value)).map(EncodingScalar::into_scalar_value)
+                FloatTermValueEncoder::encode_terms([Ok(value)])?
+                    .try_as_scalar(0)
+                    .map(EncodingScalar::into_scalar_value)
             }
             NumericPair::Double(lhs, rhs) => {
                 let value = lhs.div(rhs);
-                DoubleTermValueEncoder::encode_term(Ok(value))
+                DoubleTermValueEncoder::encode_terms([Ok(value)])?
+                    .try_as_scalar(0)
                     .map(EncodingScalar::into_scalar_value)
             }
             NumericPair::Decimal(lhs, rhs) => {
                 let value = lhs.checked_div(rhs);
-                DecimalTermValueEncoder::encode_term(value).map(EncodingScalar::into_scalar_value)
+                DecimalTermValueEncoder::encode_terms([value])?
+                    .try_as_scalar(0)
+                    .map(EncodingScalar::into_scalar_value)
             }
         }?;
         Ok(result)
@@ -127,7 +136,7 @@ impl Accumulator for SparqlAvg {
 
     #[allow(clippy::missing_asserts_for_indexing)]
     fn merge_batch(&mut self, states: &[ArrayRef]) -> DFResult<()> {
-        let arr = TypedValueEncoding::try_new_array(Arc::clone(&states[0]))?;
+        let arr = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&states[0]))?;
         let counts = states[1].as_primitive::<UInt64Type>();
         for (count, value) in counts
             .values()

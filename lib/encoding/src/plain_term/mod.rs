@@ -5,8 +5,7 @@ pub mod encoders;
 mod encoding;
 mod scalar;
 
-pub use array::PlainTermArray;
-pub use builder::PlainTermArrayBuilder;
-pub use encoding::PlainTermEncoding;
-pub use encoding::PlainTermType;
-pub use scalar::PlainTermScalar;
+pub use array::*;
+pub use builder::*;
+pub use encoding::*;
+pub use scalar::*;

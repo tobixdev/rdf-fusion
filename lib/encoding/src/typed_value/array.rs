@@ -1,6 +1,5 @@
 use crate::encoding::EncodingArray;
-use crate::plain_term::PlainTermEncoding;
-use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
+use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField, TYPED_VALUE_ENCODING};
 use crate::TermEncoding;
 use datafusion::arrow::array::{
     Array, ArrayRef, AsArray, BooleanArray, Decimal128Array, Float32Array, Float64Array,
@@ -105,7 +104,7 @@ impl TryFrom<ArrayRef> for TypedValueArray {
     type Error = DataFusionError;
 
     fn try_from(value: ArrayRef) -> Result<Self, Self::Error> {
-        if value.data_type() != &TypedValueEncoding::data_type() {
+        if value.data_type() != &TYPED_VALUE_ENCODING.data_type() {
             return exec_err!("Unexpected type when creating a value-encoded array");
         }
         Ok(Self { inner: value })
@@ -113,7 +112,11 @@ impl TryFrom<ArrayRef> for TypedValueArray {
 }
 
 impl EncodingArray for TypedValueArray {
-    type Encoding = PlainTermEncoding;
+    type Encoding = TypedValueEncoding;
+
+    fn encoding(&self) -> &Self::Encoding {
+        &TYPED_VALUE_ENCODING
+    }
 
     fn array(&self) -> &ArrayRef {
         &self.inner

@@ -8,9 +8,9 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::TypedValueRefPlainTermEncoder;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
 };
@@ -33,7 +33,7 @@ impl WithPlainTermEncoding {
         Self {
             name: BuiltinName::WithPlainTermEncoding.to_string(),
             signature: Signature::new(
-                TypeSignature::Uniform(1, vec![TypedValueEncoding::data_type()]),
+                TypeSignature::Uniform(1, vec![TYPED_VALUE_ENCODING.data_type()]),
                 Volatility::Immutable,
             ),
         }
@@ -43,7 +43,7 @@ impl WithPlainTermEncoding {
         match encoding_name {
             EncodingName::PlainTerm => Ok(ColumnarValue::Array(array)),
             EncodingName::TypedValue => {
-                let array = TypedValueEncoding::try_new_array(array)?;
+                let array = TYPED_VALUE_ENCODING.try_new_array(array)?;
                 let input = DefaultTypedValueDecoder::decode_terms(&array);
                 let result = TypedValueRefPlainTermEncoder::encode_terms(input)?;
                 Ok(ColumnarValue::Array(result.into_array()))
@@ -56,7 +56,7 @@ impl WithPlainTermEncoding {
         match encoding_name {
             EncodingName::PlainTerm => Ok(ColumnarValue::Scalar(scalar)),
             EncodingName::TypedValue => {
-                let scalar = TypedValueEncoding::try_new_scalar(scalar)?;
+                let scalar = TYPED_VALUE_ENCODING.try_new_scalar(scalar)?;
                 let input = DefaultTypedValueDecoder::decode_term(&scalar);
                 let result = TypedValueRefPlainTermEncoder::encode_term(input)?;
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
@@ -80,7 +80,7 @@ impl ScalarUDFImpl for WithPlainTermEncoding {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(PlainTermEncoding::data_type())
+        Ok(PLAIN_TERM_ENCODING.data_type())
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {

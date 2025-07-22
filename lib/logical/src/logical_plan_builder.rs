@@ -15,7 +15,7 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
 use rdf_fusion_encoding::{
     EncodingName, EncodingScalar, TermEncoder, TermEncoding, COL_GRAPH, COL_OBJECT, COL_PREDICATE,
@@ -197,7 +197,7 @@ impl RdfFusionLogicalPlanBuilder {
     ) -> DFResult<Self> {
         let fields = variables
             .iter()
-            .map(|v| Field::new(v.as_str(), PlainTermEncoding::data_type(), true))
+            .map(|v| Field::new(v.as_str(), PLAIN_TERM_ENCODING.data_type(), true))
             .collect::<Fields>();
         let schema = DFSchema::from_unqualified_fields(fields, HashMap::new())?;
 
@@ -609,8 +609,10 @@ fn column_or_literal(term: Option<impl Into<Term>>, col_name: &str) -> DFResult<
     Ok(term
         .map(|s| {
             Ok::<Expr, DataFusionError>(
-                lit(PlainTermEncoding::encode_scalar(s.into().as_ref())?.into_scalar_value())
-                    .alias(col_name),
+                lit(PLAIN_TERM_ENCODING
+                    .encode_term(Ok(s.into().as_ref()))?
+                    .into_scalar_value())
+                .alias(col_name),
             )
         })
         .transpose()?

@@ -8,7 +8,7 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_model::{
     Decimal, Double, Float, Int, Integer, Numeric, ThinError, ThinResult, TypedValueRef,
@@ -33,7 +33,7 @@ impl EffectiveBooleanValue {
         Self {
             name: BuiltinName::EffectiveBooleanValue.to_string(),
             signature: Signature::new(
-                TypeSignature::Exact(vec![TypedValueEncoding::data_type()]),
+                TypeSignature::Exact(vec![TYPED_VALUE_ENCODING.data_type()]),
                 Volatility::Immutable,
             ),
         }
@@ -63,14 +63,14 @@ impl ScalarUDFImpl for EffectiveBooleanValue {
     ) -> datafusion::common::Result<ColumnarValue> {
         match TryInto::<[_; 1]>::try_into(args.args) {
             Ok([ColumnarValue::Array(array)]) => {
-                let array = TypedValueEncoding::try_new_array(array)?;
+                let array = TYPED_VALUE_ENCODING.try_new_array(array)?;
                 let result = DefaultTypedValueDecoder::decode_terms(&array)
                     .map(|res| res.and_then(evaluate).ok())
                     .collect::<BooleanArray>();
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             Ok([ColumnarValue::Scalar(scalar)]) => {
-                let scalar = TypedValueEncoding::try_new_scalar(scalar)?;
+                let scalar = TYPED_VALUE_ENCODING.try_new_scalar(scalar)?;
                 let result = DefaultTypedValueDecoder::decode_term(&scalar)
                     .and_then(evaluate)
                     .ok();

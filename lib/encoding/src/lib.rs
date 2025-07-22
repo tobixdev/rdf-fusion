@@ -7,6 +7,7 @@ pub mod plain_term;
 mod scalar_encoder;
 pub mod sortable_term;
 pub mod typed_value;
+// pub mod object_id;
 
 pub use encoding::*;
 pub use scalar_encoder::ScalarEncoder;

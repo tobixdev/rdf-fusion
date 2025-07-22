@@ -5,7 +5,7 @@ use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
 use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
@@ -282,7 +282,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ) -> DFResult<RdfFusionExprBuilder<'root>> {
         let udf = self.create_builtin_udf_with_args(name, udf_args)?;
 
-        let input_encoding = TypedValueEncoding::name();
+        let input_encoding = TYPED_VALUE_ENCODING.name();
         let args = args
             .into_iter()
             .map(|expr| {

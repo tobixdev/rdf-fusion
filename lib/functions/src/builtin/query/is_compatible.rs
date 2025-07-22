@@ -8,7 +8,7 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_model::{TermRef, ThinError, ThinResult};
 use std::any::Any;
@@ -30,7 +30,7 @@ impl IsCompatible {
         Self {
             name: BuiltinName::IsCompatible.to_string(),
             signature: Signature::new(
-                TypeSignature::Exact(vec![PlainTermEncoding::data_type(); 2]),
+                TypeSignature::Exact(vec![PLAIN_TERM_ENCODING.data_type(); 2]),
                 Volatility::Immutable,
             ),
         }
@@ -58,26 +58,26 @@ impl ScalarUDFImpl for IsCompatible {
         match TryInto::<[_; 2]>::try_into(args.args) {
             Ok([ColumnarValue::Array(lhs), ColumnarValue::Array(rhs)]) => {
                 dispatch_binary_array_array(
-                    &PlainTermEncoding::try_new_array(lhs)?,
-                    &PlainTermEncoding::try_new_array(rhs)?,
+                    &PLAIN_TERM_ENCODING.try_new_array(lhs)?,
+                    &PLAIN_TERM_ENCODING.try_new_array(rhs)?,
                 )
             }
             Ok([ColumnarValue::Scalar(lhs), ColumnarValue::Array(rhs)]) => {
                 dispatch_binary_scalar_array(
-                    &PlainTermEncoding::try_new_scalar(lhs)?,
-                    &PlainTermEncoding::try_new_array(rhs)?,
+                    &PLAIN_TERM_ENCODING.try_new_scalar(lhs)?,
+                    &PLAIN_TERM_ENCODING.try_new_array(rhs)?,
                 )
             }
             Ok([ColumnarValue::Array(lhs), ColumnarValue::Scalar(rhs)]) => {
                 dispatch_binary_array_scalar(
-                    &PlainTermEncoding::try_new_array(lhs)?,
-                    &PlainTermEncoding::try_new_scalar(rhs)?,
+                    &PLAIN_TERM_ENCODING.try_new_array(lhs)?,
+                    &PLAIN_TERM_ENCODING.try_new_scalar(rhs)?,
                 )
             }
             Ok([ColumnarValue::Scalar(lhs), ColumnarValue::Scalar(rhs)]) => {
                 dispatch_binary_scalar_scalar(
-                    &PlainTermEncoding::try_new_scalar(lhs)?,
-                    &PlainTermEncoding::try_new_scalar(rhs)?,
+                    &PLAIN_TERM_ENCODING.try_new_scalar(lhs)?,
+                    &PLAIN_TERM_ENCODING.try_new_scalar(rhs)?,
                 )
             }
             _ => exec_err!("Invalid arguments for IsCompatible"),

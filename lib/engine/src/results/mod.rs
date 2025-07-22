@@ -23,7 +23,7 @@ use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
-use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::TermEncoding;
 pub use sparesults::QuerySolution;
 pub use triples::QueryTripleStream;
@@ -185,7 +185,7 @@ pub fn query_result_for_iterator(
 
     let fields = variables
         .iter()
-        .map(|v| Field::new(v.as_str(), PlainTermEncoding::data_type(), true))
+        .map(|v| Field::new(v.as_str(), PLAIN_TERM_ENCODING.data_type(), true))
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()

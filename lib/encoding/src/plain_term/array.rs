@@ -1,5 +1,5 @@
 use crate::encoding::EncodingArray;
-use crate::plain_term::PlainTermEncoding;
+use crate::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
 use crate::TermEncoding;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::common::exec_err;
@@ -15,6 +15,10 @@ impl PlainTermArray {}
 impl EncodingArray for PlainTermArray {
     type Encoding = PlainTermEncoding;
 
+    fn encoding(&self) -> &Self::Encoding {
+        &PLAIN_TERM_ENCODING
+    }
+
     fn array(&self) -> &ArrayRef {
         &self.inner
     }
@@ -28,7 +32,7 @@ impl TryFrom<ArrayRef> for PlainTermArray {
     type Error = DataFusionError;
 
     fn try_from(value: ArrayRef) -> Result<Self, Self::Error> {
-        if value.data_type() != &PlainTermEncoding::data_type() {
+        if value.data_type() != &PLAIN_TERM_ENCODING.data_type() {
             return exec_err!(
                 "Expected array with PlainTermEncoding, got: {}",
                 value.data_type()

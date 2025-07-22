@@ -1,6 +1,6 @@
-use crate::plain_term::PlainTermEncoding;
-use crate::sortable_term::SortableTermEncoding;
-use crate::typed_value::TypedValueEncoding;
+use crate::plain_term::PLAIN_TERM_ENCODING;
+use crate::sortable_term::SORTABLE_TERM_ENCODING;
+use crate::typed_value::TYPED_VALUE_ENCODING;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_err, ScalarValue};
@@ -21,6 +21,9 @@ pub enum EncodingName {
     /// Name of the [TypedValueEncoding]. Represents IRIs and blank nodes using their lexical value
     /// and literals as their typed value.
     TypedValue,
+    /// Name of the [ObjectIdEncoding]. Represents all terms, including literals, as a unique
+    /// identifier.
+    // ObjectId,
     /// Name of the [SortableTermEncoding] which is used for sorting. We plan to remove this
     /// encoding in the future, once we can introduce custom orderings into the query engine.
     Sortable,
@@ -33,15 +36,15 @@ impl EncodingName {
     /// It is planned to remove this function in the future for a state-full implementation that
     /// has access to registered custom encodings.
     pub fn try_from_data_type(data_type: &DataType) -> Option<Self> {
-        if data_type == &TypedValueEncoding::data_type() {
+        if data_type == &TYPED_VALUE_ENCODING.data_type() {
             return Some(EncodingName::TypedValue);
         }
 
-        if data_type == &PlainTermEncoding::data_type() {
+        if data_type == &PLAIN_TERM_ENCODING.data_type() {
             return Some(EncodingName::PlainTerm);
         }
 
-        if data_type == &SortableTermEncoding::data_type() {
+        if data_type == &SORTABLE_TERM_ENCODING.data_type() {
             return Some(EncodingName::Sortable);
         }
 
@@ -57,6 +60,9 @@ pub trait EncodingArray {
     /// The encoding used by this array.
     type Encoding: TermEncoding;
 
+    /// Obtains the encoding instance for this array.
+    fn encoding(&self) -> &Self::Encoding;
+
     /// Returns a reference to the inner array.
     fn array(&self) -> &ArrayRef;
 
@@ -68,7 +74,7 @@ pub trait EncodingArray {
     /// Returns an error if the `index` is out of bounds.
     fn try_as_scalar(&self, index: usize) -> DFResult<<Self::Encoding as TermEncoding>::Scalar> {
         let scalar = ScalarValue::try_from_array(self.array(), index)?;
-        Self::Encoding::try_new_scalar(scalar)
+        self.encoding().try_new_scalar(scalar)
     }
 }
 
@@ -80,6 +86,9 @@ pub trait EncodingScalar {
     /// The encoding used by this scalar.
     type Encoding: TermEncoding;
 
+    /// Obtains the encoding instance for this scalar.
+    fn encoding(&self) -> &Self::Encoding;
+
     /// Returns a reference to the inner scalar value.
     fn scalar_value(&self) -> &ScalarValue;
 
@@ -89,7 +98,7 @@ pub trait EncodingScalar {
     /// Produces a new array with `number_of_rows`.
     fn to_array(&self, number_of_rows: usize) -> DFResult<<Self::Encoding as TermEncoding>::Array> {
         let array = self.scalar_value().to_array_of_size(number_of_rows)?;
-        Self::Encoding::try_new_array(array)
+        self.encoding().try_new_array(array)
     }
 }
 
@@ -113,25 +122,29 @@ pub trait TermEncoding: Debug + Send + Sync {
     type Scalar: EncodingScalar;
 
     /// Returns the name of the encoding.
-    fn name() -> EncodingName;
+    fn name(&self) -> EncodingName;
 
     /// Returns the [DataType] that is used for this encoding.
-    fn data_type() -> DataType;
+    fn data_type(&self) -> DataType;
 
     /// Checks whether `array` contains a value with the correct encoding (i.e., type and possibly
     /// metadata checks). If yes, returns an instance of [Self::Array]. Otherwise, an error is
     /// returned.
-    fn try_new_array(array: ArrayRef) -> DFResult<Self::Array>;
+    fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array>;
 
     /// Checks whether `scalar` contains a value with the correct encoding (i.e., type and possibly
     /// metadata checks). If yes, returns an instance of [Self::Scalar]. Otherwise, an error is
     /// returned.
-    fn try_new_scalar(scalar: ScalarValue) -> DFResult<Self::Scalar>;
+    fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar>;
 
     /// Checks whether `value` contains a value with the correct encoding (i.e., type and possibly
     /// metadata checks). If yes, returns a datum that either wraps an array or a scalar. Otherwise,
     /// an error is returned.
-    fn try_new_datum(value: ColumnarValue, number_rows: usize) -> DFResult<EncodingDatum<Self>> {
+    fn try_new_datum(
+        &self,
+        value: ColumnarValue,
+        number_rows: usize,
+    ) -> DFResult<EncodingDatum<Self>> {
         let datum = match value {
             ColumnarValue::Array(array) => {
                 if array.len() != number_rows {
@@ -140,20 +153,17 @@ pub trait TermEncoding: Debug + Send + Sync {
                         array.len()
                     );
                 }
-                EncodingDatum::Array(Self::try_new_array(array)?)
+                EncodingDatum::Array(self.try_new_array(array)?)
             }
             ColumnarValue::Scalar(scalar) => {
-                EncodingDatum::Scalar(Self::try_new_scalar(scalar)?, number_rows)
+                EncodingDatum::Scalar(self.try_new_scalar(scalar)?, number_rows)
             }
         };
         Ok(datum)
     }
 
     /// Encodes the `term` in a type-safe scalar of this encoding.
-    fn encode_scalar(term: TermRef<'_>) -> DFResult<Self::Scalar>;
-
-    /// Encodes a null value in a type-safe scalar of this encoding.
-    fn encode_null_scalar() -> DFResult<Self::Scalar>;
+    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar>;
 }
 
 /// Allows extracting an iterator of a type from an [EncodingArray].
@@ -220,11 +230,7 @@ pub trait TermEncoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
     ) -> DFResult<TEncoding::Array>;
 
     /// Allows encoding a scalar RDF term in an Arrow scalar.
-    fn encode_term(term: ThinResult<Self::Term<'_>>) -> DFResult<TEncoding::Scalar> {
-        let array = Self::encode_terms([term])?;
-        let scalar = ScalarValue::try_from_array(array.array(), 0)?;
-        TEncoding::try_new_scalar(scalar)
-    }
+    fn encode_term(term: ThinResult<Self::Term<'_>>) -> DFResult<TEncoding::Scalar>;
 }
 
 /// Represents either an array or a scalar for a given encoding.

@@ -5,7 +5,7 @@ use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_model::ThinError;
 use rdf_fusion_model::Variable;
@@ -111,11 +111,13 @@ fn to_query_solution(
                 ))?;
 
         // Convert the column to a PlainTermEncoding array
-        let array = PlainTermEncoding::try_new_array(Arc::clone(column)).map_err(|e| {
-            QueryEvaluationError::InternalError(format!(
-                "Failed to convert column to PlainTermEncoding: {e}"
-            ))
-        })?;
+        let array = PLAIN_TERM_ENCODING
+            .try_new_array(Arc::clone(column))
+            .map_err(|e| {
+                QueryEvaluationError::InternalError(format!(
+                    "Failed to convert column to PlainTermEncoding: {e}"
+                ))
+            })?;
 
         // Decode all terms for this column at once
         let terms = DefaultPlainTermDecoder::decode_terms(&array)

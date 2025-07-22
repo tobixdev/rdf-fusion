@@ -6,7 +6,7 @@ use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{TermRef, ThinError};
+use rdf_fusion_model::{TermRef, ThinError, ThinResult};
 use std::clone::Clone;
 use std::sync::LazyLock;
 
@@ -117,6 +117,12 @@ impl From<PlainTermType> for u8 {
     }
 }
 
+/// The instance of the [PlainTermEncoding].
+///
+/// As there is currently no way to parameterize the encoding, accessing it via this constant is
+/// the preferred way.
+pub const PLAIN_TERM_ENCODING: PlainTermEncoding = PlainTermEncoding;
+
 #[derive(Debug)]
 pub struct PlainTermEncoding;
 
@@ -131,28 +137,24 @@ impl TermEncoding for PlainTermEncoding {
     type Array = PlainTermArray;
     type Scalar = PlainTermScalar;
 
-    fn name() -> EncodingName {
+    fn name(&self) -> EncodingName {
         EncodingName::PlainTerm
     }
 
-    fn data_type() -> DataType {
+    fn data_type(&self) -> DataType {
         DataType::Struct(Self::fields().clone())
     }
 
-    fn try_new_array(array: ArrayRef) -> DFResult<Self::Array> {
+    fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
         array.try_into()
     }
 
-    fn try_new_scalar(scalar: ScalarValue) -> DFResult<Self::Scalar> {
+    fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         scalar.try_into()
     }
 
-    fn encode_scalar(term: TermRef<'_>) -> DFResult<Self::Scalar> {
-        DefaultPlainTermEncoder::encode_term(Ok(term))
-    }
-
-    fn encode_null_scalar() -> DFResult<Self::Scalar> {
-        DefaultPlainTermEncoder::encode_term(ThinError::expected())
+    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
+        DefaultPlainTermEncoder::encode_term(term)
     }
 }
 

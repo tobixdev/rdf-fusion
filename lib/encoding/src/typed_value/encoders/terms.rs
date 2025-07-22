@@ -1,6 +1,6 @@
 use crate::encoding::TermEncoder;
-use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use crate::TermEncoding;
+use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding, TYPED_VALUE_ENCODING};
+use crate::{EncodingArray, TermEncoding};
 use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
@@ -30,6 +30,12 @@ impl TermEncoder<TypedValueEncoding> for TermRefTypedValueEncoder {
                 }
             }
         }
-        TypedValueEncoding::try_new_array(value_builder.finish())
+        TYPED_VALUE_ENCODING.try_new_array(value_builder.finish())
+    }
+
+    fn encode_term(
+        term: ThinResult<Self::Term<'_>>,
+    ) -> DFResult<<TypedValueEncoding as TermEncoding>::Scalar> {
+        Self::encode_terms([term])?.try_as_scalar(0)
     }
 }

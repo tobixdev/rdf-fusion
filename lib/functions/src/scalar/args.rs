@@ -4,22 +4,22 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::{EncodingDatum, TermEncoding};
 
 /// TODO
-pub trait SparqlOpArgs {
+pub trait SparqlOpArgs<TEncoding: TermEncoding> {
     /// TODO
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self>
+    fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self>
     where
         Self: Sized;
 
     /// TODO
-    fn type_signature() -> TypeSignature;
+    fn type_signature(encoding: &TEncoding) -> TypeSignature;
 }
 
 pub struct NullaryArgs {
     pub number_rows: usize,
 }
 
-impl SparqlOpArgs for NullaryArgs {
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for NullaryArgs {
+    fn try_from_args(_encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         if !args.args.is_empty() {
             return exec_err!("Expected 0 arguments, got {}", args.args.len());
         }
@@ -28,19 +28,19 @@ impl SparqlOpArgs for NullaryArgs {
         })
     }
 
-    fn type_signature() -> TypeSignature {
+    fn type_signature(_encoding: &TEncoding) -> TypeSignature {
         TypeSignature::Nullary
     }
 }
 
 pub struct UnaryArgs<TEncoding: TermEncoding>(pub EncodingDatum<TEncoding>);
 
-impl<TEncoding: TermEncoding> SparqlOpArgs for UnaryArgs<TEncoding> {
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for UnaryArgs<TEncoding> {
+    fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         let args = args
             .args
             .into_iter()
-            .map(|cv| TEncoding::try_new_datum(cv, args.number_rows))
+            .map(|cv| encoding.try_new_datum(cv, args.number_rows))
             .collect::<DFResult<Vec<_>>>()?;
 
         let len = args.len();
@@ -50,8 +50,8 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for UnaryArgs<TEncoding> {
         Ok(Self(arg0))
     }
 
-    fn type_signature() -> TypeSignature {
-        TypeSignature::Uniform(1, vec![TEncoding::data_type()])
+    fn type_signature(encoding: &TEncoding) -> TypeSignature {
+        TypeSignature::Uniform(1, vec![encoding.data_type()])
     }
 }
 
@@ -60,12 +60,12 @@ pub struct BinaryArgs<TEncoding: TermEncoding>(
     pub EncodingDatum<TEncoding>,
 );
 
-impl<TEncoding: TermEncoding> SparqlOpArgs for BinaryArgs<TEncoding> {
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for BinaryArgs<TEncoding> {
+    fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         let args = args
             .args
             .into_iter()
-            .map(|cv| TEncoding::try_new_datum(cv, args.number_rows))
+            .map(|cv| encoding.try_new_datum(cv, args.number_rows))
             .collect::<DFResult<Vec<_>>>()?;
 
         let len = args.len();
@@ -75,8 +75,8 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for BinaryArgs<TEncoding> {
         Ok(Self(arg0, arg1))
     }
 
-    fn type_signature() -> TypeSignature {
-        TypeSignature::Uniform(2, vec![TEncoding::data_type()])
+    fn type_signature(encoding: &TEncoding) -> TypeSignature {
+        TypeSignature::Uniform(2, vec![encoding.data_type()])
     }
 }
 
@@ -86,12 +86,12 @@ pub struct TernaryArgs<TEncoding: TermEncoding>(
     pub EncodingDatum<TEncoding>,
 );
 
-impl<TEncoding: TermEncoding> SparqlOpArgs for TernaryArgs<TEncoding> {
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for TernaryArgs<TEncoding> {
+    fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         let args = args
             .args
             .into_iter()
-            .map(|cv| TEncoding::try_new_datum(cv, args.number_rows))
+            .map(|cv| encoding.try_new_datum(cv, args.number_rows))
             .collect::<DFResult<Vec<_>>>()?;
 
         let len = args.len();
@@ -101,8 +101,8 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for TernaryArgs<TEncoding> {
         Ok(Self(arg0, arg1, arg2))
     }
 
-    fn type_signature() -> TypeSignature {
-        TypeSignature::Uniform(3, vec![TEncoding::data_type()])
+    fn type_signature(encoding: &TEncoding) -> TypeSignature {
+        TypeSignature::Uniform(3, vec![encoding.data_type()])
     }
 }
 
@@ -113,12 +113,12 @@ pub struct QuaternaryArgs<TEncoding: TermEncoding>(
     pub EncodingDatum<TEncoding>,
 );
 
-impl<TEncoding: TermEncoding> SparqlOpArgs for QuaternaryArgs<TEncoding> {
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for QuaternaryArgs<TEncoding> {
+    fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         let args = args
             .args
             .into_iter()
-            .map(|cv| TEncoding::try_new_datum(cv, args.number_rows))
+            .map(|cv| encoding.try_new_datum(cv, args.number_rows))
             .collect::<DFResult<Vec<_>>>()?;
 
         let len = args.len();
@@ -128,28 +128,28 @@ impl<TEncoding: TermEncoding> SparqlOpArgs for QuaternaryArgs<TEncoding> {
         Ok(Self(arg0, arg1, arg2, arg3))
     }
 
-    fn type_signature() -> TypeSignature {
-        TypeSignature::Uniform(4, vec![TEncoding::data_type()])
+    fn type_signature(encoding: &TEncoding) -> TypeSignature {
+        TypeSignature::Uniform(4, vec![encoding.data_type()])
     }
 }
 
 pub struct NAryArgs<TEncoding: TermEncoding>(pub Vec<EncodingDatum<TEncoding>>, pub usize);
 
-impl<TEncoding: TermEncoding> SparqlOpArgs for NAryArgs<TEncoding> {
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for NAryArgs<TEncoding> {
+    fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         let number_rows = args.number_rows;
         let args = args
             .args
             .into_iter()
-            .map(|cv| TEncoding::try_new_datum(cv, args.number_rows))
+            .map(|cv| encoding.try_new_datum(cv, args.number_rows))
             .collect::<DFResult<Vec<_>>>()?;
         Ok(Self(args, number_rows))
     }
 
-    fn type_signature() -> TypeSignature {
+    fn type_signature(encoding: &TEncoding) -> TypeSignature {
         TypeSignature::OneOf(vec![
             TypeSignature::Nullary,
-            TypeSignature::Variadic(vec![TEncoding::data_type()]),
+            TypeSignature::Variadic(vec![encoding.data_type()]),
         ])
     }
 }
@@ -159,19 +159,19 @@ pub enum NullaryOrUnaryArgs<TEncoding: TermEncoding> {
     Unary(UnaryArgs<TEncoding>),
 }
 
-impl<TEncoding: TermEncoding> SparqlOpArgs for NullaryOrUnaryArgs<TEncoding> {
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for NullaryOrUnaryArgs<TEncoding> {
+    fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         if args.args.is_empty() {
-            Ok(Self::Nullary(NullaryArgs::try_from_args(args)?))
+            Ok(Self::Nullary(NullaryArgs::try_from_args(encoding, args)?))
         } else {
-            Ok(Self::Unary(UnaryArgs::try_from_args(args)?))
+            Ok(Self::Unary(UnaryArgs::try_from_args(encoding, args)?))
         }
     }
 
-    fn type_signature() -> TypeSignature {
+    fn type_signature(encoding: &TEncoding) -> TypeSignature {
         TypeSignature::OneOf(vec![
-            NullaryArgs::type_signature(),
-            UnaryArgs::<TEncoding>::type_signature(),
+            NullaryArgs::type_signature(encoding),
+            UnaryArgs::<TEncoding>::type_signature(encoding),
         ])
     }
 }
@@ -181,19 +181,19 @@ pub enum BinaryOrTernaryArgs<TEncoding: TermEncoding> {
     Ternary(TernaryArgs<TEncoding>),
 }
 
-impl<TEncoding: TermEncoding> SparqlOpArgs for BinaryOrTernaryArgs<TEncoding> {
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for BinaryOrTernaryArgs<TEncoding> {
+    fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         if args.args.len() == 2 {
-            Ok(Self::Binary(BinaryArgs::try_from_args(args)?))
+            Ok(Self::Binary(BinaryArgs::try_from_args(encoding, args)?))
         } else {
-            Ok(Self::Ternary(TernaryArgs::try_from_args(args)?))
+            Ok(Self::Ternary(TernaryArgs::try_from_args(encoding, args)?))
         }
     }
 
-    fn type_signature() -> TypeSignature {
+    fn type_signature(encoding: &TEncoding) -> TypeSignature {
         TypeSignature::OneOf(vec![
-            BinaryArgs::<TEncoding>::type_signature(),
-            TernaryArgs::<TEncoding>::type_signature(),
+            BinaryArgs::<TEncoding>::type_signature(encoding),
+            TernaryArgs::<TEncoding>::type_signature(encoding),
         ])
     }
 }
@@ -203,19 +203,21 @@ pub enum TernaryOrQuaternaryArgs<TEncoding: TermEncoding> {
     Quaternary(QuaternaryArgs<TEncoding>),
 }
 
-impl<TEncoding: TermEncoding> SparqlOpArgs for TernaryOrQuaternaryArgs<TEncoding> {
-    fn try_from_args(args: ScalarFunctionArgs) -> DFResult<Self> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for TernaryOrQuaternaryArgs<TEncoding> {
+    fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         if args.args.len() == 3 {
-            Ok(Self::Ternary(TernaryArgs::try_from_args(args)?))
+            Ok(Self::Ternary(TernaryArgs::try_from_args(encoding, args)?))
         } else {
-            Ok(Self::Quaternary(QuaternaryArgs::try_from_args(args)?))
+            Ok(Self::Quaternary(QuaternaryArgs::try_from_args(
+                encoding, args,
+            )?))
         }
     }
 
-    fn type_signature() -> TypeSignature {
+    fn type_signature(encoding: &TEncoding) -> TypeSignature {
         TypeSignature::OneOf(vec![
-            TernaryArgs::<TEncoding>::type_signature(),
-            QuaternaryArgs::<TEncoding>::type_signature(),
+            TernaryArgs::<TEncoding>::type_signature(encoding),
+            QuaternaryArgs::<TEncoding>::type_signature(encoding),
         ])
     }
 }

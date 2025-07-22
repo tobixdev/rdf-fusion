@@ -89,8 +89,8 @@ fn bench_all(c: &mut Criterion) {
 fn bench_unary_function(c: &mut Criterion, function: &ScalarUDF, scenario: UnaryScenario) {
     let args = scenario.create_args();
 
-    let input_field = Arc::new(Field::new("input", TypedValueEncoding::data_type(), true));
-    let return_field = Arc::new(Field::new("result", TypedValueEncoding::data_type(), true));
+    let input_field = Arc::new(Field::new("input", TYPED_VALUE_ENCODING.data_type(), true));
+    let return_field = Arc::new(Field::new("result", TYPED_VALUE_ENCODING.data_type(), true));
 
     let name = format!("{}_{scenario:?}", function.name());
     c.bench_function(&name, |b| {
