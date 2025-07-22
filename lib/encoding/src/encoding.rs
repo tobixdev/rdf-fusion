@@ -23,7 +23,7 @@ pub enum EncodingName {
     TypedValue,
     /// Name of the [ObjectIdEncoding]. Represents all terms, including literals, as a unique
     /// identifier.
-    // ObjectId,
+    ObjectId,
     /// Name of the [SortableTermEncoding] which is used for sorting. We plan to remove this
     /// encoding in the future, once we can introduce custom orderings into the query engine.
     Sortable,

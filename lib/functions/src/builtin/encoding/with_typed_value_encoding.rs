@@ -49,6 +49,7 @@ impl WithTypedValueEncoding {
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Array(array)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 
@@ -62,6 +63,7 @@ impl WithTypedValueEncoding {
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Scalar(scalar)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 }

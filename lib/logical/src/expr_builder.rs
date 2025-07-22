@@ -819,6 +819,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
             EncodingName::PlainTerm => BuiltinName::WithPlainTermEncoding,
             EncodingName::TypedValue => BuiltinName::WithTypedValueEncoding,
             EncodingName::Sortable => BuiltinName::WithSortableEncoding,
+            EncodingName::ObjectId => return plan_err!("ObjectID Encoding not supported"),
         };
 
         let udf = self.root.create_builtin_udf(builtin)?;
@@ -982,6 +983,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
             EncodingName::Sortable => {
                 return plan_err!("Filtering not supported for Sortable encoding.")
             }
+            EncodingName::ObjectId => return plan_err!("ObjectID Encoding not supported"),
         };
         self.build_same_term(lit(literal))
     }

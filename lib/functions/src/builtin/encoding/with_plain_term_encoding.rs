@@ -49,6 +49,7 @@ impl WithPlainTermEncoding {
                 Ok(ColumnarValue::Array(result.into_array()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 
@@ -62,6 +63,7 @@ impl WithPlainTermEncoding {
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 }

@@ -3725,6 +3725,7 @@ dependencies = [
 name = "rdf-fusion-encoding"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "codspeed-criterion-compat",
  "datafusion",
  "rdf-fusion-common",

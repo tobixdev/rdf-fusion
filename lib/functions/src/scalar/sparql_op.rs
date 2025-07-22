@@ -131,6 +131,9 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             Some(EncodingName::Sortable) => {
                 exec_err!("The SparqlOp infrastructure does not support the Sortable encoding.")
             }
+            Some(EncodingName::ObjectId) => {
+                exec_err!("The SparqlOp infrastructure does not support the ObjectId encoding.")
+            }
         }
     }
 
@@ -178,7 +181,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                     exec_err!("TypedValue encoding not supported for this operation")
                 }
             }
-            EncodingName::Sortable => exec_err!("Not supported"),
+            EncodingName::Sortable | EncodingName::ObjectId => exec_err!("Not supported"),
         }
     }
 }

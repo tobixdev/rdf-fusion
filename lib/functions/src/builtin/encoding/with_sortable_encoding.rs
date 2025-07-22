@@ -1,7 +1,7 @@
 use crate::builtin::BuiltinName;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_datafusion_err, ScalarValue};
+use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
@@ -64,6 +64,7 @@ impl WithSortableEncoding {
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::Sortable => Ok(ColumnarValue::Scalar(scalar)),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 
@@ -82,6 +83,7 @@ impl WithSortableEncoding {
                 Ok(ColumnarValue::Array(result.into_array()))
             }
             EncodingName::Sortable => Ok(ColumnarValue::Array(array)),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 }
