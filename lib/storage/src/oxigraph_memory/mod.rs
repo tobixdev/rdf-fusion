@@ -1,6 +1,6 @@
 //! This module exposes the in-memory store from Oxigraph as table in RdfFusion.
-mod encoded_term;
-mod encoder;
+mod object_id;
+mod object_id_mapping;
 mod oxigraph_mem_exec;
 mod planner;
 mod quad_storage;

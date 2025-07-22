@@ -1,10 +1,9 @@
 use crate::oxigraph_memory::store::{MemoryStorageReader, OxigraphMemoryStorage, QuadIterator};
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
 
-use crate::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::oxigraph_memory::encoder::EncodedQuad;
+use crate::oxigraph_memory::object_id::ObjectIdQuad;
 use crate::AResult;
-use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
+use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt64Builder};
 use datafusion::common::{internal_err, DataFusionError};
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::EquivalenceProperties;
@@ -14,10 +13,8 @@ use datafusion::physical_plan::{
 };
 use futures::Stream;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
 use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_SCHEMA;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
-use rdf_fusion_model::TermRef;
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -159,10 +156,10 @@ impl RecordBatchStream for OxigraphMemStream {
 #[allow(clippy::struct_excessive_bools)]
 struct RdfQuadsRecordBatchBuilder {
     schema: SchemaRef,
-    graph: PlainTermArrayBuilder,
-    subject: PlainTermArrayBuilder,
-    predicate: PlainTermArrayBuilder,
-    object: PlainTermArrayBuilder,
+    graph: UInt64Builder,
+    subject: UInt64Builder,
+    predicate: UInt64Builder,
+    object: UInt64Builder,
     project_graph: bool,
     project_subject: bool,
     project_predicate: bool,
@@ -178,10 +175,10 @@ impl RdfQuadsRecordBatchBuilder {
         let project_object = schema.column_with_name(COL_OBJECT).is_some();
         Self {
             schema,
-            graph: PlainTermArrayBuilder::default(),
-            subject: PlainTermArrayBuilder::default(),
-            predicate: PlainTermArrayBuilder::default(),
-            object: PlainTermArrayBuilder::default(),
+            graph: UInt64Builder::default(),
+            subject: UInt64Builder::default(),
+            predicate: UInt64Builder::default(),
+            object: UInt64Builder::default(),
             project_graph,
             project_subject,
             project_predicate,
@@ -194,23 +191,23 @@ impl RdfQuadsRecordBatchBuilder {
         self.count
     }
 
-    fn encode_quad(&mut self, quad: &EncodedQuad) {
+    fn encode_quad(&mut self, quad: &ObjectIdQuad) {
         if self.project_graph {
-            encode_term(&mut self.graph, &quad.graph_name);
+            self.graph.append_value(quad.graph_name.into());
         }
         if self.project_subject {
-            encode_term(&mut self.subject, &quad.subject);
+            self.subject.append_value(quad.subject.into());
         }
         if self.project_predicate {
-            encode_term(&mut self.predicate, &quad.predicate);
+            self.predicate.append_value(quad.predicate.into());
         }
         if self.project_object {
-            encode_term(&mut self.object, &quad.object);
+            self.object.append_value(quad.object.into());
         }
         self.count += 1;
     }
 
-    fn finish(self) -> AResult<Option<RecordBatch>> {
+    fn finish(mut self) -> AResult<Option<RecordBatch>> {
         if self.count == 0 {
             return Ok(None);
         }
@@ -233,18 +230,5 @@ impl RdfQuadsRecordBatchBuilder {
         let record_batch =
             RecordBatch::try_new_with_options(Arc::clone(&self.schema), fields, &options)?;
         Ok(Some(record_batch))
-    }
-}
-
-fn encode_term(builder: &mut PlainTermArrayBuilder, term: &EncodedTerm) {
-    let term_ref = match term {
-        EncodedTerm::DefaultGraph => None,
-        EncodedTerm::NamedNode(node) => Some(TermRef::NamedNode(node.as_ref())),
-        EncodedTerm::BlankNode(node) => Some(TermRef::BlankNode(node.as_ref())),
-        EncodedTerm::Literal(node) => Some(TermRef::Literal(node.as_ref())),
-    };
-    match term_ref {
-        None => builder.append_null(),
-        Some(term_ref) => builder.append_term(term_ref),
     }
 }

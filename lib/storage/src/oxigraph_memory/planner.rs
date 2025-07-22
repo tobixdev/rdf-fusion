@@ -1,10 +1,9 @@
-use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
 use crate::oxigraph_memory::store::MemoryStorageReader;
 use crate::MemoryQuadStorage;
 use async_trait::async_trait;
 use datafusion::common::plan_err;
-use datafusion::error::Result as DFResult;
+use datafusion::error::{DataFusionError, Result as DFResult};
 use datafusion::execution::context::SessionState;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
@@ -56,11 +55,11 @@ impl OxigraphMemoryQuadNodePlanner {
     fn enumerate_named_graphs(&self) -> DFResult<Vec<GraphName>> {
         self.snapshot
             .named_graphs()
-            .map(|et| match et {
-                EncodedTerm::DefaultGraph => Ok(GraphName::DefaultGraph),
-                EncodedTerm::NamedNode(nn) => Ok(GraphName::NamedNode(nn)),
-                EncodedTerm::BlankNode(bnode) => Ok(GraphName::BlankNode(bnode)),
-                EncodedTerm::Literal(_) => plan_err!("Literal found for NamedGraph."),
+            .map(|et| {
+                self.snapshot
+                    .object_ids()
+                    .try_decode::<GraphName>(et)
+                    .map_err(|err| DataFusionError::External(Box::new(err)))
             })
             .collect::<DFResult<Vec<_>>>()
     }
@@ -109,7 +108,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         pattern: TriplePattern,
         blank_node_mode: BlankNodeMatchingMode,
         batch_size: usize,
-    ) -> rdf_fusion_common::DFResult<SendableRecordBatchStream> {
+    ) -> DFResult<SendableRecordBatchStream> {
         let subject = match &pattern.subject {
             TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
             TermPattern::BlankNode(bnode) if blank_node_mode == BlankNodeMatchingMode::Filter => {
@@ -117,14 +116,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             }
             TermPattern::Literal(_) => {
                 // If the subject is a literal, then the result is always empty.
-                let schema = compute_schema_for_triple_pattern(
-                    graph_variable.as_ref().map(|v| v.as_ref()),
-                    &pattern,
-                    blank_node_mode,
-                );
-                return Ok(Box::pin(EmptyRecordBatchStream::new(Arc::clone(
-                    schema.inner(),
-                ))));
+                return empty_result(graph_variable, pattern, blank_node_mode);
             }
             _ => None,
         };
@@ -141,20 +133,46 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             _ => None,
         };
 
-        let iterator = self.quads_for_pattern(
-            Some(&EncodedTerm::from(graph.as_ref())),
-            subject.as_ref().map(|t| t.as_ref().into()).as_ref(),
-            predicate
-                .as_ref()
-                .map(|t| t.as_ref())
-                .map(EncodedTerm::from)
-                .as_ref(),
-            object
-                .as_ref()
-                .map(|t| t.as_ref())
-                .map(EncodedTerm::from)
-                .as_ref(),
-        );
+        let Some(graph) = self
+            .object_ids()
+            .try_get_object_id_for_graph_name(graph.as_ref())
+        else {
+            // If the there is no matching object id the result is empty.
+            return empty_result(graph_variable, pattern, blank_node_mode);
+        };
+        let subject = match subject {
+            None => None,
+            Some(subject) => {
+                let Some(subject) = self.object_ids().try_get_object_id(subject.as_ref()) else {
+                    // If there is no matching object id the result is empty.
+                    return empty_result(graph_variable, pattern, blank_node_mode);
+                };
+                Some(subject)
+            }
+        };
+        let predicate = match predicate {
+            None => None,
+            Some(predicate) => {
+                let Some(predicate) = self.object_ids().try_get_object_id(predicate.as_ref())
+                else {
+                    // If there is no matching object id the result is empty.
+                    return empty_result(graph_variable, pattern, blank_node_mode);
+                };
+                Some(predicate)
+            }
+        };
+        let object = match object {
+            None => None,
+            Some(object) => {
+                let Some(object) = self.object_ids().try_get_object_id(object.as_ref()) else {
+                    // If there is no matching object id the result is empty.
+                    return empty_result(graph_variable, pattern, blank_node_mode);
+                };
+                Some(object)
+            }
+        };
+
+        let iterator = self.quads_for_pattern(Some(graph), subject, predicate, object);
         Ok(Box::pin(QuadPatternBatchRecordStream::new(
             iterator,
             graph_variable,
@@ -163,4 +181,19 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             batch_size,
         )))
     }
+}
+
+fn empty_result(
+    graph_variable: Option<Variable>,
+    pattern: TriplePattern,
+    blank_node_mode: BlankNodeMatchingMode,
+) -> DFResult<SendableRecordBatchStream> {
+    let schema = compute_schema_for_triple_pattern(
+        graph_variable.as_ref().map(|v| v.as_ref()),
+        &pattern,
+        blank_node_mode,
+    );
+    Ok(Box::pin(EmptyRecordBatchStream::new(Arc::clone(
+        schema.inner(),
+    ))))
 }

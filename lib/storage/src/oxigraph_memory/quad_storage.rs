@@ -1,11 +1,10 @@
-use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::planner::OxigraphMemoryQuadNodePlanner;
 use crate::oxigraph_memory::store::{MemoryStorageReader, OxigraphMemoryStorage};
 use crate::oxigraph_memory::table_provider::OxigraphMemTable;
 use async_trait::async_trait;
 use datafusion::catalog::TableProvider;
 use datafusion::physical_planner::ExtensionPlanner;
-use rdf_fusion_common::error::{CorruptionError, StorageError};
+use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::QuadStorage;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
 use std::sync::Arc;
@@ -82,12 +81,10 @@ impl QuadStorage for MemoryQuadStorage {
         let snapshot = self.storage.snapshot();
         snapshot
             .named_graphs()
-            .map(|dt| match dt {
-                EncodedTerm::NamedNode(nnode) => Ok(NamedOrBlankNode::NamedNode(nnode)),
-                EncodedTerm::BlankNode(bnode) => Ok(NamedOrBlankNode::BlankNode(bnode)),
-                EncodedTerm::Literal(_) | EncodedTerm::DefaultGraph => Err(
-                    StorageError::Corruption(CorruptionError::msg("Unexpected named node term.")),
-                ),
+            .map(|object_id| {
+                self.storage
+                    .object_ids()
+                    .try_decode::<NamedOrBlankNode>(object_id)
             })
             .collect::<Result<Vec<NamedOrBlankNode>, _>>()
     }
@@ -96,11 +93,11 @@ impl QuadStorage for MemoryQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        let encoded_term = match graph_name {
-            NamedOrBlankNodeRef::NamedNode(node) => EncodedTerm::NamedNode(node.into_owned()),
-            NamedOrBlankNodeRef::BlankNode(node) => EncodedTerm::BlankNode(node.into_owned()),
-        };
-        Ok(self.storage.snapshot().contains_named_graph(&encoded_term))
+        let object_id = self.storage.object_ids().try_get_object_id(graph_name);
+        match object_id {
+            None => Ok(false),
+            Some(object_id) => Ok(self.storage.snapshot().contains_named_graph(object_id)),
+        }
     }
 
     async fn clear(&self) -> Result<(), StorageError> {
