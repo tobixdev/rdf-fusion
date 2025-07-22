@@ -33,7 +33,7 @@ impl GraphNameStream {
         }
 
         let solutions_stream =
-            QuerySolutionStream::new(Arc::new([Variable::new_unchecked(COL_GRAPH)]), stream);
+            QuerySolutionStream::try_new(Arc::new([Variable::new_unchecked(COL_GRAPH)]), stream)?;
         Ok(Self {
             stream: solutions_stream,
         })

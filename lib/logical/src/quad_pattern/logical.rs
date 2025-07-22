@@ -3,7 +3,7 @@ use crate::patterns::compute_schema_for_triple_pattern;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
+use rdf_fusion_encoding::typed_value::PLAIN_TERM_QUAD_DFSCHEMA;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable, VariableRef};
 use std::cmp::Ordering;
@@ -98,7 +98,7 @@ impl QuadPatternNode {
                 object: TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
             },
             blank_node_mode: BlankNodeMatchingMode::Filter, // Doesn't matter here
-            schema: Arc::clone(&DEFAULT_QUAD_DFSCHEMA),
+            schema: Arc::clone(&PLAIN_TERM_QUAD_DFSCHEMA),
         }
     }
 

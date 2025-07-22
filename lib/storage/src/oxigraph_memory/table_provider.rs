@@ -7,7 +7,7 @@ use datafusion::logical_expr::Expr;
 
 use crate::oxigraph_memory::oxigraph_mem_exec::OxigraphMemExec;
 use datafusion::physical_plan::ExecutionPlan;
-use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_SCHEMA;
+use rdf_fusion_encoding::typed_value::PLAIN_TERM_QUAD_SCHEMA;
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -41,7 +41,7 @@ impl TableProvider for OxigraphMemTable {
     }
 
     fn schema(&self) -> SchemaRef {
-        DEFAULT_QUAD_SCHEMA.clone()
+        PLAIN_TERM_QUAD_SCHEMA.clone()
     }
 
     fn table_type(&self) -> TableType {

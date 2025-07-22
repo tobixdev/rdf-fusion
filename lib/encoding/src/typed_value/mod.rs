@@ -15,7 +15,7 @@ pub use encoding::*;
 pub use scalar::TypedValueScalar;
 use std::sync::LazyLock;
 
-pub static DEFAULT_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {
+pub static PLAIN_TERM_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {
     SchemaRef::new(Schema::new(vec![
         Field::new(COL_GRAPH, PLAIN_TERM_ENCODING.data_type(), true),
         Field::new(COL_SUBJECT, PLAIN_TERM_ENCODING.data_type(), false),
@@ -24,5 +24,5 @@ pub static DEFAULT_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {
     ]))
 });
 
-pub static DEFAULT_QUAD_DFSCHEMA: LazyLock<DFSchemaRef> =
-    LazyLock::new(|| DFSchemaRef::new(DFSchema::try_from(DEFAULT_QUAD_SCHEMA.clone()).unwrap()));
+pub static PLAIN_TERM_QUAD_DFSCHEMA: LazyLock<DFSchemaRef> =
+    LazyLock::new(|| DFSchemaRef::new(DFSchema::try_from(PLAIN_TERM_QUAD_SCHEMA.clone()).unwrap()));

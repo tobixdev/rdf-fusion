@@ -111,7 +111,8 @@ impl RdfFusionInstance {
             subject.map(SubjectRef::into_owned),
             predicate.map(NamedNodeRef::into_owned),
             object.map(TermRef::into_owned),
-        );
+        )
+        .with_plain_terms()?;
 
         let result = DataFrame::new(self.ctx.state(), pattern_plan.build()?)
             .execute_stream()

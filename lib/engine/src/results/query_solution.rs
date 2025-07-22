@@ -1,12 +1,12 @@
 use crate::sparql::error::QueryEvaluationError;
 use datafusion::arrow::array::RecordBatch;
-use datafusion::common::exec_datafusion_err;
+use datafusion::common::{exec_datafusion_err, exec_err};
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::{TermDecoder, TermEncoding};
+use rdf_fusion_encoding::{EncodingName, TermDecoder, TermEncoding};
 use rdf_fusion_model::ThinError;
 use rdf_fusion_model::Variable;
 pub use sparesults::QuerySolution;
@@ -32,12 +32,22 @@ pub struct QuerySolutionStream {
 impl QuerySolutionStream {
     /// Construct a new iterator of solutions from an ordered list of solution variables and an iterator of solution tuples
     /// (each tuple using the same ordering as the variable list such that tuple element 0 is the value for the variable 0...)
-    pub fn new(variables: Arc<[Variable]>, inner: SendableRecordBatchStream) -> Self {
-        Self {
+    pub fn try_new(variables: Arc<[Variable]>, inner: SendableRecordBatchStream) -> DFResult<Self> {
+        for field in inner.schema().fields() {
+            let name = EncodingName::try_from_data_type(field.data_type());
+            if !matches!(name, Some(EncodingName::PlainTerm)) {
+                return exec_err!(
+                    "Field {field} has unsupported type {} for query solution.",
+                    field.data_type()
+                );
+            }
+        }
+
+        Ok(Self {
             variables,
             inner: Some(inner),
             current: None,
-        }
+        })
     }
 
     /// The variables used in the solutions.

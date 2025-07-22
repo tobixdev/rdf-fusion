@@ -13,7 +13,7 @@ use datafusion::physical_plan::{
 };
 use futures::Stream;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_SCHEMA;
+use rdf_fusion_encoding::typed_value::PLAIN_TERM_QUAD_SCHEMA;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use std::any::Any;
 use std::fmt;
@@ -28,10 +28,10 @@ pub struct OxigraphMemExec {
 
 impl OxigraphMemExec {
     pub fn new(storage: &OxigraphMemoryStorage, projection: Option<Vec<usize>>) -> Self {
-        let projection = projection.unwrap_or((0..DEFAULT_QUAD_SCHEMA.fields.len()).collect());
+        let projection = projection.unwrap_or((0..PLAIN_TERM_QUAD_SCHEMA.fields.len()).collect());
         let new_fields: Vec<_> = projection
             .iter()
-            .map(|i| Arc::clone(DEFAULT_QUAD_SCHEMA.fields.get(*i).unwrap()))
+            .map(|i| Arc::clone(PLAIN_TERM_QUAD_SCHEMA.fields.get(*i).unwrap()))
             .collect();
         let schema = SchemaRef::new(Schema::new(new_fields));
 
@@ -193,7 +193,11 @@ impl RdfQuadsRecordBatchBuilder {
 
     fn encode_quad(&mut self, quad: &ObjectIdQuad) {
         if self.project_graph {
-            self.graph.append_value(quad.graph_name.into());
+            if quad.graph_name.is_default_graph() {
+                self.graph.append_null();
+            } else {
+                self.graph.append_value(quad.graph_name.into());
+            }
         }
         if self.project_subject {
             self.subject.append_value(quad.subject.into());

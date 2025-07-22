@@ -5,7 +5,7 @@ use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{DFSchema, DFSchemaRef};
 pub use logical::*;
 use rdf_fusion_common::BlankNodeMatchingMode;
-use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
+use rdf_fusion_encoding::typed_value::PLAIN_TERM_QUAD_DFSCHEMA;
 use rdf_fusion_model::{TermPattern, TriplePattern, VariableRef};
 pub use rewrite::*;
 use std::collections::{HashMap, HashSet};
@@ -33,7 +33,7 @@ pub fn compute_schema_for_triple_pattern(
     blank_node_mode: BlankNodeMatchingMode,
 ) -> DFSchemaRef {
     compute_schema_for_pattern(
-        &DEFAULT_QUAD_DFSCHEMA,
+        &PLAIN_TERM_QUAD_DFSCHEMA,
         &vec![
             graph_variable
                 .as_ref()

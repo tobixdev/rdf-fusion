@@ -196,7 +196,7 @@ pub fn query_result_for_iterator(
     let options = RecordBatchOptions::new().with_row_count(Some(count));
     let record_batch = RecordBatch::try_new_with_options(Arc::clone(&schema), columns, &options)?;
     let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
-    let stream = QuerySolutionStream::new(variables, Box::pin(record_batch_stream));
+    let stream = QuerySolutionStream::try_new(variables, Box::pin(record_batch_stream))?;
     Ok(QueryResults::Solutions(stream))
 }
 

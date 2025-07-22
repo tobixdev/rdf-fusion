@@ -47,11 +47,11 @@ impl MemoryObjectIdMapping {
     }
 
     /// TODO
-    pub fn try_decode<TDecodable: ObjectIdDecodable>(
+    pub fn try_decode<TResolvable: Resolvable>(
         &self,
         object_id: ObjectId,
-    ) -> Result<TDecodable, StorageError> {
-        TDecodable::decode(self, object_id)
+    ) -> Result<TResolvable, StorageError> {
+        TResolvable::resolve(self, object_id)
     }
 
     /// TODO
@@ -67,8 +67,8 @@ impl MemoryObjectIdMapping {
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let id = ObjectId::new(id);
 
-        self.id2term.insert(id.clone(), term.clone());
-        self.term2id.insert(term, id.clone());
+        self.id2term.insert(id, term.clone());
+        self.term2id.insert(term, id);
 
         id
     }
@@ -93,14 +93,20 @@ impl MemoryObjectIdMapping {
     }
 }
 
-pub trait ObjectIdDecodable {
-    fn decode(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError>
+impl Default for MemoryObjectIdMapping {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub trait Resolvable {
+    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError>
     where
         Self: Sized;
 }
 
-impl ObjectIdDecodable for Term {
-    fn decode(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
+impl Resolvable for Term {
+    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
         mapping
             .id2term
             .get(&object_id)
@@ -111,13 +117,13 @@ impl ObjectIdDecodable for Term {
     }
 }
 
-impl ObjectIdDecodable for GraphName {
-    fn decode(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
+impl Resolvable for GraphName {
+    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
         if object_id.is_default_graph() {
             return Ok(GraphName::DefaultGraph);
         }
 
-        Term::decode(mapping, object_id).and_then(|t| match t {
+        Term::resolve(mapping, object_id).and_then(|t| match t {
             Term::NamedNode(nn) => Ok(GraphName::NamedNode(nn)),
             Term::BlankNode(bnode) => Ok(GraphName::BlankNode(bnode)),
             Term::Literal(_) => Err(StorageError::Corruption(CorruptionError::msg(
@@ -127,9 +133,9 @@ impl ObjectIdDecodable for GraphName {
     }
 }
 
-impl ObjectIdDecodable for NamedOrBlankNode {
-    fn decode(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
-        Term::decode(mapping, object_id).and_then(|t| match t {
+impl Resolvable for NamedOrBlankNode {
+    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
+        Term::resolve(mapping, object_id).and_then(|t| match t {
             Term::NamedNode(nn) => Ok(NamedOrBlankNode::NamedNode(nn)),
             Term::BlankNode(bnode) => Ok(NamedOrBlankNode::BlankNode(bnode)),
             Term::Literal(_) => Err(StorageError::Corruption(CorruptionError::msg(

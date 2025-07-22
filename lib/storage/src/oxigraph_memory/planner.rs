@@ -116,7 +116,11 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             }
             TermPattern::Literal(_) => {
                 // If the subject is a literal, then the result is always empty.
-                return empty_result(graph_variable, pattern, blank_node_mode);
+                return Ok(empty_result(
+                    graph_variable.as_ref(),
+                    &pattern,
+                    blank_node_mode,
+                ));
             }
             _ => None,
         };
@@ -138,14 +142,22 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             .try_get_object_id_for_graph_name(graph.as_ref())
         else {
             // If the there is no matching object id the result is empty.
-            return empty_result(graph_variable, pattern, blank_node_mode);
+            return Ok(empty_result(
+                graph_variable.as_ref(),
+                &pattern,
+                blank_node_mode,
+            ));
         };
         let subject = match subject {
             None => None,
             Some(subject) => {
                 let Some(subject) = self.object_ids().try_get_object_id(subject.as_ref()) else {
                     // If there is no matching object id the result is empty.
-                    return empty_result(graph_variable, pattern, blank_node_mode);
+                    return Ok(empty_result(
+                        graph_variable.as_ref(),
+                        &pattern,
+                        blank_node_mode,
+                    ));
                 };
                 Some(subject)
             }
@@ -156,7 +168,11 @@ impl QuadPatternEvaluator for MemoryStorageReader {
                 let Some(predicate) = self.object_ids().try_get_object_id(predicate.as_ref())
                 else {
                     // If there is no matching object id the result is empty.
-                    return empty_result(graph_variable, pattern, blank_node_mode);
+                    return Ok(empty_result(
+                        graph_variable.as_ref(),
+                        &pattern,
+                        blank_node_mode,
+                    ));
                 };
                 Some(predicate)
             }
@@ -166,7 +182,11 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             Some(object) => {
                 let Some(object) = self.object_ids().try_get_object_id(object.as_ref()) else {
                     // If there is no matching object id the result is empty.
-                    return empty_result(graph_variable, pattern, blank_node_mode);
+                    return Ok(empty_result(
+                        graph_variable.as_ref(),
+                        &pattern,
+                        blank_node_mode,
+                    ));
                 };
                 Some(object)
             }
@@ -184,16 +204,14 @@ impl QuadPatternEvaluator for MemoryStorageReader {
 }
 
 fn empty_result(
-    graph_variable: Option<Variable>,
-    pattern: TriplePattern,
+    graph_variable: Option<&Variable>,
+    pattern: &TriplePattern,
     blank_node_mode: BlankNodeMatchingMode,
-) -> DFResult<SendableRecordBatchStream> {
+) -> SendableRecordBatchStream {
     let schema = compute_schema_for_triple_pattern(
         graph_variable.as_ref().map(|v| v.as_ref()),
         &pattern,
         blank_node_mode,
     );
-    Ok(Box::pin(EmptyRecordBatchStream::new(Arc::clone(
-        schema.inner(),
-    ))))
+    Box::pin(EmptyRecordBatchStream::new(Arc::clone(schema.inner())))
 }

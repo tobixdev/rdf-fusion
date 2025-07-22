@@ -245,7 +245,8 @@ impl Store {
             .engine
             .quads_for_pattern(graph_name, subject, predicate, object)
             .await?;
-        let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
+        let solution_stream =
+            QuerySolutionStream::try_new(QUAD_VARIABLES.clone(), record_batch_stream)?;
         QuadStream::try_new(solution_stream).map_err(QueryEvaluationError::InternalError)
     }
 

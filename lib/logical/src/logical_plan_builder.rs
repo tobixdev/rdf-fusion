@@ -16,7 +16,7 @@ use datafusion::logical_expr::{
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
+use rdf_fusion_encoding::typed_value::PLAIN_TERM_QUAD_DFSCHEMA;
 use rdf_fusion_encoding::{
     EncodingName, EncodingScalar, TermEncoder, TermEncoding, COL_GRAPH, COL_OBJECT, COL_PREDICATE,
     COL_SUBJECT,
@@ -112,7 +112,7 @@ impl RdfFusionLogicalPlanBuilder {
 
         assert_eq!(
             filled_quads.schema().as_ref(),
-            DEFAULT_QUAD_DFSCHEMA.as_ref(),
+            PLAIN_TERM_QUAD_DFSCHEMA.as_ref(),
             "Unexpected schema for matching quads."
         );
 

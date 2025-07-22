@@ -120,7 +120,7 @@ async fn graph_pattern_to_stream(
     let variables = create_variables(&execution_plan.schema());
 
     let batch_record_stream = execute_stream(execution_plan, task)?;
-    let stream = QuerySolutionStream::new(variables, batch_record_stream);
+    let stream = QuerySolutionStream::try_new(variables, batch_record_stream)?;
     Ok((stream, explanation))
 }
 

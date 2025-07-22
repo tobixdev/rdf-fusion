@@ -12,7 +12,7 @@ use datafusion::logical_expr::{
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
+use rdf_fusion_encoding::typed_value::PLAIN_TERM_QUAD_DFSCHEMA;
 use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::{
@@ -112,9 +112,10 @@ impl PropertyPathLoweringRule {
         inf: &PropertyPathLoweringInformation,
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
-        let filter = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &DEFAULT_QUAD_DFSCHEMA)
-            .try_create_builder(col(COL_PREDICATE))?
-            .build_same_term_scalar(TermRef::from(node.as_ref()))?;
+        let filter =
+            RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &PLAIN_TERM_QUAD_DFSCHEMA)
+                .try_create_builder(col(COL_PREDICATE))?
+                .build_same_term_scalar(TermRef::from(node.as_ref()))?;
         self.scan_quads(&inf.active_graph, Some(filter))
     }
 
@@ -126,7 +127,7 @@ impl PropertyPathLoweringRule {
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
         let predicate_builder =
-            RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &DEFAULT_QUAD_DFSCHEMA)
+            RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &PLAIN_TERM_QUAD_DFSCHEMA)
                 .try_create_builder(col(COL_PREDICATE))?;
 
         let test_expressions = nodes

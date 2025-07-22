@@ -484,7 +484,7 @@ impl MemoryStorageWriter<'_> {
                         .unwrap()
                         .add(self.transaction_id)
                 {
-                    self.log.push(LogEntry::Graph(encoded.graph_name.clone()));
+                    self.log.push(LogEntry::Graph(encoded.graph_name));
                 }
             }
             added
@@ -519,7 +519,7 @@ impl MemoryStorageWriter<'_> {
             self.storage
                 .content
                 .last_quad_by_subject
-                .entry(encoded.subject.clone())
+                .entry(encoded.subject)
                 .and_modify(|(e, count)| {
                     *e = Arc::downgrade(&node);
                     *count += 1;
@@ -528,7 +528,7 @@ impl MemoryStorageWriter<'_> {
             self.storage
                 .content
                 .last_quad_by_predicate
-                .entry(encoded.predicate.clone())
+                .entry(encoded.predicate)
                 .and_modify(|(e, count)| {
                     *e = Arc::downgrade(&node);
                     *count += 1;
@@ -537,7 +537,7 @@ impl MemoryStorageWriter<'_> {
             self.storage
                 .content
                 .last_quad_by_object
-                .entry(encoded.object.clone())
+                .entry(encoded.object)
                 .and_modify(|(e, count)| {
                     *e = Arc::downgrade(&node);
                     *count += 1;
@@ -546,7 +546,7 @@ impl MemoryStorageWriter<'_> {
             self.storage
                 .content
                 .last_quad_by_graph_name
-                .entry(encoded.graph_name.clone())
+                .entry(encoded.graph_name)
                 .and_modify(|(e, count)| {
                     *e = Arc::downgrade(&node);
                     *count += 1;
@@ -555,7 +555,7 @@ impl MemoryStorageWriter<'_> {
 
             match quad.graph_name {
                 GraphNameRef::NamedNode(_) | GraphNameRef::BlankNode(_) => {
-                    self.insert_encoded_named_graph(encoded.graph_name.clone());
+                    self.insert_encoded_named_graph(encoded.graph_name);
                 }
                 GraphNameRef::DefaultGraph => (),
             }
@@ -570,7 +570,7 @@ impl MemoryStorageWriter<'_> {
     }
 
     fn insert_encoded_named_graph(&mut self, graph_name: ObjectId) -> bool {
-        let added = match self.storage.content.graphs.entry(graph_name.clone()) {
+        let added = match self.storage.content.graphs.entry(graph_name) {
             Entry::Occupied(mut entry) => entry.get_mut().add(self.transaction_id),
             Entry::Vacant(entry) => {
                 entry.insert(VersionRange::Start(self.transaction_id));
@@ -652,7 +652,7 @@ impl MemoryStorageWriter<'_> {
             .get_mut(&graph_name)
             .is_some_and(|mut entry| entry.value_mut().remove(self.transaction_id));
         if removed {
-            self.log.push(LogEntry::Graph(graph_name.clone()));
+            self.log.push(LogEntry::Graph(graph_name));
         }
         removed
     }
@@ -669,7 +669,7 @@ impl MemoryStorageWriter<'_> {
             .iter_mut()
             .for_each(|mut entry| {
                 if entry.value_mut().remove(self.transaction_id) {
-                    self.log.push(LogEntry::Graph(entry.key().clone()));
+                    self.log.push(LogEntry::Graph(*entry.key()));
                 }
             });
     }
@@ -752,7 +752,7 @@ impl Iterator for MemoryDecodingGraphIterator {
         loop {
             let entry = self.iter.next()?;
             if self.reader.is_in_range(entry.value()) {
-                return Some(entry.key().clone());
+                return Some(*entry.key());
             }
         }
     }
