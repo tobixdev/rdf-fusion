@@ -136,7 +136,7 @@ impl RdfFusionLogicalPlanBuilder {
             encodings.len() > 1
                 || !matches!(
                     encodings.iter().next(),
-                    Some(&EncodingName::PlainTerm) | Some(&EncodingName::ObjectId)
+                    Some(&EncodingName::PlainTerm | &EncodingName::ObjectId)
                 )
         });
 
