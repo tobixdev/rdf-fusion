@@ -132,11 +132,15 @@ impl RdfFusionLogicalPlanBuilder {
         let context = self.context.clone();
 
         let join_columns = compute_sparql_join_columns(self.schema(), rhs.schema())?;
-        let any_non_plainterm = join_columns.iter().any(|(_, encodings)| {
-            encodings.len() > 1 || encodings.iter().next() != Some(&EncodingName::PlainTerm)
+        let requires_encoding_alignment = join_columns.iter().any(|(_, encodings)| {
+            encodings.len() > 1
+                || !matches!(
+                    encodings.iter().next(),
+                    Some(&EncodingName::PlainTerm) | Some(&EncodingName::ObjectId)
+                )
         });
 
-        let (lhs, rhs) = if any_non_plainterm {
+        let (lhs, rhs) = if requires_encoding_alignment {
             // TODO: maybe we can be more conservative here and only apply the plain term encoding
             // to the join columns
             let lhs = self.with_plain_terms()?.plan_builder.build()?;

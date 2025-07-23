@@ -211,8 +211,10 @@ fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
             .into_iter()
             .next()
             .expect("Length already checked");
-        if encoding != EncodingName::PlainTerm {
-            return plan_err!("Join column '{field_name}' must have the PlainTermEncoding.");
+        if !matches!(encoding, EncodingName::PlainTerm | EncodingName::ObjectId) {
+            return plan_err!(
+                "Join column '{field_name}' must be in the PlainTermEncoding or ObjectIdEncoding."
+            );
         }
     }
 

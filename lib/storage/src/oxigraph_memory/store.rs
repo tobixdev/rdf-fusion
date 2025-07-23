@@ -1106,8 +1106,8 @@ mod tests {
         let example2 = NamedNodeRef::new_unchecked("http://example.com/2");
         let storage = OxigraphMemoryStorage::new();
 
-        let encoded_example = storage.object_ids().encode(example);
-        let encoded_example2 = storage.object_ids().encode(example2);
+        let encoded_example = storage.object_ids().encode_term(example);
+        let encoded_example2 = storage.object_ids().encode_term(example2);
         let default_quad = QuadRef::new(example, example, example, GraphNameRef::DefaultGraph);
         let encoded_default_quad = storage.object_ids().encode_quad(default_quad);
         let named_graph_quad = QuadRef::new(example, example, example, example);
