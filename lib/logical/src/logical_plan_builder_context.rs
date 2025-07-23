@@ -84,8 +84,8 @@ impl RdfFusionLogicalPlanBuilderContext {
     }
 
     /// Returns the [QuadStorageEncoding] of the builder.
-    pub fn encoding(&self) -> QuadStorageEncoding {
-        self.storage_encoding
+    pub fn encoding(&self) -> &QuadStorageEncoding {
+        &self.storage_encoding
     }
 
     /// Creates a new [RdfFusionLogicalPlanBuilder] with the given `plan`.
@@ -119,12 +119,6 @@ impl RdfFusionLogicalPlanBuilderContext {
             Self::fill_quads_with_constants(partial_quads, subject, predicate, object)
                 .expect("Variables are fixed, Terms are encodable");
 
-        assert_eq!(
-            filled_quads.schema().as_ref(),
-            QuadStorageEncoding::PlainTerm.quad_schema().as_ref(),
-            "Unexpected schema for matching quads."
-        );
-
         RdfFusionLogicalPlanBuilder::new(self.clone(), Arc::new(filled_quads))
     }
 
@@ -155,7 +149,7 @@ impl RdfFusionLogicalPlanBuilderContext {
         };
 
         QuadPatternNode::new_with_blank_nodes_as_filter(
-            self.storage_encoding,
+            self.storage_encoding.clone(),
             active_graph,
             Some(Variable::new_unchecked(COL_GRAPH)),
             triple_pattern,
@@ -285,8 +279,12 @@ impl RdfFusionLogicalPlanBuilderContext {
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
     ) -> RdfFusionLogicalPlanBuilder {
-        let quads =
-            QuadPatternNode::new(self.storage_encoding, active_graph, graph_variable, pattern);
+        let quads = QuadPatternNode::new(
+            self.storage_encoding.clone(),
+            active_graph,
+            graph_variable,
+            pattern,
+        );
         RdfFusionLogicalPlanBuilder::new(self.clone(), create_extension_plan(quads))
     }
 

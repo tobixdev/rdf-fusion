@@ -5,8 +5,7 @@ use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
+use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder};
 use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
 use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
@@ -284,8 +283,15 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         udf_args: RdfFusionFunctionArgs,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
         let udf = self.create_builtin_udf_with_args(name, udf_args)?;
+        let supported_encodings = self
+            .registry
+            .supported_encodings(FunctionName::Builtin(name))?;
 
-        let input_encoding = TYPED_VALUE_ENCODING.name();
+        if supported_encodings.len() == 0 {
+            return plan_err!("No supported encodings for builtin '{}'", name);
+        }
+
+        let input_encoding = supported_encodings[0];
         let args = args
             .into_iter()
             .map(|expr| {

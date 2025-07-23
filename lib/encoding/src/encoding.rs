@@ -48,6 +48,11 @@ impl EncodingName {
             return Some(EncodingName::Sortable);
         }
 
+        // TODO: State-full implementation
+        if data_type == &DataType::UInt64 {
+            return Some(EncodingName::ObjectId);
+        }
+
         None
     }
 }

@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_common::error::StorageError;
@@ -69,10 +68,8 @@ pub trait QuadStorage: Send + Sync {
 /// snapshot of the storage layer.
 #[async_trait]
 pub trait QuadPatternEvaluator: Debug + Send + Sync {
-    /// Returns the schema produced by [Self::evaluate_pattern].
-    ///
-    /// This must match the schema of the [SendableRecordBatchStream].
-    fn schema(&self) -> SchemaRef;
+    /// Returns the [QuadStorageEncoding] of the storage layer.
+    fn storage_encoding(&self) -> QuadStorageEncoding;
 
     /// Returns a stream of quads that match the given pattern.
     ///

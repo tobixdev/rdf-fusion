@@ -297,7 +297,7 @@ impl PropertyPathLoweringRule {
 
         let builder = RdfFusionLogicalPlanBuilderContext::new(
             Arc::clone(&self.registry),
-            self.storage_encoding,
+            self.storage_encoding.clone(),
         )
         .create_pattern(
             active_graph.clone(),

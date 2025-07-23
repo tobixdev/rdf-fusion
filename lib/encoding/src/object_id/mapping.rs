@@ -1,13 +1,17 @@
-use async_trait::async_trait;
+use crate::object_id::ObjectIdArray;
+use crate::plain_term::PlainTermArray;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_model::TermRef;
 use std::fmt::Debug;
 
 /// TODO
-#[async_trait]
 pub trait ObjectIdMapping: Debug + Send + Sync {
     /// TODO
-    async fn resolve(&self, id: TermRef<'_>) -> Option<i64>;
+    fn try_get_object_id(&self, id: TermRef<'_>) -> Option<u64>;
 
     /// TODO
-    async fn create_or_resolve(&self, id: TermRef<'_>) -> i64;
+    fn encode(&self, id: TermRef<'_>) -> u64;
+
+    /// TODO
+    fn decode_array(&self, array: &ObjectIdArray) -> DFResult<PlainTermArray>;
 }

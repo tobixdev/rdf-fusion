@@ -1,7 +1,7 @@
 use crate::encoding::EncodingArray;
 use crate::object_id::ObjectIdEncoding;
 use crate::TermEncoding;
-use datafusion::arrow::array::{Array, ArrayRef};
+use datafusion::arrow::array::{Array, ArrayRef, UInt64Array};
 use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 
@@ -27,6 +27,14 @@ impl ObjectIdArray {
     /// Creates a new [ObjectIdScalar] without checking invariants.
     pub fn new_unchecked(encoding: ObjectIdEncoding, inner: ArrayRef) -> Self {
         Self { encoding, inner }
+    }
+
+    /// Returns a reference to the inner [UInt64Array].
+    pub fn object_ids(&self) -> &UInt64Array {
+        self.inner
+            .as_any()
+            .downcast_ref::<UInt64Array>()
+            .expect("Checked in constructor")
     }
 }
 

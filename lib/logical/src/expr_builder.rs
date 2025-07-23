@@ -133,8 +133,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - STR](https://www.w3.org/TR/sparql11-query/#func-str)
     pub fn str(self) -> DFResult<Self> {
-        let udf = self.root.create_builtin_udf(BuiltinName::Str)?;
-        self.root.try_create_builder(udf.call(vec![self.expr]))
+        self.apply_builtin(BuiltinName::Str, vec![])
     }
 
     /// Creates an expression that returns the language tag of a literal.
@@ -809,27 +808,51 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// Ensures that the expression is of a certain encoding.
     ///
     /// Generally one of the following things happens:
-    /// - The expression already is in the `input_encoding` and the builder itself is returns.
+    /// - The expression already is in the `target_encoding` and the builder itself is returns.
     /// - The expression is in another encoding and the builder tries to cast the expression.
     /// - The expression is not an RDF term and an error is returned.
-    pub fn with_encoding(self, input_encoding: EncodingName) -> DFResult<Self> {
-        let actual_encoding = self.encoding()?;
-        if actual_encoding == input_encoding {
+    pub fn with_encoding(self, target_encoding: EncodingName) -> DFResult<Self> {
+        let source_encoding = self.encoding()?;
+        if source_encoding == target_encoding {
             return Ok(self);
         }
 
-        let builtin = match input_encoding {
-            EncodingName::PlainTerm => BuiltinName::WithPlainTermEncoding,
-            EncodingName::TypedValue => BuiltinName::WithTypedValueEncoding,
-            EncodingName::Sortable => BuiltinName::WithSortableEncoding,
-            EncodingName::ObjectId => return plan_err!("ObjectID Encoding not supported"),
+        let functions_to_apply = match (source_encoding, target_encoding) {
+            (EncodingName::ObjectId, EncodingName::PlainTerm)
+            | (EncodingName::TypedValue, EncodingName::PlainTerm) => {
+                vec![BuiltinName::WithPlainTermEncoding]
+            }
+            (EncodingName::PlainTerm, EncodingName::TypedValue) => {
+                vec![BuiltinName::WithTypedValueEncoding]
+            }
+            (EncodingName::ObjectId, EncodingName::TypedValue) => {
+                vec![
+                    BuiltinName::WithPlainTermEncoding,
+                    BuiltinName::WithTypedValueEncoding,
+                ]
+            }
+            (EncodingName::PlainTerm, EncodingName::Sortable)
+            | (EncodingName::TypedValue, EncodingName::Sortable) => {
+                vec![BuiltinName::WithSortableEncoding]
+            }
+            (EncodingName::ObjectId, EncodingName::Sortable) => vec![
+                BuiltinName::WithPlainTermEncoding,
+                BuiltinName::WithSortableEncoding,
+            ],
+            _ => {
+                return plan_err!(
+                "Transformation from '{source_encoding:?}' to '{target_encoding:?}' is not supported."
+            )
+            }
         };
 
-        let udf = self.root.create_builtin_udf(builtin)?;
-        Ok(Self {
-            expr: udf.call(vec![self.expr]),
-            ..self
-        })
+        let mut expr = self.expr;
+        for function in functions_to_apply {
+            let udf = self.root.create_builtin_udf(function)?;
+            expr = udf.call(vec![expr]);
+        }
+
+        Ok(Self { expr, ..self })
     }
 
     /// Converts a native boolean expression to a term-encoded expression.

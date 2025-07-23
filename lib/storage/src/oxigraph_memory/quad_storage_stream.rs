@@ -6,7 +6,6 @@ use datafusion::common::{Column, DataFusionError};
 use datafusion::execution::RecordBatchStream;
 use futures::Stream;
 use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::collections::{HashMap, HashSet};
@@ -42,7 +41,7 @@ impl QuadPatternBatchRecordStream {
     ) -> Self {
         let schema = Arc::clone(
             compute_schema_for_triple_pattern(
-                QuadStorageEncoding::ObjectId,
+                &iterator.storage_encoding(),
                 graph_variable.as_ref().map(|v| v.as_ref()),
                 &pattern,
                 blank_node_mode,

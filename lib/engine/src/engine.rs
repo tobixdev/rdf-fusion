@@ -44,8 +44,13 @@ impl RdfFusionInstance {
     /// Creates a new [RdfFusionInstance] with the default configuration and the given `storage`.
     pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> Self {
         // TODO make a builder
+        let object_id_encoding = match storage.encoding() {
+            QuadStorageEncoding::PlainTerm => None,
+            QuadStorageEncoding::ObjectId(encoding) => Some(encoding.clone())
+        };
+
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
-            Arc::new(DefaultRdfFusionFunctionRegistry);
+            Arc::new(DefaultRdfFusionFunctionRegistry::new(object_id_encoding));
 
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))

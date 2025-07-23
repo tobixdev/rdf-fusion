@@ -2,7 +2,6 @@ use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
 use crate::oxigraph_memory::store::MemoryStorageReader;
 use crate::MemoryQuadStorage;
 use async_trait::async_trait;
-use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::plan_err;
 use datafusion::error::{DataFusionError, Result as DFResult};
 use datafusion::execution::context::SessionState;
@@ -104,8 +103,8 @@ impl ExtensionPlanner for OxigraphMemoryQuadNodePlanner {
 
 #[async_trait]
 impl QuadPatternEvaluator for MemoryStorageReader {
-    fn schema(&self) -> SchemaRef {
-        Arc::clone(QuadStorageEncoding::ObjectId.quad_schema().inner())
+    fn storage_encoding(&self) -> QuadStorageEncoding {
+        self.storage().storage_encoding()
     }
 
     fn evaluate_pattern(
@@ -116,6 +115,8 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         blank_node_mode: BlankNodeMatchingMode,
         batch_size: usize,
     ) -> DFResult<SendableRecordBatchStream> {
+        let storage_encoding = self.storage().storage_encoding();
+
         let subject = match &pattern.subject {
             TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
             TermPattern::BlankNode(bnode) if blank_node_mode == BlankNodeMatchingMode::Filter => {
@@ -124,6 +125,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             TermPattern::Literal(_) => {
                 // If the subject is a literal, then the result is always empty.
                 return Ok(empty_result(
+                    &storage_encoding,
                     graph_variable.as_ref(),
                     &pattern,
                     blank_node_mode,
@@ -150,6 +152,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         else {
             // If the there is no matching object id the result is empty.
             return Ok(empty_result(
+                &storage_encoding,
                 graph_variable.as_ref(),
                 &pattern,
                 blank_node_mode,
@@ -161,6 +164,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
                 let Some(subject) = self.object_ids().try_get_object_id(subject.as_ref()) else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
+                        &storage_encoding,
                         graph_variable.as_ref(),
                         &pattern,
                         blank_node_mode,
@@ -176,6 +180,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
                 else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
+                        &storage_encoding,
                         graph_variable.as_ref(),
                         &pattern,
                         blank_node_mode,
@@ -190,6 +195,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
                 let Some(object) = self.object_ids().try_get_object_id(object.as_ref()) else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
+                        &storage_encoding,
                         graph_variable.as_ref(),
                         &pattern,
                         blank_node_mode,
@@ -211,12 +217,13 @@ impl QuadPatternEvaluator for MemoryStorageReader {
 }
 
 fn empty_result(
+    storage_encoding: &QuadStorageEncoding,
     graph_variable: Option<&Variable>,
     pattern: &TriplePattern,
     blank_node_mode: BlankNodeMatchingMode,
 ) -> SendableRecordBatchStream {
     let schema = compute_schema_for_triple_pattern(
-        QuadStorageEncoding::ObjectId,
+        &storage_encoding,
         graph_variable.as_ref().map(|v| v.as_ref()),
         pattern,
         blank_node_mode,

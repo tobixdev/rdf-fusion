@@ -7,6 +7,7 @@ use datafusion::logical_expr::{
     Volatility,
 };
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::encoders::TypedValueRefPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
@@ -17,29 +18,46 @@ use rdf_fusion_encoding::{
 use std::any::Any;
 use std::sync::Arc;
 
-pub fn with_plain_term_encoding() -> Arc<ScalarUDF> {
-    let udf_impl = WithPlainTermEncoding::new();
+pub fn with_plain_term_encoding(object_id_encoding: Option<ObjectIdEncoding>) -> Arc<ScalarUDF> {
+    let udf_impl = WithPlainTermEncoding::new(object_id_encoding);
     Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
 #[derive(Debug)]
 struct WithPlainTermEncoding {
+    /// The name of the UDF
     name: String,
+    /// The signature
     signature: Signature,
+    /// A reference to the used object id encoding. This is necessary for resolving the mapping.
+    object_id_encoding: Option<ObjectIdEncoding>,
 }
 
 impl WithPlainTermEncoding {
-    pub fn new() -> Self {
+    pub fn new(object_id_encoding: Option<ObjectIdEncoding>) -> Self {
+        let mut accepted_encodings = vec![
+            PLAIN_TERM_ENCODING.data_type(),
+            TYPED_VALUE_ENCODING.data_type(),
+        ];
+        if let Some(object_id_encoding) = &object_id_encoding {
+            accepted_encodings.push(object_id_encoding.data_type());
+        }
+
         Self {
             name: BuiltinName::WithPlainTermEncoding.to_string(),
             signature: Signature::new(
-                TypeSignature::Uniform(1, vec![TYPED_VALUE_ENCODING.data_type()]),
+                TypeSignature::Uniform(1, accepted_encodings),
                 Volatility::Immutable,
             ),
+            object_id_encoding,
         }
     }
 
-    fn convert_array(encoding_name: EncodingName, array: ArrayRef) -> DFResult<ColumnarValue> {
+    fn convert_array(
+        &self,
+        encoding_name: EncodingName,
+        array: ArrayRef,
+    ) -> DFResult<ColumnarValue> {
         match encoding_name {
             EncodingName::PlainTerm => Ok(ColumnarValue::Array(array)),
             EncodingName::TypedValue => {
@@ -49,7 +67,14 @@ impl WithPlainTermEncoding {
                 Ok(ColumnarValue::Array(result.into_array()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => exec_err!("Cannot from object id."),
+            EncodingName::ObjectId => match &self.object_id_encoding {
+                None => exec_err!("Cannot from object id as no encoding is provided."),
+                Some(object_id_encoding) => {
+                    let array = object_id_encoding.try_new_array(array)?;
+                    let decoded = object_id_encoding.mapping().decode_array(&array)?;
+                    Ok(ColumnarValue::Array(decoded.into_array()))
+                }
+            },
         }
     }
 
@@ -93,7 +118,7 @@ impl ScalarUDFImpl for WithPlainTermEncoding {
         )?;
 
         match args {
-            [ColumnarValue::Array(array)] => Self::convert_array(encoding_name, array),
+            [ColumnarValue::Array(array)] => self.convert_array(encoding_name, array),
             [ColumnarValue::Scalar(scalar)] => Self::convert_scalar(encoding_name, scalar),
         }
     }

@@ -28,7 +28,7 @@ use std::sync::Arc;
 /// # Additional Resources
 /// - [SPARQL 1.1 Query Language - Triple Patterns](https://www.w3.org/TR/sparql11-query/#QSynTriples)
 pub fn compute_schema_for_triple_pattern(
-    storage_encoding: QuadStorageEncoding,
+    storage_encoding: &QuadStorageEncoding,
     graph_variable: Option<VariableRef<'_>>,
     pattern: &TriplePattern,
     blank_node_mode: BlankNodeMatchingMode,

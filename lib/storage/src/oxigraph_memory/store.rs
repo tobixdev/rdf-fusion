@@ -6,6 +6,8 @@ use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use rdf_fusion_common::error::{CorruptionError, StorageError};
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::Quad;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
@@ -59,6 +61,10 @@ impl OxigraphMemoryStorage {
             #[allow(clippy::mutex_atomic)]
             transaction_counter: Arc::new(Mutex::new(usize::MAX >> 1)),
         }
+    }
+    pub fn storage_encoding(&self) -> QuadStorageEncoding {
+        let encoding = ObjectIdEncoding::new(self.object_ids.clone());
+        QuadStorageEncoding::ObjectId(encoding)
     }
 
     pub fn object_ids(&self) -> &MemoryObjectIdMapping {
@@ -144,6 +150,10 @@ pub struct MemoryStorageReader {
 }
 
 impl MemoryStorageReader {
+    pub fn storage(&self) -> &OxigraphMemoryStorage {
+        &self.storage
+    }
+
     pub fn len(&self) -> usize {
         self.storage
             .content
@@ -699,6 +709,12 @@ enum QuadIteratorKind {
     GraphName,
 }
 
+impl QuadIterator {
+    pub fn storage_encoding(&self) -> QuadStorageEncoding {
+        self.reader.storage.storage_encoding()
+    }
+}
+
 impl Iterator for QuadIterator {
     type Item = ObjectIdQuad;
 
@@ -743,6 +759,12 @@ impl Iterator for QuadIterator {
 pub struct MemoryDecodingGraphIterator {
     reader: MemoryStorageReader, // Needed to make sure the underlying map is not GCed
     iter: Iter<'static, ObjectId, VersionRange>,
+}
+
+impl MemoryDecodingGraphIterator {
+    pub fn storage_encoding(&self) -> QuadStorageEncoding {
+        self.reader.storage.storage_encoding()
+    }
 }
 
 impl Iterator for MemoryDecodingGraphIterator {

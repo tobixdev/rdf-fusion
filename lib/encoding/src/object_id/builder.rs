@@ -1,6 +1,6 @@
 use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
 use crate::TermEncoding;
-use datafusion::arrow::array::Int64Builder;
+use datafusion::arrow::array::UInt64Builder;
 use rdf_fusion_model::TermRef;
 use std::sync::Arc;
 
@@ -9,8 +9,8 @@ use std::sync::Arc;
 pub struct ObjectIdArrayBuilder {
     /// The mapping that is used for obtaining object ids.
     encoding: ObjectIdEncoding,
-    /// The underlying [Int64Builder].
-    builder: Int64Builder,
+    /// The underlying [UInt64Builder].
+    builder: UInt64Builder,
 }
 
 impl ObjectIdArrayBuilder {
@@ -18,7 +18,7 @@ impl ObjectIdArrayBuilder {
     pub fn new(encoding: ObjectIdEncoding) -> Self {
         Self {
             encoding,
-            builder: Int64Builder::new(),
+            builder: UInt64Builder::new(),
         }
     }
 
@@ -29,8 +29,8 @@ impl ObjectIdArrayBuilder {
 
     /// Appends an arbitrary RDF term to the array. The corresponding object id is obtained by
     /// consulting the mapping.
-    pub async fn append_term(&mut self, term: TermRef<'_>) {
-        let value = self.encoding.mapping().create_or_resolve(term).await;
+    pub fn append_term(&mut self, term: TermRef<'_>) {
+        let value = self.encoding.mapping().encode(term);
         self.builder.append_value(value);
     }
 

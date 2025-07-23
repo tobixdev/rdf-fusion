@@ -52,7 +52,7 @@ impl QuadPatternNode {
         pattern: TriplePattern,
     ) -> Self {
         let schema = compute_schema_for_triple_pattern(
-            storage_encoding,
+            &storage_encoding,
             graph_variable.as_ref().map(|v| v.as_ref()),
             &pattern,
             BlankNodeMatchingMode::Variable,
@@ -78,7 +78,7 @@ impl QuadPatternNode {
         pattern: TriplePattern,
     ) -> Self {
         let schema = compute_schema_for_triple_pattern(
-            storage_encoding,
+            &storage_encoding,
             graph_variable.as_ref().map(|v| v.as_ref()),
             &pattern,
             BlankNodeMatchingMode::Filter,
@@ -97,7 +97,6 @@ impl QuadPatternNode {
     /// quads schema.
     pub fn new_all_quads(storage_encoding: QuadStorageEncoding, active_graph: ActiveGraph) -> Self {
         Self {
-            storage_encoding,
             active_graph,
             graph_variable: Some(Variable::new_unchecked(COL_GRAPH)),
             pattern: TriplePattern {
@@ -107,6 +106,7 @@ impl QuadPatternNode {
             },
             blank_node_mode: BlankNodeMatchingMode::Filter, // Doesn't matter here
             schema: storage_encoding.quad_schema(),
+            storage_encoding,
         }
     }
 
@@ -186,13 +186,13 @@ impl UserDefinedLogicalNodeCore for QuadPatternNode {
 
         let cloned = match self.blank_node_mode {
             BlankNodeMatchingMode::Variable => Self::new(
-                self.storage_encoding,
+                self.storage_encoding.clone(),
                 self.active_graph.clone(),
                 self.graph_variable.clone(),
                 self.pattern.clone(),
             ),
             BlankNodeMatchingMode::Filter => Self::new_with_blank_nodes_as_filter(
-                self.storage_encoding,
+                self.storage_encoding.clone(),
                 self.active_graph.clone(),
                 self.graph_variable.clone(),
                 self.pattern.clone(),

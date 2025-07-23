@@ -8,6 +8,7 @@ use datafusion::common::{plan_err, ScalarValue};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 /// TODO
@@ -37,7 +38,7 @@ impl TermEncoding for ObjectIdEncoding {
     }
 
     fn data_type(&self) -> DataType {
-        DataType::Int64
+        DataType::UInt64
     }
 
     fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
@@ -50,5 +51,19 @@ impl TermEncoding for ObjectIdEncoding {
 
     fn encode_term(&self, _term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
         plan_err!("Currently not supported")
+    }
+}
+
+impl PartialEq for ObjectIdEncoding {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.mapping, &other.mapping)
+    }
+}
+
+impl Eq for ObjectIdEncoding {}
+
+impl Hash for ObjectIdEncoding {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.mapping).hash(state);
     }
 }

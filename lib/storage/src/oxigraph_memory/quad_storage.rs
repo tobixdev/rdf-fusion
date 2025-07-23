@@ -45,7 +45,7 @@ impl Default for MemoryQuadStorage {
 #[async_trait]
 impl QuadStorage for MemoryQuadStorage {
     fn encoding(&self) -> QuadStorageEncoding {
-        QuadStorageEncoding::ObjectId
+        self.storage.storage_encoding()
     }
 
     async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {

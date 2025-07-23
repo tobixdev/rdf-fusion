@@ -2,13 +2,22 @@
 
 use crate::oxigraph_memory::object_id::{ObjectId, ObjectIdQuad, DEFAULT_GRAPH_OBJECT_ID};
 use dashmap::DashMap;
+use datafusion::error::DataFusionError;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
-use rdf_fusion_model::{GraphName, GraphNameRef, NamedOrBlankNode, QuadRef, Term, TermRef};
+use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::object_id::{ObjectIdArray, ObjectIdMapping};
+use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
+use rdf_fusion_encoding::plain_term::PlainTermArray;
+use rdf_fusion_encoding::TermEncoder;
+use rdf_fusion_model::{
+    GraphName, GraphNameRef, NamedOrBlankNode, QuadRef, Term, TermRef, ThinError, ThinResult,
+};
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
 use std::sync::atomic::AtomicU64;
 
 /// TODO
+#[derive(Debug)]
 pub struct MemoryObjectIdMapping {
     next_id: AtomicU64,
 
@@ -91,11 +100,49 @@ impl MemoryObjectIdMapping {
             GraphNameRef::DefaultGraph => ObjectId::new(DEFAULT_GRAPH_OBJECT_ID),
         }
     }
+
+    fn decode_opt(&self, object_id: Option<ObjectId>) -> Result<ThinResult<Term>, StorageError> {
+        match object_id {
+            None => Ok(ThinError::expected()),
+            Some(value) => self
+                .try_decode::<Option<Term>>(value)
+                .map(|term| match term {
+                    None => ThinError::expected(),
+                    Some(value) => Ok(value),
+                }),
+        }
+    }
 }
 
 impl Default for MemoryObjectIdMapping {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl ObjectIdMapping for MemoryObjectIdMapping {
+    fn try_get_object_id(&self, id: TermRef<'_>) -> Option<u64> {
+        self.try_get_object_id(id).map(|oid| oid.into())
+    }
+
+    fn encode(&self, id: TermRef<'_>) -> u64 {
+        self.encode(id).into()
+    }
+
+    fn decode_array(&self, array: &ObjectIdArray) -> DFResult<PlainTermArray> {
+        let terms = array
+            .object_ids()
+            .iter()
+            .map(|oid| self.decode_opt(oid.map(|id| ObjectId::new(id))))
+            .collect::<Result<Vec<ThinResult<Term>>, _>>();
+
+        match terms {
+            Ok(terms) => DefaultPlainTermEncoder::encode_terms(terms.iter().map(|res| match res {
+                Ok(t) => Ok(t.as_ref()),
+                Err(err) => Err(err.clone()),
+            })),
+            Err(err) => Err(DataFusionError::External(Box::new(err))),
+        }
     }
 }
 
@@ -105,15 +152,28 @@ pub trait Resolvable {
         Self: Sized;
 }
 
-impl Resolvable for Term {
+impl Resolvable for Option<Term> {
     fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
+        if object_id.is_default_graph() {
+            return Ok(None);
+        }
         mapping
             .id2term
             .get(&object_id)
-            .map(|t| t.as_ref().into_owned())
+            .map(|t| Some(t.as_ref().into_owned()))
             .ok_or(StorageError::Corruption(CorruptionError::msg(
                 "Unmapped object ID.",
             )))
+    }
+}
+
+impl Resolvable for Term {
+    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
+        Option::<Term>::resolve(mapping, object_id).and_then(|t| {
+            t.ok_or(StorageError::Corruption(CorruptionError::msg(
+                "None term found.",
+            )))
+        })
     }
 }
 
