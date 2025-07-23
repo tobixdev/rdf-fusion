@@ -1,49 +1,110 @@
 use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use datafusion::arrow::datatypes::Field;
-use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs};
+use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::registry::{DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry};
 use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
-use rdf_fusion_model::NamedNodeRef;
+use rdf_fusion_model::{BlankNode, Float, Integer, NamedNodeRef};
+use std::collections::HashMap;
 use std::sync::Arc;
 
-fn is_iri(c: &mut Criterion) {
-    let registry = DefaultRdfFusionFunctionRegistry::default();
+#[derive(Debug, Clone, Copy)]
+enum UnaryScenario {
+    AllNamedNodes,
+    Mixed,
+}
 
-    let is_iri = registry
-        .create_udf(
-            FunctionName::Builtin(BuiltinName::IsIri),
-            RdfFusionFunctionArgs::empty(),
-        )
-        .unwrap();
+impl UnaryScenario {
+    fn create_args(&self) -> Vec<ColumnarValue> {
+        match self {
+            UnaryScenario::AllNamedNodes => {
+                let mut payload_builder = TypedValueArrayBuilder::default();
+                for i in 0..8192 {
+                    payload_builder
+                        .append_named_node(NamedNodeRef::new_unchecked(
+                            format!("http://example.com/{}", i).as_str(),
+                        ))
+                        .unwrap();
+                }
+                vec![ColumnarValue::Array(payload_builder.finish())]
+            }
+            UnaryScenario::Mixed => {
+                let mut payload_builder = TypedValueArrayBuilder::default();
+                for i in 0..8192 {
+                    match i % 4 {
+                        0 => {
+                            payload_builder
+                                .append_named_node(NamedNodeRef::new_unchecked(
+                                    format!("http://example.com/{}", i).as_str(),
+                                ))
+                                .unwrap();
+                        }
+                        1 => {
+                            payload_builder
+                                .append_integer(Integer::try_from(i).unwrap())
+                                .unwrap();
+                        }
+                        2 => {
+                            payload_builder
+                                .append_float(Float::try_from(i as i16).unwrap())
+                                .unwrap();
+                        }
+                        _ => {
+                            payload_builder
+                                .append_blank_node(BlankNode::default().as_ref())
+                                .unwrap();
+                        }
+                    }
+                }
+                vec![ColumnarValue::Array(payload_builder.finish())]
+            }
+        }
+    }
+}
+
+fn bench_all(c: &mut Criterion) {
+    let registry = DefaultRdfFusionFunctionRegistry::default();
+    let runs = HashMap::from([(
+        BuiltinName::IsIri,
+        [UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
+    )]);
+
+    for (my_built_in, scenarios) in runs {
+        let implementation = registry
+            .create_udf(
+                FunctionName::Builtin(my_built_in),
+                RdfFusionFunctionArgs::empty(),
+            )
+            .unwrap();
+
+        for scenario in scenarios {
+            bench_unary_function(c, &implementation, scenario);
+        }
+    }
+}
+
+/// Runs a single `scenario` against the `function` to bench.
+fn bench_unary_function(c: &mut Criterion, function: &ScalarUDF, scenario: UnaryScenario) {
+    let args = scenario.create_args();
 
     let input_field = Arc::new(Field::new("input", TypedValueEncoding::data_type(), true));
     let return_field = Arc::new(Field::new("result", TypedValueEncoding::data_type(), true));
 
-    let mut payload_builder = TypedValueArrayBuilder::default();
-    for i in 0..8192 {
-        payload_builder
-            .append_named_node(NamedNodeRef::new_unchecked(
-                format!("http://example.com/{}", i).as_str(),
-            ))
-            .unwrap();
-    }
-    let payload = payload_builder.finish();
-
-    c.bench_function("IS_IRI", |b| {
+    let name = format!("{}_{scenario:?}", function.name());
+    c.bench_function(&name, |b| {
         b.iter(|| {
             let args = ScalarFunctionArgs {
-                args: vec![ColumnarValue::Array(payload.clone())],
+                args: args.clone(),
                 arg_fields: vec![input_field.clone()],
                 number_rows: 8192,
                 return_field: return_field.clone(),
             };
-            is_iri.invoke_with_args(args).unwrap();
+            function.invoke_with_args(args).unwrap();
         });
     });
 }
 
-criterion_group!(terms, is_iri);
-criterion_main!(terms);
+criterion_group!(scalar, bench_all);
+criterion_main!(scalar);
