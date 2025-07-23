@@ -46,7 +46,7 @@ impl RdfFusionInstance {
         // TODO make a builder
         let object_id_encoding = match storage.encoding() {
             QuadStorageEncoding::PlainTerm => None,
-            QuadStorageEncoding::ObjectId(encoding) => Some(encoding.clone())
+            QuadStorageEncoding::ObjectId(encoding) => Some(encoding.clone()),
         };
 
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
@@ -157,11 +157,14 @@ fn create_default_optimizer_rules(
         Arc::new(MinusLoweringRule::new(Arc::clone(registry))),
         Arc::new(ExtendLoweringRule::new()),
         Arc::new(PropertyPathLoweringRule::new(
-            storage_encoding,
+            storage_encoding.clone(),
             Arc::clone(registry),
         )),
         Arc::new(SparqlJoinLoweringRule::new(Arc::clone(registry))),
-        Arc::new(PatternLoweringRule::new(Arc::clone(registry))),
+        Arc::new(PatternLoweringRule::new(
+            storage_encoding,
+            Arc::clone(registry),
+        )),
     ];
 
     rules.extend(Optimizer::default().rules);

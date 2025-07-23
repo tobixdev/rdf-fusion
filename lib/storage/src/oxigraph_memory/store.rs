@@ -62,6 +62,8 @@ impl OxigraphMemoryStorage {
             transaction_counter: Arc::new(Mutex::new(usize::MAX >> 1)),
         }
     }
+
+    #[allow(clippy::clone_on_ref_ptr)]
     pub fn storage_encoding(&self) -> QuadStorageEncoding {
         let encoding = ObjectIdEncoding::new(self.object_ids.clone());
         QuadStorageEncoding::ObjectId(encoding)
@@ -140,6 +142,12 @@ impl OxigraphMemoryStorage {
             storage: self.clone(),
             hooks: Vec::new(),
         }
+    }
+}
+
+impl Default for OxigraphMemoryStorage {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -575,7 +583,7 @@ impl MemoryStorageWriter<'_> {
     }
 
     pub fn insert_named_graph(&mut self, graph_name: NamedOrBlankNodeRef<'_>) -> bool {
-        let graph_name = self.storage.object_ids.encode(graph_name);
+        let graph_name = self.storage.object_ids.encode_term(graph_name);
         self.insert_encoded_named_graph(graph_name)
     }
 
@@ -649,7 +657,7 @@ impl MemoryStorageWriter<'_> {
     }
 
     pub fn remove_named_graph(&mut self, graph_name: NamedOrBlankNodeRef<'_>) -> bool {
-        let graph_name = self.storage.object_ids.encode(graph_name);
+        let graph_name = self.storage.object_ids.encode_term(graph_name);
         self.remove_encoded_named_graph(graph_name)
     }
 

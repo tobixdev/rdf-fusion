@@ -22,7 +22,7 @@ use rdf_fusion_model::{Iri, TermRef};
 #[derive(Debug, Clone)]
 pub struct RdfFusionExprBuilder<'root> {
     /// Holds a reference to the factory that created this builder.
-    root: RdfFusionExprBuilderContext<'root>,
+    context: RdfFusionExprBuilderContext<'root>,
     /// The expression that is being built
     expr: Expr,
 }
@@ -35,14 +35,17 @@ impl<'root> RdfFusionExprBuilder<'root> {
         root: RdfFusionExprBuilderContext<'root>,
         expr: Expr,
     ) -> DFResult<Self> {
-        let result = Self { root, expr };
+        let result = Self {
+            context: root,
+            expr,
+        };
         result.encoding()?;
         Ok(result)
     }
 
     /// Returns the schema of the input data.
-    pub fn root(&self) -> &RdfFusionExprBuilderContext<'root> {
-        &self.root
+    pub fn context(&self) -> &RdfFusionExprBuilderContext<'root> {
+        &self.context
     }
 
     //
@@ -690,11 +693,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     #[allow(clippy::should_implement_trait)]
     pub fn not(self) -> DFResult<Self> {
-        let root = self.root;
+        let root = self.context;
         let ebv = self.build_effective_boolean_value()?;
         let not = Self {
             expr: Expr::Not(Box::new(ebv)),
-            root,
+            context: root,
         };
         not.native_boolean_as_term()
     }
@@ -796,7 +799,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// Tries to obtain the encoding from a given expression.
     fn encoding(&self) -> DFResult<EncodingName> {
-        let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
+        let (data_type, _) = self.expr.data_type_and_nullable(self.context.schema())?;
 
         EncodingName::try_from_data_type(&data_type).ok_or(plan_datafusion_err!(
             "Expression does not have a valid RDF term encoding. Data Type: {}, Expression: {}.",
@@ -818,8 +821,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
         }
 
         let functions_to_apply = match (source_encoding, target_encoding) {
-            (EncodingName::ObjectId, EncodingName::PlainTerm)
-            | (EncodingName::TypedValue, EncodingName::PlainTerm) => {
+            (EncodingName::ObjectId | EncodingName::TypedValue, EncodingName::PlainTerm) => {
                 vec![BuiltinName::WithPlainTermEncoding]
             }
             (EncodingName::PlainTerm, EncodingName::TypedValue) => {
@@ -831,8 +833,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
                     BuiltinName::WithTypedValueEncoding,
                 ]
             }
-            (EncodingName::PlainTerm, EncodingName::Sortable)
-            | (EncodingName::TypedValue, EncodingName::Sortable) => {
+            (EncodingName::PlainTerm | EncodingName::TypedValue, EncodingName::Sortable) => {
                 vec![BuiltinName::WithSortableEncoding]
             }
             (EncodingName::ObjectId, EncodingName::Sortable) => vec![
@@ -848,7 +849,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
         let mut expr = self.expr;
         for function in functions_to_apply {
-            let udf = self.root.create_builtin_udf(function)?;
+            let udf = self.context.create_builtin_udf(function)?;
             expr = udf.call(vec![expr]);
         }
 
@@ -857,7 +858,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// Converts a native boolean expression to a term-encoded expression.
     pub fn native_boolean_as_term(self) -> DFResult<Self> {
-        let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
+        let (data_type, _) = self.expr.data_type_and_nullable(self.context.schema())?;
         if data_type != DataType::Boolean {
             return plan_err!(
                 "Expression must be Boolean for {}.",
@@ -866,7 +867,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
         }
 
         let udf = self
-            .root
+            .context
             .create_builtin_udf(BuiltinName::NativeBooleanAsTerm)?;
         Ok(Self {
             expr: udf.call(vec![self.expr]),
@@ -876,7 +877,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// Converts a native i64 expression to a term-encoded expression.
     pub fn native_int64_as_term(self) -> DFResult<Expr> {
-        let (data_type, _) = self.expr.data_type_and_nullable(self.root.schema())?;
+        let (data_type, _) = self.expr.data_type_and_nullable(self.context.schema())?;
         if data_type != DataType::Int64 {
             return plan_err!(
                 "Expression must be an Int64 for {}.",
@@ -885,7 +886,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
         }
 
         let udf = self
-            .root
+            .context
             .create_builtin_udf(BuiltinName::NativeInt64AsTerm)?;
         Ok(udf.call(vec![self.expr]))
     }
@@ -900,7 +901,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
         distinct: bool,
         udaf_args: RdfFusionFunctionArgs,
     ) -> DFResult<Self> {
-        self.root
+        self.context
             .apply_builtin_udaf(name, self.expr, distinct, udaf_args)
     }
 
@@ -918,7 +919,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     ) -> DFResult<Self> {
         let mut args = vec![self.expr];
         args.extend(further_args);
-        self.root.apply_builtin_with_args(name, args, udf_args)
+        self.context.apply_builtin_with_args(name, args, udf_args)
     }
 
     //
@@ -943,15 +944,15 @@ impl<'root> RdfFusionExprBuilder<'root> {
         let args = vec![self.expr.clone(), rhs]
             .into_iter()
             .map(|e| {
-                self.root
+                self.context
                     .try_create_builder(e)?
                     .with_encoding(EncodingName::PlainTerm)?
                     .build()
             })
             .collect::<DFResult<Vec<_>>>()?;
 
-        let udf = self.root.create_builtin_udf(BuiltinName::SameTerm)?;
-        self.root
+        let udf = self.context.create_builtin_udf(BuiltinName::SameTerm)?;
+        self.context
             .try_create_builder(udf.call(args))?
             .build_effective_boolean_value()
     }
@@ -963,7 +964,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
         let args = vec![self.expr.clone()]
             .into_iter()
             .map(|e| {
-                self.root
+                self.context
                     .try_create_builder(e)?
                     .with_encoding(EncodingName::TypedValue)?
                     .build()
@@ -971,7 +972,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
             .collect::<DFResult<Vec<_>>>()?;
 
         let udf = self
-            .root
+            .context
             .create_builtin_udf(BuiltinName::EffectiveBooleanValue)?;
         Ok(udf.call(args))
     }
@@ -980,11 +981,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     ///
     /// This is a terminating builder function as it no longer produces an RDF term as output.
     pub fn build_is_compatible(self, rhs: Expr) -> DFResult<Expr> {
-        let root = self.root;
+        let root = self.context;
         let udf = root.create_builtin_udf(BuiltinName::IsCompatible)?;
 
         let rhs = self
-            .root
+            .context
             .try_create_builder(rhs)?
             .with_encoding(EncodingName::PlainTerm)?
             .build()?;
@@ -1009,7 +1010,12 @@ impl<'root> RdfFusionExprBuilder<'root> {
             EncodingName::Sortable => {
                 return plan_err!("Filtering not supported for Sortable encoding.")
             }
-            EncodingName::ObjectId => return plan_err!("ObjectID Encoding not supported"),
+            EncodingName::ObjectId => match self.context.object_id_encoding() {
+                None => return plan_err!("The context has not ObjectID encoding registered"),
+                Some(object_id_encoding) => object_id_encoding
+                    .encode_term(Ok(scalar))?
+                    .into_scalar_value(),
+            },
         };
         self.build_same_term(lit(literal))
     }

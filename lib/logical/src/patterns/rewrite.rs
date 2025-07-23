@@ -8,19 +8,28 @@ use datafusion::logical_expr::{
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use rdf_fusion_model::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
 pub struct PatternLoweringRule {
+    storage_encoding: QuadStorageEncoding,
     registry: RdfFusionFunctionRegistryRef,
 }
 
 impl PatternLoweringRule {
     /// Creates a new [PatternLoweringRule].
-    pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
-        Self { registry }
+    pub fn new(
+        storage_encoding: QuadStorageEncoding,
+        registry: RdfFusionFunctionRegistryRef,
+    ) -> Self {
+        Self {
+            storage_encoding,
+            registry,
+        }
     }
 }
 
@@ -40,7 +49,11 @@ impl OptimizerRule for PatternLoweringRule {
                     if let Some(node) = node.as_any().downcast_ref::<PatternNode>() {
                         let plan = LogicalPlanBuilder::from(node.input().clone());
 
-                        let filter = compute_filters_for_pattern(self.registry.as_ref(), node)?;
+                        let filter = compute_filters_for_pattern(
+                            self.registry.as_ref(),
+                            self.storage_encoding.object_id_encoding(),
+                            node,
+                        )?;
                         let plan = match filter {
                             None => plan,
                             Some(filter) => plan.filter(filter)?,
@@ -64,9 +77,11 @@ impl OptimizerRule for PatternLoweringRule {
 /// function to only apply the filters of a pattern and ignore any projections to variables.
 pub fn compute_filters_for_pattern(
     registry: &dyn RdfFusionFunctionRegistry,
+    object_id_encoding: Option<&ObjectIdEncoding>,
     node: &PatternNode,
 ) -> DFResult<Option<Expr>> {
-    let expr_builder_root = RdfFusionExprBuilderContext::new(registry, node.input().schema());
+    let expr_builder_root =
+        RdfFusionExprBuilderContext::new(registry, object_id_encoding, node.input().schema());
     let filters = [
         filter_by_values(expr_builder_root, node.patterns())?,
         filter_same_variable(expr_builder_root, node.patterns())?,

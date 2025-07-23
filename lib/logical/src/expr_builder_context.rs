@@ -4,6 +4,7 @@ use datafusion::common::{plan_err, Column, DFSchema};
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder};
 use rdf_fusion_functions::builtin::BuiltinName;
@@ -24,6 +25,8 @@ use std::sync::Arc;
 pub struct RdfFusionExprBuilderContext<'context> {
     /// Provides access to the builtin functions.
     registry: &'context dyn RdfFusionFunctionRegistry,
+    /// The object id encoding used
+    object_id_encoding: Option<&'context ObjectIdEncoding>,
     /// The schema of the input data. Necessary for inferring the encodings of RDF terms.
     schema: &'context DFSchema,
 }
@@ -32,9 +35,14 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// Creates a new expression builder context.
     pub fn new(
         registry: &'context dyn RdfFusionFunctionRegistry,
+        object_id_encoding: Option<&'context ObjectIdEncoding>,
         schema: &'context DFSchema,
     ) -> Self {
-        Self { registry, schema }
+        Self {
+            registry,
+            object_id_encoding,
+            schema,
+        }
     }
 
     /// Returns the schema of the input data.
@@ -45,6 +53,11 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// Returns a reference to the used function registry.
     pub fn registry(&self) -> &dyn RdfFusionFunctionRegistry {
         self.registry
+    }
+
+    /// Returns a reference to the used object id encoding.
+    pub fn object_id_encoding(&self) -> Option<&'context ObjectIdEncoding> {
+        self.object_id_encoding
     }
 
     /// Creates a new [RdfFusionExprBuilder] from an existing [Expr].
@@ -287,7 +300,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             .registry
             .supported_encodings(FunctionName::Builtin(name))?;
 
-        if supported_encodings.len() == 0 {
+        if supported_encodings.is_empty() {
             return plan_err!("No supported encodings for builtin '{}'", name);
         }
 

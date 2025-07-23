@@ -4,7 +4,7 @@ use crate::object_id::{ObjectIdArray, ObjectIdScalar};
 use crate::EncodingName;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{plan_err, ScalarValue};
+use datafusion::common::ScalarValue;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
@@ -49,8 +49,14 @@ impl TermEncoding for ObjectIdEncoding {
         ObjectIdScalar::try_new(self.clone(), scalar)
     }
 
-    fn encode_term(&self, _term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
-        plan_err!("Currently not supported")
+    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
+        match term {
+            Ok(term) => {
+                let encoded = self.mapping.encode(term);
+                self.try_new_scalar(ScalarValue::UInt64(Some(encoded)))
+            }
+            Err(_) => self.try_new_scalar(ScalarValue::UInt64(None)),
+        }
     }
 }
 

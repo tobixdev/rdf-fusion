@@ -201,15 +201,12 @@ impl RdfFusionLogicalPlanBuilder {
 
     /// Creates a union of the current plan and another plan.
     pub fn union(self, rhs: LogicalPlan) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        // TODO check types
-
-        let mut new_schema = self.schema().as_ref().clone();
-        new_schema.merge(rhs.schema().as_ref());
-
-        let rhs = LogicalPlanBuilder::new(rhs);
-        let result = self.plan_builder.union_by_name(rhs.build()?)?;
+        // TODO allow also other encodings
+        let context = self.context.clone();
+        let rhs = context.create(Arc::new(rhs)).with_plain_terms()?.build()?;
+        let result = self.with_plain_terms()?.plan_builder.union_by_name(rhs)?;
         Ok(Self {
-            context: self.context,
+            context,
             plan_builder: result,
         })
     }
@@ -319,7 +316,11 @@ impl RdfFusionLogicalPlanBuilder {
     /// Returns a new [RdfFusionExprBuilderContext].
     pub fn expr_builder_root(&self) -> RdfFusionExprBuilderContext<'_> {
         let schema = self.schema().as_ref();
-        RdfFusionExprBuilderContext::new(self.context.registry().as_ref(), schema)
+        RdfFusionExprBuilderContext::new(
+            self.context.registry().as_ref(),
+            self.context.encoding().object_id_encoding(),
+            schema,
+        )
     }
 
     /// Returns a new [RdfFusionExprBuilder] for a given expression.

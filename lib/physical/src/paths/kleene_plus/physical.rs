@@ -21,6 +21,7 @@ use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_logical::paths::PATH_TABLE_SCHEMA;
 use rdf_fusion_model::{GraphName, Term};
 use std::any::Any;
+use std::clone::Clone;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Formatter;
 use std::hash::Hash;

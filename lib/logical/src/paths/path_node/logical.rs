@@ -127,6 +127,7 @@ fn compute_schema(
         Some(subject.clone()),
         Some(object.clone()),
     ];
+
     compute_schema_for_pattern(
         &PATH_TABLE_DFSCHEMA,
         &patterns,

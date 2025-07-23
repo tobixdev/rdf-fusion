@@ -78,7 +78,11 @@ impl WithPlainTermEncoding {
         }
     }
 
-    fn convert_scalar(encoding_name: EncodingName, scalar: ScalarValue) -> DFResult<ColumnarValue> {
+    fn convert_scalar(
+        &self,
+        encoding_name: EncodingName,
+        scalar: ScalarValue,
+    ) -> DFResult<ColumnarValue> {
         match encoding_name {
             EncodingName::PlainTerm => Ok(ColumnarValue::Scalar(scalar)),
             EncodingName::TypedValue => {
@@ -88,7 +92,14 @@ impl WithPlainTermEncoding {
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => exec_err!("Cannot from object id."),
+            EncodingName::ObjectId => match &self.object_id_encoding {
+                None => exec_err!("Cannot from object id as no encoding is provided."),
+                Some(object_id_encoding) => {
+                    let scalar = object_id_encoding.try_new_scalar(scalar)?;
+                    let decoded = object_id_encoding.mapping().decode_scalar(&scalar)?;
+                    Ok(ColumnarValue::Scalar(decoded.into_scalar_value()))
+                }
+            },
         }
     }
 }
@@ -119,7 +130,7 @@ impl ScalarUDFImpl for WithPlainTermEncoding {
 
         match args {
             [ColumnarValue::Array(array)] => self.convert_array(encoding_name, array),
-            [ColumnarValue::Scalar(scalar)] => Self::convert_scalar(encoding_name, scalar),
+            [ColumnarValue::Scalar(scalar)] => self.convert_scalar(encoding_name, scalar),
         }
     }
 }

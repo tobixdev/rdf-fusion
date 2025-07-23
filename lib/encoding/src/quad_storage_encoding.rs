@@ -1,7 +1,7 @@
 use crate::object_id::ObjectIdEncoding;
 use crate::plain_term::PLAIN_TERM_ENCODING;
 use crate::TermEncoding;
-use datafusion::arrow::datatypes::{Field, Fields, Schema, SchemaRef};
+use datafusion::arrow::datatypes::{DataType, Field, Fields, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
 use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use std::collections::HashMap;
@@ -28,14 +28,31 @@ static PLAIN_TERM_QUAD_DFSCHEMA: LazyLock<DFSchemaRef> =
 
 impl QuadStorageEncoding {
     /// TODO
+    pub fn term_type(&self) -> DataType {
+        match self {
+            QuadStorageEncoding::PlainTerm => PLAIN_TERM_ENCODING.data_type(),
+            QuadStorageEncoding::ObjectId(enc) => enc.data_type(),
+        }
+    }
+
+    /// TODO
     pub fn quad_schema(&self) -> DFSchemaRef {
         match self {
             QuadStorageEncoding::PlainTerm => PLAIN_TERM_QUAD_DFSCHEMA.clone(),
-            QuadStorageEncoding::ObjectId(encoding) => object_id_quad_schema(&encoding),
+            QuadStorageEncoding::ObjectId(encoding) => object_id_quad_schema(encoding),
+        }
+    }
+
+    /// TODO
+    pub fn object_id_encoding(&self) -> Option<&ObjectIdEncoding> {
+        match &self {
+            QuadStorageEncoding::ObjectId(encoding) => Some(encoding),
+            QuadStorageEncoding::PlainTerm => None,
         }
     }
 }
 
+#[allow(clippy::expect_used)]
 fn object_id_quad_schema(encoding: &ObjectIdEncoding) -> DFSchemaRef {
     let data_type = encoding.data_type();
     Arc::new(

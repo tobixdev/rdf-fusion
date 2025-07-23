@@ -348,6 +348,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         let exists_schema = Arc::clone(exists_pattern.schema());
         let exists_expr_builder_root = RdfFusionExprBuilderContext::new(
             self.expr_builder_root.registry(),
+            self.graph_rewriter.storage_encoding().object_id_encoding(),
             exists_schema.as_ref(),
         );
 

@@ -172,7 +172,7 @@ impl SparqlJoinLoweringRule {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
         let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), &join_schema);
+            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
 
         let mut join_filters = join_on
             .iter()
@@ -224,7 +224,7 @@ impl SparqlJoinLoweringRule {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
         let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), &join_schema);
+            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let projections = node
@@ -270,7 +270,7 @@ impl SparqlJoinLoweringRule {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
         let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), &join_schema);
+            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let filter = filter

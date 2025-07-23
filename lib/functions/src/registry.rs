@@ -88,6 +88,11 @@ pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
     ) -> DFResult<Arc<AggregateUDF>>;
 }
 
+type ScalarUdfFactory =
+    Box<dyn Fn(RdfFusionFunctionArgs) -> DFResult<Arc<ScalarUDF>> + Send + Sync>;
+type AggregateUdfFactory =
+    Box<dyn Fn(RdfFusionFunctionArgs) -> DFResult<Arc<AggregateUDF>> + Send + Sync>;
+
 /// The default implementation of the `RdfFusionFunctionRegistry` trait.
 ///
 /// This registry provides implementations for all standard SPARQL functions
@@ -96,14 +101,24 @@ pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
 ///
 /// # Additional Resources
 /// - [SPARQL 1.1 Query Language - Function Library](https://www.w3.org/TR/sparql11-query/#SparqlOps)
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct DefaultRdfFusionFunctionRegistry {
     /// The [ObjectIdEncoding] used in the storage layer.
     object_id_encoding: Option<ObjectIdEncoding>,
     /// The mapping used for scalar functions.
-    scalar_mapping: HashMap<FunctionName, (Arc<ScalarUDF>, Vec<EncodingName>)>,
+    scalar_mapping: HashMap<FunctionName, (ScalarUdfFactory, Vec<EncodingName>)>,
     /// The mapping used for aggregate functions.
-    aggregate_mapping: HashMap<FunctionName, Arc<AggregateUDF>>,
+    aggregate_mapping: HashMap<FunctionName, (AggregateUdfFactory, Vec<EncodingName>)>,
+}
+
+impl Debug for DefaultRdfFusionFunctionRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DefaultRdfFusionFunctionRegistry")
+            .field("object_id_encoding", &self.object_id_encoding)
+            .field("scalar_mapping", &self.scalar_mapping.keys())
+            .field("aggregate_mapping", &self.aggregate_mapping.keys())
+            .finish()
+    }
 }
 
 impl DefaultRdfFusionFunctionRegistry {
@@ -113,7 +128,7 @@ impl DefaultRdfFusionFunctionRegistry {
             object_id_encoding,
             ..Default::default()
         };
-        register_default_functions(&mut registry);
+        register_functions(&mut registry);
         registry
     }
 }
@@ -123,7 +138,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
         if let Some((_, encodings)) = self.scalar_mapping.get(&function_name) {
             Ok(encodings.clone())
         } else {
-            plan_err!("Scalar function '{function_name}' not found.")
+            plan_err!("Could not find encodings for function '{function_name}'.")
         }
     }
 
@@ -132,25 +147,11 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
         function_name: FunctionName,
         constant_args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<ScalarUDF>> {
-        if let Some((udf, _)) = self.scalar_mapping.get(&function_name) {
-            return Ok(udf.clone());
+        if let Some((factory, _)) = self.scalar_mapping.get(&function_name) {
+            factory(constant_args)
+        } else {
+            plan_err!("Scalar function '{function_name}' not found.")
         }
-
-        if let FunctionName::Builtin(builtin) = function_name {
-            match builtin {
-                BuiltinName::Iri => {
-                    let iri = constant_args.get(RdfFusionBuiltinArgNames::BASE_IRI)?;
-                    let op = IriSparqlOp::new(iri);
-                    return Ok(create_scalar_udf(op));
-                }
-                BuiltinName::WithPlainTermEncoding => {
-                    return Ok(with_plain_term_encoding(self.object_id_encoding.clone()))
-                }
-                _ => {}
-            }
-        }
-
-        plan_err!("Scalar function '{function_name}' not found.")
     }
 
     fn create_udaf(
@@ -158,23 +159,51 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
         function_name: FunctionName,
         constant_args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<AggregateUDF>> {
-        if let Some(udaf) = self.aggregate_mapping.get(&function_name) {
-            return Ok(udaf.clone());
+        if let Some((factory, _)) = self.aggregate_mapping.get(&function_name) {
+            factory(constant_args)
+        } else {
+            plan_err!("Aggregate function '{function_name}' not found.")
         }
-
-        if let FunctionName::Builtin(builtin) = function_name {
-            if let BuiltinName::GroupConcat = builtin {
-                let separator = constant_args.get(RdfFusionBuiltinArgNames::SEPARATOR)?;
-                return Ok(group_concat_typed_value(separator));
-            }
-        }
-
-        plan_err!("Aggregate function '{function_name}' not found.")
     }
 }
 
-fn register_default_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
-    let scalar_fns: Vec<(BuiltinName, (Arc<ScalarUDF>, Vec<EncodingName>))> = vec![
+fn supported_encodings<TSparqlOp>() -> Vec<EncodingName>
+where
+    TSparqlOp: Default + ScalarSparqlOp + 'static,
+{
+    let op = TSparqlOp::default();
+
+    let mut result = Vec::new();
+    if op.plain_term_encoding_op().is_some() {
+        result.push(EncodingName::PlainTerm);
+    }
+    if op.typed_value_encoding_op().is_some() {
+        result.push(EncodingName::TypedValue);
+    }
+
+    result
+}
+
+fn create_scalar_sparql_op<TSparqlOp>() -> (ScalarUdfFactory, Vec<EncodingName>)
+where
+    TSparqlOp: Default + ScalarSparqlOp + 'static,
+{
+    let udf = create_scalar_udf(TSparqlOp::default());
+    let encodings = supported_encodings::<TSparqlOp>();
+    let factory = Box::new(move |_| Ok(Arc::clone(&udf)));
+    (factory, encodings)
+}
+
+fn create_scalar_udf<TSparqlOp>(op: TSparqlOp) -> Arc<ScalarUDF>
+where
+    TSparqlOp: ScalarSparqlOp + 'static,
+{
+    let adapter = ScalarSparqlOpAdapter::new(op);
+    Arc::new(ScalarUDF::new_from_impl(adapter))
+}
+
+fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
+    let scalar_fns: Vec<(BuiltinName, (ScalarUdfFactory, Vec<EncodingName>))> = vec![
         (BuiltinName::Str, create_scalar_sparql_op::<StrSparqlOp>()),
         (BuiltinName::Lang, create_scalar_sparql_op::<LangSparqlOp>()),
         (
@@ -363,8 +392,8 @@ fn register_default_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
             BuiltinName::UnaryPlus,
             create_scalar_sparql_op::<UnaryPlusSparqlOp>(),
         ),
-        (BuiltinName::And, (sparql_and(), vec![])),
-        (BuiltinName::Or, (sparql_or(), vec![])),
+        (BuiltinName::And, (Box::new(|_| Ok(sparql_and())), vec![])),
+        (BuiltinName::Or, (Box::new(|_| Ok(sparql_or())), vec![])),
         (
             BuiltinName::CastString,
             create_scalar_sparql_op::<CastStringSparqlOp>(),
@@ -399,78 +428,99 @@ fn register_default_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         ),
         (
             BuiltinName::WithSortableEncoding,
-            (with_sortable_term_encoding(), vec![]),
+            (Box::new(|_| Ok(with_sortable_term_encoding())), vec![]),
         ),
         (
             BuiltinName::WithTypedValueEncoding,
-            (with_typed_value_encoding(), vec![]),
+            (Box::new(|_| Ok(with_typed_value_encoding())), vec![]),
         ),
         (
             BuiltinName::EffectiveBooleanValue,
-            (effective_boolean_value(), vec![]),
+            (Box::new(|_| Ok(effective_boolean_value())), vec![]),
         ),
         (
             BuiltinName::NativeBooleanAsTerm,
-            (native_boolean_as_term(), vec![]),
+            (Box::new(|_| Ok(native_boolean_as_term())), vec![]),
         ),
-        (BuiltinName::IsCompatible, (is_compatible(), vec![])),
+        (
+            BuiltinName::IsCompatible,
+            (Box::new(|_| Ok(is_compatible())), vec![]),
+        ),
         (
             BuiltinName::NativeInt64AsTerm,
-            (native_int64_as_term(), vec![]),
+            (Box::new(|_| Ok(native_int64_as_term())), vec![]),
         ),
     ];
 
-    for (name, (udf, encodings)) in scalar_fns {
+    for (name, (factory, encodings)) in scalar_fns {
         registry
             .scalar_mapping
-            .insert(FunctionName::Builtin(name), (udf, encodings));
+            .insert(FunctionName::Builtin(name), (factory, encodings));
     }
+
+    // Stateful functions
+    let iri_factory = Box::new(|args: RdfFusionFunctionArgs| {
+        let iri = args.get(RdfFusionBuiltinArgNames::BASE_IRI)?;
+        let op = IriSparqlOp::new(iri);
+        Ok(create_scalar_udf(op))
+    });
+    registry.scalar_mapping.insert(
+        FunctionName::Builtin(BuiltinName::Iri),
+        (iri_factory, vec![EncodingName::TypedValue]),
+    );
+
+    let encoding = registry.object_id_encoding.clone();
+    let plain_term_factory = Box::new(move |_| Ok(with_plain_term_encoding(encoding.clone())));
+    registry.scalar_mapping.insert(
+        FunctionName::Builtin(BuiltinName::WithPlainTermEncoding),
+        (plain_term_factory, vec![]),
+    );
 
     // Aggregate functions
-    let aggregate_fns: Vec<(BuiltinName, Arc<AggregateUDF>)> = vec![
-        (BuiltinName::Sum, sum_typed_value()),
-        (BuiltinName::Min, min_typed_value()),
-        (BuiltinName::Max, max_typed_value()),
-        (BuiltinName::Avg, avg_typed_value()),
+    let aggregate_fns: Vec<(BuiltinName, (AggregateUdfFactory, Vec<EncodingName>))> = vec![
+        (
+            BuiltinName::Sum,
+            (
+                Box::new(|_| Ok(sum_typed_value())),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::Min,
+            (
+                Box::new(|_| Ok(min_typed_value())),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::Max,
+            (
+                Box::new(|_| Ok(max_typed_value())),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::Avg,
+            (
+                Box::new(|_| Ok(avg_typed_value())),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::GroupConcat,
+            (
+                Box::new(|args| {
+                    let separator = args.get(RdfFusionBuiltinArgNames::SEPARATOR)?;
+                    Ok(group_concat_typed_value(separator))
+                }),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
     ];
 
-    for (name, udaf) in aggregate_fns {
+    for (name, udaf_information) in aggregate_fns {
         registry
             .aggregate_mapping
-            .insert(FunctionName::Builtin(name), udaf);
+            .insert(FunctionName::Builtin(name), udaf_information);
     }
-}
-
-fn create_scalar_sparql_op<TSparqlOp>() -> (Arc<ScalarUDF>, Vec<EncodingName>)
-where
-    TSparqlOp: Default + ScalarSparqlOp + 'static,
-{
-    let op = TSparqlOp::default();
-    let encodings = supported_encodings::<TSparqlOp>();
-    (create_scalar_udf(op), encodings)
-}
-
-fn create_scalar_udf<TSparqlOp>(op: TSparqlOp) -> Arc<ScalarUDF>
-where
-    TSparqlOp: ScalarSparqlOp + 'static,
-{
-    let adapter = ScalarSparqlOpAdapter::new(op);
-    Arc::new(ScalarUDF::new_from_impl(adapter))
-}
-
-fn supported_encodings<TSparqlOp>() -> Vec<EncodingName>
-where
-    TSparqlOp: Default + ScalarSparqlOp + 'static,
-{
-    let op = TSparqlOp::default();
-
-    let mut result = Vec::new();
-    if op.plain_term_encoding_op().is_some() {
-        result.push(EncodingName::PlainTerm);
-    }
-    if op.typed_value_encoding_op().is_some() {
-        result.push(EncodingName::TypedValue);
-    }
-
-    result
 }

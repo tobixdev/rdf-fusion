@@ -1,5 +1,5 @@
-use crate::object_id::ObjectIdArray;
-use crate::plain_term::PlainTermArray;
+use crate::object_id::{ObjectIdArray, ObjectIdScalar};
+use crate::plain_term::{PlainTermArray, PlainTermScalar};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::TermRef;
 use std::fmt::Debug;
@@ -14,4 +14,7 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
 
     /// TODO
     fn decode_array(&self, array: &ObjectIdArray) -> DFResult<PlainTermArray>;
+
+    /// TODO
+    fn decode_scalar(&self, scalar: &ObjectIdScalar) -> DFResult<PlainTermScalar>;
 }

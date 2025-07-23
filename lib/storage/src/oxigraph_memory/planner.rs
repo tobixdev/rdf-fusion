@@ -223,7 +223,7 @@ fn empty_result(
     blank_node_mode: BlankNodeMatchingMode,
 ) -> SendableRecordBatchStream {
     let schema = compute_schema_for_triple_pattern(
-        &storage_encoding,
+        storage_encoding,
         graph_variable.as_ref().map(|v| v.as_ref()),
         pattern,
         blank_node_mode,

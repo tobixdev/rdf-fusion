@@ -2,13 +2,14 @@
 
 use crate::oxigraph_memory::object_id::{ObjectId, ObjectIdQuad, DEFAULT_GRAPH_OBJECT_ID};
 use dashmap::DashMap;
+use datafusion::common::{exec_err, ScalarValue};
 use datafusion::error::DataFusionError;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::object_id::{ObjectIdArray, ObjectIdMapping};
+use rdf_fusion_encoding::object_id::{ObjectIdArray, ObjectIdMapping, ObjectIdScalar};
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::plain_term::PlainTermArray;
-use rdf_fusion_encoding::TermEncoder;
+use rdf_fusion_encoding::plain_term::{PlainTermArray, PlainTermScalar};
+use rdf_fusion_encoding::{EncodingScalar, TermEncoder};
 use rdf_fusion_model::{
     GraphName, GraphNameRef, NamedOrBlankNode, QuadRef, Term, TermRef, ThinError, ThinResult,
 };
@@ -41,6 +42,7 @@ impl MemoryObjectIdMapping {
     }
 
     /// TODO
+    #[allow(clippy::same_name_method)]
     pub fn try_get_object_id<'term>(&self, term: impl Into<TermRef<'term>>) -> Option<ObjectId> {
         let term_ref = term.into().into_owned();
         self.term2id.get(&term_ref).map(|id| *id)
@@ -64,7 +66,7 @@ impl MemoryObjectIdMapping {
     }
 
     /// TODO
-    pub fn encode<'term>(&self, term: impl Into<TermRef<'term>>) -> ObjectId {
+    pub fn encode_term<'term>(&self, term: impl Into<TermRef<'term>>) -> ObjectId {
         let term = term.into().into_owned();
 
         if let Some(id) = self.term2id.get(&term) {
@@ -86,17 +88,17 @@ impl MemoryObjectIdMapping {
     pub fn encode_quad(&self, quad: QuadRef<'_>) -> ObjectIdQuad {
         ObjectIdQuad {
             graph_name: self.encode_graph_name(quad.graph_name),
-            subject: self.encode(quad.subject),
-            predicate: self.encode(quad.predicate),
-            object: self.encode(quad.object),
+            subject: self.encode_term(quad.subject),
+            predicate: self.encode_term(quad.predicate),
+            object: self.encode_term(quad.object),
         }
     }
 
     /// TODO
     pub fn encode_graph_name(&self, graph: GraphNameRef<'_>) -> ObjectId {
         match graph {
-            GraphNameRef::NamedNode(nn) => self.encode(nn),
-            GraphNameRef::BlankNode(bnode) => self.encode(bnode),
+            GraphNameRef::NamedNode(nn) => self.encode_term(nn),
+            GraphNameRef::BlankNode(bnode) => self.encode_term(bnode),
             GraphNameRef::DefaultGraph => ObjectId::new(DEFAULT_GRAPH_OBJECT_ID),
         }
     }
@@ -122,26 +124,43 @@ impl Default for MemoryObjectIdMapping {
 
 impl ObjectIdMapping for MemoryObjectIdMapping {
     fn try_get_object_id(&self, id: TermRef<'_>) -> Option<u64> {
-        self.try_get_object_id(id).map(|oid| oid.into())
+        self.try_get_object_id(id).map(Into::into)
     }
 
     fn encode(&self, id: TermRef<'_>) -> u64 {
-        self.encode(id).into()
+        self.encode_term(id).into()
     }
 
     fn decode_array(&self, array: &ObjectIdArray) -> DFResult<PlainTermArray> {
         let terms = array
             .object_ids()
             .iter()
-            .map(|oid| self.decode_opt(oid.map(|id| ObjectId::new(id))))
+            .map(|oid| self.decode_opt(oid.map(ObjectId::new)))
             .collect::<Result<Vec<ThinResult<Term>>, _>>();
 
         match terms {
             Ok(terms) => DefaultPlainTermEncoder::encode_terms(terms.iter().map(|res| match res {
                 Ok(t) => Ok(t.as_ref()),
-                Err(err) => Err(err.clone()),
+                Err(err) => Err(*err),
             })),
             Err(err) => Err(DataFusionError::External(Box::new(err))),
+        }
+    }
+
+    fn decode_scalar(&self, scalar: &ObjectIdScalar) -> DFResult<PlainTermScalar> {
+        match scalar.scalar_value() {
+            ScalarValue::UInt64(None) => {
+                DefaultPlainTermEncoder::encode_term(ThinError::expected())
+            }
+            ScalarValue::UInt64(Some(oid)) => {
+                let oid = ObjectId::new(*oid);
+                let term = self.try_decode::<Term>(oid);
+                match term {
+                    Ok(term) => DefaultPlainTermEncoder::encode_term(Ok(term.as_ref())),
+                    Err(err) => Err(DataFusionError::External(Box::new(err))),
+                }
+            }
+            _ => exec_err!("Unexpected scalar value in decode_scalar."),
         }
     }
 }
