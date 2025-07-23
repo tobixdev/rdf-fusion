@@ -2,6 +2,7 @@ use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
 use crate::oxigraph_memory::store::MemoryStorageReader;
 use crate::MemoryQuadStorage;
 use async_trait::async_trait;
+use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::plan_err;
 use datafusion::error::{DataFusionError, Result as DFResult};
 use datafusion::execution::context::SessionState;
@@ -9,7 +10,9 @@ use datafusion::execution::SendableRecordBatchStream;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
 use datafusion::physical_plan::{EmptyRecordBatchStream, ExecutionPlan};
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
-use rdf_fusion_common::{BlankNodeMatchingMode, QuadPatternEvaluator};
+use rdf_fusion_api::storage::QuadPatternEvaluator;
+use rdf_fusion_common::BlankNodeMatchingMode;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
 use rdf_fusion_logical::{ActiveGraph, EnumeratedActiveGraph};
@@ -101,6 +104,10 @@ impl ExtensionPlanner for OxigraphMemoryQuadNodePlanner {
 
 #[async_trait]
 impl QuadPatternEvaluator for MemoryStorageReader {
+    fn schema(&self) -> SchemaRef {
+        Arc::clone(QuadStorageEncoding::ObjectId.quad_schema().inner())
+    }
+
     fn evaluate_pattern(
         &self,
         graph: GraphName,
@@ -209,8 +216,9 @@ fn empty_result(
     blank_node_mode: BlankNodeMatchingMode,
 ) -> SendableRecordBatchStream {
     let schema = compute_schema_for_triple_pattern(
+        QuadStorageEncoding::ObjectId,
         graph_variable.as_ref().map(|v| v.as_ref()),
-        &pattern,
+        pattern,
         blank_node_mode,
     );
     Box::pin(EmptyRecordBatchStream::new(Arc::clone(schema.inner())))

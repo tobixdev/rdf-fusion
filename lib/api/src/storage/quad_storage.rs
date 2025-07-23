@@ -1,9 +1,10 @@
-use crate::error::StorageError;
-use crate::{BlankNodeMatchingMode, DFResult};
 use async_trait::async_trait;
-use datafusion::datasource::TableProvider;
+use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_planner::ExtensionPlanner;
+use rdf_fusion_common::error::StorageError;
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{
     GraphName, GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, TriplePattern,
     Variable,
@@ -14,13 +15,12 @@ use std::sync::Arc;
 #[async_trait]
 #[allow(clippy::len_without_is_empty)]
 pub trait QuadStorage: Send + Sync {
-    /// Returns the table name of this [QuadStorage]. This name is used to register a table in the
-    /// DataFusion engine.
-    fn table_name(&self) -> &str;
+    /// Returns the quad storage encoding.
+    fn encoding(&self) -> QuadStorageEncoding;
 
-    /// Returns the [TableProvider] for this [QuadStorage]. This provider is registered in the
-    /// DataFusion session and used for planning the execution of queries.
-    fn table_provider(&self) -> Arc<dyn TableProvider>;
+    /// Returns a list of planners that support planning logical nodes requiring access to the
+    /// storage layer.
+    fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
 
     /// Loads the given quads into the storage.
     async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError>;
@@ -55,9 +55,8 @@ pub trait QuadStorage: Send + Sync {
     /// Removes the given quad from the storage.
     async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError>;
 
-    /// Returns a list of planners that support planning logical nodes requiring access to the
-    /// storage layer.
-    fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
+    /// Returns the number of quads in the storage.
+    async fn len(&self) -> Result<usize, StorageError>;
 }
 
 /// The quad pattern evaluator is responsible for accessing the storage and returning a stream of
@@ -70,6 +69,11 @@ pub trait QuadStorage: Send + Sync {
 /// snapshot of the storage layer.
 #[async_trait]
 pub trait QuadPatternEvaluator: Debug + Send + Sync {
+    /// Returns the schema produced by [Self::evaluate_pattern].
+    ///
+    /// This must match the schema of the [SendableRecordBatchStream].
+    fn schema(&self) -> SchemaRef;
+
     /// Returns a stream of quads that match the given pattern.
     ///
     /// The resulting stream must have a schema that projects to the variables provided in the

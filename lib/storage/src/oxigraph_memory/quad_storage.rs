@@ -1,18 +1,15 @@
 use crate::oxigraph_memory::planner::OxigraphMemoryQuadNodePlanner;
 use crate::oxigraph_memory::store::{MemoryStorageReader, OxigraphMemoryStorage};
-use crate::oxigraph_memory::table_provider::OxigraphMemTable;
 use async_trait::async_trait;
-use datafusion::catalog::TableProvider;
 use datafusion::physical_planner::ExtensionPlanner;
+use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_common::QuadStorage;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct MemoryQuadStorage {
-    table_name: String,
-    table: Arc<OxigraphMemTable>,
     storage: Arc<OxigraphMemoryStorage>,
 }
 
@@ -20,15 +17,9 @@ impl MemoryQuadStorage {
     /// Creates a new empty [MemoryQuadStorage].
     ///
     /// It is intended to pass this storage into a RDF Fusion engine.
-    pub fn new(table_name: impl Into<String>) -> Self {
-        let table_name = table_name.into();
-        let table = Arc::new(OxigraphMemTable::new());
-        let storage = table.storage();
-        Self {
-            table_name,
-            table,
-            storage,
-        }
+    pub fn new() -> Self {
+        let storage = Arc::new(OxigraphMemoryStorage::new());
+        Self { storage }
     }
 
     /// Creates a read-only snapshot of the current storage state.
@@ -45,15 +36,16 @@ impl MemoryQuadStorage {
     }
 }
 
+impl Default for MemoryQuadStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl QuadStorage for MemoryQuadStorage {
-    fn table_name(&self) -> &str {
-        self.table_name.as_str()
-    }
-
-    #[allow(trivial_casts)]
-    fn table_provider(&self) -> Arc<dyn TableProvider> {
-        Arc::clone(&self.table) as Arc<dyn TableProvider>
+    fn encoding(&self) -> QuadStorageEncoding {
+        QuadStorageEncoding::ObjectId
     }
 
     async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
@@ -128,5 +120,9 @@ impl QuadStorage for MemoryQuadStorage {
 
     fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
         vec![Arc::new(OxigraphMemoryQuadNodePlanner::new(self))]
+    }
+
+    async fn len(&self) -> Result<usize, StorageError> {
+        Ok(self.storage.snapshot().len())
     }
 }

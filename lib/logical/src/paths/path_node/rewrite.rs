@@ -1,9 +1,8 @@
+use crate::logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
 use crate::paths::{PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET};
 use crate::patterns::PatternNode;
-use crate::{
-    check_same_schema, ActiveGraph, RdfFusionExprBuilderRoot, RdfFusionLogicalPlanBuilder,
-};
+use crate::{check_same_schema, ActiveGraph, RdfFusionExprBuilderContext};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, JoinType};
 use datafusion::logical_expr::{
@@ -11,9 +10,9 @@ use datafusion::logical_expr::{
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
+use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::PLAIN_TERM_QUAD_DFSCHEMA;
-use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::{
     NamedNode, NamedNodePattern, PropertyPathExpression, TermPattern, TermRef, TriplePattern,
@@ -25,6 +24,8 @@ use std::sync::Arc;
 pub struct PropertyPathLoweringRule {
     /// Used for creating expressions with RDF Fusion builtins.
     registry: RdfFusionFunctionRegistryRef,
+    /// The encoding of the underlying storage layer.
+    storage_encoding: QuadStorageEncoding,
 }
 
 impl OptimizerRule for PropertyPathLoweringRule {
@@ -56,8 +57,15 @@ impl OptimizerRule for PropertyPathLoweringRule {
 }
 
 impl PropertyPathLoweringRule {
-    pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
-        Self { registry }
+    /// Creates a new [PropertyPathLoweringRule].
+    pub fn new(
+        storage_encoding: QuadStorageEncoding,
+        registry: RdfFusionFunctionRegistryRef,
+    ) -> Self {
+        Self {
+            registry,
+            storage_encoding,
+        }
     }
 
     /// Rewrites a [PropertyPathNode] into a regular logical plan.
@@ -112,10 +120,12 @@ impl PropertyPathLoweringRule {
         inf: &PropertyPathLoweringInformation,
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
-        let filter =
-            RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &PLAIN_TERM_QUAD_DFSCHEMA)
-                .try_create_builder(col(COL_PREDICATE))?
-                .build_same_term_scalar(TermRef::from(node.as_ref()))?;
+        let filter = RdfFusionExprBuilderContext::new(
+            self.registry.as_ref(),
+            &self.storage_encoding.quad_schema(),
+        )
+        .try_create_builder(col(COL_PREDICATE))?
+        .build_same_term_scalar(TermRef::from(node.as_ref()))?;
         self.scan_quads(&inf.active_graph, Some(filter))
     }
 
@@ -126,9 +136,9 @@ impl PropertyPathLoweringRule {
         inf: &PropertyPathLoweringInformation,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
-        let predicate_builder =
-            RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &PLAIN_TERM_QUAD_DFSCHEMA)
-                .try_create_builder(col(COL_PREDICATE))?;
+        let schema = self.storage_encoding.quad_schema();
+        let predicate_builder = RdfFusionExprBuilderContext::new(self.registry.as_ref(), &schema)
+            .try_create_builder(col(COL_PREDICATE))?;
 
         let test_expressions = nodes
             .iter()
@@ -255,7 +265,8 @@ impl PropertyPathLoweringRule {
         let rhs = rhs.alias("rhs")?;
 
         let join_schema = lhs.schema().join(rhs.schema())?;
-        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(self.registry.as_ref(), &join_schema);
         let filter = create_path_sequence_join_filter(inf, expr_builder_root)?;
 
         let join_result = lhs.join_detailed(
@@ -283,8 +294,12 @@ impl PropertyPathLoweringRule {
             predicate: NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
             object: TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
         };
-        let builder = RdfFusionLogicalPlanBuilder::new_from_pattern(
+
+        let builder = RdfFusionLogicalPlanBuilderContext::new(
             Arc::clone(&self.registry),
+            self.storage_encoding,
+        )
+        .create_pattern(
             active_graph.clone(),
             Some(Variable::new_unchecked(COL_GRAPH)),
             pattern,
@@ -318,7 +333,7 @@ struct PropertyPathLoweringInformation {
 #[allow(clippy::expect_used)]
 fn create_path_sequence_join_filter(
     inf: &PropertyPathLoweringInformation,
-    expr_builder_root: RdfFusionExprBuilderRoot<'_>,
+    expr_builder_root: RdfFusionExprBuilderContext<'_>,
 ) -> DFResult<Expr> {
     let path_join_expr = expr_builder_root
         .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_TARGET)))?

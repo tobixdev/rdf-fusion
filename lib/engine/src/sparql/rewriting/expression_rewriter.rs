@@ -5,7 +5,7 @@ use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
 use datafusion::prelude::{and, exists};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderRoot};
+use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::Iri;
 use rdf_fusion_model::{DateTime, TermRef};
@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 pub(super) struct ExpressionRewriter<'rewriter> {
     graph_rewriter: &'rewriter GraphPatternRewriter,
-    expr_builder_root: RdfFusionExprBuilderRoot<'rewriter>,
+    expr_builder_root: RdfFusionExprBuilderContext<'rewriter>,
     base_iri: Option<&'rewriter Iri<String>>,
 }
 
@@ -24,7 +24,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     /// Creates a new expression rewriter for a given schema.
     pub fn new(
         graph_rewriter: &'rewriter GraphPatternRewriter,
-        expr_builder_root: RdfFusionExprBuilderRoot<'rewriter>,
+        expr_builder_root: RdfFusionExprBuilderContext<'rewriter>,
         base_iri: Option<&'rewriter Iri<String>>,
     ) -> Self {
         Self {
@@ -346,7 +346,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .collect::<Vec<_>>();
         let exists_pattern = exists_pattern.project(projections)?;
         let exists_schema = Arc::clone(exists_pattern.schema());
-        let exists_expr_builder_root = RdfFusionExprBuilderRoot::new(
+        let exists_expr_builder_root = RdfFusionExprBuilderContext::new(
             self.expr_builder_root.registry(),
             exists_schema.as_ref(),
         );

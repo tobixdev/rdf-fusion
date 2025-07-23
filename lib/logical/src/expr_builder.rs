@@ -1,4 +1,4 @@
-use crate::RdfFusionExprBuilderRoot;
+use crate::RdfFusionExprBuilderContext;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
@@ -22,7 +22,7 @@ use rdf_fusion_model::{Iri, TermRef};
 #[derive(Debug, Clone)]
 pub struct RdfFusionExprBuilder<'root> {
     /// Holds a reference to the factory that created this builder.
-    root: RdfFusionExprBuilderRoot<'root>,
+    root: RdfFusionExprBuilderContext<'root>,
     /// The expression that is being built
     expr: Expr,
 }
@@ -31,14 +31,17 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// Creates a new expression builder.
     ///
     /// Returns an `Err` if the expression does not evaluate to an RDF term.
-    pub fn try_new_from_root(root: RdfFusionExprBuilderRoot<'root>, expr: Expr) -> DFResult<Self> {
+    pub fn try_new_from_context(
+        root: RdfFusionExprBuilderContext<'root>,
+        expr: Expr,
+    ) -> DFResult<Self> {
         let result = Self { root, expr };
         result.encoding()?;
         Ok(result)
     }
 
     /// Returns the schema of the input data.
-    pub fn root(&self) -> &RdfFusionExprBuilderRoot<'root> {
+    pub fn root(&self) -> &RdfFusionExprBuilderContext<'root> {
         &self.root
     }
 

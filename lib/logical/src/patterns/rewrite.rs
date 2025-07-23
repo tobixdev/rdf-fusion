@@ -1,6 +1,6 @@
 use crate::expr_builder::RdfFusionExprBuilder;
 use crate::patterns::PatternNode;
-use crate::{check_same_schema, RdfFusionExprBuilderRoot};
+use crate::{check_same_schema, RdfFusionExprBuilderContext};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::logical_expr::{
     and, col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode,
@@ -66,7 +66,7 @@ pub fn compute_filters_for_pattern(
     registry: &dyn RdfFusionFunctionRegistry,
     node: &PatternNode,
 ) -> DFResult<Option<Expr>> {
-    let expr_builder_root = RdfFusionExprBuilderRoot::new(registry, node.input().schema());
+    let expr_builder_root = RdfFusionExprBuilderContext::new(registry, node.input().schema());
     let filters = [
         filter_by_values(expr_builder_root, node.patterns())?,
         filter_same_variable(expr_builder_root, node.patterns())?,
@@ -79,7 +79,7 @@ pub fn compute_filters_for_pattern(
 /// For example, for the pattern `?a foaf:knows ?b` this functions adds a filter that ensures that
 /// the predicate is `foaf:knows`.
 fn filter_by_values(
-    expr_builder_root: RdfFusionExprBuilderRoot<'_>,
+    expr_builder_root: RdfFusionExprBuilderContext<'_>,
     pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
     let filters = expr_builder_root
@@ -101,7 +101,7 @@ fn filter_by_values(
 /// For example, for the pattern `?a ?a ?b` this functions adds a constraint that ensures that the
 /// subject is equal to the predicate.
 fn filter_same_variable(
-    expr_builder_root: RdfFusionExprBuilderRoot<'_>,
+    expr_builder_root: RdfFusionExprBuilderContext<'_>,
     pattern: &[Option<TermPattern>],
 ) -> DFResult<Option<Expr>> {
     let mut mappings = HashMap::new();

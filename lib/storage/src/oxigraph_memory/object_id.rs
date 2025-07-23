@@ -15,7 +15,7 @@ impl ObjectId {
         ObjectId(value)
     }
 
-    pub fn is_default_graph(&self) -> bool {
+    pub fn is_default_graph(self) -> bool {
         self.0 == DEFAULT_GRAPH_OBJECT_ID
     }
 }

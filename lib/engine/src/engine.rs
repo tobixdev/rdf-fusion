@@ -2,13 +2,15 @@ use crate::planner::RdfFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults};
 use datafusion::dataframe::DataFrame;
+use datafusion::error::DataFusionError;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::optimizer::{Optimizer, OptimizerRule};
 use datafusion::prelude::{SessionConfig, SessionContext};
-use rdf_fusion_common::{DFResult, QuadStorage};
-use rdf_fusion_encoding::TABLE_QUADS;
+use rdf_fusion_api::storage::QuadStorage;
+use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_functions::registry::{
     DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
@@ -18,7 +20,7 @@ use rdf_fusion_logical::join::{SparqlJoinLoweringRule, SparqlJoinReorderingRule}
 use rdf_fusion_logical::minus::MinusLoweringRule;
 use rdf_fusion_logical::paths::PropertyPathLoweringRule;
 use rdf_fusion_logical::patterns::PatternLoweringRule;
-use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilder};
+use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
 use rdf_fusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
 
@@ -40,28 +42,25 @@ pub struct RdfFusionInstance {
 
 impl RdfFusionInstance {
     /// Creates a new [RdfFusionInstance] with the default configuration and the given `storage`.
-    pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> DFResult<Self> {
+    pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> Self {
         // TODO make a builder
-
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry);
 
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            .with_optimizer_rules(create_default_optimizer_rules(&registry))
+            .with_optimizer_rules(create_default_optimizer_rules(&registry, storage.encoding()))
             // TODO: For now we use only a single partition. This should be configurable.
             .with_config(SessionConfig::new().with_target_partitions(1))
             .build();
 
         let session_context = SessionContext::from(state);
-        session_context.register_table("quads", storage.table_provider())?;
-
-        Ok(Self {
+        Self {
             ctx: session_context,
             functions: registry,
             storage,
-        })
+        }
     }
 
     /// Provides access to the [QuadStorage] of this instance for writing operations.
@@ -76,8 +75,7 @@ impl RdfFusionInstance {
     /// Checks whether `quad` is contained in the instance.
     pub async fn contains(&self, quad: &QuadRef<'_>) -> DFResult<bool> {
         let active_graph_info = graph_name_to_active_graph(Some(quad.graph_name));
-        let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_matching_quads(
-            Arc::clone(&self.functions),
+        let pattern_plan = self.builder_context().create_matching_quads(
             active_graph_info,
             Some(quad.subject.into_owned()),
             Some(quad.predicate.into_owned()),
@@ -91,9 +89,19 @@ impl RdfFusionInstance {
         Ok(count > 0)
     }
 
+    fn builder_context(&self) -> RdfFusionLogicalPlanBuilderContext {
+        RdfFusionLogicalPlanBuilderContext::new(
+            Arc::clone(&self.functions),
+            self.storage.encoding(),
+        )
+    }
+
     /// Returns the number of quads in the instance.
     pub async fn len(&self) -> DFResult<usize> {
-        self.ctx.table(TABLE_QUADS).await?.count().await
+        self.storage
+            .len()
+            .await
+            .map_err(|err| DataFusionError::External(Box::new(err)))
     }
 
     /// Returns a stream of all quads that match the given pattern.
@@ -105,14 +113,15 @@ impl RdfFusionInstance {
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
         let active_graph_info = graph_name_to_active_graph(graph_name);
-        let pattern_plan = RdfFusionLogicalPlanBuilder::new_from_matching_quads(
-            Arc::clone(&self.functions),
-            active_graph_info,
-            subject.map(SubjectRef::into_owned),
-            predicate.map(NamedNodeRef::into_owned),
-            object.map(TermRef::into_owned),
-        )
-        .with_plain_terms()?;
+        let pattern_plan = self
+            .builder_context()
+            .create_matching_quads(
+                active_graph_info,
+                subject.map(SubjectRef::into_owned),
+                predicate.map(NamedNodeRef::into_owned),
+                object.map(TermRef::into_owned),
+            )
+            .with_plain_terms()?;
 
         let result = DataFrame::new(self.ctx.state(), pattern_plan.build()?)
             .execute_stream()
@@ -126,18 +135,26 @@ impl RdfFusionInstance {
         query: &Query,
         options: QueryOptions,
     ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
-        evaluate_query(&self.ctx, Arc::clone(&self.functions), query, options).await
+        let builder_context = RdfFusionLogicalPlanBuilderContext::new(
+            Arc::clone(&self.functions),
+            self.storage.encoding(),
+        );
+        evaluate_query(&self.ctx, builder_context, query, options).await
     }
 }
 
 fn create_default_optimizer_rules(
     registry: &RdfFusionFunctionRegistryRef,
+    storage_encoding: QuadStorageEncoding,
 ) -> Vec<Arc<dyn OptimizerRule + Send + Sync>> {
     let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = vec![
         Arc::new(SparqlJoinReorderingRule::new()),
         Arc::new(MinusLoweringRule::new(Arc::clone(registry))),
         Arc::new(ExtendLoweringRule::new()),
-        Arc::new(PropertyPathLoweringRule::new(Arc::clone(registry))),
+        Arc::new(PropertyPathLoweringRule::new(
+            storage_encoding,
+            Arc::clone(registry),
+        )),
         Arc::new(SparqlJoinLoweringRule::new(Arc::clone(registry))),
         Arc::new(PatternLoweringRule::new(Arc::clone(registry))),
     ];

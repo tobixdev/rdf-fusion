@@ -10,7 +10,7 @@ use datafusion::physical_plan::{execute_stream, ExecutionPlan};
 use datafusion::prelude::SessionContext;
 use futures::StreamExt;
 use itertools::izip;
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_logical::RdfFusionLogicalPlanBuilderContext;
 use rdf_fusion_model::Iri;
 use rdf_fusion_model::Variable;
 use spargebra::algebra::GraphPattern;
@@ -23,7 +23,7 @@ use std::sync::Arc;
 /// abstractions that provide APIs for querying.
 pub async fn evaluate_query(
     ctx: &SessionContext,
-    registry: RdfFusionFunctionRegistryRef,
+    builder_context: RdfFusionLogicalPlanBuilderContext,
     query: &Query,
     _options: QueryOptions,
 ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
@@ -32,7 +32,8 @@ pub async fn evaluate_query(
             pattern, base_iri, ..
         } => {
             let (stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), registry, query, pattern, base_iri).await?;
+                graph_pattern_to_stream(ctx.state(), builder_context, query, pattern, base_iri)
+                    .await?;
             Ok((QueryResults::Solutions(stream), explanation))
         }
         spargebra::Query::Construct {
@@ -42,7 +43,8 @@ pub async fn evaluate_query(
             ..
         } => {
             let (stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), registry, query, pattern, base_iri).await?;
+                graph_pattern_to_stream(ctx.state(), builder_context, query, pattern, base_iri)
+                    .await?;
             Ok((
                 QueryResults::Graph(QueryTripleStream::new(template.clone(), stream)),
                 explanation,
@@ -52,7 +54,8 @@ pub async fn evaluate_query(
             pattern, base_iri, ..
         } => {
             let (mut stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), registry, query, pattern, base_iri).await?;
+                graph_pattern_to_stream(ctx.state(), builder_context, query, pattern, base_iri)
+                    .await?;
             let count = stream.next().await;
             Ok((QueryResults::Boolean(count.is_some()), explanation))
         }
@@ -95,7 +98,8 @@ pub async fn evaluate_query(
                 }),
             };
             let (stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), registry, query, &pattern, base_iri).await?;
+                graph_pattern_to_stream(ctx.state(), builder_context, query, &pattern, base_iri)
+                    .await?;
 
             Ok((
                 QueryResults::Graph(QueryTripleStream::new(describe_pattern, stream)),
@@ -108,7 +112,7 @@ pub async fn evaluate_query(
 /// Converts a SPARQL graph pattern to a stream of query solutions.
 async fn graph_pattern_to_stream(
     state: SessionState,
-    registry: RdfFusionFunctionRegistryRef,
+    builder_context: RdfFusionLogicalPlanBuilderContext,
     query: &Query,
     pattern: &GraphPattern,
     base_iri: &Option<Iri<String>>,
@@ -116,7 +120,7 @@ async fn graph_pattern_to_stream(
     let task = state.task_ctx();
 
     let (execution_plan, explanation) =
-        create_execution_plan(state, registry, &query.dataset, pattern, base_iri).await?;
+        create_execution_plan(state, builder_context, &query.dataset, pattern, base_iri).await?;
     let variables = create_variables(&execution_plan.schema());
 
     let batch_record_stream = execute_stream(execution_plan, task)?;
@@ -128,15 +132,16 @@ async fn graph_pattern_to_stream(
 /// resulting query plan (e.g., optimization).
 async fn create_execution_plan(
     state: SessionState,
-    registry: RdfFusionFunctionRegistryRef,
+    builder_context: RdfFusionLogicalPlanBuilderContext,
     dataset: &QueryDataset,
     pattern: &GraphPattern,
     base_iri: &Option<Iri<String>>,
 ) -> Result<(Arc<dyn ExecutionPlan>, QueryExplanation), QueryEvaluationError> {
     let planning_time_start = std::time::Instant::now();
-    let logical_plan = GraphPatternRewriter::new(registry, dataset.clone(), base_iri.clone())
-        .rewrite(pattern)
-        .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
+    let logical_plan =
+        GraphPatternRewriter::new(builder_context, dataset.clone(), base_iri.clone())
+            .rewrite(pattern)
+            .map_err(|e| e.context("Cannot rewrite SPARQL query"))?;
     let optimized_plan = state.optimize(&logical_plan)?;
     let physical_plan = state
         .query_planner()
