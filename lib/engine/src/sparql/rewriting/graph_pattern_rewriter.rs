@@ -71,6 +71,11 @@ impl GraphPatternRewriter {
         plan.with_plain_terms()?.build()
     }
 
+    /// Similar to [Self::rewrite] but does not transform all columns into the plain term encoding.
+    pub fn rewrite_with_existing_encoding(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
+        self.rewrite_graph_pattern(pattern)?.build()
+    }
+
     /// Rewrites a SPARQL graph pattern into a logical plan builder.
     fn rewrite_graph_pattern(
         &self,

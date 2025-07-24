@@ -131,6 +131,13 @@ impl DefaultRdfFusionFunctionRegistry {
         register_functions(&mut registry);
         registry
     }
+
+    fn create_scalar_sparql_op<TSparqlOp>(&self) -> (ScalarUdfFactory, Vec<EncodingName>)
+    where
+        TSparqlOp: Default + ScalarSparqlOp + 'static,
+    {
+        create_scalar_sparql_op::<TSparqlOp>(self.object_id_encoding.clone())
+    }
 }
 
 impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
@@ -180,263 +187,328 @@ where
     if op.typed_value_encoding_op().is_some() {
         result.push(EncodingName::TypedValue);
     }
+    if op.object_id_encoding_op().is_some() {
+        result.push(EncodingName::ObjectId);
+    }
 
     result
 }
 
-fn create_scalar_sparql_op<TSparqlOp>() -> (ScalarUdfFactory, Vec<EncodingName>)
+fn create_scalar_sparql_op<TSparqlOp>(
+    object_id_encoding: Option<ObjectIdEncoding>,
+) -> (ScalarUdfFactory, Vec<EncodingName>)
 where
     TSparqlOp: Default + ScalarSparqlOp + 'static,
 {
-    let udf = create_scalar_udf(TSparqlOp::default());
+    let udf = create_scalar_udf(object_id_encoding, TSparqlOp::default());
     let encodings = supported_encodings::<TSparqlOp>();
     let factory = Box::new(move |_| Ok(Arc::clone(&udf)));
     (factory, encodings)
 }
 
-fn create_scalar_udf<TSparqlOp>(op: TSparqlOp) -> Arc<ScalarUDF>
+fn create_scalar_udf<TSparqlOp>(
+    object_id_encoding: Option<ObjectIdEncoding>,
+    op: TSparqlOp,
+) -> Arc<ScalarUDF>
 where
     TSparqlOp: ScalarSparqlOp + 'static,
 {
-    let adapter = ScalarSparqlOpAdapter::new(op);
+    let adapter = ScalarSparqlOpAdapter::new(object_id_encoding, op);
     Arc::new(ScalarUDF::new_from_impl(adapter))
 }
 
 fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
     let scalar_fns: Vec<(BuiltinName, (ScalarUdfFactory, Vec<EncodingName>))> = vec![
-        (BuiltinName::Str, create_scalar_sparql_op::<StrSparqlOp>()),
-        (BuiltinName::Lang, create_scalar_sparql_op::<LangSparqlOp>()),
+        (
+            BuiltinName::Str,
+            registry.create_scalar_sparql_op::<StrSparqlOp>(),
+        ),
+        (
+            BuiltinName::Lang,
+            registry.create_scalar_sparql_op::<LangSparqlOp>(),
+        ),
         (
             BuiltinName::LangMatches,
-            create_scalar_sparql_op::<LangMatchesSparqlOp>(),
+            registry.create_scalar_sparql_op::<LangMatchesSparqlOp>(),
         ),
         (
             BuiltinName::Datatype,
-            create_scalar_sparql_op::<DatatypeSparqlOp>(),
+            registry.create_scalar_sparql_op::<DatatypeSparqlOp>(),
         ),
         (
             BuiltinName::BNode,
-            create_scalar_sparql_op::<BNodeSparqlOp>(),
+            registry.create_scalar_sparql_op::<BNodeSparqlOp>(),
         ),
-        (BuiltinName::Rand, create_scalar_sparql_op::<RandSparqlOp>()),
-        (BuiltinName::Abs, create_scalar_sparql_op::<AbsSparqlOp>()),
-        (BuiltinName::Ceil, create_scalar_sparql_op::<CeilSparqlOp>()),
+        (
+            BuiltinName::Rand,
+            registry.create_scalar_sparql_op::<RandSparqlOp>(),
+        ),
+        (
+            BuiltinName::Abs,
+            registry.create_scalar_sparql_op::<AbsSparqlOp>(),
+        ),
+        (
+            BuiltinName::Ceil,
+            registry.create_scalar_sparql_op::<CeilSparqlOp>(),
+        ),
         (
             BuiltinName::Floor,
-            create_scalar_sparql_op::<FloorSparqlOp>(),
+            registry.create_scalar_sparql_op::<FloorSparqlOp>(),
         ),
         (
             BuiltinName::Round,
-            create_scalar_sparql_op::<RoundSparqlOp>(),
+            registry.create_scalar_sparql_op::<RoundSparqlOp>(),
         ),
         (
             BuiltinName::Concat,
-            create_scalar_sparql_op::<ConcatSparqlOp>(),
+            registry.create_scalar_sparql_op::<ConcatSparqlOp>(),
         ),
         (
             BuiltinName::SubStr,
-            create_scalar_sparql_op::<SubStrSparqlOp>(),
+            registry.create_scalar_sparql_op::<SubStrSparqlOp>(),
         ),
         (
             BuiltinName::StrLen,
-            create_scalar_sparql_op::<StrLenSparqlOp>(),
+            registry.create_scalar_sparql_op::<StrLenSparqlOp>(),
         ),
         (
             BuiltinName::Replace,
-            create_scalar_sparql_op::<ReplaceSparqlOp>(),
+            registry.create_scalar_sparql_op::<ReplaceSparqlOp>(),
         ),
         (
             BuiltinName::UCase,
-            create_scalar_sparql_op::<UCaseSparqlOp>(),
+            registry.create_scalar_sparql_op::<UCaseSparqlOp>(),
         ),
         (
             BuiltinName::LCase,
-            create_scalar_sparql_op::<LCaseSparqlOp>(),
+            registry.create_scalar_sparql_op::<LCaseSparqlOp>(),
         ),
         (
             BuiltinName::EncodeForUri,
-            create_scalar_sparql_op::<EncodeForUriSparqlOp>(),
+            registry.create_scalar_sparql_op::<EncodeForUriSparqlOp>(),
         ),
         (
             BuiltinName::Contains,
-            create_scalar_sparql_op::<ContainsSparqlOp>(),
+            registry.create_scalar_sparql_op::<ContainsSparqlOp>(),
         ),
         (
             BuiltinName::StrStarts,
-            create_scalar_sparql_op::<StrStartsSparqlOp>(),
+            registry.create_scalar_sparql_op::<StrStartsSparqlOp>(),
         ),
         (
             BuiltinName::StrEnds,
-            create_scalar_sparql_op::<StrEndsSparqlOp>(),
+            registry.create_scalar_sparql_op::<StrEndsSparqlOp>(),
         ),
         (
             BuiltinName::StrBefore,
-            create_scalar_sparql_op::<StrBeforeSparqlOp>(),
+            registry.create_scalar_sparql_op::<StrBeforeSparqlOp>(),
         ),
         (
             BuiltinName::StrAfter,
-            create_scalar_sparql_op::<StrAfterSparqlOp>(),
+            registry.create_scalar_sparql_op::<StrAfterSparqlOp>(),
         ),
-        (BuiltinName::Year, create_scalar_sparql_op::<YearSparqlOp>()),
+        (
+            BuiltinName::Year,
+            registry.create_scalar_sparql_op::<YearSparqlOp>(),
+        ),
         (
             BuiltinName::Month,
-            create_scalar_sparql_op::<MonthSparqlOp>(),
+            registry.create_scalar_sparql_op::<MonthSparqlOp>(),
         ),
-        (BuiltinName::Day, create_scalar_sparql_op::<DaySparqlOp>()),
+        (
+            BuiltinName::Day,
+            registry.create_scalar_sparql_op::<DaySparqlOp>(),
+        ),
         (
             BuiltinName::Hours,
-            create_scalar_sparql_op::<HoursSparqlOp>(),
+            registry.create_scalar_sparql_op::<HoursSparqlOp>(),
         ),
         (
             BuiltinName::Minutes,
-            create_scalar_sparql_op::<MinutesSparqlOp>(),
+            registry.create_scalar_sparql_op::<MinutesSparqlOp>(),
         ),
         (
             BuiltinName::Seconds,
-            create_scalar_sparql_op::<SecondsSparqlOp>(),
+            registry.create_scalar_sparql_op::<SecondsSparqlOp>(),
         ),
         (
             BuiltinName::Timezone,
-            create_scalar_sparql_op::<TimezoneSparqlOp>(),
+            registry.create_scalar_sparql_op::<TimezoneSparqlOp>(),
         ),
-        (BuiltinName::Tz, create_scalar_sparql_op::<TzSparqlOp>()),
-        (BuiltinName::Uuid, create_scalar_sparql_op::<UuidSparqlOp>()),
+        (
+            BuiltinName::Tz,
+            registry.create_scalar_sparql_op::<TzSparqlOp>(),
+        ),
+        (
+            BuiltinName::Uuid,
+            registry.create_scalar_sparql_op::<UuidSparqlOp>(),
+        ),
         (
             BuiltinName::StrUuid,
-            create_scalar_sparql_op::<StrUuidSparqlOp>(),
+            registry.create_scalar_sparql_op::<StrUuidSparqlOp>(),
         ),
-        (BuiltinName::Md5, create_scalar_sparql_op::<Md5SparqlOp>()),
-        (BuiltinName::Sha1, create_scalar_sparql_op::<Sha1SparqlOp>()),
+        (
+            BuiltinName::Md5,
+            registry.create_scalar_sparql_op::<Md5SparqlOp>(),
+        ),
+        (
+            BuiltinName::Sha1,
+            registry.create_scalar_sparql_op::<Sha1SparqlOp>(),
+        ),
         (
             BuiltinName::Sha256,
-            create_scalar_sparql_op::<Sha256SparqlOp>(),
+            registry.create_scalar_sparql_op::<Sha256SparqlOp>(),
         ),
         (
             BuiltinName::Sha384,
-            create_scalar_sparql_op::<Sha384SparqlOp>(),
+            registry.create_scalar_sparql_op::<Sha384SparqlOp>(),
         ),
         (
             BuiltinName::Sha512,
-            create_scalar_sparql_op::<Sha512SparqlOp>(),
+            registry.create_scalar_sparql_op::<Sha512SparqlOp>(),
         ),
         (
             BuiltinName::StrLang,
-            create_scalar_sparql_op::<StrLangSparqlOp>(),
+            registry.create_scalar_sparql_op::<StrLangSparqlOp>(),
         ),
         (
             BuiltinName::StrDt,
-            create_scalar_sparql_op::<StrDtSparqlOp>(),
+            registry.create_scalar_sparql_op::<StrDtSparqlOp>(),
         ),
         (
             BuiltinName::IsIri,
-            create_scalar_sparql_op::<IsIriSparqlOp>(),
+            registry.create_scalar_sparql_op::<IsIriSparqlOp>(),
         ),
         (
             BuiltinName::IsBlank,
-            create_scalar_sparql_op::<IsBlankSparqlOp>(),
+            registry.create_scalar_sparql_op::<IsBlankSparqlOp>(),
         ),
         (
             BuiltinName::IsLiteral,
-            create_scalar_sparql_op::<IsLiteralSparqlOp>(),
+            registry.create_scalar_sparql_op::<IsLiteralSparqlOp>(),
         ),
         (
             BuiltinName::IsNumeric,
-            create_scalar_sparql_op::<IsNumericSparqlOp>(),
+            registry.create_scalar_sparql_op::<IsNumericSparqlOp>(),
         ),
         (
             BuiltinName::Regex,
-            create_scalar_sparql_op::<RegexSparqlOp>(),
+            registry.create_scalar_sparql_op::<RegexSparqlOp>(),
         ),
         (
             BuiltinName::Bound,
-            create_scalar_sparql_op::<BoundSparqlOp>(),
+            registry.create_scalar_sparql_op::<BoundSparqlOp>(),
         ),
         (
             BuiltinName::Coalesce,
-            create_scalar_sparql_op::<CoalesceSparqlOp>(),
+            registry.create_scalar_sparql_op::<CoalesceSparqlOp>(),
         ),
-        (BuiltinName::If, create_scalar_sparql_op::<IfSparqlOp>()),
+        (
+            BuiltinName::If,
+            registry.create_scalar_sparql_op::<IfSparqlOp>(),
+        ),
         (
             BuiltinName::SameTerm,
-            create_scalar_sparql_op::<SameTermSparqlOp>(),
+            registry.create_scalar_sparql_op::<SameTermSparqlOp>(),
         ),
         (
             BuiltinName::Equal,
-            create_scalar_sparql_op::<EqualSparqlOp>(),
+            registry.create_scalar_sparql_op::<EqualSparqlOp>(),
         ),
         (
             BuiltinName::GreaterThan,
-            create_scalar_sparql_op::<GreaterThanSparqlOp>(),
+            registry.create_scalar_sparql_op::<GreaterThanSparqlOp>(),
         ),
         (
             BuiltinName::GreaterOrEqual,
-            create_scalar_sparql_op::<GreaterOrEqualSparqlOp>(),
+            registry.create_scalar_sparql_op::<GreaterOrEqualSparqlOp>(),
         ),
         (
             BuiltinName::LessThan,
-            create_scalar_sparql_op::<LessThanSparqlOp>(),
+            registry.create_scalar_sparql_op::<LessThanSparqlOp>(),
         ),
         (
             BuiltinName::LessOrEqual,
-            create_scalar_sparql_op::<LessOrEqualSparqlOp>(),
+            registry.create_scalar_sparql_op::<LessOrEqualSparqlOp>(),
         ),
-        (BuiltinName::Add, create_scalar_sparql_op::<AddSparqlOp>()),
-        (BuiltinName::Div, create_scalar_sparql_op::<DivSparqlOp>()),
-        (BuiltinName::Mul, create_scalar_sparql_op::<MulSparqlOp>()),
-        (BuiltinName::Sub, create_scalar_sparql_op::<SubSparqlOp>()),
+        (
+            BuiltinName::Add,
+            registry.create_scalar_sparql_op::<AddSparqlOp>(),
+        ),
+        (
+            BuiltinName::Div,
+            registry.create_scalar_sparql_op::<DivSparqlOp>(),
+        ),
+        (
+            BuiltinName::Mul,
+            registry.create_scalar_sparql_op::<MulSparqlOp>(),
+        ),
+        (
+            BuiltinName::Sub,
+            registry.create_scalar_sparql_op::<SubSparqlOp>(),
+        ),
         (
             BuiltinName::UnaryMinus,
-            create_scalar_sparql_op::<UnaryMinusSparqlOp>(),
+            registry.create_scalar_sparql_op::<UnaryMinusSparqlOp>(),
         ),
         (
             BuiltinName::UnaryPlus,
-            create_scalar_sparql_op::<UnaryPlusSparqlOp>(),
+            registry.create_scalar_sparql_op::<UnaryPlusSparqlOp>(),
         ),
         (BuiltinName::And, (Box::new(|_| Ok(sparql_and())), vec![])),
         (BuiltinName::Or, (Box::new(|_| Ok(sparql_or())), vec![])),
         (
             BuiltinName::CastString,
-            create_scalar_sparql_op::<CastStringSparqlOp>(),
+            registry.create_scalar_sparql_op::<CastStringSparqlOp>(),
         ),
         (
             BuiltinName::CastInteger,
-            create_scalar_sparql_op::<CastIntegerSparqlOp>(),
+            registry.create_scalar_sparql_op::<CastIntegerSparqlOp>(),
         ),
         (
             BuiltinName::AsInt,
-            create_scalar_sparql_op::<CastIntSparqlOp>(),
+            registry.create_scalar_sparql_op::<CastIntSparqlOp>(),
         ),
         (
             BuiltinName::CastFloat,
-            create_scalar_sparql_op::<CastFloatSparqlOp>(),
+            registry.create_scalar_sparql_op::<CastFloatSparqlOp>(),
         ),
         (
             BuiltinName::CastDouble,
-            create_scalar_sparql_op::<CastDoubleSparqlOp>(),
+            registry.create_scalar_sparql_op::<CastDoubleSparqlOp>(),
         ),
         (
             BuiltinName::CastDecimal,
-            create_scalar_sparql_op::<CastDecimalSparqlOp>(),
+            registry.create_scalar_sparql_op::<CastDecimalSparqlOp>(),
         ),
         (
             BuiltinName::CastDateTime,
-            create_scalar_sparql_op::<CastDateTimeSparqlOp>(),
+            registry.create_scalar_sparql_op::<CastDateTimeSparqlOp>(),
         ),
         (
             BuiltinName::CastBoolean,
-            create_scalar_sparql_op::<CastBooleanSparqlOp>(),
+            registry.create_scalar_sparql_op::<CastBooleanSparqlOp>(),
         ),
         (
             BuiltinName::WithSortableEncoding,
-            (Box::new(|_| Ok(with_sortable_term_encoding())), vec![]),
+            (
+                Box::new(|_| Ok(with_sortable_term_encoding())),
+                vec![EncodingName::PlainTerm, EncodingName::TypedValue],
+            ),
         ),
         (
             BuiltinName::WithTypedValueEncoding,
-            (Box::new(|_| Ok(with_typed_value_encoding())), vec![]),
+            (
+                Box::new(|_| Ok(with_typed_value_encoding())),
+                vec![EncodingName::PlainTerm],
+            ),
         ),
         (
             BuiltinName::EffectiveBooleanValue,
-            (Box::new(|_| Ok(effective_boolean_value())), vec![]),
+            (
+                Box::new(|_| Ok(effective_boolean_value())),
+                vec![EncodingName::TypedValue],
+            ),
         ),
         (
             BuiltinName::NativeBooleanAsTerm,
@@ -444,7 +516,10 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         ),
         (
             BuiltinName::IsCompatible,
-            (Box::new(|_| Ok(is_compatible())), vec![]),
+            (
+                Box::new(|_| Ok(is_compatible())),
+                vec![EncodingName::PlainTerm, EncodingName::ObjectId],
+            ),
         ),
         (
             BuiltinName::NativeInt64AsTerm,
@@ -459,10 +534,11 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
     }
 
     // Stateful functions
-    let iri_factory = Box::new(|args: RdfFusionFunctionArgs| {
+    let object_id_encoding = registry.object_id_encoding.clone();
+    let iri_factory = Box::new(move |args: RdfFusionFunctionArgs| {
         let iri = args.get(RdfFusionBuiltinArgNames::BASE_IRI)?;
         let op = IriSparqlOp::new(iri);
-        Ok(create_scalar_udf(op))
+        Ok(create_scalar_udf(object_id_encoding.clone(), op))
     });
     registry.scalar_mapping.insert(
         FunctionName::Builtin(BuiltinName::Iri),

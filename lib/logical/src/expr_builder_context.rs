@@ -1,6 +1,6 @@
 use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{plan_err, Column, DFSchema};
+use datafusion::common::{exec_datafusion_err, plan_err, Column, DFSchema};
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
 use rdf_fusion_common::DFResult;
@@ -295,6 +295,19 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         args: Vec<Expr>,
         udf_args: RdfFusionFunctionArgs,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
+        let expr = self.apply_builtin_with_args_no_builder(name, args, udf_args)?;
+        self.try_create_builder(expr)
+    }
+
+    /// Similar to [Self::apply_builtin_with_args] but does not wrap the resulting expression
+    /// in a builder. Therefore, this method can be used to create expressions that do not evaluate
+    /// to an RDF term.
+    pub(crate) fn apply_builtin_with_args_no_builder(
+        &self,
+        name: BuiltinName,
+        args: Vec<Expr>,
+        udf_args: RdfFusionFunctionArgs,
+    ) -> DFResult<Expr> {
         let udf = self.create_builtin_udf_with_args(name, udf_args)?;
         let supported_encodings = self
             .registry
@@ -304,7 +317,9 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             return plan_err!("No supported encodings for builtin '{}'", name);
         }
 
-        let input_encoding = supported_encodings[0];
+        let encodings = self.get_encodings(&args)?;
+        let input_encoding = decide_input_encoding(supported_encodings, encodings)?;
+
         let args = args
             .into_iter()
             .map(|expr| {
@@ -314,7 +329,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             })
             .collect::<DFResult<Vec<_>>>()?;
 
-        self.try_create_builder(udf.call(args))
+        Ok(udf.call(args))
     }
 
     //
@@ -333,4 +348,41 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     ) -> DFResult<Arc<ScalarUDF>> {
         self.registry.create_udf(FunctionName::Builtin(name), args)
     }
+
+    /// TODO
+    pub(crate) fn get_encodings(&self, args: &[Expr]) -> DFResult<Vec<EncodingName>> {
+        args.iter()
+            .map(|e| {
+                let (data_type, _) = e.data_type_and_nullable(self.schema)?;
+                Ok(data_type)
+            })
+            .map(|r| {
+                r.and_then(|dt| {
+                    EncodingName::try_from_data_type(&dt).ok_or(exec_datafusion_err!(
+                        "Data type is not an RDF term '{}'",
+                        dt
+                    ))
+                })
+            })
+            .collect::<DFResult<Vec<_>>>()
+    }
+}
+
+fn decide_input_encoding(
+    supported_encodings: Vec<EncodingName>,
+    actual_encodings: Vec<EncodingName>,
+) -> DFResult<EncodingName> {
+    if supported_encodings.is_empty() {
+        return plan_err!("No supported encodings");
+    }
+
+    // If all arguments have a supported encoding we choose this one.
+    for supported_encoding in &supported_encodings {
+        if actual_encodings.iter().all(|e| e == supported_encoding) {
+            return Ok(*supported_encoding);
+        }
+    }
+
+    // Otherwise we currently return the first encoding.
+    Ok(supported_encodings[0])
 }

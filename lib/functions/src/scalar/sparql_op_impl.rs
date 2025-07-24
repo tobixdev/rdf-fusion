@@ -45,3 +45,12 @@ pub fn create_typed_value_sparql_op_impl<Args: 'static>(
         closure: Box::new(closure),
     })
 }
+
+pub fn create_object_id_sparql_op_impl<Args: 'static>(
+    closure: impl Fn(Args) -> DFResult<ColumnarValue> + 'static,
+) -> Box<dyn SparqlOpImpl<Args>> {
+    Box::new(ClosureSparqlOpImpl {
+        return_type: DataType::UInt64,
+        closure: Box::new(closure),
+    })
+}

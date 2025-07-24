@@ -981,18 +981,12 @@ impl<'root> RdfFusionExprBuilder<'root> {
     ///
     /// This is a terminating builder function as it no longer produces an RDF term as output.
     pub fn build_is_compatible(self, rhs: Expr) -> DFResult<Expr> {
-        let root = self.context;
-        let udf = root.create_builtin_udf(BuiltinName::IsCompatible)?;
-
-        let rhs = self
-            .context
-            .try_create_builder(rhs)?
-            .with_encoding(EncodingName::PlainTerm)?
-            .build()?;
-        let lhs = self.with_encoding(EncodingName::PlainTerm)?.build()?;
-
-        // TODO pass encoding into function
-        Ok(udf.call(vec![lhs, rhs]))
+        let args = vec![self.expr, rhs];
+        self.context.apply_builtin_with_args_no_builder(
+            BuiltinName::IsCompatible,
+            args,
+            RdfFusionFunctionArgs::empty(),
+        )
     }
 
     /// Builds an expression that checks for `sameTerm` equality with a scalar value.

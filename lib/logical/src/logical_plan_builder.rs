@@ -4,7 +4,7 @@ use crate::logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use crate::minus::MinusNode;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{Column, DFSchemaRef};
+use datafusion::common::{Column, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{
     col, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
     UserDefinedLogicalNode,
@@ -12,6 +12,7 @@ use datafusion::logical_expr::{
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_model::Variable;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// A convenient builder for programmatically creating SPARQL queries.
@@ -131,29 +132,8 @@ impl RdfFusionLogicalPlanBuilder {
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let context = self.context.clone();
 
-        let join_columns = compute_sparql_join_columns(self.schema(), rhs.schema())?;
-        let requires_encoding_alignment = join_columns.iter().any(|(_, encodings)| {
-            encodings.len() > 1
-                || !matches!(
-                    encodings.iter().next(),
-                    Some(&EncodingName::PlainTerm | &EncodingName::ObjectId)
-                )
-        });
-
-        let (lhs, rhs) = if requires_encoding_alignment {
-            // TODO: maybe we can be more conservative here and only apply the plain term encoding
-            // to the join columns
-            let lhs = self.with_plain_terms()?.plan_builder.build()?;
-            let rhs = Self::new(context.clone(), Arc::new(rhs))
-                .with_plain_terms()?
-                .plan_builder
-                .build()?;
-            (lhs, rhs)
-        } else {
-            (self.plan_builder.build()?, rhs)
-        };
-
-        let join_node = SparqlJoinNode::try_new(lhs, rhs, filter, join_type)?;
+        let (lhs, rhs) = self.align_encodings_of_common_columns(rhs)?;
+        let join_node = SparqlJoinNode::try_new(lhs.build()?, rhs, filter, join_type)?;
         Ok(Self {
             context,
             plan_builder: LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
@@ -205,13 +185,12 @@ impl RdfFusionLogicalPlanBuilder {
 
     /// Creates a union of the current plan and another plan.
     pub fn union(self, rhs: LogicalPlan) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        // TODO allow also other encodings
         let context = self.context.clone();
-        let rhs = context.create(Arc::new(rhs)).with_plain_terms()?.build()?;
-        let result = self.with_plain_terms()?.plan_builder.union_by_name(rhs)?;
+
+        let (lhs, rhs) = self.align_encodings_of_common_columns(rhs)?;
         Ok(Self {
             context,
-            plan_builder: result,
+            plan_builder: lhs.plan_builder.union_by_name(rhs)?,
         })
     }
 
@@ -283,11 +262,12 @@ impl RdfFusionLogicalPlanBuilder {
             .columns()
             .into_iter()
             .map(|c| {
+                let name = c.name().to_owned();
                 let expr = self
-                    .expr_builder(col(c.clone()))?
+                    .expr_builder(col(c))?
                     .with_encoding(EncodingName::PlainTerm)?
                     .build()?
-                    .alias(c.name());
+                    .alias(name);
                 Ok(expr)
             })
             .collect::<DFResult<Vec<_>>>()?;
@@ -320,6 +300,14 @@ impl RdfFusionLogicalPlanBuilder {
     /// Returns a new [RdfFusionExprBuilderContext].
     pub fn expr_builder_root(&self) -> RdfFusionExprBuilderContext<'_> {
         let schema = self.schema().as_ref();
+        self.expr_builder_root_with_schema(schema)
+    }
+
+    /// Returns a new [RdfFusionExprBuilderContext].
+    pub fn expr_builder_root_with_schema<'a>(
+        &'a self,
+        schema: &'a DFSchema,
+    ) -> RdfFusionExprBuilderContext<'a> {
         RdfFusionExprBuilderContext::new(
             self.context.registry().as_ref(),
             self.context.encoding().object_id_encoding(),
@@ -330,6 +318,79 @@ impl RdfFusionLogicalPlanBuilder {
     /// Returns a new [RdfFusionExprBuilder] for a given expression.
     pub fn expr_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'_>> {
         self.expr_builder_root().try_create_builder(expr)
+    }
+
+    /// TODO
+    fn align_encodings_of_common_columns(self, rhs: LogicalPlan) -> DFResult<(Self, LogicalPlan)> {
+        let join_columns =
+            compute_sparql_join_columns(self.schema().as_ref(), rhs.schema().as_ref())?;
+
+        if join_columns.len() == 0 {
+            return Ok((self, rhs));
+        }
+
+        let lhs_expr_builder = RdfFusionExprBuilderContext::new(
+            self.context.registry().as_ref(),
+            self.context.encoding().object_id_encoding(),
+            self.schema(),
+        );
+        let rhs_expr_builder = RdfFusionExprBuilderContext::new(
+            self.context.registry().as_ref(),
+            self.context.encoding().object_id_encoding(),
+            rhs.schema(),
+        );
+
+        let lhs_projections =
+            build_projections_for_encoding_alignment(lhs_expr_builder, &join_columns)?;
+        let lhs = match lhs_projections {
+            None => self.plan_builder.build()?,
+            Some(projections) => self.plan_builder.project(projections)?.build()?,
+        };
+
+        let rhs_projections =
+            build_projections_for_encoding_alignment(rhs_expr_builder, &join_columns)?;
+        let rhs = match rhs_projections {
+            None => rhs,
+            Some(projections) => LogicalPlanBuilder::new(rhs).project(projections)?.build()?,
+        };
+
+        let context = self.context.clone();
+        Ok((Self::new(context, Arc::new(lhs)), rhs))
+    }
+}
+
+/// TODO
+fn build_projections_for_encoding_alignment(
+    expr_builder_root: RdfFusionExprBuilderContext<'_>,
+    join_columns: &HashMap<String, HashSet<EncodingName>>,
+) -> DFResult<Option<Vec<Expr>>> {
+    let projections = expr_builder_root
+        .schema()
+        .fields()
+        .iter()
+        .map(|f| {
+            if let Some(encodings) = join_columns.get(f.name()) {
+                let expr = col(Column::new_unqualified(f.name()));
+
+                if encodings.len() > 1 {
+                    let expr = expr_builder_root.try_create_builder(expr)?;
+                    Ok(expr
+                        .with_encoding(EncodingName::PlainTerm)?
+                        .build()?
+                        .alias(f.name()))
+                } else {
+                    Ok(expr)
+                }
+            } else {
+                Ok(col(Column::new_unqualified(f.name())))
+            }
+        })
+        .collect::<DFResult<Vec<_>>>()?;
+
+    if projections.iter().all(|e| matches!(e, Expr::Column(_))) {
+        Ok(None)
+    } else {
+        Ok(Some(projections))
     }
 }
 

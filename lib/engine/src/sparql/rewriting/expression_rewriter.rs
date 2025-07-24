@@ -302,7 +302,8 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
 
     /// Rewrites an EXISTS expression to a correlated subquery.
     fn rewrite_exists(&self, inner: &GraphPattern) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
-        let exists_pattern = LogicalPlanBuilder::new(self.graph_rewriter.rewrite(inner)?);
+        let exists_plan = self.graph_rewriter.rewrite_with_existing_encoding(inner)?;
+        let exists_pattern = LogicalPlanBuilder::new(exists_plan);
         let outer_schema = self.expr_builder_root.schema();
 
         let outer_keys: HashSet<_> = outer_schema

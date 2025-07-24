@@ -197,7 +197,7 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
 /// Validates whether the two inputs are valid.
 ///
 /// The following invariants are checked:
-/// - Join variables must have the PlainTermEncoding.
+/// - Join variables must have the PlainTerm or ObjectId encoding.
 #[allow(clippy::expect_used)]
 fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
     let join_column = compute_sparql_join_columns(lhs.schema(), rhs.schema())?;
