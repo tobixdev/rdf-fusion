@@ -101,7 +101,6 @@ type AggregateUdfFactory =
 ///
 /// # Additional Resources
 /// - [SPARQL 1.1 Query Language - Function Library](https://www.w3.org/TR/sparql11-query/#SparqlOps)
-#[derive(Default)]
 pub struct DefaultRdfFusionFunctionRegistry {
     /// The [ObjectIdEncoding] used in the storage layer.
     object_id_encoding: Option<ObjectIdEncoding>,
@@ -126,7 +125,8 @@ impl DefaultRdfFusionFunctionRegistry {
     pub fn new(object_id_encoding: Option<ObjectIdEncoding>) -> Self {
         let mut registry = Self {
             object_id_encoding,
-            ..Default::default()
+            aggregate_mapping: HashMap::default(),
+            scalar_mapping: HashMap::default(),
         };
         register_functions(&mut registry);
         registry

@@ -65,7 +65,7 @@ impl UnaryScenario {
 }
 
 fn bench_all(c: &mut Criterion) {
-    let registry = DefaultRdfFusionFunctionRegistry::default();
+    let registry = DefaultRdfFusionFunctionRegistry::new(None);
     let runs = HashMap::from([(
         BuiltinName::IsIri,
         [UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
