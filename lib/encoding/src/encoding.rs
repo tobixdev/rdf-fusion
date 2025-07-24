@@ -15,17 +15,18 @@ use std::fmt::Debug;
 /// Arrow arrays used for holding the results of queries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EncodingName {
-    /// Name of the [PlainTermEncoding]. Represents all terms, including literals, using their
-    /// lexical value.
+    /// Name of the [PlainTermEncoding](crate::plain_term::PlainTermEncoding). Represents all terms,
+    /// including literals, using their lexical value.
     PlainTerm,
-    /// Name of the [TypedValueEncoding]. Represents IRIs and blank nodes using their lexical value
-    /// and literals as their typed value.
+    /// Name of the [TypedValueEncoding](crate::typed_value::TypedValueEncoding). Represents
+    /// IRIs and blank nodes using their lexical value and literals as their typed value.
     TypedValue,
-    /// Name of the [ObjectIdEncoding]. Represents all terms, including literals, as a unique
-    /// identifier.
+    /// Name of the [ObjectIdEncoding](crate::object_id::ObjectIdEncoding). Represents all terms,
+    /// including literals, as a unique identifier.
     ObjectId,
-    /// Name of the [SortableTermEncoding] which is used for sorting. We plan to remove this
-    /// encoding in the future, once we can introduce custom orderings into the query engine.
+    /// Name of the [SortableTermEncoding](crate::sortable_term::SortableTermEncoding) which is used
+    /// for sorting. We plan to remove this encoding in the future, once we can introduce custom
+    /// orderings into the query engine.
     Sortable,
 }
 
@@ -113,11 +114,12 @@ pub trait EncodingScalar {
 /// wrapper [Self::Array] and [Self::Scalar] for Arrow arrays and scalars.
 ///
 /// Different term encodings usually have different purposes and may only be valid for certain
-/// operations. For example, the [TypedValueEncoding] cannot be used to perform arbitrary join
-/// operations as it does not retain the lexical value of the RDF literals. On the other hand,
-/// the [TypedValueEncoding] will outperform the [PlainTermEncoding] for nested numerical
-/// operations as the parsing and validation of numeric literals is only done once. It is up to the
-/// user to ensure the correct use.
+/// operations. For example, the [TypedValueEncoding](crate::typed_value::TypedValueEncoding) cannot
+/// be used to perform arbitrary join operations as it does not retain the lexical value of the RDF
+/// literals. On the other hand, the [TypedValueEncoding](crate::typed_value::TypedValueEncoding)
+/// will outperform the [PlainTermEncoding](crate::plain_term::PlainTermEncoding) for nested
+/// numerical operations as the parsing and validation of numeric literals is only done once.
+/// It is up to the user to ensure the correct use.
 pub trait TermEncoding: Debug + Send + Sync {
     /// Represents a wrapper for Arrow arrays of this encoding. This can be used in
     /// conjunction with [TermDecoder] to obtain the values from an Arrow array.

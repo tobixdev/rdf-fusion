@@ -68,7 +68,7 @@ impl ScalarUDFImpl for IsCompatible {
                 invoke_scalar_array(args.number_rows, &rhs, lhs.as_ref())
             }
             Ok([ColumnarValue::Scalar(lhs), ColumnarValue::Scalar(rhs)]) => {
-                invoke_scalar_scalar(&lhs, &rhs)
+                Ok(invoke_scalar_scalar(&lhs, &rhs))
             }
             _ => exec_err!("Invalid arguments for IsCompatible"),
         }
@@ -107,13 +107,10 @@ pub(crate) fn invoke_scalar_array(
     }
 }
 
-pub(crate) fn invoke_scalar_scalar(
-    lhs: &ScalarValue,
-    rhs: &ScalarValue,
-) -> DFResult<ColumnarValue> {
-    Ok(ColumnarValue::Scalar(ScalarValue::Boolean(Some(
+pub(crate) fn invoke_scalar_scalar(lhs: &ScalarValue, rhs: &ScalarValue) -> ColumnarValue {
+    ColumnarValue::Scalar(ScalarValue::Boolean(Some(
         lhs.is_null() || rhs.is_null() || lhs == rhs,
-    ))))
+    )))
 }
 
 fn invoke_eq_array(number_rows: usize, lhs: &dyn Array, rhs: &dyn Array) -> DFResult<BooleanArray> {
@@ -121,7 +118,6 @@ fn invoke_eq_array(number_rows: usize, lhs: &dyn Array, rhs: &dyn Array) -> DFRe
     if data_type.is_nested() {
         let comparator = make_comparator(lhs, rhs, SortOptions::default())?;
         let result = (0..number_rows)
-            .into_iter()
             .map(|i| Some(lhs.is_null(i) || rhs.is_null(i) || comparator(i, i) == Ordering::Equal))
             .collect::<BooleanArray>();
         Ok(result)
@@ -143,9 +139,10 @@ fn fill_nulls(bool_array: &BooleanArray, fill_value: bool) -> BooleanArray {
     let mut builder = BooleanBuilder::with_capacity(bool_array.len());
 
     for i in 0..bool_array.len() {
-        match bool_array.is_null(i) {
-            true => builder.append_value(fill_value),
-            false => builder.append_value(bool_array.value(i)),
+        if bool_array.is_null(i) {
+            builder.append_value(fill_value);
+        } else {
+            builder.append_value(bool_array.value(i));
         }
     }
 

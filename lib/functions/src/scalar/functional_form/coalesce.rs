@@ -2,7 +2,10 @@ use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::{
     dispatch_n_ary_object_id, dispatch_n_ary_plain_term, dispatch_n_ary_typed_value,
 };
-use crate::scalar::sparql_op_impl::{create_object_id_sparql_op_impl, create_plain_term_sparql_op_impl, create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{
+    create_object_id_sparql_op_impl, create_plain_term_sparql_op_impl,
+    create_typed_value_sparql_op_impl, SparqlOpImpl,
+};
 use crate::scalar::{NAryArgs, ScalarSparqlOp};
 use crate::FunctionName;
 use datafusion::logical_expr::Volatility;
@@ -81,7 +84,7 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
     fn object_id_encoding_op(&self) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
         Some(create_object_id_sparql_op_impl(
             |NAryArgs(args, number_rows)| {
-                dispatch_n_ary_object_id(
+                Ok(dispatch_n_ary_object_id(
                     &args,
                     number_rows,
                     |args| args.first().copied().ok_or(ThinError::Expected),
@@ -90,7 +93,7 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
                             .find_map(|arg| arg.ok())
                             .ok_or(ThinError::Expected)
                     },
-                )
+                ))
             },
         ))
     }

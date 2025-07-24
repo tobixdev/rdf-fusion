@@ -78,7 +78,8 @@ impl RdfFusionLogicalPlanBuilderContext {
         }
     }
 
-    /// Returns a reference to the [RdfFusionFunctionRegistry] of the builder.
+    /// Returns a reference to the [RdfFusionFunctionRegistry](rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry)
+    /// of the builder.
     pub fn registry(&self) -> &RdfFusionFunctionRegistryRef {
         &self.registry
     }
@@ -99,7 +100,7 @@ impl RdfFusionLogicalPlanBuilderContext {
     /// The `active_graph` dictates which graphs should be considered, while the optional constants
     /// (`subject`, `predicate`, `object`) allow filtering the resulting solution sequence.
     ///
-    /// This does not allow you to bind values to variables. See [Self::new_from_pattern] for
+    /// This does not allow you to bind values to variables. See [Self::create_pattern] for
     /// this purpose.
     #[allow(clippy::expect_used, reason = "Indicates programming error")]
     pub fn create_matching_quads(
@@ -191,7 +192,8 @@ impl RdfFusionLogicalPlanBuilderContext {
 
     /// Creates a new [RdfFusionLogicalPlanBuilder] that holds the given VALUES as RDF terms.
     ///
-    /// The [PlainTermEncoding] is used for encoding the terms.
+    /// The [PlainTermEncoding](rdf_fusion_encoding::plain_term::PlainTermEncoding) is used for
+    /// encoding the terms.
     pub fn create_values(
         &self,
         variables: &[Variable],

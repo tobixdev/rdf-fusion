@@ -5,14 +5,14 @@ use datafusion::arrow::array::{Array, ArrayRef, UInt64Array};
 use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 
-/// Represents an Arrow array with a [Objec].
+/// Represents an Arrow array with an [ObjectIdEncoding].
 pub struct ObjectIdArray {
     encoding: ObjectIdEncoding,
     inner: ArrayRef,
 }
 
 impl ObjectIdArray {
-    /// Tries to create a new [ObjectIdScalar] from a regular [ScalarValue].
+    /// Tries to create a new [ObjectIdArray] from a regular [ArrayRef].
     ///
     /// # Errors
     ///
@@ -24,7 +24,7 @@ impl ObjectIdArray {
         Ok(Self::new_unchecked(encoding, array))
     }
 
-    /// Creates a new [ObjectIdScalar] without checking invariants.
+    /// Creates a new [ObjectIdArray] without checking invariants.
     pub fn new_unchecked(encoding: ObjectIdEncoding, inner: ArrayRef) -> Self {
         Self { encoding, inner }
     }

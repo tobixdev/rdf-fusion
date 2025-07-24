@@ -325,7 +325,7 @@ impl RdfFusionLogicalPlanBuilder {
         let join_columns =
             compute_sparql_join_columns(self.schema().as_ref(), rhs.schema().as_ref())?;
 
-        if join_columns.len() == 0 {
+        if join_columns.is_empty() {
             return Ok((self, rhs));
         }
 

@@ -114,12 +114,12 @@ pub fn dispatch_n_ary_object_id(
     number_of_rows: usize,
     op: impl for<'a> Fn(&[u64]) -> ThinResult<u64>,
     error_op: impl for<'a> Fn(&[ThinResult<u64>]) -> ThinResult<u64>,
-) -> DFResult<ColumnarValue> {
+) -> ColumnarValue {
     if args.is_empty() {
         let result = (0..number_of_rows)
             .map(|_| op(&[]).ok())
             .collect::<UInt64Array>();
-        return Ok(ColumnarValue::Array(Arc::new(result)));
+        return ColumnarValue::Array(Arc::new(result));
     }
 
     let mut iters = Vec::new();
@@ -136,9 +136,9 @@ pub fn dispatch_n_ary_object_id(
                 error_op(args.as_slice())
             }
         })
-        .map(|r| r.ok())
+        .map(Result::ok)
         .collect::<UInt64Array>();
-    Ok(ColumnarValue::Array(Arc::new(results)))
+    ColumnarValue::Array(Arc::new(results))
 }
 
 fn multi_zip<I, T>(mut iterators: Vec<I>) -> impl Iterator<Item = Vec<T>>

@@ -318,7 +318,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         }
 
         let encodings = self.get_encodings(&args)?;
-        let input_encoding = decide_input_encoding(supported_encodings, encodings)?;
+        let input_encoding = decide_input_encoding(&supported_encodings, &encodings)?;
 
         let args = args
             .into_iter()
@@ -369,15 +369,15 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
 }
 
 fn decide_input_encoding(
-    supported_encodings: Vec<EncodingName>,
-    actual_encodings: Vec<EncodingName>,
+    supported_encodings: &[EncodingName],
+    actual_encodings: &[EncodingName],
 ) -> DFResult<EncodingName> {
     if supported_encodings.is_empty() {
         return plan_err!("No supported encodings");
     }
 
     // If all arguments have a supported encoding we choose this one.
-    for supported_encoding in &supported_encodings {
+    for supported_encoding in supported_encodings {
         if actual_encodings.iter().all(|e| e == supported_encoding) {
             return Ok(*supported_encoding);
         }
