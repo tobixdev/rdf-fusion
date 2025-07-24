@@ -3,13 +3,13 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, plan_err, Column, DFSchema};
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
+use rdf_fusion_api::functions::{
+    BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
+};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder};
-use rdf_fusion_functions::builtin::BuiltinName;
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
-use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::sync::Arc;
 

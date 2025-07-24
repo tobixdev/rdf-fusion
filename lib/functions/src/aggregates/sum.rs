@@ -1,4 +1,3 @@
-use crate::builtin::BuiltinName;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
@@ -10,6 +9,7 @@ use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{Integer, Numeric, NumericPair, ThinResult};
 use std::sync::Arc;
+use rdf_fusion_api::functions::BuiltinName;
 
 pub fn sum_typed_value() -> Arc<AggregateUDF> {
     let udaf = create_udaf(

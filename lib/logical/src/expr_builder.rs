@@ -4,14 +4,11 @@ use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable};
+use rdf_fusion_api::functions::{BuiltinName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs, RdfFusionFunctionArgsBuilder};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoding};
-use rdf_fusion_functions::builtin::BuiltinName;
-use rdf_fusion_functions::{
-    RdfFusionBuiltinArgNames, RdfFusionFunctionArgs, RdfFusionFunctionArgsBuilder,
-};
 use rdf_fusion_model::{Iri, TermRef};
 
 /// A builder for expressions that make use of RDF Fusion built-ins.

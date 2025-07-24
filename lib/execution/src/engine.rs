@@ -8,12 +8,11 @@ use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::optimizer::{Optimizer, OptimizerRule};
 use datafusion::prelude::{SessionConfig, SessionContext};
+use rdf_fusion_api::functions::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_functions::registry::{
-    DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
-};
+use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_logical::expr::SimplifySparqlExpressionsRule;
 use rdf_fusion_logical::extend::ExtendLoweringRule;
 use rdf_fusion_logical::join::{SparqlJoinLoweringRule, SparqlJoinReorderingRule};
@@ -24,14 +23,14 @@ use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
 use rdf_fusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef};
 use std::sync::Arc;
 
-/// Represents an instance of an RDF Fusion engine.
+/// Represents a connection to an instance of an RDF Fusion engine.
 ///
 /// An RDF Fusion instance consists of:
 /// - A [SessionContext]. This is the primary interaction point with DataFusion.
 /// - An [RdfFusionFunctionRegistry] that holds the currently registered RDF Fusion built-ins.
 /// - A reference to a quad storage.
 #[derive(Clone)]
-pub struct RdfFusionInstance {
+pub struct RdfFusionContext {
     /// The DataFusion [SessionContext].
     ctx: SessionContext,
     /// Holds references to the registered built-in functions.
@@ -40,8 +39,8 @@ pub struct RdfFusionInstance {
     storage: Arc<dyn QuadStorage>,
 }
 
-impl RdfFusionInstance {
-    /// Creates a new [RdfFusionInstance] with the default configuration and the given `storage`.
+impl RdfFusionContext {
+    /// Creates a new [RdfFusionContext] with the default configuration and the given `storage`.
     pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> Self {
         // TODO make a builder
         let object_id_encoding = match storage.encoding() {

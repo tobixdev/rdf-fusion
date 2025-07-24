@@ -39,7 +39,7 @@ use rdf_fusion_execution::results::{QuadStream, QuerySolutionStream};
 use rdf_fusion_execution::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use rdf_fusion_execution::RdfFusionInstance;
+use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
     TermRef, Variable,
@@ -90,7 +90,7 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// ```
 #[derive(Clone)]
 pub struct Store {
-    engine: RdfFusionInstance,
+    engine: RdfFusionContext,
 }
 
 impl Default for Store {
@@ -103,7 +103,7 @@ impl Store {
     /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
     pub fn new() -> Store {
         let storage = MemoryQuadStorage::new();
-        let engine = RdfFusionInstance::new_with_storage(Arc::new(storage.clone()));
+        let engine = RdfFusionContext::new_with_storage(Arc::new(storage.clone()));
         Self { engine }
     }
 

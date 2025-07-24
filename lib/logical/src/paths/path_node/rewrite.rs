@@ -13,12 +13,12 @@ use datafusion::prelude::{not, or};
 use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::{
     NamedNode, NamedNodePattern, PropertyPathExpression, TermPattern, TermRef, TriplePattern,
     Variable,
 };
 use std::sync::Arc;
+use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 
 #[derive(Debug)]
 pub struct PropertyPathLoweringRule {

@@ -7,10 +7,10 @@ use datafusion::logical_expr::{
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
+use rdf_fusion_api::functions::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_functions::registry::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use rdf_fusion_model::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 

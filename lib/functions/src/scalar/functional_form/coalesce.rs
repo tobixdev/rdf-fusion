@@ -1,4 +1,4 @@
-use crate::builtin::BuiltinName;
+use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::{
     dispatch_n_ary_object_id, dispatch_n_ary_plain_term, dispatch_n_ary_typed_value,
 };
@@ -7,7 +7,7 @@ use crate::scalar::sparql_op_impl::{
     create_typed_value_sparql_op_impl, SparqlOpImpl,
 };
 use crate::scalar::{NAryArgs, ScalarSparqlOp};
-use crate::FunctionName;
+use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;

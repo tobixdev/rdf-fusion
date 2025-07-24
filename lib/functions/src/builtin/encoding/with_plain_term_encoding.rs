@@ -1,4 +1,3 @@
-use crate::builtin::BuiltinName;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, FieldRef};
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err, ScalarValue};
@@ -17,6 +16,7 @@ use rdf_fusion_encoding::{
 };
 use std::any::Any;
 use std::sync::Arc;
+use rdf_fusion_api::functions::BuiltinName;
 
 pub fn with_plain_term_encoding(object_id_encoding: Option<ObjectIdEncoding>) -> Arc<ScalarUDF> {
     let udf_impl = WithPlainTermEncoding::new(object_id_encoding);

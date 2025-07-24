@@ -1,4 +1,4 @@
-use crate::builtin::BuiltinName;
+use crate::functions::BuiltinName;
 use rdf_fusion_model::Iri;
 use std::fmt::{Display, Formatter};
 
