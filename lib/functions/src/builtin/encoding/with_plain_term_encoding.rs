@@ -1,10 +1,10 @@
 use crate::builtin::BuiltinName;
 use datafusion::arrow::array::ArrayRef;
-use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
+use datafusion::arrow::datatypes::{DataType, Field, FieldRef};
+use datafusion::common::{exec_datafusion_err, exec_err, plan_err, ScalarValue};
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
-    Volatility,
+    ColumnarValue, ReturnFieldArgs, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
+    TypeSignature, Volatility,
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
@@ -117,8 +117,22 @@ impl ScalarUDFImpl for WithPlainTermEncoding {
         &self.signature
     }
 
-    fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(PLAIN_TERM_ENCODING.data_type())
+    fn return_type(&self, _arg_types: &[DataType]) -> datafusion::common::Result<DataType> {
+        exec_err!("return_field_from_args should be called")
+    }
+
+    fn return_field_from_args(&self, args: ReturnFieldArgs) -> DFResult<FieldRef> {
+        if args.arg_fields.len() != 1 {
+            return plan_err!("Unexpected number of arg fields in return_field_from_args.");
+        }
+
+        let data_type = PLAIN_TERM_ENCODING.data_type();
+        let incoming_null = args.arg_fields[0].is_nullable();
+        Ok(FieldRef::new(Field::new(
+            "output",
+            data_type,
+            incoming_null,
+        )))
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
