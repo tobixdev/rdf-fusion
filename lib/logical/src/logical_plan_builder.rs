@@ -39,7 +39,7 @@ use std::sync::Arc;
 /// };
 ///
 /// let builder_context = RdfFusionLogicalPlanBuilderContext::new(
-///     Arc::new(DefaultRdfFusionFunctionRegistry::default()),
+///     Arc::new(DefaultRdfFusionFunctionRegistry::new(None)),
 ///     QuadStorageEncoding::PlainTerm
 /// );
 /// let plan: LogicalPlan = builder_context
