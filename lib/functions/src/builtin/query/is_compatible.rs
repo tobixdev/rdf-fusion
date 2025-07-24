@@ -122,7 +122,7 @@ fn invoke_eq_array(number_rows: usize, lhs: &dyn Array, rhs: &dyn Array) -> DFRe
         let comparator = make_comparator(lhs, rhs, SortOptions::default())?;
         let result = (0..number_rows)
             .into_iter()
-            .map(|i| Some(comparator(i, i) == Ordering::Equal))
+            .map(|i| Some(lhs.is_null(i) || rhs.is_null(i) || comparator(i, i) == Ordering::Equal))
             .collect::<BooleanArray>();
         Ok(result)
     } else {
