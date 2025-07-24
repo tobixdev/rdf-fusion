@@ -3774,6 +3774,7 @@ dependencies = [
  "itertools 0.14.0",
  "md-5",
  "rand 0.9.1",
+ "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-model",
@@ -3789,6 +3790,7 @@ name = "rdf-fusion-logical"
 version = "0.1.0"
 dependencies = [
  "datafusion",
+ "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-functions",

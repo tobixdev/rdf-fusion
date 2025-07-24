@@ -1,8 +1,8 @@
-use crate::builtin::BuiltinName;
+use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::dispatch_binary_plain_term;
 use crate::scalar::sparql_op_impl::{create_plain_term_sparql_op_impl, SparqlOpImpl};
 use crate::scalar::{BinaryArgs, ScalarSparqlOp};
-use crate::FunctionName;
+use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::TermEncoding;

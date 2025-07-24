@@ -1,4 +1,4 @@
-use crate::builtin::BuiltinName;
+use rdf_fusion_api::functions::BuiltinName;
 use datafusion::arrow::array::{make_comparator, Array, BooleanArray, BooleanBuilder};
 use datafusion::arrow::compute::kernels::cmp::eq;
 use datafusion::arrow::compute::SortOptions;

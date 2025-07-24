@@ -7,9 +7,9 @@ use datafusion::logical_expr::{and, Expr, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
 use std::sync::Arc;
+use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 
 /// An optimizer rule that lowers a [MinusNode] into a left-anti join.
 #[derive(Debug)]

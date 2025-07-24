@@ -1,4 +1,4 @@
-use crate::builtin::BuiltinName;
+use rdf_fusion_api::functions::BuiltinName;
 use datafusion::arrow::array::{as_boolean_array, Array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;

@@ -1,4 +1,3 @@
-use crate::builtin::BuiltinName;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
@@ -20,6 +19,7 @@ use rdf_fusion_encoding::{
 };
 use std::any::Any;
 use std::sync::Arc;
+use rdf_fusion_api::functions::BuiltinName;
 
 pub fn with_sortable_term_encoding() -> Arc<ScalarUDF> {
     let udf_impl = WithSortableEncoding::new();

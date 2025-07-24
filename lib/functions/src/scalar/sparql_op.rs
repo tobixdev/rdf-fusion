@@ -1,6 +1,6 @@
 use crate::scalar::sparql_op_impl::SparqlOpImpl;
 use crate::scalar::SparqlOpArgs;
-use crate::FunctionName;
+use rdf_fusion_api::functions::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
 use datafusion::logical_expr::{

@@ -1,11 +1,11 @@
-use crate::builtin::BuiltinName;
+use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::{
     dispatch_quaternary_owned_typed_value, dispatch_ternary_owned_typed_value,
 };
 use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
 use crate::scalar::strings::regex::compile_pattern;
 use crate::scalar::{QuaternaryArgs, ScalarSparqlOp, TernaryArgs, TernaryOrQuaternaryArgs};
-use crate::FunctionName;
+use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::TermEncoding;

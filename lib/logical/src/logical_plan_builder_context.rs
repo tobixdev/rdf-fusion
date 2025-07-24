@@ -15,13 +15,13 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::{EncodingScalar, QuadStorageEncoding, TermEncoder, TermEncoding};
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use rdf_fusion_model::{
     GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Subject, Term, TermPattern,
     TermRef, ThinError, TriplePattern, Variable,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
+use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 
 /// The context that allows creating a [RdfFusionLogicalPlanBuilder].
 #[derive(Debug, Clone)]
