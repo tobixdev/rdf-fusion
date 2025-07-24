@@ -6,7 +6,7 @@ members = [
     "lib/model",
     "lib/common",
     "lib/encoding",
-    "lib/engine",
+    "lib/execution",
     "lib/functions",
     "lib/logical",
     "lib/physical",
@@ -85,7 +85,7 @@ rdf-fusion-api = { version = "=0.1.0", path = "lib/api" }
 rdf-fusion-model = { version = "=0.1.0", path = "lib/model" }
 rdf-fusion-common = { version = "=0.1.0", path = "lib/common" }
 rdf-fusion-encoding = { version = "=0.1.0", path = "lib/encoding" }
-rdf-fusion-engine = { version = "=0.1.0", path = "lib/engine" }
+rdf-fusion-execution = { version = "=0.1.0", path = "lib/execution" }
 rdf-fusion-functions = { version = "=0.1.0", path = "lib/functions" }
 rdf-fusion-logical = { version = "=0.1.0", path = "lib/logical" }
 rdf-fusion-physical = { version = "=0.1.0", path = "lib/physical" }

@@ -3665,7 +3665,7 @@ dependencies = [
  "futures",
  "oxrdfio",
  "rdf-fusion-common",
- "rdf-fusion-engine",
+ "rdf-fusion-execution",
  "rdf-fusion-model",
  "rdf-fusion-storage",
  "sparesults",
@@ -3744,7 +3744,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rdf-fusion-engine"
+name = "rdf-fusion-execution"
 version = "0.1.0"
 dependencies = [
  "async-trait",

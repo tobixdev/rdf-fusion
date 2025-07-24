@@ -1,6 +1,6 @@
 use oxrdfio::{RdfFormat, RdfParseError};
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_engine::sparql::error::QueryEvaluationError;
+use rdf_fusion_execution::sparql::error::QueryEvaluationError;
 use rdf_fusion_model::IriParseError;
 use std::io;
 

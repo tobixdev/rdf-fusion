@@ -1,5 +1,5 @@
 [package]
-name = "rdf-fusion-engine"
+name = "rdf-fusion-execution"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
