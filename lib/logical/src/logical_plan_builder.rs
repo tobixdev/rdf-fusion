@@ -22,9 +22,10 @@ use std::sync::Arc;
 /// ```
 /// use std::sync::Arc;
 /// use datafusion::logical_expr::LogicalPlan;
-/// use rdf_fusion_logical::RdfFusionLogicalPlanBuilder;
-/// use rdf_fusion_functions::registry::{DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry};
-/// use rdf_fusion_model::{TriplePattern, TermPattern, Variable, NamedNodePattern};
+/// use rdf_fusion_encoding::QuadStorageEncoding;
+/// use rdf_fusion_logical::RdfFusionLogicalPlanBuilderContext;
+/// use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
+/// use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 /// use rdf_fusion_logical::ActiveGraph;
 ///
 /// let subject = Variable::new_unchecked("s");
@@ -37,13 +38,12 @@ use std::sync::Arc;
 ///     object: TermPattern::Variable(object),
 /// };
 ///
-/// let pattern = RdfFusionLogicalPlanBuilder::new_from_pattern(
+/// let builder_context = RdfFusionLogicalPlanBuilderContext::new(
 ///     Arc::new(DefaultRdfFusionFunctionRegistry::default()),
-///     ActiveGraph::default(),
-///     None,
-///     pattern,
+///     QuadStorageEncoding::PlainTerm
 /// );
-/// let plan: LogicalPlan = pattern
+/// let plan: LogicalPlan = builder_context
+///     .create_pattern(ActiveGraph::DefaultGraph, None, pattern)
 ///     .project(&[subject])
 ///     .unwrap()
 ///     .build()

@@ -23,40 +23,7 @@ use rdf_fusion_model::{
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// A convenient builder for programmatically creating SPARQL queries.
-///
-/// # Example
-///
-/// ```
-/// use std::sync::Arc;
-/// use datafusion::logical_expr::LogicalPlan;
-/// use rdf_fusion_logical::RdfFusionLogicalPlanBuilder;
-/// use rdf_fusion_functions::registry::{DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry};
-/// use rdf_fusion_model::{TriplePattern, TermPattern, Variable, NamedNodePattern};
-/// use rdf_fusion_logical::ActiveGraph;
-///
-/// let subject = Variable::new_unchecked("s");
-/// let predicate = Variable::new_unchecked("p");
-/// let object = Variable::new_unchecked("o");
-///
-/// let pattern = TriplePattern {
-///     subject: TermPattern::Variable(subject.clone()),
-///     predicate: NamedNodePattern::Variable(predicate),
-///     object: TermPattern::Variable(object),
-/// };
-///
-/// let pattern = RdfFusionLogicalPlanBuilder::new_from_pattern(
-///     Arc::new(DefaultRdfFusionFunctionRegistry::default()),
-///     ActiveGraph::default(),
-///     None,
-///     pattern,
-/// );
-/// let plan: LogicalPlan = pattern
-///     .project(&[subject])
-///     .unwrap()
-///     .build()
-///     .unwrap();
-/// ```
+/// The context that allows creating a [RdfFusionLogicalPlanBuilder].
 #[derive(Debug, Clone)]
 pub struct RdfFusionLogicalPlanBuilderContext {
     /// The registry allows us to access the registered functions. This is necessary for
