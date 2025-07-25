@@ -121,7 +121,7 @@ impl ScalarUDFImpl for WithPlainTermEncoding {
         exec_err!("return_field_from_args should be called")
     }
 
-    fn return_field_from_args(&self, args: ReturnFieldArgs) -> DFResult<FieldRef> {
+    fn return_field_from_args(&self, args: ReturnFieldArgs<'_>) -> DFResult<FieldRef> {
         if args.arg_fields.len() != 1 {
             return plan_err!("Unexpected number of arg fields in return_field_from_args.");
         }
