@@ -1,6 +1,6 @@
 use crate::check_same_schema;
 use crate::minus::MinusNode;
-use crate::RdfFusionExprBuilderRoot;
+use crate::RdfFusionExprBuilderContext;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{plan_datafusion_err, Column, DFSchemaRef, JoinType};
 use datafusion::logical_expr::{and, Expr, UserDefinedLogicalNode};
@@ -98,7 +98,8 @@ impl MinusLoweringRule {
     ) -> DFResult<Option<Expr>> {
         let mut join_schema = lhs_schema.as_ref().clone();
         join_schema.merge(rhs_schema);
-        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
 
         let mut join_filters = Vec::new();
 

@@ -1,19 +1,15 @@
-use crate::oxigraph_memory::encoded_term::EncodedTerm;
 use crate::oxigraph_memory::planner::OxigraphMemoryQuadNodePlanner;
 use crate::oxigraph_memory::store::{MemoryStorageReader, OxigraphMemoryStorage};
-use crate::oxigraph_memory::table_provider::OxigraphMemTable;
 use async_trait::async_trait;
-use datafusion::catalog::TableProvider;
 use datafusion::physical_planner::ExtensionPlanner;
-use rdf_fusion_common::error::{CorruptionError, StorageError};
-use rdf_fusion_common::QuadStorage;
+use rdf_fusion_api::storage::QuadStorage;
+use rdf_fusion_common::error::StorageError;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct MemoryQuadStorage {
-    table_name: String,
-    table: Arc<OxigraphMemTable>,
     storage: Arc<OxigraphMemoryStorage>,
 }
 
@@ -21,15 +17,9 @@ impl MemoryQuadStorage {
     /// Creates a new empty [MemoryQuadStorage].
     ///
     /// It is intended to pass this storage into a RDF Fusion engine.
-    pub fn new(table_name: impl Into<String>) -> Self {
-        let table_name = table_name.into();
-        let table = Arc::new(OxigraphMemTable::new());
-        let storage = table.storage();
-        Self {
-            table_name,
-            table,
-            storage,
-        }
+    pub fn new() -> Self {
+        let storage = Arc::new(OxigraphMemoryStorage::new());
+        Self { storage }
     }
 
     /// Creates a read-only snapshot of the current storage state.
@@ -46,15 +36,16 @@ impl MemoryQuadStorage {
     }
 }
 
+impl Default for MemoryQuadStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl QuadStorage for MemoryQuadStorage {
-    fn table_name(&self) -> &str {
-        self.table_name.as_str()
-    }
-
-    #[allow(trivial_casts)]
-    fn table_provider(&self) -> Arc<dyn TableProvider> {
-        Arc::clone(&self.table) as Arc<dyn TableProvider>
+    fn encoding(&self) -> QuadStorageEncoding {
+        self.storage.storage_encoding()
     }
 
     async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
@@ -82,12 +73,10 @@ impl QuadStorage for MemoryQuadStorage {
         let snapshot = self.storage.snapshot();
         snapshot
             .named_graphs()
-            .map(|dt| match dt {
-                EncodedTerm::NamedNode(nnode) => Ok(NamedOrBlankNode::NamedNode(nnode)),
-                EncodedTerm::BlankNode(bnode) => Ok(NamedOrBlankNode::BlankNode(bnode)),
-                EncodedTerm::Literal(_) | EncodedTerm::DefaultGraph => Err(
-                    StorageError::Corruption(CorruptionError::msg("Unexpected named node term.")),
-                ),
+            .map(|object_id| {
+                self.storage
+                    .object_ids()
+                    .try_decode::<NamedOrBlankNode>(object_id)
             })
             .collect::<Result<Vec<NamedOrBlankNode>, _>>()
     }
@@ -96,11 +85,11 @@ impl QuadStorage for MemoryQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        let encoded_term = match graph_name {
-            NamedOrBlankNodeRef::NamedNode(node) => EncodedTerm::NamedNode(node.into_owned()),
-            NamedOrBlankNodeRef::BlankNode(node) => EncodedTerm::BlankNode(node.into_owned()),
-        };
-        Ok(self.storage.snapshot().contains_named_graph(&encoded_term))
+        let object_id = self.storage.object_ids().try_get_object_id(graph_name);
+        match object_id {
+            None => Ok(false),
+            Some(object_id) => Ok(self.storage.snapshot().contains_named_graph(object_id)),
+        }
     }
 
     async fn clear(&self) -> Result<(), StorageError> {
@@ -131,5 +120,9 @@ impl QuadStorage for MemoryQuadStorage {
 
     fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
         vec![Arc::new(OxigraphMemoryQuadNodePlanner::new(self))]
+    }
+
+    async fn len(&self) -> Result<usize, StorageError> {
+        Ok(self.storage.snapshot().len())
     }
 }

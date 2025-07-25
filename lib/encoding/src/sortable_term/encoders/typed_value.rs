@@ -1,6 +1,8 @@
 use crate::encoding::TermEncoder;
-use crate::sortable_term::{SortableTermArrayBuilder, SortableTermEncoding};
-use crate::TermEncoding;
+use crate::sortable_term::{
+    SortableTermArrayBuilder, SortableTermEncoding, SORTABLE_TERM_ENCODING,
+};
+use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{ThinResult, TypedValueRef};
 
@@ -43,6 +45,12 @@ impl TermEncoder<SortableTermEncoding> for TypedValueRefSortableTermEncoder {
             }
         }
 
-        SortableTermEncoding::try_new_array(builder.finish())
+        SORTABLE_TERM_ENCODING.try_new_array(builder.finish())
+    }
+
+    fn encode_term(
+        term: ThinResult<Self::Term<'_>>,
+    ) -> DFResult<<SortableTermEncoding as TermEncoding>::Scalar> {
+        Self::encode_terms([term])?.try_as_scalar(0)
     }
 }

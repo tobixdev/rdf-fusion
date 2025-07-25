@@ -59,10 +59,10 @@ impl BsbmBusinessIntelligenceBenchmark {
         )?;
         let result = match self.max_query_count {
             None => list_raw_operations(&queries_path)?
-                .filter_map(parse_query)
+                .map(parse_query)
                 .collect(),
             Some(max_query_count) => list_raw_operations(&queries_path)?
-                .filter_map(parse_query)
+                .map(parse_query)
                 .take(usize::try_from(max_query_count)?)
                 .collect(),
         };
@@ -145,20 +145,13 @@ impl Benchmark for BsbmBusinessIntelligenceBenchmark {
     }
 }
 
-fn parse_query(
-    query: BsbmBusinessIntelligenceRawOperation,
-) -> Option<BsbmBusinessIntelligenceOperation> {
+fn parse_query(query: BsbmBusinessIntelligenceRawOperation) -> BsbmBusinessIntelligenceOperation {
     match query {
         BsbmBusinessIntelligenceRawOperation::Query(name, query) => {
-            // TODO remove once describe is supported
-            if query.contains("DESCRIBE") {
-                None
-            } else {
-                Some(BsbmBusinessIntelligenceOperation::Query(
-                    name,
-                    Query::parse(&query.replace('#', ""), None).unwrap(),
-                ))
-            }
+            BsbmBusinessIntelligenceOperation::Query(
+                name,
+                Query::parse(&query.replace(" #", ""), None).unwrap(),
+            )
         }
     }
 }

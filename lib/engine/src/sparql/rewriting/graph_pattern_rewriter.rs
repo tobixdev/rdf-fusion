@@ -6,10 +6,12 @@ use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::EncodingName;
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_encoding::{EncodingName, QuadStorageEncoding};
 use rdf_fusion_logical::join::SparqlJoinType;
-use rdf_fusion_logical::{ActiveGraph, RdfFusionExprBuilderRoot, RdfFusionLogicalPlanBuilder};
+use rdf_fusion_logical::{
+    ActiveGraph, RdfFusionExprBuilderContext, RdfFusionLogicalPlanBuilder,
+    RdfFusionLogicalPlanBuilderContext,
+};
 use rdf_fusion_model::Iri;
 use rdf_fusion_model::{GraphName, Variable};
 use spargebra::algebra::{
@@ -24,7 +26,7 @@ use std::sync::Arc;
 /// The resulting logical plans can then be optimized and executed using the query engine.
 pub struct GraphPatternRewriter {
     /// Registry of functions that can be used during rewriting.
-    registry: RdfFusionFunctionRegistryRef,
+    builder_context: RdfFusionLogicalPlanBuilderContext,
     /// The dataset against which the query is evaluated.
     dataset: QueryDataset,
     /// The base IRI used for resolving relative IRIs in the query.
@@ -37,22 +39,27 @@ impl GraphPatternRewriter {
     /// Creates a new `GraphPatternRewriter` with the specified registry, dataset, and base IRI.
     ///
     /// # Arguments
-    /// * `registry` - A reference to the RDF Fusion function registry
+    /// * `builder_context` - The context necessary for building logical plans.
     /// * `dataset` - The dataset against which the query will be evaluated
     /// * `base_iri` - The base IRI used for resolving relative IRIs in the query
     pub fn new(
-        registry: RdfFusionFunctionRegistryRef,
+        builder_context: RdfFusionLogicalPlanBuilderContext,
         dataset: QueryDataset, // TODO: Moving dataset and base_iri to rewrite allows reusing
         base_iri: Option<Iri<String>>,
     ) -> Self {
         let active_graph = compute_default_active_graph(&dataset);
         let state = RewritingState::default().with_active_graph(active_graph);
         Self {
-            registry,
+            builder_context,
             dataset,
             base_iri,
             state: RefCell::new(state),
         }
+    }
+
+    /// Returns a reference to the storage encoding used.
+    pub fn storage_encoding(&self) -> &QuadStorageEncoding {
+        self.builder_context.encoding()
     }
 
     /// Rewrites a SPARQL graph pattern into a DataFusion logical plan.
@@ -64,6 +71,11 @@ impl GraphPatternRewriter {
         plan.with_plain_terms()?.build()
     }
 
+    /// Similar to [Self::rewrite] but does not transform all columns into the plain term encoding.
+    pub fn rewrite_with_existing_encoding(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
+        self.rewrite_graph_pattern(pattern)?.build()
+    }
+
     /// Rewrites a SPARQL graph pattern into a logical plan builder.
     fn rewrite_graph_pattern(
         &self,
@@ -72,8 +84,7 @@ impl GraphPatternRewriter {
         match pattern {
             GraphPattern::Bgp { patterns } => {
                 let state = self.state.borrow();
-                RdfFusionLogicalPlanBuilder::new_from_bgp(
-                    Arc::clone(&self.registry),
+                self.builder_context.create_bgp(
                     &state.active_graph,
                     state.graph_name_var.as_ref(),
                     patterns,
@@ -112,11 +123,7 @@ impl GraphPatternRewriter {
             GraphPattern::Values {
                 variables,
                 bindings,
-            } => RdfFusionLogicalPlanBuilder::new_from_values(
-                Arc::clone(&self.registry),
-                variables,
-                bindings,
-            ),
+            } => self.builder_context.create_values(variables, bindings),
             GraphPattern::Join { left, right } => {
                 let left = self.rewrite_graph_pattern(left)?;
                 let right = self.rewrite_graph_pattern(right)?;
@@ -196,8 +203,7 @@ impl GraphPatternRewriter {
                 object,
             } => {
                 let state = self.state.borrow();
-                Ok(RdfFusionLogicalPlanBuilder::new_from_property_path(
-                    Arc::clone(&self.registry),
+                Ok(self.builder_context.create_property_path(
                     state.active_graph.clone(),
                     state.graph_name_var.clone(),
                     path.clone(),
@@ -245,7 +251,11 @@ impl GraphPatternRewriter {
 
     /// Rewrites an [Expression].
     fn rewrite_expression(&self, schema: &DFSchema, expression: &Expression) -> DFResult<Expr> {
-        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema);
+        let expr_builder_root = RdfFusionExprBuilderContext::new(
+            self.builder_context.registry().as_ref(),
+            self.builder_context.encoding().object_id_encoding(),
+            schema,
+        );
         let expression_rewriter =
             ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
         expression_rewriter.rewrite(expression)
@@ -257,7 +267,11 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &Expression,
     ) -> DFResult<Expr> {
-        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema);
+        let expr_builder_root = RdfFusionExprBuilderContext::new(
+            self.builder_context.registry().as_ref(),
+            self.builder_context.encoding().object_id_encoding(),
+            schema,
+        );
         let expression_rewriter =
             ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
         expression_rewriter.rewrite_to_boolean(expression)
@@ -269,7 +283,11 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &OrderExpression,
     ) -> DFResult<SortExpr> {
-        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema);
+        let expr_builder_root = RdfFusionExprBuilderContext::new(
+            self.builder_context.registry().as_ref(),
+            self.builder_context.encoding().object_id_encoding(),
+            schema,
+        );
         let expression_rewriter =
             ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
         let (asc, expression) = match expression {
@@ -289,7 +307,11 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &AggregateExpression,
     ) -> DFResult<Expr> {
-        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), schema);
+        let expr_builder_root = RdfFusionExprBuilderContext::new(
+            self.builder_context.registry().as_ref(),
+            self.builder_context.encoding().object_id_encoding(),
+            schema,
+        );
         let expression_rewriter =
             ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
         match expression {
@@ -440,12 +462,9 @@ fn ensure_all_columns_are_rdf_terms(
         })
         .collect::<DFResult<Vec<_>>>()?;
 
-    let registry = Arc::clone(inner.registry());
+    let context = inner.context().clone();
     let new_plan = inner.into_inner().project(projections)?;
-    Ok(RdfFusionLogicalPlanBuilder::new(
-        Arc::new(new_plan.build()?),
-        registry,
-    ))
+    Ok(context.create(Arc::new(new_plan.build()?)))
 }
 
 /// Extracts sort expressions from possible solution modifiers.

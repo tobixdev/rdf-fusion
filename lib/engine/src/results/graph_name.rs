@@ -3,9 +3,10 @@ use crate::sparql::error::QueryEvaluationError;
 use datafusion::common::exec_err;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
+use rdf_fusion_common::quads::COL_GRAPH;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::{TermEncoding, COL_GRAPH};
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_model::{NamedOrBlankNode, Term, Variable};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -28,12 +29,12 @@ impl GraphNameStream {
             return exec_err!("Unexpected number of columns in the result");
         }
 
-        if stream.schema().field(0).data_type() != &PlainTermEncoding::data_type() {
+        if stream.schema().field(0).data_type() != &PLAIN_TERM_ENCODING.data_type() {
             return exec_err!("Unexpected data type in the result");
         }
 
         let solutions_stream =
-            QuerySolutionStream::new(Arc::new([Variable::new_unchecked(COL_GRAPH)]), stream);
+            QuerySolutionStream::try_new(Arc::new([Variable::new_unchecked(COL_GRAPH)]), stream)?;
         Ok(Self {
             stream: solutions_stream,
         })

@@ -1,0 +1,17 @@
+[package]
+name = "rdf-fusion-api"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+datafusion.workspace = true
+rdf-fusion-common.workspace = true
+rdf-fusion-encoding.workspace = true
+rdf-fusion-model.workspace = true
+
+[lints]
+workspace = true

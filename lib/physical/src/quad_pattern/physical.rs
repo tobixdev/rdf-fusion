@@ -3,7 +3,8 @@ use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
 use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties};
-use rdf_fusion_common::{BlankNodeMatchingMode, DFResult, QuadPatternEvaluator};
+use rdf_fusion_api::storage::QuadPatternEvaluator;
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::EnumeratedActiveGraph;
 use rdf_fusion_model::{TriplePattern, Variable};
@@ -44,6 +45,7 @@ impl QuadPatternExec {
     ) -> Self {
         let schema = Arc::clone(
             compute_schema_for_triple_pattern(
+                &quads_evaluator.storage_encoding(),
                 graph_variable.as_ref().map(|v| v.as_ref()),
                 &triple_pattern,
                 blank_node_mode,

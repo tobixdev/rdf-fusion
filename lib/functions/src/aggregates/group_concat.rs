@@ -6,7 +6,7 @@ use datafusion::{error::Result, physical_plan::Accumulator};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::decoders::StringLiteralRefTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{StringLiteralRef, ThinError};
 use std::sync::Arc;
@@ -15,8 +15,8 @@ pub fn group_concat_typed_value(separator: Option<String>) -> Arc<AggregateUDF> 
     let separator = separator.unwrap_or(" ".to_owned());
     let udaf = create_udaf(
         "group_concat",
-        vec![TypedValueEncoding::data_type()],
-        Arc::new(TypedValueEncoding::data_type()),
+        vec![TYPED_VALUE_ENCODING.data_type()],
+        Arc::new(TYPED_VALUE_ENCODING.data_type()),
         Volatility::Immutable,
         Arc::new(move |_| Ok(Box::new(SparqlGroupConcat::new(separator.clone())))),
         Arc::new(vec![
@@ -59,7 +59,7 @@ impl Accumulator for SparqlGroupConcat {
         let mut value_exists = self.value.is_some();
         let mut value = self.value.take().unwrap_or_default();
 
-        let arr = TypedValueEncoding::try_new_array(Arc::clone(&values[0]))?;
+        let arr = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&values[0]))?;
         for string in StringLiteralRefTermValueDecoder::decode_terms(&arr) {
             if let Ok(string) = string {
                 if value_exists {

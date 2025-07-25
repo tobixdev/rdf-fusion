@@ -2,14 +2,13 @@ use crate::active_graph::ActiveGraph;
 use crate::patterns::compute_schema_for_triple_pattern;
 use datafusion::common::{plan_err, DFSchemaRef};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::typed_value::DEFAULT_QUAD_DFSCHEMA;
-use rdf_fusion_encoding::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable, VariableRef};
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Formatter;
-use std::sync::Arc;
 
 /// A logical node that represents a scan of quads matching a pattern.
 ///
@@ -30,6 +29,8 @@ use std::sync::Arc;
 /// storage layers of RDF Fusion provide examples.
 #[derive(PartialEq, Eq, Hash)]
 pub struct QuadPatternNode {
+    /// The encoding of the storage layer.
+    storage_encoding: QuadStorageEncoding,
     /// The active graph to query.
     active_graph: ActiveGraph,
     /// Whether to project the graph to a variable.
@@ -45,16 +46,19 @@ pub struct QuadPatternNode {
 impl QuadPatternNode {
     /// Creates a new [QuadPatternNode].
     pub fn new(
+        storage_encoding: QuadStorageEncoding,
         active_graph: ActiveGraph,
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
     ) -> Self {
         let schema = compute_schema_for_triple_pattern(
+            &storage_encoding,
             graph_variable.as_ref().map(|v| v.as_ref()),
             &pattern,
             BlankNodeMatchingMode::Variable,
         );
         Self {
+            storage_encoding,
             active_graph,
             graph_variable,
             blank_node_mode: BlankNodeMatchingMode::Variable,
@@ -68,16 +72,19 @@ impl QuadPatternNode {
     /// Contrary to [Self::new], blank nodes are not treated as a variable. They are used for
     /// filtering the quad set.
     pub fn new_with_blank_nodes_as_filter(
+        storage_encoding: QuadStorageEncoding,
         active_graph: ActiveGraph,
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
     ) -> Self {
         let schema = compute_schema_for_triple_pattern(
+            &storage_encoding,
             graph_variable.as_ref().map(|v| v.as_ref()),
             &pattern,
             BlankNodeMatchingMode::Filter,
         );
         Self {
+            storage_encoding,
             active_graph,
             graph_variable,
             blank_node_mode: BlankNodeMatchingMode::Filter,
@@ -88,7 +95,7 @@ impl QuadPatternNode {
 
     /// Creates a new [QuadPatternNode] that returns all quads in `active_graph` using the default
     /// quads schema.
-    pub fn new_all_quads(active_graph: ActiveGraph) -> Self {
+    pub fn new_all_quads(storage_encoding: QuadStorageEncoding, active_graph: ActiveGraph) -> Self {
         Self {
             active_graph,
             graph_variable: Some(Variable::new_unchecked(COL_GRAPH)),
@@ -98,7 +105,8 @@ impl QuadPatternNode {
                 object: TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
             },
             blank_node_mode: BlankNodeMatchingMode::Filter, // Doesn't matter here
-            schema: Arc::clone(&DEFAULT_QUAD_DFSCHEMA),
+            schema: storage_encoding.quad_schema(),
+            storage_encoding,
         }
     }
 
@@ -178,11 +186,13 @@ impl UserDefinedLogicalNodeCore for QuadPatternNode {
 
         let cloned = match self.blank_node_mode {
             BlankNodeMatchingMode::Variable => Self::new(
+                self.storage_encoding.clone(),
                 self.active_graph.clone(),
                 self.graph_variable.clone(),
                 self.pattern.clone(),
             ),
             BlankNodeMatchingMode::Filter => Self::new_with_blank_nodes_as_filter(
+                self.storage_encoding.clone(),
                 self.active_graph.clone(),
                 self.graph_variable.clone(),
                 self.pattern.clone(),

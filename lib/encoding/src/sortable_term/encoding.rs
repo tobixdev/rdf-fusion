@@ -1,12 +1,12 @@
 use crate::encoding::TermEncoding;
 use crate::sortable_term::encoders::TermRefSortableTermEncoder;
 use crate::sortable_term::{SortableTermArray, SortableTermScalar};
-use crate::{EncodingName, TermEncoder};
+use crate::{EncodingArray, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{TermRef, ThinError};
+use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
 use std::sync::LazyLock;
 
@@ -77,6 +77,12 @@ static FIELDS: LazyLock<Fields> = LazyLock::new(|| {
     ])
 });
 
+/// The instance of the [SortableTermEncoding].
+///
+/// As there is currently no way to parameterize the encoding, accessing it via this constant is
+/// the preferred way.
+pub const SORTABLE_TERM_ENCODING: SortableTermEncoding = SortableTermEncoding;
+
 /// The sortable term encoding allows us to represent the expected SPARQL ordering using
 /// DataFusion's built-in ordering for structs.
 ///
@@ -96,27 +102,23 @@ impl TermEncoding for SortableTermEncoding {
     type Array = SortableTermArray;
     type Scalar = SortableTermScalar;
 
-    fn name() -> EncodingName {
+    fn name(&self) -> EncodingName {
         EncodingName::Sortable
     }
 
-    fn data_type() -> DataType {
+    fn data_type(&self) -> DataType {
         DataType::Struct(Self::fields().clone())
     }
 
-    fn try_new_array(array: ArrayRef) -> DFResult<Self::Array> {
+    fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
         array.try_into()
     }
 
-    fn try_new_scalar(scalar: ScalarValue) -> DFResult<Self::Scalar> {
+    fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         scalar.try_into()
     }
 
-    fn encode_scalar(term: TermRef<'_>) -> DFResult<Self::Scalar> {
-        TermRefSortableTermEncoder::encode_term(Ok(term))
-    }
-
-    fn encode_null_scalar() -> DFResult<Self::Scalar> {
-        TermRefSortableTermEncoder::encode_term(ThinError::expected())
+    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
+        TermRefSortableTermEncoder::encode_terms([term])?.try_as_scalar(0)
     }
 }

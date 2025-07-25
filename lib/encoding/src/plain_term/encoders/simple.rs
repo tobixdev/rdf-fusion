@@ -1,6 +1,6 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
-use crate::TermEncoding;
+use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding, PLAIN_TERM_ENCODING};
+use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{Boolean, LiteralRef, SimpleLiteralRef, ThinResult};
@@ -29,7 +29,13 @@ impl TermEncoder<PlainTermEncoding> for BooleanPlainTermEncoder {
             }
         }
 
-        PlainTermEncoding::try_new_array(builder.finish())
+        PLAIN_TERM_ENCODING.try_new_array(builder.finish())
+    }
+
+    fn encode_term(
+        term: ThinResult<Self::Term<'_>>,
+    ) -> DFResult<<PlainTermEncoding as TermEncoding>::Scalar> {
+        Self::encode_terms([term])?.try_as_scalar(0)
     }
 }
 
@@ -54,6 +60,12 @@ impl TermEncoder<PlainTermEncoding> for SimpleLiteralRefPlainTermEncoder {
             }
         }
 
-        PlainTermEncoding::try_new_array(builder.finish())
+        PLAIN_TERM_ENCODING.try_new_array(builder.finish())
+    }
+
+    fn encode_term(
+        term: ThinResult<Self::Term<'_>>,
+    ) -> DFResult<<PlainTermEncoding as TermEncoding>::Scalar> {
+        Self::encode_terms([term])?.try_as_scalar(0)
     }
 }

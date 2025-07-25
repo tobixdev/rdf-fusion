@@ -7,7 +7,7 @@ use datafusion::logical_expr::{
     Volatility,
 };
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
+use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
 use rdf_fusion_encoding::TermEncoding;
 use std::any::Any;
 use std::sync::Arc;
@@ -53,7 +53,7 @@ impl ScalarUDFImpl for NativeInt64AsTerm {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(TypedValueEncoding::data_type())
+        Ok(TYPED_VALUE_ENCODING.data_type())
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {

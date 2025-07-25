@@ -197,7 +197,7 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
 /// Validates whether the two inputs are valid.
 ///
 /// The following invariants are checked:
-/// - Join variables must have the PlainTermEncoding.
+/// - Join variables must have the PlainTerm or ObjectId encoding.
 #[allow(clippy::expect_used)]
 fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
     let join_column = compute_sparql_join_columns(lhs.schema(), rhs.schema())?;
@@ -211,8 +211,10 @@ fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
             .into_iter()
             .next()
             .expect("Length already checked");
-        if encoding != EncodingName::PlainTerm {
-            return plan_err!("Join column '{field_name}' must have the PlainTermEncoding.");
+        if !matches!(encoding, EncodingName::PlainTerm | EncodingName::ObjectId) {
+            return plan_err!(
+                "Join column '{field_name}' must be in the PlainTermEncoding or ObjectIdEncoding."
+            );
         }
     }
 

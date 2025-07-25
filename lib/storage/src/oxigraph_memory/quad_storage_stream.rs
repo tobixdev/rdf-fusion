@@ -1,17 +1,13 @@
-use crate::oxigraph_memory::encoded_term::EncodedTerm;
-use crate::oxigraph_memory::encoder::EncodedQuad;
+use crate::oxigraph_memory::object_id::ObjectIdQuad;
 use crate::oxigraph_memory::store::QuadIterator;
-use crate::AResult;
-use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
-use datafusion::arrow::datatypes::{Field, Schema};
+use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt64Builder};
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::common::{Column, DataFusionError};
 use datafusion::execution::RecordBatchStream;
 use futures::Stream;
-use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
-use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
-use rdf_fusion_model::{NamedNodePattern, TermPattern, TermRef, TriplePattern, Variable};
+use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -45,6 +41,7 @@ impl QuadPatternBatchRecordStream {
     ) -> Self {
         let schema = Arc::clone(
             compute_schema_for_triple_pattern(
+                &iterator.storage_encoding(),
                 graph_variable.as_ref().map(|v| v.as_ref()),
                 &pattern,
                 blank_node_mode,
@@ -86,7 +83,7 @@ impl Stream for QuadPatternBatchRecordStream {
         let mut rb_builder = self.create_builder();
 
         let mut remaining_items = self.batch_size;
-        let mut buffer: [Option<EncodedQuad>; 32] = [const { None }; 32];
+        let mut buffer: [Option<ObjectIdQuad>; 32] = [const { None }; 32];
         while !exhausted && remaining_items > 0 {
             for element in &mut buffer {
                 let Some(quad) = self.iterator.next() else {
@@ -126,10 +123,10 @@ impl RecordBatchStream for QuadPatternBatchRecordStream {
 
 #[allow(clippy::struct_excessive_bools)]
 struct RdfQuadsRecordBatchBuilder {
-    graph: Option<(Column, PlainTermArrayBuilder)>,
-    subject: Option<(Column, PlainTermArrayBuilder)>,
-    predicate: Option<(Column, PlainTermArrayBuilder)>,
-    object: Option<(Column, PlainTermArrayBuilder)>,
+    graph: Option<(Column, UInt64Builder)>,
+    subject: Option<(Column, UInt64Builder)>,
+    predicate: Option<(Column, UInt64Builder)>,
+    object: Option<(Column, UInt64Builder)>,
     count: usize,
 }
 
@@ -148,10 +145,10 @@ impl RdfQuadsRecordBatchBuilder {
         deduplicate(&mut seen, &mut object);
 
         Self {
-            graph: graph.map(|v| (v, PlainTermArrayBuilder::new(capacity))),
-            subject: subject.map(|v| (v, PlainTermArrayBuilder::new(capacity))),
-            predicate: predicate.map(|v| (v, PlainTermArrayBuilder::new(capacity))),
-            object: object.map(|v| (v, PlainTermArrayBuilder::new(capacity))),
+            graph: graph.map(|v| (v, UInt64Builder::with_capacity(capacity))),
+            subject: subject.map(|v| (v, UInt64Builder::with_capacity(capacity))),
+            predicate: predicate.map(|v| (v, UInt64Builder::with_capacity(capacity))),
+            object: object.map(|v| (v, UInt64Builder::with_capacity(capacity))),
             count: 0,
         }
     }
@@ -160,34 +157,34 @@ impl RdfQuadsRecordBatchBuilder {
         clippy::expect_used,
         reason = "Checked via count, Maybe use unsafe if performance is an issue"
     )]
-    fn encode_batch(&mut self, quads: &[Option<EncodedQuad>; 32]) -> usize {
+    fn encode_batch(&mut self, quads: &[Option<ObjectIdQuad>; 32]) -> usize {
         let count = quads.iter().position(Option::is_none).unwrap_or(32);
 
         if let Some((_, builder)) = &mut self.graph {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").graph_name;
-                encode_term(builder, value);
+                builder.append_value((*value).into())
             }
         }
 
         if let Some((_, builder)) = &mut self.subject {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").subject;
-                encode_term(builder, value);
+                builder.append_value((*value).into())
             }
         }
 
         if let Some((_, builder)) = &mut self.predicate {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").predicate;
-                encode_term(builder, value);
+                builder.append_value((*value).into())
             }
         }
 
         if let Some((_, builder)) = &mut self.object {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").object;
-                encode_term(builder, value);
+                builder.append_value((*value).into())
             }
         }
 
@@ -199,16 +196,16 @@ impl RdfQuadsRecordBatchBuilder {
         fn try_add_column(
             fields: &mut Vec<Field>,
             arrays: &mut Vec<Arc<dyn Array>>,
-            column: Option<(Column, PlainTermArrayBuilder)>,
+            column: Option<(Column, UInt64Builder)>,
             nullable: bool,
         ) {
-            if let Some((var, builder)) = column {
+            if let Some((var, mut builder)) = column {
                 fields.push(Field::new(
                     var.name(),
-                    PlainTermEncoding::data_type(),
+                    DataType::UInt64, // TODO: Use encoding
                     nullable,
                 ));
-                arrays.push(builder.finish());
+                arrays.push(Arc::new(builder.finish()));
             }
         }
 
@@ -264,7 +261,7 @@ impl QuadEqualities {
 
     /// Filters the buffer in-place and fills up holes by moving all non-None entries to the front.
     /// After this, all `None` slots (holes) will be at the end of the buffer.
-    fn filter(&self, quads: &mut [Option<EncodedQuad>; 32]) {
+    fn filter(&self, quads: &mut [Option<ObjectIdQuad>; 32]) {
         let mut write_idx = 0;
 
         // Iterate over the buffer and write any matching quad to the write position.
@@ -286,7 +283,7 @@ impl QuadEqualities {
     }
 
     /// Evaluates whether the equalities hold for `quad`.
-    fn evaluate(&self, quad: &EncodedQuad) -> bool {
+    fn evaluate(&self, quad: &ObjectIdQuad) -> bool {
         for equality in &self.0 {
             for i in 0..4 {
                 for j in (i + 1)..4 {
@@ -307,19 +304,6 @@ impl QuadEqualities {
         }
 
         true
-    }
-}
-
-fn encode_term(builder: &mut PlainTermArrayBuilder, term: &EncodedTerm) {
-    let term_ref = match term {
-        EncodedTerm::DefaultGraph => None,
-        EncodedTerm::NamedNode(node) => Some(TermRef::NamedNode(node.as_ref())),
-        EncodedTerm::BlankNode(node) => Some(TermRef::BlankNode(node.as_ref())),
-        EncodedTerm::Literal(node) => Some(TermRef::Literal(node.as_ref())),
-    };
-    match term_ref {
-        None => builder.append_null(),
-        Some(term_ref) => builder.append_term(term_ref),
     }
 }
 

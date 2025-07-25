@@ -1,6 +1,5 @@
 use crate::encoding::EncodingScalar;
-use crate::plain_term::PlainTermEncoding;
-use crate::sortable_term::SortableTermEncoding;
+use crate::sortable_term::{SortableTermEncoding, SORTABLE_TERM_ENCODING};
 use crate::TermEncoding;
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 use rdf_fusion_common::DFResult;
@@ -17,7 +16,7 @@ impl SortableTermScalar {
     ///
     /// Returns an error if the data type of `value` is unexpected.
     pub fn try_new(value: ScalarValue) -> DFResult<Self> {
-        if value.data_type() != SortableTermEncoding::data_type() {
+        if value.data_type() != SORTABLE_TERM_ENCODING.data_type() {
             return exec_err!(
                 "Expected scalar value with SortableTermEncoding, got {:?}",
                 value
@@ -41,7 +40,11 @@ impl TryFrom<ScalarValue> for SortableTermScalar {
 }
 
 impl EncodingScalar for SortableTermScalar {
-    type Encoding = PlainTermEncoding;
+    type Encoding = SortableTermEncoding;
+
+    fn encoding(&self) -> &Self::Encoding {
+        &SORTABLE_TERM_ENCODING
+    }
 
     fn scalar_value(&self) -> &ScalarValue {
         &self.inner

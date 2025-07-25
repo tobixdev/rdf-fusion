@@ -23,7 +23,7 @@ use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
-use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::TermEncoding;
 pub use sparesults::QuerySolution;
 pub use triples::QueryTripleStream;
@@ -185,7 +185,7 @@ pub fn query_result_for_iterator(
 
     let fields = variables
         .iter()
-        .map(|v| Field::new(v.as_str(), PlainTermEncoding::data_type(), true))
+        .map(|v| Field::new(v.as_str(), PLAIN_TERM_ENCODING.data_type(), true))
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()
@@ -196,7 +196,7 @@ pub fn query_result_for_iterator(
     let options = RecordBatchOptions::new().with_row_count(Some(count));
     let record_batch = RecordBatch::try_new_with_options(Arc::clone(&schema), columns, &options)?;
     let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
-    let stream = QuerySolutionStream::new(variables, Box::pin(record_batch_stream));
+    let stream = QuerySolutionStream::try_new(variables, Box::pin(record_batch_stream))?;
     Ok(QueryResults::Solutions(stream))
 }
 

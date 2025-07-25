@@ -35,7 +35,13 @@ macro_rules! make_simple_term_value_encoder {
                         }
                     }
                 }
-                TypedValueEncoding::try_new_array(builder.finish())
+                $crate::typed_value::TYPED_VALUE_ENCODING.try_new_array(builder.finish())
+            }
+
+            fn encode_term(
+                term: ThinResult<Self::Term<'_>>,
+            ) -> DFResult<<TypedValueEncoding as TermEncoding>::Scalar> {
+                $crate::encoding::EncodingArray::try_as_scalar(&Self::encode_terms([term])?, 0)
             }
         }
     };

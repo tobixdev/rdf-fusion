@@ -2,8 +2,8 @@ use crate::encoding::TermEncoder;
 use crate::sortable_term::encoders::TypedValueRefSortableTermEncoder;
 use crate::sortable_term::SortableTermEncoding;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
-use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use crate::{TermDecoder, TermEncoding};
+use crate::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
+use crate::{EncodingArray, TermDecoder, TermEncoding};
 use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
@@ -31,9 +31,15 @@ impl TermEncoder<SortableTermEncoding> for TermRefSortableTermEncoder {
                 }
             }
         }
-        let typed_values = TypedValueEncoding::try_new_array(typed_values_array.finish())?;
+        let typed_values = TYPED_VALUE_ENCODING.try_new_array(typed_values_array.finish())?;
 
         let typed_values = DefaultTypedValueDecoder::decode_terms(&typed_values);
         TypedValueRefSortableTermEncoder::encode_terms(typed_values)
+    }
+
+    fn encode_term(
+        term: ThinResult<Self::Term<'_>>,
+    ) -> DFResult<<SortableTermEncoding as TermEncoding>::Scalar> {
+        Self::encode_terms([term])?.try_as_scalar(0)
     }
 }

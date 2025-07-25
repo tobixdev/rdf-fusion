@@ -1,20 +1,20 @@
 use crate::builtin::BuiltinName;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_datafusion_err, ScalarValue};
+use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::encoders::{
     TermRefSortableTermEncoder, TypedValueRefSortableTermEncoder,
 };
-use rdf_fusion_encoding::sortable_term::SortableTermEncoding;
+use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
 };
@@ -40,8 +40,8 @@ impl WithSortableEncoding {
                 TypeSignature::Uniform(
                     1,
                     vec![
-                        PlainTermEncoding::data_type(),
-                        TypedValueEncoding::data_type(),
+                        PLAIN_TERM_ENCODING.data_type(),
+                        TYPED_VALUE_ENCODING.data_type(),
                     ],
                 ),
                 Volatility::Immutable,
@@ -52,36 +52,38 @@ impl WithSortableEncoding {
     fn convert_scalar(encoding_name: EncodingName, scalar: ScalarValue) -> DFResult<ColumnarValue> {
         match encoding_name {
             EncodingName::PlainTerm => {
-                let scalar = PlainTermEncoding::try_new_scalar(scalar)?;
+                let scalar = PLAIN_TERM_ENCODING.try_new_scalar(scalar)?;
                 let input = DefaultPlainTermDecoder::decode_term(&scalar);
                 let result = TermRefSortableTermEncoder::encode_term(input)?;
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::TypedValue => {
-                let scalar = TypedValueEncoding::try_new_scalar(scalar)?;
+                let scalar = TYPED_VALUE_ENCODING.try_new_scalar(scalar)?;
                 let input = DefaultTypedValueDecoder::decode_term(&scalar);
                 let result = TypedValueRefSortableTermEncoder::encode_term(input)?;
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::Sortable => Ok(ColumnarValue::Scalar(scalar)),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 
     fn convert_array(encoding_name: EncodingName, array: ArrayRef) -> DFResult<ColumnarValue> {
         match encoding_name {
             EncodingName::PlainTerm => {
-                let array = PlainTermEncoding::try_new_array(array)?;
+                let array = PLAIN_TERM_ENCODING.try_new_array(array)?;
                 let input = DefaultPlainTermDecoder::decode_terms(&array);
                 let result = TermRefSortableTermEncoder::encode_terms(input)?;
                 Ok(ColumnarValue::Array(result.into_array()))
             }
             EncodingName::TypedValue => {
-                let array = TypedValueEncoding::try_new_array(array)?;
+                let array = TYPED_VALUE_ENCODING.try_new_array(array)?;
                 let input = DefaultTypedValueDecoder::decode_terms(&array);
                 let result = TypedValueRefSortableTermEncoder::encode_terms(input)?;
                 Ok(ColumnarValue::Array(result.into_array()))
             }
             EncodingName::Sortable => Ok(ColumnarValue::Array(array)),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 }
@@ -100,7 +102,7 @@ impl ScalarUDFImpl for WithSortableEncoding {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(SortableTermEncoding::data_type())
+        Ok(SORTABLE_TERM_ENCODING.data_type())
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {

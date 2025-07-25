@@ -1,13 +1,12 @@
 use crate::check_same_schema;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
-use crate::RdfFusionExprBuilderRoot;
+use crate::RdfFusionExprBuilderContext;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, ExprSchema, JoinType};
-use datafusion::logical_expr::{Expr, UserDefinedLogicalNode};
+use datafusion::common::{plan_err, Column, ExprSchema, JoinType};
+use datafusion::logical_expr::{Expr, ExprSchemable, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
 
@@ -171,7 +170,8 @@ impl SparqlJoinLoweringRule {
 
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
-        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
 
         let mut join_filters = join_on
             .iter()
@@ -222,7 +222,8 @@ impl SparqlJoinLoweringRule {
     ) -> DFResult<Vec<Expr>> {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
-        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let projections = node
@@ -267,7 +268,8 @@ impl SparqlJoinLoweringRule {
 
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
-        let expr_builder_root = RdfFusionExprBuilderRoot::new(self.registry.as_ref(), &join_schema);
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let filter = filter
@@ -292,7 +294,7 @@ impl SparqlJoinLoweringRule {
 /// Returns an expression that obtains value `variable` from either the lhs, the rhs, or both
 /// depending on the schema.
 fn value_from_joined(
-    expr_builder_root: RdfFusionExprBuilderRoot<'_>,
+    expr_builder_root: RdfFusionExprBuilderContext<'_>,
     lhs_keys: &HashSet<String>,
     rhs_keys: &HashSet<String>,
     variable: &str,
@@ -304,10 +306,17 @@ fn value_from_joined(
     let expr = match (lhs_keys.contains(variable), rhs_keys.contains(variable)) {
         (true, true) => {
             if requires_coalesce {
+                let (lhs_datatype, _) =
+                    lhs_expr.data_type_and_nullable(expr_builder_root.schema())?;
+                let (rhs_datatype, _) =
+                    rhs_expr.data_type_and_nullable(expr_builder_root.schema())?;
+                if lhs_datatype != rhs_datatype {
+                    return plan_err!("The two columns for creating a COALESCE are different.");
+                }
+
                 expr_builder_root
                     .try_create_builder(lhs_expr)?
                     .coalesce(vec![rhs_expr])?
-                    .with_encoding(EncodingName::PlainTerm)?
                     .build()?
             } else {
                 lhs_expr

@@ -1,5 +1,5 @@
 use crate::encoding::EncodingScalar;
-use crate::typed_value::TypedValueEncoding;
+use crate::typed_value::{TypedValueEncoding, TYPED_VALUE_ENCODING};
 use crate::TermEncoding;
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 use rdf_fusion_common::DFResult;
@@ -17,7 +17,7 @@ impl TypedValueScalar {
     ///
     /// Returns an error if the data type of `value` is unexpected.
     pub fn try_new(value: ScalarValue) -> DFResult<Self> {
-        if value.data_type() != TypedValueEncoding::data_type() {
+        if value.data_type() != TYPED_VALUE_ENCODING.data_type() {
             return exec_err!(
                 "Expected scalar value with TypedValueEncoding, got {:?}",
                 value
@@ -42,6 +42,10 @@ impl TryFrom<ScalarValue> for TypedValueScalar {
 
 impl EncodingScalar for TypedValueScalar {
     type Encoding = TypedValueEncoding;
+
+    fn encoding(&self) -> &Self::Encoding {
+        &TYPED_VALUE_ENCODING
+    }
 
     fn scalar_value(&self) -> &ScalarValue {
         &self.inner

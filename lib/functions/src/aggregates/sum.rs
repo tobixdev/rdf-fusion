@@ -6,7 +6,7 @@ use datafusion::{error::Result, physical_plan::Accumulator};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{Integer, Numeric, NumericPair, ThinResult};
 use std::sync::Arc;
@@ -14,11 +14,11 @@ use std::sync::Arc;
 pub fn sum_typed_value() -> Arc<AggregateUDF> {
     let udaf = create_udaf(
         &BuiltinName::Sum.to_string(),
-        vec![TypedValueEncoding::data_type()],
-        Arc::new(TypedValueEncoding::data_type()),
+        vec![TYPED_VALUE_ENCODING.data_type()],
+        Arc::new(TYPED_VALUE_ENCODING.data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlTypedValueSum::new()))),
-        Arc::new(vec![TypedValueEncoding::data_type()]),
+        Arc::new(vec![TYPED_VALUE_ENCODING.data_type()]),
     );
     Arc::new(udaf)
 }
@@ -44,7 +44,7 @@ impl Accumulator for SparqlTypedValueSum {
 
         // TODO: Can we stop once we error?
 
-        let arr = TypedValueEncoding::try_new_array(Arc::clone(&values[0]))?;
+        let arr = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&values[0]))?;
         for value in NumericTermValueDecoder::decode_terms(&arr) {
             if let Ok(sum) = self.sum {
                 if let Ok(value) = value {

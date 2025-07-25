@@ -7,7 +7,7 @@ use datafusion::scalar::ScalarValue;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::Arc;
@@ -15,11 +15,11 @@ use std::sync::Arc;
 pub fn max_typed_value() -> Arc<AggregateUDF> {
     Arc::new(create_udaf(
         "MAX",
-        vec![TypedValueEncoding::data_type()],
-        Arc::new(TypedValueEncoding::data_type()),
+        vec![TYPED_VALUE_ENCODING.data_type()],
+        Arc::new(TYPED_VALUE_ENCODING.data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlTypedValueMax::new()))),
-        Arc::new(vec![DataType::Boolean, TypedValueEncoding::data_type()]),
+        Arc::new(vec![DataType::Boolean, TYPED_VALUE_ENCODING.data_type()]),
     ))
 }
 
@@ -62,7 +62,7 @@ impl Accumulator for SparqlTypedValueMax {
             return Ok(());
         }
 
-        let arr = TypedValueEncoding::try_new_array(Arc::clone(&values[0]))?;
+        let arr = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&values[0]))?;
 
         for value in DefaultTypedValueDecoder::decode_terms(&arr) {
             self.on_new_value(value);
@@ -102,7 +102,7 @@ impl Accumulator for SparqlTypedValueMax {
 
         let executed_once = states[0].as_boolean();
 
-        let array = TypedValueEncoding::try_new_array(Arc::clone(&states[1]))?;
+        let array = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&states[1]))?;
         let terms = DefaultTypedValueDecoder::decode_terms(&array);
         for (is_valid, term) in executed_once.iter().zip(terms) {
             if is_valid == Some(true) {

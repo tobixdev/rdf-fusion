@@ -101,11 +101,9 @@ impl Default for Store {
 
 impl Store {
     /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
-    #[allow(clippy::expect_used)]
     pub fn new() -> Store {
-        let storage = MemoryQuadStorage::new("memory_quads");
-        let engine = RdfFusionInstance::new_with_storage(Arc::new(storage.clone()))
-            .expect("Name of the storage is OK");
+        let storage = MemoryQuadStorage::new();
+        let engine = RdfFusionInstance::new_with_storage(Arc::new(storage.clone()));
         Self { engine }
     }
 
@@ -245,7 +243,8 @@ impl Store {
             .engine
             .quads_for_pattern(graph_name, subject, predicate, object)
             .await?;
-        let solution_stream = QuerySolutionStream::new(QUAD_VARIABLES.clone(), record_batch_stream);
+        let solution_stream =
+            QuerySolutionStream::try_new(QUAD_VARIABLES.clone(), record_batch_stream)?;
         QuadStream::try_new(solution_stream).map_err(QueryEvaluationError::InternalError)
     }
 

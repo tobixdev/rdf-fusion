@@ -1,12 +1,12 @@
 use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{plan_err, Column, DFSchema};
+use datafusion::common::{exec_datafusion_err, plan_err, Column, DFSchema};
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder, TermEncoding};
+use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder};
 use rdf_fusion_functions::builtin::BuiltinName;
 use rdf_fusion_functions::registry::RdfFusionFunctionRegistry;
 use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
@@ -15,24 +15,34 @@ use std::sync::Arc;
 
 /// An expression builder for creating SPARQL expressions.
 ///
-/// This is the builder root, which can be used to create expression builders. Each builder root has
-/// an associated schema. This schema is used for, for example, inferring the type of built
-/// expressions and is therefore crucial.
+/// This is the builder context, which can be used to create expression builders. Each builder
+/// context has an associated schema. This schema is used for, for example, inferring the type of
+/// built expressions and is therefore crucial.
 ///
-/// Furthermore, the root holds a reference to an [RdfFusionFunctionRegistry] that is used to
+/// Furthermore, the context holds a reference to an [RdfFusionFunctionRegistry] that is used to
 /// resolve the registered built-ins and user-defined functions.
 #[derive(Debug, Clone, Copy)]
-pub struct RdfFusionExprBuilderRoot<'root> {
+pub struct RdfFusionExprBuilderContext<'context> {
     /// Provides access to the builtin functions.
-    registry: &'root dyn RdfFusionFunctionRegistry,
+    registry: &'context dyn RdfFusionFunctionRegistry,
+    /// The object id encoding used
+    object_id_encoding: Option<&'context ObjectIdEncoding>,
     /// The schema of the input data. Necessary for inferring the encodings of RDF terms.
-    schema: &'root DFSchema,
+    schema: &'context DFSchema,
 }
 
-impl<'root> RdfFusionExprBuilderRoot<'root> {
-    /// Creates a new expression builder root.
-    pub fn new(registry: &'root dyn RdfFusionFunctionRegistry, schema: &'root DFSchema) -> Self {
-        Self { registry, schema }
+impl<'context> RdfFusionExprBuilderContext<'context> {
+    /// Creates a new expression builder context.
+    pub fn new(
+        registry: &'context dyn RdfFusionFunctionRegistry,
+        object_id_encoding: Option<&'context ObjectIdEncoding>,
+        schema: &'context DFSchema,
+    ) -> Self {
+        Self {
+            registry,
+            object_id_encoding,
+            schema,
+        }
     }
 
     /// Returns the schema of the input data.
@@ -45,9 +55,14 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         self.registry
     }
 
+    /// Returns a reference to the used object id encoding.
+    pub fn object_id_encoding(&self) -> Option<&'context ObjectIdEncoding> {
+        self.object_id_encoding
+    }
+
     /// Creates a new [RdfFusionExprBuilder] from an existing [Expr].
-    pub fn try_create_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'root>> {
-        RdfFusionExprBuilder::try_new_from_root(*self, expr)
+    pub fn try_create_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'context>> {
+        RdfFusionExprBuilder::try_new_from_context(*self, expr)
     }
 
     /// Creates a new expression that evaluates to the first argument that does not produce an
@@ -55,7 +70,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ///
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Coalesce](https://www.w3.org/TR/sparql11-query/#func-coalesce)
-    pub fn coalesce(&self, args: Vec<Expr>) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn coalesce(&self, args: Vec<Expr>) -> DFResult<RdfFusionExprBuilder<'context>> {
         self.apply_builtin(BuiltinName::Coalesce, args)
     }
 
@@ -63,7 +78,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ///
     /// # Relevant Resources
     /// - [SPARQL 1.1 - BNODE](https://www.w3.org/TR/sparql11-query/#func-bnode)
-    pub fn bnode(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn bnode(&self) -> DFResult<RdfFusionExprBuilder<'context>> {
         let udf = self.create_builtin_udf(BuiltinName::BNode)?;
         self.try_create_builder(udf.call(vec![]))
     }
@@ -72,7 +87,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ///
     /// # Relevant Resources
     /// - [SPARQL 1.1 - UUID](https://www.w3.org/TR/sparql11-query/#func-uuid)
-    pub fn uuid(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn uuid(&self) -> DFResult<RdfFusionExprBuilder<'context>> {
         let udf = self.create_builtin_udf(BuiltinName::Uuid)?;
         self.try_create_builder(udf.call(vec![]))
     }
@@ -81,7 +96,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ///
     /// # Relevant Resources
     /// - [SPARQL 1.1 - STRUUID](https://www.w3.org/TR/sparql11-query/#func-struuid)
-    pub fn str_uuid(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn str_uuid(&self) -> DFResult<RdfFusionExprBuilder<'context>> {
         let udf = self.create_builtin_udf(BuiltinName::StrUuid)?;
         self.try_create_builder(udf.call(vec![]))
     }
@@ -90,7 +105,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ///
     /// # Relevant Resources
     /// - [SPARQL 1.1 - CONCAT](https://www.w3.org/TR/sparql11-query/#func-concat)
-    pub fn concat(&self, args: Vec<Expr>) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn concat(&self, args: Vec<Expr>) -> DFResult<RdfFusionExprBuilder<'context>> {
         self.apply_builtin(BuiltinName::Concat, args)
     }
 
@@ -100,7 +115,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ///
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Rand](https://www.w3.org/TR/sparql11-query/#idp2130040)
-    pub fn rand(&self) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn rand(&self) -> DFResult<RdfFusionExprBuilder<'context>> {
         let udf = self.create_builtin_udf(BuiltinName::Rand)?;
         self.try_create_builder(udf.call(vec![]))
     }
@@ -109,7 +124,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ///
     /// If the variable is not bound in the current context (i.e., not in the schema),
     /// the expression evaluates to a null literal.
-    pub fn variable(&self, variable: VariableRef<'_>) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn variable(&self, variable: VariableRef<'_>) -> DFResult<RdfFusionExprBuilder<'context>> {
         let column = Column::new_unqualified(variable.as_str());
         let expr = if self.schema.has_column(&column) {
             Expr::from(column)
@@ -127,7 +142,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     pub fn literal<'lit>(
         &self,
         term: impl Into<TermRef<'lit>>,
-    ) -> DFResult<RdfFusionExprBuilder<'root>> {
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
         let scalar = DefaultPlainTermEncoder::encode_term(Ok(term.into()))?;
         self.try_create_builder(lit(scalar.into_scalar_value()))
     }
@@ -135,7 +150,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     /// Creates a null literal expression.
     ///
     /// This is used to represent unbound variables or errors.
-    pub fn null_literal(&'root self) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn null_literal(&'context self) -> DFResult<RdfFusionExprBuilder<'context>> {
         let scalar = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
         self.try_create_builder(lit(scalar.into_scalar_value()))
     }
@@ -147,7 +162,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     /// Creates an expression that converts a native `i64` value into an RDF term.
     ///
     /// This is done by encoding the literal and calling [BuiltinName::NativeInt64AsTerm].
-    pub fn native_int64_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn native_int64_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'context>> {
         let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
         if data_type != DataType::Int64 {
             return plan_err!(
@@ -164,7 +179,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     /// Creates an expression that converts a native boolean value into an RDF term.
     ///
     /// This is done by encoding the literal and calling [BuiltinName::NativeBooleanAsTerm].
-    pub fn native_boolean_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'root>> {
+    pub fn native_boolean_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'context>> {
         let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
         if data_type != DataType::Boolean {
             return plan_err!(
@@ -239,7 +254,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         arg: Expr,
         distinct: bool,
         args: RdfFusionFunctionArgs,
-    ) -> DFResult<RdfFusionExprBuilder<'root>> {
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
         let udaf = self
             .registry
             .create_udaf(FunctionName::Builtin(name), args)?;
@@ -266,7 +281,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         &self,
         name: BuiltinName,
         further_args: Vec<Expr>,
-    ) -> DFResult<RdfFusionExprBuilder<'root>> {
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
         self.apply_builtin_with_args(name, further_args, RdfFusionFunctionArgs::empty())
     }
 
@@ -279,10 +294,32 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
         name: BuiltinName,
         args: Vec<Expr>,
         udf_args: RdfFusionFunctionArgs,
-    ) -> DFResult<RdfFusionExprBuilder<'root>> {
-        let udf = self.create_builtin_udf_with_args(name, udf_args)?;
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
+        let expr = self.apply_builtin_with_args_no_builder(name, args, udf_args)?;
+        self.try_create_builder(expr)
+    }
 
-        let input_encoding = TypedValueEncoding::name();
+    /// Similar to [Self::apply_builtin_with_args] but does not wrap the resulting expression
+    /// in a builder. Therefore, this method can be used to create expressions that do not evaluate
+    /// to an RDF term.
+    pub(crate) fn apply_builtin_with_args_no_builder(
+        &self,
+        name: BuiltinName,
+        args: Vec<Expr>,
+        udf_args: RdfFusionFunctionArgs,
+    ) -> DFResult<Expr> {
+        let udf = self.create_builtin_udf_with_args(name, udf_args)?;
+        let supported_encodings = self
+            .registry
+            .supported_encodings(FunctionName::Builtin(name))?;
+
+        if supported_encodings.is_empty() {
+            return plan_err!("No supported encodings for builtin '{}'", name);
+        }
+
+        let encodings = self.get_encodings(&args)?;
+        let input_encoding = decide_input_encoding(&supported_encodings, &encodings)?;
+
         let args = args
             .into_iter()
             .map(|expr| {
@@ -292,7 +329,7 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
             })
             .collect::<DFResult<Vec<_>>>()?;
 
-        self.try_create_builder(udf.call(args))
+        Ok(udf.call(args))
     }
 
     //
@@ -311,4 +348,41 @@ impl<'root> RdfFusionExprBuilderRoot<'root> {
     ) -> DFResult<Arc<ScalarUDF>> {
         self.registry.create_udf(FunctionName::Builtin(name), args)
     }
+
+    /// TODO
+    pub(crate) fn get_encodings(&self, args: &[Expr]) -> DFResult<Vec<EncodingName>> {
+        args.iter()
+            .map(|e| {
+                let (data_type, _) = e.data_type_and_nullable(self.schema)?;
+                Ok(data_type)
+            })
+            .map(|r| {
+                r.and_then(|dt| {
+                    EncodingName::try_from_data_type(&dt).ok_or(exec_datafusion_err!(
+                        "Data type is not an RDF term '{}'",
+                        dt
+                    ))
+                })
+            })
+            .collect::<DFResult<Vec<_>>>()
+    }
+}
+
+fn decide_input_encoding(
+    supported_encodings: &[EncodingName],
+    actual_encodings: &[EncodingName],
+) -> DFResult<EncodingName> {
+    if supported_encodings.is_empty() {
+        return plan_err!("No supported encodings");
+    }
+
+    // If all arguments have a supported encoding we choose this one.
+    for supported_encoding in supported_encodings {
+        if actual_encodings.iter().all(|e| e == supported_encoding) {
+            return Ok(*supported_encoding);
+        }
+    }
+
+    // Otherwise we currently return the first encoding.
+    Ok(supported_encodings[0])
 }

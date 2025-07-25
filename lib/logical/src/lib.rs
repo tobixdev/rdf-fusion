@@ -10,10 +10,11 @@ extern crate core;
 mod active_graph;
 pub mod expr;
 mod expr_builder;
-mod expr_builder_root;
+mod expr_builder_context;
 pub mod extend;
 pub mod join;
 mod logical_plan_builder;
+mod logical_plan_builder_context;
 pub mod minus;
 pub mod paths;
 pub mod patterns;
@@ -22,8 +23,9 @@ pub mod quad_pattern;
 pub use active_graph::{ActiveGraph, EnumeratedActiveGraph};
 use datafusion::common::{plan_err, DFSchema};
 pub use expr_builder::RdfFusionExprBuilder;
-pub use expr_builder_root::RdfFusionExprBuilderRoot;
+pub use expr_builder_context::RdfFusionExprBuilderContext;
 pub use logical_plan_builder::RdfFusionLogicalPlanBuilder;
+pub use logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use rdf_fusion_common::DFResult;
 
 /// Checks if two schemas are logically equivalent in terms of names and types.

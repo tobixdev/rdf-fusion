@@ -56,10 +56,10 @@ impl BsbmExploreBenchmark {
             .join_data_dir(PathBuf::from(format!("explore-{}.csv", self.dataset_size)).as_path())?;
         let result = match self.max_query_count {
             None => list_raw_operations(&queries_path)?
-                .filter_map(parse_query)
+                .map(parse_query)
                 .collect(),
             Some(max_query_count) => list_raw_operations(&queries_path)?
-                .filter_map(parse_query)
+                .map(parse_query)
                 .take(usize::try_from(max_query_count)?)
                 .collect(),
         };
@@ -140,18 +140,10 @@ impl Benchmark for BsbmExploreBenchmark {
     }
 }
 
-fn parse_query(query: BsbmExploreRawOperation) -> Option<BsbmExploreOperation> {
+fn parse_query(query: BsbmExploreRawOperation) -> BsbmExploreOperation {
     match query {
         BsbmExploreRawOperation::Query(name, query) => {
-            // TODO remove once describe is supported
-            if query.contains("DESCRIBE") {
-                None
-            } else {
-                Some(BsbmExploreOperation::Query(
-                    name,
-                    Query::parse(&query, None).unwrap(),
-                ))
-            }
+            BsbmExploreOperation::Query(name, Query::parse(&query, None).unwrap())
         }
     }
 }

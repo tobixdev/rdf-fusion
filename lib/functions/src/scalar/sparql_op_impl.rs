@@ -1,8 +1,8 @@
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::TermEncoding;
 
 pub trait SparqlOpImpl<Args> {
@@ -32,7 +32,7 @@ pub fn create_plain_term_sparql_op_impl<Args: 'static>(
     closure: impl Fn(Args) -> DFResult<ColumnarValue> + 'static,
 ) -> Box<dyn SparqlOpImpl<Args>> {
     Box::new(ClosureSparqlOpImpl {
-        return_type: PlainTermEncoding::data_type(),
+        return_type: PLAIN_TERM_ENCODING.data_type(),
         closure: Box::new(closure),
     })
 }
@@ -41,7 +41,16 @@ pub fn create_typed_value_sparql_op_impl<Args: 'static>(
     closure: impl Fn(Args) -> DFResult<ColumnarValue> + 'static,
 ) -> Box<dyn SparqlOpImpl<Args>> {
     Box::new(ClosureSparqlOpImpl {
-        return_type: TypedValueEncoding::data_type(),
+        return_type: TYPED_VALUE_ENCODING.data_type(),
+        closure: Box::new(closure),
+    })
+}
+
+pub fn create_object_id_sparql_op_impl<Args: 'static>(
+    closure: impl Fn(Args) -> DFResult<ColumnarValue> + 'static,
+) -> Box<dyn SparqlOpImpl<Args>> {
+    Box::new(ClosureSparqlOpImpl {
+        return_type: DataType::UInt64,
         closure: Box::new(closure),
     })
 }

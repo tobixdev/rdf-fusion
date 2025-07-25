@@ -26,7 +26,7 @@ impl BNodeSparqlOp {
 }
 
 impl ScalarSparqlOp for BNodeSparqlOp {
-    type Args<TEncoding: TermEncoding> = NullaryOrUnaryArgs<TypedValueEncoding>;
+    type Args<TEncoding: TermEncoding> = NullaryOrUnaryArgs<TEncoding>;
 
     fn name(&self) -> &FunctionName {
         &Self::NAME

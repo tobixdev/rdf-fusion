@@ -3675,6 +3675,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rdf-fusion-api"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "datafusion",
+ "rdf-fusion-common",
+ "rdf-fusion-encoding",
+ "rdf-fusion-model",
+]
+
+[[package]]
 name = "rdf-fusion-bench"
 version = "0.1.0"
 dependencies = [
@@ -3725,6 +3736,7 @@ dependencies = [
 name = "rdf-fusion-encoding"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "codspeed-criterion-compat",
  "datafusion",
  "rdf-fusion-common",
@@ -3740,6 +3752,7 @@ dependencies = [
  "futures",
  "itertools 0.14.0",
  "oxrdfio",
+ "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-functions",
@@ -3801,9 +3814,9 @@ dependencies = [
  "datafusion",
  "futures",
  "itertools 0.14.0",
+ "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
- "rdf-fusion-functions",
  "rdf-fusion-logical",
  "rdf-fusion-model",
 ]
@@ -3816,6 +3829,7 @@ dependencies = [
  "dashmap",
  "datafusion",
  "futures",
+ "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-logical",

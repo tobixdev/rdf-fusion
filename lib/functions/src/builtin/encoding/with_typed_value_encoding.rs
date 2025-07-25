@@ -8,9 +8,9 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::encoders::TermRefTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
 };
@@ -33,7 +33,7 @@ impl WithTypedValueEncoding {
         Self {
             name: BuiltinName::WithTypedValueEncoding.to_string(),
             signature: Signature::new(
-                TypeSignature::Uniform(1, vec![PlainTermEncoding::data_type()]),
+                TypeSignature::Uniform(1, vec![PLAIN_TERM_ENCODING.data_type()]),
                 Volatility::Immutable,
             ),
         }
@@ -42,26 +42,28 @@ impl WithTypedValueEncoding {
     fn convert_array(encoding_name: EncodingName, array: ArrayRef) -> DFResult<ColumnarValue> {
         match encoding_name {
             EncodingName::PlainTerm => {
-                let array = PlainTermEncoding::try_new_array(array)?;
+                let array = PLAIN_TERM_ENCODING.try_new_array(array)?;
                 let input = DefaultPlainTermDecoder::decode_terms(&array);
                 let result = TermRefTypedValueEncoder::encode_terms(input)?;
                 Ok(ColumnarValue::Array(result.into_array()))
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Array(array)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 
     fn convert_scalar(encoding_name: EncodingName, scalar: ScalarValue) -> DFResult<ColumnarValue> {
         match encoding_name {
             EncodingName::PlainTerm => {
-                let scalar = PlainTermEncoding::try_new_scalar(scalar)?;
+                let scalar = PLAIN_TERM_ENCODING.try_new_scalar(scalar)?;
                 let input = DefaultPlainTermDecoder::decode_term(&scalar);
                 let result = TermRefTypedValueEncoder::encode_term(input)?;
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Scalar(scalar)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
+            EncodingName::ObjectId => exec_err!("Cannot from object id."),
         }
     }
 }
@@ -80,7 +82,7 @@ impl ScalarUDFImpl for WithTypedValueEncoding {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(TypedValueEncoding::data_type())
+        Ok(TYPED_VALUE_ENCODING.data_type())
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {

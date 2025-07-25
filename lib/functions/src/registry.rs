@@ -47,9 +47,11 @@ use crate::scalar::terms::{
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
 use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
-use datafusion::common::plan_err;
+use datafusion::common::{plan_err, HashMap};
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::EncodingName;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -68,6 +70,9 @@ pub type RdfFusionFunctionRegistryRef = Arc<dyn RdfFusionFunctionRegistry>;
 /// # Additional Resources
 /// - [SPARQL 1.1 Query Language - Functions](https://www.w3.org/TR/sparql11-query/#SparqlOps)
 pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
+    /// Returns the encodings supported by `function_name`.
+    fn supported_encodings(&self, function_name: FunctionName) -> DFResult<Vec<EncodingName>>;
+
     /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
     fn create_udf(
         &self,
@@ -83,6 +88,11 @@ pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
     ) -> DFResult<Arc<AggregateUDF>>;
 }
 
+type ScalarUdfFactory =
+    Box<dyn Fn(RdfFusionFunctionArgs) -> DFResult<Arc<ScalarUDF>> + Send + Sync>;
+type AggregateUdfFactory =
+    Box<dyn Fn(RdfFusionFunctionArgs) -> DFResult<Arc<AggregateUDF>> + Send + Sync>;
+
 /// The default implementation of the `RdfFusionFunctionRegistry` trait.
 ///
 /// This registry provides implementations for all standard SPARQL functions
@@ -91,101 +101,63 @@ pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
 ///
 /// # Additional Resources
 /// - [SPARQL 1.1 Query Language - Function Library](https://www.w3.org/TR/sparql11-query/#SparqlOps)
-#[derive(Debug, Default)]
-pub struct DefaultRdfFusionFunctionRegistry;
+pub struct DefaultRdfFusionFunctionRegistry {
+    /// The [ObjectIdEncoding] used in the storage layer.
+    object_id_encoding: Option<ObjectIdEncoding>,
+    /// The mapping used for scalar functions.
+    scalar_mapping: HashMap<FunctionName, (ScalarUdfFactory, Vec<EncodingName>)>,
+    /// The mapping used for aggregate functions.
+    aggregate_mapping: HashMap<FunctionName, (AggregateUdfFactory, Vec<EncodingName>)>,
+}
+
+impl Debug for DefaultRdfFusionFunctionRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DefaultRdfFusionFunctionRegistry")
+            .field("object_id_encoding", &self.object_id_encoding)
+            .field("scalar_mapping", &self.scalar_mapping.keys())
+            .field("aggregate_mapping", &self.aggregate_mapping.keys())
+            .finish()
+    }
+}
+
+impl DefaultRdfFusionFunctionRegistry {
+    /// Create a new [DefaultRdfFusionFunctionRegistry].
+    pub fn new(object_id_encoding: Option<ObjectIdEncoding>) -> Self {
+        let mut registry = Self {
+            object_id_encoding,
+            aggregate_mapping: HashMap::default(),
+            scalar_mapping: HashMap::default(),
+        };
+        register_functions(&mut registry);
+        registry
+    }
+
+    fn create_scalar_sparql_op<TSparqlOp>(&self) -> (ScalarUdfFactory, Vec<EncodingName>)
+    where
+        TSparqlOp: Default + ScalarSparqlOp + 'static,
+    {
+        create_scalar_sparql_op::<TSparqlOp>(self.object_id_encoding.clone())
+    }
+}
 
 impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
+    fn supported_encodings(&self, function_name: FunctionName) -> DFResult<Vec<EncodingName>> {
+        if let Some((_, encodings)) = self.scalar_mapping.get(&function_name) {
+            Ok(encodings.clone())
+        } else {
+            plan_err!("Could not find encodings for function '{function_name}'.")
+        }
+    }
+
     fn create_udf(
         &self,
         function_name: FunctionName,
         constant_args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<ScalarUDF>> {
-        match function_name {
-            FunctionName::Builtin(builtin) => Ok(match builtin {
-                BuiltinName::Str => create_scalar_sparql_op::<StrSparqlOp>(),
-                BuiltinName::Lang => create_scalar_sparql_op::<LangSparqlOp>(),
-                BuiltinName::LangMatches => create_scalar_sparql_op::<LangMatchesSparqlOp>(),
-                BuiltinName::Datatype => create_scalar_sparql_op::<DatatypeSparqlOp>(),
-                BuiltinName::Iri => {
-                    let iri = constant_args.get(RdfFusionBuiltinArgNames::BASE_IRI)?;
-                    let op = IriSparqlOp::new(iri);
-                    create_scalar_udf(op)
-                }
-                BuiltinName::BNode => create_scalar_sparql_op::<BNodeSparqlOp>(),
-                BuiltinName::Rand => create_scalar_sparql_op::<RandSparqlOp>(),
-                BuiltinName::Abs => create_scalar_sparql_op::<AbsSparqlOp>(),
-                BuiltinName::Ceil => create_scalar_sparql_op::<CeilSparqlOp>(),
-                BuiltinName::Floor => create_scalar_sparql_op::<FloorSparqlOp>(),
-                BuiltinName::Round => create_scalar_sparql_op::<RoundSparqlOp>(),
-                BuiltinName::Concat => create_scalar_sparql_op::<ConcatSparqlOp>(),
-                BuiltinName::SubStr => create_scalar_sparql_op::<SubStrSparqlOp>(),
-                BuiltinName::StrLen => create_scalar_sparql_op::<StrLenSparqlOp>(),
-                BuiltinName::Replace => create_scalar_sparql_op::<ReplaceSparqlOp>(),
-                BuiltinName::UCase => create_scalar_sparql_op::<UCaseSparqlOp>(),
-                BuiltinName::LCase => create_scalar_sparql_op::<LCaseSparqlOp>(),
-                BuiltinName::EncodeForUri => create_scalar_sparql_op::<EncodeForUriSparqlOp>(),
-                BuiltinName::Contains => create_scalar_sparql_op::<ContainsSparqlOp>(),
-                BuiltinName::StrStarts => create_scalar_sparql_op::<StrStartsSparqlOp>(),
-                BuiltinName::StrEnds => create_scalar_sparql_op::<StrEndsSparqlOp>(),
-                BuiltinName::StrBefore => create_scalar_sparql_op::<StrBeforeSparqlOp>(),
-                BuiltinName::StrAfter => create_scalar_sparql_op::<StrAfterSparqlOp>(),
-                BuiltinName::Year => create_scalar_sparql_op::<YearSparqlOp>(),
-                BuiltinName::Month => create_scalar_sparql_op::<MonthSparqlOp>(),
-                BuiltinName::Day => create_scalar_sparql_op::<DaySparqlOp>(),
-                BuiltinName::Hours => create_scalar_sparql_op::<HoursSparqlOp>(),
-                BuiltinName::Minutes => create_scalar_sparql_op::<MinutesSparqlOp>(),
-                BuiltinName::Seconds => create_scalar_sparql_op::<SecondsSparqlOp>(),
-                BuiltinName::Timezone => create_scalar_sparql_op::<TimezoneSparqlOp>(),
-                BuiltinName::Tz => create_scalar_sparql_op::<TzSparqlOp>(),
-                BuiltinName::Uuid => create_scalar_sparql_op::<UuidSparqlOp>(),
-                BuiltinName::StrUuid => create_scalar_sparql_op::<StrUuidSparqlOp>(),
-                BuiltinName::Md5 => create_scalar_sparql_op::<Md5SparqlOp>(),
-                BuiltinName::Sha1 => create_scalar_sparql_op::<Sha1SparqlOp>(),
-                BuiltinName::Sha256 => create_scalar_sparql_op::<Sha256SparqlOp>(),
-                BuiltinName::Sha384 => create_scalar_sparql_op::<Sha384SparqlOp>(),
-                BuiltinName::Sha512 => create_scalar_sparql_op::<Sha512SparqlOp>(),
-                BuiltinName::StrLang => create_scalar_sparql_op::<StrLangSparqlOp>(),
-                BuiltinName::StrDt => create_scalar_sparql_op::<StrDtSparqlOp>(),
-                BuiltinName::IsIri => create_scalar_sparql_op::<IsIriSparqlOp>(),
-                BuiltinName::IsBlank => create_scalar_sparql_op::<IsBlankSparqlOp>(),
-                BuiltinName::IsLiteral => create_scalar_sparql_op::<IsLiteralSparqlOp>(),
-                BuiltinName::IsNumeric => create_scalar_sparql_op::<IsNumericSparqlOp>(),
-                BuiltinName::Regex => create_scalar_sparql_op::<RegexSparqlOp>(),
-                BuiltinName::Bound => create_scalar_sparql_op::<BoundSparqlOp>(),
-                BuiltinName::Coalesce => create_scalar_sparql_op::<CoalesceSparqlOp>(),
-                BuiltinName::If => create_scalar_sparql_op::<IfSparqlOp>(),
-                BuiltinName::SameTerm => create_scalar_sparql_op::<SameTermSparqlOp>(),
-                BuiltinName::Equal => create_scalar_sparql_op::<EqualSparqlOp>(),
-                BuiltinName::GreaterThan => create_scalar_sparql_op::<GreaterThanSparqlOp>(),
-                BuiltinName::GreaterOrEqual => create_scalar_sparql_op::<GreaterOrEqualSparqlOp>(),
-                BuiltinName::LessThan => create_scalar_sparql_op::<LessThanSparqlOp>(),
-                BuiltinName::LessOrEqual => create_scalar_sparql_op::<LessOrEqualSparqlOp>(),
-                BuiltinName::Add => create_scalar_sparql_op::<AddSparqlOp>(),
-                BuiltinName::Div => create_scalar_sparql_op::<DivSparqlOp>(),
-                BuiltinName::Mul => create_scalar_sparql_op::<MulSparqlOp>(),
-                BuiltinName::Sub => create_scalar_sparql_op::<SubSparqlOp>(),
-                BuiltinName::UnaryMinus => create_scalar_sparql_op::<UnaryMinusSparqlOp>(),
-                BuiltinName::UnaryPlus => create_scalar_sparql_op::<UnaryPlusSparqlOp>(),
-                BuiltinName::And => sparql_and(),
-                BuiltinName::Or => sparql_or(),
-                BuiltinName::CastString => create_scalar_sparql_op::<CastStringSparqlOp>(),
-                BuiltinName::CastInteger => create_scalar_sparql_op::<CastIntegerSparqlOp>(),
-                BuiltinName::AsInt => create_scalar_sparql_op::<CastIntSparqlOp>(),
-                BuiltinName::CastFloat => create_scalar_sparql_op::<CastFloatSparqlOp>(),
-                BuiltinName::CastDouble => create_scalar_sparql_op::<CastDoubleSparqlOp>(),
-                BuiltinName::CastDecimal => create_scalar_sparql_op::<CastDecimalSparqlOp>(),
-                BuiltinName::CastDateTime => create_scalar_sparql_op::<CastDateTimeSparqlOp>(),
-                BuiltinName::CastBoolean => create_scalar_sparql_op::<CastBooleanSparqlOp>(),
-                BuiltinName::WithSortableEncoding => with_sortable_term_encoding(),
-                BuiltinName::WithTypedValueEncoding => with_typed_value_encoding(),
-                BuiltinName::WithPlainTermEncoding => with_plain_term_encoding(),
-                BuiltinName::EffectiveBooleanValue => effective_boolean_value(),
-                BuiltinName::NativeBooleanAsTerm => native_boolean_as_term(),
-                BuiltinName::IsCompatible => is_compatible(),
-                BuiltinName::NativeInt64AsTerm => native_int64_as_term(),
-                _ => return plan_err!("'{builtin}' is not a scalar function."),
-            }),
-            FunctionName::Custom(_) => plan_err!("Custom functions are not supported yet."),
+        if let Some((factory, _)) = self.scalar_mapping.get(&function_name) {
+            factory(constant_args)
+        } else {
+            plan_err!("Scalar function '{function_name}' not found.")
         }
     }
 
@@ -194,35 +166,437 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
         function_name: FunctionName,
         constant_args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<AggregateUDF>> {
-        match function_name {
-            FunctionName::Builtin(builtin) => Ok(match builtin {
-                BuiltinName::Sum => sum_typed_value(),
-                BuiltinName::Min => min_typed_value(),
-                BuiltinName::Max => max_typed_value(),
-                BuiltinName::Avg => avg_typed_value(),
-                BuiltinName::GroupConcat => {
-                    let separator = constant_args.get(RdfFusionBuiltinArgNames::SEPARATOR)?;
-                    group_concat_typed_value(separator)
-                }
-                _ => return plan_err!("'{builtin}' is not an aggregate function."),
-            }),
-            FunctionName::Custom(_) => plan_err!("Custom functions are not supported yet."),
+        if let Some((factory, _)) = self.aggregate_mapping.get(&function_name) {
+            factory(constant_args)
+        } else {
+            plan_err!("Aggregate function '{function_name}' not found.")
         }
     }
 }
 
-fn create_scalar_sparql_op<TSparqlOp>() -> Arc<ScalarUDF>
+fn supported_encodings<TSparqlOp>() -> Vec<EncodingName>
 where
     TSparqlOp: Default + ScalarSparqlOp + 'static,
 {
     let op = TSparqlOp::default();
-    create_scalar_udf(op)
+
+    let mut result = Vec::new();
+    if op.plain_term_encoding_op().is_some() {
+        result.push(EncodingName::PlainTerm);
+    }
+    if op.typed_value_encoding_op().is_some() {
+        result.push(EncodingName::TypedValue);
+    }
+    if op.object_id_encoding_op().is_some() {
+        result.push(EncodingName::ObjectId);
+    }
+
+    result
 }
 
-fn create_scalar_udf<TSparqlOp>(op: TSparqlOp) -> Arc<ScalarUDF>
+fn create_scalar_sparql_op<TSparqlOp>(
+    object_id_encoding: Option<ObjectIdEncoding>,
+) -> (ScalarUdfFactory, Vec<EncodingName>)
+where
+    TSparqlOp: Default + ScalarSparqlOp + 'static,
+{
+    let udf = create_scalar_udf(object_id_encoding, TSparqlOp::default());
+    let encodings = supported_encodings::<TSparqlOp>();
+    let factory = Box::new(move |_| Ok(Arc::clone(&udf)));
+    (factory, encodings)
+}
+
+fn create_scalar_udf<TSparqlOp>(
+    object_id_encoding: Option<ObjectIdEncoding>,
+    op: TSparqlOp,
+) -> Arc<ScalarUDF>
 where
     TSparqlOp: ScalarSparqlOp + 'static,
 {
-    let adapter = ScalarSparqlOpAdapter::new(op);
+    let adapter = ScalarSparqlOpAdapter::new(object_id_encoding, op);
     Arc::new(ScalarUDF::new_from_impl(adapter))
+}
+
+fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
+    let scalar_fns: Vec<(BuiltinName, (ScalarUdfFactory, Vec<EncodingName>))> = vec![
+        (
+            BuiltinName::Str,
+            registry.create_scalar_sparql_op::<StrSparqlOp>(),
+        ),
+        (
+            BuiltinName::Lang,
+            registry.create_scalar_sparql_op::<LangSparqlOp>(),
+        ),
+        (
+            BuiltinName::LangMatches,
+            registry.create_scalar_sparql_op::<LangMatchesSparqlOp>(),
+        ),
+        (
+            BuiltinName::Datatype,
+            registry.create_scalar_sparql_op::<DatatypeSparqlOp>(),
+        ),
+        (
+            BuiltinName::BNode,
+            registry.create_scalar_sparql_op::<BNodeSparqlOp>(),
+        ),
+        (
+            BuiltinName::Rand,
+            registry.create_scalar_sparql_op::<RandSparqlOp>(),
+        ),
+        (
+            BuiltinName::Abs,
+            registry.create_scalar_sparql_op::<AbsSparqlOp>(),
+        ),
+        (
+            BuiltinName::Ceil,
+            registry.create_scalar_sparql_op::<CeilSparqlOp>(),
+        ),
+        (
+            BuiltinName::Floor,
+            registry.create_scalar_sparql_op::<FloorSparqlOp>(),
+        ),
+        (
+            BuiltinName::Round,
+            registry.create_scalar_sparql_op::<RoundSparqlOp>(),
+        ),
+        (
+            BuiltinName::Concat,
+            registry.create_scalar_sparql_op::<ConcatSparqlOp>(),
+        ),
+        (
+            BuiltinName::SubStr,
+            registry.create_scalar_sparql_op::<SubStrSparqlOp>(),
+        ),
+        (
+            BuiltinName::StrLen,
+            registry.create_scalar_sparql_op::<StrLenSparqlOp>(),
+        ),
+        (
+            BuiltinName::Replace,
+            registry.create_scalar_sparql_op::<ReplaceSparqlOp>(),
+        ),
+        (
+            BuiltinName::UCase,
+            registry.create_scalar_sparql_op::<UCaseSparqlOp>(),
+        ),
+        (
+            BuiltinName::LCase,
+            registry.create_scalar_sparql_op::<LCaseSparqlOp>(),
+        ),
+        (
+            BuiltinName::EncodeForUri,
+            registry.create_scalar_sparql_op::<EncodeForUriSparqlOp>(),
+        ),
+        (
+            BuiltinName::Contains,
+            registry.create_scalar_sparql_op::<ContainsSparqlOp>(),
+        ),
+        (
+            BuiltinName::StrStarts,
+            registry.create_scalar_sparql_op::<StrStartsSparqlOp>(),
+        ),
+        (
+            BuiltinName::StrEnds,
+            registry.create_scalar_sparql_op::<StrEndsSparqlOp>(),
+        ),
+        (
+            BuiltinName::StrBefore,
+            registry.create_scalar_sparql_op::<StrBeforeSparqlOp>(),
+        ),
+        (
+            BuiltinName::StrAfter,
+            registry.create_scalar_sparql_op::<StrAfterSparqlOp>(),
+        ),
+        (
+            BuiltinName::Year,
+            registry.create_scalar_sparql_op::<YearSparqlOp>(),
+        ),
+        (
+            BuiltinName::Month,
+            registry.create_scalar_sparql_op::<MonthSparqlOp>(),
+        ),
+        (
+            BuiltinName::Day,
+            registry.create_scalar_sparql_op::<DaySparqlOp>(),
+        ),
+        (
+            BuiltinName::Hours,
+            registry.create_scalar_sparql_op::<HoursSparqlOp>(),
+        ),
+        (
+            BuiltinName::Minutes,
+            registry.create_scalar_sparql_op::<MinutesSparqlOp>(),
+        ),
+        (
+            BuiltinName::Seconds,
+            registry.create_scalar_sparql_op::<SecondsSparqlOp>(),
+        ),
+        (
+            BuiltinName::Timezone,
+            registry.create_scalar_sparql_op::<TimezoneSparqlOp>(),
+        ),
+        (
+            BuiltinName::Tz,
+            registry.create_scalar_sparql_op::<TzSparqlOp>(),
+        ),
+        (
+            BuiltinName::Uuid,
+            registry.create_scalar_sparql_op::<UuidSparqlOp>(),
+        ),
+        (
+            BuiltinName::StrUuid,
+            registry.create_scalar_sparql_op::<StrUuidSparqlOp>(),
+        ),
+        (
+            BuiltinName::Md5,
+            registry.create_scalar_sparql_op::<Md5SparqlOp>(),
+        ),
+        (
+            BuiltinName::Sha1,
+            registry.create_scalar_sparql_op::<Sha1SparqlOp>(),
+        ),
+        (
+            BuiltinName::Sha256,
+            registry.create_scalar_sparql_op::<Sha256SparqlOp>(),
+        ),
+        (
+            BuiltinName::Sha384,
+            registry.create_scalar_sparql_op::<Sha384SparqlOp>(),
+        ),
+        (
+            BuiltinName::Sha512,
+            registry.create_scalar_sparql_op::<Sha512SparqlOp>(),
+        ),
+        (
+            BuiltinName::StrLang,
+            registry.create_scalar_sparql_op::<StrLangSparqlOp>(),
+        ),
+        (
+            BuiltinName::StrDt,
+            registry.create_scalar_sparql_op::<StrDtSparqlOp>(),
+        ),
+        (
+            BuiltinName::IsIri,
+            registry.create_scalar_sparql_op::<IsIriSparqlOp>(),
+        ),
+        (
+            BuiltinName::IsBlank,
+            registry.create_scalar_sparql_op::<IsBlankSparqlOp>(),
+        ),
+        (
+            BuiltinName::IsLiteral,
+            registry.create_scalar_sparql_op::<IsLiteralSparqlOp>(),
+        ),
+        (
+            BuiltinName::IsNumeric,
+            registry.create_scalar_sparql_op::<IsNumericSparqlOp>(),
+        ),
+        (
+            BuiltinName::Regex,
+            registry.create_scalar_sparql_op::<RegexSparqlOp>(),
+        ),
+        (
+            BuiltinName::Bound,
+            registry.create_scalar_sparql_op::<BoundSparqlOp>(),
+        ),
+        (
+            BuiltinName::Coalesce,
+            registry.create_scalar_sparql_op::<CoalesceSparqlOp>(),
+        ),
+        (
+            BuiltinName::If,
+            registry.create_scalar_sparql_op::<IfSparqlOp>(),
+        ),
+        (
+            BuiltinName::SameTerm,
+            registry.create_scalar_sparql_op::<SameTermSparqlOp>(),
+        ),
+        (
+            BuiltinName::Equal,
+            registry.create_scalar_sparql_op::<EqualSparqlOp>(),
+        ),
+        (
+            BuiltinName::GreaterThan,
+            registry.create_scalar_sparql_op::<GreaterThanSparqlOp>(),
+        ),
+        (
+            BuiltinName::GreaterOrEqual,
+            registry.create_scalar_sparql_op::<GreaterOrEqualSparqlOp>(),
+        ),
+        (
+            BuiltinName::LessThan,
+            registry.create_scalar_sparql_op::<LessThanSparqlOp>(),
+        ),
+        (
+            BuiltinName::LessOrEqual,
+            registry.create_scalar_sparql_op::<LessOrEqualSparqlOp>(),
+        ),
+        (
+            BuiltinName::Add,
+            registry.create_scalar_sparql_op::<AddSparqlOp>(),
+        ),
+        (
+            BuiltinName::Div,
+            registry.create_scalar_sparql_op::<DivSparqlOp>(),
+        ),
+        (
+            BuiltinName::Mul,
+            registry.create_scalar_sparql_op::<MulSparqlOp>(),
+        ),
+        (
+            BuiltinName::Sub,
+            registry.create_scalar_sparql_op::<SubSparqlOp>(),
+        ),
+        (
+            BuiltinName::UnaryMinus,
+            registry.create_scalar_sparql_op::<UnaryMinusSparqlOp>(),
+        ),
+        (
+            BuiltinName::UnaryPlus,
+            registry.create_scalar_sparql_op::<UnaryPlusSparqlOp>(),
+        ),
+        (BuiltinName::And, (Box::new(|_| Ok(sparql_and())), vec![])),
+        (BuiltinName::Or, (Box::new(|_| Ok(sparql_or())), vec![])),
+        (
+            BuiltinName::CastString,
+            registry.create_scalar_sparql_op::<CastStringSparqlOp>(),
+        ),
+        (
+            BuiltinName::CastInteger,
+            registry.create_scalar_sparql_op::<CastIntegerSparqlOp>(),
+        ),
+        (
+            BuiltinName::AsInt,
+            registry.create_scalar_sparql_op::<CastIntSparqlOp>(),
+        ),
+        (
+            BuiltinName::CastFloat,
+            registry.create_scalar_sparql_op::<CastFloatSparqlOp>(),
+        ),
+        (
+            BuiltinName::CastDouble,
+            registry.create_scalar_sparql_op::<CastDoubleSparqlOp>(),
+        ),
+        (
+            BuiltinName::CastDecimal,
+            registry.create_scalar_sparql_op::<CastDecimalSparqlOp>(),
+        ),
+        (
+            BuiltinName::CastDateTime,
+            registry.create_scalar_sparql_op::<CastDateTimeSparqlOp>(),
+        ),
+        (
+            BuiltinName::CastBoolean,
+            registry.create_scalar_sparql_op::<CastBooleanSparqlOp>(),
+        ),
+        (
+            BuiltinName::WithSortableEncoding,
+            (
+                Box::new(|_| Ok(with_sortable_term_encoding())),
+                vec![EncodingName::PlainTerm, EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::WithTypedValueEncoding,
+            (
+                Box::new(|_| Ok(with_typed_value_encoding())),
+                vec![EncodingName::PlainTerm],
+            ),
+        ),
+        (
+            BuiltinName::EffectiveBooleanValue,
+            (
+                Box::new(|_| Ok(effective_boolean_value())),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::NativeBooleanAsTerm,
+            (Box::new(|_| Ok(native_boolean_as_term())), vec![]),
+        ),
+        (
+            BuiltinName::IsCompatible,
+            (
+                Box::new(|_| Ok(is_compatible())),
+                vec![EncodingName::PlainTerm, EncodingName::ObjectId],
+            ),
+        ),
+        (
+            BuiltinName::NativeInt64AsTerm,
+            (Box::new(|_| Ok(native_int64_as_term())), vec![]),
+        ),
+    ];
+
+    for (name, (factory, encodings)) in scalar_fns {
+        registry
+            .scalar_mapping
+            .insert(FunctionName::Builtin(name), (factory, encodings));
+    }
+
+    // Stateful functions
+    let object_id_encoding = registry.object_id_encoding.clone();
+    let iri_factory = Box::new(move |args: RdfFusionFunctionArgs| {
+        let iri = args.get(RdfFusionBuiltinArgNames::BASE_IRI)?;
+        let op = IriSparqlOp::new(iri);
+        Ok(create_scalar_udf(object_id_encoding.clone(), op))
+    });
+    registry.scalar_mapping.insert(
+        FunctionName::Builtin(BuiltinName::Iri),
+        (iri_factory, vec![EncodingName::TypedValue]),
+    );
+
+    let encoding = registry.object_id_encoding.clone();
+    let plain_term_factory = Box::new(move |_| Ok(with_plain_term_encoding(encoding.clone())));
+    registry.scalar_mapping.insert(
+        FunctionName::Builtin(BuiltinName::WithPlainTermEncoding),
+        (plain_term_factory, vec![]),
+    );
+
+    // Aggregate functions
+    let aggregate_fns: Vec<(BuiltinName, (AggregateUdfFactory, Vec<EncodingName>))> = vec![
+        (
+            BuiltinName::Sum,
+            (
+                Box::new(|_| Ok(sum_typed_value())),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::Min,
+            (
+                Box::new(|_| Ok(min_typed_value())),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::Max,
+            (
+                Box::new(|_| Ok(max_typed_value())),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::Avg,
+            (
+                Box::new(|_| Ok(avg_typed_value())),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+        (
+            BuiltinName::GroupConcat,
+            (
+                Box::new(|args| {
+                    let separator = args.get(RdfFusionBuiltinArgNames::SEPARATOR)?;
+                    Ok(group_concat_typed_value(separator))
+                }),
+                vec![EncodingName::TypedValue],
+            ),
+        ),
+    ];
+
+    for (name, udaf_information) in aggregate_fns {
+        registry
+            .aggregate_mapping
+            .insert(FunctionName::Builtin(name), udaf_information);
+    }
 }

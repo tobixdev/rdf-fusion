@@ -2,12 +2,12 @@ use crate::encoding::TermEncoding;
 use crate::typed_value::array::TypedValueArray;
 use crate::typed_value::encoders::TermRefTypedValueEncoder;
 use crate::typed_value::scalar::TypedValueScalar;
-use crate::{EncodingName, TermEncoder};
+use crate::{EncodingArray, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{Decimal, TermRef, ThinError};
+use rdf_fusion_model::{Decimal, TermRef, ThinError, ThinResult};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
@@ -134,6 +134,12 @@ static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
 });
 
+/// The instance of the [TypedValueEncoding].
+///
+/// As there is currently no way to parameterize the encoding, accessing it via this constant is
+/// the preferred way.
+pub const TYPED_VALUE_ENCODING: TypedValueEncoding = TypedValueEncoding;
+
 /// The [TypedValueEncoding] stores the *value* of an RDF term as a union of possible types.
 ///
 /// # Value Spaces
@@ -177,28 +183,24 @@ impl TermEncoding for TypedValueEncoding {
     type Array = TypedValueArray;
     type Scalar = TypedValueScalar;
 
-    fn name() -> EncodingName {
+    fn name(&self) -> EncodingName {
         EncodingName::TypedValue
     }
 
-    fn data_type() -> DataType {
+    fn data_type(&self) -> DataType {
         DataType::Union(Self::fields().clone(), UnionMode::Dense)
     }
 
-    fn try_new_array(array: ArrayRef) -> DFResult<Self::Array> {
+    fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
         array.try_into()
     }
 
-    fn try_new_scalar(scalar: ScalarValue) -> DFResult<Self::Scalar> {
+    fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         scalar.try_into()
     }
 
-    fn encode_scalar(term: TermRef<'_>) -> DFResult<Self::Scalar> {
-        TermRefTypedValueEncoder::encode_term(Ok(term))
-    }
-
-    fn encode_null_scalar() -> DFResult<Self::Scalar> {
-        TermRefTypedValueEncoder::encode_term(ThinError::expected())
+    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
+        TermRefTypedValueEncoder::encode_terms([term])?.try_as_scalar(0)
     }
 }
 
