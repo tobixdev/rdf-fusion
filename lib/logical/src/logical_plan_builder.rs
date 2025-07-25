@@ -4,7 +4,7 @@ use crate::logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use crate::minus::MinusNode;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{Column, DFSchema, DFSchemaRef};
+use datafusion::common::{Column, DFSchemaRef};
 use datafusion::logical_expr::{
     col, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
     UserDefinedLogicalNode,
@@ -300,19 +300,7 @@ impl RdfFusionLogicalPlanBuilder {
     /// Returns a new [RdfFusionExprBuilderContext].
     pub fn expr_builder_root(&self) -> RdfFusionExprBuilderContext<'_> {
         let schema = self.schema().as_ref();
-        self.expr_builder_root_with_schema(schema)
-    }
-
-    /// Returns a new [RdfFusionExprBuilderContext].
-    pub fn expr_builder_root_with_schema<'a>(
-        &'a self,
-        schema: &'a DFSchema,
-    ) -> RdfFusionExprBuilderContext<'a> {
-        RdfFusionExprBuilderContext::new(
-            self.context.registry().as_ref(),
-            self.context.encoding().object_id_encoding(),
-            schema,
-        )
+        self.context.expr_builder_context_with_schema(schema)
     }
 
     /// Returns a new [RdfFusionExprBuilder] for a given expression.
@@ -329,16 +317,8 @@ impl RdfFusionLogicalPlanBuilder {
             return Ok((self, rhs));
         }
 
-        let lhs_expr_builder = RdfFusionExprBuilderContext::new(
-            self.context.registry().as_ref(),
-            self.context.encoding().object_id_encoding(),
-            self.schema(),
-        );
-        let rhs_expr_builder = RdfFusionExprBuilderContext::new(
-            self.context.registry().as_ref(),
-            self.context.encoding().object_id_encoding(),
-            rhs.schema(),
-        );
+        let lhs_expr_builder = self.context.expr_builder_context_with_schema(self.schema());
+        let rhs_expr_builder = self.context.expr_builder_context_with_schema(rhs.schema());
 
         let lhs_projections =
             build_projections_for_encoding_alignment(lhs_expr_builder, &join_columns)?;

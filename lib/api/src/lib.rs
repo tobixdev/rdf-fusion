@@ -1,4 +1,5 @@
 mod context_view;
+pub mod encoding;
 pub mod functions;
 pub mod storage;
 

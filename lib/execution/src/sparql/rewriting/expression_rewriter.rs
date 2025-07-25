@@ -347,11 +347,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .collect::<Vec<_>>();
         let exists_pattern = exists_pattern.project(projections)?;
         let exists_schema = Arc::clone(exists_pattern.schema());
-        let exists_expr_builder_root = RdfFusionExprBuilderContext::new(
-            self.expr_builder_root.registry(),
-            self.graph_rewriter.storage_encoding().object_id_encoding(),
-            exists_schema.as_ref(),
-        );
+        let exists_expr_builder_root = self
+            .graph_rewriter
+            .plan_builder_context()
+            .expr_builder_context_with_schema(exists_schema.as_ref());
 
         let compatible_filters = outer_keys
             .intersection(&exists_keys)
