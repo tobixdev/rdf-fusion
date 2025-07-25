@@ -6,16 +6,16 @@ use datafusion::common::{plan_datafusion_err, Column, DFSchemaRef, JoinType};
 use datafusion::logical_expr::{and, Expr, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use std::collections::HashSet;
 use std::sync::Arc;
-use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 
 /// An optimizer rule that lowers a [MinusNode] into a left-anti join.
 #[derive(Debug)]
 pub struct MinusLoweringRule {
-    /// Holds a reference to the RDF Fusion function registry.
-    registry: RdfFusionFunctionRegistryRef,
+    /// The RDF Fusion configuration.
+    context: RdfFusionContextView,
 }
 
 impl OptimizerRule for MinusLoweringRule {
@@ -48,8 +48,8 @@ impl OptimizerRule for MinusLoweringRule {
 
 impl MinusLoweringRule {
     /// Creates a new [MinusLoweringRule].
-    pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
-        Self { registry }
+    pub fn new(context: RdfFusionContextView) -> Self {
+        Self { context }
     }
 
     /// Rewrites a [MinusNode] into a left-anti join.
@@ -98,8 +98,7 @@ impl MinusLoweringRule {
     ) -> DFResult<Option<Expr>> {
         let mut join_schema = lhs_schema.as_ref().clone();
         join_schema.merge(rhs_schema);
-        let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
+        let expr_builder_root = RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let mut join_filters = Vec::new();
 

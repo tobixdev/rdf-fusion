@@ -10,22 +10,19 @@ use datafusion::logical_expr::{
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{
     NamedNode, NamedNodePattern, PropertyPathExpression, TermPattern, TermRef, TriplePattern,
     Variable,
 };
 use std::sync::Arc;
-use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 
 #[derive(Debug)]
 pub struct PropertyPathLoweringRule {
-    /// Used for creating expressions with RDF Fusion builtins.
-    registry: RdfFusionFunctionRegistryRef,
-    /// The encoding of the underlying storage layer.
-    storage_encoding: QuadStorageEncoding,
+    /// The RDF Fusion configuration.
+    context: RdfFusionContextView,
 }
 
 impl OptimizerRule for PropertyPathLoweringRule {
@@ -58,14 +55,8 @@ impl OptimizerRule for PropertyPathLoweringRule {
 
 impl PropertyPathLoweringRule {
     /// Creates a new [PropertyPathLoweringRule].
-    pub fn new(
-        storage_encoding: QuadStorageEncoding,
-        registry: RdfFusionFunctionRegistryRef,
-    ) -> Self {
-        Self {
-            registry,
-            storage_encoding,
-        }
+    pub fn new(context: RdfFusionContextView) -> Self {
+        Self { context }
     }
 
     /// Rewrites a [PropertyPathNode] into a regular logical plan.
@@ -121,9 +112,8 @@ impl PropertyPathLoweringRule {
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
         let filter = RdfFusionExprBuilderContext::new(
-            self.registry.as_ref(),
-            self.storage_encoding.object_id_encoding(),
-            &self.storage_encoding.quad_schema(),
+            &self.context,
+            &self.context.storage_encoding().quad_schema(),
         )
         .try_create_builder(col(COL_PREDICATE))?
         .build_same_term_scalar(TermRef::from(node.as_ref()))?;
@@ -137,13 +127,9 @@ impl PropertyPathLoweringRule {
         inf: &PropertyPathLoweringInformation,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
-        let schema = self.storage_encoding.quad_schema();
-        let predicate_builder = RdfFusionExprBuilderContext::new(
-            self.registry.as_ref(),
-            self.storage_encoding.object_id_encoding(),
-            &schema,
-        )
-        .try_create_builder(col(COL_PREDICATE))?;
+        let schema = self.context.storage_encoding().quad_schema();
+        let predicate_builder = RdfFusionExprBuilderContext::new(&self.context, &schema)
+            .try_create_builder(col(COL_PREDICATE))?;
 
         let test_expressions = nodes
             .iter()
@@ -223,10 +209,7 @@ impl PropertyPathLoweringRule {
         let inner = self.rewrite_property_path_expression(inf, inner)?;
 
         // The kleene node currenly only supports the plain term encoding.
-        let builder_context = RdfFusionLogicalPlanBuilderContext::new(
-            Arc::clone(&self.registry),
-            self.storage_encoding.clone(),
-        );
+        let builder_context = RdfFusionLogicalPlanBuilderContext::new(self.context.clone());
         let inner = builder_context
             .create(Arc::new(inner.build()?))
             .with_plain_terms()?
@@ -280,11 +263,7 @@ impl PropertyPathLoweringRule {
         let rhs = rhs.alias("rhs")?;
 
         let join_schema = lhs.schema().join(rhs.schema())?;
-        let expr_builder_root = RdfFusionExprBuilderContext::new(
-            self.registry.as_ref(),
-            self.storage_encoding.object_id_encoding(),
-            &join_schema,
-        );
+        let expr_builder_root = RdfFusionExprBuilderContext::new(&self.context, &join_schema);
         let filter = create_path_sequence_join_filter(inf, expr_builder_root)?;
 
         let join_result = lhs.join_detailed(
@@ -313,16 +292,13 @@ impl PropertyPathLoweringRule {
             object: TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
         };
 
-        let builder = RdfFusionLogicalPlanBuilderContext::new(
-            Arc::clone(&self.registry),
-            self.storage_encoding.clone(),
-        )
-        .create_pattern(
-            active_graph.clone(),
-            Some(Variable::new_unchecked(COL_GRAPH)),
-            pattern,
-        )
-        .with_plain_terms()?;
+        let builder = RdfFusionLogicalPlanBuilderContext::new(self.context.clone())
+            .create_pattern(
+                active_graph.clone(),
+                Some(Variable::new_unchecked(COL_GRAPH)),
+                pattern,
+            )
+            .with_plain_terms()?;
 
         // Apply filter if present
         let builder = if let Some(filter) = filter {

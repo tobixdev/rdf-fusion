@@ -6,11 +6,10 @@ use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::{EncodingName, QuadStorageEncoding};
+use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_logical::join::SparqlJoinType;
 use rdf_fusion_logical::{
-    ActiveGraph, RdfFusionExprBuilderContext, RdfFusionLogicalPlanBuilder,
-    RdfFusionLogicalPlanBuilderContext,
+    ActiveGraph, RdfFusionLogicalPlanBuilder, RdfFusionLogicalPlanBuilderContext,
 };
 use rdf_fusion_model::Iri;
 use rdf_fusion_model::{GraphName, Variable};
@@ -58,8 +57,8 @@ impl GraphPatternRewriter {
     }
 
     /// Returns a reference to the storage encoding used.
-    pub fn storage_encoding(&self) -> &QuadStorageEncoding {
-        self.builder_context.encoding()
+    pub fn plan_builder_context(&self) -> &RdfFusionLogicalPlanBuilderContext {
+        &self.builder_context
     }
 
     /// Rewrites a SPARQL graph pattern into a DataFusion logical plan.
@@ -251,11 +250,9 @@ impl GraphPatternRewriter {
 
     /// Rewrites an [Expression].
     fn rewrite_expression(&self, schema: &DFSchema, expression: &Expression) -> DFResult<Expr> {
-        let expr_builder_root = RdfFusionExprBuilderContext::new(
-            self.builder_context.registry().as_ref(),
-            self.builder_context.encoding().object_id_encoding(),
-            schema,
-        );
+        let expr_builder_root = self
+            .builder_context
+            .expr_builder_context_with_schema(schema);
         let expression_rewriter =
             ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
         expression_rewriter.rewrite(expression)
@@ -267,13 +264,11 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &Expression,
     ) -> DFResult<Expr> {
-        let expr_builder_root = RdfFusionExprBuilderContext::new(
-            self.builder_context.registry().as_ref(),
-            self.builder_context.encoding().object_id_encoding(),
-            schema,
-        );
+        let expr_builder = self
+            .builder_context
+            .expr_builder_context_with_schema(schema);
         let expression_rewriter =
-            ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
+            ExpressionRewriter::new(self, expr_builder, self.base_iri.as_ref());
         expression_rewriter.rewrite_to_boolean(expression)
     }
 
@@ -283,18 +278,16 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &OrderExpression,
     ) -> DFResult<SortExpr> {
-        let expr_builder_root = RdfFusionExprBuilderContext::new(
-            self.builder_context.registry().as_ref(),
-            self.builder_context.encoding().object_id_encoding(),
-            schema,
-        );
+        let expr_builder = self
+            .builder_context
+            .expr_builder_context_with_schema(schema);
         let expression_rewriter =
-            ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
+            ExpressionRewriter::new(self, expr_builder, self.base_iri.as_ref());
         let (asc, expression) = match expression {
             OrderExpression::Asc(inner) => (true, expression_rewriter.rewrite(inner)?),
             OrderExpression::Desc(inner) => (false, expression_rewriter.rewrite(inner)?),
         };
-        Ok(expr_builder_root
+        Ok(expr_builder
             .try_create_builder(expression)?
             .with_encoding(EncodingName::Sortable)?
             .build()?
@@ -307,13 +300,11 @@ impl GraphPatternRewriter {
         schema: &DFSchema,
         expression: &AggregateExpression,
     ) -> DFResult<Expr> {
-        let expr_builder_root = RdfFusionExprBuilderContext::new(
-            self.builder_context.registry().as_ref(),
-            self.builder_context.encoding().object_id_encoding(),
-            schema,
-        );
+        let expr_builder = self
+            .builder_context
+            .expr_builder_context_with_schema(schema);
         let expression_rewriter =
-            ExpressionRewriter::new(self, expr_builder_root, self.base_iri.as_ref());
+            ExpressionRewriter::new(self, expr_builder, self.base_iri.as_ref());
         match expression {
             AggregateExpression::CountSolutions { distinct } => match distinct {
                 false => Ok(count(Expr::Literal(COUNT_STAR_EXPANSION, None))),
@@ -341,7 +332,7 @@ impl GraphPatternRewriter {
                 distinct,
             } => {
                 let expr = expression_rewriter.rewrite(expr)?;
-                let expr = expr_builder_root
+                let expr = expr_builder
                     .try_create_builder(expr)?
                     .with_encoding(EncodingName::TypedValue)?;
                 Ok(match name {

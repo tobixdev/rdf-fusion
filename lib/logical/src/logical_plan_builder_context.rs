@@ -2,7 +2,7 @@ use crate::active_graph::ActiveGraph;
 use crate::join::SparqlJoinType;
 use crate::paths::PropertyPathNode;
 use crate::quad_pattern::QuadPatternNode;
-use crate::RdfFusionLogicalPlanBuilder;
+use crate::{RdfFusionExprBuilderContext, RdfFusionLogicalPlanBuilder};
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{DFSchema, DataFusionError};
 use datafusion::logical_expr::builder::project;
@@ -10,6 +10,8 @@ use datafusion::logical_expr::select_expr::SelectExpr;
 use datafusion::logical_expr::{
     col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, Values,
 };
+use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
@@ -21,39 +23,37 @@ use rdf_fusion_model::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 
 /// The context that allows creating a [RdfFusionLogicalPlanBuilder].
 #[derive(Debug, Clone)]
 pub struct RdfFusionLogicalPlanBuilderContext {
-    /// The registry allows us to access the registered functions. This is necessary for
-    /// creating expressions within the builder.
-    registry: RdfFusionFunctionRegistryRef,
-    /// The encoding used by the storage layer.
-    storage_encoding: QuadStorageEncoding,
+    /// The RDF Fusion configuration.
+    rdf_fusion_context: RdfFusionContextView,
 }
 
 impl RdfFusionLogicalPlanBuilderContext {
-    /// Creates a new [RdfFusionLogicalPlanBuilder] with an existing `plan`.
-    pub fn new(
-        registry: RdfFusionFunctionRegistryRef,
-        storage_encoding: QuadStorageEncoding,
-    ) -> Self {
-        Self {
-            registry,
-            storage_encoding,
-        }
+    /// Creates a new [RdfFusionLogicalPlanBuilder].
+    pub fn new(rdf_fusion_context: RdfFusionContextView) -> Self {
+        Self { rdf_fusion_context }
     }
 
     /// Returns a reference to the [RdfFusionFunctionRegistry](rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry)
     /// of the builder.
     pub fn registry(&self) -> &RdfFusionFunctionRegistryRef {
-        &self.registry
+        &self.rdf_fusion_context.functions()
     }
 
     /// Returns the [QuadStorageEncoding] of the builder.
-    pub fn encoding(&self) -> &QuadStorageEncoding {
-        &self.storage_encoding
+    pub fn storage_encoding(&self) -> &QuadStorageEncoding {
+        &self.rdf_fusion_context.storage_encoding()
+    }
+
+    /// Returns a new [RdfFusionExprBuilderContext].
+    pub fn expr_builder_context_with_schema<'a>(
+        &'a self,
+        schema: &'a DFSchema,
+    ) -> RdfFusionExprBuilderContext<'a> {
+        RdfFusionExprBuilderContext::new(&self.rdf_fusion_context, schema)
     }
 
     /// Creates a new [RdfFusionLogicalPlanBuilder] with the given `plan`.
@@ -117,7 +117,7 @@ impl RdfFusionLogicalPlanBuilderContext {
         };
 
         QuadPatternNode::new_with_blank_nodes_as_filter(
-            self.storage_encoding.clone(),
+            self.storage_encoding().clone(),
             active_graph,
             Some(Variable::new_unchecked(COL_GRAPH)),
             triple_pattern,
@@ -249,7 +249,7 @@ impl RdfFusionLogicalPlanBuilderContext {
         pattern: TriplePattern,
     ) -> RdfFusionLogicalPlanBuilder {
         let quads = QuadPatternNode::new(
-            self.storage_encoding.clone(),
+            self.storage_encoding().clone(),
             active_graph,
             graph_variable,
             pattern,

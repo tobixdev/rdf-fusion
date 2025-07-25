@@ -6,9 +6,9 @@ use datafusion::common::{plan_err, Column, ExprSchema, JoinType};
 use datafusion::logical_expr::{Expr, ExprSchemable, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use std::collections::HashSet;
-use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 
 /// A rewriting rule that transforms SPARQL join operations into DataFusion join operations.
 ///
@@ -19,8 +19,8 @@ use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 /// /// - [SPARQL 1.1 - Compatibile Mappings](https://www.w3.org/TR/sparql11-query/#defn_algCompatibleMapping)
 #[derive(Debug)]
 pub struct SparqlJoinLoweringRule {
-    /// Used for creating expressions with RDF Fusion builtins.
-    registry: RdfFusionFunctionRegistryRef,
+    /// The RDF Fusion configuration
+    context: RdfFusionContextView,
 }
 
 impl OptimizerRule for SparqlJoinLoweringRule {
@@ -53,8 +53,8 @@ impl OptimizerRule for SparqlJoinLoweringRule {
 
 impl SparqlJoinLoweringRule {
     /// Creates a new instance of the SPARQL join lowering rule.
-    pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
-        Self { registry }
+    pub fn new(context: RdfFusionContextView) -> Self {
+        Self { context }
     }
 
     /// Rewrites a SPARQL join node into a DataFusion join operation.
@@ -170,8 +170,7 @@ impl SparqlJoinLoweringRule {
 
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
-        let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
+        let expr_builder_root = RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let mut join_filters = join_on
             .iter()
@@ -222,8 +221,7 @@ impl SparqlJoinLoweringRule {
     ) -> DFResult<Vec<Expr>> {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
-        let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
+        let expr_builder_root = RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let projections = node
@@ -268,8 +266,7 @@ impl SparqlJoinLoweringRule {
 
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
-        let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
+        let expr_builder_root = RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let filter = filter

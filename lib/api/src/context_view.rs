@@ -1,31 +1,16 @@
+use crate::functions::RdfFusionFunctionRegistryRef;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::sortable_term::SortableTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use crate::functions::RdfFusionFunctionRegistryRef;
-
-
-/// Holds a configuration instance for each RDF Fusion encoding.
-///
-/// This is an instance (as opposed to a type) as some encodings can be configured. At least
-/// this is planned for the future. For each RDF Fusion instance, the encodings are fixed once it
-/// is created.
-struct RdfFusionEncodingConfiguration {
-    /// The [PlainTermEncoding] configuration.
-    plain_term: PlainTermEncoding,
-    /// The [TypedValueEncoding] configuration.
-    typed_value: TypedValueEncoding,
-    /// The [ObjectIdEncoding] configuration.
-    object_id_encoding: ObjectIdEncoding,
-    /// The [SortableTermEncoding] configuration.
-    sortable_encoding: SortableTermEncoding
-}
+use rdf_fusion_encoding::QuadStorageEncoding;
+use crate::encoding::RdfFusionEncodingConfiguration;
 
 /// Represents a view of an RDF Fusion context.
 ///
 /// This view can be passed into other parts of the engine that require information on the current
 /// configuration of the engine but do not want to directly depend on the central context struct.
+#[derive(Debug, Clone)]
 pub struct RdfFusionContextView {
     /// Holds references to the registered built-in functions.
     functions: RdfFusionFunctionRegistryRef,
@@ -35,4 +20,34 @@ pub struct RdfFusionContextView {
     ///
     /// This is important for deciding the output type of operator that match quad patterns.
     storage_encoding: QuadStorageEncoding,
+}
+
+impl RdfFusionContextView {
+    /// Creates a new [RdfFusionContextView].
+    pub fn new(
+        functions: RdfFusionFunctionRegistryRef,
+        encodings: RdfFusionEncodingConfiguration,
+        storage_encoding: QuadStorageEncoding,
+    ) -> Self {
+        Self {
+            functions,
+            encodings,
+            storage_encoding,
+        }
+    }
+
+    /// Provides a reference to the used [RdfFusionFunctionRegistry].
+    pub fn functions(&self) -> &RdfFusionFunctionRegistryRef {
+        &self.functions
+    }
+
+    /// Provides a reference to the used [RdfFusionEncodingConfiguration].
+    pub fn encodings(&self) -> &RdfFusionEncodingConfiguration {
+        &self.encodings
+    }
+
+    /// Provides a reference to the used [QuadStorageEncoding].
+    pub fn storage_encoding(&self) -> &QuadStorageEncoding {
+        &self.storage_encoding
+    }
 }

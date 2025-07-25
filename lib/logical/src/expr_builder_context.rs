@@ -6,6 +6,7 @@ use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
 };
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
@@ -23,10 +24,8 @@ use std::sync::Arc;
 /// resolve the registered built-ins and user-defined functions.
 #[derive(Debug, Clone, Copy)]
 pub struct RdfFusionExprBuilderContext<'context> {
-    /// Provides access to the builtin functions.
-    registry: &'context dyn RdfFusionFunctionRegistry,
-    /// The object id encoding used
-    object_id_encoding: Option<&'context ObjectIdEncoding>,
+    /// Provides access to the RDF Fusion configuration.
+    rdf_fusion_context: &'context RdfFusionContextView,
     /// The schema of the input data. Necessary for inferring the encodings of RDF terms.
     schema: &'context DFSchema,
 }
@@ -34,13 +33,11 @@ pub struct RdfFusionExprBuilderContext<'context> {
 impl<'context> RdfFusionExprBuilderContext<'context> {
     /// Creates a new expression builder context.
     pub fn new(
-        registry: &'context dyn RdfFusionFunctionRegistry,
-        object_id_encoding: Option<&'context ObjectIdEncoding>,
+        rdf_fusion_context: &'context RdfFusionContextView,
         schema: &'context DFSchema,
     ) -> Self {
         Self {
-            registry,
-            object_id_encoding,
+            rdf_fusion_context,
             schema,
         }
     }
@@ -52,12 +49,12 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
 
     /// Returns a reference to the used function registry.
     pub fn registry(&self) -> &dyn RdfFusionFunctionRegistry {
-        self.registry
+        self.rdf_fusion_context.functions().as_ref()
     }
 
     /// Returns a reference to the used object id encoding.
     pub fn object_id_encoding(&self) -> Option<&'context ObjectIdEncoding> {
-        self.object_id_encoding
+        self.rdf_fusion_context.encodings().object_id()
     }
 
     /// Creates a new [RdfFusionExprBuilder] from an existing [Expr].
@@ -256,7 +253,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         args: RdfFusionFunctionArgs,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
         let udaf = self
-            .registry
+            .registry()
             .create_udaf(FunctionName::Builtin(name), args)?;
 
         // Currently, UDAFs are only supported for typed values
@@ -310,7 +307,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     ) -> DFResult<Expr> {
         let udf = self.create_builtin_udf_with_args(name, udf_args)?;
         let supported_encodings = self
-            .registry
+            .registry()
             .supported_encodings(FunctionName::Builtin(name))?;
 
         if supported_encodings.is_empty() {
@@ -337,7 +334,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     //
 
     pub(crate) fn create_builtin_udf(&self, name: BuiltinName) -> DFResult<Arc<ScalarUDF>> {
-        self.registry
+        self.registry()
             .create_udf(FunctionName::Builtin(name), RdfFusionFunctionArgs::empty())
     }
 
@@ -346,7 +343,8 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         name: BuiltinName,
         args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<ScalarUDF>> {
-        self.registry.create_udf(FunctionName::Builtin(name), args)
+        self.registry()
+            .create_udf(FunctionName::Builtin(name), args)
     }
 
     /// TODO
