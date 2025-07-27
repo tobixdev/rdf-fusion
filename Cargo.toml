@@ -66,6 +66,7 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 # Web Dependencies
 
 axum = "0.8"
+axum-test = "17.3"
 headers = "0.4"
 headers-accept = "0.2"
 mediatype = "0.20"
