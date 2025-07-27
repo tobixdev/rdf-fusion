@@ -1,4 +1,4 @@
-/// Represents the name of a single [TermEncoding].
+/// Represents the name of a single [TermEncoding](crate::TermEncoding).
 ///
 /// RDF Fusion allows users to define multiple encodings for RDF terms. This allows specializing the
 /// Arrow arrays used for holding the results of queries.

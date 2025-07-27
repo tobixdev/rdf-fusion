@@ -31,7 +31,7 @@ impl RdfFusionContextView {
         }
     }
 
-    /// Provides a reference to the used [RdfFusionFunctionRegistry].
+    /// Provides a reference to the used [RdfFusionFunctionRegistry](crate::functions::RdfFusionFunctionRegistry).
     pub fn functions(&self) -> &RdfFusionFunctionRegistryRef {
         &self.functions
     }

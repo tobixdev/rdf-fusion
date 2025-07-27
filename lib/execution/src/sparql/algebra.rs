@@ -10,7 +10,7 @@ use std::str::FromStr;
 /// A parsed [SPARQL query](https://www.w3.org/TR/sparql11-query/).
 ///
 /// ```
-/// use rdf_fusion_engine::sparql::Query;
+/// use rdf_fusion_execution::sparql::Query;
 /// use rdf_fusion_model::NamedNode;
 ///
 /// let query_str = "SELECT ?s ?p ?o WHERE { ?s ?p ?o . }";
@@ -106,7 +106,7 @@ impl From<spargebra::Query> for Query {
 ///
 /// ```
 /// use spargebra::SparqlSyntaxError;
-/// use rdf_fusion_engine::sparql::Update;
+/// use rdf_fusion_execution::sparql::Update;
 ///
 /// let update_str = "CLEAR ALL ;";
 /// let update = Update::parse(update_str, None)?;
@@ -219,7 +219,7 @@ impl QueryDataset {
     /// (i.e. the default graph is the store default graph and all the store named graphs are available)
     ///
     /// ```
-    /// use rdf_fusion_engine::sparql::Query;
+    /// use rdf_fusion_execution::sparql::Query;
     ///
     /// assert!(Query::parse("SELECT ?s ?p ?o WHERE { ?s ?p ?o . }", None)?
     ///     .dataset()
@@ -255,7 +255,7 @@ impl QueryDataset {
     ///
     /// By default only the store default graph is considered.
     /// ```
-    /// use rdf_fusion_engine::sparql::Query;
+    /// use rdf_fusion_execution::sparql::Query;
     /// use rdf_fusion_model::NamedNode;
     ///
     /// let mut query = Query::parse("SELECT ?s ?p ?o WHERE { ?s ?p ?o . }", None)?;
@@ -280,7 +280,7 @@ impl QueryDataset {
     /// Sets the list of allowed named graphs in the query.
     ///
     /// ```
-    /// use rdf_fusion_engine::sparql::Query;
+    /// use rdf_fusion_execution::sparql::Query;
     /// use rdf_fusion_model::NamedNode;
     ///
     /// let mut query = Query::parse("SELECT ?s ?p ?o WHERE { ?s ?p ?o . }", None)?;
