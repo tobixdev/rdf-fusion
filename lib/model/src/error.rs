@@ -4,42 +4,33 @@ use crate::{
 };
 use oxiri::IriParseError;
 use oxrdf::BlankNodeIdParseError;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::num::{ParseFloatError, ParseIntError, TryFromIntError};
 use std::str::ParseBoolError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
-// TODO ThinResult -> SparqlResult as an entire wrapper type
-// Furthermore, there should be another wrapper that indicates unexpected errors.
-// See how ergonomic that is.
-
 /// A light-weight result, mainly used for SPARQL operations.
 pub type ThinResult<T> = Result<T, ThinError>;
 
-/// A thin error type that indicates whether an issue is expected (e.g., a SPARQL error) or if this
-/// error is unexpected and should not happen (i.e., programming errors).
+/// A thin error type that indicates an *expected* failure without any reason.
+///
+/// In SPARQL, many operations can fail. For example, because the input value had a different data
+/// type. However, these errors are expected and are part of the query evaluation. As all of these
+/// "expected" errors are treated equally in the query evaluation, we do not need to store a reason.
 #[derive(Clone, Copy, Debug, Default, Error, PartialEq, Eq)]
-pub enum ThinError {
-    #[default]
-    #[error("Expected error")]
-    Expected,
-    // TODO: After re-thinking, some should probably panic and some we should use a different type.
-    // It's too easy to forget handling the Not Expected error.
-    #[error("An internal error occurred. This is most likely a bug in RdfFusion. Reason: {0}")]
-    InternalError(&'static str),
-}
+pub struct ThinError {}
 
 impl ThinError {
-    /// Creates an expected error. This should be used for fallible operations, such as SPARQL
-    /// operations that can return an error.
+    /// Creates a result with a [ThinError].
     pub fn expected<T>() -> ThinResult<T> {
-        Err(ThinError::Expected)
+        Err(ThinError::default())
     }
+}
 
-    /// Creates an internal error. This should be used if an error likely indicates a bug.
-    pub fn internal_error<T>(expected: &'static str) -> ThinResult<T> {
-        Err(ThinError::InternalError(expected))
+impl Display for ThinError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("An expected error occurred.")
     }
 }
 
@@ -47,7 +38,7 @@ macro_rules! implement_from {
     ($t:ty) => {
         impl From<$t> for ThinError {
             fn from(_: $t) -> Self {
-                ThinError::Expected
+                ThinError::default()
             }
         }
     };

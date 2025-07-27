@@ -85,7 +85,7 @@ fn evaluate_substr(
     let mut start_iter = source
         .0
         .char_indices()
-        .skip(index.checked_sub(1).ok_or(ThinError::Expected)?)
+        .skip(index.checked_sub(1).ok_or(ThinError::default())?)
         .peekable();
     let result = if let Some((start_position, _)) = start_iter.peek().copied() {
         if let Some(length) = length {

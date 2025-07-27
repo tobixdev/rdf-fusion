@@ -1,13 +1,12 @@
 use crate::sparql::error::QueryEvaluationError;
 use datafusion::arrow::array::RecordBatch;
-use datafusion::common::{exec_datafusion_err, exec_err};
+use datafusion::common::exec_err;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
-use rdf_fusion_model::ThinError;
 use rdf_fusion_model::Variable;
 pub use sparesults::QuerySolution;
 use std::pin::Pin;
@@ -132,10 +131,7 @@ fn to_query_solution(
         let terms = DefaultPlainTermDecoder::decode_terms(&array)
             .map(|t| match t {
                 Ok(t) => Ok(Some(t.into_owned())),
-                Err(ThinError::Expected) => Ok(None),
-                Err(ThinError::InternalError(err)) => {
-                    Err(exec_datafusion_err!("Error while obtaining terms: {err}"))
-                }
+                Err(_) => Ok(None),
             })
             .collect::<DFResult<Vec<_>>>()
             .map_err(|e| {

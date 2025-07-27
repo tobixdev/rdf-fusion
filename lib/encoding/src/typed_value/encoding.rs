@@ -7,10 +7,11 @@ use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{Decimal, TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{Decimal, TermRef, ThinResult};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
+use thiserror::Error;
 
 static FIELDS_STRING: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
@@ -295,8 +296,17 @@ impl Display for TypedValueEncodingField {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, Error, PartialEq, Eq, Hash)]
+pub struct UnknownTypedValueEncodingFieldError;
+
+impl Display for UnknownTypedValueEncodingFieldError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unexpected type_id for encoded RDF Term")
+    }
+}
+
 impl TryFrom<i8> for TypedValueEncodingField {
-    type Error = ThinError;
+    type Error = UnknownTypedValueEncodingFieldError;
 
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -315,13 +325,13 @@ impl TryFrom<i8> for TypedValueEncodingField {
             12 => TypedValueEncodingField::Date,
             13 => TypedValueEncodingField::Duration,
             14 => TypedValueEncodingField::OtherLiteral,
-            _ => return ThinError::internal_error("Unexpected type_id for encoded RDF Term"),
+            _ => return Err(UnknownTypedValueEncodingFieldError::default()),
         })
     }
 }
 
 impl TryFrom<u8> for TypedValueEncodingField {
-    type Error = ThinError;
+    type Error = UnknownTypedValueEncodingFieldError;
 
     #[allow(
         clippy::cast_possible_wrap,

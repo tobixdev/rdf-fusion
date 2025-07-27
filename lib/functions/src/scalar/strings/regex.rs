@@ -120,5 +120,5 @@ pub(super) fn compile_pattern(pattern: &str, flags: Option<&str>) -> ThinResult<
             _ => return ThinError::expected(), // invalid option
         }
     }
-    regex_builder.build().map_err(|_| ThinError::Expected)
+    regex_builder.build().map_err(|_| ThinError::default())
 }

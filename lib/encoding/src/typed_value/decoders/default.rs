@@ -32,11 +32,10 @@ impl TermDecoder<TypedValueEncoding> for DefaultTypedValueDecoder {
         scalar: &<TypedValueEncoding as TermEncoding>::Scalar,
     ) -> ThinResult<Self::Term<'_>> {
         let ScalarValue::Union(Some((type_id, value)), _, _) = scalar.scalar_value() else {
-            return ThinError::internal_error("Unexpected type id");
+            panic!("Unexpected type id");
         };
+        let field = TypedValueEncodingField::try_from(*type_id).expect("Unexpected type id");
 
-        let field = TypedValueEncodingField::try_from(*type_id)
-            .map_err(|_| ThinError::InternalError("Unexpected type id"))?;
         let result = match (field, value.as_ref()) {
             (TypedValueEncodingField::NamedNode, ScalarValue::Utf8(Some(value))) => {
                 TypedValueRef::NamedNode(NamedNodeRef::new_unchecked(value))
@@ -109,7 +108,7 @@ impl TermDecoder<TypedValueEncoding> for DefaultTypedValueDecoder {
                 TypedValueRef::OtherLiteral(LiteralRef::new_typed_literal(value, datatype))
             }
             (TypedValueEncodingField::Null, _) => return ThinError::expected(),
-            _ => return ThinError::internal_error("Unexpected type id / value combination"),
+            _ => panic!("Unexpected type id / value combination"),
         };
         Ok(result)
     }
@@ -120,8 +119,8 @@ fn extract_term_value<'data>(
     parts: &TypedValueArrayParts<'data>,
     index: usize,
 ) -> ThinResult<TypedValueRef<'data>> {
-    let field = TypedValueEncodingField::try_from(parts.array.type_id(index))
-        .map_err(|_| ThinError::InternalError("Unexpected type id"))?;
+    let field =
+        TypedValueEncodingField::try_from(parts.array.type_id(index)).expect("Unexpected type id");
     let offset = parts.array.value_offset(index);
 
     match field {
@@ -231,6 +230,6 @@ fn extract_duration(parts: DurationParts<'_>, index: usize) -> ThinResult<TypedV
         (true, false) => TypedValueRef::DayTimeDurationLiteral(DayTimeDuration::from_be_bytes(
             parts.seconds.value(index).to_be_bytes(),
         )),
-        _ => return ThinError::internal_error("Both values are null in a duration."),
+        _ => panic!("Both values are null in a duration."),
     })
 }

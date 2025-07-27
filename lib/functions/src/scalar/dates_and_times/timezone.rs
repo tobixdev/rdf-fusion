@@ -45,7 +45,7 @@ impl ScalarSparqlOp for TimezoneSparqlOp {
                 |value| {
                     if let TypedValueRef::DateTimeLiteral(dt) = value {
                         Ok(TypedValueRef::DayTimeDurationLiteral(
-                            dt.timezone().ok_or(ThinError::Expected)?,
+                            dt.timezone().ok_or(ThinError::default())?,
                         ))
                     } else {
                         ThinError::expected()

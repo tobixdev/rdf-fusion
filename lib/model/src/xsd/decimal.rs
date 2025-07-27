@@ -69,7 +69,7 @@ impl Decimal {
             value: self
                 .value
                 .checked_add(rhs.into().value)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -82,7 +82,7 @@ impl Decimal {
             value: self
                 .value
                 .checked_sub(rhs.into().value)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -114,13 +114,13 @@ impl Decimal {
         // We do multiplication + shift
         let shift = (shift_left + shift_right)
             .checked_sub(DECIMAL_PART_DIGITS)
-            .ok_or(ThinError::Expected)?;
+            .ok_or(ThinError::default())?;
         Ok(Self {
             value: left
                 .checked_mul(right)
-                .ok_or(ThinError::Expected)?
-                .checked_mul(10_i128.checked_pow(shift).ok_or(ThinError::Expected)?)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?
+                .checked_mul(10_i128.checked_pow(shift).ok_or(ThinError::default())?)
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -152,13 +152,13 @@ impl Decimal {
         // We do division + shift
         let shift = (shift_left + shift_right)
             .checked_sub(DECIMAL_PART_DIGITS)
-            .ok_or(ThinError::Expected)?;
+            .ok_or(ThinError::default())?;
         Ok(Self {
             value: left
                 .checked_div(right)
-                .ok_or(ThinError::Expected)?
-                .checked_div(10_i128.checked_pow(shift).ok_or(ThinError::Expected)?)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?
+                .checked_div(10_i128.checked_pow(shift).ok_or(ThinError::default())?)
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -190,7 +190,7 @@ impl Decimal {
     #[inline]
     pub fn checked_neg(self) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_neg().ok_or(ThinError::Expected)?,
+            value: self.value.checked_neg().ok_or(ThinError::default())?,
         })
     }
 
@@ -200,7 +200,7 @@ impl Decimal {
     #[inline]
     pub fn checked_abs(self) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_abs().ok_or(ThinError::Expected)?,
+            value: self.value.checked_abs().ok_or(ThinError::default())?,
         })
     }
 
@@ -217,7 +217,7 @@ impl Decimal {
                 value / 10 - i128::from(-value % 10 > 5)
             }
             .checked_mul(DECIMAL_PART_POW)
-            .ok_or(ThinError::Expected)?,
+            .ok_or(ThinError::default())?,
         })
     }
 
@@ -233,7 +233,7 @@ impl Decimal {
                 self.value / DECIMAL_PART_POW
             }
             .checked_mul(DECIMAL_PART_POW)
-            .ok_or(ThinError::Expected)?,
+            .ok_or(ThinError::default())?,
         })
     }
 
@@ -249,7 +249,7 @@ impl Decimal {
                 self.value / DECIMAL_PART_POW - 1
             }
             .checked_mul(DECIMAL_PART_POW)
-            .ok_or(ThinError::Expected)?,
+            .ok_or(ThinError::default())?,
         })
     }
 

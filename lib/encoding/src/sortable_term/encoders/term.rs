@@ -4,7 +4,6 @@ use crate::sortable_term::SortableTermEncoding;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
 use crate::{EncodingArray, TermDecoder, TermEncoding};
-use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
 
@@ -20,14 +19,11 @@ impl TermEncoder<SortableTermEncoding> for TermRefSortableTermEncoder {
         let mut typed_values_array = TypedValueArrayBuilder::default();
         for term in terms {
             let value: ThinResult<TypedValueRef<'_>> =
-                term.and_then(|t| t.try_into().map_err(|_| ThinError::Expected));
+                term.and_then(|t| t.try_into().map_err(|_| ThinError::default()));
             match value {
                 Ok(value) => typed_values_array.append_typed_value(value)?,
-                Err(ThinError::Expected) => {
+                Err(_) => {
                     typed_values_array.append_null()?;
-                }
-                Err(ThinError::InternalError(err)) => {
-                    return exec_err!("Error while obtaining terms: {err}")
                 }
             }
         }

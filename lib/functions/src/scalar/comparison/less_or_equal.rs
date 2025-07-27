@@ -52,7 +52,7 @@ impl ScalarSparqlOp for LessOrEqualSparqlOp {
                         .map(|o| [Ordering::Equal, Ordering::Less].contains(&o))
                         .map(Into::into)
                         .map(TypedValueRef::BooleanLiteral)
-                        .ok_or(ThinError::Expected)
+                        .ok_or(ThinError::default())
                 },
                 |_, _| ThinError::expected(),
             )

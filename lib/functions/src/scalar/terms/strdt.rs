@@ -53,7 +53,7 @@ impl ScalarSparqlOp for StrDtSparqlOp {
                     {
                         let plain_literal =
                             LiteralRef::new_typed_literal(lhs_literal.value, rhs_named_node);
-                        TypedValueRef::try_from(plain_literal).map_err(|_| ThinError::Expected)
+                        TypedValueRef::try_from(plain_literal).map_err(|_| ThinError::default())
                     } else {
                         ThinError::expected()
                     }

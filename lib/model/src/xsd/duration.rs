@@ -140,7 +140,7 @@ impl Duration {
             self.year_month.checked_add(rhs.year_month)?,
             self.day_time.checked_add(rhs.day_time)?,
         )
-        .map_err(|_| ThinError::Expected)
+        .map_err(|_| ThinError::default())
     }
 
     /// [op:subtract-yearMonthDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDurations) and [op:subtract-dayTimeDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDurations)
@@ -153,7 +153,7 @@ impl Duration {
             self.year_month.checked_sub(rhs.year_month)?,
             self.day_time.checked_sub(rhs.day_time)?,
         )
-        .map_err(|_| ThinError::Expected)
+        .map_err(|_| ThinError::default())
     }
 
     /// Unary negation.
@@ -357,7 +357,7 @@ impl YearMonthDuration {
             months: self
                 .months
                 .checked_add(rhs.months)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -371,7 +371,7 @@ impl YearMonthDuration {
             months: self
                 .months
                 .checked_sub(rhs.months)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -381,7 +381,7 @@ impl YearMonthDuration {
     #[inline]
     pub fn checked_neg(self) -> ThinResult<Self> {
         Ok(Self {
-            months: self.months.checked_neg().ok_or(ThinError::Expected)?,
+            months: self.months.checked_neg().ok_or(ThinError::default())?,
         })
     }
 

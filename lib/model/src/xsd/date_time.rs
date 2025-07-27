@@ -703,7 +703,7 @@ impl Date {
         DateTime::try_from(self)?
             .checked_add_duration(rhs)?
             .try_into()
-            .map_err(|_| ThinError::Expected)
+            .map_err(|_| ThinError::default())
     }
 
     /// [op:subtract-yearMonthDuration-from-date](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDuration-from-date)
@@ -734,7 +734,7 @@ impl Date {
         DateTime::try_from(self)?
             .checked_sub_duration(rhs)?
             .try_into()
-            .map_err(|_| ThinError::Expected)
+            .map_err(|_| ThinError::default())
     }
 
     // [fn:adjust-date-to-timezone](https://www.w3.org/TR/xpath-functions-31/#func-adjust-date-to-timezone)
@@ -751,7 +751,7 @@ impl Date {
         )?
         .adjust(timezone_offset)?
         .try_into()
-        .map_err(|_| ThinError::Expected)
+        .map_err(|_| ThinError::default())
     }
 
     /// Checks if the two values are [identical](https://www.w3.org/TR/xmlschema11-2/#identity).
@@ -2002,13 +2002,13 @@ fn date_time_plus_duration(
     let se = dt.second.unwrap_or_default();
     let mo = i64::from(mo)
         .checked_add(du.all_months())
-        .ok_or(ThinError::Expected)?;
-    let (yr, mo) = normalize_month(yr, mo).ok_or(ThinError::Expected)?;
+        .ok_or(ThinError::default())?;
+    let (yr, mo) = normalize_month(yr, mo).ok_or(ThinError::default())?;
     let da = min(da, days_in_month(Some(yr), mo));
     let se = se.checked_add(du.all_seconds())?;
     let (yr, mo, da, hr, mi, se) =
         normalize_second(yr, mo.into(), da.into(), hr.into(), mi.into(), se)
-            .ok_or(ThinError::Expected)?;
+            .ok_or(ThinError::default())?;
 
     Ok(DateTimeSevenPropertyModel {
         year: dt.year.map(|_| yr),

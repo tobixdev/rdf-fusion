@@ -39,7 +39,7 @@ impl Integer {
             value: self
                 .value
                 .checked_add(rhs.into().value)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -52,7 +52,7 @@ impl Integer {
             value: self
                 .value
                 .checked_sub(rhs.into().value)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -65,7 +65,7 @@ impl Integer {
             value: self
                 .value
                 .checked_mul(rhs.into().value)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -78,7 +78,7 @@ impl Integer {
             value: self
                 .value
                 .checked_div(rhs.into().value)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -91,7 +91,7 @@ impl Integer {
             value: self
                 .value
                 .checked_rem(rhs.into().value)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -104,7 +104,7 @@ impl Integer {
             value: self
                 .value
                 .checked_rem_euclid(rhs.into().value)
-                .ok_or(ThinError::Expected)?,
+                .ok_or(ThinError::default())?,
         })
     }
 
@@ -116,7 +116,7 @@ impl Integer {
         self.value
             .checked_neg()
             .map(|value| Self { value })
-            .ok_or(ThinError::Expected)
+            .ok_or(ThinError::default())
     }
 
     /// [fn:abs](https://www.w3.org/TR/xpath-functions-31/#func-abs)
@@ -127,7 +127,7 @@ impl Integer {
         self.value
             .checked_abs()
             .map(|value| Self { value })
-            .ok_or(ThinError::Expected)
+            .ok_or(ThinError::default())
     }
 
     #[inline]
@@ -291,9 +291,9 @@ impl TryFrom<Numeric> for Integer {
         match value {
             Numeric::Int(v) => Ok(Integer::from(v)),
             Numeric::Integer(v) => Ok(v),
-            Numeric::Float(v) => Integer::try_from(v).map_err(|_| ThinError::Expected),
-            Numeric::Double(v) => Integer::try_from(v).map_err(|_| ThinError::Expected),
-            Numeric::Decimal(v) => Integer::try_from(v).map_err(|_| ThinError::Expected),
+            Numeric::Float(v) => Integer::try_from(v).map_err(|_| ThinError::default()),
+            Numeric::Double(v) => Integer::try_from(v).map_err(|_| ThinError::default()),
+            Numeric::Decimal(v) => Integer::try_from(v).map_err(|_| ThinError::default()),
         }
     }
 }

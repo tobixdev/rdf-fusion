@@ -3,14 +3,13 @@ use crate::typed_value::TypedValueArrayBuilder;
 use crate::TermEncoder;
 use crate::TermEncoding;
 use crate::TypedValueEncoding;
-use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{BlankNode, Double, NamedNode, TypedValueRef};
 use rdf_fusion_model::{
     BlankNodeRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef, ThinResult,
 };
 use rdf_fusion_model::{
-    Boolean, DateTime, DayTimeDuration, Decimal, Float, Int, Integer, OwnedStringLiteral, ThinError,
+    Boolean, DateTime, DayTimeDuration, Decimal, Float, Int, Integer, OwnedStringLiteral,
 };
 
 #[macro_export]
@@ -29,10 +28,7 @@ macro_rules! make_simple_term_value_encoder {
                 for term_result in terms {
                     match term_result {
                         Ok(value) => $BUILDER_INVOCATION(&mut builder, value)?,
-                        Err(ThinError::Expected) => builder.append_null()?,
-                        Err(ThinError::InternalError(cause)) => {
-                            return exec_err!("Internal error during RDF operation: {cause}")
-                        }
+                        Err(_) => builder.append_null()?,
                     }
                 }
                 $crate::typed_value::TYPED_VALUE_ENCODING.try_new_array(builder.finish())

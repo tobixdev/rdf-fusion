@@ -1,9 +1,8 @@
 use crate::encoding::TermEncoder;
 use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding, TYPED_VALUE_ENCODING};
 use crate::{EncodingArray, TermEncoding};
-use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{Numeric, ThinError, ThinResult, TypedValueRef};
+use rdf_fusion_model::{Numeric, ThinResult, TypedValueRef};
 
 #[derive(Debug)]
 pub struct DefaultTypedValueEncoder;
@@ -57,10 +56,7 @@ impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
                 Ok(TypedValueRef::OtherLiteral(value)) => {
                     value_builder.append_other_literal(value)?
                 }
-                Err(ThinError::Expected) => value_builder.append_null()?,
-                Err(ThinError::InternalError(cause)) => {
-                    return exec_err!("Internal error during RDF operation: {cause}")
-                }
+                Err(_) => value_builder.append_null()?,
             }
         }
         TYPED_VALUE_ENCODING.try_new_array(value_builder.finish())

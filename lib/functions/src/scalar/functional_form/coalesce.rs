@@ -51,11 +51,11 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
                 dispatch_n_ary_typed_value(
                     &args,
                     number_rows,
-                    |args| args.first().copied().ok_or(ThinError::Expected),
+                    |args| args.first().copied().ok_or(ThinError::default()),
                     |args| {
                         args.iter()
                             .find_map(|arg| arg.ok())
-                            .ok_or(ThinError::Expected)
+                            .ok_or(ThinError::default())
                     },
                 )
             },
@@ -70,11 +70,11 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
                 dispatch_n_ary_plain_term(
                     &args,
                     number_rows,
-                    |args| args.first().copied().ok_or(ThinError::Expected),
+                    |args| args.first().copied().ok_or(ThinError::default()),
                     |args| {
                         args.iter()
                             .find_map(|arg| arg.ok())
-                            .ok_or(ThinError::Expected)
+                            .ok_or(ThinError::default())
                     },
                 )
             },
@@ -87,11 +87,11 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
                 Ok(dispatch_n_ary_object_id(
                     &args,
                     number_rows,
-                    |args| args.first().copied().ok_or(ThinError::Expected),
+                    |args| args.first().copied().ok_or(ThinError::default()),
                     |args| {
                         args.iter()
                             .find_map(|arg| arg.ok())
-                            .ok_or(ThinError::Expected)
+                            .ok_or(ThinError::default())
                     },
                 ))
             },

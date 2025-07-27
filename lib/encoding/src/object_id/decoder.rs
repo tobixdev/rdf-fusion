@@ -16,14 +16,14 @@ impl TermDecoder<ObjectIdEncoding> for DefaultObjectIdDecoder {
         array
             .object_ids()
             .iter()
-            .map(|opt| opt.ok_or(ThinError::Expected))
+            .map(|opt| opt.ok_or(ThinError::default()))
     }
 
     fn decode_term(
         scalar: &<ObjectIdEncoding as TermEncoding>::Scalar,
     ) -> ThinResult<Self::Term<'_>> {
         let ScalarValue::UInt64(scalar) = scalar.scalar_value() else {
-            return ThinError::internal_error("Unexpected encoding. Should be ensured.");
+            panic!("Unexpected encoding. Should be ensured by the wrapping type.");
         };
 
         match scalar {
