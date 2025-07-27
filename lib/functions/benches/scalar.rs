@@ -1,11 +1,12 @@
 use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use datafusion::arrow::datatypes::Field;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
+use rdf_fusion_api::functions::{BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry};
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
-use rdf_fusion_encoding::TermEncoding;
-use rdf_fusion_functions::builtin::BuiltinName;
-use rdf_fusion_functions::registry::{DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry};
-use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
+use rdf_fusion_encoding::{RdfFusionEncodings, TermEncoding};
+use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_model::{BlankNode, Float, Integer, NamedNodeRef};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -65,7 +66,14 @@ impl UnaryScenario {
 }
 
 fn bench_all(c: &mut Criterion) {
-    let registry = DefaultRdfFusionFunctionRegistry::new(None);
+    let encodings = RdfFusionEncodings::new(
+        PLAIN_TERM_ENCODING,
+        TYPED_VALUE_ENCODING,
+        None,
+        SORTABLE_TERM_ENCODING,
+    );
+    let registry = DefaultRdfFusionFunctionRegistry::new(encodings);
+
     let runs = HashMap::from([(
         BuiltinName::IsIri,
         [UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],

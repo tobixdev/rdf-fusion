@@ -4,9 +4,9 @@ use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use futures::StreamExt;
 use rdf_fusion::model::Term;
 use rdf_fusion::store::Store;
-use rdf_fusion_engine::results::QueryResults;
 use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject};
 use tokio::runtime::Builder;
+use rdf_fusion_execution::results::QueryResults;
 
 /// This benchmark measures transactionally inserting synthetic quads into the store.
 fn store_load(c: &mut Criterion) {
