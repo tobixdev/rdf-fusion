@@ -5,6 +5,7 @@ use crate::sparql::{
     QuerySolutionStream, QueryTripleStream,
 };
 use datafusion::arrow::datatypes::Schema;
+use datafusion::common::instant::Instant;
 use datafusion::execution::SessionState;
 use datafusion::physical_plan::{ExecutionPlan, execute_stream};
 use datafusion::prelude::SessionContext;
@@ -162,7 +163,7 @@ async fn create_execution_plan(
     pattern: &GraphPattern,
     base_iri: &Option<Iri<String>>,
 ) -> Result<(Arc<dyn ExecutionPlan>, QueryExplanation), QueryEvaluationError> {
-    let planning_time_start = std::time::Instant::now();
+    let planning_time_start = Instant::now();
     let logical_plan =
         GraphPatternRewriter::new(builder_context, dataset.clone(), base_iri.clone())
             .rewrite(pattern)

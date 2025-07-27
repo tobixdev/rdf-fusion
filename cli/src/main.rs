@@ -140,6 +140,7 @@ pub async fn main() -> anyhow::Result<()> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn do_convert<R: Read, W: Write>(
     parser: RdfParser,
     reader: R,

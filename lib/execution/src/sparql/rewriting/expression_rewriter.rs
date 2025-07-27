@@ -314,7 +314,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             })
             .collect::<DFResult<Vec<_>>>()?;
 
-        let result = expressions.into_iter().reduce(or).unwrap_or(lit(false));
+        let result = expressions
+            .into_iter()
+            .reduce(or)
+            .unwrap_or_else(|| lit(false));
         self.expr_builder_root.native_boolean_as_term(result)
     }
 
@@ -395,7 +398,7 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         let compatible_filter = compatible_filters
             .into_iter()
             .reduce(and)
-            .unwrap_or(lit(true));
+            .unwrap_or_else(|| lit(true));
 
         let subquery = Arc::new(exists_pattern.filter(compatible_filter)?.build()?);
         self.expr_builder_root

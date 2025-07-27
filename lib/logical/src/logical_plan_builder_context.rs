@@ -43,17 +43,17 @@ impl RdfFusionLogicalPlanBuilderContext {
     /// Returns a reference to the [RdfFusionFunctionRegistry](rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry)
     /// of the builder.
     pub fn registry(&self) -> &RdfFusionFunctionRegistryRef {
-        &self.rdf_fusion_context.functions()
+        self.rdf_fusion_context.functions()
     }
 
     /// Returns the [RdfFusionEncodings] of the builder.
     pub fn encodings(&self) -> &RdfFusionEncodings {
-        &self.rdf_fusion_context.encodings()
+        self.rdf_fusion_context.encodings()
     }
 
     /// Returns the [QuadStorageEncoding] of the builder.
     pub fn storage_encoding(&self) -> &QuadStorageEncoding {
-        &self.rdf_fusion_context.storage_encoding()
+        self.rdf_fusion_context.storage_encoding()
     }
 
     /// Returns a new [RdfFusionExprBuilderContext].
@@ -110,16 +110,16 @@ impl RdfFusionLogicalPlanBuilderContext {
         object: Option<Term>,
     ) -> QuadPatternNode {
         let triple_pattern = TriplePattern {
-            subject: subject.map_or(
-                TermPattern::Variable(Variable::new_unchecked(COL_SUBJECT)),
+            subject: subject.map_or_else(
+                || TermPattern::Variable(Variable::new_unchecked(COL_SUBJECT)),
                 |s| TermPattern::from(Term::from(s)),
             ),
-            predicate: predicate.map_or(
-                NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
+            predicate: predicate.map_or_else(
+                || NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
                 NamedNodePattern::from,
             ),
-            object: object.map_or(
-                TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
+            object: object.map_or_else(
+                || TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
                 TermPattern::from,
             ),
         };
@@ -309,5 +309,5 @@ fn column_or_literal(term: Option<impl Into<Term>>, col_name: &str) -> DFResult<
             )
         })
         .transpose()?
-        .unwrap_or(col(col_name)))
+        .unwrap_or_else(|| col(col_name)))
 }

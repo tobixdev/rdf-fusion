@@ -45,7 +45,7 @@ fn bsbm_business_intelligence_q1(c: &mut Criterion) {
             Order By desc(?reviewCount) ?productType
             Limit 10
             ",
-                    QueryOptions::default(),
+                    QueryOptions,
                 )
                 .await
                 .unwrap();
@@ -79,7 +79,7 @@ fn bsbm_business_intelligence_q2(c: &mut Criterion) {
             }
             Order By desc(?sameFeatures) ?otherProduct
             Limit 10
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 10).await;
         });
     });
@@ -120,7 +120,7 @@ fn bsbm_business_intelligence_q3(c: &mut Criterion) {
             }
             Order By desc(xsd:float(?monthCount) / ?monthBeforeCount) ?product
             Limit 10
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 10).await;
         });
     });
@@ -169,7 +169,7 @@ fn bsbm_business_intelligence_q4(c: &mut Criterion) {
             }
             Order By desc(?withFeaturePrice/?withoutFeaturePrice) ?feature
             Limit 10
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 10).await;
         });
     });
@@ -227,7 +227,7 @@ fn bsbm_business_intelligence_q5(c: &mut Criterion) {
                 FILTER(?nrOfReviews=?maxReviews)
             }
             Order By desc(?nrOfReviews) ?country ?product
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 12).await;
         });
     });
@@ -268,7 +268,7 @@ fn bsbm_business_intelligence_q6(c: &mut Criterion) {
             }
             Group By ?reviewer
             Having (avg(xsd:float(?score)) > min(?avgScore) * 1.5)
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 12).await;
         });
     });
@@ -310,7 +310,7 @@ fn bsbm_business_intelligence_q7(c: &mut Criterion) {
                     FILTER(?country=<http://downlode.org/rdf/iso-3166/countries#US>)
                 }
             }
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 16).await;
         });
     });
@@ -364,7 +364,7 @@ fn bsbm_business_intelligence_q8(c: &mut Criterion) {
             }
             Order by desc(xsd:float(?belowAvg)/?offerCount) ?vendor
             limit 10
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 10).await;
         });
     });

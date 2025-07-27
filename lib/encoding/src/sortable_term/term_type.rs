@@ -45,7 +45,7 @@ impl TryFrom<u8> for SortableTermType {
             10 => SortableTermType::YearMonthDuration,
             11 => SortableTermType::DayTimeDuration,
             12 => SortableTermType::UnsupportedLiteral,
-            _ => return Err(UnknownSortableTermTypeError::default()),
+            _ => return Err(UnknownSortableTermTypeError),
         };
         Ok(term_type)
     }

@@ -173,7 +173,13 @@ impl RdfFusionContext {
         query: &Query,
         options: QueryOptions,
     ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
-        evaluate_query(&self.ctx, self.plan_builder_context(), query, options).await
+        Box::pin(evaluate_query(
+            &self.ctx,
+            self.plan_builder_context(),
+            query,
+            options,
+        ))
+        .await
     }
 }
 

@@ -151,10 +151,8 @@ fn compute_join_keys(node: &MinusNode) -> HashSet<String> {
         .map(|c| c.name().to_owned())
         .collect();
 
-    let overlapping_keys = lhs_keys
+    lhs_keys
         .intersection(&rhs_keys)
         .cloned()
-        .collect::<HashSet<String>>();
-
-    overlapping_keys
+        .collect::<HashSet<String>>()
 }

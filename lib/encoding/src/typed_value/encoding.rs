@@ -329,7 +329,7 @@ impl TryFrom<i8> for TypedValueEncodingField {
             12 => TypedValueEncodingField::Date,
             13 => TypedValueEncodingField::Duration,
             14 => TypedValueEncodingField::OtherLiteral,
-            _ => return Err(UnknownTypedValueEncodingFieldError::default()),
+            _ => return Err(UnknownTypedValueEncodingFieldError),
         })
     }
 }

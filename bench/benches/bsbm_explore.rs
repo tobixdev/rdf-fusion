@@ -37,7 +37,7 @@ fn bsbm_explore_q1(c: &mut Criterion) {
             }
             ORDER BY ?label
             LIMIT 10
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 0).await;
         });
     });
@@ -73,7 +73,7 @@ fn bsbm_explore_q2(c: &mut Criterion) {
                 OPTIONAL { <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> bsbm:productPropertyTextual5 ?propertyTextual5 }
                 OPTIONAL { <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> bsbm:productPropertyNumeric4 ?propertyNumeric4 }
             }
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 0).await;
         });
     });
@@ -109,7 +109,7 @@ fn bsbm_explore_q3(c: &mut Criterion) {
              }
              ORDER BY ?label
              LIMIT 10
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 0).await;
         });
     });
@@ -152,7 +152,7 @@ fn bsbm_explore_q4(c: &mut Criterion) {
             ORDER BY ?label
             OFFSET 5
             LIMIT 10
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 0).await;
         });
     });
@@ -185,7 +185,7 @@ fn bsbm_explore_q5(c: &mut Criterion) {
             }
             ORDER BY ?productLabel
             LIMIT 5
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 2).await;
         });
     });
@@ -230,7 +230,7 @@ fn bsbm_explore_q7(c: &mut Criterion) {
                     }
                 }
             }
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 4).await;
         });
     });
@@ -266,7 +266,7 @@ fn bsbm_explore_q8(c: &mut Criterion) {
             }
             ORDER BY DESC(?reviewDate)
             LIMIT 20
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 9).await;
         });
     });
@@ -284,7 +284,7 @@ fn bsbm_explore_q9(c: &mut Criterion) {
             DESCRIBE ?x WHERE {
                 <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromRatingSite1/Review4194> rev:reviewer ?x
             }
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 0).await;
         });
     });
@@ -316,7 +316,7 @@ fn bsbm_explore_q10(c: &mut Criterion) {
             }
             ORDER BY xsd:double(str(?price))
             LIMIT 10
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 3).await;
         });
     });
@@ -335,7 +335,7 @@ fn bsbm_explore_q11(c: &mut Criterion) {
                 UNION
                 { ?isValueOf ?property <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor1/Offer1250> }
             }
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 10).await;
         });
     });
@@ -376,7 +376,7 @@ fn bsbm_explore_q12(c: &mut Criterion) {
                 <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> bsbm:deliveryDays ?deliveryDays .
                 <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> bsbm:validTo ?validTo
             }
-            ", QueryOptions::default()).await.unwrap();
+            ", QueryOptions).await.unwrap();
             assert_number_of_results(result, 8).await;
         });
     });

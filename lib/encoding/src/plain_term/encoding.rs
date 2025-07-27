@@ -113,7 +113,7 @@ impl TryFrom<u8> for PlainTermType {
             0 => Ok(PlainTermType::NamedNode),
             1 => Ok(PlainTermType::BlankNode),
             2 => Ok(PlainTermType::Literal),
-            _ => Err(UnknownPlainTermTypeError::default()),
+            _ => Err(UnknownPlainTermTypeError),
         }
     }
 }

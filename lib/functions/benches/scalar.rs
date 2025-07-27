@@ -27,7 +27,7 @@ impl UnaryScenario {
                 for i in 0..8192 {
                     payload_builder
                         .append_named_node(NamedNodeRef::new_unchecked(
-                            format!("http://example.com/{}", i).as_str(),
+                            format!("http://example.com/{i}").as_str(),
                         ))
                         .unwrap();
                 }
@@ -40,19 +40,15 @@ impl UnaryScenario {
                         0 => {
                             payload_builder
                                 .append_named_node(NamedNodeRef::new_unchecked(
-                                    format!("http://example.com/{}", i).as_str(),
+                                    format!("http://example.com/{i}").as_str(),
                                 ))
                                 .unwrap();
                         }
                         1 => {
-                            payload_builder
-                                .append_integer(Integer::try_from(i).unwrap())
-                                .unwrap();
+                            payload_builder.append_integer(Integer::from(i)).unwrap();
                         }
                         2 => {
-                            payload_builder
-                                .append_float(Float::try_from(i as i16).unwrap())
-                                .unwrap();
+                            payload_builder.append_float(Float::from(i as i16)).unwrap();
                         }
                         _ => {
                             payload_builder
