@@ -12,7 +12,7 @@ use crate::sparql_evaluator::{
     sparql_evaluate_positive_result_syntax_test, sparql_evaluate_positive_syntax_test,
     sparql_evaluate_positive_update_syntax_test, sparql_evaluate_update_evaluation_test,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use datafusion::common::runtime::SpawnedTask;
 use rdf_fusion::io::RdfFormat;
 use sparesults::QueryResultsFormat;
