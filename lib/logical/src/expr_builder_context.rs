@@ -8,9 +8,8 @@ use rdf_fusion_api::functions::{
 };
 use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder};
+use rdf_fusion_encoding::{EncodingName, EncodingScalar, RdfFusionEncodings, TermEncoder};
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::sync::Arc;
 
@@ -53,8 +52,8 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     }
 
     /// Returns a reference to the used object id encoding.
-    pub fn object_id_encoding(&self) -> Option<&'context ObjectIdEncoding> {
-        self.rdf_fusion_context.encodings().object_id()
+    pub fn encodings(&self) -> &'context RdfFusionEncodings {
+        self.rdf_fusion_context.encodings()
     }
 
     /// Creates a new [RdfFusionExprBuilder] from an existing [Expr].
@@ -356,10 +355,12 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             })
             .map(|r| {
                 r.and_then(|dt| {
-                    EncodingName::try_from_data_type(&dt).ok_or(exec_datafusion_err!(
-                        "Data type is not an RDF term '{}'",
-                        dt
-                    ))
+                    self.encodings()
+                        .try_get_encoding_name(&dt)
+                        .ok_or(exec_datafusion_err!(
+                            "Data type is not an RDF term '{}'",
+                            dt
+                        ))
                 })
             })
             .collect::<DFResult<Vec<_>>>()

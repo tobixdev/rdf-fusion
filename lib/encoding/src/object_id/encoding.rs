@@ -27,6 +27,13 @@ impl ObjectIdEncoding {
     pub fn mapping(&self) -> &dyn ObjectIdMapping {
         self.mapping.as_ref()
     }
+
+    /// Returns the data type of the [ObjectIdEncoding].
+    ///
+    /// The type of the [ObjectIdEncoding] is statically known and cannot be configured.
+    pub fn data_type() -> DataType {
+        DataType::UInt64
+    }
 }
 
 impl TermEncoding for ObjectIdEncoding {
@@ -38,7 +45,7 @@ impl TermEncoding for ObjectIdEncoding {
     }
 
     fn data_type(&self) -> DataType {
-        DataType::UInt64
+        ObjectIdEncoding::data_type()
     }
 
     fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {

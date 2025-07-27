@@ -2,10 +2,12 @@ use crate::oxigraph_memory::object_id::ObjectIdQuad;
 use crate::oxigraph_memory::store::QuadIterator;
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt64Builder};
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
-use datafusion::common::{Column, DataFusionError};
+use datafusion::common::{exec_err, Column, DataFusionError};
 use datafusion::execution::RecordBatchStream;
 use futures::Stream;
 use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::collections::{HashMap, HashSet};
@@ -62,13 +64,25 @@ impl QuadPatternBatchRecordStream {
     }
 
     /// Creates a builder for the record batches.
-    fn create_builder(&self) -> RdfQuadsRecordBatchBuilder {
+    fn create_builder(&self) -> DFResult<RdfQuadsRecordBatchBuilder> {
+        let storage_encoding = self.iterator.storage_encoding();
+        let Some(object_id_encoding) = storage_encoding.object_id_encoding() else {
+            return exec_err!("Currently only ObjectID encoding is supported.");
+        };
+
         let [graph, subject, predicate, object] = extract_columns(
             self.graph_variable.as_ref(),
             &self.pattern,
             self.blank_node_mode,
         );
-        RdfQuadsRecordBatchBuilder::new(graph, subject, predicate, object, self.batch_size)
+        RdfQuadsRecordBatchBuilder::new(
+            object_id_encoding.clone(),
+            graph,
+            subject,
+            predicate,
+            object,
+            self.batch_size,
+        )
     }
 }
 
@@ -80,7 +94,7 @@ impl Stream for QuadPatternBatchRecordStream {
         _ctx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         let mut exhausted = false;
-        let mut rb_builder = self.create_builder();
+        let mut rb_builder = self.create_builder()?;
 
         let mut remaining_items = self.batch_size;
         let mut buffer: [Option<ObjectIdQuad>; 32] = [const { None }; 32];
@@ -132,25 +146,30 @@ struct RdfQuadsRecordBatchBuilder {
 
 impl RdfQuadsRecordBatchBuilder {
     fn new(
+        encoding: ObjectIdEncoding,
         mut graph: Option<Column>,
         mut subject: Option<Column>,
         mut predicate: Option<Column>,
         mut object: Option<Column>,
         capacity: usize,
-    ) -> Self {
+    ) -> DFResult<Self> {
+        if encoding.data_type() != DataType::UInt64 {
+            return exec_err!("The registered ObjectID encoding does not use 64 UInts.");
+        }
+
         let mut seen = HashSet::new();
         deduplicate(&mut seen, &mut graph);
         deduplicate(&mut seen, &mut subject);
         deduplicate(&mut seen, &mut predicate);
         deduplicate(&mut seen, &mut object);
 
-        Self {
+        Ok(Self {
             graph: graph.map(|v| (v, UInt64Builder::with_capacity(capacity))),
             subject: subject.map(|v| (v, UInt64Builder::with_capacity(capacity))),
             predicate: predicate.map(|v| (v, UInt64Builder::with_capacity(capacity))),
             object: object.map(|v| (v, UInt64Builder::with_capacity(capacity))),
             count: 0,
-        }
+        })
     }
 
     #[allow(

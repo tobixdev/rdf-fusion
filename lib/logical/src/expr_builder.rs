@@ -4,7 +4,9 @@ use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{lit, Expr, ExprSchemable};
-use rdf_fusion_api::functions::{BuiltinName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs, RdfFusionFunctionArgsBuilder};
+use rdf_fusion_api::functions::{
+    BuiltinName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs, RdfFusionFunctionArgsBuilder,
+};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
@@ -798,7 +800,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     fn encoding(&self) -> DFResult<EncodingName> {
         let (data_type, _) = self.expr.data_type_and_nullable(self.context.schema())?;
 
-        EncodingName::try_from_data_type(&data_type).ok_or(plan_datafusion_err!(
+        self.context.encodings().try_get_encoding_name(&data_type).ok_or(plan_datafusion_err!(
             "Expression does not have a valid RDF term encoding. Data Type: {}, Expression: {}.",
             &data_type,
             &self.expr
@@ -839,8 +841,8 @@ impl<'root> RdfFusionExprBuilder<'root> {
             ],
             _ => {
                 return plan_err!(
-                "Transformation from '{source_encoding:?}' to '{target_encoding:?}' is not supported."
-            )
+                    "Transformation from '{source_encoding:?}' to '{target_encoding:?}' is not supported."
+                );
             }
         };
 
@@ -999,9 +1001,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
                 .encode_term(Ok(scalar))?
                 .into_scalar_value(),
             EncodingName::Sortable => {
-                return plan_err!("Filtering not supported for Sortable encoding.")
+                return plan_err!("Filtering not supported for Sortable encoding.");
             }
-            EncodingName::ObjectId => match self.context.object_id_encoding() {
+            EncodingName::ObjectId => match self.context.encodings().object_id() {
                 None => return plan_err!("The context has not ObjectID encoding registered"),
                 Some(object_id_encoding) => object_id_encoding
                     .encode_term(Ok(scalar))?

@@ -136,8 +136,7 @@ static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
 
 /// The instance of the [TypedValueEncoding].
 ///
-/// As there is currently no way to parameterize the encoding, accessing it via this constant is
-/// the preferred way.
+/// This constant will be removed once user-defined typed values are supported.
 pub const TYPED_VALUE_ENCODING: TypedValueEncoding = TypedValueEncoding;
 
 /// The [TypedValueEncoding] stores the *value* of an RDF term as a union of possible types.
@@ -150,6 +149,12 @@ pub const TYPED_VALUE_ENCODING: TypedValueEncoding = TypedValueEncoding;
 /// `"01"^^xsd::int` map to the same value. The [TypedValueEncoding] cannot distinguish between
 /// these two terms and therefore should only be used for query parts that do not rely on this
 /// distinction.
+///
+/// # Future Plans
+///
+/// Currently, the TypedValue encoding has a fixed Arrow DataType. We plan to change that in the
+/// future such that users can provide custom encodings for domain-specific literals (e.g.,
+/// geospatial coordinates).
 #[derive(Debug)]
 pub struct TypedValueEncoding;
 

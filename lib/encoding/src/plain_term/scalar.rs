@@ -1,6 +1,5 @@
 use crate::encoding::EncodingScalar;
 use crate::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
-use crate::TermEncoding;
 use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 use rdf_fusion_common::DFResult;
 
@@ -16,7 +15,7 @@ impl PlainTermScalar {
     ///
     /// Returns an error if the data type of `value` is unexpected.
     pub fn try_new(value: ScalarValue) -> DFResult<Self> {
-        if value.data_type() != PLAIN_TERM_ENCODING.data_type() {
+        if value.data_type() != PlainTermEncoding::data_type() {
             return exec_err!(
                 "Expected scalar value with PlainTermEncoding, got {:?}",
                 value

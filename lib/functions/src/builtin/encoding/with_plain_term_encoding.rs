@@ -5,51 +5,51 @@ use datafusion::logical_expr::{
     ColumnarValue, ReturnFieldArgs, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
+use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::encoders::TypedValueRefPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{
-    EncodingArray, EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
+    EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder, TermEncoder,
+    TermEncoding,
 };
 use std::any::Any;
 use std::sync::Arc;
-use rdf_fusion_api::functions::BuiltinName;
 
-pub fn with_plain_term_encoding(object_id_encoding: Option<ObjectIdEncoding>) -> Arc<ScalarUDF> {
-    let udf_impl = WithPlainTermEncoding::new(object_id_encoding);
+pub fn with_plain_term_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF> {
+    let udf_impl = WithPlainTermEncoding::new(encodings);
     Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
+/// Transforms RDF Terms into the [PlainTermEncoding](rdf_fusion_encoding::plain_term::PlainTermEncoding).
 #[derive(Debug)]
 struct WithPlainTermEncoding {
     /// The name of the UDF
     name: String,
     /// The signature
     signature: Signature,
-    /// A reference to the used object id encoding. This is necessary for resolving the mapping.
-    object_id_encoding: Option<ObjectIdEncoding>,
+    /// A reference to used encodings.
+    encodings: RdfFusionEncodings,
 }
 
 impl WithPlainTermEncoding {
-    pub fn new(object_id_encoding: Option<ObjectIdEncoding>) -> Self {
-        let mut accepted_encodings = vec![
-            PLAIN_TERM_ENCODING.data_type(),
-            TYPED_VALUE_ENCODING.data_type(),
-        ];
-        if let Some(object_id_encoding) = &object_id_encoding {
-            accepted_encodings.push(object_id_encoding.data_type());
-        }
-
+    pub fn new(encodings: RdfFusionEncodings) -> Self {
         Self {
             name: BuiltinName::WithPlainTermEncoding.to_string(),
             signature: Signature::new(
-                TypeSignature::Uniform(1, accepted_encodings),
+                TypeSignature::Uniform(
+                    1,
+                    encodings.get_data_types(&[
+                        EncodingName::PlainTerm,
+                        EncodingName::TypedValue,
+                        EncodingName::ObjectId,
+                    ]),
+                ),
                 Volatility::Immutable,
             ),
-            object_id_encoding,
+            encodings,
         }
     }
 
@@ -67,7 +67,7 @@ impl WithPlainTermEncoding {
                 Ok(ColumnarValue::Array(result.into_array()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => match &self.object_id_encoding {
+            EncodingName::ObjectId => match &self.encodings.object_id() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
                 Some(object_id_encoding) => {
                     let array = object_id_encoding.try_new_array(array)?;
@@ -92,7 +92,7 @@ impl WithPlainTermEncoding {
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => match &self.object_id_encoding {
+            EncodingName::ObjectId => match &self.encodings.object_id() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
                 Some(object_id_encoding) => {
                     let scalar = object_id_encoding.try_new_scalar(scalar)?;
@@ -138,9 +138,12 @@ impl ScalarUDFImpl for WithPlainTermEncoding {
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
         let args = TryInto::<[ColumnarValue; 1]>::try_into(args.args)
             .map_err(|_| exec_datafusion_err!("Invalid number of arguments."))?;
-        let encoding_name = EncodingName::try_from_data_type(&args[0].data_type()).ok_or(
-            exec_datafusion_err!("Cannot obtain encoding from argument."),
-        )?;
+        let encoding_name = self
+            .encodings
+            .try_get_encoding_name(&args[0].data_type())
+            .ok_or(exec_datafusion_err!(
+                "Cannot obtain encoding from argument."
+            ))?;
 
         match args {
             [ColumnarValue::Array(array)] => self.convert_array(encoding_name, array),

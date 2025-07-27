@@ -2,7 +2,7 @@ use datafusion::arrow::datatypes::{DataType, Fields};
 use datafusion::common::{plan_datafusion_err, plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::EncodingName;
+use rdf_fusion_encoding::StaticDataTypeEncodingName;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -211,7 +211,10 @@ fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
             .into_iter()
             .next()
             .expect("Length already checked");
-        if !matches!(encoding, EncodingName::PlainTerm | EncodingName::ObjectId) {
+        if !matches!(
+            encoding,
+            StaticDataTypeEncodingName::PlainTerm | StaticDataTypeEncodingName::ObjectId
+        ) {
             return plan_err!(
                 "Join column '{field_name}' must be in the PlainTermEncoding or ObjectIdEncoding."
             );
@@ -280,19 +283,18 @@ fn compute_schema(
 pub fn compute_sparql_join_columns(
     lhs: &DFSchema,
     rhs: &DFSchema,
-) -> DFResult<HashMap<String, HashSet<EncodingName>>> {
+) -> DFResult<HashMap<String, HashSet<StaticDataTypeEncodingName>>> {
     /// Extracts the encoding of a field.
     ///
     /// It is expected that `name` is part of `schema`.
     #[allow(clippy::expect_used, reason = "Local function, Guarantees met below")]
-    fn extract_encoding(schema: &DFSchema, name: &str) -> DFResult<EncodingName> {
+    fn extract_encoding(schema: &DFSchema, name: &str) -> DFResult<StaticDataTypeEncodingName> {
         let field = schema
             .field_with_unqualified_name(name)
             .expect("Field name stems from the set of fields.");
-        EncodingName::try_from_data_type(field.data_type()).ok_or(plan_datafusion_err!(
-            "Field '{}' must be an RDF Term.",
-            name
-        ))
+        StaticDataTypeEncodingName::try_from_data_type(field.data_type()).ok_or(
+            plan_datafusion_err!("Field '{}' must be an RDF Term.", name),
+        )
     }
 
     let lhs_fields = lhs

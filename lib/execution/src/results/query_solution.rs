@@ -5,8 +5,8 @@ use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::{EncodingName, TermDecoder, TermEncoding};
+use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
+use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_model::ThinError;
 use rdf_fusion_model::Variable;
 pub use sparesults::QuerySolution;
@@ -34,8 +34,7 @@ impl QuerySolutionStream {
     /// (each tuple using the same ordering as the variable list such that tuple element 0 is the value for the variable 0...)
     pub fn try_new(variables: Arc<[Variable]>, inner: SendableRecordBatchStream) -> DFResult<Self> {
         for field in inner.schema().fields() {
-            let name = EncodingName::try_from_data_type(field.data_type());
-            if !matches!(name, Some(EncodingName::PlainTerm)) {
+            if &PlainTermEncoding::data_type() != field.data_type() {
                 return exec_err!(
                     "Field {field} has unsupported type {} for query solution.",
                     field.data_type()

@@ -1,6 +1,5 @@
-use crate::encoding::RdfFusionEncodingConfiguration;
 use crate::functions::RdfFusionFunctionRegistryRef;
-use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
 
 /// Represents a view of an RDF Fusion context.
 ///
@@ -11,7 +10,7 @@ pub struct RdfFusionContextView {
     /// Holds references to the registered built-in functions.
     functions: RdfFusionFunctionRegistryRef,
     /// Provides information on the encodings used in the engine.
-    encodings: RdfFusionEncodingConfiguration,
+    encodings: RdfFusionEncodings,
     /// The storage engine that backs this instance.
     ///
     /// This is important for deciding the output type of operator that match quad patterns.
@@ -22,7 +21,7 @@ impl RdfFusionContextView {
     /// Creates a new [RdfFusionContextView].
     pub fn new(
         functions: RdfFusionFunctionRegistryRef,
-        encodings: RdfFusionEncodingConfiguration,
+        encodings: RdfFusionEncodings,
         storage_encoding: QuadStorageEncoding,
     ) -> Self {
         Self {
@@ -37,8 +36,8 @@ impl RdfFusionContextView {
         &self.functions
     }
 
-    /// Provides a reference to the used [RdfFusionEncodingConfiguration].
-    pub fn encodings(&self) -> &RdfFusionEncodingConfiguration {
+    /// Provides a reference to the used [RdfFusionEncodings].
+    pub fn encodings(&self) -> &RdfFusionEncodings {
         &self.encodings
     }
 

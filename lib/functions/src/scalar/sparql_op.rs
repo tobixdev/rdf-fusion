@@ -1,16 +1,16 @@
 use crate::scalar::sparql_op_impl::SparqlOpImpl;
 use crate::scalar::SparqlOpArgs;
-use rdf_fusion_api::functions::FunctionName;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
 };
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TYPED_VALUE_ENCODING};
-use rdf_fusion_encoding::{EncodingName, TermEncoding};
+use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
 use std::any::Any;
 use std::collections::HashSet;
 use std::fmt::Debug;
@@ -51,12 +51,12 @@ pub struct ScalarSparqlOpAdapter<TScalarSparqlOp: ScalarSparqlOp> {
     name: String,
     signature: Signature,
     op: TScalarSparqlOp,
-    object_id_encoding: Option<ObjectIdEncoding>,
+    encodings: RdfFusionEncodings,
 }
 
 impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
     /// TODO
-    pub fn new(object_id_encoding: Option<ObjectIdEncoding>, op: TScalarSparqlOp) -> Self {
+    pub fn new(encodings: RdfFusionEncodings, op: TScalarSparqlOp) -> Self {
         let name = op.name().to_string();
 
         let mut type_signatures = Vec::new();
@@ -71,7 +71,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
             ));
         }
         if op.object_id_encoding_op().is_some() {
-            if let Some(object_id_encoding) = &object_id_encoding {
+            if let Some(object_id_encoding) = &encodings.object_id() {
                 type_signatures.push(TScalarSparqlOp::Args::<ObjectIdEncoding>::type_signature(
                     object_id_encoding,
                 ));
@@ -92,8 +92,30 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
             name,
             signature,
             op,
-            object_id_encoding,
+            encodings,
         }
+    }
+
+    fn detect_input_encoding(&self, arg_types: &[DataType]) -> DFResult<Option<EncodingName>> {
+        let encoding_name = arg_types
+            .iter()
+            .map(|dt| {
+                self.encodings
+                    .try_get_encoding_name(dt)
+                    .ok_or(exec_datafusion_err!(
+                        "Cannot extract RDF term encoding from argument."
+                    ))
+            })
+            .collect::<DFResult<HashSet<_>>>()?;
+
+        if encoding_name.is_empty() {
+            return Ok(None);
+        }
+
+        if encoding_name.len() > 1 {
+            return plan_err!("More than one RDF term encoding used for arguments.");
+        }
+        Ok(encoding_name.into_iter().next())
     }
 }
 
@@ -113,7 +135,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
     }
 
     fn return_type(&self, arg_types: &[DataType]) -> DFResult<DataType> {
-        let encoding_name = detect_input_encoding(arg_types)?;
+        let encoding_name = self.detect_input_encoding(arg_types)?;
         match encoding_name {
             None => {
                 if let Some(op_impl) = self.op.plain_term_encoding_op() {
@@ -165,7 +187,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             .iter()
             .map(|f| f.data_type().clone())
             .collect::<Vec<_>>();
-        let encoding = detect_input_encoding(&data_types)?;
+        let encoding = self.detect_input_encoding(&data_types)?;
 
         let encoding = match encoding {
             None => {
@@ -206,7 +228,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                 }
             }
             EncodingName::ObjectId => {
-                let Some(object_id_encoding) = self.object_id_encoding.as_ref() else {
+                let Some(object_id_encoding) = self.encodings.object_id() else {
                     return exec_err!("Object ID is not registered.");
                 };
 
@@ -223,24 +245,4 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             EncodingName::Sortable => exec_err!("Not supported"),
         }
     }
-}
-
-fn detect_input_encoding(arg_types: &[DataType]) -> DFResult<Option<EncodingName>> {
-    let encoding_name = arg_types
-        .iter()
-        .map(|dt| {
-            EncodingName::try_from_data_type(dt).ok_or(exec_datafusion_err!(
-                "Cannot extract RDF term encoding from argument."
-            ))
-        })
-        .collect::<DFResult<HashSet<_>>>()?;
-
-    if encoding_name.is_empty() {
-        return Ok(None);
-    }
-
-    if encoding_name.len() > 1 {
-        return plan_err!("More than one RDF term encoding used for arguments.");
-    }
-    Ok(encoding_name.into_iter().next())
 }

@@ -1,5 +1,5 @@
 use crate::object_id::ObjectIdEncoding;
-use crate::plain_term::PLAIN_TERM_ENCODING;
+use crate::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
 use crate::TermEncoding;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
@@ -16,10 +16,10 @@ pub enum QuadStorageEncoding {
 
 static PLAIN_TERM_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {
     SchemaRef::new(Schema::new(vec![
-        Field::new(COL_GRAPH, PLAIN_TERM_ENCODING.data_type(), true),
-        Field::new(COL_SUBJECT, PLAIN_TERM_ENCODING.data_type(), false),
-        Field::new(COL_PREDICATE, PLAIN_TERM_ENCODING.data_type(), false),
-        Field::new(COL_OBJECT, PLAIN_TERM_ENCODING.data_type(), false),
+        Field::new(COL_GRAPH, PlainTermEncoding::data_type(), true),
+        Field::new(COL_SUBJECT, PlainTermEncoding::data_type(), false),
+        Field::new(COL_PREDICATE, PlainTermEncoding::data_type(), false),
+        Field::new(COL_OBJECT, PlainTermEncoding::data_type(), false),
     ]))
 });
 

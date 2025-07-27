@@ -6,11 +6,11 @@ use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{Column, DFSchemaRef};
 use datafusion::logical_expr::{
-    col, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
-    UserDefinedLogicalNode,
+    col, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort,
+    SortExpr, UserDefinedLogicalNode,
 };
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::EncodingName;
+use rdf_fusion_encoding::{EncodingName, StaticDataTypeEncodingName};
 use rdf_fusion_model::Variable;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -342,7 +342,7 @@ impl RdfFusionLogicalPlanBuilder {
 /// TODO
 fn build_projections_for_encoding_alignment(
     expr_builder_root: RdfFusionExprBuilderContext<'_>,
-    join_columns: &HashMap<String, HashSet<EncodingName>>,
+    join_columns: &HashMap<String, HashSet<StaticDataTypeEncodingName>>,
 ) -> DFResult<Option<Vec<Expr>>> {
     let projections = expr_builder_root
         .schema()

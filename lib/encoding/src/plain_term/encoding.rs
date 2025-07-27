@@ -131,6 +131,13 @@ impl PlainTermEncoding {
     pub(crate) fn fields() -> Fields {
         FIELDS_TYPE.clone()
     }
+
+    /// Returns the type of the [PlainTermEncoding].
+    ///
+    /// The type of the [PlainTermEncoding] is statically known and cannot be configured.
+    pub fn data_type() -> DataType {
+        DataType::Struct(Self::fields().clone())
+    }
 }
 
 impl TermEncoding for PlainTermEncoding {
@@ -142,7 +149,7 @@ impl TermEncoding for PlainTermEncoding {
     }
 
     fn data_type(&self) -> DataType {
-        DataType::Struct(Self::fields().clone())
+        PlainTermEncoding::data_type()
     }
 
     fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {

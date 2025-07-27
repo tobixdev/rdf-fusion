@@ -16,7 +16,9 @@ use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::{EncodingScalar, QuadStorageEncoding, TermEncoder, TermEncoding};
+use rdf_fusion_encoding::{
+    EncodingScalar, QuadStorageEncoding, RdfFusionEncodings, TermEncoder, TermEncoding,
+};
 use rdf_fusion_model::{
     GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Subject, Term, TermPattern,
     TermRef, ThinError, TriplePattern, Variable,
@@ -41,6 +43,11 @@ impl RdfFusionLogicalPlanBuilderContext {
     /// of the builder.
     pub fn registry(&self) -> &RdfFusionFunctionRegistryRef {
         &self.rdf_fusion_context.functions()
+    }
+
+    /// Returns the [RdfFusionEncodings] of the builder.
+    pub fn encodings(&self) -> &RdfFusionEncodings {
+        &self.rdf_fusion_context.encodings()
     }
 
     /// Returns the [QuadStorageEncoding] of the builder.

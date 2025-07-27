@@ -1,4 +1,3 @@
-use rdf_fusion_api::functions::BuiltinName;
 use datafusion::arrow::array::{make_comparator, Array, BooleanArray, BooleanBuilder};
 use datafusion::arrow::compute::kernels::cmp::eq;
 use datafusion::arrow::compute::SortOptions;
@@ -8,12 +7,13 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
+use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::TermEncoding;
 use std::any::Any;
 use std::cmp::Ordering;
 use std::sync::Arc;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 
 pub fn is_compatible() -> Arc<ScalarUDF> {
     let udf_impl = IsCompatible::new();
@@ -31,7 +31,7 @@ impl IsCompatible {
         Self {
             name: BuiltinName::IsCompatible.to_string(),
             signature: Signature::new(
-                TypeSignature::Uniform(2, vec![PLAIN_TERM_ENCODING.data_type(), DataType::UInt64]),
+                TypeSignature::Uniform(2, vec![PlainTermEncoding::data_type(), ObjectIdEncoding::data_type()]),
                 Volatility::Immutable,
             ),
         }

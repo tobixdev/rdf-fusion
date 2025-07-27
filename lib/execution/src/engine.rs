@@ -8,7 +8,6 @@ use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::optimizer::{Optimizer, OptimizerRule};
 use datafusion::prelude::{SessionConfig, SessionContext};
-use rdf_fusion_api::encoding::RdfFusionEncodingConfiguration;
 use rdf_fusion_api::functions::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_api::RdfFusionContextView;
@@ -16,7 +15,7 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_logical::expr::SimplifySparqlExpressionsRule;
 use rdf_fusion_logical::extend::ExtendLoweringRule;
@@ -41,7 +40,7 @@ pub struct RdfFusionContext {
     /// Holds references to the registered built-in functions.
     functions: RdfFusionFunctionRegistryRef,
     /// Encoding configurations
-    encodings: RdfFusionEncodingConfiguration,
+    encodings: RdfFusionEncodings,
     /// The storage that backs this instance.
     storage: Arc<dyn QuadStorage>,
 }
@@ -54,16 +53,15 @@ impl RdfFusionContext {
             QuadStorageEncoding::PlainTerm => None,
             QuadStorageEncoding::ObjectId(encoding) => Some(encoding.clone()),
         };
-        let encodings = RdfFusionEncodingConfiguration::new(
+        let encodings = RdfFusionEncodings::new(
             PLAIN_TERM_ENCODING,
             TYPED_VALUE_ENCODING,
             object_id_encoding,
             SORTABLE_TERM_ENCODING,
         );
 
-        let registry: Arc<dyn RdfFusionFunctionRegistry> = Arc::new(
-            DefaultRdfFusionFunctionRegistry::new(encodings.object_id().cloned()),
-        );
+        let registry: Arc<dyn RdfFusionFunctionRegistry> =
+            Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
         let context_view =
             RdfFusionContextView::new(Arc::clone(&registry), encodings.clone(), storage.encoding());

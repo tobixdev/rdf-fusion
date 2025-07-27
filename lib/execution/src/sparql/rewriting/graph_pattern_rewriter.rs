@@ -231,7 +231,7 @@ impl GraphPatternRewriter {
                     .collect::<DFResult<Vec<_>>>()?;
 
                 let aggregate_result = inner.group(variables, &aggregate_exprs)?;
-                ensure_all_columns_are_rdf_terms(aggregate_result)
+                self.ensure_all_columns_are_rdf_terms(aggregate_result)
             }
             _ => not_impl_err!("rewrite_graph_pattern: {:?}", pattern),
         }
@@ -353,6 +353,47 @@ impl GraphPatternRewriter {
             }
         }
     }
+
+    /// Ensures that all columns in the result are RDF terms. If not, a cast operation is inserted if
+    /// possible.
+    fn ensure_all_columns_are_rdf_terms(
+        &self,
+        inner: RdfFusionLogicalPlanBuilder,
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
+        let projections = inner
+            .schema()
+            .fields()
+            .into_iter()
+            .map(|f| {
+                let column = Expr::from(Column::new_unqualified(f.name().as_str()));
+                let encoding = self
+                    .builder_context
+                    .encodings()
+                    .try_get_encoding_name(f.data_type());
+                if matches!(
+                    encoding,
+                    Some(EncodingName::TypedValue | EncodingName::PlainTerm)
+                ) {
+                    Ok(column)
+                } else {
+                    match f.data_type() {
+                        DataType::Int64 => Ok(inner
+                            .expr_builder_root()
+                            .native_int64_as_term(column)?
+                            .build()?
+                            .alias(f.name())),
+                        other => {
+                            plan_err!("Unsupported data type for aggregation result {:?}", other)
+                        }
+                    }
+                }
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+
+        let context = inner.context().clone();
+        let new_plan = inner.into_inner().project(projections)?;
+        Ok(context.create(Arc::new(new_plan.build()?)))
+    }
 }
 
 #[derive(Clone)]
@@ -421,41 +462,6 @@ fn compute_active_graph_for_pattern(
             Some(graphs) => ActiveGraph::Union(graphs.iter().cloned().map(Into::into).collect()),
         },
     }
-}
-
-/// Ensures that all columns in the result are RDF terms. If not, a cast operation is inserted if
-/// possible.
-fn ensure_all_columns_are_rdf_terms(
-    inner: RdfFusionLogicalPlanBuilder,
-) -> DFResult<RdfFusionLogicalPlanBuilder> {
-    let projections = inner
-        .schema()
-        .fields()
-        .into_iter()
-        .map(|f| {
-            let column = Expr::from(Column::new_unqualified(f.name().as_str()));
-            let encoding = EncodingName::try_from_data_type(f.data_type());
-            if matches!(
-                encoding,
-                Some(EncodingName::TypedValue | EncodingName::PlainTerm)
-            ) {
-                Ok(column)
-            } else {
-                match f.data_type() {
-                    DataType::Int64 => Ok(inner
-                        .expr_builder_root()
-                        .native_int64_as_term(column)?
-                        .build()?
-                        .alias(f.name())),
-                    other => plan_err!("Unsupported data type for aggregation result {:?}", other),
-                }
-            }
-        })
-        .collect::<DFResult<Vec<_>>>()?;
-
-    let context = inner.context().clone();
-    let new_plan = inner.into_inner().project(projections)?;
-    Ok(context.create(Arc::new(new_plan.build()?)))
 }
 
 /// Extracts sort expressions from possible solution modifiers.
