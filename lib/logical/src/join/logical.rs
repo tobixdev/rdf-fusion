@@ -4,7 +4,7 @@ use datafusion::logical_expr::{
     Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore,
 };
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::StaticDataTypeEncodingName;
+use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -44,6 +44,7 @@ impl Display for SparqlJoinType {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct SparqlJoinNode {
+    encodings: RdfFusionEncodings,
     lhs: LogicalPlan,
     rhs: LogicalPlan,
     filter: Option<Expr>,
@@ -69,12 +70,13 @@ impl SparqlJoinNode {
     /// # Additional Resources
     /// - [SPARQL 1.1 Query Language - Filters](https://www.w3.org/TR/sparql11-query/#expressions)
     pub fn try_new(
+        encodings: RdfFusionEncodings,
         lhs: LogicalPlan,
         rhs: LogicalPlan,
         filter: Option<Expr>,
         join_type: SparqlJoinType,
     ) -> DFResult<Self> {
-        validate_inputs(&lhs, &rhs)?;
+        validate_inputs(&encodings, &lhs, &rhs)?;
         let schema = compute_schema(join_type, &lhs, &rhs)?;
 
         if let Some(filter) = &filter {
@@ -85,6 +87,7 @@ impl SparqlJoinNode {
         }
 
         Ok(Self {
+            encodings,
             lhs,
             rhs,
             filter,
@@ -194,7 +197,7 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
         };
 
         let filter = exprs.first().cloned();
-        Self::try_new(lhs, rhs, filter, self.join_type)
+        Self::try_new(self.encodings.clone(), lhs, rhs, filter, self.join_type)
     }
 }
 
@@ -203,8 +206,12 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
 /// The following invariants are checked:
 /// - Join variables must have the PlainTerm or ObjectId encoding.
 #[allow(clippy::expect_used)]
-fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
-    let join_column = compute_sparql_join_columns(lhs.schema(), rhs.schema())?;
+fn validate_inputs(
+    encodings: &RdfFusionEncodings,
+    lhs: &LogicalPlan,
+    rhs: &LogicalPlan,
+) -> DFResult<()> {
+    let join_column = compute_sparql_join_columns(encodings, lhs.schema(), rhs.schema())?;
 
     for (field_name, encodings) in join_column {
         if encodings.len() > 1 {
@@ -215,10 +222,7 @@ fn validate_inputs(lhs: &LogicalPlan, rhs: &LogicalPlan) -> DFResult<()> {
             .into_iter()
             .next()
             .expect("Length already checked");
-        if !matches!(
-            encoding,
-            StaticDataTypeEncodingName::PlainTerm | StaticDataTypeEncodingName::ObjectId
-        ) {
+        if !matches!(encoding, EncodingName::PlainTerm | EncodingName::ObjectId) {
             return plan_err!(
                 "Join column '{field_name}' must be in the PlainTermEncoding or ObjectIdEncoding."
             );
@@ -285,23 +289,28 @@ fn compute_schema(
 /// produce an error if they have a different encoding. It is up to the caller to
 /// handle this situation.
 pub fn compute_sparql_join_columns(
+    encodings: &RdfFusionEncodings,
     lhs: &DFSchema,
     rhs: &DFSchema,
-) -> DFResult<HashMap<String, HashSet<StaticDataTypeEncodingName>>> {
+) -> DFResult<HashMap<String, HashSet<EncodingName>>> {
     /// Extracts the encoding of a field.
     ///
     /// It is expected that `name` is part of `schema`.
     #[allow(clippy::expect_used, reason = "Local function, Guarantees met below")]
     fn extract_encoding(
+        encodings: &RdfFusionEncodings,
         schema: &DFSchema,
         name: &str,
-    ) -> DFResult<StaticDataTypeEncodingName> {
+    ) -> DFResult<EncodingName> {
         let field = schema
             .field_with_unqualified_name(name)
             .expect("Field name stems from the set of fields.");
-        StaticDataTypeEncodingName::try_from_data_type(field.data_type()).ok_or(
-            plan_datafusion_err!("Field '{}' must be an RDF Term.", name),
-        )
+        encodings
+            .try_get_encoding_name(field.data_type())
+            .ok_or(plan_datafusion_err!(
+                "Field '{}' must be an RDF Term.",
+                name
+            ))
     }
 
     let lhs_fields = lhs
@@ -317,8 +326,8 @@ pub fn compute_sparql_join_columns(
 
     let mut result = HashMap::new();
     for field_name in lhs_fields.intersection(&rhs_fields) {
-        let lhs_encoding = extract_encoding(lhs, field_name)?;
-        let rhs_encoding = extract_encoding(rhs, field_name)?;
+        let lhs_encoding = extract_encoding(encodings, lhs, field_name)?;
+        let rhs_encoding = extract_encoding(encodings, rhs, field_name)?;
         result.insert(
             field_name.clone(),
             vec![lhs_encoding, rhs_encoding].into_iter().collect(),

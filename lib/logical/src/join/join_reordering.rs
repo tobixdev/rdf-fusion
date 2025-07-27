@@ -5,6 +5,7 @@ use datafusion::common::{Column, HashSet};
 use datafusion::logical_expr::{Extension, LogicalPlan};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_model::{NamedNodePattern, TermPattern};
 use std::sync::Arc;
 
@@ -25,7 +26,9 @@ use std::sync::Arc;
 ///     QuadPattern ...
 /// ```
 #[derive(Debug)]
-pub struct SparqlJoinReorderingRule;
+pub struct SparqlJoinReorderingRule {
+    encodings: RdfFusionEncodings,
+}
 
 impl OptimizerRule for SparqlJoinReorderingRule {
     fn name(&self) -> &str {
@@ -56,8 +59,8 @@ impl OptimizerRule for SparqlJoinReorderingRule {
 
 impl SparqlJoinReorderingRule {
     /// Creates a [SparqlJoinReorderingRule].
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(encodings: RdfFusionEncodings) -> Self {
+        Self { encodings }
     }
 
     /// Reorders a SPARQL join to optimize query execution.
@@ -95,13 +98,70 @@ impl SparqlJoinReorderingRule {
             })
             .collect::<DFResult<Vec<_>>>()?;
 
-        reorder_components(JoinComponents(components))
+        self.reorder_components(JoinComponents(components))
     }
-}
 
-impl Default for SparqlJoinReorderingRule {
-    fn default() -> Self {
-        Self::new()
+    /// Tries to improve the join order by joining "cheap" nodes from the left side and pushing
+    /// "expensive" parts of the join down on the right side.
+    #[allow(clippy::expect_used)]
+    fn reorder_components(&self, components: JoinComponents) -> DFResult<LogicalPlan> {
+        components
+            .0
+            .into_iter()
+            .map(|c| self.greedy_reorder_component(c))
+            .reduce(|lhs, rhs| create_join(self.encodings.clone(), lhs?, rhs?))
+            .expect("There must be at least one component")
+    }
+
+    /// Greedy reordering for a single connected component.
+    #[allow(clippy::expect_used)]
+    fn greedy_reorder_component(
+        &self,
+        component: ConnectedJoinComponent,
+    ) -> DFResult<LogicalPlan> {
+        /// Finds the next logical plan with the least cost (regarding the current `used_vars`).
+        fn pop_next_greedy(
+            patterns: &mut Vec<LogicalPlan>,
+            used_vars: &mut HashSet<Column>,
+        ) -> LogicalPlan {
+            // Find the next pattern that overlaps variables with 'used_vars'
+            let mut best: Option<(usize, usize)> = None;
+            for (i, plan) in patterns.iter().enumerate() {
+                let plan_vars = extract_columns(plan);
+                if !used_vars.is_disjoint(&plan_vars) {
+                    let cost = estimate_cardinality(plan);
+                    if best.is_none() || cost < best.unwrap().1 {
+                        best = Some((i, cost));
+                    }
+                }
+            }
+
+            let (idx, _) = best.expect(
+                "There is always a join with overlapping variables in a non-empty component.",
+            );
+            patterns.remove(idx)
+        }
+
+        let mut to_order = component.0;
+        let mut used_vars = HashSet::new();
+
+        let (first_idx, _) = to_order
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (i, estimate_cardinality(p)))
+            .min_by_key(|&(_, cost)| cost)
+            .expect("There is at least one component");
+
+        let mut current_plan = to_order.remove(first_idx);
+        used_vars.extend(extract_columns(&current_plan));
+
+        while !to_order.is_empty() {
+            let next = pop_next_greedy(&mut to_order, &mut used_vars);
+            used_vars.extend(extract_columns(&next));
+            current_plan = create_join(self.encodings.clone(), current_plan, next)?;
+        }
+
+        Ok(current_plan)
     }
 }
 
@@ -198,66 +258,6 @@ fn identify_join_components_from_logical_plan(plan: LogicalPlan) -> JoinComponen
     }
 }
 
-/// Tries to improve the join order by joining "cheap" nodes from the left side and pushing
-/// "expensive" parts of the join down on the right side.
-#[allow(clippy::expect_used)]
-fn reorder_components(components: JoinComponents) -> DFResult<LogicalPlan> {
-    components
-        .0
-        .into_iter()
-        .map(greedy_reorder_component)
-        .reduce(|lhs, rhs| create_join(lhs?, rhs?))
-        .expect("There must be at least one component")
-}
-
-/// Greedy reordering for a single connected component.
-#[allow(clippy::expect_used)]
-fn greedy_reorder_component(component: ConnectedJoinComponent) -> DFResult<LogicalPlan> {
-    /// Finds the next logical plan with the least cost (regarding the current `used_vars`).
-    fn pop_next_greedy(
-        patterns: &mut Vec<LogicalPlan>,
-        used_vars: &mut HashSet<Column>,
-    ) -> LogicalPlan {
-        // Find the next pattern that overlaps variables with 'used_vars'
-        let mut best: Option<(usize, usize)> = None;
-        for (i, plan) in patterns.iter().enumerate() {
-            let plan_vars = extract_columns(plan);
-            if !used_vars.is_disjoint(&plan_vars) {
-                let cost = estimate_cardinality(plan);
-                if best.is_none() || cost < best.unwrap().1 {
-                    best = Some((i, cost));
-                }
-            }
-        }
-
-        let (idx, _) = best.expect(
-            "There is always a join with overlapping variables in a non-empty component.",
-        );
-        patterns.remove(idx)
-    }
-
-    let mut to_order = component.0;
-    let mut used_vars = HashSet::new();
-
-    let (first_idx, _) = to_order
-        .iter()
-        .enumerate()
-        .map(|(i, p)| (i, estimate_cardinality(p)))
-        .min_by_key(|&(_, cost)| cost)
-        .expect("There is at least one component");
-
-    let mut current_plan = to_order.remove(first_idx);
-    used_vars.extend(extract_columns(&current_plan));
-
-    while !to_order.is_empty() {
-        let next = pop_next_greedy(&mut to_order, &mut used_vars);
-        used_vars.extend(extract_columns(&next));
-        current_plan = create_join(current_plan, next)?;
-    }
-
-    Ok(current_plan)
-}
-
 /// Estimates the cost of the join.
 ///
 /// This uses the heuristics from Oxigraph's join reordering.
@@ -327,9 +327,14 @@ fn estimate_quad_cardinality(quad: &QuadPatternNode) -> usize {
 /// Creates a [SparqlJoinNode] from two logical plans.
 ///
 /// Currently, only one form of join is supported, so parameters are not needed.
-fn create_join(lhs: LogicalPlan, rhs: LogicalPlan) -> DFResult<LogicalPlan> {
+fn create_join(
+    encodings: RdfFusionEncodings,
+    lhs: LogicalPlan,
+    rhs: LogicalPlan,
+) -> DFResult<LogicalPlan> {
     Ok(LogicalPlan::Extension(Extension {
         node: Arc::new(SparqlJoinNode::try_new(
+            encodings,
             lhs,
             rhs,
             None,

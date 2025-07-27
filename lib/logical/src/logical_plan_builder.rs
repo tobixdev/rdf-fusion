@@ -10,7 +10,7 @@ use datafusion::logical_expr::{
     UserDefinedLogicalNode, col,
 };
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::{EncodingName, StaticDataTypeEncodingName};
+use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_model::Variable;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -140,7 +140,13 @@ impl RdfFusionLogicalPlanBuilder {
         let context = self.context.clone();
 
         let (lhs, rhs) = self.align_encodings_of_common_columns(rhs)?;
-        let join_node = SparqlJoinNode::try_new(lhs.build()?, rhs, filter, join_type)?;
+        let join_node = SparqlJoinNode::try_new(
+            context.encodings().clone(),
+            lhs.build()?,
+            rhs,
+            filter,
+            join_type,
+        )?;
         Ok(Self {
             context,
             plan_builder: LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
@@ -324,8 +330,11 @@ impl RdfFusionLogicalPlanBuilder {
         self,
         rhs: LogicalPlan,
     ) -> DFResult<(Self, LogicalPlan)> {
-        let join_columns =
-            compute_sparql_join_columns(self.schema().as_ref(), rhs.schema().as_ref())?;
+        let join_columns = compute_sparql_join_columns(
+            self.context.encodings(),
+            self.schema().as_ref(),
+            rhs.schema().as_ref(),
+        )?;
 
         if join_columns.is_empty() {
             return Ok((self, rhs));
@@ -360,7 +369,7 @@ impl RdfFusionLogicalPlanBuilder {
 /// TODO
 fn build_projections_for_encoding_alignment(
     expr_builder_root: RdfFusionExprBuilderContext<'_>,
-    join_columns: &HashMap<String, HashSet<StaticDataTypeEncodingName>>,
+    join_columns: &HashMap<String, HashSet<EncodingName>>,
 ) -> DFResult<Option<Vec<Expr>>> {
     let projections = expr_builder_root
         .schema()

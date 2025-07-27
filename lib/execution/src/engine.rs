@@ -187,7 +187,7 @@ fn create_default_optimizer_rules(
     context: RdfFusionContextView,
 ) -> Vec<Arc<dyn OptimizerRule + Send + Sync>> {
     let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = vec![
-        Arc::new(SparqlJoinReorderingRule::new()),
+        Arc::new(SparqlJoinReorderingRule::new(context.encodings().clone())),
         Arc::new(MinusLoweringRule::new(context.clone())),
         Arc::new(ExtendLoweringRule::new()),
         Arc::new(PropertyPathLoweringRule::new(context.clone())),
