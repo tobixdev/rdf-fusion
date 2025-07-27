@@ -20,13 +20,28 @@ use std::sync::Arc;
 /// # Example
 ///
 /// ```
-/// use std::sync::Arc;
-/// use datafusion::logical_expr::LogicalPlan;
-/// use rdf_fusion_encoding::QuadStorageEncoding;
-/// use rdf_fusion_logical::RdfFusionLogicalPlanBuilderContext;
-/// use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
-/// use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
-/// use rdf_fusion_logical::ActiveGraph;
+/// # use std::sync::Arc;
+/// # use datafusion::logical_expr::LogicalPlan;
+/// # use rdf_fusion_api::RdfFusionContextView;
+/// # use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+/// # use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
+/// # use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
+/// # use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+/// # use rdf_fusion_logical::RdfFusionLogicalPlanBuilderContext;
+/// # use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
+/// # use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
+/// # use rdf_fusion_logical::ActiveGraph;
+/// # let encodings = RdfFusionEncodings::new(
+/// #     PLAIN_TERM_ENCODING,
+/// #     TYPED_VALUE_ENCODING,
+/// #     None,
+/// #     SORTABLE_TERM_ENCODING
+/// # );
+/// # let rdf_fusion_context = RdfFusionContextView::new(
+/// #     Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone())),
+/// #     encodings,
+/// #     QuadStorageEncoding::PlainTerm
+/// # );
 ///
 /// let subject = Variable::new_unchecked("s");
 /// let predicate = Variable::new_unchecked("p");
@@ -38,10 +53,7 @@ use std::sync::Arc;
 ///     object: TermPattern::Variable(object),
 /// };
 ///
-/// let builder_context = RdfFusionLogicalPlanBuilderContext::new(
-///     Arc::new(DefaultRdfFusionFunctionRegistry::new(None)),
-///     QuadStorageEncoding::PlainTerm
-/// );
+/// let builder_context = RdfFusionLogicalPlanBuilderContext::new(rdf_fusion_context);
 /// let plan: LogicalPlan = builder_context
 ///     .create_pattern(ActiveGraph::DefaultGraph, None, pattern)
 ///     .project(&[subject])
