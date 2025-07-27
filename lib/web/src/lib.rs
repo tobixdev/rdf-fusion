@@ -13,11 +13,12 @@ mod app;
 mod config;
 mod error;
 mod repositories;
+mod state;
 
 use crate::app::create_app_routes;
 use crate::repositories::create_repositories_routes;
 pub use config::ServerConfig;
-use rdf_fusion::store::Store;
+pub use state::AppState;
 
 // TODO: proper logging
 #[allow(clippy::print_stdout)]
@@ -29,15 +30,7 @@ pub async fn serve(config: ServerConfig) -> anyhow::Result<()> {
         read_only: config.read_only,
         union_default_graph: config.union_default_graph,
     };
-
-    let app = Router::new()
-        .route("/", get(|| async { Redirect::permanent("/app") }))
-        .nest("/app", create_app_routes())
-        .nest("/repositories", create_repositories_routes())
-        .with_state(app_state)
-        .layer(DefaultBodyLimit::disable())
-        .layer(create_tracing_layer())
-        .layer(middleware::from_fn(log_error_responses));
+    let app = create_router(app_state);
 
     let app = if config.cors {
         // TODO: check how permissive this should be
@@ -50,6 +43,17 @@ pub async fn serve(config: ServerConfig) -> anyhow::Result<()> {
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     Ok(axum::serve(listener, app).await?)
+}
+
+pub fn create_router(app_state: AppState) -> Router {
+    Router::new()
+        .route("/", get(|| async { Redirect::permanent("/app") }))
+        .nest("/app", create_app_routes())
+        .nest("/repositories", create_repositories_routes())
+        .with_state(app_state)
+        .layer(DefaultBodyLimit::disable())
+        .layer(create_tracing_layer())
+        .layer(middleware::from_fn(log_error_responses))
 }
 
 /// Creates the tracing (logging) layer for the web application.
@@ -87,12 +91,4 @@ pub async fn log_error_responses(req: Request<Body>, next: Next) -> impl IntoRes
     } else {
         response
     }
-}
-
-#[derive(Clone)]
-struct AppState {
-    store: Store,
-    #[allow(unused, reason = "Not yet implemented")]
-    read_only: bool,
-    union_default_graph: bool,
 }
