@@ -3,14 +3,14 @@ use crate::sparql::error::QueryEvaluationError;
 use datafusion::common::exec_err;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
-use rdf_fusion_common::quads::COL_GRAPH;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_common::quads::COL_GRAPH;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_model::{NamedOrBlankNode, Term, Variable};
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll, ready};
 
 /// An iterator yielding graph names.
 pub struct GraphNameStream {
@@ -33,8 +33,10 @@ impl GraphNameStream {
             return exec_err!("Unexpected data type in the result");
         }
 
-        let solutions_stream =
-            QuerySolutionStream::try_new(Arc::new([Variable::new_unchecked(COL_GRAPH)]), stream)?;
+        let solutions_stream = QuerySolutionStream::try_new(
+            Arc::new([Variable::new_unchecked(COL_GRAPH)]),
+            stream,
+        )?;
         Ok(Self {
             stream: solutions_stream,
         })
@@ -54,7 +56,10 @@ impl GraphNameStream {
 impl Stream for GraphNameStream {
     type Item = Result<NamedOrBlankNode, QueryEvaluationError>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         let Some(inner) = ready!(self.stream.poll_next_unpin(cx)) else {
             return Poll::Ready(None);
         };

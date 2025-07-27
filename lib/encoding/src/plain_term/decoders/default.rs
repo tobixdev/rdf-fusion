@@ -1,11 +1,15 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::plain_term::encoding::PlainTermType;
 use crate::plain_term::PlainTermEncoding;
+use crate::plain_term::encoding::PlainTermType;
 use crate::{EncodingScalar, TermEncoding};
-use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
+use datafusion::arrow::array::{
+    Array, AsArray, GenericStringArray, PrimitiveArray, StructArray,
+};
 use datafusion::arrow::datatypes::UInt8Type;
 use datafusion::common::ScalarValue;
-use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{
+    BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult,
+};
 
 #[derive(Debug)]
 pub struct DefaultPlainTermDecoder;
@@ -25,7 +29,8 @@ impl TermDecoder<PlainTermEncoding> for DefaultPlainTermDecoder {
         let datatype = array.column(2).as_string::<i32>();
         let language = array.column(3).as_string::<i32>();
 
-        (0..array.len()).map(|idx| extract_term(array, term_type, value, datatype, language, idx))
+        (0..array.len())
+            .map(|idx| extract_term(array, term_type, value, datatype, language, idx))
     }
 
     fn decode_term(
@@ -55,11 +60,12 @@ fn extract_term<'data>(
     array
         .is_valid(idx)
         .then(|| {
-            let term_type = PlainTermType::try_from(term_type.value(idx))
-                .expect("Unexpected term type encoding. Should be ensured by the wrapping type.");
+            let term_type = PlainTermType::try_from(term_type.value(idx)).expect(
+                "Unexpected term type encoding. Should be ensured by the wrapping type.",
+            );
             decode_term(value, datatype, language, idx, term_type)
         })
-        .ok_or(ThinError::default())
+        .ok_or(ThinError::ExpectedError)
 }
 
 fn decode_term<'data>(

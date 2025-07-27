@@ -1,11 +1,11 @@
-use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::dispatch_binary_typed_value;
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{BinaryArgs, ScalarSparqlOp};
-use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{ThinError, TypedValueRef};
 use std::cmp::Ordering;
 
@@ -52,7 +52,7 @@ impl ScalarSparqlOp for LessOrEqualSparqlOp {
                         .map(|o| [Ordering::Equal, Ordering::Less].contains(&o))
                         .map(Into::into)
                         .map(TypedValueRef::BooleanLiteral)
-                        .ok_or(ThinError::default())
+                        .ok_or(ThinError::ExpectedError)
                 },
                 |_, _| ThinError::expected(),
             )

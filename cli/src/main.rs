@@ -1,6 +1,6 @@
 #![allow(clippy::print_stderr, clippy::cast_precision_loss, clippy::use_debug)]
 use crate::cli::{Args, Command};
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use clap::Parser;
 use rdf_fusion::io::{RdfFormat, RdfParser, RdfSerializer};
 use rdf_fusion::model::{GraphName, NamedNode};
@@ -8,7 +8,7 @@ use rdf_fusion::store::Store;
 use rdf_fusion_web::ServerConfig;
 use std::ffi::OsStr;
 use std::fs::File;
-use std::io::{self, stdin, stdout, BufWriter, Read, Write};
+use std::io::{self, BufWriter, Read, Write, stdin, stdout};
 use std::path::Path;
 use std::str;
 use tracing_subscriber::layer::SubscriberExt;
@@ -20,7 +20,8 @@ mod cli;
 pub async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -70,7 +71,9 @@ pub async fn main() -> anyhow::Result<()> {
             let from_graph = if let Some(from_graph) = from_graph {
                 Some(
                     NamedNode::new(&from_graph)
-                        .with_context(|| format!("The source graph name {from_graph} is invalid"))?
+                        .with_context(|| {
+                            format!("The source graph name {from_graph} is invalid")
+                        })?
                         .into(),
                 )
             } else if from_default_graph {
@@ -80,7 +83,9 @@ pub async fn main() -> anyhow::Result<()> {
             };
             let to_graph = if let Some(to_graph) = to_graph {
                 NamedNode::new(&to_graph)
-                    .with_context(|| format!("The target graph name {to_graph} is invalid"))?
+                    .with_context(|| {
+                        format!("The target graph name {to_graph} is invalid")
+                    })?
                     .into()
             } else {
                 GraphName::DefaultGraph
@@ -155,7 +160,9 @@ fn do_convert<R: Read, W: Write>(
     for (prefix_name, prefix_iri) in parser.prefixes() {
         serializer = serializer
             .with_prefix(prefix_name, prefix_iri)
-            .with_context(|| format!("Invalid IRI for prefix {prefix_name}: {prefix_iri}"))?;
+            .with_context(|| {
+                format!("Invalid IRI for prefix {prefix_name}: {prefix_iri}")
+            })?;
     }
     let mut serializer = serializer.for_writer(writer);
     for quad_result in first.into_iter().chain(parser) {
@@ -251,8 +258,8 @@ mod tests {
     use super::*;
     use anyhow::Result;
     use assert_cmd::Command;
-    use assert_fs::prelude::*;
     use assert_fs::NamedTempFile;
+    use assert_fs::prelude::*;
     use predicates::prelude::*;
 
     fn cli_command() -> Command {

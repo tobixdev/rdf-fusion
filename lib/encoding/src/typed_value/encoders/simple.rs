@@ -6,7 +6,8 @@ use crate::TypedValueEncoding;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{BlankNode, Double, NamedNode, TypedValueRef};
 use rdf_fusion_model::{
-    BlankNodeRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef, ThinResult,
+    BlankNodeRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef,
+    ThinResult,
 };
 use rdf_fusion_model::{
     Boolean, DateTime, DayTimeDuration, Decimal, Float, Int, Integer, OwnedStringLiteral,
@@ -37,7 +38,10 @@ macro_rules! make_simple_term_value_encoder {
             fn encode_term(
                 term: ThinResult<Self::Term<'_>>,
             ) -> DFResult<<TypedValueEncoding as TermEncoding>::Scalar> {
-                $crate::encoding::EncodingArray::try_as_scalar(&Self::encode_terms([term])?, 0)
+                $crate::encoding::EncodingArray::try_as_scalar(
+                    &Self::encode_terms([term])?,
+                    0,
+                )
             }
         }
     };
@@ -74,7 +78,9 @@ make_simple_term_value_encoder!(
 make_simple_term_value_encoder!(
     BooleanTermValueEncoder,
     Boolean,
-    |builder: &mut TypedValueArrayBuilder, value: Boolean| { builder.append_boolean(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Boolean| {
+        builder.append_boolean(value)
+    }
 );
 make_simple_term_value_encoder!(
     SimpleLiteralRefTermValueEncoder,
@@ -105,7 +111,9 @@ make_simple_term_value_encoder!(
 make_simple_term_value_encoder!(
     IntegerTermValueEncoder,
     Integer,
-    |builder: &mut TypedValueArrayBuilder, value: Integer| { builder.append_integer(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Integer| {
+        builder.append_integer(value)
+    }
 );
 make_simple_term_value_encoder!(
     FloatTermValueEncoder,
@@ -115,22 +123,30 @@ make_simple_term_value_encoder!(
 make_simple_term_value_encoder!(
     DoubleTermValueEncoder,
     Double,
-    |builder: &mut TypedValueArrayBuilder, value: Double| { builder.append_double(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Double| {
+        builder.append_double(value)
+    }
 );
 make_simple_term_value_encoder!(
     DecimalTermValueEncoder,
     Decimal,
-    |builder: &mut TypedValueArrayBuilder, value: Decimal| { builder.append_decimal(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Decimal| {
+        builder.append_decimal(value)
+    }
 );
 make_simple_term_value_encoder!(
     NumericTypedValueEncoder,
     Numeric,
-    |builder: &mut TypedValueArrayBuilder, value: Numeric| { builder.append_numeric(value) }
+    |builder: &mut TypedValueArrayBuilder, value: Numeric| {
+        builder.append_numeric(value)
+    }
 );
 make_simple_term_value_encoder!(
     DateTimeTermValueEncoder,
     DateTime,
-    |builder: &mut TypedValueArrayBuilder, value: DateTime| { builder.append_date_time(value) }
+    |builder: &mut TypedValueArrayBuilder, value: DateTime| {
+        builder.append_date_time(value)
+    }
 );
 make_simple_term_value_encoder!(
     DayTimeDurationTermValueEncoder,

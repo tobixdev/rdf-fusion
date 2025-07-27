@@ -1,15 +1,17 @@
 use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_datafusion_err, plan_err, Column, DFSchema};
+use datafusion::common::{Column, DFSchema, exec_datafusion_err, plan_err};
 use datafusion::logical_expr::expr::AggregateFunction;
-use datafusion::logical_expr::{lit, Expr, ExprSchemable, ScalarUDF};
+use datafusion::logical_expr::{Expr, ExprSchemable, ScalarUDF, lit};
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
 };
-use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::{EncodingName, EncodingScalar, RdfFusionEncodings, TermEncoder};
+use rdf_fusion_encoding::{
+    EncodingName, EncodingScalar, RdfFusionEncodings, TermEncoder,
+};
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::sync::Arc;
 
@@ -57,7 +59,10 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     }
 
     /// Creates a new [RdfFusionExprBuilder] from an existing [Expr].
-    pub fn try_create_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'context>> {
+    pub fn try_create_builder(
+        &self,
+        expr: Expr,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
         RdfFusionExprBuilder::try_new_from_context(*self, expr)
     }
 
@@ -120,7 +125,10 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     ///
     /// If the variable is not bound in the current context (i.e., not in the schema),
     /// the expression evaluates to a null literal.
-    pub fn variable(&self, variable: VariableRef<'_>) -> DFResult<RdfFusionExprBuilder<'context>> {
+    pub fn variable(
+        &self,
+        variable: VariableRef<'_>,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
         let column = Column::new_unqualified(variable.as_str());
         let expr = if self.schema.has_column(&column) {
             Expr::from(column)
@@ -158,7 +166,10 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// Creates an expression that converts a native `i64` value into an RDF term.
     ///
     /// This is done by encoding the literal and calling [BuiltinName::NativeInt64AsTerm].
-    pub fn native_int64_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'context>> {
+    pub fn native_int64_as_term(
+        &self,
+        expr: Expr,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
         let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
         if data_type != DataType::Int64 {
             return plan_err!(
@@ -175,7 +186,10 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// Creates an expression that converts a native boolean value into an RDF term.
     ///
     /// This is done by encoding the literal and calling [BuiltinName::NativeBooleanAsTerm].
-    pub fn native_boolean_as_term(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'context>> {
+    pub fn native_boolean_as_term(
+        &self,
+        expr: Expr,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
         let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
         if data_type != DataType::Boolean {
             return plan_err!(
@@ -332,7 +346,10 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     // Helper Functions
     //
 
-    pub(crate) fn create_builtin_udf(&self, name: BuiltinName) -> DFResult<Arc<ScalarUDF>> {
+    pub(crate) fn create_builtin_udf(
+        &self,
+        name: BuiltinName,
+    ) -> DFResult<Arc<ScalarUDF>> {
         self.registry()
             .create_udf(FunctionName::Builtin(name), RdfFusionFunctionArgs::empty())
     }
@@ -355,12 +372,9 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             })
             .map(|r| {
                 r.and_then(|dt| {
-                    self.encodings()
-                        .try_get_encoding_name(&dt)
-                        .ok_or(exec_datafusion_err!(
-                            "Data type is not an RDF term '{}'",
-                            dt
-                        ))
+                    self.encodings().try_get_encoding_name(&dt).ok_or(
+                        exec_datafusion_err!("Data type is not an RDF term '{}'", dt),
+                    )
                 })
             })
             .collect::<DFResult<Vec<_>>>()

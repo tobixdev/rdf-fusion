@@ -1,17 +1,19 @@
-use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::{
     dispatch_quaternary_owned_typed_value, dispatch_ternary_owned_typed_value,
 };
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::strings::regex::compile_pattern;
-use crate::scalar::{QuaternaryArgs, ScalarSparqlOp, TernaryArgs, TernaryOrQuaternaryArgs};
-use rdf_fusion_api::functions::FunctionName;
+use crate::scalar::{
+    QuaternaryArgs, ScalarSparqlOp, TernaryArgs, TernaryOrQuaternaryArgs,
+};
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{
-    LanguageString, SimpleLiteral, SimpleLiteralRef, StringLiteralRef, ThinError, TypedValue,
-    TypedValueRef,
+    LanguageString, SimpleLiteral, SimpleLiteralRef, StringLiteralRef, ThinError,
+    TypedValue, TypedValueRef,
 };
 use std::borrow::Cow;
 
@@ -58,16 +60,19 @@ impl ScalarSparqlOp for ReplaceSparqlOp {
                     |_, _, _| ThinError::expected(),
                 )
             }
-            TernaryOrQuaternaryArgs::Quaternary(QuaternaryArgs(arg0, arg1, arg2, arg3)) => {
-                dispatch_quaternary_owned_typed_value(
-                    &arg0,
-                    &arg1,
-                    &arg2,
-                    &arg3,
-                    |arg0, arg1, arg2, arg3| evaluate_replace(arg0, arg1, arg2, Some(arg3))?,
-                    |_, _, _, _| ThinError::expected(),
-                )
-            }
+            TernaryOrQuaternaryArgs::Quaternary(QuaternaryArgs(
+                arg0,
+                arg1,
+                arg2,
+                arg3,
+            )) => dispatch_quaternary_owned_typed_value(
+                &arg0,
+                &arg1,
+                &arg2,
+                &arg3,
+                |arg0, arg1, arg2, arg3| evaluate_replace(arg0, arg1, arg2, Some(arg3))?,
+                |_, _, _, _| ThinError::expected(),
+            ),
         }))
     }
 }

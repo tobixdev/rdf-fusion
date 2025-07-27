@@ -1,7 +1,7 @@
 use datafusion::arrow::array::RecordBatchOptions;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
-use datafusion::common::{exec_datafusion_err, internal_err, plan_err, SchemaExt};
+use datafusion::common::{SchemaExt, exec_datafusion_err, internal_err, plan_err};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
@@ -16,7 +16,7 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
-use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PLAIN_TERM_ENCODING};
+use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_logical::paths::PATH_TABLE_SCHEMA;
 use rdf_fusion_model::{GraphName, Term};
@@ -27,7 +27,7 @@ use std::fmt::Formatter;
 use std::hash::Hash;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll, ready};
 
 /// Represents a path in the closure.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -59,7 +59,10 @@ impl KleenePlusClosureExec {
     ///
     /// The `allow_cross_graph_paths` argument indicates whether paths are created across multiple
     /// graphs.
-    pub fn try_new(inner: Arc<dyn ExecutionPlan>, allow_cross_graph_paths: bool) -> DFResult<Self> {
+    pub fn try_new(
+        inner: Arc<dyn ExecutionPlan>,
+        allow_cross_graph_paths: bool,
+    ) -> DFResult<Self> {
         if !inner
             .schema()
             .equivalent_names_and_types(PATH_TABLE_SCHEMA.as_ref())
@@ -75,8 +78,8 @@ impl KleenePlusClosureExec {
         let plan_properties = PlanProperties::new(
             EquivalenceProperties::new(inner.schema()),
             Partitioning::UnknownPartitioning(1), // Computation requires all data in one partition
-            EmissionType::Final,                  // Emits results only after full computation
-            Boundedness::Bounded,                 // Assumes the closure computation terminates
+            EmissionType::Final, // Emits results only after full computation
+            Boundedness::Bounded, // Assumes the closure computation terminates
         );
         Ok(Self {
             plan_properties,
@@ -114,8 +117,10 @@ impl ExecutionPlan for KleenePlusClosureExec {
             );
         }
 
-        let exec =
-            KleenePlusClosureExec::try_new(Arc::clone(&children[0]), self.allow_cross_graph_paths)?;
+        let exec = KleenePlusClosureExec::try_new(
+            Arc::clone(&children[0]),
+            self.allow_cross_graph_paths,
+        )?;
         Ok(Arc::new(exec))
     }
 
@@ -285,7 +290,9 @@ impl KleenePlusClosureStream {
                     return Poll::Ready(None);
                 }
                 KleenePlusPathStreamState::Error => {
-                    return Poll::Ready(Some(Err(exec_datafusion_err!("Error already occurred."))));
+                    return Poll::Ready(Some(Err(exec_datafusion_err!(
+                        "Error already occurred."
+                    ))));
                 }
             }
         }
@@ -295,7 +302,8 @@ impl KleenePlusClosureStream {
     ///
     /// This adds all inner paths to the `initial_paths_map`, `all_paths`, and the `current_delta`.
     fn collect_next_batch(&mut self, batch: &RecordBatch) -> DFResult<()> {
-        let graph_names = PLAIN_TERM_ENCODING.try_new_array(Arc::clone(batch.column(0)))?;
+        let graph_names =
+            PLAIN_TERM_ENCODING.try_new_array(Arc::clone(batch.column(0)))?;
         let starts = PLAIN_TERM_ENCODING.try_new_array(Arc::clone(batch.column(1)))?;
         let ends = PLAIN_TERM_ENCODING.try_new_array(Arc::clone(batch.column(2)))?;
 
@@ -381,8 +389,12 @@ impl KleenePlusClosureStream {
 
         for path in &self.all_paths {
             match &path.graph {
-                GraphName::NamedNode(named) => graph_builder.append_named_node(named.as_ref()),
-                GraphName::BlankNode(bnode) => graph_builder.append_blank_node(bnode.as_ref()),
+                GraphName::NamedNode(named) => {
+                    graph_builder.append_named_node(named.as_ref())
+                }
+                GraphName::BlankNode(bnode) => {
+                    graph_builder.append_blank_node(bnode.as_ref())
+                }
                 GraphName::DefaultGraph => graph_builder.append_null(),
             }
             start_builder.append_term(path.start.as_ref());
@@ -393,7 +405,8 @@ impl KleenePlusClosureStream {
         let start_array = start_builder.finish();
         let end_array = end_builder.finish();
 
-        let options = RecordBatchOptions::new().with_row_count(Some(self.all_paths.len()));
+        let options =
+            RecordBatchOptions::new().with_row_count(Some(self.all_paths.len()));
         RecordBatch::try_new_with_options(
             Arc::clone(&self.schema),
             vec![graph_array, start_array, end_array],

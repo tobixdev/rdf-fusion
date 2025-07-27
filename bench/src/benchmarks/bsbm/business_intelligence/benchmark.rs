@@ -1,10 +1,11 @@
+use crate::benchmarks::bsbm::BsbmDatasetSize;
 use crate::benchmarks::bsbm::business_intelligence::operation::{
-    list_raw_operations, BsbmBusinessIntelligenceOperation, BsbmBusinessIntelligenceRawOperation,
+    BsbmBusinessIntelligenceOperation, BsbmBusinessIntelligenceRawOperation,
+    list_raw_operations,
 };
 use crate::benchmarks::bsbm::business_intelligence::report::{
     BusinessIntelligenceReport, BusinessIntelligenceReportBuilder,
 };
-use crate::benchmarks::bsbm::BsbmDatasetSize;
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::{BenchmarkContext, RdfFusionBenchContext};
 use crate::prepare::{ArchiveType, FileDownloadAction, PrepRequirement};
@@ -55,7 +56,8 @@ impl BsbmBusinessIntelligenceBenchmark {
         println!("Loading queries ...");
 
         let queries_path = env.join_data_dir(
-            PathBuf::from(format!("businessIntelligence-{}.csv", self.dataset_size)).as_path(),
+            PathBuf::from(format!("businessIntelligence-{}.csv", self.dataset_size))
+                .as_path(),
         )?;
         let result = match self.max_query_count {
             None => list_raw_operations(&queries_path)?
@@ -71,11 +73,14 @@ impl BsbmBusinessIntelligenceBenchmark {
         Ok(result)
     }
 
-    async fn prepare_store(&self, bench_context: &BenchmarkContext<'_>) -> anyhow::Result<Store> {
+    async fn prepare_store(
+        &self,
+        bench_context: &BenchmarkContext<'_>,
+    ) -> anyhow::Result<Store> {
         println!("Creating in-memory store and loading data ...");
-        let data_path = bench_context
-            .parent()
-            .join_data_dir(PathBuf::from(format!("dataset-{}.nt", self.dataset_size)).as_path())?;
+        let data_path = bench_context.parent().join_data_dir(
+            PathBuf::from(format!("dataset-{}.nt", self.dataset_size)).as_path(),
+        )?;
         let data = fs::read(data_path)?;
         let memory_store = Store::new();
         memory_store
@@ -114,7 +119,8 @@ impl Benchmark for BsbmBusinessIntelligenceBenchmark {
                 format!("../dataset-{}", dataset_size),
             ],
             check_requirement: Box::new(move || {
-                let exists = File::open(format!("./data/dataset-{dataset_size}.nt")).is_ok();
+                let exists =
+                    File::open(format!("./data/dataset-{dataset_size}.nt")).is_ok();
                 Ok(exists)
             }),
         };
@@ -145,7 +151,9 @@ impl Benchmark for BsbmBusinessIntelligenceBenchmark {
     }
 }
 
-fn parse_query(query: BsbmBusinessIntelligenceRawOperation) -> BsbmBusinessIntelligenceOperation {
+fn parse_query(
+    query: BsbmBusinessIntelligenceRawOperation,
+) -> BsbmBusinessIntelligenceOperation {
     match query {
         BsbmBusinessIntelligenceRawOperation::Query(name, query) => {
             BsbmBusinessIntelligenceOperation::Query(
@@ -197,7 +205,8 @@ async fn run_operation(
     let options = QueryOptions;
     let (name, explanation) = match operation {
         BsbmBusinessIntelligenceOperation::Query(name, q) => {
-            let (result, explanation) = store.explain_query_opt(q.clone(), options.clone()).await?;
+            let (result, explanation) =
+                store.explain_query_opt(q.clone(), options.clone()).await?;
             match result {
                 QueryResults::Boolean(_) => (),
                 QueryResults::Solutions(mut s) => {

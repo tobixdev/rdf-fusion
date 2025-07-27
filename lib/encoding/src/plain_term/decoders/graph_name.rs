@@ -1,7 +1,7 @@
-use crate::encoding::TermDecoder;
-use crate::plain_term::decoders::DefaultPlainTermDecoder;
-use crate::plain_term::PlainTermEncoding;
 use crate::TermEncoding;
+use crate::encoding::TermDecoder;
+use crate::plain_term::PlainTermEncoding;
+use crate::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_model::{GraphNameRef, TermRef, ThinResult};
 
 #[derive(Debug)]
@@ -25,7 +25,9 @@ impl TermDecoder<PlainTermEncoding> for GraphNameRefPlainTermDecoder {
     }
 }
 
-fn map_term_ref_to_graph_name_ref(term: ThinResult<TermRef<'_>>) -> ThinResult<GraphNameRef<'_>> {
+fn map_term_ref_to_graph_name_ref(
+    term: ThinResult<TermRef<'_>>,
+) -> ThinResult<GraphNameRef<'_>> {
     match term {
         Ok(TermRef::NamedNode(nn)) => Ok(GraphNameRef::NamedNode(nn)),
         Ok(TermRef::BlankNode(bnode)) => Ok(GraphNameRef::BlankNode(bnode)),

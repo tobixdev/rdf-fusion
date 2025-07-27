@@ -1,10 +1,10 @@
-use crate::benchmarks::bsbm::explore::{BsbmExploreQueryName, BSBM_EXPLORE_QUERIES};
+use crate::benchmarks::bsbm::explore::{BSBM_EXPLORE_QUERIES, BsbmExploreQueryName};
 use crate::report::BenchmarkReport;
 use crate::runs::{BenchmarkRun, BenchmarkRuns};
 use crate::utils::write_flamegraph;
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use datafusion::physical_plan::displayable;
-use prettytable::{row, Table};
+use prettytable::{Table, row};
 use rdf_fusion::QueryExplanation;
 use std::collections::HashMap;
 use std::fs;
@@ -48,7 +48,10 @@ impl ExploreReport {
     }
 
     /// Write aggregated flamegraph.
-    fn write_aggregated_flamegraphs(&self, output_directory: &Path) -> anyhow::Result<()> {
+    fn write_aggregated_flamegraphs(
+        &self,
+        output_directory: &Path,
+    ) -> anyhow::Result<()> {
         if !output_directory.is_dir() {
             bail!(
                 "Output directory {} does not exist",
@@ -64,8 +67,8 @@ impl ExploreReport {
                 .transpose()?;
             if let Some(frames) = frames {
                 let flamegraph_file = output_directory.join(format!("{query}.svg"));
-                let mut flamegraph_file =
-                    fs::File::create(flamegraph_file).context("Cannot create flamegraph file")?;
+                let mut flamegraph_file = fs::File::create(flamegraph_file)
+                    .context("Cannot create flamegraph file")?;
                 write_flamegraph(&mut flamegraph_file, &frames)?;
             }
         }
@@ -73,13 +76,18 @@ impl ExploreReport {
         Ok(())
     }
 
-    fn write_query_results(&self, output_directory: &Path, index: usize) -> anyhow::Result<()> {
+    fn write_query_results(
+        &self,
+        output_directory: &Path,
+        index: usize,
+    ) -> anyhow::Result<()> {
         let query_i_path = output_directory.join(format!("query{index}"));
         fs::create_dir_all(&query_i_path).context("Cannot create query directory")?;
 
         let summary_file = query_i_path.join("0_summary.txt");
         let initial_logical_plan_file = query_i_path.join("1_initial_logical_plan.txt");
-        let optimized_logical_plan_file = query_i_path.join("2_optimized_logical_plan.txt");
+        let optimized_logical_plan_file =
+            query_i_path.join("2_optimized_logical_plan.txt");
         let execution_plan_file = query_i_path.join("3_execution_plan.txt");
 
         let explanation = self
@@ -126,7 +134,8 @@ impl ExploreReport {
         })?;
 
         // Write the execution plan
-        let execution_plan = displayable(explanation.execution_plan.as_ref()).indent(false);
+        let execution_plan =
+            displayable(explanation.execution_plan.as_ref()).indent(false);
         fs::write(
             &execution_plan_file,
             format!("Execution Plan:\n\n{execution_plan}"),
@@ -155,7 +164,8 @@ impl BenchmarkReport for ExploreReport {
 
         if !self.explanations.is_empty() {
             let queries_path = output_dir.join("queries");
-            fs::create_dir_all(&queries_path).context("Cannot create queries directory")?;
+            fs::create_dir_all(&queries_path)
+                .context("Cannot create queries directory")?;
             for i in 0..self.explanations.len() {
                 self.write_query_results(&queries_path, i)?;
             }

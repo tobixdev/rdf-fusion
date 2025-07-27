@@ -1,11 +1,11 @@
+use crate::MemoryQuadStorage;
 use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
 use crate::oxigraph_memory::store::MemoryStorageReader;
-use crate::MemoryQuadStorage;
 use async_trait::async_trait;
 use datafusion::common::plan_err;
 use datafusion::error::{DataFusionError, Result as DFResult};
-use datafusion::execution::context::SessionState;
 use datafusion::execution::SendableRecordBatchStream;
+use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
 use datafusion::physical_plan::{EmptyRecordBatchStream, ExecutionPlan};
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
@@ -79,7 +79,8 @@ impl ExtensionPlanner for OxigraphMemoryQuadNodePlanner {
         _session_state: &SessionState,
     ) -> DFResult<Option<Arc<dyn ExecutionPlan>>> {
         if let Some(quad_pattern_node) = node.as_any().downcast_ref::<QuadPatternNode>() {
-            let active_graph = self.enumerate_active_graph(quad_pattern_node.active_graph())?;
+            let active_graph =
+                self.enumerate_active_graph(quad_pattern_node.active_graph())?;
             let quads = Arc::new(QuadPatternExec::new(
                 Arc::new(self.snapshot.clone()),
                 active_graph,
@@ -91,7 +92,9 @@ impl ExtensionPlanner for OxigraphMemoryQuadNodePlanner {
             ));
 
             if node.schema().inner().as_ref() != quads.schema().as_ref() {
-                return plan_err!("Schema does not match after planning QuadPatternExec.");
+                return plan_err!(
+                    "Schema does not match after planning QuadPatternExec."
+                );
             }
 
             Ok(Some(quads))
@@ -119,7 +122,9 @@ impl QuadPatternEvaluator for MemoryStorageReader {
 
         let subject = match &pattern.subject {
             TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
-            TermPattern::BlankNode(bnode) if blank_node_mode == BlankNodeMatchingMode::Filter => {
+            TermPattern::BlankNode(bnode)
+                if blank_node_mode == BlankNodeMatchingMode::Filter =>
+            {
                 Some(Term::BlankNode(bnode.clone()))
             }
             TermPattern::Literal(_) => {
@@ -139,7 +144,9 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         };
         let object = match &pattern.object {
             TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
-            TermPattern::BlankNode(bnode) if blank_node_mode == BlankNodeMatchingMode::Filter => {
+            TermPattern::BlankNode(bnode)
+                if blank_node_mode == BlankNodeMatchingMode::Filter =>
+            {
                 Some(Term::BlankNode(bnode.clone()))
             }
             TermPattern::Literal(lit) => Some(Term::Literal(lit.clone())),
@@ -161,7 +168,8 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         let subject = match subject {
             None => None,
             Some(subject) => {
-                let Some(subject) = self.object_ids().try_get_object_id(subject.as_ref()) else {
+                let Some(subject) = self.object_ids().try_get_object_id(subject.as_ref())
+                else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
                         &storage_encoding,
@@ -176,7 +184,8 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         let predicate = match predicate {
             None => None,
             Some(predicate) => {
-                let Some(predicate) = self.object_ids().try_get_object_id(predicate.as_ref())
+                let Some(predicate) =
+                    self.object_ids().try_get_object_id(predicate.as_ref())
                 else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
@@ -192,7 +201,8 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         let object = match object {
             None => None,
             Some(object) => {
-                let Some(object) = self.object_ids().try_get_object_id(object.as_ref()) else {
+                let Some(object) = self.object_ids().try_get_object_id(object.as_ref())
+                else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
                         &storage_encoding,

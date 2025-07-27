@@ -5,7 +5,7 @@
 //!
 //! The tests assume the presence of the benchmark data.
 
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use futures::StreamExt;
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;

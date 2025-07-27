@@ -110,7 +110,12 @@ impl SortableTermArrayBuilder {
         )
     }
 
-    fn append(&mut self, sort_type: SortableTermType, numeric: Option<Double>, bytes: &[u8]) {
+    fn append(
+        &mut self,
+        sort_type: SortableTermType,
+        numeric: Option<Double>,
+        bytes: &[u8],
+    ) {
         self.builder
             .field_builder::<UInt8Builder>(SortableTermEncodingField::Type.index())
             .unwrap()

@@ -39,8 +39,10 @@ impl Duration {
         year_month: YearMonthDuration,
         day_time: DayTimeDuration,
     ) -> Result<Self, OppositeSignInDurationComponentsError> {
-        if (year_month > YearMonthDuration::default() && day_time < DayTimeDuration::default())
-            || (year_month < YearMonthDuration::default() && day_time > DayTimeDuration::default())
+        if (year_month > YearMonthDuration::default()
+            && day_time < DayTimeDuration::default())
+            || (year_month < YearMonthDuration::default()
+                && day_time > DayTimeDuration::default())
         {
             return Err(OppositeSignInDurationComponentsError);
         }
@@ -140,7 +142,7 @@ impl Duration {
             self.year_month.checked_add(rhs.year_month)?,
             self.day_time.checked_add(rhs.day_time)?,
         )
-        .map_err(|_| ThinError::default())
+        .map_err(|_| ThinError::ExpectedError)
     }
 
     /// [op:subtract-yearMonthDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDurations) and [op:subtract-dayTimeDurations](https://www.w3.org/TR/xpath-functions-31/#func-subtract-dayTimeDurations)
@@ -153,7 +155,7 @@ impl Duration {
             self.year_month.checked_sub(rhs.year_month)?,
             self.day_time.checked_sub(rhs.day_time)?,
         )
-        .map_err(|_| ThinError::default())
+        .map_err(|_| ThinError::ExpectedError)
     }
 
     /// Unary negation.
@@ -240,7 +242,8 @@ impl fmt::Display for Duration {
             let m = (s_int % 3600) / 60;
             let s = ss
                 .checked_sub(
-                    Decimal::try_from(d * 86400 + h * 3600 + m * 60).map_err(|_| fmt::Error)?,
+                    Decimal::try_from(d * 86400 + h * 3600 + m * 60)
+                        .map_err(|_| fmt::Error)?,
                 )
                 .map_err(|_| fmt::Error)?;
 
@@ -268,22 +271,26 @@ impl fmt::Display for Duration {
 impl PartialOrd for Duration {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let first = DateTime::from_seven_property_model(1969, 9, 1, 0, 0, 0.into(), None).ok()?;
+        let first =
+            DateTime::from_seven_property_model(1969, 9, 1, 0, 0, 0.into(), None).ok()?;
         let first_result = first
             .checked_add_duration(*self)
             .ok()?
             .partial_cmp(&first.checked_add_duration(*other).ok()?);
-        let second = DateTime::from_seven_property_model(1697, 2, 1, 0, 0, 0.into(), None).ok()?;
+        let second =
+            DateTime::from_seven_property_model(1697, 2, 1, 0, 0, 0.into(), None).ok()?;
         let second_result = second
             .checked_add_duration(*self)
             .ok()?
             .partial_cmp(&second.checked_add_duration(*other).ok()?);
-        let third = DateTime::from_seven_property_model(1903, 3, 1, 0, 0, 0.into(), None).ok()?;
+        let third =
+            DateTime::from_seven_property_model(1903, 3, 1, 0, 0, 0.into(), None).ok()?;
         let third_result = third
             .checked_add_duration(*self)
             .ok()?
             .partial_cmp(&third.checked_add_duration(*other).ok()?);
-        let fourth = DateTime::from_seven_property_model(1903, 7, 1, 0, 0, 0.into(), None).ok()?;
+        let fourth =
+            DateTime::from_seven_property_model(1903, 7, 1, 0, 0, 0.into(), None).ok()?;
         let fourth_result = fourth
             .checked_add_duration(*self)
             .ok()?
@@ -357,7 +364,7 @@ impl YearMonthDuration {
             months: self
                 .months
                 .checked_add(rhs.months)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -371,7 +378,7 @@ impl YearMonthDuration {
             months: self
                 .months
                 .checked_sub(rhs.months)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -381,7 +388,7 @@ impl YearMonthDuration {
     #[inline]
     pub fn checked_neg(self) -> ThinResult<Self> {
         Ok(Self {
-            months: self.months.checked_neg().ok_or(ThinError::default())?,
+            months: self.months.checked_neg().ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -789,7 +796,8 @@ fn duration_parts(input: &str) -> Result<(DurationParts, &str), ParseDurationErr
                             .unwrap_or_default()
                             .checked_add(
                                 apply_i64_neg(
-                                    i64::from_str(number_str).map_err(|_| OVERFLOW_ERROR)?,
+                                    i64::from_str(number_str)
+                                        .map_err(|_| OVERFLOW_ERROR)?,
                                     is_negative,
                                 )?
                                 .checked_mul(12)
@@ -822,7 +830,8 @@ fn duration_parts(input: &str) -> Result<(DurationParts, &str), ParseDurationErr
                             .unwrap_or_default()
                             .checked_add(
                                 apply_decimal_neg(
-                                    Decimal::from_str(number_str).map_err(|_| OVERFLOW_ERROR)?,
+                                    Decimal::from_str(number_str)
+                                        .map_err(|_| OVERFLOW_ERROR)?,
                                     is_negative,
                                 )?
                                 .checked_mul(86400)
@@ -843,7 +852,8 @@ fn duration_parts(input: &str) -> Result<(DurationParts, &str), ParseDurationErr
                             .unwrap_or_default()
                             .checked_add(
                                 apply_decimal_neg(
-                                    Decimal::from_str(number_str).map_err(|_| OVERFLOW_ERROR)?,
+                                    Decimal::from_str(number_str)
+                                        .map_err(|_| OVERFLOW_ERROR)?,
                                     is_negative,
                                 )?
                                 .checked_mul(3600)
@@ -864,7 +874,8 @@ fn duration_parts(input: &str) -> Result<(DurationParts, &str), ParseDurationErr
                             .unwrap_or_default()
                             .checked_add(
                                 apply_decimal_neg(
-                                    Decimal::from_str(number_str).map_err(|_| OVERFLOW_ERROR)?,
+                                    Decimal::from_str(number_str)
+                                        .map_err(|_| OVERFLOW_ERROR)?,
                                     is_negative,
                                 )?
                                 .checked_mul(60)
@@ -879,18 +890,21 @@ fn duration_parts(input: &str) -> Result<(DurationParts, &str), ParseDurationErr
                         day_time
                             .unwrap_or_default()
                             .checked_add(apply_decimal_neg(
-                                Decimal::from_str(number_str).map_err(|_| OVERFLOW_ERROR)?,
+                                Decimal::from_str(number_str)
+                                    .map_err(|_| OVERFLOW_ERROR)?,
                                 is_negative,
                             )?)
                             .map_err(|_| OVERFLOW_ERROR)?,
                     );
                     state = AFTER_SECOND;
                 }
-                Some(_) => return Err(ParseDurationError::msg("Unexpected type character")),
+                Some(_) => {
+                    return Err(ParseDurationError::msg("Unexpected type character"));
+                }
                 None => {
                     return Err(ParseDurationError::msg(
                         "Numbers in durations must be followed by a type character",
-                    ))
+                    ));
                 }
             }
             input = &left[1..];
@@ -914,7 +928,10 @@ fn apply_i64_neg(value: i64, is_negative: bool) -> Result<i64, ParseDurationErro
     }
 }
 
-fn apply_decimal_neg(value: Decimal, is_negative: bool) -> Result<Decimal, ParseDurationError> {
+fn apply_decimal_neg(
+    value: Decimal,
+    is_negative: bool,
+) -> Result<Decimal, ParseDurationError> {
     if is_negative {
         value.checked_neg().map_err(|_| OVERFLOW_ERROR)
     } else {
@@ -987,14 +1004,16 @@ pub struct DurationOverflowError;
 
 /// The year-month and the day-time components of a [`Duration`] have an opposite sign.
 #[derive(Debug, Clone, Copy, thiserror::Error)]
-#[error("The xsd:yearMonthDuration and xsd:dayTimeDuration components of a xsd:duration can't have opposite sign")]
+#[error(
+    "The xsd:yearMonthDuration and xsd:dayTimeDuration components of a xsd:duration can't have opposite sign"
+)]
 pub struct OppositeSignInDurationComponentsError;
 
 impl From<OppositeSignInDurationComponentsError> for ParseDurationError {
     #[inline]
     fn from(_: OppositeSignInDurationComponentsError) -> Self {
         Self {
-            msg: "The xsd:yearMonthDuration and xsd:dayTimeDuration components of a xsd:duration can't have opposite sign"
+            msg: "The xsd:yearMonthDuration and xsd:dayTimeDuration components of a xsd:duration can't have opposite sign",
         }
     }
 }
@@ -1056,7 +1075,8 @@ mod tests {
 
     #[test]
     fn to_std() -> Result<(), Box<dyn Error>> {
-        let duration = StdDuration::try_from(DayTimeDuration::from_str("PT10.00000001S")?)?;
+        let duration =
+            StdDuration::try_from(DayTimeDuration::from_str("PT10.00000001S")?)?;
         assert_eq!(duration.as_secs(), 10);
         assert_eq!(duration.subsec_nanos(), 10);
         Ok(())
@@ -1139,7 +1159,9 @@ mod tests {
     #[allow(clippy::neg_cmp_op_on_partial_ord)]
     fn cmp() -> Result<(), ParseDurationError> {
         assert!(Duration::from_str("P1Y1D")? < Duration::from_str("P13MT25H")?);
-        assert!(YearMonthDuration::from_str("P1Y")? < YearMonthDuration::from_str("P13M")?);
+        assert!(
+            YearMonthDuration::from_str("P1Y")? < YearMonthDuration::from_str("P13M")?
+        );
         assert!(Duration::from_str("P1Y")? < YearMonthDuration::from_str("P13M")?);
         assert!(YearMonthDuration::from_str("P1Y")? < Duration::from_str("P13M")?);
         assert!(DayTimeDuration::from_str("P1D")? < DayTimeDuration::from_str("PT25H")?);

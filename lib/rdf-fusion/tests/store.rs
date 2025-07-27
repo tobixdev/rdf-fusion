@@ -62,7 +62,10 @@ fn quads(graph_name: impl Into<GraphNameRef<'static>>) -> Vec<QuadRef<'static>> 
         QuadRef::new(
             paris,
             name,
-            LiteralRef::new_language_tagged_literal_unchecked("la ville lumi\u{E8}re", "fr"),
+            LiteralRef::new_language_tagged_literal_unchecked(
+                "la ville lumi\u{E8}re",
+                "fr",
+            ),
             graph_name,
         ),
         QuadRef::new(paris, country, france, graph_name),
@@ -145,7 +148,11 @@ async fn test_dump_graph() -> Result<(), Box<dyn Error>> {
 
     let mut buffer = Vec::new();
     store
-        .dump_graph_to_writer(GraphNameRef::DefaultGraph, RdfFormat::NTriples, &mut buffer)
+        .dump_graph_to_writer(
+            GraphNameRef::DefaultGraph,
+            RdfFormat::NTriples,
+            &mut buffer,
+        )
         .await?;
     assert_eq!(
         buffer.into_iter().filter(|c| *c == b'\n').count(),

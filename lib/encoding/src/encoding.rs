@@ -1,7 +1,7 @@
 use crate::EncodingName;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
@@ -27,7 +27,10 @@ pub trait EncodingArray {
     /// Extracts a scalar from this array at `index`.
     ///
     /// Returns an error if the `index` is out of bounds.
-    fn try_as_scalar(&self, index: usize) -> DFResult<<Self::Encoding as TermEncoding>::Scalar> {
+    fn try_as_scalar(
+        &self,
+        index: usize,
+    ) -> DFResult<<Self::Encoding as TermEncoding>::Scalar> {
         let scalar = ScalarValue::try_from_array(self.array(), index)?;
         self.encoding().try_new_scalar(scalar)
     }
@@ -51,7 +54,10 @@ pub trait EncodingScalar {
     fn into_scalar_value(self) -> ScalarValue;
 
     /// Produces a new array with `number_of_rows`.
-    fn to_array(&self, number_of_rows: usize) -> DFResult<<Self::Encoding as TermEncoding>::Array> {
+    fn to_array(
+        &self,
+        number_of_rows: usize,
+    ) -> DFResult<<Self::Encoding as TermEncoding>::Array> {
         let array = self.scalar_value().to_array_of_size(number_of_rows)?;
         self.encoding().try_new_array(array)
     }
@@ -156,7 +162,9 @@ pub trait TermDecoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
     /// The creation of the iterator cannot fail by itself, as the invariants of the encodings
     /// should have been checked while creating `array`. However, the iterator may return an error
     /// on every new value. This could be due to the value being incompatible with the decoder.
-    fn decode_terms(array: &TEncoding::Array) -> impl Iterator<Item = ThinResult<Self::Term<'_>>>;
+    fn decode_terms(
+        array: &TEncoding::Array,
+    ) -> impl Iterator<Item = ThinResult<Self::Term<'_>>>;
 
     /// Allows extracting an iterator over all RDF terms in `array` that are _compatible_ with this
     /// decoder (see [TermDecoder] for more information).

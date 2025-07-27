@@ -1,11 +1,11 @@
-use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::dispatch_binary_typed_value;
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{BinaryArgs, ScalarSparqlOp};
-use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{Decimal, Numeric, NumericPair, ThinError, TypedValueRef};
 
 /// Implementation of the SPARQL `/` operator.
@@ -59,7 +59,9 @@ impl ScalarSparqlOp for DivSparqlOp {
                                 Decimal::from(lhs).checked_div(rhs).map(Numeric::Decimal)
                             }
                             NumericPair::Float(lhs, rhs) => Ok(Numeric::Float(lhs / rhs)),
-                            NumericPair::Double(lhs, rhs) => Ok(Numeric::Double(lhs / rhs)),
+                            NumericPair::Double(lhs, rhs) => {
+                                Ok(Numeric::Double(lhs / rhs))
+                            }
                             NumericPair::Decimal(lhs, rhs) => {
                                 lhs.checked_div(rhs).map(Numeric::Decimal)
                             }

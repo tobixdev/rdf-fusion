@@ -63,7 +63,10 @@ impl GraphParser {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[inline]
-    pub fn with_base_iri(self, base_iri: impl Into<String>) -> Result<Self, IriParseError> {
+    pub fn with_base_iri(
+        self,
+        base_iri: impl Into<String>,
+    ) -> Result<Self, IriParseError> {
         Ok(Self {
             inner: self.inner.with_base_iri(base_iri)?,
         })
@@ -157,7 +160,10 @@ impl DatasetParser {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// ```
     #[inline]
-    pub fn with_base_iri(self, base_iri: impl Into<String>) -> Result<Self, IriParseError> {
+    pub fn with_base_iri(
+        self,
+        base_iri: impl Into<String>,
+    ) -> Result<Self, IriParseError> {
         Ok(Self {
             inner: self.inner.with_base_iri(base_iri)?,
         })

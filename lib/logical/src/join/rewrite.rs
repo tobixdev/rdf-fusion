@@ -1,8 +1,8 @@
+use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
-use crate::RdfFusionExprBuilderContext;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_err, Column, ExprSchema, JoinType};
+use datafusion::common::{Column, ExprSchema, JoinType, plan_err};
 use datafusion::logical_expr::{Expr, ExprSchemable, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
@@ -123,7 +123,8 @@ impl SparqlJoinLoweringRule {
             Some(false) => {
                 let lhs = LogicalPlanBuilder::new(node.lhs().clone()).alias("lhs")?;
                 let rhs = LogicalPlanBuilder::new(node.rhs().clone()).alias("rhs")?;
-                let projections = self.create_join_projections(node, &lhs, &rhs, false)?;
+                let projections =
+                    self.create_join_projections(node, &lhs, &rhs, false)?;
 
                 let filter = node
                     .filter()
@@ -170,7 +171,8 @@ impl SparqlJoinLoweringRule {
 
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
-        let expr_builder_root = RdfFusionExprBuilderContext::new(&self.context, &join_schema);
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let mut join_filters = join_on
             .iter()
@@ -221,7 +223,8 @@ impl SparqlJoinLoweringRule {
     ) -> DFResult<Vec<Expr>> {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
-        let expr_builder_root = RdfFusionExprBuilderContext::new(&self.context, &join_schema);
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let projections = node
@@ -266,7 +269,8 @@ impl SparqlJoinLoweringRule {
 
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
-        let expr_builder_root = RdfFusionExprBuilderContext::new(&self.context, &join_schema);
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let filter = filter
@@ -308,7 +312,9 @@ fn value_from_joined(
                 let (rhs_datatype, _) =
                     rhs_expr.data_type_and_nullable(expr_builder_root.schema())?;
                 if lhs_datatype != rhs_datatype {
-                    return plan_err!("The two columns for creating a COALESCE are different.");
+                    return plan_err!(
+                        "The two columns for creating a COALESCE are different."
+                    );
                 }
 
                 expr_builder_root
@@ -321,7 +327,9 @@ fn value_from_joined(
         }
         (true, false) => lhs_expr,
         (false, true) => rhs_expr,
-        (false, false) => unreachable!("At least one of lhs or rhs must contain variable"),
+        (false, false) => {
+            unreachable!("At least one of lhs or rhs must contain variable")
+        }
     };
     Ok(expr.alias(variable))
 }

@@ -2,12 +2,12 @@ use crate::oxigraph_memory::object_id::ObjectIdQuad;
 use crate::oxigraph_memory::store::QuadIterator;
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt64Builder};
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
-use datafusion::common::{exec_err, Column, DataFusionError};
+use datafusion::common::{Column, DataFusionError, exec_err};
 use datafusion::execution::RecordBatchStream;
 use futures::Stream;
 use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::collections::{HashMap, HashSet};
@@ -342,7 +342,9 @@ fn extract_columns(
             .map(|v| Column::new_unqualified(v.as_str())),
         match &pattern.subject {
             TermPattern::Variable(v) => Some(Column::new_unqualified(v.as_str())),
-            TermPattern::BlankNode(bnode) if blank_node_mode == BlankNodeMatchingMode::Variable => {
+            TermPattern::BlankNode(bnode)
+                if blank_node_mode == BlankNodeMatchingMode::Variable =>
+            {
                 Some(Column::new_unqualified(bnode.as_str()))
             }
             _ => None,
@@ -353,7 +355,9 @@ fn extract_columns(
         },
         match &pattern.object {
             TermPattern::Variable(v) => Some(Column::new_unqualified(v.as_str())),
-            TermPattern::BlankNode(bnode) if blank_node_mode == BlankNodeMatchingMode::Variable => {
+            TermPattern::BlankNode(bnode)
+                if blank_node_mode == BlankNodeMatchingMode::Variable =>
+            {
                 Some(Column::new_unqualified(bnode.as_str()))
             }
             _ => None,

@@ -230,8 +230,9 @@ fn greedy_reorder_component(component: ConnectedJoinComponent) -> DFResult<Logic
             }
         }
 
-        let (idx, _) = best
-            .expect("There is always a join with overlapping variables in a non-empty component.");
+        let (idx, _) = best.expect(
+            "There is always a join with overlapping variables in a non-empty component.",
+        );
         patterns.remove(idx)
     }
 
@@ -304,7 +305,8 @@ fn estimate_quad_cardinality(quad: &QuadPatternNode) -> usize {
         &quad.pattern().subject,
         TermPattern::NamedNode(_) | TermPattern::Literal(_)
     );
-    let predicate_bound = matches!(&quad.pattern().predicate, NamedNodePattern::NamedNode(_));
+    let predicate_bound =
+        matches!(&quad.pattern().predicate, NamedNodePattern::NamedNode(_));
     let object_bound = matches!(
         &quad.pattern().object,
         TermPattern::NamedNode(_) | TermPattern::Literal(_)

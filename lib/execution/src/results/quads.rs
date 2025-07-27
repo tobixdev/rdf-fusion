@@ -1,6 +1,6 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::QueryEvaluationError;
-use futures::{ready, Stream, StreamExt};
+use futures::{Stream, StreamExt, ready};
 use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject, Term, Variable};
 use sparesults::QuerySolution;
@@ -40,7 +40,10 @@ impl QuadStream {
 impl Stream for QuadStream {
     type Item = Result<Quad, QueryEvaluationError>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         let inner_poll = ready!(self.inner.poll_next_unpin(cx));
         match inner_poll {
             None => Poll::Ready(None),
@@ -78,7 +81,9 @@ fn to_graph_name(term: Option<&Term>) -> Result<GraphName, QueryEvaluationError>
         None => Ok(GraphName::DefaultGraph),
         Some(Term::NamedNode(n)) => Ok(GraphName::from(n.clone())),
         Some(Term::BlankNode(n)) => Ok(GraphName::from(n.clone())),
-        _ => QueryEvaluationError::internal("Predicate has invalid value in quads.".into()),
+        _ => {
+            QueryEvaluationError::internal("Predicate has invalid value in quads.".into())
+        }
     }
 }
 
@@ -95,6 +100,8 @@ fn to_subject(term: Term) -> Result<Subject, QueryEvaluationError> {
 fn to_predicate(term: Term) -> Result<NamedNode, QueryEvaluationError> {
     match term {
         Term::NamedNode(n) => Ok(n),
-        _ => QueryEvaluationError::internal("Predicate has invalid value in quads.".to_owned()),
+        _ => QueryEvaluationError::internal(
+            "Predicate has invalid value in quads.".to_owned(),
+        ),
     }
 }

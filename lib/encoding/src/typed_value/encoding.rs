@@ -277,8 +277,12 @@ impl TypedValueEncodingField {
             TypedValueEncodingField::DateTime
             | TypedValueEncodingField::Time
             | TypedValueEncodingField::Date => DataType::Struct(FIELDS_TIMESTAMP.clone()),
-            TypedValueEncodingField::Duration => DataType::Struct(FIELDS_DURATION.clone()),
-            TypedValueEncodingField::OtherLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
+            TypedValueEncodingField::Duration => {
+                DataType::Struct(FIELDS_DURATION.clone())
+            }
+            TypedValueEncodingField::OtherLiteral => {
+                DataType::Struct(FIELDS_TYPED_LITERAL.clone())
+            }
         }
     }
 

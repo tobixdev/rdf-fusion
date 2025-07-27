@@ -1,13 +1,13 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
-use datafusion::common::{internal_err, plan_datafusion_err, plan_err, Column, Spans};
+use datafusion::common::{Column, Spans, internal_err, plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
-use datafusion::logical_expr::{lit, or, Expr, LogicalPlanBuilder, Operator, Subquery};
+use datafusion::logical_expr::{Expr, LogicalPlanBuilder, Operator, Subquery, lit, or};
 use datafusion::prelude::{and, exists};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
-use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::Iri;
+use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{DateTime, TermRef};
 use rdf_fusion_model::{Literal, NamedNode};
 use spargebra::algebra::{Expression, Function, GraphPattern};
@@ -69,7 +69,9 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             Expression::GreaterOrEqual(lhs, rhs) => self
                 .rewrite_internal(lhs)?
                 .greater_or_equal(self.rewrite(rhs)?),
-            Expression::Less(lhs, rhs) => self.rewrite_internal(lhs)?.less_than(self.rewrite(rhs)?),
+            Expression::Less(lhs, rhs) => {
+                self.rewrite_internal(lhs)?.less_than(self.rewrite(rhs)?)
+            }
             Expression::LessOrEqual(lhs, rhs) => self
                 .rewrite_internal(lhs)?
                 .less_or_equal(self.rewrite(rhs)?),
@@ -77,19 +79,33 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                 .expr_builder_root
                 .literal(TermRef::from(literal.as_ref())),
             Expression::Variable(var) => self.expr_builder_root.variable(var.as_ref()),
-            Expression::FunctionCall(function, args) => self.rewrite_function_call(function, args),
-            Expression::NamedNode(nn) => self.expr_builder_root.literal(TermRef::from(nn.as_ref())),
+            Expression::FunctionCall(function, args) => {
+                self.rewrite_function_call(function, args)
+            }
+            Expression::NamedNode(nn) => {
+                self.expr_builder_root.literal(TermRef::from(nn.as_ref()))
+            }
             Expression::Or(lhs, rhs) => self.logical_expression(Operator::Or, lhs, rhs),
             Expression::And(lhs, rhs) => self.logical_expression(Operator::And, lhs, rhs),
             Expression::In(lhs, rhs) => self.rewrite_in(lhs, rhs),
-            Expression::Add(lhs, rhs) => self.rewrite_internal(lhs)?.add(self.rewrite(rhs)?),
-            Expression::Subtract(lhs, rhs) => self.rewrite_internal(lhs)?.sub(self.rewrite(rhs)?),
-            Expression::Multiply(lhs, rhs) => self.rewrite_internal(lhs)?.mul(self.rewrite(rhs)?),
-            Expression::Divide(lhs, rhs) => self.rewrite_internal(lhs)?.div(self.rewrite(rhs)?),
+            Expression::Add(lhs, rhs) => {
+                self.rewrite_internal(lhs)?.add(self.rewrite(rhs)?)
+            }
+            Expression::Subtract(lhs, rhs) => {
+                self.rewrite_internal(lhs)?.sub(self.rewrite(rhs)?)
+            }
+            Expression::Multiply(lhs, rhs) => {
+                self.rewrite_internal(lhs)?.mul(self.rewrite(rhs)?)
+            }
+            Expression::Divide(lhs, rhs) => {
+                self.rewrite_internal(lhs)?.div(self.rewrite(rhs)?)
+            }
             Expression::UnaryPlus(value) => self.rewrite_internal(value)?.unary_plus(),
             Expression::UnaryMinus(value) => self.rewrite_internal(value)?.unary_minus(),
             Expression::Exists(pattern) => self.rewrite_exists(pattern),
-            Expression::If(test, if_true, if_false) => self.rewrite_if(test, if_true, if_false),
+            Expression::If(test, if_true, if_false) => {
+                self.rewrite_if(test, if_true, if_false)
+            }
             Expression::Coalesce(args) => {
                 let args = args
                     .iter()
@@ -216,8 +232,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             Function::Timezone => self.unary_args(args)?.timezone(),
             Function::Tz => self.unary_args(args)?.tz(),
             Function::Now => {
-                let literal =
-                    Literal::new_typed_literal(DateTime::now().to_string(), xsd::DATE_TIME);
+                let literal = Literal::new_typed_literal(
+                    DateTime::now().to_string(),
+                    xsd::DATE_TIME,
+                );
                 self.expr_builder_root
                     .literal(TermRef::from(literal.as_ref()))
             }
@@ -301,7 +319,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     }
 
     /// Rewrites an EXISTS expression to a correlated subquery.
-    fn rewrite_exists(&self, inner: &GraphPattern) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
+    fn rewrite_exists(
+        &self,
+        inner: &GraphPattern,
+    ) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
         let exists_plan = self.graph_rewriter.rewrite_with_existing_encoding(inner)?;
         let exists_pattern = LogicalPlanBuilder::new(exists_plan);
         let outer_schema = self.expr_builder_root.schema();
@@ -357,7 +378,9 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .map(|k| {
                 let data_type = outer_schema
                     .field_with_name(None, k)
-                    .map_err(|_| plan_datafusion_err!("Could not find column {} in schema.", k))?
+                    .map_err(|_| {
+                        plan_datafusion_err!("Could not find column {} in schema.", k)
+                    })?
                     .data_type();
                 exists_expr_builder_root
                     .try_create_builder(Expr::OuterReferenceColumn(
@@ -452,7 +475,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
     ///
     /// # Returns
     /// A tuple containing an expression builder for the first argument and the second argument
-    fn binary_args(&self, args: Vec<Expr>) -> DFResult<(RdfFusionExprBuilder<'rewriter>, Expr)> {
+    fn binary_args(
+        &self,
+        args: Vec<Expr>,
+    ) -> DFResult<(RdfFusionExprBuilder<'rewriter>, Expr)> {
         if let Ok([lhs, rhs]) = TryInto::<[Expr; 2]>::try_into(args) {
             let lhs = self.expr_builder(lhs)?;
             Ok((lhs, rhs))

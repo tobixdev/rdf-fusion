@@ -1,6 +1,6 @@
 use crate::encoding::TermEncoder;
 use crate::sortable_term::{
-    SortableTermArrayBuilder, SortableTermEncoding, SORTABLE_TERM_ENCODING,
+    SORTABLE_TERM_ENCODING, SortableTermArrayBuilder, SortableTermEncoding,
 };
 use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_common::DFResult;
@@ -29,7 +29,9 @@ impl TermEncoder<SortableTermEncoding> for TypedValueRefSortableTermEncoder {
                         builder.append_numeric(v, v.to_be_bytes().as_ref())
                     }
                     TypedValueRef::SimpleLiteral(v) => builder.append_string(v.value),
-                    TypedValueRef::LanguageStringLiteral(v) => builder.append_string(v.value),
+                    TypedValueRef::LanguageStringLiteral(v) => {
+                        builder.append_string(v.value)
+                    }
                     TypedValueRef::DateTimeLiteral(v) => builder.append_date_time(v),
                     TypedValueRef::TimeLiteral(v) => builder.append_time(v),
                     TypedValueRef::DateLiteral(v) => builder.append_date(v),
@@ -37,7 +39,9 @@ impl TermEncoder<SortableTermEncoding> for TypedValueRefSortableTermEncoder {
                     TypedValueRef::YearMonthDurationLiteral(v) => {
                         builder.append_year_month_duration(v)
                     }
-                    TypedValueRef::DayTimeDurationLiteral(v) => builder.append_day_time_duration(v),
+                    TypedValueRef::DayTimeDurationLiteral(v) => {
+                        builder.append_day_time_duration(v)
+                    }
                     TypedValueRef::OtherLiteral(v) => builder.append_literal(v),
                 }
             } else {

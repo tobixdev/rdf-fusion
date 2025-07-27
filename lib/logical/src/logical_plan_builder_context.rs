@@ -8,20 +8,21 @@ use datafusion::common::{DFSchema, DataFusionError};
 use datafusion::logical_expr::builder::project;
 use datafusion::logical_expr::select_expr::SelectExpr;
 use datafusion::logical_expr::{
-    col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, Values,
+    Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, Values,
+    col, lit,
 };
-use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 use rdf_fusion_api::RdfFusionContextView;
-use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
+use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
     EncodingScalar, QuadStorageEncoding, RdfFusionEncodings, TermEncoder, TermEncoding,
 };
 use rdf_fusion_model::{
-    GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Subject, Term, TermPattern,
-    TermRef, ThinError, TriplePattern, Variable,
+    GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Subject, Term,
+    TermPattern, TermRef, ThinError, TriplePattern, Variable,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -180,8 +181,8 @@ impl RdfFusionLogicalPlanBuilderContext {
         let schema = DFSchema::from_unqualified_fields(fields, HashMap::new())?;
 
         if bindings.is_empty() {
-            let empty =
-                DefaultPlainTermEncoder::encode_term(ThinError::expected())?.into_scalar_value();
+            let empty = DefaultPlainTermEncoder::encode_term(ThinError::expected())?
+                .into_scalar_value();
             let plan = LogicalPlanBuilder::values_with_schema(
                 vec![vec![lit(empty); variables.len()]],
                 &Arc::new(schema),
@@ -233,7 +234,13 @@ impl RdfFusionLogicalPlanBuilderContext {
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         patterns
             .iter()
-            .map(|p| self.create_pattern(active_graph.clone(), graph_variables.cloned(), p.clone()))
+            .map(|p| {
+                self.create_pattern(
+                    active_graph.clone(),
+                    graph_variables.cloned(),
+                    p.clone(),
+                )
+            })
             .map(Ok)
             .reduce(|lhs, rhs| lhs?.join(rhs?.build()?, SparqlJoinType::Inner, None))
             .unwrap_or_else(|| Ok(self.create_empty_solution()))
@@ -276,13 +283,16 @@ impl RdfFusionLogicalPlanBuilderContext {
         subject: TermPattern,
         object: TermPattern,
     ) -> RdfFusionLogicalPlanBuilder {
-        let node = PropertyPathNode::new(active_graph, graph_variable, subject, path, object);
+        let node =
+            PropertyPathNode::new(active_graph, graph_variable, subject, path, object);
         RdfFusionLogicalPlanBuilder::new(self.clone(), create_extension_plan(node))
     }
 }
 
 /// Creates a `LogicalPlanBuilder` from a user-defined logical node.
-fn create_extension_plan(node: impl UserDefinedLogicalNode + 'static) -> Arc<LogicalPlan> {
+fn create_extension_plan(
+    node: impl UserDefinedLogicalNode + 'static,
+) -> Arc<LogicalPlan> {
     Arc::new(LogicalPlan::Extension(Extension {
         node: Arc::new(node),
     }))

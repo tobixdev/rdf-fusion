@@ -3,9 +3,10 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
-use datafusion::logical_expr::{lit, Expr, ExprSchemable};
+use datafusion::logical_expr::{Expr, ExprSchemable, lit};
 use rdf_fusion_api::functions::{
-    BuiltinName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs, RdfFusionFunctionArgsBuilder,
+    BuiltinName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs,
+    RdfFusionFunctionArgsBuilder,
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
@@ -712,7 +713,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Avg](https://www.w3.org/TR/sparql11-query/#defn_aggAvg)
     pub fn avg(self, distinct: bool) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Avg, distinct, RdfFusionFunctionArgs::empty())
+        self.apply_builtin_udaf(
+            BuiltinName::Avg,
+            distinct,
+            RdfFusionFunctionArgs::empty(),
+        )
     }
 
     /// Creates a new aggregate expression that computes the average of the inner expression.
@@ -771,7 +776,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Sum](https://www.w3.org/TR/sparql11-query/#defn_aggSum)
     pub fn sum(self, distinct: bool) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Sum, distinct, RdfFusionFunctionArgs::empty())
+        self.apply_builtin_udaf(
+            BuiltinName::Sum,
+            distinct,
+            RdfFusionFunctionArgs::empty(),
+        )
     }
 
     /// Creates a new aggregate expression that computes the concatenation of the inner expression.
@@ -820,7 +829,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
         }
 
         let functions_to_apply = match (source_encoding, target_encoding) {
-            (EncodingName::ObjectId | EncodingName::TypedValue, EncodingName::PlainTerm) => {
+            (
+                EncodingName::ObjectId | EncodingName::TypedValue,
+                EncodingName::PlainTerm,
+            ) => {
                 vec![BuiltinName::WithPlainTermEncoding]
             }
             (EncodingName::PlainTerm, EncodingName::TypedValue) => {
@@ -832,7 +844,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
                     BuiltinName::WithTypedValueEncoding,
                 ]
             }
-            (EncodingName::PlainTerm | EncodingName::TypedValue, EncodingName::Sortable) => {
+            (
+                EncodingName::PlainTerm | EncodingName::TypedValue,
+                EncodingName::Sortable,
+            ) => {
                 vec![BuiltinName::WithSortableEncoding]
             }
             (EncodingName::ObjectId, EncodingName::Sortable) => vec![
@@ -1004,7 +1019,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
                 return plan_err!("Filtering not supported for Sortable encoding.");
             }
             EncodingName::ObjectId => match self.context.encodings().object_id() {
-                None => return plan_err!("The context has not ObjectID encoding registered"),
+                None => {
+                    return plan_err!("The context has not ObjectID encoding registered");
+                }
                 Some(object_id_encoding) => object_id_encoding
                     .encode_term(Ok(scalar))?
                     .into_scalar_value(),

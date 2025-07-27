@@ -21,7 +21,8 @@ fn main() -> Result<()> {
     create_dir_all(&man_dir)?;
     Man::new(app.clone().disable_help_subcommand(true)).generate_to(&man_dir)?;
     for subcommand in app.get_subcommands() {
-        Man::new(subcommand.clone().disable_help_subcommand(true)).generate_to(&man_dir)?;
+        Man::new(subcommand.clone().disable_help_subcommand(true))
+            .generate_to(&man_dir)?;
     }
 
     Ok(())

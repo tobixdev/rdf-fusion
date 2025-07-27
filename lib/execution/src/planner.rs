@@ -1,9 +1,11 @@
 use async_trait::async_trait;
-use datafusion::execution::context::QueryPlanner;
 use datafusion::execution::SessionState;
+use datafusion::execution::context::QueryPlanner;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::ExecutionPlan;
-use datafusion::physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner};
+use datafusion::physical_planner::{
+    DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner,
+};
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_physical::paths::KleenePlusPathPlanner;
 use std::fmt::Debug;

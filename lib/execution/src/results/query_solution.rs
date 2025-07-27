@@ -5,13 +5,13 @@ use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
+use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_model::Variable;
 pub use sparesults::QuerySolution;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll, ready};
 
 /// A stream over [`QuerySolution`]s.
 pub struct QuerySolutionStream {
@@ -31,7 +31,10 @@ pub struct QuerySolutionStream {
 impl QuerySolutionStream {
     /// Construct a new iterator of solutions from an ordered list of solution variables and an iterator of solution tuples
     /// (each tuple using the same ordering as the variable list such that tuple element 0 is the value for the variable 0...)
-    pub fn try_new(variables: Arc<[Variable]>, inner: SendableRecordBatchStream) -> DFResult<Self> {
+    pub fn try_new(
+        variables: Arc<[Variable]>,
+        inner: SendableRecordBatchStream,
+    ) -> DFResult<Self> {
         for field in inner.schema().fields() {
             if &PlainTermEncoding::data_type() != field.data_type() {
                 return exec_err!(
@@ -95,7 +98,10 @@ impl Stream for QuerySolutionStream {
     type Item = Result<QuerySolution, QueryEvaluationError>;
 
     #[inline]
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         self.poll_inner(cx)
     }
 }
@@ -111,12 +117,11 @@ fn to_query_solution(
     let mut column_terms = Vec::with_capacity(schema.fields().len());
 
     for field in schema.fields() {
-        let column =
-            batch
-                .column_by_name(field.name())
-                .ok_or(QueryEvaluationError::InternalError(
-                    "Field was not present in result.".into(),
-                ))?;
+        let column = batch.column_by_name(field.name()).ok_or(
+            QueryEvaluationError::InternalError(
+                "Field was not present in result.".into(),
+            ),
+        )?;
 
         // Convert the column to a PlainTermEncoding array
         let array = PLAIN_TERM_ENCODING
@@ -135,7 +140,9 @@ fn to_query_solution(
             })
             .collect::<DFResult<Vec<_>>>()
             .map_err(|e| {
-                QueryEvaluationError::InternalError(format!("Failed to decode terms: {e}"))
+                QueryEvaluationError::InternalError(format!(
+                    "Failed to decode terms: {e}"
+                ))
             })?;
 
         column_terms.push(terms.into_iter());
@@ -206,7 +213,10 @@ mod tests {
                 ],
                 vec![Some(Literal::new_simple_literal("foo").into()), None],
                 vec![
-                    Some(Literal::new_language_tagged_literal_unchecked("foo", "fr").into()),
+                    Some(
+                        Literal::new_language_tagged_literal_unchecked("foo", "fr")
+                            .into(),
+                    ),
                     None,
                 ],
                 vec![

@@ -1,5 +1,5 @@
-use crate::plain_term::encoding::{PlainTermEncodingField, PlainTermType};
 use crate::plain_term::PlainTermEncoding;
+use crate::plain_term::encoding::{PlainTermEncodingField, PlainTermType};
 use datafusion::arrow::array::{ArrayRef, StringBuilder, StructBuilder, UInt8Builder};
 use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 use std::sync::Arc;

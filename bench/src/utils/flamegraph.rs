@@ -1,6 +1,6 @@
 use anyhow::Context;
-use pprof::flamegraph::Options;
 use pprof::Frames;
+use pprof::flamegraph::Options;
 use std::collections::HashMap;
 use std::fmt::Write;
 

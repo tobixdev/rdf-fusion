@@ -1,6 +1,6 @@
 use crate::files::{guess_rdf_format, load_to_graph};
 use crate::vocab::*;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use rdf_fusion::model::vocab::{rdf, rdfs};
 use rdf_fusion::model::{Graph, NamedNode, SubjectRef, Term, TermRef, TripleRef};
 use std::collections::VecDeque;
@@ -91,10 +91,11 @@ impl TestManifest {
                 bail!("Invalid test identifier. Got {test_node}");
             };
 
-            if self
-                .graph
-                .contains(TripleRef::new(&test_node, rdft::APPROVAL, rdft::REJECTED))
-            {
+            if self.graph.contains(TripleRef::new(
+                &test_node,
+                rdft::APPROVAL,
+                rdft::REJECTED,
+            )) {
                 continue; // We do not run rejected tests
             }
             let name = if let Some(TermRef::Literal(c)) = self
@@ -137,14 +138,16 @@ impl TestManifest {
                     vec![],
                 ),
                 Some(TermRef::BlankNode(n)) => {
-                    let query = match self.graph.object_for_subject_predicate(n, qt::QUERY) {
-                        Some(TermRef::NamedNode(q)) => Some(q.as_str().to_owned()),
-                        _ => None,
-                    };
-                    let update = match self.graph.object_for_subject_predicate(n, ut::REQUEST) {
-                        Some(TermRef::NamedNode(q)) => Some(q.as_str().to_owned()),
-                        _ => None,
-                    };
+                    let query =
+                        match self.graph.object_for_subject_predicate(n, qt::QUERY) {
+                            Some(TermRef::NamedNode(q)) => Some(q.as_str().to_owned()),
+                            _ => None,
+                        };
+                    let update =
+                        match self.graph.object_for_subject_predicate(n, ut::REQUEST) {
+                            Some(TermRef::NamedNode(q)) => Some(q.as_str().to_owned()),
+                            _ => None,
+                        };
                     let data = match self
                         .graph
                         .object_for_subject_predicate(n, qt::DATA)
@@ -156,19 +159,24 @@ impl TestManifest {
                     let graph_data = self
                         .graph
                         .objects_for_subject_predicate(n, qt::GRAPH_DATA)
-                        .chain(self.graph.objects_for_subject_predicate(n, ut::GRAPH_DATA))
+                        .chain(
+                            self.graph.objects_for_subject_predicate(n, ut::GRAPH_DATA),
+                        )
                         .filter_map(|g| match g {
                             TermRef::NamedNode(q) => {
                                 Some(Ok((q.into_owned(), q.as_str().to_owned())))
                             }
                             TermRef::BlankNode(node) => {
-                                if let Some(TermRef::NamedNode(graph)) =
-                                    self.graph.object_for_subject_predicate(node, ut::GRAPH)
+                                if let Some(TermRef::NamedNode(graph)) = self
+                                    .graph
+                                    .object_for_subject_predicate(node, ut::GRAPH)
                                 {
                                     Some(Ok(
-                                        if let Some(TermRef::Literal(name)) = self
-                                            .graph
-                                            .object_for_subject_predicate(node, rdfs::LABEL)
+                                        if let Some(TermRef::Literal(name)) =
+                                            self.graph.object_for_subject_predicate(
+                                                node,
+                                                rdfs::LABEL,
+                                            )
                                         {
                                             (
                                                 match NamedNode::new(name.value()) {
@@ -178,7 +186,10 @@ impl TestManifest {
                                                 graph.as_str().to_owned(),
                                             )
                                         } else {
-                                            (graph.into_owned(), graph.as_str().to_owned())
+                                            (
+                                                graph.into_owned(),
+                                                graph.as_str().to_owned(),
+                                            )
                                         },
                                     ))
                                 } else {
@@ -204,7 +215,10 @@ impl TestManifest {
                                 self.graph.object_for_subject_predicate(g, qt::ENDPOINT),
                                 self.graph.object_for_subject_predicate(g, qt::DATA),
                             ) {
-                                Some((endpoint.as_str().to_owned(), data.as_str().to_owned()))
+                                Some((
+                                    endpoint.as_str().to_owned(),
+                                    data.as_str().to_owned(),
+                                ))
                             } else {
                                 None
                             }
@@ -237,13 +251,16 @@ impl TestManifest {
                                 Some(Ok((q.into_owned(), q.as_str().to_owned())))
                             }
                             TermRef::BlankNode(node) => {
-                                if let Some(TermRef::NamedNode(graph)) =
-                                    self.graph.object_for_subject_predicate(node, ut::GRAPH)
+                                if let Some(TermRef::NamedNode(graph)) = self
+                                    .graph
+                                    .object_for_subject_predicate(node, ut::GRAPH)
                                 {
                                     Some(Ok(
-                                        if let Some(TermRef::Literal(name)) = self
-                                            .graph
-                                            .object_for_subject_predicate(node, rdfs::LABEL)
+                                        if let Some(TermRef::Literal(name)) =
+                                            self.graph.object_for_subject_predicate(
+                                                node,
+                                                rdfs::LABEL,
+                                            )
                                         {
                                             (
                                                 match NamedNode::new(name.value()) {
@@ -253,7 +270,10 @@ impl TestManifest {
                                                 graph.as_str().to_owned(),
                                             )
                                         } else {
-                                            (graph.into_owned(), graph.as_str().to_owned())
+                                            (
+                                                graph.into_owned(),
+                                                graph.as_str().to_owned(),
+                                            )
                                         },
                                     ))
                                 } else {
@@ -326,10 +346,12 @@ impl TestManifest {
         {
             Some(TermRef::BlankNode(list)) => {
                 self.manifests_to_do.extend(
-                    RdfListIterator::iter(&self.graph, list.into()).filter_map(|m| match m {
-                        Term::NamedNode(nm) => Some(nm.into_string()),
-                        _ => None,
-                    }),
+                    RdfListIterator::iter(&self.graph, list.into()).filter_map(
+                        |m| match m {
+                            Term::NamedNode(nm) => Some(nm.into_string()),
+                            _ => None,
+                        },
+                    ),
                 );
             }
             Some(_) => bail!("invalid tests list"),

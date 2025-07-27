@@ -2,11 +2,13 @@ use datafusion::common::{exec_err, internal_err, plan_err};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
-use datafusion::physical_plan::{DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties};
+use datafusion::physical_plan::{
+    DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
+};
 use rdf_fusion_api::storage::QuadPatternEvaluator;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::EnumeratedActiveGraph;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{TriplePattern, Variable};
 use std::any::Any;
 use std::fmt::{Debug, Formatter};

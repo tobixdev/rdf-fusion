@@ -1,13 +1,13 @@
-use anyhow::{bail, Context, Result};
-use oxttl::n3::N3Quad;
+use anyhow::{Context, Result, bail};
 use oxttl::N3Parser;
+use oxttl::n3::N3Quad;
 use rdf_fusion::io::{RdfFormat, RdfParser};
 use rdf_fusion::model::{Dataset, Graph};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-pub fn read_file(url: &str) -> Result<impl Read + use <>> {
+pub fn read_file(url: &str) -> Result<impl Read + use<>> {
     let path =
         Path::new(env!("CARGO_MANIFEST_DIR")).join(if url.starts_with("https://w3c.github.io/") {
             url.replace("https://w3c.github.io/", "")

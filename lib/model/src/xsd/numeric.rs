@@ -127,38 +127,76 @@ impl NumericPair {
     pub fn with_casts_from(lhs: Numeric, rhs: Numeric) -> NumericPair {
         match (lhs, rhs) {
             (Numeric::Int(lhs), Numeric::Int(rhs)) => NumericPair::Int(lhs, rhs),
-            (Numeric::Int(lhs), Numeric::Integer(rhs)) => NumericPair::Integer(lhs.into(), rhs),
-            (Numeric::Int(lhs), Numeric::Float(rhs)) => NumericPair::Float(lhs.into(), rhs),
-            (Numeric::Int(lhs), Numeric::Double(rhs)) => NumericPair::Double(lhs.into(), rhs),
+            (Numeric::Int(lhs), Numeric::Integer(rhs)) => {
+                NumericPair::Integer(lhs.into(), rhs)
+            }
+            (Numeric::Int(lhs), Numeric::Float(rhs)) => {
+                NumericPair::Float(lhs.into(), rhs)
+            }
+            (Numeric::Int(lhs), Numeric::Double(rhs)) => {
+                NumericPair::Double(lhs.into(), rhs)
+            }
             (Numeric::Int(lhs), Numeric::Decimal(rhs)) => {
                 NumericPair::Decimal(Decimal::from(lhs), rhs)
             }
 
-            (Numeric::Integer(lhs), Numeric::Int(rhs)) => NumericPair::Integer(lhs, rhs.into()),
-            (Numeric::Integer(lhs), Numeric::Integer(rhs)) => NumericPair::Integer(lhs, rhs),
-            (Numeric::Integer(lhs), Numeric::Float(rhs)) => NumericPair::Float(lhs.into(), rhs),
-            (Numeric::Integer(lhs), Numeric::Double(rhs)) => NumericPair::Double(lhs.into(), rhs),
+            (Numeric::Integer(lhs), Numeric::Int(rhs)) => {
+                NumericPair::Integer(lhs, rhs.into())
+            }
+            (Numeric::Integer(lhs), Numeric::Integer(rhs)) => {
+                NumericPair::Integer(lhs, rhs)
+            }
+            (Numeric::Integer(lhs), Numeric::Float(rhs)) => {
+                NumericPair::Float(lhs.into(), rhs)
+            }
+            (Numeric::Integer(lhs), Numeric::Double(rhs)) => {
+                NumericPair::Double(lhs.into(), rhs)
+            }
             (Numeric::Integer(lhs), Numeric::Decimal(rhs)) => {
                 NumericPair::Decimal(Decimal::from(lhs), rhs)
             }
 
-            (Numeric::Float(lhs), Numeric::Int(rhs)) => NumericPair::Float(lhs, rhs.into()),
-            (Numeric::Float(lhs), Numeric::Integer(rhs)) => NumericPair::Float(lhs, rhs.into()),
+            (Numeric::Float(lhs), Numeric::Int(rhs)) => {
+                NumericPair::Float(lhs, rhs.into())
+            }
+            (Numeric::Float(lhs), Numeric::Integer(rhs)) => {
+                NumericPair::Float(lhs, rhs.into())
+            }
             (Numeric::Float(lhs), Numeric::Float(rhs)) => NumericPair::Float(lhs, rhs),
-            (Numeric::Float(lhs), Numeric::Double(rhs)) => NumericPair::Double(lhs.into(), rhs),
-            (Numeric::Float(lhs), Numeric::Decimal(rhs)) => NumericPair::Float(lhs, rhs.into()),
+            (Numeric::Float(lhs), Numeric::Double(rhs)) => {
+                NumericPair::Double(lhs.into(), rhs)
+            }
+            (Numeric::Float(lhs), Numeric::Decimal(rhs)) => {
+                NumericPair::Float(lhs, rhs.into())
+            }
             (Numeric::Double(lhs), Numeric::Int(rhs)) => {
                 NumericPair::Double(lhs, Integer::from(rhs).into())
             }
-            (Numeric::Double(lhs), Numeric::Integer(rhs)) => NumericPair::Double(lhs, rhs.into()),
-            (Numeric::Double(lhs), Numeric::Float(rhs)) => NumericPair::Double(lhs, rhs.into()),
+            (Numeric::Double(lhs), Numeric::Integer(rhs)) => {
+                NumericPair::Double(lhs, rhs.into())
+            }
+            (Numeric::Double(lhs), Numeric::Float(rhs)) => {
+                NumericPair::Double(lhs, rhs.into())
+            }
             (Numeric::Double(lhs), Numeric::Double(rhs)) => NumericPair::Double(lhs, rhs),
-            (Numeric::Double(lhs), Numeric::Decimal(rhs)) => NumericPair::Double(lhs, rhs.into()),
-            (Numeric::Decimal(lhs), Numeric::Int(rhs)) => NumericPair::Decimal(lhs, rhs.into()),
-            (Numeric::Decimal(lhs), Numeric::Integer(rhs)) => NumericPair::Decimal(lhs, rhs.into()),
-            (Numeric::Decimal(lhs), Numeric::Float(rhs)) => NumericPair::Float(lhs.into(), rhs),
-            (Numeric::Decimal(lhs), Numeric::Double(rhs)) => NumericPair::Double(lhs.into(), rhs),
-            (Numeric::Decimal(lhs), Numeric::Decimal(rhs)) => NumericPair::Decimal(lhs, rhs),
+            (Numeric::Double(lhs), Numeric::Decimal(rhs)) => {
+                NumericPair::Double(lhs, rhs.into())
+            }
+            (Numeric::Decimal(lhs), Numeric::Int(rhs)) => {
+                NumericPair::Decimal(lhs, rhs.into())
+            }
+            (Numeric::Decimal(lhs), Numeric::Integer(rhs)) => {
+                NumericPair::Decimal(lhs, rhs.into())
+            }
+            (Numeric::Decimal(lhs), Numeric::Float(rhs)) => {
+                NumericPair::Float(lhs.into(), rhs)
+            }
+            (Numeric::Decimal(lhs), Numeric::Double(rhs)) => {
+                NumericPair::Double(lhs.into(), rhs)
+            }
+            (Numeric::Decimal(lhs), Numeric::Decimal(rhs)) => {
+                NumericPair::Decimal(lhs, rhs)
+            }
         }
     }
 }

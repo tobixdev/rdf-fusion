@@ -1,10 +1,13 @@
 use crate::{
-    Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int, Integer,
-    LanguageString, LanguageStringRef, Numeric, ParseDateTimeError, ParseDecimalError,
-    ParseDurationError, SimpleLiteral, SimpleLiteralRef, Term, Time, YearMonthDuration,
+    Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int,
+    Integer, LanguageString, LanguageStringRef, Numeric, ParseDateTimeError,
+    ParseDecimalError, ParseDurationError, SimpleLiteral, SimpleLiteralRef, Term, Time,
+    YearMonthDuration,
 };
 use oxrdf::vocab::xsd;
-use oxrdf::{BlankNode, BlankNodeRef, Literal, LiteralRef, NamedNode, NamedNodeRef, TermRef};
+use oxrdf::{
+    BlankNode, BlankNodeRef, Literal, LiteralRef, NamedNode, NamedNodeRef, TermRef,
+};
 use std::cmp::Ordering;
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::ParseBoolError;
@@ -86,7 +89,9 @@ impl TypedValue {
             TypedValue::BlankNode(inner) => TypedValueRef::BlankNode(inner.as_ref()),
             TypedValue::BooleanLiteral(inner) => TypedValueRef::BooleanLiteral(*inner),
             TypedValue::NumericLiteral(inner) => TypedValueRef::NumericLiteral(*inner),
-            TypedValue::SimpleLiteral(inner) => TypedValueRef::SimpleLiteral(inner.as_ref()),
+            TypedValue::SimpleLiteral(inner) => {
+                TypedValueRef::SimpleLiteral(inner.as_ref())
+            }
             TypedValue::LanguageStringLiteral(inner) => {
                 TypedValueRef::LanguageStringLiteral(inner.as_ref())
             }
@@ -100,7 +105,9 @@ impl TypedValue {
             TypedValue::DayTimeDurationLiteral(inner) => {
                 TypedValueRef::DayTimeDurationLiteral(*inner)
             }
-            TypedValue::OtherLiteral(inner) => TypedValueRef::OtherLiteral(inner.as_ref()),
+            TypedValue::OtherLiteral(inner) => {
+                TypedValueRef::OtherLiteral(inner.as_ref())
+            }
         }
     }
 }
@@ -129,7 +136,9 @@ impl TypedValueRef<'_> {
             TypedValueRef::BlankNode(inner) => TypedValue::BlankNode(inner.into_owned()),
             TypedValueRef::BooleanLiteral(inner) => TypedValue::BooleanLiteral(inner),
             TypedValueRef::NumericLiteral(inner) => TypedValue::NumericLiteral(inner),
-            TypedValueRef::SimpleLiteral(inner) => TypedValue::SimpleLiteral(inner.into_owned()),
+            TypedValueRef::SimpleLiteral(inner) => {
+                TypedValue::SimpleLiteral(inner.into_owned())
+            }
             TypedValueRef::LanguageStringLiteral(inner) => {
                 TypedValue::LanguageStringLiteral(inner.into_owned())
             }
@@ -143,7 +152,9 @@ impl TypedValueRef<'_> {
             TypedValueRef::DayTimeDurationLiteral(inner) => {
                 TypedValue::DayTimeDurationLiteral(inner)
             }
-            TypedValueRef::OtherLiteral(inner) => TypedValue::OtherLiteral(inner.into_owned()),
+            TypedValueRef::OtherLiteral(inner) => {
+                TypedValue::OtherLiteral(inner.into_owned())
+            }
         }
     }
 }
@@ -278,33 +289,40 @@ impl From<TypedValueRef<'_>> for Term {
         match value {
             TypedValueRef::NamedNode(value) => Term::NamedNode(value.into_owned()),
             TypedValueRef::BlankNode(value) => Term::BlankNode(value.into_owned()),
-            TypedValueRef::BooleanLiteral(value) => Term::Literal(Literal::from(value.as_bool())),
+            TypedValueRef::BooleanLiteral(value) => {
+                Term::Literal(Literal::from(value.as_bool()))
+            }
             TypedValueRef::NumericLiteral(value) => match value {
                 Numeric::Int(value) => Term::Literal(Literal::from(i32::from(value))),
                 Numeric::Integer(value) => Term::Literal(Literal::from(i64::from(value))),
                 Numeric::Float(value) => Term::Literal(Literal::from(f32::from(value))),
                 Numeric::Double(value) => Term::Literal(Literal::from(f64::from(value))),
-                Numeric::Decimal(value) => {
-                    Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::DECIMAL))
-                }
+                Numeric::Decimal(value) => Term::Literal(Literal::new_typed_literal(
+                    value.to_string(),
+                    xsd::DECIMAL,
+                )),
             },
-            TypedValueRef::SimpleLiteral(value) => Term::Literal(Literal::from(value.value)),
-            TypedValueRef::LanguageStringLiteral(value) => Term::Literal(
-                Literal::new_language_tagged_literal_unchecked(value.value, value.language),
+            TypedValueRef::SimpleLiteral(value) => {
+                Term::Literal(Literal::from(value.value))
+            }
+            TypedValueRef::LanguageStringLiteral(value) => {
+                Term::Literal(Literal::new_language_tagged_literal_unchecked(
+                    value.value,
+                    value.language,
+                ))
+            }
+            TypedValueRef::DateTimeLiteral(value) => Term::Literal(
+                Literal::new_typed_literal(value.to_string(), xsd::DATE_TIME),
             ),
-            TypedValueRef::DateTimeLiteral(value) => Term::Literal(Literal::new_typed_literal(
-                value.to_string(),
-                xsd::DATE_TIME,
-            )),
             TypedValueRef::TimeLiteral(value) => {
                 Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::TIME))
             }
             TypedValueRef::DateLiteral(value) => {
                 Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::DATE))
             }
-            TypedValueRef::DurationLiteral(value) => {
-                Term::Literal(Literal::new_typed_literal(value.to_string(), xsd::DURATION))
-            }
+            TypedValueRef::DurationLiteral(value) => Term::Literal(
+                Literal::new_typed_literal(value.to_string(), xsd::DURATION),
+            ),
             TypedValueRef::YearMonthDurationLiteral(value) => Term::Literal(
                 Literal::new_typed_literal(value.to_string(), xsd::YEAR_MONTH_DURATION),
             ),
@@ -379,7 +397,9 @@ impl<'data> TryFrom<LiteralRef<'data>> for TypedValueRef<'data> {
             xsd::YEAR_MONTH_DURATION => {
                 value.value().parse::<YearMonthDuration>().map(Into::into)?
             }
-            xsd::DAY_TIME_DURATION => value.value().parse::<DayTimeDuration>().map(Into::into)?,
+            xsd::DAY_TIME_DURATION => {
+                value.value().parse::<DayTimeDuration>().map(Into::into)?
+            }
             xsd::DATE_TIME => value.value().parse::<DateTime>().map(Into::into)?,
             xsd::TIME => value.value().parse::<Time>().map(Into::into)?,
             xsd::DATE => value.value().parse::<Date>().map(Into::into)?,

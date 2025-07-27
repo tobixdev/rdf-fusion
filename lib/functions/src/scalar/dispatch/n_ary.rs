@@ -2,12 +2,12 @@ use datafusion::arrow::array::UInt64Array;
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::{DefaultObjectIdDecoder, ObjectIdEncoding};
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
 use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
 use std::sync::Arc;
@@ -45,7 +45,9 @@ pub fn dispatch_n_ary_typed_value(
     args: &[EncodingDatum<TypedValueEncoding>],
     number_of_rows: usize,
     op: impl for<'a> Fn(&[TypedValueRef<'a>]) -> ThinResult<TypedValueRef<'a>>,
-    error_op: impl for<'a> Fn(&[ThinResult<TypedValueRef<'a>>]) -> ThinResult<TypedValueRef<'a>>,
+    error_op: impl for<'a> Fn(
+        &[ThinResult<TypedValueRef<'a>>],
+    ) -> ThinResult<TypedValueRef<'a>>,
 ) -> DFResult<ColumnarValue> {
     if args.is_empty() {
         let results = (0..number_of_rows).map(|_| op(&[]));
@@ -154,10 +156,6 @@ where
             }
         }
 
-        if items.is_empty() {
-            None
-        } else {
-            Some(items)
-        }
+        if items.is_empty() { None } else { Some(items) }
     })
 }

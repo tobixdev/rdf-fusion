@@ -1,10 +1,11 @@
 use crate::{
     DateTimeOverflowError, OppositeSignInDurationComponentsError, ParseDateTimeError,
-    ParseDecimalError, TooLargeForDecimalError, TooLargeForIntError, TooLargeForIntegerError,
+    ParseDecimalError, TooLargeForDecimalError, TooLargeForIntError,
+    TooLargeForIntegerError,
 };
 use oxiri::IriParseError;
 use oxrdf::BlankNodeIdParseError;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
 use std::num::{ParseFloatError, ParseIntError, TryFromIntError};
 use std::str::ParseBoolError;
 use std::string::FromUtf8Error;
@@ -18,19 +19,16 @@ pub type ThinResult<T> = Result<T, ThinError>;
 /// In SPARQL, many operations can fail. For example, because the input value had a different data
 /// type. However, these errors are expected and are part of the query evaluation. As all of these
 /// "expected" errors are treated equally in the query evaluation, we do not need to store a reason.
-#[derive(Clone, Copy, Debug, Default, Error, PartialEq, Eq)]
-pub struct ThinError {}
+#[derive(Clone, Copy, Debug, Error, PartialEq, Eq)]
+pub enum ThinError {
+    #[error("An expected error occurred.")]
+    ExpectedError,
+}
 
 impl ThinError {
     /// Creates a result with a [ThinError].
     pub fn expected<T>() -> ThinResult<T> {
-        Err(ThinError::default())
-    }
-}
-
-impl Display for ThinError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("An expected error occurred.")
+        Err(ThinError::ExpectedError)
     }
 }
 
@@ -38,7 +36,7 @@ macro_rules! implement_from {
     ($t:ty) => {
         impl From<$t> for ThinError {
             fn from(_: $t) -> Self {
-                ThinError::default()
+                ThinError::ExpectedError
             }
         }
     };

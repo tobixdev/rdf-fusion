@@ -1,19 +1,19 @@
+use crate::AppState;
 use crate::error::RdfFusionServerError;
 use crate::repositories::service_description::{
-    generate_service_description, EndpointKind, ServiceDescription,
+    EndpointKind, ServiceDescription, generate_service_description,
 };
 use crate::repositories::sparql_query_params::SparqlQueryParams;
-use crate::AppState;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use futures::StreamExt;
+use rdf_fusion::QueryResults;
 use rdf_fusion::io::{RdfFormat, RdfSerializer};
 use rdf_fusion::model::{GraphName, IriParseError, NamedNode, NamedOrBlankNode};
 use rdf_fusion::results::{QueryResultsFormat, QueryResultsSerializer};
 use rdf_fusion::store::Store;
-use rdf_fusion::QueryResults;
 
 pub async fn handle_query_get(
     State(state): State<AppState>,
@@ -39,7 +39,8 @@ pub async fn handle_query_get(
         .into());
     }
 
-    evaluate_sparql_query(&state.store, &query_params, query, rdf_format, query_format).await
+    evaluate_sparql_query(&state.store, &query_params, query, rdf_format, query_format)
+        .await
 }
 
 async fn evaluate_sparql_query(
@@ -54,7 +55,8 @@ async fn evaluate_sparql_query(
 
     if params.default_graph_as_union {
         query.dataset_mut().set_default_graph_as_union()
-    } else if !params.default_graph_uris.is_empty() || !params.named_graph_uris.is_empty() {
+    } else if !params.default_graph_uris.is_empty() || !params.named_graph_uris.is_empty()
+    {
         query.dataset_mut().set_default_graph(
             params
                 .default_graph_uris
@@ -93,7 +95,10 @@ async fn serialize_query_result(
 
             let mut buffer = Vec::new();
             let mut serializer = QueryResultsSerializer::from_format(format)
-                .serialize_solutions_to_writer(&mut buffer, solutions.variables().to_vec())?;
+                .serialize_solutions_to_writer(
+                    &mut buffer,
+                    solutions.variables().to_vec(),
+                )?;
             while let Some(solution) = solutions.next().await {
                 serializer.serialize(solution?.into_iter())?;
             }

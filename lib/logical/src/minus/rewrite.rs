@@ -1,9 +1,9 @@
+use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::minus::MinusNode;
-use crate::RdfFusionExprBuilderContext;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_datafusion_err, Column, DFSchemaRef, JoinType};
-use datafusion::logical_expr::{and, Expr, UserDefinedLogicalNode};
+use datafusion::common::{Column, DFSchemaRef, JoinType, plan_datafusion_err};
+use datafusion::logical_expr::{Expr, UserDefinedLogicalNode, and};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_api::RdfFusionContextView;
@@ -66,8 +66,11 @@ impl MinusLoweringRule {
         let lhs_schema = Arc::clone(lhs.schema());
 
         // Compute the result via a LeftAnti join.
-        let filter_expr =
-            self.compute_filter_expression(lhs.schema(), rhs.schema(), &overlapping_keys)?;
+        let filter_expr = self.compute_filter_expression(
+            lhs.schema(),
+            rhs.schema(),
+            &overlapping_keys,
+        )?;
         let join_result = lhs.join_detailed(
             rhs.build()?,
             JoinType::LeftAnti,
@@ -98,7 +101,8 @@ impl MinusLoweringRule {
     ) -> DFResult<Option<Expr>> {
         let mut join_schema = lhs_schema.as_ref().clone();
         join_schema.merge(rhs_schema);
-        let expr_builder_root = RdfFusionExprBuilderContext::new(&self.context, &join_schema);
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let mut join_filters = Vec::new();
 

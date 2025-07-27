@@ -1,7 +1,7 @@
+use crate::ActiveGraph;
 use crate::paths::PATH_TABLE_DFSCHEMA;
 use crate::patterns::compute_schema_for_pattern;
-use crate::ActiveGraph;
-use datafusion::common::{plan_err, DFSchemaRef};
+use datafusion::common::{DFSchemaRef, plan_err};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_model::{PropertyPathExpression, TermPattern, Variable};
@@ -100,7 +100,11 @@ impl UserDefinedLogicalNodeCore for PropertyPathNode {
         )
     }
 
-    fn with_exprs_and_inputs(&self, exprs: Vec<Expr>, inputs: Vec<LogicalPlan>) -> DFResult<Self> {
+    fn with_exprs_and_inputs(
+        &self,
+        exprs: Vec<Expr>,
+        inputs: Vec<LogicalPlan>,
+    ) -> DFResult<Self> {
         if !inputs.is_empty() {
             return plan_err!("Expected 0 inputs but got {}", inputs.len());
         }

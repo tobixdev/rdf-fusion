@@ -1,10 +1,12 @@
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use datafusion::arrow::datatypes::Field;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
-use rdf_fusion_api::functions::{BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry};
+use rdf_fusion_api::functions::{
+    BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
+};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
+use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{RdfFusionEncodings, TermEncoding};
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_model::{BlankNode, Float, Integer, NamedNodeRef};
@@ -94,11 +96,17 @@ fn bench_all(c: &mut Criterion) {
 }
 
 /// Runs a single `scenario` against the `function` to bench.
-fn bench_unary_function(c: &mut Criterion, function: &ScalarUDF, scenario: UnaryScenario) {
+fn bench_unary_function(
+    c: &mut Criterion,
+    function: &ScalarUDF,
+    scenario: UnaryScenario,
+) {
     let args = scenario.create_args();
 
-    let input_field = Arc::new(Field::new("input", TYPED_VALUE_ENCODING.data_type(), true));
-    let return_field = Arc::new(Field::new("result", TYPED_VALUE_ENCODING.data_type(), true));
+    let input_field =
+        Arc::new(Field::new("input", TYPED_VALUE_ENCODING.data_type(), true));
+    let return_field =
+        Arc::new(Field::new("result", TYPED_VALUE_ENCODING.data_type(), true));
 
     let name = format!("{}_{scenario:?}", function.name());
     c.bench_function(&name, |b| {

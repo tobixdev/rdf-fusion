@@ -1,7 +1,7 @@
-use crate::encoding::EncodingScalar;
-use crate::typed_value::{TypedValueEncoding, TYPED_VALUE_ENCODING};
 use crate::TermEncoding;
-use datafusion::common::{exec_err, DataFusionError, ScalarValue};
+use crate::encoding::EncodingScalar;
+use crate::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
+use datafusion::common::{DataFusionError, ScalarValue, exec_err};
 use rdf_fusion_common::DFResult;
 
 /// Represents an Arrow scalar with a [TypedValueEncoding].

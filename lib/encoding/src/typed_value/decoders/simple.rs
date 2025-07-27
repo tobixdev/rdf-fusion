@@ -1,10 +1,10 @@
-use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::TermDecoder;
 use crate::TermEncoding;
 use crate::TypedValueEncoding;
+use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_model::{
-    Boolean, DateTime, Integer, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef,
-    ThinError,
+    Boolean, DateTime, Integer, NamedNodeRef, Numeric, SimpleLiteralRef,
+    StringLiteralRef, ThinError,
 };
 use rdf_fusion_model::{ThinResult, TypedValueRef};
 
@@ -45,32 +45,38 @@ make_simple_term_value_decoder!(
     }
 );
 
-make_simple_term_value_decoder!(BooleanTermValueDecoder, Boolean, |value: TypedValueRef<
-    '_,
->| {
-    match value {
-        TypedValueRef::BooleanLiteral(value) => Ok(value),
-        _ => ThinError::expected(),
+make_simple_term_value_decoder!(
+    BooleanTermValueDecoder,
+    Boolean,
+    |value: TypedValueRef<'_>| {
+        match value {
+            TypedValueRef::BooleanLiteral(value) => Ok(value),
+            _ => ThinError::expected(),
+        }
     }
-});
+);
 
-make_simple_term_value_decoder!(NumericTermValueDecoder, Numeric, |value: TypedValueRef<
-    '_,
->| {
-    match value {
-        TypedValueRef::NumericLiteral(value) => Ok(value),
-        _ => ThinError::expected(),
+make_simple_term_value_decoder!(
+    NumericTermValueDecoder,
+    Numeric,
+    |value: TypedValueRef<'_>| {
+        match value {
+            TypedValueRef::NumericLiteral(value) => Ok(value),
+            _ => ThinError::expected(),
+        }
     }
-});
+);
 
-make_simple_term_value_decoder!(IntegerTermValueDecoder, Integer, |value: TypedValueRef<
-    '_,
->| {
-    match value {
-        TypedValueRef::NumericLiteral(Numeric::Integer(value)) => Ok(value),
-        _ => ThinError::expected(),
+make_simple_term_value_decoder!(
+    IntegerTermValueDecoder,
+    Integer,
+    |value: TypedValueRef<'_>| {
+        match value {
+            TypedValueRef::NumericLiteral(Numeric::Integer(value)) => Ok(value),
+            _ => ThinError::expected(),
+        }
     }
-});
+);
 
 make_simple_term_value_decoder!(
     SimpleLiteralRefTermValueDecoder,
@@ -88,7 +94,9 @@ make_simple_term_value_decoder!(
     StringLiteralRef<'data>,
     |value: TypedValueRef<'_>| {
         match value {
-            TypedValueRef::SimpleLiteral(value) => Ok(StringLiteralRef(value.value, None)),
+            TypedValueRef::SimpleLiteral(value) => {
+                Ok(StringLiteralRef(value.value, None))
+            }
             TypedValueRef::LanguageStringLiteral(value) => {
                 Ok(StringLiteralRef(value.value, Some(value.language)))
             }

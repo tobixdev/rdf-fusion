@@ -20,7 +20,11 @@ impl RdfFusionFunctionArgsBuilder {
 
     /// Adds an argument to the builder.
     #[must_use]
-    pub fn with_arg<TArg: RdfFusionFunctionArg>(mut self, name: String, value: TArg) -> Self {
+    pub fn with_arg<TArg: RdfFusionFunctionArg>(
+        mut self,
+        name: String,
+        value: TArg,
+    ) -> Self {
         self.values.insert(name, value.into_term());
         self
     }

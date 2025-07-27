@@ -6,7 +6,7 @@ use sparesults::QuerySolution;
 use spargebra::term::{TermPattern, TriplePattern};
 use std::collections::{HashMap, HashSet};
 use std::pin::Pin;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll, ready};
 
 /// A stream over the triples that compose a graph solution.
 pub struct QueryTripleStream {
@@ -55,17 +55,21 @@ impl QueryTripleStream {
         };
 
         for template in &self.template {
-            let subject = get_triple_template_value(&template.subject, &solution, &mut self.bnodes)
-                .and_then(|t| t.try_into().ok());
+            let subject =
+                get_triple_template_value(&template.subject, &solution, &mut self.bnodes)
+                    .and_then(|t| t.try_into().ok());
             let predicate = get_triple_template_value(
                 &TermPattern::from(template.predicate.clone()),
                 &solution,
                 &mut self.bnodes,
             )
             .and_then(|t| t.try_into().ok());
-            let object = get_triple_template_value(&template.object, &solution, &mut self.bnodes);
+            let object =
+                get_triple_template_value(&template.object, &solution, &mut self.bnodes);
 
-            if let (Some(subject), Some(predicate), Some(object)) = (subject, predicate, object) {
+            if let (Some(subject), Some(predicate), Some(object)) =
+                (subject, predicate, object)
+            {
                 let triple = Triple {
                     subject,
                     predicate,
@@ -109,7 +113,10 @@ fn get_triple_template_value(
 impl Stream for QueryTripleStream {
     type Item = Result<Triple, QueryEvaluationError>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         self.poll_inner(cx)
     }
 

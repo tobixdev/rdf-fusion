@@ -44,7 +44,7 @@ impl Int {
             value: self
                 .value
                 .checked_add(rhs.into().value)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -57,7 +57,7 @@ impl Int {
             value: self
                 .value
                 .checked_sub(rhs.into().value)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -70,7 +70,7 @@ impl Int {
             value: self
                 .value
                 .checked_mul(rhs.into().value)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -83,7 +83,7 @@ impl Int {
             value: self
                 .value
                 .checked_div(rhs.into().value)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -96,7 +96,7 @@ impl Int {
             value: self
                 .value
                 .checked_rem(rhs.into().value)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -109,7 +109,7 @@ impl Int {
             value: self
                 .value
                 .checked_rem_euclid(rhs.into().value)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -119,7 +119,7 @@ impl Int {
     #[inline]
     pub fn checked_neg(self) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_neg().ok_or(ThinError::default())?,
+            value: self.value.checked_neg().ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -129,7 +129,7 @@ impl Int {
     #[inline]
     pub fn checked_abs(self) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_abs().ok_or(ThinError::default())?,
+            value: self.value.checked_abs().ok_or(ThinError::ExpectedError)?,
         })
     }
 

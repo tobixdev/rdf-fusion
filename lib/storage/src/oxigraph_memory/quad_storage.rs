@@ -5,7 +5,9 @@ use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_model::{GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef};
+use rdf_fusion_model::{
+    GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
+};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -88,7 +90,9 @@ impl QuadStorage for MemoryQuadStorage {
         let object_id = self.storage.object_ids().try_get_object_id(graph_name);
         match object_id {
             None => Ok(false),
-            Some(object_id) => Ok(self.storage.snapshot().contains_named_graph(object_id)),
+            Some(object_id) => {
+                Ok(self.storage.snapshot().contains_named_graph(object_id))
+            }
         }
     }
 
@@ -99,7 +103,10 @@ impl QuadStorage for MemoryQuadStorage {
         })
     }
 
-    async fn clear_graph<'a>(&self, graph_name: GraphNameRef<'a>) -> Result<(), StorageError> {
+    async fn clear_graph<'a>(
+        &self,
+        graph_name: GraphNameRef<'a>,
+    ) -> Result<(), StorageError> {
         self.storage.transaction(|mut t| {
             t.clear_graph(graph_name);
             Ok(())

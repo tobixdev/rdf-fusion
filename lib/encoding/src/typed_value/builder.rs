@@ -1,15 +1,15 @@
-use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use crate::AResult;
+use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use datafusion::arrow::array::{
-    ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
-    Int16Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder,
-    UnionArray,
+    ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder,
+    Float64Builder, Int16Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder,
+    StructBuilder, UnionArray,
 };
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use rdf_fusion_model::{
-    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, LiteralRef, NamedNodeRef, Numeric,
-    Time, Timestamp, TypedValueRef, YearMonthDuration,
+    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, LiteralRef, NamedNodeRef,
+    Numeric, Time, Timestamp, TypedValueRef, YearMonthDuration,
 };
 use rdf_fusion_model::{Decimal, Double, Float, Int, Integer};
 use std::sync::Arc;
@@ -41,7 +41,10 @@ impl Default for TypedValueArrayBuilder {
             offsets: Vec::new(),
             named_node_builder: StringBuilder::with_capacity(0, 0),
             blank_node_builder: StringBuilder::with_capacity(0, 0),
-            string_builder: StructBuilder::from_fields(TypedValueEncoding::string_fields(), 0),
+            string_builder: StructBuilder::from_fields(
+                TypedValueEncoding::string_fields(),
+                0,
+            ),
             boolean_builder: BooleanBuilder::with_capacity(0),
             float_builder: Float32Builder::with_capacity(0),
             double_builder: Float64Builder::with_capacity(0),
@@ -55,9 +58,18 @@ impl Default for TypedValueArrayBuilder {
                 TypedValueEncoding::timestamp_fields(),
                 0,
             ),
-            time_builder: StructBuilder::from_fields(TypedValueEncoding::timestamp_fields(), 0),
-            date_builder: StructBuilder::from_fields(TypedValueEncoding::timestamp_fields(), 0),
-            duration_builder: StructBuilder::from_fields(TypedValueEncoding::duration_fields(), 0),
+            time_builder: StructBuilder::from_fields(
+                TypedValueEncoding::timestamp_fields(),
+                0,
+            ),
+            date_builder: StructBuilder::from_fields(
+                TypedValueEncoding::timestamp_fields(),
+                0,
+            ),
+            duration_builder: StructBuilder::from_fields(
+                TypedValueEncoding::duration_fields(),
+                0,
+            ),
             typed_literal_builder: StructBuilder::from_fields(
                 TypedValueEncoding::typed_literal_fields(),
                 0,
@@ -84,8 +96,12 @@ impl TypedValueArrayBuilder {
             TypedValueRef::DurationLiteral(v) => {
                 self.append_duration(Some(v.year_month()), Some(v.day_time()))
             }
-            TypedValueRef::YearMonthDurationLiteral(v) => self.append_duration(Some(v), None),
-            TypedValueRef::DayTimeDurationLiteral(v) => self.append_duration(None, Some(v)),
+            TypedValueRef::YearMonthDurationLiteral(v) => {
+                self.append_duration(Some(v), None)
+            }
+            TypedValueRef::DayTimeDurationLiteral(v) => {
+                self.append_duration(None, Some(v))
+            }
             TypedValueRef::OtherLiteral(v) => self.append_other_literal(v),
         }
     }
@@ -124,7 +140,10 @@ impl TypedValueArrayBuilder {
             )));
         }
 
-        self.append_type_id_and_offset(TypedValueEncodingField::String, self.string_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::String,
+            self.string_builder.len(),
+        )?;
 
         self.string_builder
             .field_builder::<StringBuilder>(0)
@@ -159,19 +178,28 @@ impl TypedValueArrayBuilder {
     }
 
     pub fn append_time(&mut self, value: Time) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::Time, self.time_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Time,
+            self.time_builder.len(),
+        )?;
         append_timestamp(&mut self.time_builder, value.timestamp());
         Ok(())
     }
 
     pub fn append_date(&mut self, value: Date) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::Date, self.date_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Date,
+            self.date_builder.len(),
+        )?;
         append_timestamp(&mut self.date_builder, value.timestamp());
         Ok(())
     }
 
     pub fn append_int(&mut self, int: Int) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::Int, self.int32_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Int,
+            self.int32_builder.len(),
+        )?;
         self.int32_builder.append_value(int.into());
         Ok(())
     }
@@ -186,13 +214,19 @@ impl TypedValueArrayBuilder {
     }
 
     pub fn append_float(&mut self, value: Float) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::Float, self.float_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Float,
+            self.float_builder.len(),
+        )?;
         self.float_builder.append_value(value.into());
         Ok(())
     }
 
     pub fn append_double(&mut self, value: Double) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::Double, self.double_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Double,
+            self.double_builder.len(),
+        )?;
         self.double_builder.append_value(value.into());
         Ok(())
     }
@@ -236,8 +270,8 @@ impl TypedValueArrayBuilder {
             .duration_builder
             .field_builder::<Int64Builder>(0)
             .ok_or(ArrowError::ComputeError(
-                "Invalid builder access".to_owned(),
-            ))?;
+            "Invalid builder access".to_owned(),
+        ))?;
         if let Some(year_month) = year_month {
             year_month_builder.append_value(year_month.as_i64());
         } else {
@@ -288,7 +322,10 @@ impl TypedValueArrayBuilder {
     }
 
     pub fn append_null(&mut self) -> AResult<()> {
-        self.append_type_id_and_offset(TypedValueEncodingField::Null, self.null_builder.len())?;
+        self.append_type_id_and_offset(
+            TypedValueEncodingField::Null,
+            self.null_builder.len(),
+        )?;
         self.null_builder.append_null();
         Ok(())
     }

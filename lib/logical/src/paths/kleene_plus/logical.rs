@@ -1,5 +1,5 @@
 use crate::paths::PATH_TABLE_DFSCHEMA;
-use datafusion::common::{plan_err, DFSchemaRef};
+use datafusion::common::{DFSchemaRef, plan_err};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use rdf_fusion_common::DFResult;
 use std::cmp::Ordering;
@@ -28,7 +28,10 @@ impl KleenePlusClosureNode {
     /// # Errors
     ///
     /// Returns an error if `inner` does not have the expected schema.
-    pub fn try_new(inner: LogicalPlan, disallow_cross_graph_paths: bool) -> DFResult<Self> {
+    pub fn try_new(
+        inner: LogicalPlan,
+        disallow_cross_graph_paths: bool,
+    ) -> DFResult<Self> {
         let matches_path_schema = inner
             .schema()
             .logically_equivalent_names_and_types(PATH_TABLE_DFSCHEMA.as_ref());
@@ -90,7 +93,11 @@ impl UserDefinedLogicalNodeCore for KleenePlusClosureNode {
         write!(f, "KleenePlusPath:",)
     }
 
-    fn with_exprs_and_inputs(&self, exprs: Vec<Expr>, inputs: Vec<LogicalPlan>) -> DFResult<Self> {
+    fn with_exprs_and_inputs(
+        &self,
+        exprs: Vec<Expr>,
+        inputs: Vec<LogicalPlan>,
+    ) -> DFResult<Self> {
         if inputs.len() != 1 {
             return plan_err!("Expected 1 input but got {}", inputs.len());
         }

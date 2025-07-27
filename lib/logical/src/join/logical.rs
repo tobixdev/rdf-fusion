@@ -1,6 +1,8 @@
 use datafusion::arrow::datatypes::{DataType, Fields};
-use datafusion::common::{plan_datafusion_err, plan_err, DFSchema, DFSchemaRef};
-use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore};
+use datafusion::common::{DFSchema, DFSchemaRef, plan_datafusion_err, plan_err};
+use datafusion::logical_expr::{
+    Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore,
+};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::StaticDataTypeEncodingName;
 use std::cmp::Ordering;
@@ -186,7 +188,9 @@ impl UserDefinedLogicalNodeCore for SparqlJoinNode {
 
         let input_len = inputs.len();
         let Ok([lhs, rhs]) = TryInto::<[LogicalPlan; 2]>::try_into(inputs) else {
-            return plan_err!("SparqlJoinNode must have exactly two inputs, actual: {input_len}");
+            return plan_err!(
+                "SparqlJoinNode must have exactly two inputs, actual: {input_len}"
+            );
         };
 
         let filter = exprs.first().cloned();
@@ -288,7 +292,10 @@ pub fn compute_sparql_join_columns(
     ///
     /// It is expected that `name` is part of `schema`.
     #[allow(clippy::expect_used, reason = "Local function, Guarantees met below")]
-    fn extract_encoding(schema: &DFSchema, name: &str) -> DFResult<StaticDataTypeEncodingName> {
+    fn extract_encoding(
+        schema: &DFSchema,
+        name: &str,
+    ) -> DFResult<StaticDataTypeEncodingName> {
         let field = schema
             .field_with_unqualified_name(name)
             .expect("Field name stems from the set of fields.");

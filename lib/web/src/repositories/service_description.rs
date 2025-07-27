@@ -1,5 +1,5 @@
-use axum::http::header::CONTENT_TYPE;
 use axum::http::StatusCode;
+use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 use rdf_fusion::io::{RdfFormat, RdfSerializer};
 use rdf_fusion::model::vocab::rdf;
@@ -9,24 +9,29 @@ use rdf_fusion::results::QueryResultsFormat;
 mod sd {
     use rdf_fusion::model::NamedNodeRef;
 
-    pub const SERVICE: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#Service");
+    pub const SERVICE: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/ns/sparql-service-description#Service",
+    );
 
     pub const DEFAULT_ENTAILMENT_REGIME: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/ns/sparql-service-description#defaultEntailmentRegime",
     );
-    pub const ENDPOINT: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#endpoint");
-    pub const FEATURE: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#feature");
-    pub const RESULT_FORMAT: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#resultFormat");
+    pub const ENDPOINT: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/ns/sparql-service-description#endpoint",
+    );
+    pub const FEATURE: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/ns/sparql-service-description#feature",
+    );
+    pub const RESULT_FORMAT: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/ns/sparql-service-description#resultFormat",
+    );
     pub const SUPPORTED_LANGUAGE: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/ns/sparql-service-description#supportedLanguage",
     );
 
-    pub const EMPTY_GRAPHS: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/ns/sparql-service-description#EmptyGraphs");
+    pub const EMPTY_GRAPHS: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/ns/sparql-service-description#EmptyGraphs",
+    );
     pub const SPARQL_10_QUERY: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/ns/sparql-service-description#SPARQL10Query",
     );

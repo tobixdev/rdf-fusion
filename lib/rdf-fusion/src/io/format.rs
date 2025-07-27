@@ -87,7 +87,9 @@ impl GraphFormat {
     pub fn from_media_type(media_type: &str) -> Option<Self> {
         match media_type.split(';').next()?.trim() {
             "application/n-triples" | "text/plain" => Some(Self::NTriples),
-            "text/turtle" | "application/turtle" | "application/x-turtle" => Some(Self::Turtle),
+            "text/turtle" | "application/turtle" | "application/x-turtle" => {
+                Some(Self::Turtle)
+            }
             "application/rdf+xml" | "application/xml" | "text/xml" => Some(Self::RdfXml),
             _ => None,
         }

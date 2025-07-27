@@ -1,11 +1,11 @@
-use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::dispatch_binary_plain_term;
-use crate::scalar::sparql_op_impl::{create_plain_term_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_plain_term_sparql_op_impl};
 use crate::scalar::{BinaryArgs, ScalarSparqlOp};
-use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{LiteralRef, TermRef, ThinError};
 

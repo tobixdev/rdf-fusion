@@ -1,8 +1,8 @@
+use crate::benchmarks::bsbm::BsbmDatasetSize;
 use crate::benchmarks::bsbm::explore::operation::{
-    list_raw_operations, BsbmExploreOperation, BsbmExploreRawOperation,
+    BsbmExploreOperation, BsbmExploreRawOperation, list_raw_operations,
 };
 use crate::benchmarks::bsbm::explore::report::{ExploreReport, ExploreReportBuilder};
-use crate::benchmarks::bsbm::BsbmDatasetSize;
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::{BenchmarkContext, RdfFusionBenchContext};
 use crate::prepare::{ArchiveType, FileDownloadAction, PrepRequirement};
@@ -52,8 +52,9 @@ impl BsbmExploreBenchmark {
     ) -> anyhow::Result<Vec<BsbmExploreOperation>> {
         println!("Loading queries ...");
 
-        let queries_path = env
-            .join_data_dir(PathBuf::from(format!("explore-{}.csv", self.dataset_size)).as_path())?;
+        let queries_path = env.join_data_dir(
+            PathBuf::from(format!("explore-{}.csv", self.dataset_size)).as_path(),
+        )?;
         let result = match self.max_query_count {
             None => list_raw_operations(&queries_path)?
                 .map(parse_query)
@@ -68,11 +69,14 @@ impl BsbmExploreBenchmark {
         Ok(result)
     }
 
-    async fn prepare_store(&self, bench_context: &BenchmarkContext<'_>) -> anyhow::Result<Store> {
+    async fn prepare_store(
+        &self,
+        bench_context: &BenchmarkContext<'_>,
+    ) -> anyhow::Result<Store> {
         println!("Creating in-memory store and loading data ...");
-        let data_path = bench_context
-            .parent()
-            .join_data_dir(PathBuf::from(format!("dataset-{}.nt", self.dataset_size)).as_path())?;
+        let data_path = bench_context.parent().join_data_dir(
+            PathBuf::from(format!("dataset-{}.nt", self.dataset_size)).as_path(),
+        )?;
         let data = fs::read(data_path)?;
         let memory_store = Store::new();
         memory_store
@@ -111,13 +115,16 @@ impl Benchmark for BsbmExploreBenchmark {
                 format!("../dataset-{}", dataset_size),
             ],
             check_requirement: Box::new(move || {
-                let exists = File::open(format!("./data/dataset-{dataset_size}.nt")).is_ok();
+                let exists =
+                    File::open(format!("./data/dataset-{dataset_size}.nt")).is_ok();
                 Ok(exists)
             }),
         };
         let download_pregenerated_queries = PrepRequirement::FileDownload {
-            url: Url::parse("https://zenodo.org/records/12663333/files/explore-1000.csv.bz2")
-                .expect("parse dataset-name"),
+            url: Url::parse(
+                "https://zenodo.org/records/12663333/files/explore-1000.csv.bz2",
+            )
+            .expect("parse dataset-name"),
             file_name: PathBuf::from("explore-1000.csv"),
             action: Some(FileDownloadAction::Unpack(ArchiveType::Bz2)),
         };
@@ -189,7 +196,8 @@ async fn run_operation(
     let options = QueryOptions;
     let (name, explanation) = match operation {
         BsbmExploreOperation::Query(name, q) => {
-            let (result, explanation) = store.explain_query_opt(q.clone(), options.clone()).await?;
+            let (result, explanation) =
+                store.explain_query_opt(q.clone(), options.clone()).await?;
             match result {
                 QueryResults::Boolean(_) => (),
                 QueryResults::Solutions(mut s) => {

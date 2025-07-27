@@ -1,11 +1,11 @@
-use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_typed_value;
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{ScalarSparqlOp, UnaryArgs};
-use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::vocab::{rdf, xsd};
 use rdf_fusion_model::{Numeric, ThinError, TypedValueRef};
 
@@ -46,7 +46,7 @@ impl ScalarSparqlOp for DatatypeSparqlOp {
                 |value| {
                     let iri = match value {
                         TypedValueRef::BlankNode(_) | TypedValueRef::NamedNode(_) => {
-                            return ThinError::expected()
+                            return ThinError::expected();
                         }
                         TypedValueRef::SimpleLiteral(_) => xsd::STRING,
                         TypedValueRef::NumericLiteral(value) => match value {
@@ -62,8 +62,12 @@ impl ScalarSparqlOp for DatatypeSparqlOp {
                         TypedValueRef::TimeLiteral(_) => xsd::TIME,
                         TypedValueRef::DateLiteral(_) => xsd::DATE,
                         TypedValueRef::DurationLiteral(_) => xsd::DURATION,
-                        TypedValueRef::YearMonthDurationLiteral(_) => xsd::YEAR_MONTH_DURATION,
-                        TypedValueRef::DayTimeDurationLiteral(_) => xsd::DAY_TIME_DURATION,
+                        TypedValueRef::YearMonthDurationLiteral(_) => {
+                            xsd::YEAR_MONTH_DURATION
+                        }
+                        TypedValueRef::DayTimeDurationLiteral(_) => {
+                            xsd::DAY_TIME_DURATION
+                        }
                         TypedValueRef::OtherLiteral(value) => value.datatype(),
                     };
                     Ok(TypedValueRef::NamedNode(iri))

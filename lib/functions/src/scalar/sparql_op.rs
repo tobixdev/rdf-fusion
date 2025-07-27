@@ -1,15 +1,16 @@
-use crate::scalar::sparql_op_impl::SparqlOpImpl;
 use crate::scalar::SparqlOpArgs;
+use crate::scalar::sparql_op_impl::SparqlOpImpl;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+    ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature,
+    Volatility,
 };
 use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
-use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TYPED_VALUE_ENCODING};
+use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
+use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
 use std::any::Any;
 use std::collections::HashSet;
@@ -41,7 +42,9 @@ pub trait ScalarSparqlOp: Debug + Send + Sync {
     }
 
     /// TODO
-    fn object_id_encoding_op(&self) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
+    fn object_id_encoding_op(
+        &self,
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
         None
     }
 }
@@ -61,20 +64,26 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
 
         let mut type_signatures = Vec::new();
         if op.plain_term_encoding_op().is_some() {
-            type_signatures.push(TScalarSparqlOp::Args::<PlainTermEncoding>::type_signature(
-                &PLAIN_TERM_ENCODING,
-            ));
+            type_signatures.push(
+                TScalarSparqlOp::Args::<PlainTermEncoding>::type_signature(
+                    &PLAIN_TERM_ENCODING,
+                ),
+            );
         }
         if op.typed_value_encoding_op().is_some() {
-            type_signatures.push(TScalarSparqlOp::Args::<TypedValueEncoding>::type_signature(
-                &TYPED_VALUE_ENCODING,
-            ));
+            type_signatures.push(
+                TScalarSparqlOp::Args::<TypedValueEncoding>::type_signature(
+                    &TYPED_VALUE_ENCODING,
+                ),
+            );
         }
         if op.object_id_encoding_op().is_some() {
             if let Some(object_id_encoding) = &encodings.object_id() {
-                type_signatures.push(TScalarSparqlOp::Args::<ObjectIdEncoding>::type_signature(
-                    object_id_encoding,
-                ));
+                type_signatures.push(
+                    TScalarSparqlOp::Args::<ObjectIdEncoding>::type_signature(
+                        object_id_encoding,
+                    ),
+                );
             }
         }
 
@@ -96,7 +105,10 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
         }
     }
 
-    fn detect_input_encoding(&self, arg_types: &[DataType]) -> DFResult<Option<EncodingName>> {
+    fn detect_input_encoding(
+        &self,
+        arg_types: &[DataType],
+    ) -> DFResult<Option<EncodingName>> {
         let encoding_name = arg_types
             .iter()
             .map(|dt| {
@@ -168,7 +180,9 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                 ))
                 .map(|op_impl| op_impl.return_type()),
             Some(EncodingName::Sortable) => {
-                exec_err!("The SparqlOp infrastructure does not support the Sortable encoding.")
+                exec_err!(
+                    "The SparqlOp infrastructure does not support the Sortable encoding."
+                )
             }
             Some(EncodingName::ObjectId) => self
                 .op

@@ -1,18 +1,18 @@
-use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::{
     dispatch_n_ary_object_id, dispatch_n_ary_plain_term, dispatch_n_ary_typed_value,
 };
 use crate::scalar::sparql_op_impl::{
-    create_object_id_sparql_op_impl, create_plain_term_sparql_op_impl,
-    create_typed_value_sparql_op_impl, SparqlOpImpl,
+    SparqlOpImpl, create_object_id_sparql_op_impl, create_plain_term_sparql_op_impl,
+    create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{NAryArgs, ScalarSparqlOp};
-use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
+use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_model::ThinError;
 
 #[derive(Debug)]
@@ -51,11 +51,11 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
                 dispatch_n_ary_typed_value(
                     &args,
                     number_rows,
-                    |args| args.first().copied().ok_or(ThinError::default()),
+                    |args| args.first().copied().ok_or(ThinError::ExpectedError),
                     |args| {
                         args.iter()
                             .find_map(|arg| arg.ok())
-                            .ok_or(ThinError::default())
+                            .ok_or(ThinError::ExpectedError)
                     },
                 )
             },
@@ -70,28 +70,30 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
                 dispatch_n_ary_plain_term(
                     &args,
                     number_rows,
-                    |args| args.first().copied().ok_or(ThinError::default()),
+                    |args| args.first().copied().ok_or(ThinError::ExpectedError),
                     |args| {
                         args.iter()
                             .find_map(|arg| arg.ok())
-                            .ok_or(ThinError::default())
+                            .ok_or(ThinError::ExpectedError)
                     },
                 )
             },
         ))
     }
 
-    fn object_id_encoding_op(&self) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
+    fn object_id_encoding_op(
+        &self,
+    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
         Some(create_object_id_sparql_op_impl(
             |NAryArgs(args, number_rows)| {
                 Ok(dispatch_n_ary_object_id(
                     &args,
                     number_rows,
-                    |args| args.first().copied().ok_or(ThinError::default()),
+                    |args| args.first().copied().ok_or(ThinError::ExpectedError),
                     |args| {
                         args.iter()
                             .find_map(|arg| arg.ok())
-                            .ok_or(ThinError::default())
+                            .ok_or(ThinError::ExpectedError)
                     },
                 ))
             },

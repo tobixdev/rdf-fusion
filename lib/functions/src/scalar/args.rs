@@ -122,8 +122,9 @@ impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for QuaternaryArgs<TEncodi
             .collect::<DFResult<Vec<_>>>()?;
 
         let len = args.len();
-        let [arg0, arg1, arg2, arg3] = TryInto::<[EncodingDatum<TEncoding>; 4]>::try_into(args)
-            .map_err(|_| exec_datafusion_err!("Expected 2 argument, got {}", len))?;
+        let [arg0, arg1, arg2, arg3] =
+            TryInto::<[EncodingDatum<TEncoding>; 4]>::try_into(args)
+                .map_err(|_| exec_datafusion_err!("Expected 2 argument, got {}", len))?;
 
         Ok(Self(arg0, arg1, arg2, arg3))
     }
@@ -133,7 +134,10 @@ impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for QuaternaryArgs<TEncodi
     }
 }
 
-pub struct NAryArgs<TEncoding: TermEncoding>(pub Vec<EncodingDatum<TEncoding>>, pub usize);
+pub struct NAryArgs<TEncoding: TermEncoding>(
+    pub Vec<EncodingDatum<TEncoding>>,
+    pub usize,
+);
 
 impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for NAryArgs<TEncoding> {
     fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
@@ -203,7 +207,9 @@ pub enum TernaryOrQuaternaryArgs<TEncoding: TermEncoding> {
     Quaternary(QuaternaryArgs<TEncoding>),
 }
 
-impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding> for TernaryOrQuaternaryArgs<TEncoding> {
+impl<TEncoding: TermEncoding> SparqlOpArgs<TEncoding>
+    for TernaryOrQuaternaryArgs<TEncoding>
+{
     fn try_from_args(encoding: &TEncoding, args: ScalarFunctionArgs) -> DFResult<Self> {
         if args.args.len() == 3 {
             Ok(Self::Ternary(TernaryArgs::try_from_args(encoding, args)?))

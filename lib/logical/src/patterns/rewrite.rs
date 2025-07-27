@@ -1,9 +1,9 @@
 use crate::expr_builder::RdfFusionExprBuilder;
 use crate::patterns::PatternNode;
-use crate::{check_same_schema, RdfFusionExprBuilderContext};
+use crate::{RdfFusionExprBuilderContext, check_same_schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::logical_expr::{
-    and, col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode,
+    Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, and, col,
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
@@ -47,7 +47,8 @@ impl OptimizerRule for PatternLoweringRule {
                             None => plan,
                             Some(filter) => plan.filter(filter)?,
                         };
-                        let new_plan = project_to_variables(plan, node.patterns())?.build()?;
+                        let new_plan =
+                            project_to_variables(plan, node.patterns())?.build()?;
 
                         check_same_schema(node.schema(), new_plan.schema())?;
                         Transformed::yes(new_plan)
@@ -68,7 +69,8 @@ pub fn compute_filters_for_pattern(
     context: &RdfFusionContextView,
     node: &PatternNode,
 ) -> DFResult<Option<Expr>> {
-    let expr_builder_root = RdfFusionExprBuilderContext::new(context, node.input().schema());
+    let expr_builder_root =
+        RdfFusionExprBuilderContext::new(context, node.input().schema());
     let filters = [
         filter_by_values(expr_builder_root, node.patterns())?,
         filter_same_variable(expr_builder_root, node.patterns())?,
@@ -182,10 +184,12 @@ fn create_filter_expression(
 ) -> DFResult<Option<Expr>> {
     match pattern {
         Some(TermPattern::NamedNode(nn)) => {
-            Some(expr_builder.build_same_term_scalar(Term::from(nn.clone()).as_ref())).transpose()
+            Some(expr_builder.build_same_term_scalar(Term::from(nn.clone()).as_ref()))
+                .transpose()
         }
         Some(TermPattern::Literal(lit)) => {
-            Some(expr_builder.build_same_term_scalar(Term::from(lit.clone()).as_ref())).transpose()
+            Some(expr_builder.build_same_term_scalar(Term::from(lit.clone()).as_ref()))
+                .transpose()
         }
         _ => Ok(None),
     }

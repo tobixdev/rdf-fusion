@@ -17,8 +17,8 @@ pub use float::*;
 pub use int::*;
 pub use integer::*;
 pub use numeric::*;
-use oxrdf::vocab::xsd;
 use oxrdf::NamedNodeRef;
+use oxrdf::vocab::xsd;
 
 /// Checks if the datatype is a numeric datatype.
 pub fn is_numeric_datatype(datatype: NamedNodeRef<'_>) -> bool {

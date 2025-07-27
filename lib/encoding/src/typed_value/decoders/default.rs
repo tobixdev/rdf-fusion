@@ -1,13 +1,16 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::typed_value::array::{DurationParts, StringParts, TimestampParts, TypedValueArrayParts};
+use crate::typed_value::array::{
+    DurationParts, StringParts, TimestampParts, TypedValueArrayParts,
+};
 use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use crate::{EncodingScalar, TermEncoding};
 use datafusion::arrow::array::{Array, AsArray};
 use datafusion::common::ScalarValue;
 use rdf_fusion_model::{
-    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration, Float, Int,
-    Integer, LanguageStringRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, ThinError,
-    ThinResult, Time, Timestamp, TimezoneOffset, TypedValueRef, YearMonthDuration,
+    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Decimal, Double, Duration,
+    Float, Int, Integer, LanguageStringRef, LiteralRef, NamedNodeRef, Numeric,
+    SimpleLiteralRef, ThinError, ThinResult, Time, Timestamp, TimezoneOffset,
+    TypedValueRef, YearMonthDuration,
 };
 use std::ops::Not;
 
@@ -31,10 +34,12 @@ impl TermDecoder<TypedValueEncoding> for DefaultTypedValueDecoder {
     fn decode_term(
         scalar: &<TypedValueEncoding as TermEncoding>::Scalar,
     ) -> ThinResult<Self::Term<'_>> {
-        let ScalarValue::Union(Some((type_id, value)), _, _) = scalar.scalar_value() else {
+        let ScalarValue::Union(Some((type_id, value)), _, _) = scalar.scalar_value()
+        else {
             panic!("Unexpected type id");
         };
-        let field = TypedValueEncodingField::try_from(*type_id).expect("Unexpected type id");
+        let field =
+            TypedValueEncodingField::try_from(*type_id).expect("Unexpected type id");
 
         let result = match (field, value.as_ref()) {
             (TypedValueEncodingField::NamedNode, ScalarValue::Utf8(Some(value))) => {
@@ -59,11 +64,12 @@ impl TermDecoder<TypedValueEncoding> for DefaultTypedValueDecoder {
             (TypedValueEncodingField::Double, ScalarValue::Float64(Some(value))) => {
                 TypedValueRef::NumericLiteral(Numeric::Double((*value).into()))
             }
-            (TypedValueEncodingField::Decimal, ScalarValue::Decimal128(Some(value), _, _)) => {
-                TypedValueRef::NumericLiteral(Numeric::Decimal(Decimal::from_be_bytes(
-                    value.to_be_bytes(),
-                )))
-            }
+            (
+                TypedValueEncodingField::Decimal,
+                ScalarValue::Decimal128(Some(value), _, _),
+            ) => TypedValueRef::NumericLiteral(Numeric::Decimal(Decimal::from_be_bytes(
+                value.to_be_bytes(),
+            ))),
             (TypedValueEncodingField::Int, ScalarValue::Int32(Some(value))) => {
                 TypedValueRef::NumericLiteral(Numeric::Int((*value).into()))
             }
@@ -101,11 +107,16 @@ impl TermDecoder<TypedValueEncoding> for DefaultTypedValueDecoder {
                 let timestamp = extract_timestamp(parts, 0);
                 TypedValueRef::DateLiteral(Date::new(timestamp))
             }
-            (TypedValueEncodingField::OtherLiteral, ScalarValue::Struct(struct_array)) => {
+            (
+                TypedValueEncodingField::OtherLiteral,
+                ScalarValue::Struct(struct_array),
+            ) => {
                 let value = struct_array.column(0).as_string::<i32>().value(0);
                 let datatype = struct_array.column(1).as_string::<i32>().value(0);
                 let datatype = NamedNodeRef::new_unchecked(datatype);
-                TypedValueRef::OtherLiteral(LiteralRef::new_typed_literal(value, datatype))
+                TypedValueRef::OtherLiteral(LiteralRef::new_typed_literal(
+                    value, datatype,
+                ))
             }
             (TypedValueEncodingField::Null, _) => return ThinError::expected(),
             _ => panic!("Unexpected type id / value combination"),
@@ -119,8 +130,8 @@ fn extract_term_value<'data>(
     parts: &TypedValueArrayParts<'data>,
     index: usize,
 ) -> ThinResult<TypedValueRef<'data>> {
-    let field =
-        TypedValueEncodingField::try_from(parts.array.type_id(index)).expect("Unexpected type id");
+    let field = TypedValueEncodingField::try_from(parts.array.type_id(index))
+        .expect("Unexpected type id");
     let offset = parts.array.value_offset(index);
 
     match field {
@@ -147,7 +158,8 @@ fn extract_term_value<'data>(
             Ok(TypedValueRef::NumericLiteral(Numeric::Double(value)))
         }
         TypedValueEncodingField::Decimal => {
-            let value = Decimal::from_be_bytes(parts.decimals.value(offset).to_be_bytes());
+            let value =
+                Decimal::from_be_bytes(parts.decimals.value(offset).to_be_bytes());
             Ok(TypedValueRef::NumericLiteral(Numeric::Decimal(value)))
         }
         TypedValueEncodingField::Int => {
@@ -214,7 +226,10 @@ fn extract_timestamp(parts: TimestampParts<'_>, index: usize) -> Timestamp {
 /// Extracts a duration from the given `parts` at `index`.
 ///
 /// The actual returned literal depends on which parts of the durations exist (YearMonth, DayTime).
-fn extract_duration(parts: DurationParts<'_>, index: usize) -> ThinResult<TypedValueRef<'_>> {
+fn extract_duration(
+    parts: DurationParts<'_>,
+    index: usize,
+) -> ThinResult<TypedValueRef<'_>> {
     let year_month_is_null = parts.months.is_null(index);
     let day_time_is_null = parts.seconds.is_null(index);
     Ok(match (year_month_is_null, day_time_is_null) {
@@ -224,12 +239,12 @@ fn extract_duration(parts: DurationParts<'_>, index: usize) -> ThinResult<TypedV
             bytes[8..24].copy_from_slice(&parts.seconds.value(index).to_be_bytes());
             TypedValueRef::DurationLiteral(Duration::from_be_bytes(bytes))
         }
-        (false, true) => TypedValueRef::YearMonthDurationLiteral(YearMonthDuration::from_be_bytes(
-            parts.months.value(index).to_be_bytes(),
-        )),
-        (true, false) => TypedValueRef::DayTimeDurationLiteral(DayTimeDuration::from_be_bytes(
-            parts.seconds.value(index).to_be_bytes(),
-        )),
+        (false, true) => TypedValueRef::YearMonthDurationLiteral(
+            YearMonthDuration::from_be_bytes(parts.months.value(index).to_be_bytes()),
+        ),
+        (true, false) => TypedValueRef::DayTimeDurationLiteral(
+            DayTimeDuration::from_be_bytes(parts.seconds.value(index).to_be_bytes()),
+        ),
         _ => panic!("Both values are null in a duration."),
     })
 }

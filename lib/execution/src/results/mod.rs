@@ -7,8 +7,8 @@ use futures::StreamExt;
 use oxrdfio::{RdfFormat, RdfSerializer};
 use rdf_fusion_model::{Variable, VariableRef};
 use sparesults::{
-    QueryResultsFormat, QueryResultsParseError, QueryResultsParser, QueryResultsSerializer,
-    ReaderQueryResultsParserOutput,
+    QueryResultsFormat, QueryResultsParseError, QueryResultsParser,
+    QueryResultsSerializer, ReaderQueryResultsParserOutput,
 };
 use std::error::Error;
 use std::io::{Read, Write};
@@ -23,8 +23,8 @@ use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
-use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
 pub use sparesults::QuerySolution;
 pub use triples::QueryTripleStream;
 
@@ -108,7 +108,8 @@ impl QueryResults {
         format: impl Into<RdfFormat>,
     ) -> Result<W, QueryEvaluationError> {
         if let Self::Graph(mut triples) = self {
-            let mut serializer = RdfSerializer::from_format(format.into()).for_writer(writer);
+            let mut serializer =
+                RdfSerializer::from_format(format.into()).for_writer(writer);
 
             while let Some(triple) = triples.next().await {
                 serializer
@@ -173,7 +174,8 @@ pub fn query_result_for_iterator(
     let mut count = 0;
     for solution in solutions {
         count += 1;
-        let solution = solution.map_err(QuerySolutionsToStreamError::QuerySolutionSource)?;
+        let solution =
+            solution.map_err(QuerySolutionsToStreamError::QuerySolutionSource)?;
         for (idx, term) in solution.values().iter().enumerate() {
             let builder = &mut builders[idx];
             match term {
@@ -194,7 +196,8 @@ pub fn query_result_for_iterator(
 
     let schema = SchemaRef::new(Schema::new(fields));
     let options = RecordBatchOptions::new().with_row_count(Some(count));
-    let record_batch = RecordBatch::try_new_with_options(Arc::clone(&schema), columns, &options)?;
+    let record_batch =
+        RecordBatch::try_new_with_options(Arc::clone(&schema), columns, &options)?;
     let record_batch_stream = MemoryStream::try_new(vec![record_batch], schema, None)?;
     let stream = QuerySolutionStream::try_new(variables, Box::pin(record_batch_stream))?;
     Ok(QueryResults::Solutions(stream))

@@ -19,7 +19,9 @@ pub enum SparqlEvaluationError {
     #[error("{0}")]
     Service(#[source] Box<dyn Error + Send + Sync>),
     /// Error if the dataset returns the default graph even if a named graph is expected
-    #[error("The SPARQL dataset returned the default graph even if a named graph is expected")]
+    #[error(
+        "The SPARQL dataset returned the default graph even if a named graph is expected"
+    )]
     UnexpectedDefaultGraph,
     /// The variable storing the `SERVICE` name is unbound
     #[error("The variable encoding the service name is unbound")]

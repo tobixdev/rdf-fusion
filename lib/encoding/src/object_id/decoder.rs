@@ -16,7 +16,7 @@ impl TermDecoder<ObjectIdEncoding> for DefaultObjectIdDecoder {
         array
             .object_ids()
             .iter()
-            .map(|opt| opt.ok_or(ThinError::default()))
+            .map(|opt| opt.ok_or(ThinError::ExpectedError))
     }
 
     fn decode_term(

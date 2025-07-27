@@ -1,7 +1,7 @@
-use crate::sparql::rewriting::expression_rewriter::ExpressionRewriter;
 use crate::sparql::QueryDataset;
+use crate::sparql::rewriting::expression_rewriter::ExpressionRewriter;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{not_impl_err, plan_err, Column, DFSchema};
+use datafusion::common::{Column, DFSchema, not_impl_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_udaf};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{Expr, LogicalPlan, SortExpr};
@@ -71,7 +71,10 @@ impl GraphPatternRewriter {
     }
 
     /// Similar to [Self::rewrite] but does not transform all columns into the plain term encoding.
-    pub fn rewrite_with_existing_encoding(&self, pattern: &GraphPattern) -> DFResult<LogicalPlan> {
+    pub fn rewrite_with_existing_encoding(
+        &self,
+        pattern: &GraphPattern,
+    ) -> DFResult<LogicalPlan> {
         self.rewrite_graph_pattern(pattern)?.build()
     }
 
@@ -249,7 +252,11 @@ impl GraphPatternRewriter {
     }
 
     /// Rewrites an [Expression].
-    fn rewrite_expression(&self, schema: &DFSchema, expression: &Expression) -> DFResult<Expr> {
+    fn rewrite_expression(
+        &self,
+        schema: &DFSchema,
+        expression: &Expression,
+    ) -> DFResult<Expr> {
         let expr_builder_root = self
             .builder_context
             .expr_builder_context_with_schema(schema);
@@ -383,7 +390,10 @@ impl GraphPatternRewriter {
                             .build()?
                             .alias(f.name())),
                         other => {
-                            plan_err!("Unsupported data type for aggregation result {:?}", other)
+                            plan_err!(
+                                "Unsupported data type for aggregation result {:?}",
+                                other
+                            )
                         }
                     }
                 }
@@ -459,7 +469,9 @@ fn compute_active_graph_for_pattern(
         }
         NamedNodePattern::Variable(_) => match dataset.available_named_graphs() {
             None => ActiveGraph::AnyNamedGraph,
-            Some(graphs) => ActiveGraph::Union(graphs.iter().cloned().map(Into::into).collect()),
+            Some(graphs) => {
+                ActiveGraph::Union(graphs.iter().cloned().map(Into::into).collect())
+            }
         },
     }
 }

@@ -1,10 +1,10 @@
-use rdf_fusion_api::functions::BuiltinName;
-use datafusion::arrow::array::{as_boolean_array, Array, BooleanBuilder};
+use datafusion::arrow::array::{Array, BooleanBuilder, as_boolean_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
-    Volatility,
+    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
+    TypeSignature, Volatility,
 };
+use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
 use std::any::Any;
 use std::ops::Not;

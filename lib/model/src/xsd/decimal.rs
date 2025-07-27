@@ -69,7 +69,7 @@ impl Decimal {
             value: self
                 .value
                 .checked_add(rhs.into().value)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -82,7 +82,7 @@ impl Decimal {
             value: self
                 .value
                 .checked_sub(rhs.into().value)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -114,13 +114,13 @@ impl Decimal {
         // We do multiplication + shift
         let shift = (shift_left + shift_right)
             .checked_sub(DECIMAL_PART_DIGITS)
-            .ok_or(ThinError::default())?;
+            .ok_or(ThinError::ExpectedError)?;
         Ok(Self {
             value: left
                 .checked_mul(right)
-                .ok_or(ThinError::default())?
-                .checked_mul(10_i128.checked_pow(shift).ok_or(ThinError::default())?)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?
+                .checked_mul(10_i128.checked_pow(shift).ok_or(ThinError::ExpectedError)?)
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -152,13 +152,13 @@ impl Decimal {
         // We do division + shift
         let shift = (shift_left + shift_right)
             .checked_sub(DECIMAL_PART_DIGITS)
-            .ok_or(ThinError::default())?;
+            .ok_or(ThinError::ExpectedError)?;
         Ok(Self {
             value: left
                 .checked_div(right)
-                .ok_or(ThinError::default())?
-                .checked_div(10_i128.checked_pow(shift).ok_or(ThinError::default())?)
-                .ok_or(ThinError::default())?,
+                .ok_or(ThinError::ExpectedError)?
+                .checked_div(10_i128.checked_pow(shift).ok_or(ThinError::ExpectedError)?)
+                .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -190,7 +190,7 @@ impl Decimal {
     #[inline]
     pub fn checked_neg(self) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_neg().ok_or(ThinError::default())?,
+            value: self.value.checked_neg().ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -200,7 +200,7 @@ impl Decimal {
     #[inline]
     pub fn checked_abs(self) -> ThinResult<Self> {
         Ok(Self {
-            value: self.value.checked_abs().ok_or(ThinError::default())?,
+            value: self.value.checked_abs().ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -217,7 +217,7 @@ impl Decimal {
                 value / 10 - i128::from(-value % 10 > 5)
             }
             .checked_mul(DECIMAL_PART_POW)
-            .ok_or(ThinError::default())?,
+            .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -233,7 +233,7 @@ impl Decimal {
                 self.value / DECIMAL_PART_POW
             }
             .checked_mul(DECIMAL_PART_POW)
-            .ok_or(ThinError::default())?,
+            .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -249,7 +249,7 @@ impl Decimal {
                 self.value / DECIMAL_PART_POW - 1
             }
             .checked_mul(DECIMAL_PART_POW)
-            .ok_or(ThinError::default())?,
+            .ok_or(ThinError::ExpectedError)?,
         })
     }
 
@@ -603,7 +603,8 @@ impl fmt::Display for Decimal {
             .find_map(|(i, v)| if v == b'0' { None } else { Some(i) })
             .unwrap_or(40);
 
-        let decimal_part_digits = usize::try_from(DECIMAL_PART_DIGITS).map_err(|_| fmt::Error)?;
+        let decimal_part_digits =
+            usize::try_from(DECIMAL_PART_DIGITS).map_err(|_| fmt::Error)?;
         if last_non_zero >= decimal_part_digits {
             let end = if let Some(mut width) = f.width() {
                 if self.value.is_negative() {
@@ -660,8 +661,10 @@ enum DecimalParseErrorKind {
     UnexpectedEnd,
 }
 
-const PARSE_OVERFLOW: ParseDecimalError = ParseDecimalError(DecimalParseErrorKind::Overflow);
-const PARSE_UNDERFLOW: ParseDecimalError = ParseDecimalError(DecimalParseErrorKind::Underflow);
+const PARSE_OVERFLOW: ParseDecimalError =
+    ParseDecimalError(DecimalParseErrorKind::Overflow);
+const PARSE_UNDERFLOW: ParseDecimalError =
+    ParseDecimalError(DecimalParseErrorKind::Underflow);
 const PARSE_UNEXPECTED_CHAR: ParseDecimalError =
     ParseDecimalError(DecimalParseErrorKind::UnexpectedChar);
 const PARSE_UNEXPECTED_END: ParseDecimalError =
@@ -1079,8 +1082,14 @@ mod tests {
         assert_eq!(Float::from(Decimal::from(1)), Float::from(1.));
         assert_eq!(Float::from(Decimal::from(10)), Float::from(10.));
         assert_eq!(Float::from(Decimal::from_str("0.1")?), Float::from(0.1));
-        assert!((Float::from(Decimal::MAX) - Float::from(1.701_412e20)).abs() < Float::from(1.));
-        assert!((Float::from(Decimal::MIN) - Float::from(-1.701_412e20)).abs() < Float::from(1.));
+        assert!(
+            (Float::from(Decimal::MAX) - Float::from(1.701_412e20)).abs()
+                < Float::from(1.)
+        );
+        assert!(
+            (Float::from(Decimal::MIN) - Float::from(-1.701_412e20)).abs()
+                < Float::from(1.)
+        );
         Ok(())
     }
 
@@ -1098,7 +1107,8 @@ mod tests {
                 < Double::from(1.)
         );
         assert!(
-            (Double::from(Decimal::MIN) - Double::from(-1.701_411_834_604_692_4e20)).abs()
+            (Double::from(Decimal::MIN) - Double::from(-1.701_411_834_604_692_4e20))
+                .abs()
                 < Double::from(1.)
         );
         Ok(())

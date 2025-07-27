@@ -41,7 +41,9 @@ pub enum StaticDataTypeEncodingName {
 
 impl StaticDataTypeEncodingName {
     /// Tries to create an instance of [StaticDataTypeEncodingName] from the `data_type`.
-    pub fn try_from_data_type(data_type: &DataType) -> Option<StaticDataTypeEncodingName> {
+    pub fn try_from_data_type(
+        data_type: &DataType,
+    ) -> Option<StaticDataTypeEncodingName> {
         if data_type == &PlainTermEncoding::data_type() {
             return Some(StaticDataTypeEncodingName::PlainTerm);
         }

@@ -19,12 +19,16 @@ impl IntoResponse for RdfFusionServerError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
             RdfFusionServerError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
-            RdfFusionServerError::ContentNegotiation(msg) => (StatusCode::NOT_ACCEPTABLE, msg),
+            RdfFusionServerError::ContentNegotiation(msg) => {
+                (StatusCode::NOT_ACCEPTABLE, msg)
+            }
             RdfFusionServerError::ReadOnly => (
                 StatusCode::FORBIDDEN,
                 "Server is in read-only mode".to_owned(),
             ),
-            RdfFusionServerError::Internal(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            RdfFusionServerError::Internal(e) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+            }
         };
 
         (status, message).into_response()

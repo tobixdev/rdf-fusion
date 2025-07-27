@@ -1,23 +1,23 @@
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
-    Volatility,
+    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
+    TypeSignature, Volatility,
 };
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
+use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::encoders::{
     TermRefSortableTermEncoder, TypedValueRefSortableTermEncoder,
 };
-use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::{
-    EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder, TermEncoder,
-    TermEncoding,
+    EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
+    TermEncoder, TermEncoding,
 };
 use std::any::Any;
 use std::sync::Arc;
@@ -56,7 +56,10 @@ impl WithSortableEncoding {
         }
     }
 
-    fn convert_scalar(encoding_name: EncodingName, scalar: ScalarValue) -> DFResult<ColumnarValue> {
+    fn convert_scalar(
+        encoding_name: EncodingName,
+        scalar: ScalarValue,
+    ) -> DFResult<ColumnarValue> {
         match encoding_name {
             EncodingName::PlainTerm => {
                 let scalar = PLAIN_TERM_ENCODING.try_new_scalar(scalar)?;
@@ -75,7 +78,10 @@ impl WithSortableEncoding {
         }
     }
 
-    fn convert_array(encoding_name: EncodingName, array: ArrayRef) -> DFResult<ColumnarValue> {
+    fn convert_array(
+        encoding_name: EncodingName,
+        array: ArrayRef,
+    ) -> DFResult<ColumnarValue> {
         match encoding_name {
             EncodingName::PlainTerm => {
                 let array = PLAIN_TERM_ENCODING.try_new_array(array)?;
@@ -124,7 +130,9 @@ impl ScalarUDFImpl for WithSortableEncoding {
 
         match args {
             [ColumnarValue::Array(array)] => Self::convert_array(encoding_name, array),
-            [ColumnarValue::Scalar(scalar)] => Self::convert_scalar(encoding_name, scalar),
+            [ColumnarValue::Scalar(scalar)] => {
+                Self::convert_scalar(encoding_name, scalar)
+            }
         }
     }
 }

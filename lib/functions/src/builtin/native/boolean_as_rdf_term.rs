@@ -1,14 +1,14 @@
-use rdf_fusion_api::functions::BuiltinName;
-use datafusion::arrow::array::{as_boolean_array, Array};
+use datafusion::arrow::array::{Array, as_boolean_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
-    Volatility,
+    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
+    TypeSignature, Volatility,
 };
+use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use std::any::Any;
 use std::sync::Arc;
 

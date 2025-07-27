@@ -1,11 +1,11 @@
-use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::dispatch_binary_typed_value;
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{BinaryArgs, ScalarSparqlOp};
-use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{LiteralRef, ThinError, TypedValueRef};
 
 /// TODO
@@ -51,9 +51,12 @@ impl ScalarSparqlOp for StrDtSparqlOp {
                         TypedValueRef::NamedNode(rhs_named_node),
                     ) = (lhs_value, rhs_value)
                     {
-                        let plain_literal =
-                            LiteralRef::new_typed_literal(lhs_literal.value, rhs_named_node);
-                        TypedValueRef::try_from(plain_literal).map_err(|_| ThinError::default())
+                        let plain_literal = LiteralRef::new_typed_literal(
+                            lhs_literal.value,
+                            rhs_named_node,
+                        );
+                        TypedValueRef::try_from(plain_literal)
+                            .map_err(|_| ThinError::ExpectedError)
                     } else {
                         ThinError::expected()
                     }

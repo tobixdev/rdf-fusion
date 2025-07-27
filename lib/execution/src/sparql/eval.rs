@@ -1,12 +1,12 @@
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::sparql::{
-    Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults, QuerySolutionStream,
-    QueryTripleStream,
+    Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults,
+    QuerySolutionStream, QueryTripleStream,
 };
 use datafusion::arrow::datatypes::Schema;
 use datafusion::execution::SessionState;
-use datafusion::physical_plan::{execute_stream, ExecutionPlan};
+use datafusion::physical_plan::{ExecutionPlan, execute_stream};
 use datafusion::prelude::SessionContext;
 use futures::StreamExt;
 use itertools::izip;
@@ -31,9 +31,14 @@ pub async fn evaluate_query(
         spargebra::Query::Select {
             pattern, base_iri, ..
         } => {
-            let (stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), builder_context, query, pattern, base_iri)
-                    .await?;
+            let (stream, explanation) = graph_pattern_to_stream(
+                ctx.state(),
+                builder_context,
+                query,
+                pattern,
+                base_iri,
+            )
+            .await?;
             Ok((QueryResults::Solutions(stream), explanation))
         }
         spargebra::Query::Construct {
@@ -42,9 +47,14 @@ pub async fn evaluate_query(
             base_iri,
             ..
         } => {
-            let (stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), builder_context, query, pattern, base_iri)
-                    .await?;
+            let (stream, explanation) = graph_pattern_to_stream(
+                ctx.state(),
+                builder_context,
+                query,
+                pattern,
+                base_iri,
+            )
+            .await?;
             Ok((
                 QueryResults::Graph(QueryTripleStream::new(template.clone(), stream)),
                 explanation,
@@ -53,9 +63,14 @@ pub async fn evaluate_query(
         spargebra::Query::Ask {
             pattern, base_iri, ..
         } => {
-            let (mut stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), builder_context, query, pattern, base_iri)
-                    .await?;
+            let (mut stream, explanation) = graph_pattern_to_stream(
+                ctx.state(),
+                builder_context,
+                query,
+                pattern,
+                base_iri,
+            )
+            .await?;
             let count = stream.next().await;
             Ok((QueryResults::Boolean(count.is_some()), explanation))
         }
@@ -76,12 +91,16 @@ pub async fn evaluate_query(
                     vec![
                         TriplePattern {
                             subject: variable.clone().into(),
-                            predicate: rdf_fusion_model::vocab::rdfs::LABEL.into_owned().into(),
+                            predicate: rdf_fusion_model::vocab::rdfs::LABEL
+                                .into_owned()
+                                .into(),
                             object: label.clone().into(),
                         },
                         TriplePattern {
                             subject: variable.clone().into(),
-                            predicate: rdf_fusion_model::vocab::rdfs::COMMENT.into_owned().into(),
+                            predicate: rdf_fusion_model::vocab::rdfs::COMMENT
+                                .into_owned()
+                                .into(),
                             object: comment.clone().into(),
                         },
                     ]
@@ -97,9 +116,14 @@ pub async fn evaluate_query(
                     patterns: describe_pattern.clone(),
                 }),
             };
-            let (stream, explanation) =
-                graph_pattern_to_stream(ctx.state(), builder_context, query, &pattern, base_iri)
-                    .await?;
+            let (stream, explanation) = graph_pattern_to_stream(
+                ctx.state(),
+                builder_context,
+                query,
+                &pattern,
+                base_iri,
+            )
+            .await?;
 
             Ok((
                 QueryResults::Graph(QueryTripleStream::new(describe_pattern, stream)),
@@ -120,7 +144,8 @@ async fn graph_pattern_to_stream(
     let task = state.task_ctx();
 
     let (execution_plan, explanation) =
-        create_execution_plan(state, builder_context, &query.dataset, pattern, base_iri).await?;
+        create_execution_plan(state, builder_context, &query.dataset, pattern, base_iri)
+            .await?;
     let variables = create_variables(&execution_plan.schema());
 
     let batch_record_stream = execute_stream(execution_plan, task)?;

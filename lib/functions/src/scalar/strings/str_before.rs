@@ -1,14 +1,14 @@
-use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::dispatch_binary_typed_value;
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{BinaryArgs, ScalarSparqlOp};
-use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{
-    CompatibleStringArgs, LanguageStringRef, SimpleLiteralRef, StringLiteralRef, ThinError,
-    TypedValueRef,
+    CompatibleStringArgs, LanguageStringRef, SimpleLiteralRef, StringLiteralRef,
+    ThinError, TypedValueRef,
 };
 
 /// Implementation of the SPARQL `strbefore` function.
@@ -57,15 +57,19 @@ impl ScalarSparqlOp for StrBeforeSparqlOp {
                     let value = if let Some(position) = args.lhs.find(args.rhs) {
                         &args.lhs[..position]
                     } else {
-                        return Ok(TypedValueRef::SimpleLiteral(SimpleLiteralRef { value: "" }));
+                        return Ok(TypedValueRef::SimpleLiteral(SimpleLiteralRef {
+                            value: "",
+                        }));
                     };
 
                     Ok(match args.language {
                         None => TypedValueRef::SimpleLiteral(SimpleLiteralRef { value }),
-                        Some(language) => TypedValueRef::LanguageStringLiteral(LanguageStringRef {
-                            value,
-                            language,
-                        }),
+                        Some(language) => {
+                            TypedValueRef::LanguageStringLiteral(LanguageStringRef {
+                                value,
+                                language,
+                            })
+                        }
                     })
                 },
                 |_, _| ThinError::expected(),

@@ -1,13 +1,13 @@
 use crate::extend::ExtendNode;
-use crate::join::{compute_sparql_join_columns, SparqlJoinNode, SparqlJoinType};
+use crate::join::{SparqlJoinNode, SparqlJoinType, compute_sparql_join_columns};
 use crate::logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use crate::minus::MinusNode;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{Column, DFSchemaRef};
 use datafusion::logical_expr::{
-    col, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort,
-    SortExpr, UserDefinedLogicalNode,
+    Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
+    UserDefinedLogicalNode, col,
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::{EncodingName, StaticDataTypeEncodingName};
@@ -62,7 +62,10 @@ pub struct RdfFusionLogicalPlanBuilder {
 
 impl RdfFusionLogicalPlanBuilder {
     /// Creates a new [RdfFusionLogicalPlanBuilder] with an existing `plan`.
-    pub(crate) fn new(context: RdfFusionLogicalPlanBuilderContext, plan: Arc<LogicalPlan>) -> Self {
+    pub(crate) fn new(
+        context: RdfFusionLogicalPlanBuilderContext,
+        plan: Arc<LogicalPlan>,
+    ) -> Self {
         let plan_builder = LogicalPlanBuilder::new_from_arc(plan);
         Self {
             plan_builder,
@@ -111,7 +114,11 @@ impl RdfFusionLogicalPlanBuilder {
     }
 
     /// Extends the current plan with a new variable binding.
-    pub fn extend(self, variable: Variable, expr: Expr) -> DFResult<RdfFusionLogicalPlanBuilder> {
+    pub fn extend(
+        self,
+        variable: Variable,
+        expr: Expr,
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let inner = self.plan_builder.build()?;
         let extend_node = ExtendNode::try_new(inner, variable, expr)?;
         Ok(Self {
@@ -243,9 +250,13 @@ impl RdfFusionLogicalPlanBuilder {
     }
 
     /// Removes duplicate solutions from the current plan, with additional sorting.
-    pub fn distinct_with_sort(self, sorts: Vec<SortExpr>) -> DFResult<RdfFusionLogicalPlanBuilder> {
+    pub fn distinct_with_sort(
+        self,
+        sorts: Vec<SortExpr>,
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let schema = self.plan_builder.schema();
-        let (on_expr, sorts) = create_distinct_on_expressions(self.expr_builder_root(), sorts)?;
+        let (on_expr, sorts) =
+            create_distinct_on_expressions(self.expr_builder_root(), sorts)?;
         let select_expr = schema.columns().into_iter().map(col).collect();
         let sorts = if sorts.is_empty() { None } else { Some(sorts) };
 
@@ -309,7 +320,10 @@ impl RdfFusionLogicalPlanBuilder {
     }
 
     /// TODO
-    fn align_encodings_of_common_columns(self, rhs: LogicalPlan) -> DFResult<(Self, LogicalPlan)> {
+    fn align_encodings_of_common_columns(
+        self,
+        rhs: LogicalPlan,
+    ) -> DFResult<(Self, LogicalPlan)> {
         let join_columns =
             compute_sparql_join_columns(self.schema().as_ref(), rhs.schema().as_ref())?;
 
@@ -317,8 +331,10 @@ impl RdfFusionLogicalPlanBuilder {
             return Ok((self, rhs));
         }
 
-        let lhs_expr_builder = self.context.expr_builder_context_with_schema(self.schema());
-        let rhs_expr_builder = self.context.expr_builder_context_with_schema(rhs.schema());
+        let lhs_expr_builder =
+            self.context.expr_builder_context_with_schema(self.schema());
+        let rhs_expr_builder =
+            self.context.expr_builder_context_with_schema(rhs.schema());
 
         let lhs_projections =
             build_projections_for_encoding_alignment(lhs_expr_builder, &join_columns)?;
@@ -331,7 +347,9 @@ impl RdfFusionLogicalPlanBuilder {
             build_projections_for_encoding_alignment(rhs_expr_builder, &join_columns)?;
         let rhs = match rhs_projections {
             None => rhs,
-            Some(projections) => LogicalPlanBuilder::new(rhs).project(projections)?.build()?,
+            Some(projections) => {
+                LogicalPlanBuilder::new(rhs).project(projections)?.build()?
+            }
         };
 
         let context = self.context.clone();
@@ -401,7 +419,9 @@ fn create_distinct_on_expressions(
 }
 
 /// Creates a `LogicalPlanBuilder` from a user-defined logical node.
-fn create_extension_plan(node: impl UserDefinedLogicalNode + 'static) -> LogicalPlanBuilder {
+fn create_extension_plan(
+    node: impl UserDefinedLogicalNode + 'static,
+) -> LogicalPlanBuilder {
     LogicalPlanBuilder::new(LogicalPlan::Extension(Extension {
         node: Arc::new(node),
     }))

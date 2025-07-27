@@ -1,12 +1,16 @@
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::TermEncoder;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::plain_term::{PlainTermArray, PlainTermEncoding, PlainTermScalar};
+use rdf_fusion_encoding::plain_term::{
+    PlainTermArray, PlainTermEncoding, PlainTermScalar,
+};
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueScalar};
-use rdf_fusion_encoding::TermEncoder;
+use rdf_fusion_encoding::typed_value::{
+    TypedValueArray, TypedValueEncoding, TypedValueScalar,
+};
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermDecoder};
 use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
 
@@ -54,7 +58,9 @@ pub fn dispatch_unary_owned_typed_value(
     error_op: impl Fn() -> ThinResult<TypedValue>,
 ) -> DFResult<ColumnarValue> {
     match arg0 {
-        EncodingDatum::Array(arg0) => dispatch_unary_owned_typed_value_array(arg0, op, error_op),
+        EncodingDatum::Array(arg0) => {
+            dispatch_unary_owned_typed_value_array(arg0, op, error_op)
+        }
         EncodingDatum::Scalar(arg0, _) => {
             dispatch_unary_owned_typed_value_scalar(arg0, op, error_op)
         }
@@ -110,7 +116,9 @@ pub fn dispatch_unary_plain_term<'data>(
 ) -> DFResult<ColumnarValue> {
     match arg0 {
         EncodingDatum::Array(arg0) => dispatch_unary_plain_term_array(arg0, op, error_op),
-        EncodingDatum::Scalar(arg0, _) => dispatch_unary_plain_term_scalar(arg0, op, error_op),
+        EncodingDatum::Scalar(arg0, _) => {
+            dispatch_unary_plain_term_scalar(arg0, op, error_op)
+        }
     }
 }
 

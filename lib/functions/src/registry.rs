@@ -1,5 +1,6 @@
 use crate::aggregates::{
-    avg_typed_value, group_concat_typed_value, max_typed_value, min_typed_value, sum_typed_value,
+    avg_typed_value, group_concat_typed_value, max_typed_value, min_typed_value,
+    sum_typed_value,
 };
 use crate::builtin::encoding::{
     with_plain_term_encoding, with_sortable_term_encoding, with_typed_value_encoding,
@@ -31,13 +32,16 @@ use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
 use crate::scalar::functional_form::{BoundSparqlOp, CoalesceSparqlOp, IfSparqlOp};
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
-use crate::scalar::numeric::{AddSparqlOp, DivSparqlOp, FloorSparqlOp, MulSparqlOp, SubSparqlOp};
+use crate::scalar::numeric::{
+    AddSparqlOp, DivSparqlOp, FloorSparqlOp, MulSparqlOp, SubSparqlOp,
+};
 use crate::scalar::numeric::{CeilSparqlOp, RandSparqlOp};
 use crate::scalar::strings::{
-    ConcatSparqlOp, ContainsSparqlOp, EncodeForUriSparqlOp, LCaseSparqlOp, LangMatchesSparqlOp,
-    Md5SparqlOp, RegexSparqlOp, ReplaceSparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp,
-    Sha512SparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrEndsSparqlOp, StrLenSparqlOp,
-    StrStartsSparqlOp, StrUuidSparqlOp, SubStrSparqlOp, UCaseSparqlOp,
+    ConcatSparqlOp, ContainsSparqlOp, EncodeForUriSparqlOp, LCaseSparqlOp,
+    LangMatchesSparqlOp, Md5SparqlOp, RegexSparqlOp, ReplaceSparqlOp, Sha1SparqlOp,
+    Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp,
+    StrEndsSparqlOp, StrLenSparqlOp, StrStartsSparqlOp, StrUuidSparqlOp, SubStrSparqlOp,
+    UCaseSparqlOp,
 };
 use crate::scalar::terms::{
     BNodeSparqlOp, DatatypeSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp,
@@ -45,7 +49,7 @@ use crate::scalar::terms::{
     StrSparqlOp, UuidSparqlOp,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
-use datafusion::common::{plan_err, HashMap};
+use datafusion::common::{HashMap, plan_err};
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs,
@@ -109,7 +113,10 @@ impl DefaultRdfFusionFunctionRegistry {
 }
 
 impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
-    fn supported_encodings(&self, function_name: FunctionName) -> DFResult<Vec<EncodingName>> {
+    fn supported_encodings(
+        &self,
+        function_name: FunctionName,
+    ) -> DFResult<Vec<EncodingName>> {
         if let Some((_, encodings)) = self.scalar_mapping.get(&function_name) {
             Ok(encodings.clone())
         } else {
@@ -174,7 +181,10 @@ where
     (factory, encodings)
 }
 
-fn create_scalar_udf<TSparqlOp>(encodings: RdfFusionEncodings, op: TSparqlOp) -> Arc<ScalarUDF>
+fn create_scalar_udf<TSparqlOp>(
+    encodings: RdfFusionEncodings,
+    op: TSparqlOp,
+) -> Arc<ScalarUDF>
 where
     TSparqlOp: ScalarSparqlOp + 'static,
 {
@@ -513,7 +523,8 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
     );
 
     let encodings = registry.encodings.clone();
-    let plain_term_factory = Box::new(move |_| Ok(with_plain_term_encoding(encodings.clone())));
+    let plain_term_factory =
+        Box::new(move |_| Ok(with_plain_term_encoding(encodings.clone())));
     registry.scalar_mapping.insert(
         FunctionName::Builtin(BuiltinName::WithPlainTermEncoding),
         (plain_term_factory, vec![]),

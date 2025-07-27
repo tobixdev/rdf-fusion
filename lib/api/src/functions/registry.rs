@@ -1,5 +1,5 @@
-use crate::functions::name::FunctionName;
 use crate::functions::RdfFusionFunctionArgs;
+use crate::functions::name::FunctionName;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingName;
@@ -22,7 +22,10 @@ pub type RdfFusionFunctionRegistryRef = Arc<dyn RdfFusionFunctionRegistry>;
 /// - [SPARQL 1.1 Query Language - Functions](https://www.w3.org/TR/sparql11-query/#SparqlOps)
 pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
     /// Returns the encodings supported by `function_name`.
-    fn supported_encodings(&self, function_name: FunctionName) -> DFResult<Vec<EncodingName>>;
+    fn supported_encodings(
+        &self,
+        function_name: FunctionName,
+    ) -> DFResult<Vec<EncodingName>>;
 
     /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
     fn create_udf(

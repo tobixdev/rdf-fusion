@@ -1,6 +1,6 @@
 use crate::encoding::EncodingScalar;
-use crate::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
-use datafusion::common::{exec_err, DataFusionError, ScalarValue};
+use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
+use datafusion::common::{DataFusionError, ScalarValue, exec_err};
 use rdf_fusion_common::DFResult;
 
 /// Represents an Arrow scalar with a [PlainTermEncoding].

@@ -1,6 +1,8 @@
 use crate::planner::RdfFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
-use crate::sparql::{evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults};
+use crate::sparql::{
+    Query, QueryExplanation, QueryOptions, QueryResults, evaluate_query,
+};
 use datafusion::dataframe::DataFrame;
 use datafusion::error::DataFusionError;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
@@ -8,9 +10,11 @@ use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::optimizer::{Optimizer, OptimizerRule};
 use datafusion::prelude::{SessionConfig, SessionContext};
-use rdf_fusion_api::functions::{RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef};
-use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_api::RdfFusionContextView;
+use rdf_fusion_api::functions::{
+    RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
+};
+use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
@@ -24,7 +28,9 @@ use rdf_fusion_logical::minus::MinusLoweringRule;
 use rdf_fusion_logical::paths::PropertyPathLoweringRule;
 use rdf_fusion_logical::patterns::PatternLoweringRule;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
-use rdf_fusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef};
+use rdf_fusion_model::{
+    GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef,
+};
 use std::sync::Arc;
 
 /// Represents a connection to an instance of an RDF Fusion engine.
@@ -63,8 +69,11 @@ impl RdfFusionContext {
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
-        let context_view =
-            RdfFusionContextView::new(Arc::clone(&registry), encodings.clone(), storage.encoding());
+        let context_view = RdfFusionContextView::new(
+            Arc::clone(&registry),
+            encodings.clone(),
+            storage.encoding(),
+        );
 
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))

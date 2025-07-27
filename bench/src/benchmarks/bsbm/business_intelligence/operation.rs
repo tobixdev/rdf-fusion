@@ -16,13 +16,14 @@ pub(super) fn list_raw_operations(
         .into_iter()
         .map(|record| {
             let query_id = record[0].parse::<u8>().expect("Can't parse query id");
-            let query_name =
-                BsbmBusinessIntelligenceQueryName::try_from(query_id).expect("Invalid query id");
+            let query_name = BsbmBusinessIntelligenceQueryName::try_from(query_id)
+                .expect("Invalid query id");
 
             match &record[1] {
-                "query" => {
-                    BsbmBusinessIntelligenceRawOperation::Query(query_name, record[2].into())
-                }
+                "query" => BsbmBusinessIntelligenceRawOperation::Query(
+                    query_name,
+                    record[2].into(),
+                ),
                 _ => panic!("Unexpected operation kind {}", &record[1]),
             }
         });

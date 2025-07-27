@@ -6,7 +6,9 @@ mod eval;
 mod explanation;
 mod rewriting;
 
-pub use crate::results::{QueryResults, QuerySolution, QuerySolutionStream, QueryTripleStream};
+pub use crate::results::{
+    QueryResults, QuerySolution, QuerySolutionStream, QueryTripleStream,
+};
 pub use crate::sparql::algebra::{Query, QueryDataset, Update};
 pub use crate::sparql::explanation::QueryExplanation;
 pub use eval::evaluate_query;

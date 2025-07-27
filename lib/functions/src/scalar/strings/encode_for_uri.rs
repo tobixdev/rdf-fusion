@@ -1,11 +1,11 @@
-use rdf_fusion_api::functions::BuiltinName;
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{ScalarSparqlOp, UnaryArgs};
-use rdf_fusion_api::functions::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{SimpleLiteral, ThinError, TypedValue, TypedValueRef};
 
 #[derive(Debug)]
@@ -54,9 +54,13 @@ impl ScalarSparqlOp for EncodeForUriSparqlOp {
                     let mut result = Vec::with_capacity(string.len());
                     for c in string.bytes() {
                         match c {
-                            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                                result.push(c)
-                            }
+                            b'A'..=b'Z'
+                            | b'a'..=b'z'
+                            | b'0'..=b'9'
+                            | b'-'
+                            | b'_'
+                            | b'.'
+                            | b'~' => result.push(c),
                             _ => {
                                 result.push(b'%');
                                 let high = c / 16;
