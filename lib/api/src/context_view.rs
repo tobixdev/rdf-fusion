@@ -1,10 +1,6 @@
-use crate::functions::RdfFusionFunctionRegistryRef;
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::sortable_term::SortableTermEncoding;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::QuadStorageEncoding;
 use crate::encoding::RdfFusionEncodingConfiguration;
+use crate::functions::RdfFusionFunctionRegistryRef;
+use rdf_fusion_encoding::QuadStorageEncoding;
 
 /// Represents a view of an RDF Fusion context.
 ///

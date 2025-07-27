@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-pub fn read_file(url: &str) -> Result<impl Read> {
+pub fn read_file(url: &str) -> Result<impl Read + use <>> {
     let path =
         Path::new(env!("CARGO_MANIFEST_DIR")).join(if url.starts_with("https://w3c.github.io/") {
             url.replace("https://w3c.github.io/", "")
