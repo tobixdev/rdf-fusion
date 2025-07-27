@@ -279,7 +279,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             vec![arg],
             distinct,
             None,
-            None,
+            Vec::new(),
             None,
         ));
 

@@ -4,7 +4,7 @@ use crate::paths::{COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET, PropertyPat
 use crate::patterns::PatternNode;
 use crate::{ActiveGraph, RdfFusionExprBuilderContext, check_same_schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, JoinType, plan_datafusion_err};
+use datafusion::common::{Column, JoinType, plan_datafusion_err, NullEquality};
 use datafusion::logical_expr::{
     Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, col,
 };
@@ -284,7 +284,7 @@ impl PropertyPathLoweringRule {
             JoinType::Inner,
             (Vec::<Column>::new(), Vec::<Column>::new()),
             Some(filter),
-            false,
+            NullEquality::NullEqualsNothing,
         )?;
         join_result.project([
             col(Column::new(Some("lhs"), COL_PATH_GRAPH)).alias(COL_PATH_GRAPH),
