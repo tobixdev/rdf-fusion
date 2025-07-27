@@ -12,12 +12,5 @@ rdf-fusion-model.workspace = true
 datafusion.workspace = true
 thiserror.workspace = true
 
-[dev-dependencies]
-codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
-
 [lints]
 workspace = true
-
-[[bench]]
-name = "builders"
-harness = false
