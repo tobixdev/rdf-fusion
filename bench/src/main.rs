@@ -1,6 +1,6 @@
 use clap::Parser;
 use rdf_fusion_bench::benchmarks::BenchmarkName;
-use rdf_fusion_bench::{execute_benchmark_operation, BenchmarkingOptions, Operation};
+use rdf_fusion_bench::{BenchmarkingOptions, Operation, execute_benchmark_operation};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

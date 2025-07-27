@@ -1,4 +1,4 @@
-use datafusion::common::{plan_err, DFSchemaRef};
+use datafusion::common::{DFSchemaRef, plan_err};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use std::cmp::Ordering;
 use std::fmt;
@@ -75,7 +75,9 @@ impl UserDefinedLogicalNodeCore for MinusNode {
 
         let input_len = inputs.len();
         let Ok([lhs, rhs]) = TryInto::<[LogicalPlan; 2]>::try_into(inputs) else {
-            return plan_err!("MinusNode must have exactly two inputs, actual: {input_len}");
+            return plan_err!(
+                "MinusNode must have exactly two inputs, actual: {input_len}"
+            );
         };
 
         Ok(Self::new(lhs, rhs))

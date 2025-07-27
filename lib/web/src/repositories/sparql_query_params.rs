@@ -1,8 +1,8 @@
-use crate::error::RdfFusionServerError;
 use crate::AppState;
+use crate::error::RdfFusionServerError;
+use axum::RequestPartsExt;
 use axum::extract::{FromRequestParts, Query};
 use axum::http::request::Parts;
-use axum::RequestPartsExt;
 use rdf_fusion::QueryOptions;
 use serde::Deserialize;
 

@@ -1,9 +1,9 @@
 use datafusion::logical_expr::ColumnarValue;
 use itertools::izip;
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
 use rdf_fusion_model::{ThinResult, TypedValue, TypedValueRef};
 
@@ -40,7 +40,11 @@ pub fn dispatch_ternary_owned_typed_value<'data>(
     arg0: &'data EncodingDatum<TypedValueEncoding>,
     arg1: &'data EncodingDatum<TypedValueEncoding>,
     arg2: &'data EncodingDatum<TypedValueEncoding>,
-    op: impl Fn(TypedValueRef<'_>, TypedValueRef<'_>, TypedValueRef<'_>) -> ThinResult<TypedValue>,
+    op: impl Fn(
+        TypedValueRef<'_>,
+        TypedValueRef<'_>,
+        TypedValueRef<'_>,
+    ) -> ThinResult<TypedValue>,
     error_op: impl Fn(
         ThinResult<TypedValueRef<'_>>,
         ThinResult<TypedValueRef<'_>>,

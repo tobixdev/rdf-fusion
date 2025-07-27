@@ -39,14 +39,13 @@ jobs:
           sudo apt-get install -y default-jre
 
       - name: Build the benchmark target(s)
-        # Limiting the number of jobs is an attempt to not violate GitHub's runner resources.
-        run: cargo codspeed build --profile codspeed
+        run: cargo codspeed build --profile profiling-nonlto
 
       - name: Prepare BSBM Benchmark
         working-directory: bench
         run: |
-          ../target/codspeed/rdf-fusion-bench prepare bsbm-explore --dataset-size 1000
-          ../target/codspeed/rdf-fusion-bench prepare bsbm-business-intelligence --dataset-size 1000
+          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-explore --dataset-size 1000
+          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-business-intelligence --dataset-size 1000
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3

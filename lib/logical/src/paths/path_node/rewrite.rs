@@ -1,31 +1,28 @@
 use crate::logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use crate::paths::kleene_plus::KleenePlusClosureNode;
-use crate::paths::{PropertyPathNode, COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET};
+use crate::paths::{COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET, PropertyPathNode};
 use crate::patterns::PatternNode;
-use crate::{check_same_schema, ActiveGraph, RdfFusionExprBuilderContext};
+use crate::{ActiveGraph, RdfFusionExprBuilderContext, check_same_schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_datafusion_err, Column, JoinType};
+use datafusion::common::{Column, JoinType, plan_datafusion_err};
 use datafusion::logical_expr::{
-    col, Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode,
+    Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, col,
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
-use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::{
-    NamedNode, NamedNodePattern, PropertyPathExpression, TermPattern, TermRef, TriplePattern,
-    Variable,
+    NamedNode, NamedNodePattern, PropertyPathExpression, TermPattern, TermRef,
+    TriplePattern, Variable,
 };
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PropertyPathLoweringRule {
-    /// Used for creating expressions with RDF Fusion builtins.
-    registry: RdfFusionFunctionRegistryRef,
-    /// The encoding of the underlying storage layer.
-    storage_encoding: QuadStorageEncoding,
+    /// The RDF Fusion configuration.
+    context: RdfFusionContextView,
 }
 
 impl OptimizerRule for PropertyPathLoweringRule {
@@ -58,18 +55,15 @@ impl OptimizerRule for PropertyPathLoweringRule {
 
 impl PropertyPathLoweringRule {
     /// Creates a new [PropertyPathLoweringRule].
-    pub fn new(
-        storage_encoding: QuadStorageEncoding,
-        registry: RdfFusionFunctionRegistryRef,
-    ) -> Self {
-        Self {
-            registry,
-            storage_encoding,
-        }
+    pub fn new(context: RdfFusionContextView) -> Self {
+        Self { context }
     }
 
     /// Rewrites a [PropertyPathNode] into a regular logical plan.
-    fn rewrite_property_path_node(&self, node: &PropertyPathNode) -> DFResult<LogicalPlan> {
+    fn rewrite_property_path_node(
+        &self,
+        node: &PropertyPathNode,
+    ) -> DFResult<LogicalPlan> {
         let inf = PropertyPathLoweringInformation {
             disallow_cross_graph_paths: node.graph_name_var().is_some(),
             active_graph: node.active_graph().clone(),
@@ -100,13 +94,21 @@ impl PropertyPathLoweringRule {
         match path {
             PropertyPathExpression::NamedNode(node) => self.rewrite_named_node(inf, node),
             PropertyPathExpression::Reverse(inner) => self.rewrite_reverse(inf, inner),
-            PropertyPathExpression::Sequence(lhs, rhs) => self.rewrite_sequence(inf, lhs, rhs),
+            PropertyPathExpression::Sequence(lhs, rhs) => {
+                self.rewrite_sequence(inf, lhs, rhs)
+            }
             PropertyPathExpression::Alternative(lhs, rhs) => {
                 self.rewrite_alternative(inf, lhs, rhs)
             }
-            PropertyPathExpression::ZeroOrMore(inner) => self.rewrite_zero_or_more(inf, inner),
-            PropertyPathExpression::OneOrMore(inner) => self.rewrite_one_or_more(inf, inner),
-            PropertyPathExpression::ZeroOrOne(inner) => self.rewrite_zero_or_one(inf, inner),
+            PropertyPathExpression::ZeroOrMore(inner) => {
+                self.rewrite_zero_or_more(inf, inner)
+            }
+            PropertyPathExpression::OneOrMore(inner) => {
+                self.rewrite_one_or_more(inf, inner)
+            }
+            PropertyPathExpression::ZeroOrOne(inner) => {
+                self.rewrite_zero_or_one(inf, inner)
+            }
             PropertyPathExpression::NegatedPropertySet(inner) => {
                 self.rewrite_negated_property_set(inf, inner)
             }
@@ -121,9 +123,8 @@ impl PropertyPathLoweringRule {
         node: &NamedNode,
     ) -> DFResult<LogicalPlanBuilder> {
         let filter = RdfFusionExprBuilderContext::new(
-            self.registry.as_ref(),
-            self.storage_encoding.object_id_encoding(),
-            &self.storage_encoding.quad_schema(),
+            &self.context,
+            &self.context.storage_encoding().quad_schema(),
         )
         .try_create_builder(col(COL_PREDICATE))?
         .build_same_term_scalar(TermRef::from(node.as_ref()))?;
@@ -137,13 +138,9 @@ impl PropertyPathLoweringRule {
         inf: &PropertyPathLoweringInformation,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
-        let schema = self.storage_encoding.quad_schema();
-        let predicate_builder = RdfFusionExprBuilderContext::new(
-            self.registry.as_ref(),
-            self.storage_encoding.object_id_encoding(),
-            &schema,
-        )
-        .try_create_builder(col(COL_PREDICATE))?;
+        let schema = self.context.storage_encoding().quad_schema();
+        let predicate_builder = RdfFusionExprBuilderContext::new(&self.context, &schema)
+            .try_create_builder(col(COL_PREDICATE))?;
 
         let test_expressions = nodes
             .iter()
@@ -223,10 +220,8 @@ impl PropertyPathLoweringRule {
         let inner = self.rewrite_property_path_expression(inf, inner)?;
 
         // The kleene node currenly only supports the plain term encoding.
-        let builder_context = RdfFusionLogicalPlanBuilderContext::new(
-            Arc::clone(&self.registry),
-            self.storage_encoding.clone(),
-        );
+        let builder_context =
+            RdfFusionLogicalPlanBuilderContext::new(self.context.clone());
         let inner = builder_context
             .create(Arc::new(inner.build()?))
             .with_plain_terms()?
@@ -280,11 +275,8 @@ impl PropertyPathLoweringRule {
         let rhs = rhs.alias("rhs")?;
 
         let join_schema = lhs.schema().join(rhs.schema())?;
-        let expr_builder_root = RdfFusionExprBuilderContext::new(
-            self.registry.as_ref(),
-            self.storage_encoding.object_id_encoding(),
-            &join_schema,
-        );
+        let expr_builder_root =
+            RdfFusionExprBuilderContext::new(&self.context, &join_schema);
         let filter = create_path_sequence_join_filter(inf, expr_builder_root)?;
 
         let join_result = lhs.join_detailed(
@@ -313,16 +305,13 @@ impl PropertyPathLoweringRule {
             object: TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
         };
 
-        let builder = RdfFusionLogicalPlanBuilderContext::new(
-            Arc::clone(&self.registry),
-            self.storage_encoding.clone(),
-        )
-        .create_pattern(
-            active_graph.clone(),
-            Some(Variable::new_unchecked(COL_GRAPH)),
-            pattern,
-        )
-        .with_plain_terms()?;
+        let builder = RdfFusionLogicalPlanBuilderContext::new(self.context.clone())
+            .create_pattern(
+                active_graph.clone(),
+                Some(Variable::new_unchecked(COL_GRAPH)),
+                pattern,
+            )
+            .with_plain_terms()?;
 
         // Apply filter if present
         let builder = if let Some(filter) = filter {

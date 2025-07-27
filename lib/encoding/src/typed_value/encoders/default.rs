@@ -1,9 +1,10 @@
 use crate::encoding::TermEncoder;
-use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding, TYPED_VALUE_ENCODING};
+use crate::typed_value::{
+    TYPED_VALUE_ENCODING, TypedValueArrayBuilder, TypedValueEncoding,
+};
 use crate::{EncodingArray, TermEncoding};
-use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{Numeric, ThinError, ThinResult, TypedValueRef};
+use rdf_fusion_model::{Numeric, ThinResult, TypedValueRef};
 
 #[derive(Debug)]
 pub struct DefaultTypedValueEncoder;
@@ -17,9 +18,15 @@ impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
         let mut value_builder = TypedValueArrayBuilder::default();
         for value in terms {
             match value {
-                Ok(TypedValueRef::NamedNode(value)) => value_builder.append_named_node(value)?,
-                Ok(TypedValueRef::BlankNode(value)) => value_builder.append_blank_node(value)?,
-                Ok(TypedValueRef::BooleanLiteral(value)) => value_builder.append_boolean(value)?,
+                Ok(TypedValueRef::NamedNode(value)) => {
+                    value_builder.append_named_node(value)?
+                }
+                Ok(TypedValueRef::BlankNode(value)) => {
+                    value_builder.append_blank_node(value)?
+                }
+                Ok(TypedValueRef::BooleanLiteral(value)) => {
+                    value_builder.append_boolean(value)?
+                }
                 Ok(TypedValueRef::NumericLiteral(Numeric::Float(value))) => {
                     value_builder.append_float(value)?
                 }
@@ -44,8 +51,12 @@ impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
                 Ok(TypedValueRef::DateTimeLiteral(value)) => {
                     value_builder.append_date_time(value)?
                 }
-                Ok(TypedValueRef::TimeLiteral(value)) => value_builder.append_time(value)?,
-                Ok(TypedValueRef::DateLiteral(value)) => value_builder.append_date(value)?,
+                Ok(TypedValueRef::TimeLiteral(value)) => {
+                    value_builder.append_time(value)?
+                }
+                Ok(TypedValueRef::DateLiteral(value)) => {
+                    value_builder.append_date(value)?
+                }
                 Ok(TypedValueRef::DurationLiteral(value)) => value_builder
                     .append_duration(Some(value.year_month()), Some(value.day_time()))?,
                 Ok(TypedValueRef::YearMonthDurationLiteral(value)) => {
@@ -57,10 +68,7 @@ impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
                 Ok(TypedValueRef::OtherLiteral(value)) => {
                     value_builder.append_other_literal(value)?
                 }
-                Err(ThinError::Expected) => value_builder.append_null()?,
-                Err(ThinError::InternalError(cause)) => {
-                    return exec_err!("Internal error during RDF operation: {cause}")
-                }
+                Err(_) => value_builder.append_null()?,
             }
         }
         TYPED_VALUE_ENCODING.try_new_array(value_builder.finish())

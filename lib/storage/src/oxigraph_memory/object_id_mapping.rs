@@ -1,17 +1,20 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::oxigraph_memory::object_id::{ObjectId, ObjectIdQuad, DEFAULT_GRAPH_OBJECT_ID};
+use crate::oxigraph_memory::object_id::{
+    DEFAULT_GRAPH_OBJECT_ID, ObjectId, ObjectIdQuad,
+};
 use dashmap::DashMap;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::error::DataFusionError;
-use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_common::DFResult;
+use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_encoding::object_id::{ObjectIdArray, ObjectIdMapping, ObjectIdScalar};
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::{PlainTermArray, PlainTermScalar};
 use rdf_fusion_encoding::{EncodingScalar, TermEncoder};
 use rdf_fusion_model::{
-    GraphName, GraphNameRef, NamedOrBlankNode, QuadRef, Term, TermRef, ThinError, ThinResult,
+    GraphName, GraphNameRef, NamedOrBlankNode, QuadRef, Term, TermRef, ThinError,
+    ThinResult,
 };
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
@@ -43,13 +46,19 @@ impl MemoryObjectIdMapping {
 
     /// TODO
     #[allow(clippy::same_name_method)]
-    pub fn try_get_object_id<'term>(&self, term: impl Into<TermRef<'term>>) -> Option<ObjectId> {
+    pub fn try_get_object_id<'term>(
+        &self,
+        term: impl Into<TermRef<'term>>,
+    ) -> Option<ObjectId> {
         let term_ref = term.into().into_owned();
         self.term2id.get(&term_ref).map(|id| *id)
     }
 
     /// TODO
-    pub fn try_get_object_id_for_graph_name(&self, graph: GraphNameRef<'_>) -> Option<ObjectId> {
+    pub fn try_get_object_id_for_graph_name(
+        &self,
+        graph: GraphNameRef<'_>,
+    ) -> Option<ObjectId> {
         match graph {
             GraphNameRef::NamedNode(nn) => self.try_get_object_id(nn),
             GraphNameRef::BlankNode(bnode) => self.try_get_object_id(bnode),
@@ -103,15 +112,19 @@ impl MemoryObjectIdMapping {
         }
     }
 
-    fn decode_opt(&self, object_id: Option<ObjectId>) -> Result<ThinResult<Term>, StorageError> {
+    fn decode_opt(
+        &self,
+        object_id: Option<ObjectId>,
+    ) -> Result<ThinResult<Term>, StorageError> {
         match object_id {
             None => Ok(ThinError::expected()),
-            Some(value) => self
-                .try_decode::<Option<Term>>(value)
-                .map(|term| match term {
-                    None => ThinError::expected(),
-                    Some(value) => Ok(value),
-                }),
+            Some(value) => {
+                self.try_decode::<Option<Term>>(value)
+                    .map(|term| match term {
+                        None => ThinError::expected(),
+                        Some(value) => Ok(value),
+                    })
+            }
         }
     }
 }
@@ -139,10 +152,12 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
             .collect::<Result<Vec<ThinResult<Term>>, _>>();
 
         match terms {
-            Ok(terms) => DefaultPlainTermEncoder::encode_terms(terms.iter().map(|res| match res {
-                Ok(t) => Ok(t.as_ref()),
-                Err(err) => Err(*err),
-            })),
+            Ok(terms) => {
+                DefaultPlainTermEncoder::encode_terms(terms.iter().map(|res| match res {
+                    Ok(t) => Ok(t.as_ref()),
+                    Err(err) => Err(*err),
+                }))
+            }
             Err(err) => Err(DataFusionError::External(Box::new(err))),
         }
     }
@@ -166,13 +181,19 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
 }
 
 pub trait Resolvable {
-    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError>
+    fn resolve(
+        mapping: &MemoryObjectIdMapping,
+        object_id: ObjectId,
+    ) -> Result<Self, StorageError>
     where
         Self: Sized;
 }
 
 impl Resolvable for Option<Term> {
-    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
+    fn resolve(
+        mapping: &MemoryObjectIdMapping,
+        object_id: ObjectId,
+    ) -> Result<Self, StorageError> {
         if object_id.is_default_graph() {
             return Ok(None);
         }
@@ -187,7 +208,10 @@ impl Resolvable for Option<Term> {
 }
 
 impl Resolvable for Term {
-    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
+    fn resolve(
+        mapping: &MemoryObjectIdMapping,
+        object_id: ObjectId,
+    ) -> Result<Self, StorageError> {
         Option::<Term>::resolve(mapping, object_id).and_then(|t| {
             t.ok_or(StorageError::Corruption(CorruptionError::msg(
                 "None term found.",
@@ -197,7 +221,10 @@ impl Resolvable for Term {
 }
 
 impl Resolvable for GraphName {
-    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
+    fn resolve(
+        mapping: &MemoryObjectIdMapping,
+        object_id: ObjectId,
+    ) -> Result<Self, StorageError> {
         if object_id.is_default_graph() {
             return Ok(GraphName::DefaultGraph);
         }
@@ -213,7 +240,10 @@ impl Resolvable for GraphName {
 }
 
 impl Resolvable for NamedOrBlankNode {
-    fn resolve(mapping: &MemoryObjectIdMapping, object_id: ObjectId) -> Result<Self, StorageError> {
+    fn resolve(
+        mapping: &MemoryObjectIdMapping,
+        object_id: ObjectId,
+    ) -> Result<Self, StorageError> {
         Term::resolve(mapping, object_id).and_then(|t| match t {
             Term::NamedNode(nn) => Ok(NamedOrBlankNode::NamedNode(nn)),
             Term::BlankNode(bnode) => Ok(NamedOrBlankNode::BlankNode(bnode)),

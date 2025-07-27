@@ -1,5 +1,5 @@
-use crate::error::RdfFusionServerError;
 use crate::AppState;
+use crate::error::RdfFusionServerError;
 use anyhow::anyhow;
 use axum::body::Body;
 use axum::extract::State;
@@ -21,7 +21,9 @@ pub async fn handle_data_post(
         .load_from_reader(parser, body.as_bytes())
         .await
         .map_err(|error| match error {
-            LoaderError::Parsing(err) => RdfFusionServerError::BadRequest(err.to_string()),
+            LoaderError::Parsing(err) => {
+                RdfFusionServerError::BadRequest(err.to_string())
+            }
             LoaderError::Storage(_) => {
                 RdfFusionServerError::Internal(anyhow!("Error with storage layer."))
             }

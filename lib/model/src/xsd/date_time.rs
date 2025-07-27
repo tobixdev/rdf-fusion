@@ -3,7 +3,7 @@
 use crate::xsd::decimal::Decimal;
 use crate::xsd::duration::{DayTimeDuration, Duration, YearMonthDuration};
 use crate::{ThinError, ThinResult};
-use std::cmp::{min, Ordering};
+use std::cmp::{Ordering, min};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -36,15 +36,17 @@ impl DateTime {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
-                year: Some(year),
-                month: Some(month),
-                day: Some(day),
-                hour: Some(hour),
-                minute: Some(minute),
-                second: Some(second),
-                timezone_offset,
-            })?,
+            timestamp: Timestamp::from_seven_property_model(
+                &DateTimeSevenPropertyModel {
+                    year: Some(year),
+                    month: Some(month),
+                    day: Some(day),
+                    hour: Some(hour),
+                    minute: Some(minute),
+                    second: Some(second),
+                    timezone_offset,
+                },
+            )?,
         })
     }
 
@@ -169,7 +171,10 @@ impl DateTime {
     ///
     /// Returns `Err` in case of overflow ([`FODT0001`](https://www.w3.org/TR/xpath-functions-31/#ERRFODT0001)).
     #[inline]
-    pub fn checked_add_day_time_duration(self, rhs: impl Into<Duration>) -> ThinResult<Self> {
+    pub fn checked_add_day_time_duration(
+        self,
+        rhs: impl Into<Duration>,
+    ) -> ThinResult<Self> {
         let rhs = rhs.into();
         Ok(Self {
             timestamp: self.timestamp.checked_add_seconds(rhs.all_seconds())?,
@@ -186,10 +191,9 @@ impl DateTime {
             self.checked_add_day_time_duration(rhs)
         } else {
             Ok(Self {
-                timestamp: Timestamp::from_seven_property_model(&date_time_plus_duration(
-                    rhs,
-                    &self.properties(),
-                )?)?,
+                timestamp: Timestamp::from_seven_property_model(
+                    &date_time_plus_duration(rhs, &self.properties())?,
+                )?,
             })
         }
     }
@@ -229,10 +233,9 @@ impl DateTime {
             self.checked_sub_day_time_duration(rhs)
         } else {
             Ok(Self {
-                timestamp: Timestamp::from_seven_property_model(&date_time_plus_duration(
-                    rhs.checked_neg()?,
-                    &self.properties(),
-                )?)?,
+                timestamp: Timestamp::from_seven_property_model(
+                    &date_time_plus_duration(rhs.checked_neg()?, &self.properties())?,
+                )?,
             })
         }
     }
@@ -351,15 +354,17 @@ impl Time {
             hour = 0;
         }
         Ok(Self {
-            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
-                year: None,
-                month: None,
-                day: None,
-                hour: Some(hour),
-                minute: Some(minute),
-                second: Some(second),
-                timezone_offset,
-            })?,
+            timestamp: Timestamp::from_seven_property_model(
+                &DateTimeSevenPropertyModel {
+                    year: None,
+                    month: None,
+                    day: None,
+                    hour: Some(hour),
+                    minute: Some(minute),
+                    second: Some(second),
+                    timezone_offset,
+                },
+            )?,
         })
     }
 
@@ -593,15 +598,17 @@ impl Date {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
-                year: Some(year),
-                month: Some(month),
-                day: Some(day),
-                hour: None,
-                minute: None,
-                second: None,
-                timezone_offset,
-            })?,
+            timestamp: Timestamp::from_seven_property_model(
+                &DateTimeSevenPropertyModel {
+                    year: Some(year),
+                    month: Some(month),
+                    day: Some(day),
+                    hour: None,
+                    minute: None,
+                    second: None,
+                    timezone_offset,
+                },
+            )?,
         })
     }
 
@@ -703,7 +710,7 @@ impl Date {
         DateTime::try_from(self)?
             .checked_add_duration(rhs)?
             .try_into()
-            .map_err(|_| ThinError::Expected)
+            .map_err(|_| ThinError::ExpectedError)
     }
 
     /// [op:subtract-yearMonthDuration-from-date](https://www.w3.org/TR/xpath-functions-31/#func-subtract-yearMonthDuration-from-date)
@@ -734,7 +741,7 @@ impl Date {
         DateTime::try_from(self)?
             .checked_sub_duration(rhs)?
             .try_into()
-            .map_err(|_| ThinError::Expected)
+            .map_err(|_| ThinError::ExpectedError)
     }
 
     // [fn:adjust-date-to-timezone](https://www.w3.org/TR/xpath-functions-31/#func-adjust-date-to-timezone)
@@ -751,7 +758,7 @@ impl Date {
         )?
         .adjust(timezone_offset)?
         .try_into()
-        .map_err(|_| ThinError::Expected)
+        .map_err(|_| ThinError::ExpectedError)
     }
 
     /// Checks if the two values are [identical](https://www.w3.org/TR/xmlschema11-2/#identity).
@@ -830,15 +837,17 @@ impl GYearMonth {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
-                year: Some(year),
-                month: Some(month),
-                day: None,
-                hour: None,
-                minute: None,
-                second: None,
-                timezone_offset,
-            })?,
+            timestamp: Timestamp::from_seven_property_model(
+                &DateTimeSevenPropertyModel {
+                    year: Some(year),
+                    month: Some(month),
+                    day: None,
+                    hour: None,
+                    minute: None,
+                    second: None,
+                    timezone_offset,
+                },
+            )?,
         })
     }
 
@@ -969,15 +978,17 @@ impl GYear {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
-                year: Some(year),
-                month: None,
-                day: None,
-                hour: None,
-                minute: None,
-                second: None,
-                timezone_offset,
-            })?,
+            timestamp: Timestamp::from_seven_property_model(
+                &DateTimeSevenPropertyModel {
+                    year: Some(year),
+                    month: None,
+                    day: None,
+                    hour: None,
+                    minute: None,
+                    second: None,
+                    timezone_offset,
+                },
+            )?,
         })
     }
 
@@ -1097,15 +1108,17 @@ impl GMonthDay {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
-                year: None,
-                month: Some(month),
-                day: Some(day),
-                hour: None,
-                minute: None,
-                second: None,
-                timezone_offset,
-            })?,
+            timestamp: Timestamp::from_seven_property_model(
+                &DateTimeSevenPropertyModel {
+                    year: None,
+                    month: Some(month),
+                    day: Some(day),
+                    hour: None,
+                    minute: None,
+                    second: None,
+                    timezone_offset,
+                },
+            )?,
         })
     }
 
@@ -1219,15 +1232,17 @@ impl GMonth {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
-                year: None,
-                month: Some(month),
-                day: None,
-                hour: None,
-                minute: None,
-                second: None,
-                timezone_offset,
-            })?,
+            timestamp: Timestamp::from_seven_property_model(
+                &DateTimeSevenPropertyModel {
+                    year: None,
+                    month: Some(month),
+                    day: None,
+                    hour: None,
+                    minute: None,
+                    second: None,
+                    timezone_offset,
+                },
+            )?,
         })
     }
 
@@ -1347,15 +1362,17 @@ impl GDay {
         timezone_offset: Option<TimezoneOffset>,
     ) -> Result<Self, DateTimeOverflowError> {
         Ok(Self {
-            timestamp: Timestamp::from_seven_property_model(&DateTimeSevenPropertyModel {
-                year: None,
-                month: None,
-                day: Some(day),
-                hour: None,
-                minute: None,
-                second: None,
-                timezone_offset,
-            })?,
+            timestamp: Timestamp::from_seven_property_model(
+                &DateTimeSevenPropertyModel {
+                    year: None,
+                    month: None,
+                    day: Some(day),
+                    hour: None,
+                    minute: None,
+                    second: None,
+                    timezone_offset,
+                },
+            )?,
         })
     }
 
@@ -1716,7 +1733,8 @@ impl Timestamp {
     #[must_use]
     fn year_month_day(&self) -> (i64, u8, u8) {
         let mut days = (self.value.as_i128()
-            + i128::from(self.timezone_offset.unwrap_or(TimezoneOffset::UTC).offset) * 60)
+            + i128::from(self.timezone_offset.unwrap_or(TimezoneOffset::UTC).offset)
+                * 60)
             .div_euclid(86400)
             + 366;
 
@@ -1744,8 +1762,11 @@ impl Timestamp {
         let year_mod_4 = days / 365;
         days -= year_mod_4 * 365;
 
-        let year =
-            (400 * year_mul_400 + 100 * year_mul_100 + 4 * year_mul_4 + year_mod_4 + shift) as i64;
+        let year = (400 * year_mul_400
+            + 100 * year_mul_100
+            + 4 * year_mul_4
+            + year_mod_4
+            + shift) as i64;
 
         let is_leap_year = (year_mul_100 == 0 || year_mul_4 != 0) && year_mod_4 == 0;
         days += i128::from(is_leap_year);
@@ -1790,7 +1811,8 @@ impl Timestamp {
     #[must_use]
     fn hour(&self) -> u8 {
         (((self.value.as_i128()
-            + i128::from(self.timezone_offset.unwrap_or(TimezoneOffset::UTC).offset) * 60)
+            + i128::from(self.timezone_offset.unwrap_or(TimezoneOffset::UTC).offset)
+                * 60)
             .rem_euclid(86400))
             / 3600) as u8
     }
@@ -1800,7 +1822,8 @@ impl Timestamp {
     #[must_use]
     fn minute(&self) -> u8 {
         (((self.value.as_i128()
-            + i128::from(self.timezone_offset.unwrap_or(TimezoneOffset::UTC).offset) * 60)
+            + i128::from(self.timezone_offset.unwrap_or(TimezoneOffset::UTC).offset)
+                * 60)
             .rem_euclid(3600))
             / 60) as u8
     }
@@ -1910,7 +1933,8 @@ fn since_unix_epoch() -> Duration {
 fn normalize_month(yr: i64, mo: i64) -> Option<(i64, u8)> {
     if mo >= 0 {
         let yr = yr.checked_add(mo.checked_sub(1)?.checked_div(12)?)?;
-        let mo = u8::try_from(mo.checked_sub(1)?.checked_rem(12)?.abs().checked_add(1)?).ok()?;
+        let mo = u8::try_from(mo.checked_sub(1)?.checked_rem(12)?.abs().checked_add(1)?)
+            .ok()?;
         Some((yr, mo))
     } else {
         // Needed to make it work with negative durations
@@ -1946,7 +1970,13 @@ fn normalize_day(yr: i64, mo: i64, mut da: i64) -> Option<(i64, u8, u8)> {
 }
 
 /// The [normalizeMinute](https://www.w3.org/TR/xmlschema11-2/#f-dt-normMi) function
-fn normalize_minute(yr: i64, mo: i64, da: i64, hr: i64, mi: i64) -> Option<(i64, u8, u8, u8, u8)> {
+fn normalize_minute(
+    yr: i64,
+    mo: i64,
+    da: i64,
+    hr: i64,
+    mi: i64,
+) -> Option<(i64, u8, u8, u8, u8)> {
     let hr = hr.checked_add(mi.checked_div(60)?)?;
     let mi = mi.checked_rem(60)?;
     let da = da.checked_add(hr.checked_div(24)?)?;
@@ -2002,13 +2032,13 @@ fn date_time_plus_duration(
     let se = dt.second.unwrap_or_default();
     let mo = i64::from(mo)
         .checked_add(du.all_months())
-        .ok_or(ThinError::Expected)?;
-    let (yr, mo) = normalize_month(yr, mo).ok_or(ThinError::Expected)?;
+        .ok_or(ThinError::ExpectedError)?;
+    let (yr, mo) = normalize_month(yr, mo).ok_or(ThinError::ExpectedError)?;
     let da = min(da, days_in_month(Some(yr), mo));
     let se = se.checked_add(du.all_seconds())?;
     let (yr, mo, da, hr, mi, se) =
         normalize_second(yr, mo.into(), da.into(), hr.into(), mi.into(), se)
-            .ok_or(ThinError::Expected)?;
+            .ok_or(ThinError::ExpectedError)?;
 
     Ok(DateTimeSevenPropertyModel {
         year: dt.year.map(|_| yr),
@@ -2035,7 +2065,8 @@ fn time_on_timeline(props: &DateTimeSevenPropertyModel) -> ThinResult<Decimal> {
 
     Decimal::try_from(
         31_536_000 * i128::from(yr)
-            + 86400 * i128::from(yr.div_euclid(400) - yr.div_euclid(100) + yr.div_euclid(4))
+            + 86400
+                * i128::from(yr.div_euclid(400) - yr.div_euclid(100) + yr.div_euclid(4))
             + 86400
                 * (1..mo)
                     .map(|m| i128::from(days_in_month(Some(yr + 1), m)))
@@ -2079,7 +2110,8 @@ fn date_time_lexical_rep(input: &str) -> Result<(DateTime, &str), ParseDateTimeE
     let (day, input) = day_frag(input)?;
     let input = expect_char(input, 'T', "The date and time must be separated by 'T'")?;
     let (hour, input) = hour_frag(input)?;
-    let input = expect_char(input, ':', "The hours and minutes must be separated by ':'")?;
+    let input =
+        expect_char(input, ':', "The hours and minutes must be separated by ':'")?;
     let (minute, input) = minute_frag(input)?;
     let input = expect_char(
         input,
@@ -2112,7 +2144,8 @@ fn date_time_lexical_rep(input: &str) -> Result<(DateTime, &str), ParseDateTimeE
 // [17]   timeLexicalRep ::= ((hourFrag ':' minuteFrag ':' secondFrag) | endOfDayFrag) timezoneFrag?
 fn time_lexical_rep(input: &str) -> Result<(Time, &str), ParseDateTimeError> {
     let (hour, input) = hour_frag(input)?;
-    let input = expect_char(input, ':', "The hours and minutes must be separated by ':'")?;
+    let input =
+        expect_char(input, ':', "The hours and minutes must be separated by ':'")?;
     let (minute, input) = minute_frag(input)?;
     let input = expect_char(
         input,
@@ -2146,7 +2179,9 @@ fn date_lexical_rep(input: &str) -> Result<(Date, &str), ParseDateTimeError> {
 }
 
 // [19]   gYearMonthLexicalRep ::= yearFrag '-' monthFrag timezoneFrag?
-fn g_year_month_lexical_rep(input: &str) -> Result<(GYearMonth, &str), ParseDateTimeError> {
+fn g_year_month_lexical_rep(
+    input: &str,
+) -> Result<(GYearMonth, &str), ParseDateTimeError> {
     let (year, input) = year_frag(input)?;
     let input = expect_char(input, '-', "The year and month must be separated by '-'")?;
     let (month, input) = month_frag(input)?;
@@ -2332,8 +2367,9 @@ fn timezone_frag(input: &str) -> Result<(TimezoneOffset, &str), ParseDateTimeErr
     }
 
     Ok((
-        TimezoneOffset::new(sign * (hours * 60 + i16::from(minutes)))
-            .map_err(|e| ParseDateTimeError(ParseDateTimeErrorKind::InvalidTimezone(e)))?,
+        TimezoneOffset::new(sign * (hours * 60 + i16::from(minutes))).map_err(|e| {
+            ParseDateTimeError(ParseDateTimeErrorKind::InvalidTimezone(e))
+        })?,
         input,
     ))
 }
@@ -2400,7 +2436,11 @@ fn optional_end<T>(
     })
 }
 
-fn validate_day_of_month(year: Option<i64>, month: u8, day: u8) -> Result<(), ParseDateTimeError> {
+fn validate_day_of_month(
+    year: Option<i64>,
+    month: u8,
+    day: u8,
+) -> Result<(), ParseDateTimeError> {
     // Constraint: Day-of-month Values
     if day > days_in_month(year, month) {
         return Err(ParseDateTimeError(
@@ -2619,7 +2659,9 @@ mod tests {
             DateTime::MAX
         );
         assert_eq!(
-            DateTime::from_be_bytes(DateTime::from_str("2022-01-03T01:02:03")?.to_be_bytes()),
+            DateTime::from_be_bytes(
+                DateTime::from_str("2022-01-03T01:02:03")?.to_be_bytes()
+            ),
             DateTime::from_str("2022-01-03T01:02:03")?
         );
         assert_eq!(Date::from_be_bytes(Date::MIN.to_be_bytes()), Date::MIN);
@@ -2755,10 +2797,14 @@ mod tests {
     #[allow(clippy::neg_cmp_op_on_partial_ord)]
     fn cmp() -> Result<(), ParseDateTimeError> {
         assert!(Date::from_str("2004-12-25Z")? < Date::from_str("2004-12-25-05:00")?);
-        assert!(!(Date::from_str("2004-12-25-12:00")? < Date::from_str("2004-12-26+12:00")?));
+        assert!(
+            !(Date::from_str("2004-12-25-12:00")? < Date::from_str("2004-12-26+12:00")?)
+        );
 
         assert!(Date::from_str("2004-12-25Z")? > Date::from_str("2004-12-25+07:00")?);
-        assert!(!(Date::from_str("2004-12-25-12:00")? > Date::from_str("2004-12-26+12:00")?));
+        assert!(
+            !(Date::from_str("2004-12-25-12:00")? > Date::from_str("2004-12-26+12:00")?)
+        );
 
         assert!(!(Time::from_str("12:00:00")? < Time::from_str("23:00:00+06:00")?));
         assert!(Time::from_str("11:00:00-05:00")? < Time::from_str("17:00:00Z")?);
@@ -2766,16 +2812,20 @@ mod tests {
 
         assert!(!(Time::from_str("08:00:00+09:00")? > Time::from_str("17:00:00-06:00")?));
 
-        assert!(GMonthDay::from_str("--12-12+13:00")? < GMonthDay::from_str("--12-12+11:00")?);
+        assert!(
+            GMonthDay::from_str("--12-12+13:00")? < GMonthDay::from_str("--12-12+11:00")?
+        );
         assert!(GDay::from_str("---15")? < GDay::from_str("---16")?);
         assert!(GDay::from_str("---15-13:00")? > GDay::from_str("---16+13:00")?);
         assert_eq!(
             GDay::from_str("---15-11:00")?,
             GDay::from_str("---16+13:00")?
         );
-        assert!(GDay::from_str("---15-13:00")?
-            .partial_cmp(&GDay::from_str("---16")?)
-            .is_none());
+        assert!(
+            GDay::from_str("---15-13:00")?
+                .partial_cmp(&GDay::from_str("---16")?)
+                .is_none()
+        );
         Ok(())
     }
 
@@ -2914,11 +2964,13 @@ mod tests {
             Ok(DayTimeDuration::from_str("P337D")?)
         );
         assert_eq!(
-            Date::from_str("2000-10-30+05:00")?.checked_sub(Date::from_str("1999-11-28Z")?),
+            Date::from_str("2000-10-30+05:00")?
+                .checked_sub(Date::from_str("1999-11-28Z")?),
             Ok(DayTimeDuration::from_str("P336DT19H")?)
         );
         assert_eq!(
-            Date::from_str("2000-10-15-05:00")?.checked_sub(Date::from_str("2000-10-10+02:00")?),
+            Date::from_str("2000-10-15-05:00")?
+                .checked_sub(Date::from_str("2000-10-10+02:00")?),
             Ok(DayTimeDuration::from_str("P5DT7H")?)
         );
 
@@ -2927,11 +2979,13 @@ mod tests {
             Ok(DayTimeDuration::from_str("PT2H12M")?)
         );
         assert_eq!(
-            Time::from_str("11:00:00-05:00")?.checked_sub(Time::from_str("21:30:00+05:30")?),
+            Time::from_str("11:00:00-05:00")?
+                .checked_sub(Time::from_str("21:30:00+05:30")?),
             Ok(DayTimeDuration::from_str("PT0S")?)
         );
         assert_eq!(
-            Time::from_str("17:00:00-06:00")?.checked_sub(Time::from_str("08:00:00+09:00")?),
+            Time::from_str("17:00:00-06:00")?
+                .checked_sub(Time::from_str("08:00:00+09:00")?),
             Ok(DayTimeDuration::from_str("P1D")?)
         );
         assert_eq!(
@@ -2949,27 +3003,33 @@ mod tests {
             Ok(DateTime::from_str("2001-04-17T19:23:17.3Z")?)
         );
         assert_eq!(
-            Date::from_str("2000-01-01")?.checked_add_duration(Duration::from_str("-P3M")?),
+            Date::from_str("2000-01-01")?
+                .checked_add_duration(Duration::from_str("-P3M")?),
             Ok(Date::from_str("1999-10-01")?)
         );
         assert_eq!(
-            Date::from_str("2000-01-12")?.checked_add_duration(Duration::from_str("PT33H")?),
+            Date::from_str("2000-01-12")?
+                .checked_add_duration(Duration::from_str("PT33H")?),
             Ok(Date::from_str("2000-01-13")?)
         );
         assert_eq!(
-            Date::from_str("2000-03-30")?.checked_add_duration(Duration::from_str("P1D")?),
+            Date::from_str("2000-03-30")?
+                .checked_add_duration(Duration::from_str("P1D")?),
             Ok(Date::from_str("2000-03-31")?)
         );
         assert_eq!(
-            Date::from_str("2000-03-31")?.checked_add_duration(Duration::from_str("P1M")?),
+            Date::from_str("2000-03-31")?
+                .checked_add_duration(Duration::from_str("P1M")?),
             Ok(Date::from_str("2000-04-30")?)
         );
         assert_eq!(
-            Date::from_str("2000-03-30")?.checked_add_duration(Duration::from_str("P1M")?),
+            Date::from_str("2000-03-30")?
+                .checked_add_duration(Duration::from_str("P1M")?),
             Ok(Date::from_str("2000-04-30")?)
         );
         assert_eq!(
-            Date::from_str("2000-04-30")?.checked_add_duration(Duration::from_str("P1D")?),
+            Date::from_str("2000-04-30")?
+                .checked_add_duration(Duration::from_str("P1D")?),
             Ok(Date::from_str("2000-05-01")?)
         );
 
@@ -2985,16 +3045,19 @@ mod tests {
         );
 
         assert_eq!(
-            Date::from_str("2000-10-30")?.checked_add_duration(Duration::from_str("P1Y2M")?),
+            Date::from_str("2000-10-30")?
+                .checked_add_duration(Duration::from_str("P1Y2M")?),
             Ok(Date::from_str("2001-12-30")?)
         );
         assert_eq!(
-            Date::from_str("2004-10-30Z")?.checked_add_duration(Duration::from_str("P2DT2H30M0S")?),
+            Date::from_str("2004-10-30Z")?
+                .checked_add_duration(Duration::from_str("P2DT2H30M0S")?),
             Ok(Date::from_str("2004-11-01Z")?)
         );
 
         assert_eq!(
-            Time::from_str("11:12:00")?.checked_add_duration(Duration::from_str("P3DT1H15M")?),
+            Time::from_str("11:12:00")?
+                .checked_add_duration(Duration::from_str("P3DT1H15M")?),
             Ok(Time::from_str("12:27:00")?)
         );
         assert_eq!(
@@ -3019,24 +3082,29 @@ mod tests {
         );
 
         assert_eq!(
-            Date::from_str("2000-10-30")?.checked_sub_duration(Duration::from_str("P1Y2M")?),
+            Date::from_str("2000-10-30")?
+                .checked_sub_duration(Duration::from_str("P1Y2M")?),
             Ok(Date::from_str("1999-08-30")?)
         );
         assert_eq!(
-            Date::from_str("2000-02-29Z")?.checked_sub_duration(Duration::from_str("P1Y")?),
+            Date::from_str("2000-02-29Z")?
+                .checked_sub_duration(Duration::from_str("P1Y")?),
             Ok(Date::from_str("1999-02-28Z")?)
         );
         assert_eq!(
-            Date::from_str("2000-10-31-05:00")?.checked_sub_duration(Duration::from_str("P1Y1M")?),
+            Date::from_str("2000-10-31-05:00")?
+                .checked_sub_duration(Duration::from_str("P1Y1M")?),
             Ok(Date::from_str("1999-09-30-05:00")?)
         );
         assert_eq!(
-            Date::from_str("2000-10-30")?.checked_sub_duration(Duration::from_str("P3DT1H15M")?),
+            Date::from_str("2000-10-30")?
+                .checked_sub_duration(Duration::from_str("P3DT1H15M")?),
             Ok(Date::from_str("2000-10-26")?)
         );
 
         assert_eq!(
-            Time::from_str("11:12:00")?.checked_sub_duration(Duration::from_str("P3DT1H15M")?),
+            Time::from_str("11:12:00")?
+                .checked_sub_duration(Duration::from_str("P3DT1H15M")?),
             Ok(Time::from_str("09:57:00")?)
         );
         assert_eq!(

@@ -7,7 +7,8 @@ use std::fmt::{Display, Formatter};
 
 pub use benchmark::BsbmBusinessIntelligenceBenchmark;
 
-pub(super) const BSBM_BUSINESS_INTELLIGENCE_QUERIES: [BsbmBusinessIntelligenceQueryName; 8] = [
+pub(super) const BSBM_BUSINESS_INTELLIGENCE_QUERIES: [BsbmBusinessIntelligenceQueryName;
+    8] = [
     BsbmBusinessIntelligenceQueryName::Q1,
     BsbmBusinessIntelligenceQueryName::Q2,
     BsbmBusinessIntelligenceQueryName::Q3,

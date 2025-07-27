@@ -1,7 +1,7 @@
-use crate::benchmarks::BenchmarkName;
-use crate::prepare::{ensure_file_download, prepare_file_download};
-use crate::prepare::{prepare_run_command, PrepRequirement};
 use crate::BenchmarkingOptions;
+use crate::benchmarks::BenchmarkName;
+use crate::prepare::{PrepRequirement, prepare_run_command};
+use crate::prepare::{ensure_file_download, prepare_file_download};
 use anyhow::bail;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,7 +19,11 @@ pub struct RdfFusionBenchContext {
 
 impl RdfFusionBenchContext {
     /// Creates a new [RdfFusionBenchContext].
-    pub fn new(options: BenchmarkingOptions, data_dir: PathBuf, results_dir: PathBuf) -> Self {
+    pub fn new(
+        options: BenchmarkingOptions,
+        data_dir: PathBuf,
+        results_dir: PathBuf,
+    ) -> Self {
         Self {
             options,
             data_dir,
@@ -42,7 +46,10 @@ impl RdfFusionBenchContext {
     }
 
     /// Prepares the context such that `requirement` is fulfilled.
-    pub async fn prepare_requirement(&self, requirement: PrepRequirement) -> anyhow::Result<()> {
+    pub async fn prepare_requirement(
+        &self,
+        requirement: PrepRequirement,
+    ) -> anyhow::Result<()> {
         match requirement {
             PrepRequirement::FileDownload {
                 url,

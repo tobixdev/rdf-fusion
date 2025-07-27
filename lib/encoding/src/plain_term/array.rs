@@ -1,6 +1,6 @@
-use crate::encoding::EncodingArray;
-use crate::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
 use crate::TermEncoding;
+use crate::encoding::EncodingArray;
+use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::common::exec_err;
 use datafusion::error::DataFusionError;

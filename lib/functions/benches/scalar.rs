@@ -1,11 +1,14 @@
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use datafusion::arrow::datatypes::Field;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
-use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
-use rdf_fusion_encoding::TermEncoding;
-use rdf_fusion_functions::builtin::BuiltinName;
-use rdf_fusion_functions::registry::{DefaultRdfFusionFunctionRegistry, RdfFusionFunctionRegistry};
-use rdf_fusion_functions::{FunctionName, RdfFusionFunctionArgs};
+use rdf_fusion_api::functions::{
+    BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
+};
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
+use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
+use rdf_fusion_encoding::{RdfFusionEncodings, TermEncoding};
+use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_model::{BlankNode, Float, Integer, NamedNodeRef};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -24,7 +27,7 @@ impl UnaryScenario {
                 for i in 0..8192 {
                     payload_builder
                         .append_named_node(NamedNodeRef::new_unchecked(
-                            format!("http://example.com/{}", i).as_str(),
+                            format!("http://example.com/{i}").as_str(),
                         ))
                         .unwrap();
                 }
@@ -37,19 +40,15 @@ impl UnaryScenario {
                         0 => {
                             payload_builder
                                 .append_named_node(NamedNodeRef::new_unchecked(
-                                    format!("http://example.com/{}", i).as_str(),
+                                    format!("http://example.com/{i}").as_str(),
                                 ))
                                 .unwrap();
                         }
                         1 => {
-                            payload_builder
-                                .append_integer(Integer::try_from(i).unwrap())
-                                .unwrap();
+                            payload_builder.append_integer(Integer::from(i)).unwrap();
                         }
                         2 => {
-                            payload_builder
-                                .append_float(Float::try_from(i as i16).unwrap())
-                                .unwrap();
+                            payload_builder.append_float(Float::from(i as i16)).unwrap();
                         }
                         _ => {
                             payload_builder
@@ -65,7 +64,14 @@ impl UnaryScenario {
 }
 
 fn bench_all(c: &mut Criterion) {
-    let registry = DefaultRdfFusionFunctionRegistry::new(None);
+    let encodings = RdfFusionEncodings::new(
+        PLAIN_TERM_ENCODING,
+        TYPED_VALUE_ENCODING,
+        None,
+        SORTABLE_TERM_ENCODING,
+    );
+    let registry = DefaultRdfFusionFunctionRegistry::new(encodings);
+
     let runs = HashMap::from([(
         BuiltinName::IsIri,
         [UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
@@ -86,11 +92,17 @@ fn bench_all(c: &mut Criterion) {
 }
 
 /// Runs a single `scenario` against the `function` to bench.
-fn bench_unary_function(c: &mut Criterion, function: &ScalarUDF, scenario: UnaryScenario) {
+fn bench_unary_function(
+    c: &mut Criterion,
+    function: &ScalarUDF,
+    scenario: UnaryScenario,
+) {
     let args = scenario.create_args();
 
-    let input_field = Arc::new(Field::new("input", TYPED_VALUE_ENCODING.data_type(), true));
-    let return_field = Arc::new(Field::new("result", TYPED_VALUE_ENCODING.data_type(), true));
+    let input_field =
+        Arc::new(Field::new("input", TYPED_VALUE_ENCODING.data_type(), true));
+    let return_field =
+        Arc::new(Field::new("result", TYPED_VALUE_ENCODING.data_type(), true));
 
     let name = format!("{}_{scenario:?}", function.name());
     c.bench_function(&name, |b| {

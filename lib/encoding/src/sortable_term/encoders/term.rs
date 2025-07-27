@@ -1,10 +1,9 @@
 use crate::encoding::TermEncoder;
-use crate::sortable_term::encoders::TypedValueRefSortableTermEncoder;
 use crate::sortable_term::SortableTermEncoding;
+use crate::sortable_term::encoders::TypedValueRefSortableTermEncoder;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
-use crate::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
+use crate::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use crate::{EncodingArray, TermDecoder, TermEncoding};
-use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
 
@@ -20,18 +19,16 @@ impl TermEncoder<SortableTermEncoding> for TermRefSortableTermEncoder {
         let mut typed_values_array = TypedValueArrayBuilder::default();
         for term in terms {
             let value: ThinResult<TypedValueRef<'_>> =
-                term.and_then(|t| t.try_into().map_err(|_| ThinError::Expected));
+                term.and_then(|t| t.try_into().map_err(|_| ThinError::ExpectedError));
             match value {
                 Ok(value) => typed_values_array.append_typed_value(value)?,
-                Err(ThinError::Expected) => {
+                Err(_) => {
                     typed_values_array.append_null()?;
-                }
-                Err(ThinError::InternalError(err)) => {
-                    return exec_err!("Error while obtaining terms: {err}")
                 }
             }
         }
-        let typed_values = TYPED_VALUE_ENCODING.try_new_array(typed_values_array.finish())?;
+        let typed_values =
+            TYPED_VALUE_ENCODING.try_new_array(typed_values_array.finish())?;
 
         let typed_values = DefaultTypedValueDecoder::decode_terms(&typed_values);
         TypedValueRefSortableTermEncoder::encode_terms(typed_values)

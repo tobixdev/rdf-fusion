@@ -1,4 +1,5 @@
-use rdf_fusion_model::ThinError;
+use std::fmt::Display;
+use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(super) enum SortableTermType {
@@ -17,8 +18,17 @@ pub(super) enum SortableTermType {
     UnsupportedLiteral,
 }
 
+#[derive(Debug, Clone, Copy, Default, Error, PartialEq, Eq, Hash)]
+pub struct UnknownSortableTermTypeError;
+
+impl Display for UnknownSortableTermTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Invalid value for SortableTermType")
+    }
+}
+
 impl TryFrom<u8> for SortableTermType {
-    type Error = ThinError;
+    type Error = UnknownSortableTermTypeError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let term_type = match value {
@@ -35,7 +45,7 @@ impl TryFrom<u8> for SortableTermType {
             10 => SortableTermType::YearMonthDuration,
             11 => SortableTermType::DayTimeDuration,
             12 => SortableTermType::UnsupportedLiteral,
-            _ => return ThinError::internal_error("Invalid value for SortableTermType."),
+            _ => return Err(UnknownSortableTermTypeError),
         };
         Ok(term_type)
     }

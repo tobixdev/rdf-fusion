@@ -1,11 +1,13 @@
 use crate::active_graph::ActiveGraph;
 use crate::patterns::compute_schema_for_triple_pattern;
-use datafusion::common::{plan_err, DFSchemaRef};
+use datafusion::common::{DFSchemaRef, plan_err};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable, VariableRef};
+use rdf_fusion_model::{
+    NamedNodePattern, TermPattern, TriplePattern, Variable, VariableRef,
+};
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Formatter;
@@ -95,13 +97,18 @@ impl QuadPatternNode {
 
     /// Creates a new [QuadPatternNode] that returns all quads in `active_graph` using the default
     /// quads schema.
-    pub fn new_all_quads(storage_encoding: QuadStorageEncoding, active_graph: ActiveGraph) -> Self {
+    pub fn new_all_quads(
+        storage_encoding: QuadStorageEncoding,
+        active_graph: ActiveGraph,
+    ) -> Self {
         Self {
             active_graph,
             graph_variable: Some(Variable::new_unchecked(COL_GRAPH)),
             pattern: TriplePattern {
                 subject: TermPattern::Variable(Variable::new_unchecked(COL_SUBJECT)),
-                predicate: NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
+                predicate: NamedNodePattern::Variable(Variable::new_unchecked(
+                    COL_PREDICATE,
+                )),
                 object: TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
             },
             blank_node_mode: BlankNodeMatchingMode::Filter, // Doesn't matter here
@@ -175,7 +182,11 @@ impl UserDefinedLogicalNodeCore for QuadPatternNode {
         Ok(())
     }
 
-    fn with_exprs_and_inputs(&self, exprs: Vec<Expr>, inputs: Vec<LogicalPlan>) -> DFResult<Self> {
+    fn with_exprs_and_inputs(
+        &self,
+        exprs: Vec<Expr>,
+        inputs: Vec<LogicalPlan>,
+    ) -> DFResult<Self> {
         if !inputs.is_empty() {
             return plan_err!("QuadPatternNode has no inputs, got {}.", inputs.len());
         }

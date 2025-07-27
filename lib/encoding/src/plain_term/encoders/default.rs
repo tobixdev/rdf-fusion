@@ -1,9 +1,8 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding, PLAIN_TERM_ENCODING};
+use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder, PlainTermEncoding};
 use crate::{EncodingArray, TermEncoding};
-use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{TermRef, ThinResult};
 
 #[derive(Debug)]
 pub struct DefaultPlainTermEncoder;
@@ -20,10 +19,7 @@ impl TermEncoder<PlainTermEncoding> for DefaultPlainTermEncoder {
                 Ok(TermRef::NamedNode(value)) => value_builder.append_named_node(value),
                 Ok(TermRef::BlankNode(value)) => value_builder.append_blank_node(value),
                 Ok(TermRef::Literal(value)) => value_builder.append_literal(value),
-                Err(ThinError::Expected) => value_builder.append_null(),
-                Err(ThinError::InternalError(cause)) => {
-                    return exec_err!("Internal error during RDF operation: {cause}")
-                }
+                Err(_) => value_builder.append_null(),
             }
         }
         PLAIN_TERM_ENCODING.try_new_array(value_builder.finish())

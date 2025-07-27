@@ -1,11 +1,11 @@
-use crate::error::RdfFusionServerError;
 use crate::AppState;
+use crate::error::RdfFusionServerError;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use headers::HeaderMapExt;
 use headers_accept::Accept;
 use mediatype::names::{
-    APPLICATION, CSV, JSON, N3, N_QUADS, N_TRIPLES, PLAIN, TEXT, TRIG, TURTLE, XML,
+    APPLICATION, CSV, JSON, N_QUADS, N_TRIPLES, N3, PLAIN, TEXT, TRIG, TURTLE, XML,
 };
 use mediatype::{MediaType, Name};
 use rdf_fusion::io::RdfFormat;
@@ -128,8 +128,12 @@ mod tests {
 
     #[test]
     fn test_content_negotiation_no_accept_returns_default() {
-        let result =
-            content_negotiation(None, &MEDIA_TYPES, &DEFAULT_MEDIA_TYPE, "application/json");
+        let result = content_negotiation(
+            None,
+            &MEDIA_TYPES,
+            &DEFAULT_MEDIA_TYPE,
+            "application/json",
+        );
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), MediaType::new(APPLICATION, JSON));
     }

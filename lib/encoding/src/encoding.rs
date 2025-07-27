@@ -1,62 +1,11 @@
-use crate::plain_term::PLAIN_TERM_ENCODING;
-use crate::sortable_term::SORTABLE_TERM_ENCODING;
-use crate::typed_value::TYPED_VALUE_ENCODING;
+use crate::EncodingName;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
 use std::fmt::Debug;
-
-/// Represents the name of a single [TermEncoding].
-///
-/// RDF Fusion allows users to define multiple encodings for RDF terms. This allows specializing the
-/// Arrow arrays used for holding the results of queries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum EncodingName {
-    /// Name of the [PlainTermEncoding](crate::plain_term::PlainTermEncoding). Represents all terms,
-    /// including literals, using their lexical value.
-    PlainTerm,
-    /// Name of the [TypedValueEncoding](crate::typed_value::TypedValueEncoding). Represents
-    /// IRIs and blank nodes using their lexical value and literals as their typed value.
-    TypedValue,
-    /// Name of the [ObjectIdEncoding](crate::object_id::ObjectIdEncoding). Represents all terms,
-    /// including literals, as a unique identifier.
-    ObjectId,
-    /// Name of the [SortableTermEncoding](crate::sortable_term::SortableTermEncoding) which is used
-    /// for sorting. We plan to remove this encoding in the future, once we can introduce custom
-    /// orderings into the query engine.
-    Sortable,
-}
-
-impl EncodingName {
-    /// Tries to obtain an [EncodingName] from a [DataType]. As we currently only support built-in
-    /// encodings this mapping is unique.
-    ///
-    /// It is planned to remove this function in the future for a state-full implementation that
-    /// has access to registered custom encodings.
-    pub fn try_from_data_type(data_type: &DataType) -> Option<Self> {
-        if data_type == &TYPED_VALUE_ENCODING.data_type() {
-            return Some(EncodingName::TypedValue);
-        }
-
-        if data_type == &PLAIN_TERM_ENCODING.data_type() {
-            return Some(EncodingName::PlainTerm);
-        }
-
-        if data_type == &SORTABLE_TERM_ENCODING.data_type() {
-            return Some(EncodingName::Sortable);
-        }
-
-        // TODO: State-full implementation
-        if data_type == &DataType::UInt64 {
-            return Some(EncodingName::ObjectId);
-        }
-
-        None
-    }
-}
 
 /// Represents an Arrow [Array] with a specific [TermEncoding].
 ///
@@ -78,7 +27,10 @@ pub trait EncodingArray {
     /// Extracts a scalar from this array at `index`.
     ///
     /// Returns an error if the `index` is out of bounds.
-    fn try_as_scalar(&self, index: usize) -> DFResult<<Self::Encoding as TermEncoding>::Scalar> {
+    fn try_as_scalar(
+        &self,
+        index: usize,
+    ) -> DFResult<<Self::Encoding as TermEncoding>::Scalar> {
         let scalar = ScalarValue::try_from_array(self.array(), index)?;
         self.encoding().try_new_scalar(scalar)
     }
@@ -102,7 +54,10 @@ pub trait EncodingScalar {
     fn into_scalar_value(self) -> ScalarValue;
 
     /// Produces a new array with `number_of_rows`.
-    fn to_array(&self, number_of_rows: usize) -> DFResult<<Self::Encoding as TermEncoding>::Array> {
+    fn to_array(
+        &self,
+        number_of_rows: usize,
+    ) -> DFResult<<Self::Encoding as TermEncoding>::Array> {
         let array = self.scalar_value().to_array_of_size(number_of_rows)?;
         self.encoding().try_new_array(array)
     }
@@ -132,6 +87,10 @@ pub trait TermEncoding: Debug + Send + Sync {
     fn name(&self) -> EncodingName;
 
     /// Returns the [DataType] that is used for this encoding.
+    ///
+    /// This function depends on the instance of an encoding, as some encodings can be configured
+    /// such that the data type changes (at least in the future). Some encodings also expose a
+    /// statically known data type (e.g., [PlainTermEncoding::data_type](crate::plain_term::PlainTermEncoding::data_type)).
     fn data_type(&self) -> DataType;
 
     /// Checks whether `array` contains a value with the correct encoding (i.e., type and possibly
@@ -203,7 +162,9 @@ pub trait TermDecoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
     /// The creation of the iterator cannot fail by itself, as the invariants of the encodings
     /// should have been checked while creating `array`. However, the iterator may return an error
     /// on every new value. This could be due to the value being incompatible with the decoder.
-    fn decode_terms(array: &TEncoding::Array) -> impl Iterator<Item = ThinResult<Self::Term<'_>>>;
+    fn decode_terms(
+        array: &TEncoding::Array,
+    ) -> impl Iterator<Item = ThinResult<Self::Term<'_>>>;
 
     /// Allows extracting an iterator over all RDF terms in `array` that are _compatible_ with this
     /// decoder (see [TermDecoder] for more information).

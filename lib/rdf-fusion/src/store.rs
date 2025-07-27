@@ -35,14 +35,14 @@ use crate::sparql::error::QueryEvaluationError;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_engine::results::{QuadStream, QuerySolutionStream};
-use rdf_fusion_engine::sparql::{
+use rdf_fusion_execution::RdfFusionContext;
+use rdf_fusion_execution::results::{QuadStream, QuerySolutionStream};
+use rdf_fusion_execution::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use rdf_fusion_engine::RdfFusionInstance;
 use rdf_fusion_model::{
-    GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, SubjectRef,
-    TermRef, Variable,
+    GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
+    SubjectRef, TermRef, Variable,
 };
 use rdf_fusion_storage::MemoryQuadStorage;
 use std::io::{Read, Write};
@@ -90,7 +90,7 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// ```
 #[derive(Clone)]
 pub struct Store {
-    engine: RdfFusionInstance,
+    engine: RdfFusionContext,
 }
 
 impl Default for Store {
@@ -103,7 +103,7 @@ impl Store {
     /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
     pub fn new() -> Store {
         let storage = MemoryQuadStorage::new();
-        let engine = RdfFusionInstance::new_with_storage(Arc::new(storage.clone()));
+        let engine = RdfFusionContext::new_with_storage(Arc::new(storage.clone()));
         Self { engine }
     }
 
@@ -477,7 +477,10 @@ impl Store {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// # }).unwrap();
     /// ```
-    pub async fn insert<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
+    pub async fn insert<'a>(
+        &self,
+        quad: impl Into<QuadRef<'a>>,
+    ) -> Result<bool, StorageError> {
         let quad = vec![quad.into().into_owned()];
         self.engine
             .storage()
@@ -518,7 +521,10 @@ impl Store {
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
     /// # }).unwrap();
     /// ```
-    pub async fn remove<'a>(&self, quad: impl Into<QuadRef<'a>>) -> Result<bool, StorageError> {
+    pub async fn remove<'a>(
+        &self,
+        quad: impl Into<QuadRef<'a>>,
+    ) -> Result<bool, StorageError> {
         self.engine.storage().remove(quad.into()).await
     }
 
@@ -857,7 +863,12 @@ mod tests {
         );
         assert_eq!(
             store
-                .quads_for_pattern(Some(main_s.as_ref()), Some(main_p.as_ref()), None, None)
+                .quads_for_pattern(
+                    Some(main_s.as_ref()),
+                    Some(main_p.as_ref()),
+                    None,
+                    None
+                )
                 .await?
                 .try_collect_to_vec()
                 .await?,
@@ -918,7 +929,12 @@ mod tests {
         );
         assert_eq!(
             store
-                .quads_for_pattern(Some(main_s.as_ref()), None, Some(main_o.as_ref()), None)
+                .quads_for_pattern(
+                    Some(main_s.as_ref()),
+                    None,
+                    Some(main_o.as_ref()),
+                    None
+                )
                 .await?
                 .try_collect_to_vec()
                 .await?,
@@ -973,7 +989,12 @@ mod tests {
         );
         assert_eq!(
             store
-                .quads_for_pattern(None, Some(main_p.as_ref()), Some(main_o.as_ref()), None)
+                .quads_for_pattern(
+                    None,
+                    Some(main_p.as_ref()),
+                    Some(main_o.as_ref()),
+                    None
+                )
                 .await?
                 .try_collect_to_vec()
                 .await?,

@@ -1,18 +1,20 @@
-use crate::builtin::BuiltinName;
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::{DataType, UInt64Type};
 use datafusion::common::exec_datafusion_err;
-use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
+use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
+use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::{
     DecimalTermValueEncoder, DoubleTermValueEncoder, FloatTermValueEncoder,
     IntegerTermValueEncoder, NumericTypedValueEncoder,
 };
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::{EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use rdf_fusion_encoding::{
+    EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
+};
 use rdf_fusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
 use std::ops::Div;
 use std::sync::Arc;
@@ -57,7 +59,9 @@ impl Accumulator for SparqlAvg {
             if let Ok(sum) = self.sum {
                 if let Ok(value) = value {
                     self.sum = match NumericPair::with_casts_from(sum, value) {
-                        NumericPair::Int(lhs, rhs) => lhs.checked_add(rhs).map(Numeric::Int),
+                        NumericPair::Int(lhs, rhs) => {
+                            lhs.checked_add(rhs).map(Numeric::Int)
+                        }
                         NumericPair::Integer(lhs, rhs) => {
                             lhs.checked_add(rhs).map(Numeric::Integer)
                         }
@@ -78,8 +82,9 @@ impl Accumulator for SparqlAvg {
 
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         if self.count == 0 {
-            let count = i64::try_from(self.count)
-                .map_err(|_| exec_datafusion_err!("Count too large for current xsd::Integer"))?;
+            let count = i64::try_from(self.count).map_err(|_| {
+                exec_datafusion_err!("Count too large for current xsd::Integer")
+            })?;
             return IntegerTermValueEncoder::encode_terms([Ok(Integer::from(count))])?
                 .try_as_scalar(0)
                 .map(EncodingScalar::into_scalar_value);
@@ -146,7 +151,9 @@ impl Accumulator for SparqlAvg {
             if let Ok(sum) = self.sum {
                 if let Ok(value) = value {
                     self.sum = match NumericPair::with_casts_from(sum, value) {
-                        NumericPair::Int(lhs, rhs) => lhs.checked_add(rhs).map(Numeric::Int),
+                        NumericPair::Int(lhs, rhs) => {
+                            lhs.checked_add(rhs).map(Numeric::Int)
+                        }
                         NumericPair::Integer(lhs, rhs) => {
                             lhs.checked_add(rhs).map(Numeric::Integer)
                         }

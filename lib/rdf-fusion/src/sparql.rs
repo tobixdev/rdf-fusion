@@ -1,1 +1,1 @@
-pub use rdf_fusion_engine::sparql::*;
+pub use rdf_fusion_execution::sparql::*;

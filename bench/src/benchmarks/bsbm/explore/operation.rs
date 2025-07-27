@@ -16,10 +16,13 @@ pub(super) fn list_raw_operations(
         .into_iter()
         .filter_map(|record| {
             let query_id = record[0].parse::<u8>().expect("Can't parse query id");
-            let query_name = BsbmExploreQueryName::try_from(query_id).expect("Invalid query id");
+            let query_name =
+                BsbmExploreQueryName::try_from(query_id).expect("Invalid query id");
 
             match &record[1] {
-                "query" => Some(BsbmExploreRawOperation::Query(query_name, record[2].into())),
+                "query" => {
+                    Some(BsbmExploreRawOperation::Query(query_name, record[2].into()))
+                }
                 "update" => None,
                 _ => panic!("Unexpected operation kind {}", &record[1]),
             }

@@ -1,11 +1,11 @@
-use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_binary_typed_value;
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{BinaryArgs, ScalarSparqlOp};
-use crate::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{SimpleLiteralRef, ThinError, TypedValueRef};
 
 /// Implementation of the SPARQL `langMatches` function.
@@ -52,14 +52,17 @@ impl ScalarSparqlOp for LangMatchesSparqlOp {
                     let matches = if rhs_value.value == "*" {
                         !lhs_value.value.is_empty()
                     } else {
-                        !ZipLongest::new(rhs_value.value.split('-'), lhs_value.value.split('-'))
-                            .any(|parts| match parts {
-                                (Some(range_subtag), Some(language_subtag)) => {
-                                    !range_subtag.eq_ignore_ascii_case(language_subtag)
-                                }
-                                (Some(_), None) => true,
-                                (None, _) => false,
-                            })
+                        !ZipLongest::new(
+                            rhs_value.value.split('-'),
+                            lhs_value.value.split('-'),
+                        )
+                        .any(|parts| match parts {
+                            (Some(range_subtag), Some(language_subtag)) => {
+                                !range_subtag.eq_ignore_ascii_case(language_subtag)
+                            }
+                            (Some(_), None) => true,
+                            (None, _) => false,
+                        })
                     };
                     Ok(TypedValueRef::BooleanLiteral(matches.into()))
                 },
@@ -74,7 +77,9 @@ struct ZipLongest<T1, T2, I1: Iterator<Item = T1>, I2: Iterator<Item = T2>> {
     b: I2,
 }
 
-impl<T1, T2, I1: Iterator<Item = T1>, I2: Iterator<Item = T2>> ZipLongest<T1, T2, I1, I2> {
+impl<T1, T2, I1: Iterator<Item = T1>, I2: Iterator<Item = T2>>
+    ZipLongest<T1, T2, I1, I2>
+{
     fn new(a: I1, b: I2) -> Self {
         Self { a, b }
     }

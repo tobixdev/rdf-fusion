@@ -5,8 +5,8 @@ use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{
-    GraphName, GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, TriplePattern,
-    Variable,
+    GraphName, GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
+    TriplePattern, Variable,
 };
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -43,7 +43,10 @@ pub trait QuadStorage: Send + Sync {
     async fn clear(&self) -> Result<(), StorageError>;
 
     /// Clears the entire graph.
-    async fn clear_graph<'a>(&self, graph_name: GraphNameRef<'a>) -> Result<(), StorageError>;
+    async fn clear_graph<'a>(
+        &self,
+        graph_name: GraphNameRef<'a>,
+    ) -> Result<(), StorageError>;
 
     /// Removes the entire named graph from the storage.
     async fn remove_named_graph(

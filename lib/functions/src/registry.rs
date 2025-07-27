@@ -1,5 +1,6 @@
 use crate::aggregates::{
-    avg_typed_value, group_concat_typed_value, max_typed_value, min_typed_value, sum_typed_value,
+    avg_typed_value, group_concat_typed_value, max_typed_value, min_typed_value,
+    sum_typed_value,
 };
 use crate::builtin::encoding::{
     with_plain_term_encoding, with_sortable_term_encoding, with_typed_value_encoding,
@@ -9,7 +10,6 @@ use crate::builtin::native::{
     effective_boolean_value, native_boolean_as_term, native_int64_as_term,
 };
 use crate::builtin::query::is_compatible;
-use crate::builtin::BuiltinName;
 use crate::scalar::comparison::{
     EqualSparqlOp, GreaterOrEqualSparqlOp, GreaterThanSparqlOp, LessOrEqualSparqlOp,
     LessThanSparqlOp, SameTermSparqlOp,
@@ -32,13 +32,16 @@ use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
 use crate::scalar::functional_form::{BoundSparqlOp, CoalesceSparqlOp, IfSparqlOp};
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
-use crate::scalar::numeric::{AddSparqlOp, DivSparqlOp, FloorSparqlOp, MulSparqlOp, SubSparqlOp};
+use crate::scalar::numeric::{
+    AddSparqlOp, DivSparqlOp, FloorSparqlOp, MulSparqlOp, SubSparqlOp,
+};
 use crate::scalar::numeric::{CeilSparqlOp, RandSparqlOp};
 use crate::scalar::strings::{
-    ConcatSparqlOp, ContainsSparqlOp, EncodeForUriSparqlOp, LCaseSparqlOp, LangMatchesSparqlOp,
-    Md5SparqlOp, RegexSparqlOp, ReplaceSparqlOp, Sha1SparqlOp, Sha256SparqlOp, Sha384SparqlOp,
-    Sha512SparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp, StrEndsSparqlOp, StrLenSparqlOp,
-    StrStartsSparqlOp, StrUuidSparqlOp, SubStrSparqlOp, UCaseSparqlOp,
+    ConcatSparqlOp, ContainsSparqlOp, EncodeForUriSparqlOp, LCaseSparqlOp,
+    LangMatchesSparqlOp, Md5SparqlOp, RegexSparqlOp, ReplaceSparqlOp, Sha1SparqlOp,
+    Sha256SparqlOp, Sha384SparqlOp, Sha512SparqlOp, StrAfterSparqlOp, StrBeforeSparqlOp,
+    StrEndsSparqlOp, StrLenSparqlOp, StrStartsSparqlOp, StrUuidSparqlOp, SubStrSparqlOp,
+    UCaseSparqlOp,
 };
 use crate::scalar::terms::{
     BNodeSparqlOp, DatatypeSparqlOp, IriSparqlOp, IsBlankSparqlOp, IsIriSparqlOp,
@@ -46,47 +49,16 @@ use crate::scalar::terms::{
     StrSparqlOp, UuidSparqlOp,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
-use crate::{FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs};
-use datafusion::common::{plan_err, HashMap};
+use datafusion::common::{HashMap, plan_err};
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
+use rdf_fusion_api::functions::{
+    BuiltinName, FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs,
+    RdfFusionFunctionRegistry,
+};
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use rdf_fusion_encoding::EncodingName;
+use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
 use std::fmt::Debug;
 use std::sync::Arc;
-
-/// A reference-counted pointer to an implementation of the `RdfFusionFunctionRegistry` trait.
-///
-/// This type alias is used throughout the codebase to pass around references to
-/// function registries without tying code to specific implementations.
-pub type RdfFusionFunctionRegistryRef = Arc<dyn RdfFusionFunctionRegistry>;
-
-/// A registry for SPARQL functions that can create DataFusion UDFs and UDAFs.
-///
-/// This trait defines the interface for creating DataFusion user-defined functions
-/// (UDFs) and user-defined aggregate functions (UDAFs) that implement SPARQL
-/// function semantics.
-///
-/// # Additional Resources
-/// - [SPARQL 1.1 Query Language - Functions](https://www.w3.org/TR/sparql11-query/#SparqlOps)
-pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
-    /// Returns the encodings supported by `function_name`.
-    fn supported_encodings(&self, function_name: FunctionName) -> DFResult<Vec<EncodingName>>;
-
-    /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
-    fn create_udf(
-        &self,
-        function_name: FunctionName,
-        constant_args: RdfFusionFunctionArgs,
-    ) -> DFResult<Arc<ScalarUDF>>;
-
-    /// Creates a DataFusion [AggregateUDF] given the `constant_args`.
-    fn create_udaf(
-        &self,
-        function_name: FunctionName,
-        constant_args: RdfFusionFunctionArgs,
-    ) -> DFResult<Arc<AggregateUDF>>;
-}
 
 type ScalarUdfFactory =
     Box<dyn Fn(RdfFusionFunctionArgs) -> DFResult<Arc<ScalarUDF>> + Send + Sync>;
@@ -102,8 +74,8 @@ type AggregateUdfFactory =
 /// # Additional Resources
 /// - [SPARQL 1.1 Query Language - Function Library](https://www.w3.org/TR/sparql11-query/#SparqlOps)
 pub struct DefaultRdfFusionFunctionRegistry {
-    /// The [ObjectIdEncoding] used in the storage layer.
-    object_id_encoding: Option<ObjectIdEncoding>,
+    /// The registered encodings.
+    encodings: RdfFusionEncodings,
     /// The mapping used for scalar functions.
     scalar_mapping: HashMap<FunctionName, (ScalarUdfFactory, Vec<EncodingName>)>,
     /// The mapping used for aggregate functions.
@@ -113,7 +85,7 @@ pub struct DefaultRdfFusionFunctionRegistry {
 impl Debug for DefaultRdfFusionFunctionRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DefaultRdfFusionFunctionRegistry")
-            .field("object_id_encoding", &self.object_id_encoding)
+            .field("encodings", &self.encodings)
             .field("scalar_mapping", &self.scalar_mapping.keys())
             .field("aggregate_mapping", &self.aggregate_mapping.keys())
             .finish()
@@ -122,9 +94,9 @@ impl Debug for DefaultRdfFusionFunctionRegistry {
 
 impl DefaultRdfFusionFunctionRegistry {
     /// Create a new [DefaultRdfFusionFunctionRegistry].
-    pub fn new(object_id_encoding: Option<ObjectIdEncoding>) -> Self {
+    pub fn new(encodings: RdfFusionEncodings) -> Self {
         let mut registry = Self {
-            object_id_encoding,
+            encodings,
             aggregate_mapping: HashMap::default(),
             scalar_mapping: HashMap::default(),
         };
@@ -136,12 +108,15 @@ impl DefaultRdfFusionFunctionRegistry {
     where
         TSparqlOp: Default + ScalarSparqlOp + 'static,
     {
-        create_scalar_sparql_op::<TSparqlOp>(self.object_id_encoding.clone())
+        create_scalar_sparql_op::<TSparqlOp>(self.encodings.clone())
     }
 }
 
 impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
-    fn supported_encodings(&self, function_name: FunctionName) -> DFResult<Vec<EncodingName>> {
+    fn supported_encodings(
+        &self,
+        function_name: FunctionName,
+    ) -> DFResult<Vec<EncodingName>> {
         if let Some((_, encodings)) = self.scalar_mapping.get(&function_name) {
             Ok(encodings.clone())
         } else {
@@ -195,29 +170,31 @@ where
 }
 
 fn create_scalar_sparql_op<TSparqlOp>(
-    object_id_encoding: Option<ObjectIdEncoding>,
+    encodings: RdfFusionEncodings,
 ) -> (ScalarUdfFactory, Vec<EncodingName>)
 where
     TSparqlOp: Default + ScalarSparqlOp + 'static,
 {
-    let udf = create_scalar_udf(object_id_encoding, TSparqlOp::default());
+    let udf = create_scalar_udf(encodings, TSparqlOp::default());
     let encodings = supported_encodings::<TSparqlOp>();
     let factory = Box::new(move |_| Ok(Arc::clone(&udf)));
     (factory, encodings)
 }
 
 fn create_scalar_udf<TSparqlOp>(
-    object_id_encoding: Option<ObjectIdEncoding>,
+    encodings: RdfFusionEncodings,
     op: TSparqlOp,
 ) -> Arc<ScalarUDF>
 where
     TSparqlOp: ScalarSparqlOp + 'static,
 {
-    let adapter = ScalarSparqlOpAdapter::new(object_id_encoding, op);
+    let adapter = ScalarSparqlOpAdapter::new(encodings, op);
     Arc::new(ScalarUDF::new_from_impl(adapter))
 }
 
 fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
+    let encodings1 = registry.encodings.clone();
+    let encodings2 = registry.encodings.clone();
     let scalar_fns: Vec<(BuiltinName, (ScalarUdfFactory, Vec<EncodingName>))> = vec![
         (
             BuiltinName::Str,
@@ -492,14 +469,14 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         (
             BuiltinName::WithSortableEncoding,
             (
-                Box::new(|_| Ok(with_sortable_term_encoding())),
+                Box::new(move |_| Ok(with_sortable_term_encoding(encodings1.clone()))),
                 vec![EncodingName::PlainTerm, EncodingName::TypedValue],
             ),
         ),
         (
             BuiltinName::WithTypedValueEncoding,
             (
-                Box::new(|_| Ok(with_typed_value_encoding())),
+                Box::new(move |_| Ok(with_typed_value_encoding(encodings2.clone()))),
                 vec![EncodingName::PlainTerm],
             ),
         ),
@@ -517,7 +494,7 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         (
             BuiltinName::IsCompatible,
             (
-                Box::new(|_| Ok(is_compatible())),
+                Box::new(move |_| Ok(is_compatible())),
                 vec![EncodingName::PlainTerm, EncodingName::ObjectId],
             ),
         ),
@@ -534,19 +511,20 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
     }
 
     // Stateful functions
-    let object_id_encoding = registry.object_id_encoding.clone();
+    let encodings = registry.encodings.clone();
     let iri_factory = Box::new(move |args: RdfFusionFunctionArgs| {
         let iri = args.get(RdfFusionBuiltinArgNames::BASE_IRI)?;
         let op = IriSparqlOp::new(iri);
-        Ok(create_scalar_udf(object_id_encoding.clone(), op))
+        Ok(create_scalar_udf(encodings.clone(), op))
     });
     registry.scalar_mapping.insert(
         FunctionName::Builtin(BuiltinName::Iri),
         (iri_factory, vec![EncodingName::TypedValue]),
     );
 
-    let encoding = registry.object_id_encoding.clone();
-    let plain_term_factory = Box::new(move |_| Ok(with_plain_term_encoding(encoding.clone())));
+    let encodings = registry.encodings.clone();
+    let plain_term_factory =
+        Box::new(move |_| Ok(with_plain_term_encoding(encodings.clone())));
     registry.scalar_mapping.insert(
         FunctionName::Builtin(BuiltinName::WithPlainTermEncoding),
         (plain_term_factory, vec![]),

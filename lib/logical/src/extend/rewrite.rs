@@ -1,9 +1,9 @@
 use crate::check_same_schema;
 use crate::extend::ExtendNode;
-use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::Column;
+use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::logical_expr::{
-    col, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore,
+    Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNodeCore, col,
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_common::DFResult;

@@ -13,13 +13,15 @@ pub mod rs {
     pub const BINDING: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/2001/sw/DataAccess/tests/result-set#binding",
     );
-    pub const VALUE: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/2001/sw/DataAccess/tests/result-set#value");
+    pub const VALUE: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/2001/sw/DataAccess/tests/result-set#value",
+    );
     pub const VARIABLE: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/2001/sw/DataAccess/tests/result-set#variable",
     );
-    pub const INDEX: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/2001/sw/DataAccess/tests/result-set#index");
+    pub const INDEX: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/2001/sw/DataAccess/tests/result-set#index",
+    );
     pub const BOOLEAN: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/2001/sw/DataAccess/tests/result-set#boolean",
     );
@@ -63,10 +65,12 @@ pub mod rdft {
 pub mod qt {
     use rdf_fusion::model::NamedNodeRef;
 
-    pub const QUERY: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/2001/sw/DataAccess/tests/test-query#query");
-    pub const DATA: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/2001/sw/DataAccess/tests/test-query#data");
+    pub const QUERY: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/2001/sw/DataAccess/tests/test-query#query",
+    );
+    pub const DATA: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/2001/sw/DataAccess/tests/test-query#data",
+    );
     pub const GRAPH_DATA: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
         "http://www.w3.org/2001/sw/DataAccess/tests/test-query#graphData",
     );
@@ -81,12 +85,16 @@ pub mod qt {
 pub mod ut {
     use rdf_fusion::model::NamedNodeRef;
 
-    pub const DATA: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/2009/sparql/tests/test-update#data");
-    pub const GRAPH_DATA: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/2009/sparql/tests/test-update#graphData");
-    pub const GRAPH: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/2009/sparql/tests/test-update#graph");
-    pub const REQUEST: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/2009/sparql/tests/test-update#request");
+    pub const DATA: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/2009/sparql/tests/test-update#data",
+    );
+    pub const GRAPH_DATA: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/2009/sparql/tests/test-update#graphData",
+    );
+    pub const GRAPH: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/2009/sparql/tests/test-update#graph",
+    );
+    pub const REQUEST: NamedNodeRef<'_> = NamedNodeRef::new_unchecked(
+        "http://www.w3.org/2009/sparql/tests/test-update#request",
+    );
 }

@@ -1,11 +1,11 @@
-use crate::builtin::BuiltinName;
 use crate::scalar::dispatch::dispatch_ternary_typed_value;
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{ScalarSparqlOp, TernaryArgs};
-use crate::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::Boolean;
 
 #[derive(Debug)]
@@ -47,19 +47,11 @@ impl ScalarSparqlOp for IfSparqlOp {
                     &arg2,
                     |arg0, arg1, arg2| {
                         let test = Boolean::try_from(arg0)?;
-                        if test.as_bool() {
-                            Ok(arg1)
-                        } else {
-                            Ok(arg2)
-                        }
+                        if test.as_bool() { Ok(arg1) } else { Ok(arg2) }
                     },
                     |arg0, arg1, arg2| {
                         let test = Boolean::try_from(arg0?)?;
-                        if test.as_bool() {
-                            arg1
-                        } else {
-                            arg2
-                        }
+                        if test.as_bool() { arg1 } else { arg2 }
                     },
                 )
             },

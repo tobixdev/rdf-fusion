@@ -1,14 +1,18 @@
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::TermEncoder;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::plain_term::{PlainTermArray, PlainTermEncoding, PlainTermScalar};
+use rdf_fusion_encoding::plain_term::{
+    PlainTermArray, PlainTermEncoding, PlainTermScalar,
+};
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueScalar};
-use rdf_fusion_encoding::TermEncoder;
+use rdf_fusion_encoding::typed_value::{
+    TypedValueArray, TypedValueEncoding, TypedValueScalar,
+};
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermDecoder};
-use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValue, TypedValueRef};
+use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
 
 pub fn dispatch_binary_typed_value<'data>(
     lhs: &'data EncodingDatum<TypedValueEncoding>,
@@ -47,9 +51,9 @@ fn dispatch_binary_typed_value_array_array<'data>(
     let lhs = DefaultTypedValueDecoder::decode_terms(lhs);
     let rhs = DefaultTypedValueDecoder::decode_terms(rhs);
 
-    let results = lhs
-        .zip(rhs)
-        .map(|(lhs_value, rhs_value)| apply_binary_op(lhs_value, rhs_value, &op, &error_op));
+    let results = lhs.zip(rhs).map(|(lhs_value, rhs_value)| {
+        apply_binary_op(lhs_value, rhs_value, &op, &error_op)
+    });
     let result = DefaultTypedValueEncoder::encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array()))
 }
@@ -117,10 +121,6 @@ fn apply_binary_op<'data>(
 ) -> ThinResult<TypedValueRef<'data>> {
     match (lhs, rhs) {
         (Ok(lhs_value), Ok(rhs_value)) => op(lhs_value, rhs_value),
-        (Err(ThinError::InternalError(internal_err)), _)
-        | (_, Err(ThinError::InternalError(internal_err))) => {
-            ThinError::internal_error(internal_err)
-        }
         (lhs, rhs) => error_op(lhs, rhs),
     }
 }
@@ -164,7 +164,9 @@ fn dispatch_binary_owned_array_array(
 
     let results = lhs
         .zip(rhs)
-        .map(|(lhs_value, rhs_value)| apply_binary_owned_op(lhs_value, rhs_value, &op, &error_op))
+        .map(|(lhs_value, rhs_value)| {
+            apply_binary_owned_op(lhs_value, rhs_value, &op, &error_op)
+        })
         .collect::<Vec<_>>();
 
     let result_refs = results
@@ -265,10 +267,6 @@ fn apply_binary_owned_op(
 ) -> ThinResult<TypedValue> {
     match (lhs, rhs) {
         (Ok(lhs_value), Ok(rhs_value)) => op(lhs_value, rhs_value),
-        (Err(ThinError::InternalError(internal_err)), _)
-        | (_, Err(ThinError::InternalError(internal_err))) => {
-            ThinError::internal_error(internal_err)
-        }
         (lhs, rhs) => error_op(lhs, rhs),
     }
 }
@@ -380,10 +378,6 @@ fn apply_binary_op_plain_term<'data>(
 ) -> ThinResult<TermRef<'data>> {
     match (lhs, rhs) {
         (Ok(lhs_value), Ok(rhs_value)) => op(lhs_value, rhs_value),
-        (Err(ThinError::InternalError(internal_err)), _)
-        | (_, Err(ThinError::InternalError(internal_err))) => {
-            ThinError::internal_error(internal_err)
-        }
         (lhs, rhs) => error_op(lhs, rhs),
     }
 }

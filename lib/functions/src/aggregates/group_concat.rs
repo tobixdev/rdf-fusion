@@ -1,18 +1,18 @@
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
+use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::StringLiteralRefTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{StringLiteralRef, ThinError};
 use std::sync::Arc;
 
 pub fn group_concat_typed_value(separator: Option<String>) -> Arc<AggregateUDF> {
-    let separator = separator.unwrap_or(" ".to_owned());
+    let separator = separator.unwrap_or_else(|| " ".to_owned());
     let udaf = create_udaf(
         "group_concat",
         vec![TYPED_VALUE_ENCODING.data_type()],
@@ -129,7 +129,8 @@ impl Accumulator for SparqlGroupConcat {
             };
         }
 
-        let existing_language_error = states[2].as_boolean().iter().any(|e| e == Some(true));
+        let existing_language_error =
+            states[2].as_boolean().iter().any(|e| e == Some(true));
         if existing_language_error {
             self.language_error = true;
             self.language = None;

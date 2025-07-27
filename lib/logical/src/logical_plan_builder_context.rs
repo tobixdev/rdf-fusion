@@ -2,23 +2,27 @@ use crate::active_graph::ActiveGraph;
 use crate::join::SparqlJoinType;
 use crate::paths::PropertyPathNode;
 use crate::quad_pattern::QuadPatternNode;
-use crate::RdfFusionLogicalPlanBuilder;
+use crate::{RdfFusionExprBuilderContext, RdfFusionLogicalPlanBuilder};
 use datafusion::arrow::datatypes::{Field, Fields};
 use datafusion::common::{DFSchema, DataFusionError};
 use datafusion::logical_expr::builder::project;
 use datafusion::logical_expr::select_expr::SelectExpr;
 use datafusion::logical_expr::{
-    col, lit, Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, Values,
+    Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, Values,
+    col, lit,
 };
-use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_api::RdfFusionContextView;
+use rdf_fusion_api::functions::RdfFusionFunctionRegistryRef;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
+use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::{EncodingScalar, QuadStorageEncoding, TermEncoder, TermEncoding};
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
+use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
+use rdf_fusion_encoding::{
+    EncodingScalar, QuadStorageEncoding, RdfFusionEncodings, TermEncoder, TermEncoding,
+};
 use rdf_fusion_model::{
-    GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Subject, Term, TermPattern,
-    TermRef, ThinError, TriplePattern, Variable,
+    GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Subject, Term,
+    TermPattern, TermRef, ThinError, TriplePattern, Variable,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -26,34 +30,38 @@ use std::sync::Arc;
 /// The context that allows creating a [RdfFusionLogicalPlanBuilder].
 #[derive(Debug, Clone)]
 pub struct RdfFusionLogicalPlanBuilderContext {
-    /// The registry allows us to access the registered functions. This is necessary for
-    /// creating expressions within the builder.
-    registry: RdfFusionFunctionRegistryRef,
-    /// The encoding used by the storage layer.
-    storage_encoding: QuadStorageEncoding,
+    /// The RDF Fusion configuration.
+    rdf_fusion_context: RdfFusionContextView,
 }
 
 impl RdfFusionLogicalPlanBuilderContext {
-    /// Creates a new [RdfFusionLogicalPlanBuilder] with an existing `plan`.
-    pub fn new(
-        registry: RdfFusionFunctionRegistryRef,
-        storage_encoding: QuadStorageEncoding,
-    ) -> Self {
-        Self {
-            registry,
-            storage_encoding,
-        }
+    /// Creates a new [RdfFusionLogicalPlanBuilder].
+    pub fn new(rdf_fusion_context: RdfFusionContextView) -> Self {
+        Self { rdf_fusion_context }
     }
 
     /// Returns a reference to the [RdfFusionFunctionRegistry](rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry)
     /// of the builder.
     pub fn registry(&self) -> &RdfFusionFunctionRegistryRef {
-        &self.registry
+        self.rdf_fusion_context.functions()
+    }
+
+    /// Returns the [RdfFusionEncodings] of the builder.
+    pub fn encodings(&self) -> &RdfFusionEncodings {
+        self.rdf_fusion_context.encodings()
     }
 
     /// Returns the [QuadStorageEncoding] of the builder.
-    pub fn encoding(&self) -> &QuadStorageEncoding {
-        &self.storage_encoding
+    pub fn storage_encoding(&self) -> &QuadStorageEncoding {
+        self.rdf_fusion_context.storage_encoding()
+    }
+
+    /// Returns a new [RdfFusionExprBuilderContext].
+    pub fn expr_builder_context_with_schema<'a>(
+        &'a self,
+        schema: &'a DFSchema,
+    ) -> RdfFusionExprBuilderContext<'a> {
+        RdfFusionExprBuilderContext::new(&self.rdf_fusion_context, schema)
     }
 
     /// Creates a new [RdfFusionLogicalPlanBuilder] with the given `plan`.
@@ -102,22 +110,22 @@ impl RdfFusionLogicalPlanBuilderContext {
         object: Option<Term>,
     ) -> QuadPatternNode {
         let triple_pattern = TriplePattern {
-            subject: subject.map_or(
-                TermPattern::Variable(Variable::new_unchecked(COL_SUBJECT)),
+            subject: subject.map_or_else(
+                || TermPattern::Variable(Variable::new_unchecked(COL_SUBJECT)),
                 |s| TermPattern::from(Term::from(s)),
             ),
-            predicate: predicate.map_or(
-                NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
+            predicate: predicate.map_or_else(
+                || NamedNodePattern::Variable(Variable::new_unchecked(COL_PREDICATE)),
                 NamedNodePattern::from,
             ),
-            object: object.map_or(
-                TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
+            object: object.map_or_else(
+                || TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
                 TermPattern::from,
             ),
         };
 
         QuadPatternNode::new_with_blank_nodes_as_filter(
-            self.storage_encoding.clone(),
+            self.storage_encoding().clone(),
             active_graph,
             Some(Variable::new_unchecked(COL_GRAPH)),
             triple_pattern,
@@ -173,8 +181,8 @@ impl RdfFusionLogicalPlanBuilderContext {
         let schema = DFSchema::from_unqualified_fields(fields, HashMap::new())?;
 
         if bindings.is_empty() {
-            let empty =
-                DefaultPlainTermEncoder::encode_term(ThinError::expected())?.into_scalar_value();
+            let empty = DefaultPlainTermEncoder::encode_term(ThinError::expected())?
+                .into_scalar_value();
             let plan = LogicalPlanBuilder::values_with_schema(
                 vec![vec![lit(empty); variables.len()]],
                 &Arc::new(schema),
@@ -226,7 +234,13 @@ impl RdfFusionLogicalPlanBuilderContext {
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         patterns
             .iter()
-            .map(|p| self.create_pattern(active_graph.clone(), graph_variables.cloned(), p.clone()))
+            .map(|p| {
+                self.create_pattern(
+                    active_graph.clone(),
+                    graph_variables.cloned(),
+                    p.clone(),
+                )
+            })
             .map(Ok)
             .reduce(|lhs, rhs| lhs?.join(rhs?.build()?, SparqlJoinType::Inner, None))
             .unwrap_or_else(|| Ok(self.create_empty_solution()))
@@ -249,7 +263,7 @@ impl RdfFusionLogicalPlanBuilderContext {
         pattern: TriplePattern,
     ) -> RdfFusionLogicalPlanBuilder {
         let quads = QuadPatternNode::new(
-            self.storage_encoding.clone(),
+            self.storage_encoding().clone(),
             active_graph,
             graph_variable,
             pattern,
@@ -269,13 +283,16 @@ impl RdfFusionLogicalPlanBuilderContext {
         subject: TermPattern,
         object: TermPattern,
     ) -> RdfFusionLogicalPlanBuilder {
-        let node = PropertyPathNode::new(active_graph, graph_variable, subject, path, object);
+        let node =
+            PropertyPathNode::new(active_graph, graph_variable, subject, path, object);
         RdfFusionLogicalPlanBuilder::new(self.clone(), create_extension_plan(node))
     }
 }
 
 /// Creates a `LogicalPlanBuilder` from a user-defined logical node.
-fn create_extension_plan(node: impl UserDefinedLogicalNode + 'static) -> Arc<LogicalPlan> {
+fn create_extension_plan(
+    node: impl UserDefinedLogicalNode + 'static,
+) -> Arc<LogicalPlan> {
     Arc::new(LogicalPlan::Extension(Extension {
         node: Arc::new(node),
     }))
@@ -292,5 +309,5 @@ fn column_or_literal(term: Option<impl Into<Term>>, col_name: &str) -> DFResult<
             )
         })
         .transpose()?
-        .unwrap_or(col(col_name)))
+        .unwrap_or_else(|| col(col_name)))
 }

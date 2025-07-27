@@ -1,12 +1,12 @@
-use crate::builtin::BuiltinName;
 use datafusion::arrow::array::ArrayRef;
-use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
+use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
+use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{Integer, Numeric, NumericPair, ThinResult};
 use std::sync::Arc;
@@ -49,7 +49,9 @@ impl Accumulator for SparqlTypedValueSum {
             if let Ok(sum) = self.sum {
                 if let Ok(value) = value {
                     self.sum = match NumericPair::with_casts_from(sum, value) {
-                        NumericPair::Int(lhs, rhs) => lhs.checked_add(rhs).map(Numeric::Int),
+                        NumericPair::Int(lhs, rhs) => {
+                            lhs.checked_add(rhs).map(Numeric::Int)
+                        }
                         NumericPair::Integer(lhs, rhs) => {
                             lhs.checked_add(rhs).map(Numeric::Integer)
                         }
@@ -69,7 +71,8 @@ impl Accumulator for SparqlTypedValueSum {
     // DataFusion expects this function to return the final value of this aggregator.
     // in this case, this is the formula of the geometric mean
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
-        NumericTypedValueEncoder::encode_term(self.sum).map(EncodingScalar::into_scalar_value)
+        NumericTypedValueEncoder::encode_term(self.sum)
+            .map(EncodingScalar::into_scalar_value)
     }
 
     fn size(&self) -> usize {

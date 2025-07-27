@@ -6,9 +6,11 @@ use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
+use std::fmt::Display;
 use std::sync::LazyLock;
+use thiserror::Error;
 
 /// Represents the fields of the [PlainTermEncoding].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,15 +96,24 @@ pub enum PlainTermType {
     Literal,
 }
 
+#[derive(Debug, Clone, Copy, Default, Error, PartialEq, Eq, Hash)]
+pub struct UnknownPlainTermTypeError;
+
+impl Display for UnknownPlainTermTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unexpected type_id for encoded RDF Term")
+    }
+}
+
 impl TryFrom<u8> for PlainTermType {
-    type Error = ThinError;
+    type Error = UnknownPlainTermTypeError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(PlainTermType::NamedNode),
             1 => Ok(PlainTermType::BlankNode),
             2 => Ok(PlainTermType::Literal),
-            _ => ThinError::internal_error("Unexpected type_id for encoded RDF Term"),
+            _ => Err(UnknownPlainTermTypeError),
         }
     }
 }
@@ -131,6 +142,13 @@ impl PlainTermEncoding {
     pub(crate) fn fields() -> Fields {
         FIELDS_TYPE.clone()
     }
+
+    /// Returns the type of the [PlainTermEncoding].
+    ///
+    /// The type of the [PlainTermEncoding] is statically known and cannot be configured.
+    pub fn data_type() -> DataType {
+        DataType::Struct(Self::fields().clone())
+    }
 }
 
 impl TermEncoding for PlainTermEncoding {
@@ -142,7 +160,7 @@ impl TermEncoding for PlainTermEncoding {
     }
 
     fn data_type(&self) -> DataType {
-        DataType::Struct(Self::fields().clone())
+        PlainTermEncoding::data_type()
     }
 
     fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {

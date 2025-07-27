@@ -1,5 +1,5 @@
 use crate::patterns::compute_schema_for_pattern;
-use datafusion::common::{plan_err, DFSchemaRef};
+use datafusion::common::{DFSchemaRef, plan_err};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_model::TermPattern;
@@ -26,15 +26,21 @@ impl PatternNode {
     ///
     /// Returns an error if the length of the input schema does not match the length of the
     /// patterns.
-    pub fn try_new(input: LogicalPlan, patterns: Vec<Option<TermPattern>>) -> DFResult<Self> {
+    pub fn try_new(
+        input: LogicalPlan,
+        patterns: Vec<Option<TermPattern>>,
+    ) -> DFResult<Self> {
         if input.schema().columns().len() != patterns.len() {
             return plan_err!("Patterns must match the number of column of inner.");
         }
 
         // TODO: Check type
 
-        let schema =
-            compute_schema_for_pattern(input.schema(), &patterns, BlankNodeMatchingMode::Variable);
+        let schema = compute_schema_for_pattern(
+            input.schema(),
+            &patterns,
+            BlankNodeMatchingMode::Variable,
+        );
         Ok(Self {
             input,
             patterns,

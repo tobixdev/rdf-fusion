@@ -1,8 +1,8 @@
 use axum_test::TestServer;
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use rdf_fusion::model::{GraphName, NamedNode, Quad, Subject, Term};
 use rdf_fusion::store::Store;
-use rdf_fusion_web::{create_router, AppState};
+use rdf_fusion_web::{AppState, create_router};
 use tokio::runtime::Builder;
 
 fn encode_solution(criterion: &mut Criterion) {

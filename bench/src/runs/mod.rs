@@ -36,8 +36,8 @@ impl BenchmarkRuns {
     pub fn summarize(&self) -> anyhow::Result<BenchmarkRunsSummary> {
         let number_of_samples = u32::try_from(self.runs.len())
             .context("Too many samples for computing the average duration")?;
-        let avg_duration =
-            self.runs.iter().map(|run| run.duration).sum::<Duration>() / number_of_samples;
+        let avg_duration = self.runs.iter().map(|run| run.duration).sum::<Duration>()
+            / number_of_samples;
         Ok(BenchmarkRunsSummary {
             number_of_samples,
             avg_duration,
@@ -62,9 +62,12 @@ impl BenchmarkRuns {
                         result.insert(frame.clone(), *count);
                     }
                     Some(old_count) => {
-                        let new_count = (*old_count).checked_add(*count).ok_or_else(|| {
-                            anyhow::anyhow!("Overflow occurred when accumulating profile data")
-                        })?;
+                        let new_count =
+                            (*old_count).checked_add(*count).ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "Overflow occurred when accumulating profile data"
+                                )
+                            })?;
                         *old_count = new_count;
                     }
                 }

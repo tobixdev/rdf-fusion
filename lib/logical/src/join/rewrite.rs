@@ -1,13 +1,13 @@
+use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
-use crate::RdfFusionExprBuilderContext;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_err, Column, ExprSchema, JoinType};
+use datafusion::common::{Column, ExprSchema, JoinType, plan_err};
 use datafusion::logical_expr::{Expr, ExprSchemable, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
 
 /// A rewriting rule that transforms SPARQL join operations into DataFusion join operations.
@@ -19,8 +19,8 @@ use std::collections::HashSet;
 /// /// - [SPARQL 1.1 - Compatibile Mappings](https://www.w3.org/TR/sparql11-query/#defn_algCompatibleMapping)
 #[derive(Debug)]
 pub struct SparqlJoinLoweringRule {
-    /// Used for creating expressions with RDF Fusion builtins.
-    registry: RdfFusionFunctionRegistryRef,
+    /// The RDF Fusion configuration
+    context: RdfFusionContextView,
 }
 
 impl OptimizerRule for SparqlJoinLoweringRule {
@@ -53,8 +53,8 @@ impl OptimizerRule for SparqlJoinLoweringRule {
 
 impl SparqlJoinLoweringRule {
     /// Creates a new instance of the SPARQL join lowering rule.
-    pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
-        Self { registry }
+    pub fn new(context: RdfFusionContextView) -> Self {
+        Self { context }
     }
 
     /// Rewrites a SPARQL join node into a DataFusion join operation.
@@ -123,7 +123,8 @@ impl SparqlJoinLoweringRule {
             Some(false) => {
                 let lhs = LogicalPlanBuilder::new(node.lhs().clone()).alias("lhs")?;
                 let rhs = LogicalPlanBuilder::new(node.rhs().clone()).alias("rhs")?;
-                let projections = self.create_join_projections(node, &lhs, &rhs, false)?;
+                let projections =
+                    self.create_join_projections(node, &lhs, &rhs, false)?;
 
                 let filter = node
                     .filter()
@@ -171,7 +172,7 @@ impl SparqlJoinLoweringRule {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
         let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
+            RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let mut join_filters = join_on
             .iter()
@@ -223,7 +224,7 @@ impl SparqlJoinLoweringRule {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
         let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
+            RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let projections = node
@@ -269,7 +270,7 @@ impl SparqlJoinLoweringRule {
         let mut join_schema = lhs.schema().as_ref().clone();
         join_schema.merge(rhs.schema());
         let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
+            RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let (lhs_keys, rhs_keys) = get_join_keys(node);
         let filter = filter
@@ -311,7 +312,9 @@ fn value_from_joined(
                 let (rhs_datatype, _) =
                     rhs_expr.data_type_and_nullable(expr_builder_root.schema())?;
                 if lhs_datatype != rhs_datatype {
-                    return plan_err!("The two columns for creating a COALESCE are different.");
+                    return plan_err!(
+                        "The two columns for creating a COALESCE are different."
+                    );
                 }
 
                 expr_builder_root
@@ -324,7 +327,9 @@ fn value_from_joined(
         }
         (true, false) => lhs_expr,
         (false, true) => rhs_expr,
-        (false, false) => unreachable!("At least one of lhs or rhs must contain variable"),
+        (false, false) => {
+            unreachable!("At least one of lhs or rhs must contain variable")
+        }
     };
     Ok(expr.alias(variable))
 }

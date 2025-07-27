@@ -1,8 +1,8 @@
-use crate::encoding::TermDecoder;
-use crate::plain_term::decoders::DefaultPlainTermDecoder;
-use crate::plain_term::PlainTermEncoding;
 use crate::TermEncoding;
-use rdf_fusion_model::{GraphNameRef, TermRef, ThinError, ThinResult};
+use crate::encoding::TermDecoder;
+use crate::plain_term::PlainTermEncoding;
+use crate::plain_term::decoders::DefaultPlainTermDecoder;
+use rdf_fusion_model::{GraphNameRef, TermRef, ThinResult};
 
 #[derive(Debug)]
 pub struct GraphNameRefPlainTermDecoder;
@@ -25,12 +25,13 @@ impl TermDecoder<PlainTermEncoding> for GraphNameRefPlainTermDecoder {
     }
 }
 
-fn map_term_ref_to_graph_name_ref(term: ThinResult<TermRef<'_>>) -> ThinResult<GraphNameRef<'_>> {
+fn map_term_ref_to_graph_name_ref(
+    term: ThinResult<TermRef<'_>>,
+) -> ThinResult<GraphNameRef<'_>> {
     match term {
         Ok(TermRef::NamedNode(nn)) => Ok(GraphNameRef::NamedNode(nn)),
         Ok(TermRef::BlankNode(bnode)) => Ok(GraphNameRef::BlankNode(bnode)),
-        Ok(TermRef::Literal(_)) => ThinError::internal_error("Literal when extracting grpah name"),
-        Err(ThinError::Expected) => Ok(GraphNameRef::DefaultGraph),
-        Err(e) => Err(e),
+        Ok(TermRef::Literal(_)) => panic!("Literal when extracting grpah name"),
+        Err(_) => Ok(GraphNameRef::DefaultGraph),
     }
 }

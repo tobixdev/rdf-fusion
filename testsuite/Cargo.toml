@@ -13,6 +13,7 @@ publish = false
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
+datafusion.workspace = true
 futures.workspace = true
 rdf-fusion.workspace = true
 oxttl.workspace = true

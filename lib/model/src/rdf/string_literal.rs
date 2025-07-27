@@ -35,7 +35,9 @@ impl<'a> TryFrom<TypedValueRef<'a>> for StringLiteralRef<'a> {
     fn try_from(value: TypedValueRef<'a>) -> Result<Self, Self::Error> {
         match value {
             TypedValueRef::SimpleLiteral(lit) => Ok(Self(lit.value, None)),
-            TypedValueRef::LanguageStringLiteral(lit) => Ok(Self(lit.value, Some(lit.language))),
+            TypedValueRef::LanguageStringLiteral(lit) => {
+                Ok(Self(lit.value, Some(lit.language)))
+            }
             _ => ThinError::expected(),
         }
     }

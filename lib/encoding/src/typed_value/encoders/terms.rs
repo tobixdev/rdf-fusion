@@ -1,9 +1,10 @@
 use crate::encoding::TermEncoder;
-use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding, TYPED_VALUE_ENCODING};
+use crate::typed_value::{
+    TYPED_VALUE_ENCODING, TypedValueArrayBuilder, TypedValueEncoding,
+};
 use crate::{EncodingArray, TermEncoding};
-use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
+use rdf_fusion_model::{TermRef, ThinResult, TypedValueRef};
 
 #[derive(Debug)]
 pub struct TermRefTypedValueEncoder;
@@ -22,11 +23,8 @@ impl TermEncoder<TypedValueEncoding> for TermRefTypedValueEncoder {
                     Ok(value) => value_builder.append_typed_value(value)?,
                     Err(_) => value_builder.append_null()?,
                 },
-                Err(ThinError::Expected) => {
+                Err(_) => {
                     value_builder.append_null()?;
-                }
-                Err(ThinError::InternalError(err)) => {
-                    return exec_err!("Error while obtaining terms: {err}")
                 }
             }
         }

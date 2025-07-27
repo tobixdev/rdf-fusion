@@ -32,14 +32,18 @@ impl BenchmarkName {
                 dataset_size,
                 max_query_count,
             } => match max_query_count {
-                Some(max_query_count) => format!("bsbm-explore-{dataset_size}-{max_query_count}"),
+                Some(max_query_count) => {
+                    format!("bsbm-explore-{dataset_size}-{max_query_count}")
+                }
                 None => format!("bsbm-explore-{dataset_size}"),
             },
             BenchmarkName::BsbmBusinessIntelligence {
                 dataset_size,
                 max_query_count,
             } => match max_query_count {
-                Some(max_query_count) => format!("bsbm-bi-{dataset_size}-{max_query_count}"),
+                Some(max_query_count) => {
+                    format!("bsbm-bi-{dataset_size}-{max_query_count}")
+                }
                 None => format!("bsbm-bi-{dataset_size}"),
             },
         }
@@ -67,7 +71,9 @@ impl Display for BenchmarkName {
                     f,
                     "BSBM Business Intelligence: dataset_size={dataset_size}, max_query_count={max_query_count}"
                 ),
-                None => write!(f, "BSBM Business Intelligence: dataset_size={dataset_size}"),
+                None => {
+                    write!(f, "BSBM Business Intelligence: dataset_size={dataset_size}")
+                }
             },
         }
     }

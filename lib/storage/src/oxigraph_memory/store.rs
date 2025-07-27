@@ -6,8 +6,8 @@ use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use rdf_fusion_common::error::{CorruptionError, StorageError};
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_model::Quad;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
@@ -38,7 +38,8 @@ struct Content {
         DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
     last_quad_by_predicate:
         DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
-    last_quad_by_object: DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
+    last_quad_by_object:
+        DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
     last_quad_by_graph_name:
         DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
     graphs: DashMap<ObjectId, VersionRange>,
@@ -106,7 +107,8 @@ impl OxigraphMemoryStorage {
                             .upgrade_transaction(transaction_id, new_version_id);
                     }
                     LogEntry::Graph(graph_name) => {
-                        if let Some(mut entry) = self.content.graphs.get_mut(&graph_name) {
+                        if let Some(mut entry) = self.content.graphs.get_mut(&graph_name)
+                        {
                             entry
                                 .value_mut()
                                 .upgrade_transaction(transaction_id, new_version_id)
@@ -126,7 +128,8 @@ impl OxigraphMemoryStorage {
                             .rollback_transaction(transaction_id);
                     }
                     LogEntry::Graph(graph_name) => {
-                        if let Some(mut entry) = self.content.graphs.get_mut(&graph_name) {
+                        if let Some(mut entry) = self.content.graphs.get_mut(&graph_name)
+                        {
                             entry.value_mut().rollback_transaction(transaction_id)
                         }
                     }
@@ -197,7 +200,11 @@ impl MemoryStorageReader {
         object: Option<ObjectId>,
     ) -> QuadIterator {
         fn get_start_and_count(
-            map: &DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
+            map: &DashMap<
+                ObjectId,
+                (Weak<QuadListNode>, u64),
+                BuildHasherDefault<FxHasher>,
+            >,
             term: Option<ObjectId>,
         ) -> (Option<Weak<QuadListNode>>, u64) {
             let Some(term) = term else {
@@ -213,8 +220,10 @@ impl MemoryStorageReader {
             get_start_and_count(&self.storage.content.last_quad_by_predicate, predicate);
         let (object_start, object_count) =
             get_start_and_count(&self.storage.content.last_quad_by_object, object);
-        let (graph_name_start, graph_name_count) =
-            get_start_and_count(&self.storage.content.last_quad_by_graph_name, graph_name);
+        let (graph_name_start, graph_name_count) = get_start_and_count(
+            &self.storage.content.last_quad_by_graph_name,
+            graph_name,
+        );
 
         let (start, kind) = if subject.is_some()
             && subject_count <= predicate_count
@@ -270,7 +279,9 @@ impl MemoryStorageReader {
             reader: self.clone(),
             // SAFETY: this is fine, the owning struct also owns the iterated data structure
             iter: unsafe {
-                transmute::<Iter<'_, _, _>, Iter<'static, _, _>>(self.storage.content.graphs.iter())
+                transmute::<Iter<'_, _, _>, Iter<'static, _, _>>(
+                    self.storage.content.graphs.iter(),
+                )
             },
         }
     }
@@ -301,9 +312,10 @@ impl MemoryStorageReader {
                 .get(&current.quad)
                 .is_some_and(|e| Arc::ptr_eq(&e, &current))
             {
-                return Err(
-                    CorruptionError::new("Quad in previous chain but not in quad set").into(),
-                );
+                return Err(CorruptionError::new(
+                    "Quad in previous chain but not in quad set",
+                )
+                .into());
             }
             if !current.quad.graph_name.is_default_graph()
                 && !self
@@ -312,9 +324,10 @@ impl MemoryStorageReader {
                     .graphs
                     .contains_key(&current.quad.graph_name)
             {
-                return Err(
-                    CorruptionError::new("Quad in named graph that does not exists").into(),
-                );
+                return Err(CorruptionError::new(
+                    "Quad in named graph that does not exists",
+                )
+                .into());
             };
             next.clone_from(&current.previous);
         }
@@ -339,9 +352,10 @@ impl MemoryStorageReader {
                     .get(&current.quad)
                     .is_some_and(|e| Arc::ptr_eq(&e, &current))
                 {
-                    return Err(
-                        CorruptionError::new("Quad in previous chain but not in quad set").into(),
-                    );
+                    return Err(CorruptionError::new(
+                        "Quad in previous chain but not in quad set",
+                    )
+                    .into());
                 }
                 next.clone_from(&current.previous_subject);
             }
@@ -371,9 +385,10 @@ impl MemoryStorageReader {
                     .get(&current.quad)
                     .is_some_and(|e| Arc::ptr_eq(&e, &current))
                 {
-                    return Err(
-                        CorruptionError::new("Quad in previous chain but not in quad set").into(),
-                    );
+                    return Err(CorruptionError::new(
+                        "Quad in previous chain but not in quad set",
+                    )
+                    .into());
                 }
                 next.clone_from(&current.previous_predicate);
             }
@@ -403,9 +418,10 @@ impl MemoryStorageReader {
                     .get(&current.quad)
                     .is_some_and(|e| Arc::ptr_eq(&e, &current))
                 {
-                    return Err(
-                        CorruptionError::new("Quad in previous chain but not in quad set").into(),
-                    );
+                    return Err(CorruptionError::new(
+                        "Quad in previous chain but not in quad set",
+                    )
+                    .into());
                 }
                 next.clone_from(&current.previous_object);
             }
@@ -435,9 +451,10 @@ impl MemoryStorageReader {
                     .get(&current.quad)
                     .is_some_and(|e| Arc::ptr_eq(&e, &current))
                 {
-                    return Err(
-                        CorruptionError::new("Quad in previous chain but not in quad set").into(),
-                    );
+                    return Err(CorruptionError::new(
+                        "Quad in previous chain but not in quad set",
+                    )
+                    .into());
                 }
                 next.clone_from(&current.previous_graph_name);
             }
@@ -533,7 +550,8 @@ impl MemoryStorageWriter<'_> {
                     .view(&encoded.graph_name, |_, (node, _)| Weak::clone(node)),
             });
             self.storage.content.quad_set.insert(Arc::clone(&node));
-            *self.storage.content.last_quad.write().unwrap() = Some(Arc::downgrade(&node));
+            *self.storage.content.last_quad.write().unwrap() =
+                Some(Arc::downgrade(&node));
             self.storage
                 .content
                 .last_quad_by_subject
@@ -1108,7 +1126,8 @@ mod tests {
 
         let encoded_example = storage.object_ids().encode_term(example);
         let encoded_example2 = storage.object_ids().encode_term(example2);
-        let default_quad = QuadRef::new(example, example, example, GraphNameRef::DefaultGraph);
+        let default_quad =
+            QuadRef::new(example, example, example, GraphNameRef::DefaultGraph);
         let encoded_default_quad = storage.object_ids().encode_quad(default_quad);
         let named_graph_quad = QuadRef::new(example, example, example, example);
         let encoded_named_graph_quad = storage.object_ids().encode_quad(named_graph_quad);
@@ -1153,14 +1172,16 @@ mod tests {
 
         // We add the quads again but rollback
         let snapshot = storage.snapshot();
-        assert!(storage
-            .transaction(|mut writer| {
-                writer.insert(default_quad);
-                writer.insert(named_graph_quad);
-                writer.insert_named_graph(example2.into());
-                Err::<(), _>(StorageError::Other("foo".into()))
-            })
-            .is_err());
+        assert!(
+            storage
+                .transaction(|mut writer| {
+                    writer.insert(default_quad);
+                    writer.insert(named_graph_quad);
+                    writer.insert_named_graph(example2.into());
+                    Err::<(), _>(StorageError::Other("foo".into()))
+                })
+                .is_err()
+        );
         assert!(!snapshot.contains(&encoded_default_quad));
         assert!(!snapshot.contains(&encoded_named_graph_quad));
         assert!(!snapshot.contains_named_graph(encoded_example));

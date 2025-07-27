@@ -1,13 +1,16 @@
 use crate::files::{guess_rdf_format, load_dataset, load_n3, read_file_to_string};
 use crate::manifest::Test;
 use crate::report::{dataset_diff, format_diff};
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{Context, Result, bail, ensure};
 use oxttl::n3::{N3Quad, N3Term};
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::model::dataset::CanonicalizationAlgorithm;
 use rdf_fusion::model::{BlankNode, Dataset, Quad};
 
-pub fn parser_evaluate_positive_syntax_test(test: &Test, format: RdfFormat) -> Result<()> {
+pub fn parser_evaluate_positive_syntax_test(
+    test: &Test,
+    format: RdfFormat,
+) -> Result<()> {
     let action = test.action.as_deref().context("No action found")?;
     load_dataset(action, format, false, false).context("Parse error")?;
     Ok(())
@@ -19,7 +22,10 @@ pub fn parser_evaluate_positive_n3_syntax_test(test: &Test) -> Result<()> {
     Ok(())
 }
 
-pub fn parser_evaluate_negative_syntax_test(test: &Test, format: RdfFormat) -> Result<()> {
+pub fn parser_evaluate_negative_syntax_test(
+    test: &Test,
+    format: RdfFormat,
+) -> Result<()> {
     let action = test.action.as_deref().context("No action found")?;
     let Err(error) = load_dataset(action, format, false, false) else {
         bail!("File parsed without errors even if it should not");
@@ -55,8 +61,9 @@ pub fn parser_evaluate_eval_test(
         .with_context(|| format!("Parse error on file {action}"))?;
     actual_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
     let results = test.result.as_ref().context("No tests result found")?;
-    let mut expected_dataset = load_dataset(results, guess_rdf_format(results)?, false, lenient)
-        .with_context(|| format!("Parse error on file {results}"))?;
+    let mut expected_dataset =
+        load_dataset(results, guess_rdf_format(results)?, false, lenient)
+            .with_context(|| format!("Parse error on file {results}"))?;
     expected_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
     ensure!(
         expected_dataset == actual_dataset,
@@ -69,12 +76,14 @@ pub fn parser_evaluate_eval_test(
 pub fn parser_evaluate_n3_eval_test(test: &Test, ignore_errors: bool) -> Result<()> {
     let action = test.action.as_deref().context("No action found")?;
     let mut actual_dataset = n3_to_dataset(
-        load_n3(action, ignore_errors).with_context(|| format!("Parse error on file {action}"))?,
+        load_n3(action, ignore_errors)
+            .with_context(|| format!("Parse error on file {action}"))?,
     );
     actual_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
     let results = test.result.as_ref().context("No tests result found")?;
     let mut expected_dataset = n3_to_dataset(
-        load_n3(results, false).with_context(|| format!("Parse error on file {results}"))?,
+        load_n3(results, false)
+            .with_context(|| format!("Parse error on file {results}"))?,
     );
     expected_dataset.canonicalize(CanonicalizationAlgorithm::Unstable);
     ensure!(
@@ -91,8 +100,8 @@ pub fn parser_evaluate_positive_c14n_test(test: &Test, format: RdfFormat) -> Res
         .with_context(|| format!("Parse error on file {action}"))?
         .to_string();
     let results = test.result.as_ref().context("No tests result found")?;
-    let expected =
-        read_file_to_string(results).with_context(|| format!("Read error on file {results}"))?;
+    let expected = read_file_to_string(results)
+        .with_context(|| format!("Read error on file {results}"))?;
     ensure!(
         expected == actual,
         "The two files are not equal. Diff:\n{}",
@@ -110,7 +119,9 @@ fn n3_to_dataset(quads: Vec<N3Quad>) -> Dataset {
                     N3Term::NamedNode(n) => n.into(),
                     N3Term::BlankNode(n) => n.into(),
                     N3Term::Literal(_) => return None,
-                    N3Term::Variable(v) => BlankNode::new_unchecked(v.into_string()).into(),
+                    N3Term::Variable(v) => {
+                        BlankNode::new_unchecked(v.into_string()).into()
+                    }
                 },
                 predicate: match q.predicate {
                     N3Term::NamedNode(n) => n,
@@ -120,7 +131,9 @@ fn n3_to_dataset(quads: Vec<N3Quad>) -> Dataset {
                     N3Term::NamedNode(n) => n.into(),
                     N3Term::BlankNode(n) => n.into(),
                     N3Term::Literal(n) => n.into(),
-                    N3Term::Variable(v) => BlankNode::new_unchecked(v.into_string()).into(),
+                    N3Term::Variable(v) => {
+                        BlankNode::new_unchecked(v.into_string()).into()
+                    }
                 },
                 graph_name: q.graph_name,
             })

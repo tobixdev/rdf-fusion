@@ -2,7 +2,7 @@ use crate::files::*;
 use crate::manifest::*;
 use crate::report::{dataset_diff, format_diff};
 use crate::vocab::*;
-use anyhow::{bail, ensure, Context, Error, Result};
+use anyhow::{Context, Error, Result, bail, ensure};
 use futures::StreamExt;
 use rdf_fusion::io::RdfParser;
 use rdf_fusion::model::dataset::CanonicalizationAlgorithm;
@@ -64,8 +64,9 @@ pub async fn sparql_evaluate_negative_result_syntax_test(
     format: QueryResultsFormat,
 ) -> Result<()> {
     let action_file = test.action.as_deref().context("No action found")?;
-    let query_results = QueryResults::read(Cursor::new(read_file_to_string(action_file)?), format)
-        .map_err(Error::from);
+    let query_results =
+        QueryResults::read(Cursor::new(read_file_to_string(action_file)?), format)
+            .map_err(Error::from);
     ensure!(
         query_results.is_err(),
         "Oxigraph parses even if it should not."
@@ -109,18 +110,20 @@ pub async fn sparql_evaluate_evaluation_test(test: &Test) -> Result<()> {
     let expected_results = load_sparql_query_result(test.result.as_ref().unwrap())
         .await
         .context("Error constructing expected graph")?;
-    let with_order = if let StaticQueryResults::Solutions { ordered, .. } = &expected_results {
-        *ordered
-    } else {
-        false
-    };
+    let with_order =
+        if let StaticQueryResults::Solutions { ordered, .. } = &expected_results {
+            *ordered
+        } else {
+            false
+        };
 
     let options = options.clone();
     let actual_results = store
         .query_opt(query.clone(), options)
         .await
         .context("Failure to execute query")?;
-    let actual_results = StaticQueryResults::from_query_results(actual_results, with_order).await?;
+    let actual_results =
+        StaticQueryResults::from_query_results(actual_results, with_order).await?;
 
     ensure!(
         are_query_results_isomorphic(&expected_results, &actual_results),
@@ -209,10 +212,14 @@ async fn load_sparql_query_result(url: &str) -> Result<StaticQueryResults> {
         .rsplit_once('.')
         .and_then(|(_, extension)| QueryResultsFormat::from_extension(extension))
     {
-        StaticQueryResults::from_query_results(QueryResults::read(read_file(url)?, format)?, false)
-            .await
+        StaticQueryResults::from_query_results(
+            QueryResults::read(read_file(url)?, format)?,
+            false,
+        )
+        .await
     } else {
-        StaticQueryResults::from_graph(&load_graph(url, guess_rdf_format(url)?, false)?).await
+        StaticQueryResults::from_graph(&load_graph(url, guess_rdf_format(url)?, false)?)
+            .await
     }
 }
 
@@ -317,7 +324,10 @@ fn compare_solutions(expected: &[(Variable, Term)], actual: &[(Variable, Term)])
     let mut bnode_map = HashMap::new();
     expected.len() == actual.len()
         && expected.iter().zip(actual).all(
-            move |((expected_variable, expected_value), (actual_variable, actual_value))| {
+            move |(
+                (expected_variable, expected_value),
+                (actual_variable, actual_value),
+            )| {
                 expected_variable == actual_variable
                     && compare_terms(
                         expected_value.as_ref(),
@@ -386,8 +396,12 @@ impl StaticQueryResults {
             .map(|q| Ok(Triple::from(q)))
             .collect::<Result<Graph>>()?;
 
-        if let Some(result_set) = graph.subject_for_predicate_object(rdf::TYPE, rs::RESULT_SET) {
-            if let Some(bool) = graph.object_for_subject_predicate(result_set, rs::BOOLEAN) {
+        if let Some(result_set) =
+            graph.subject_for_predicate_object(rdf::TYPE, rs::RESULT_SET)
+        {
+            if let Some(bool) =
+                graph.object_for_subject_predicate(result_set, rs::BOOLEAN)
+            {
                 // Boolean query
                 Ok(Self::Boolean(bool == Literal::from(true).as_ref().into()))
             } else {
@@ -416,8 +430,12 @@ impl StaticQueryResults {
                                     bail!("Invalid rs:binding: {object}")
                                 };
                                 let (Some(TermRef::Literal(variable)), Some(value)) = (
-                                    graph.object_for_subject_predicate(binding, rs::VARIABLE),
-                                    graph.object_for_subject_predicate(binding, rs::VALUE),
+                                    graph.object_for_subject_predicate(
+                                        binding,
+                                        rs::VARIABLE,
+                                    ),
+                                    graph
+                                        .object_for_subject_predicate(binding, rs::VALUE),
                                 ) else {
                                     bail!("Invalid rs:binding: {binding}")
                                 };
@@ -515,7 +533,9 @@ fn results_diff(expected: StaticQueryResults, actual: StaticQueryResults) -> Str
             }
         },
         StaticQueryResults::Graph(expected) => match actual {
-            StaticQueryResults::Solutions { .. } => "Expecting a graph but found solutions".into(),
+            StaticQueryResults::Solutions { .. } => {
+                "Expecting a graph but found solutions".into()
+            }
             StaticQueryResults::Boolean(actual) => {
                 format!("Expecting a graph but found the boolean {actual}")
             }

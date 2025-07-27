@@ -1,11 +1,15 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::plain_term::encoding::PlainTermType;
 use crate::plain_term::PlainTermEncoding;
+use crate::plain_term::encoding::PlainTermType;
 use crate::{EncodingScalar, TermEncoding};
-use datafusion::arrow::array::{Array, AsArray, GenericStringArray, PrimitiveArray, StructArray};
+use datafusion::arrow::array::{
+    Array, AsArray, GenericStringArray, PrimitiveArray, StructArray,
+};
 use datafusion::arrow::datatypes::UInt8Type;
 use datafusion::common::ScalarValue;
-use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{
+    BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, ThinError, ThinResult,
+};
 
 #[derive(Debug)]
 pub struct DefaultPlainTermDecoder;
@@ -25,14 +29,15 @@ impl TermDecoder<PlainTermEncoding> for DefaultPlainTermDecoder {
         let datatype = array.column(2).as_string::<i32>();
         let language = array.column(3).as_string::<i32>();
 
-        (0..array.len()).map(|idx| extract_term(array, term_type, value, datatype, language, idx))
+        (0..array.len())
+            .map(|idx| extract_term(array, term_type, value, datatype, language, idx))
     }
 
     fn decode_term(
         scalar: &<PlainTermEncoding as TermEncoding>::Scalar,
     ) -> ThinResult<Self::Term<'_>> {
         let ScalarValue::Struct(array) = scalar.scalar_value() else {
-            return ThinError::internal_error("Unexpected encoding. Should be ensured.");
+            panic!("Unexpected encoding. Should be ensured by the wrapping type.");
         };
 
         let term_type = array.column(0).as_primitive::<UInt8Type>();
@@ -52,15 +57,15 @@ fn extract_term<'data>(
     language: &'data GenericStringArray<i32>,
     idx: usize,
 ) -> ThinResult<TermRef<'data>> {
-    let value = array
+    array
         .is_valid(idx)
         .then(|| {
-            let term_type = PlainTermType::try_from(term_type.value(idx))
-                .map_err(|_| ThinError::InternalError("Unexpected term type encoding"))?;
-            Ok::<_, ThinError>(decode_term(value, datatype, language, idx, term_type))
+            let term_type = PlainTermType::try_from(term_type.value(idx)).expect(
+                "Unexpected term type encoding. Should be ensured by the wrapping type.",
+            );
+            decode_term(value, datatype, language, idx, term_type)
         })
-        .transpose()?;
-    value.ok_or(ThinError::Expected)
+        .ok_or(ThinError::ExpectedError)
 }
 
 fn decode_term<'data>(

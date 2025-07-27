@@ -1,8 +1,8 @@
+use crate::AppState;
 use crate::repositories::data::handle_data_post;
 use crate::repositories::query::handle_query_get;
-use crate::AppState;
-use axum::routing::{get, post};
 use axum::Router;
+use axum::routing::{get, post};
 
 mod content_negotiation;
 mod data;

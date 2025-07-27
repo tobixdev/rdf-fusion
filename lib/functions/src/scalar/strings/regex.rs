@@ -1,11 +1,13 @@
-use crate::builtin::BuiltinName;
-use crate::scalar::dispatch::{dispatch_binary_typed_value, dispatch_ternary_typed_value};
-use crate::scalar::sparql_op_impl::{create_typed_value_sparql_op_impl, SparqlOpImpl};
+use crate::scalar::dispatch::{
+    dispatch_binary_typed_value, dispatch_ternary_typed_value,
+};
+use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{BinaryArgs, BinaryOrTernaryArgs, ScalarSparqlOp, TernaryArgs};
-use crate::FunctionName;
 use datafusion::logical_expr::Volatility;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{SimpleLiteralRef, ThinError, ThinResult, TypedValueRef};
 use regex::{Regex, RegexBuilder};
 use std::borrow::Cow;
@@ -44,27 +46,33 @@ impl ScalarSparqlOp for RegexSparqlOp {
         &self,
     ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
         Some(create_typed_value_sparql_op_impl(|args| match args {
-            BinaryOrTernaryArgs::Binary(BinaryArgs(lhs, rhs)) => dispatch_binary_typed_value(
-                &lhs,
-                &rhs,
-                |lhs_value, rhs_value| {
-                    let TypedValueRef::SimpleLiteral(pattern) = rhs_value else {
-                        return ThinError::expected();
-                    };
+            BinaryOrTernaryArgs::Binary(BinaryArgs(lhs, rhs)) => {
+                dispatch_binary_typed_value(
+                    &lhs,
+                    &rhs,
+                    |lhs_value, rhs_value| {
+                        let TypedValueRef::SimpleLiteral(pattern) = rhs_value else {
+                            return ThinError::expected();
+                        };
 
-                    let regex = compile_pattern(pattern.value, None)?;
-                    match lhs_value {
-                        TypedValueRef::SimpleLiteral(value) => Ok(TypedValueRef::BooleanLiteral(
-                            regex.is_match(value.value).into(),
-                        )),
-                        TypedValueRef::LanguageStringLiteral(value) => Ok(
-                            TypedValueRef::BooleanLiteral(regex.is_match(value.value).into()),
-                        ),
-                        _ => ThinError::expected(),
-                    }
-                },
-                |_, _| ThinError::expected(),
-            ),
+                        let regex = compile_pattern(pattern.value, None)?;
+                        match lhs_value {
+                            TypedValueRef::SimpleLiteral(value) => {
+                                Ok(TypedValueRef::BooleanLiteral(
+                                    regex.is_match(value.value).into(),
+                                ))
+                            }
+                            TypedValueRef::LanguageStringLiteral(value) => {
+                                Ok(TypedValueRef::BooleanLiteral(
+                                    regex.is_match(value.value).into(),
+                                ))
+                            }
+                            _ => ThinError::expected(),
+                        }
+                    },
+                    |_, _| ThinError::expected(),
+                )
+            }
             BinaryOrTernaryArgs::Ternary(TernaryArgs(arg0, arg1, arg2)) => {
                 dispatch_ternary_typed_value(
                     &arg0,
@@ -76,12 +84,16 @@ impl ScalarSparqlOp for RegexSparqlOp {
 
                         let regex = compile_pattern(arg1.value, Some(arg2.value))?;
                         match arg0 {
-                            TypedValueRef::SimpleLiteral(value) => Ok(
-                                TypedValueRef::BooleanLiteral(regex.is_match(value.value).into()),
-                            ),
-                            TypedValueRef::LanguageStringLiteral(value) => Ok(
-                                TypedValueRef::BooleanLiteral(regex.is_match(value.value).into()),
-                            ),
+                            TypedValueRef::SimpleLiteral(value) => {
+                                Ok(TypedValueRef::BooleanLiteral(
+                                    regex.is_match(value.value).into(),
+                                ))
+                            }
+                            TypedValueRef::LanguageStringLiteral(value) => {
+                                Ok(TypedValueRef::BooleanLiteral(
+                                    regex.is_match(value.value).into(),
+                                ))
+                            }
                             _ => ThinError::expected(),
                         }
                     },
@@ -120,5 +132,5 @@ pub(super) fn compile_pattern(pattern: &str, flags: Option<&str>) -> ThinResult<
             _ => return ThinError::expected(), // invalid option
         }
     }
-    regex_builder.build().map_err(|_| ThinError::Expected)
+    regex_builder.build().map_err(|_| ThinError::ExpectedError)
 }

@@ -1,6 +1,8 @@
 use datafusion::arrow::datatypes::{Field, Fields};
-use datafusion::common::{plan_err, Column, DFSchema, DFSchemaRef};
-use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore};
+use datafusion::common::{Column, DFSchema, DFSchemaRef, plan_err};
+use datafusion::logical_expr::{
+    Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore,
+};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::Variable;
 use std::cmp::Ordering;
@@ -26,7 +28,11 @@ pub struct ExtendNode {
 
 impl ExtendNode {
     /// Creates a new [ExtendNode].
-    pub fn try_new(inner: LogicalPlan, variable: Variable, expression: Expr) -> DFResult<Self> {
+    pub fn try_new(
+        inner: LogicalPlan,
+        variable: Variable,
+        expression: Expr,
+    ) -> DFResult<Self> {
         let column = Column::new_unqualified(variable.as_str());
         if inner.schema().has_column(&column) {
             return plan_err!("Variable {} already exists in schema.", variable);

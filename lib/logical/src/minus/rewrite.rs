@@ -1,21 +1,21 @@
+use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::minus::MinusNode;
-use crate::RdfFusionExprBuilderContext;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_datafusion_err, Column, DFSchemaRef, JoinType};
-use datafusion::logical_expr::{and, Expr, UserDefinedLogicalNode};
+use datafusion::common::{Column, DFSchemaRef, JoinType, plan_datafusion_err};
+use datafusion::logical_expr::{Expr, UserDefinedLogicalNode, and};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_functions::registry::RdfFusionFunctionRegistryRef;
 use std::collections::HashSet;
 use std::sync::Arc;
 
 /// An optimizer rule that lowers a [MinusNode] into a left-anti join.
 #[derive(Debug)]
 pub struct MinusLoweringRule {
-    /// Holds a reference to the RDF Fusion function registry.
-    registry: RdfFusionFunctionRegistryRef,
+    /// The RDF Fusion configuration.
+    context: RdfFusionContextView,
 }
 
 impl OptimizerRule for MinusLoweringRule {
@@ -48,8 +48,8 @@ impl OptimizerRule for MinusLoweringRule {
 
 impl MinusLoweringRule {
     /// Creates a new [MinusLoweringRule].
-    pub fn new(registry: RdfFusionFunctionRegistryRef) -> Self {
-        Self { registry }
+    pub fn new(context: RdfFusionContextView) -> Self {
+        Self { context }
     }
 
     /// Rewrites a [MinusNode] into a left-anti join.
@@ -66,8 +66,11 @@ impl MinusLoweringRule {
         let lhs_schema = Arc::clone(lhs.schema());
 
         // Compute the result via a LeftAnti join.
-        let filter_expr =
-            self.compute_filter_expression(lhs.schema(), rhs.schema(), &overlapping_keys)?;
+        let filter_expr = self.compute_filter_expression(
+            lhs.schema(),
+            rhs.schema(),
+            &overlapping_keys,
+        )?;
         let join_result = lhs.join_detailed(
             rhs.build()?,
             JoinType::LeftAnti,
@@ -99,7 +102,7 @@ impl MinusLoweringRule {
         let mut join_schema = lhs_schema.as_ref().clone();
         join_schema.merge(rhs_schema);
         let expr_builder_root =
-            RdfFusionExprBuilderContext::new(self.registry.as_ref(), None, &join_schema);
+            RdfFusionExprBuilderContext::new(&self.context, &join_schema);
 
         let mut join_filters = Vec::new();
 
@@ -148,10 +151,8 @@ fn compute_join_keys(node: &MinusNode) -> HashSet<String> {
         .map(|c| c.name().to_owned())
         .collect();
 
-    let overlapping_keys = lhs_keys
+    lhs_keys
         .intersection(&rhs_keys)
         .cloned()
-        .collect::<HashSet<String>>();
-
-    overlapping_keys
+        .collect::<HashSet<String>>()
 }

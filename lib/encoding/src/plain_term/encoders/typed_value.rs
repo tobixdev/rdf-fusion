@@ -1,5 +1,5 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding, PLAIN_TERM_ENCODING};
+use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder, PlainTermEncoding};
 use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{Term, ThinResult, TypedValueRef};

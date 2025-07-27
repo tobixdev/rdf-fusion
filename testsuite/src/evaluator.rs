@@ -12,7 +12,8 @@ use crate::sparql_evaluator::{
     sparql_evaluate_positive_result_syntax_test, sparql_evaluate_positive_syntax_test,
     sparql_evaluate_positive_update_syntax_test, sparql_evaluate_update_evaluation_test,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
+use datafusion::common::runtime::SpawnedTask;
 use rdf_fusion::io::RdfFormat;
 use sparesults::QueryResultsFormat;
 use time::OffsetDateTime;
@@ -30,9 +31,12 @@ impl TestEvaluator {
         for test in manifest {
             let test = test?;
             let test_id = test.id.clone();
-            let outcome = tokio::spawn(handle_test(test))
-                .await
-                .unwrap_or_else(|err| Err(anyhow!("Could not join on test tasks. {}", err)));
+            let outcome =
+                SpawnedTask::spawn(handle_test(test))
+                    .await
+                    .unwrap_or_else(|err| {
+                        Err(anyhow!("Could not join on test tasks. {}", err))
+                    });
             results.push(TestResult {
                 test: test_id,
                 outcome,
@@ -149,19 +153,24 @@ async fn handle_test(test: Test) -> Result<()> {
 
         // == Oxigraph Tests ==
         "https://github.com/oxigraph/oxigraph/tests#PositiveJsonResultsSyntaxTest" => {
-            sparql_evaluate_positive_result_syntax_test(&test, QueryResultsFormat::Json).await
+            sparql_evaluate_positive_result_syntax_test(&test, QueryResultsFormat::Json)
+                .await
         }
         "https://github.com/oxigraph/oxigraph/tests#NegativeJsonResultsSyntaxTest" => {
-            sparql_evaluate_negative_result_syntax_test(&test, QueryResultsFormat::Json).await
+            sparql_evaluate_negative_result_syntax_test(&test, QueryResultsFormat::Json)
+                .await
         }
         "https://github.com/oxigraph/oxigraph/tests#PositiveXmlResultsSyntaxTest" => {
-            sparql_evaluate_positive_result_syntax_test(&test, QueryResultsFormat::Xml).await
+            sparql_evaluate_positive_result_syntax_test(&test, QueryResultsFormat::Xml)
+                .await
         }
         "https://github.com/oxigraph/oxigraph/tests#NegativeXmlResultsSyntaxTest" => {
-            sparql_evaluate_negative_result_syntax_test(&test, QueryResultsFormat::Xml).await
+            sparql_evaluate_negative_result_syntax_test(&test, QueryResultsFormat::Xml)
+                .await
         }
         "https://github.com/oxigraph/oxigraph/tests#NegativeTsvResultsSyntaxTest" => {
-            sparql_evaluate_negative_result_syntax_test(&test, QueryResultsFormat::Tsv).await
+            sparql_evaluate_negative_result_syntax_test(&test, QueryResultsFormat::Tsv)
+                .await
         }
         _ => Err(anyhow!("The test type {} is not supported", test.kind)),
     }

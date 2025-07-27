@@ -1,5 +1,5 @@
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_datafusion_err, DFSchema, DFSchemaRef, ExprSchema};
+use datafusion::common::{DFSchema, DFSchemaRef, ExprSchema, plan_datafusion_err};
 use datafusion::logical_expr::expr::ScalarFunction;
 use datafusion::logical_expr::utils::merge_schema;
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan};
@@ -85,9 +85,11 @@ fn try_rewrite_scalar_function(
             let rhs_nullable = scalar_function.args[1].nullable(input_schema)?;
 
             if !lhs_nullable && !rhs_nullable {
-                let [lhs, rhs] =
-                    TryInto::<[Expr; 2]>::try_into(scalar_function.args).map_err(|_| {
-                        plan_datafusion_err!("Unexpected number of args for IS_COMPATIBLE")
+                let [lhs, rhs] = TryInto::<[Expr; 2]>::try_into(scalar_function.args)
+                    .map_err(|_| {
+                        plan_datafusion_err!(
+                            "Unexpected number of args for IS_COMPATIBLE"
+                        )
                     })?;
                 Ok(Transformed::yes(lhs.eq(rhs)))
             } else {

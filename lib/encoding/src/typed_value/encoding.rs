@@ -7,10 +7,11 @@ use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{Decimal, TermRef, ThinError, ThinResult};
+use rdf_fusion_model::{Decimal, TermRef, ThinResult};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
+use thiserror::Error;
 
 static FIELDS_STRING: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
@@ -136,8 +137,7 @@ static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
 
 /// The instance of the [TypedValueEncoding].
 ///
-/// As there is currently no way to parameterize the encoding, accessing it via this constant is
-/// the preferred way.
+/// This constant will be removed once user-defined typed values are supported.
 pub const TYPED_VALUE_ENCODING: TypedValueEncoding = TypedValueEncoding;
 
 /// The [TypedValueEncoding] stores the *value* of an RDF term as a union of possible types.
@@ -150,6 +150,12 @@ pub const TYPED_VALUE_ENCODING: TypedValueEncoding = TypedValueEncoding;
 /// `"01"^^xsd::int` map to the same value. The [TypedValueEncoding] cannot distinguish between
 /// these two terms and therefore should only be used for query parts that do not rely on this
 /// distinction.
+///
+/// # Future Plans
+///
+/// Currently, the TypedValue encoding has a fixed Arrow DataType. We plan to change that in the
+/// future such that users can provide custom encodings for domain-specific literals (e.g.,
+/// geospatial coordinates).
 #[derive(Debug)]
 pub struct TypedValueEncoding;
 
@@ -271,8 +277,12 @@ impl TypedValueEncodingField {
             TypedValueEncodingField::DateTime
             | TypedValueEncodingField::Time
             | TypedValueEncodingField::Date => DataType::Struct(FIELDS_TIMESTAMP.clone()),
-            TypedValueEncodingField::Duration => DataType::Struct(FIELDS_DURATION.clone()),
-            TypedValueEncodingField::OtherLiteral => DataType::Struct(FIELDS_TYPED_LITERAL.clone()),
+            TypedValueEncodingField::Duration => {
+                DataType::Struct(FIELDS_DURATION.clone())
+            }
+            TypedValueEncodingField::OtherLiteral => {
+                DataType::Struct(FIELDS_TYPED_LITERAL.clone())
+            }
         }
     }
 
@@ -290,8 +300,17 @@ impl Display for TypedValueEncodingField {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, Error, PartialEq, Eq, Hash)]
+pub struct UnknownTypedValueEncodingFieldError;
+
+impl Display for UnknownTypedValueEncodingFieldError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unexpected type_id for encoded RDF Term")
+    }
+}
+
 impl TryFrom<i8> for TypedValueEncodingField {
-    type Error = ThinError;
+    type Error = UnknownTypedValueEncodingFieldError;
 
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -310,13 +329,13 @@ impl TryFrom<i8> for TypedValueEncodingField {
             12 => TypedValueEncodingField::Date,
             13 => TypedValueEncodingField::Duration,
             14 => TypedValueEncodingField::OtherLiteral,
-            _ => return ThinError::internal_error("Unexpected type_id for encoded RDF Term"),
+            _ => return Err(UnknownTypedValueEncodingFieldError),
         })
     }
 }
 
 impl TryFrom<u8> for TypedValueEncodingField {
-    type Error = ThinError;
+    type Error = UnknownTypedValueEncodingFieldError;
 
     #[allow(
         clippy::cast_possible_wrap,

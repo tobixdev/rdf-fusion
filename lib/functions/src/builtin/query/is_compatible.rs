@@ -1,16 +1,16 @@
-use crate::builtin::BuiltinName;
-use datafusion::arrow::array::{make_comparator, Array, BooleanArray, BooleanBuilder};
-use datafusion::arrow::compute::kernels::cmp::eq;
+use datafusion::arrow::array::{Array, BooleanArray, BooleanBuilder, make_comparator};
 use datafusion::arrow::compute::SortOptions;
+use datafusion::arrow::compute::kernels::cmp::eq;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::logical_expr::{
-    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature,
-    Volatility,
+    ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
+    TypeSignature, Volatility,
 };
+use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use std::any::Any;
 use std::cmp::Ordering;
 use std::sync::Arc;
@@ -31,7 +31,13 @@ impl IsCompatible {
         Self {
             name: BuiltinName::IsCompatible.to_string(),
             signature: Signature::new(
-                TypeSignature::Uniform(2, vec![PLAIN_TERM_ENCODING.data_type(), DataType::UInt64]),
+                TypeSignature::Uniform(
+                    2,
+                    vec![
+                        PlainTermEncoding::data_type(),
+                        ObjectIdEncoding::data_type(),
+                    ],
+                ),
                 Volatility::Immutable,
             ),
         }
@@ -107,18 +113,31 @@ pub(crate) fn invoke_scalar_array(
     }
 }
 
-pub(crate) fn invoke_scalar_scalar(lhs: &ScalarValue, rhs: &ScalarValue) -> ColumnarValue {
+pub(crate) fn invoke_scalar_scalar(
+    lhs: &ScalarValue,
+    rhs: &ScalarValue,
+) -> ColumnarValue {
     ColumnarValue::Scalar(ScalarValue::Boolean(Some(
         lhs.is_null() || rhs.is_null() || lhs == rhs,
     )))
 }
 
-fn invoke_eq_array(number_rows: usize, lhs: &dyn Array, rhs: &dyn Array) -> DFResult<BooleanArray> {
+fn invoke_eq_array(
+    number_rows: usize,
+    lhs: &dyn Array,
+    rhs: &dyn Array,
+) -> DFResult<BooleanArray> {
     let data_type = lhs.data_type();
     if data_type.is_nested() {
         let comparator = make_comparator(lhs, rhs, SortOptions::default())?;
         let result = (0..number_rows)
-            .map(|i| Some(lhs.is_null(i) || rhs.is_null(i) || comparator(i, i) == Ordering::Equal))
+            .map(|i| {
+                Some(
+                    lhs.is_null(i)
+                        || rhs.is_null(i)
+                        || comparator(i, i) == Ordering::Equal,
+                )
+            })
             .collect::<BooleanArray>();
         Ok(result)
     } else {

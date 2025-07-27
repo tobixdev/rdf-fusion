@@ -1,10 +1,10 @@
 #![allow(clippy::panic)]
 
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use futures::StreamExt;
 use rdf_fusion::model::Term;
 use rdf_fusion::store::Store;
-use rdf_fusion_engine::results::QueryResults;
+use rdf_fusion_execution::results::QueryResults;
 use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject};
 use tokio::runtime::Builder;
 
@@ -112,9 +112,9 @@ async fn prepare_store_with_generated_triples(n: usize) -> Store {
 
 fn generate_quads(count: usize) -> impl Iterator<Item = Quad> {
     (0..count).map(|i| {
-        let subject = format!("http://example.com/subject{}", i);
-        let predicate = format!("http://example.com/predicate{}", i);
-        let object = format!("http://example.com/object{}", i);
+        let subject = format!("http://example.com/subject{i}");
+        let predicate = format!("http://example.com/predicate{i}");
+        let object = format!("http://example.com/object{i}");
         Quad::new(
             Subject::NamedNode(NamedNode::new_unchecked(subject)),
             NamedNode::new_unchecked(predicate),

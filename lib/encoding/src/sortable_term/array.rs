@@ -1,6 +1,6 @@
-use crate::encoding::EncodingArray;
-use crate::sortable_term::{SortableTermEncoding, SORTABLE_TERM_ENCODING};
 use crate::TermEncoding;
+use crate::encoding::EncodingArray;
+use crate::sortable_term::{SORTABLE_TERM_ENCODING, SortableTermEncoding};
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::common::exec_err;
 use datafusion::error::DataFusionError;

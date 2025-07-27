@@ -1,5 +1,5 @@
-use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
 use crate::TermEncoding;
+use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
 use datafusion::arrow::array::UInt64Builder;
 use rdf_fusion_model::TermRef;
 use std::sync::Arc;
