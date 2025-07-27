@@ -94,7 +94,7 @@ rdf-fusion = { version = "=0.1.0", path = "lib/rdf-fusion" }
 rdf-fusion-web = { version = "=0.1.0", path = "lib/web" }
 
 #
-# The remainder of this file (profiles & lints) stem from DataFusion.
+# Most of the remainder of this file (profiles & lints) stem from DataFusion.
 #
 
 [profile.release]
@@ -130,6 +130,13 @@ incremental = false
 # for mem/cpu profiling
 [profile.profiling]
 inherits = "release"
+debug = true
+strip = false
+
+# release-non-lto inherited profile keeping debug information and symbols for mem/cpu profiling. "Full" release builds
+# tend to violate the resource constraints of the GitHub runners.
+[profile.profiling-nonlto]
+inherits = "release-nonlto"
 debug = true
 strip = false
 

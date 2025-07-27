@@ -39,8 +39,7 @@ jobs:
           sudo apt-get install -y default-jre
 
       - name: Build the benchmark target(s)
-        # Limiting the number of jobs is an attempt to not violate GitHub's runner resources.
-        run: cargo codspeed build --profile profiling
+        run: cargo codspeed build --profile profiling-nonlto
 
       - name: Prepare BSBM Benchmark
         working-directory: bench
