@@ -57,6 +57,20 @@ impl QuerySolutionStream {
         self.variables.as_ref()
     }
 
+    /// Returns the underlying DataFusion [DataFrame].
+    ///
+    /// It is guaranteed that [DataFrame] has only column with RDF terms in the [PlainTermEncoding].
+    ///
+    /// # Errors
+    ///
+    /// If the stream has been fully consumed.
+    pub fn into_record_batch_stream(self) -> DFResult<SendableRecordBatchStream> {
+        match self.inner {
+            None => exec_err!("Stream has already been consumed."),
+            Some(stream) => Ok(stream),
+        }
+    }
+
     fn poll_inner(
         &mut self,
         ctx: &mut Context<'_>,
