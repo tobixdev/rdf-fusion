@@ -13,6 +13,7 @@ use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use std::any::Any;
 use std::cmp::Ordering;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
 pub fn is_compatible() -> Arc<ScalarUDF> {
@@ -78,6 +79,13 @@ impl ScalarUDFImpl for IsCompatible {
             }
             _ => exec_err!("Invalid arguments for IsCompatible"),
         }
+    }
+
+    fn hash_value(&self) -> u64 {
+        let hasher = &mut DefaultHasher::new();
+        self.as_any().type_id().hash(hasher);
+        self.name().hash(hasher);
+        hasher.finish()
     }
 }
 

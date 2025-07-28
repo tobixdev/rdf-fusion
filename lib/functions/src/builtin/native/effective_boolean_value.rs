@@ -14,6 +14,7 @@ use rdf_fusion_model::{
     Decimal, Double, Float, Int, Integer, Numeric, ThinError, ThinResult, TypedValueRef,
 };
 use std::any::Any;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
 pub fn effective_boolean_value() -> Arc<ScalarUDF> {
@@ -78,6 +79,13 @@ impl ScalarUDFImpl for EffectiveBooleanValue {
             }
             _ => exec_err!("Unexpected number of arguments"),
         }
+    }
+
+    fn hash_value(&self) -> u64 {
+        let hasher = &mut DefaultHasher::new();
+        self.as_any().type_id().hash(hasher);
+        self.name().hash(hasher);
+        hasher.finish()
     }
 }
 

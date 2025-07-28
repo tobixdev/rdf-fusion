@@ -20,6 +20,7 @@ use rdf_fusion_encoding::{
     TermEncoder, TermEncoding,
 };
 use std::any::Any;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
 pub fn with_sortable_term_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF> {
@@ -134,5 +135,12 @@ impl ScalarUDFImpl for WithSortableEncoding {
                 Self::convert_scalar(encoding_name, scalar)
             }
         }
+    }
+
+    fn hash_value(&self) -> u64 {
+        let hasher = &mut DefaultHasher::new();
+        self.as_any().type_id().hash(hasher);
+        self.name().hash(hasher);
+        hasher.finish()
     }
 }

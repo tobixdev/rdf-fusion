@@ -7,6 +7,7 @@ use datafusion::logical_expr::{
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
 use std::any::Any;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::ops::Not;
 use std::sync::Arc;
 
@@ -74,5 +75,12 @@ impl ScalarUDFImpl for SparqlAnd {
         }
 
         Ok(ColumnarValue::Array(Arc::new(builder.finish())))
+    }
+
+    fn hash_value(&self) -> u64 {
+        let hasher = &mut DefaultHasher::new();
+        self.as_any().type_id().hash(hasher);
+        self.name().hash(hasher);
+        hasher.finish()
     }
 }
