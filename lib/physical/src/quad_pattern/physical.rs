@@ -1,14 +1,16 @@
 use datafusion::common::{exec_err, internal_err, plan_err};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
-use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
+use datafusion::physical_plan::execution_plan::{
+    Boundedness, EmissionType,
+};
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
 use rdf_fusion_api::storage::QuadPatternEvaluator;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_logical::EnumeratedActiveGraph;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_logical::EnumeratedActiveGraph;
 use rdf_fusion_model::{TriplePattern, Variable};
 use std::any::Any;
 use std::fmt::{Debug, Formatter};
@@ -130,14 +132,16 @@ impl DisplayAs for QuadPatternExec {
     fn fmt_as(&self, _: DisplayFormatType, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "QuadPatternExec ({} Graphs, ",
+            "QuadPatternExec: n_graphs={}",
             self.plan_properties.partitioning.partition_count()
         )?;
 
         if let Some(graph_variable) = &self.graph_variable {
-            write!(f, " {graph_variable}")?;
+            write!(f, ", graph={graph_variable}")?;
         }
 
-        write!(f, " {}", &self.triple_pattern)
+        write!(f, ", subject={}", &self.triple_pattern.subject)?;
+        write!(f, ", predicate={}", &self.triple_pattern.predicate)?;
+        write!(f, ", object={}", &self.triple_pattern.object)
     }
 }
