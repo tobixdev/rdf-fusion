@@ -32,7 +32,7 @@ pub struct SparqlQueryParams {
 impl SparqlQueryParams {
     #[allow(clippy::unused_self, reason = "Self does not yet contain options.")]
     pub fn to_query_options(&self) -> QueryOptions {
-        QueryOptions
+        QueryOptions::default()
     }
 }
 

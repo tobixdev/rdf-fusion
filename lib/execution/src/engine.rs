@@ -8,7 +8,6 @@ use datafusion::error::DataFusionError;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
-use datafusion::optimizer::{Optimizer, OptimizerRule};
 use datafusion::prelude::{SessionConfig, SessionContext};
 use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_api::functions::{
@@ -21,12 +20,6 @@ use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
-use rdf_fusion_logical::expr::SimplifySparqlExpressionsRule;
-use rdf_fusion_logical::extend::ExtendLoweringRule;
-use rdf_fusion_logical::join::{SparqlJoinLoweringRule, SparqlJoinReorderingRule};
-use rdf_fusion_logical::minus::MinusLoweringRule;
-use rdf_fusion_logical::paths::PropertyPathLoweringRule;
-use rdf_fusion_logical::patterns::PatternLoweringRule;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
 use rdf_fusion_model::{
     GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef,
@@ -69,16 +62,9 @@ impl RdfFusionContext {
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
-        let context_view = RdfFusionContextView::new(
-            Arc::clone(&registry),
-            encodings.clone(),
-            storage.encoding(),
-        );
-
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            .with_optimizer_rules(create_default_optimizer_rules(context_view))
             // TODO: For now we use only a single partition. This should be configurable.
             .with_config(SessionConfig::new().with_target_partitions(1))
             .build();
@@ -101,6 +87,11 @@ impl RdfFusionContext {
             self.encodings.clone(),
             self.storage.encoding(),
         )
+    }
+
+    /// Provides a reference to the [SessionContext].
+    pub fn session_context(&self) -> &SessionContext {
+        &self.ctx
     }
 
     /// Provides access to the [QuadStorage] of this instance for writing operations.
@@ -174,32 +165,13 @@ impl RdfFusionContext {
         options: QueryOptions,
     ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
         Box::pin(evaluate_query(
-            &self.ctx,
+            self,
             self.plan_builder_context(),
             query,
             options,
         ))
         .await
     }
-}
-
-fn create_default_optimizer_rules(
-    context: RdfFusionContextView,
-) -> Vec<Arc<dyn OptimizerRule + Send + Sync>> {
-    let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = vec![
-        Arc::new(SparqlJoinReorderingRule::new(context.encodings().clone())),
-        Arc::new(MinusLoweringRule::new(context.clone())),
-        Arc::new(ExtendLoweringRule::new()),
-        Arc::new(PropertyPathLoweringRule::new(context.clone())),
-        Arc::new(SparqlJoinLoweringRule::new(context.clone())),
-        Arc::new(PatternLoweringRule::new(context.clone())),
-    ];
-
-    rules.extend(Optimizer::default().rules);
-
-    rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
-
-    rules
 }
 
 fn graph_name_to_active_graph(graph_name: Option<GraphNameRef<'_>>) -> ActiveGraph {

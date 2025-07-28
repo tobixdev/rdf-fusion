@@ -83,7 +83,7 @@ pub async fn sparql_evaluate_evaluation_test(test: &Test) -> Result<()> {
         load_to_store(value, &store, name.clone()).await?;
     }
     let query_file = test.query.as_deref().context("No action found")?;
-    let options = QueryOptions;
+    let options = QueryOptions::default();
     let query = Query::parse(&read_file_to_string(query_file)?, Some(query_file))
         .context("Failure to parse query")?;
 

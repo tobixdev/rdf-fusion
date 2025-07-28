@@ -202,7 +202,7 @@ async fn run_operation(
         .build()?;
     let start = Instant::now();
 
-    let options = QueryOptions;
+    let options = QueryOptions::default();
     let (name, explanation) = match operation {
         BsbmBusinessIntelligenceOperation::Query(name, q) => {
             let (result, explanation) =
