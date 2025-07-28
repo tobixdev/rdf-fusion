@@ -385,10 +385,7 @@ impl GraphPatternRewriter {
                     .builder_context
                     .encodings()
                     .try_get_encoding_name(f.data_type());
-                if matches!(
-                    encoding,
-                    Some(EncodingName::TypedValue | EncodingName::PlainTerm)
-                ) {
+                if encoding.is_some() {
                     Ok(column)
                 } else {
                     match f.data_type() {

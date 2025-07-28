@@ -243,8 +243,6 @@ impl RdfFusionLogicalPlanBuilder {
             .map(|(v, e)| e.clone().alias(v.as_str()))
             .collect::<Vec<_>>();
 
-        // TODO: Ensure that aggr_expr is a term
-
         Ok(Self {
             context: self.context,
             plan_builder: self.plan_builder.aggregate(group_expr, aggr_expr)?,
@@ -257,7 +255,7 @@ impl RdfFusionLogicalPlanBuilder {
         Ok(self
             .expr_builder_root()
             .variable(v.as_ref())?
-            .with_encoding(EncodingName::PlainTerm)?
+            .with_any_encoding(&[EncodingName::PlainTerm, EncodingName::ObjectId])?
             .build()?
             .alias(v.as_str()))
     }
