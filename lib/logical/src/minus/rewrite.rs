@@ -1,11 +1,11 @@
+use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::minus::MinusNode;
-use crate::RdfFusionExprBuilderContext;
 use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{
-    plan_datafusion_err, Column, DFSchemaRef, JoinType, NullEquality,
+    Column, DFSchemaRef, JoinType, NullEquality, plan_datafusion_err,
 };
-use datafusion::logical_expr::{and, Expr, UserDefinedLogicalNode};
+use datafusion::logical_expr::{Expr, UserDefinedLogicalNode, and};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_api::RdfFusionContextView;
