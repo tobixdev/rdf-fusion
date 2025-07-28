@@ -3,7 +3,7 @@ use crate::report::BenchmarkReport;
 use crate::runs::{BenchmarkRun, BenchmarkRuns};
 use crate::utils::write_flamegraph;
 use anyhow::{Context, bail};
-use datafusion::physical_plan::displayable;
+use datafusion::physical_plan::display::DisplayableExecutionPlan;
 use prettytable::{Table, row};
 use rdf_fusion::QueryExplanation;
 use std::collections::HashMap;
@@ -135,7 +135,9 @@ impl ExploreReport {
 
         // Write the execution plan
         let execution_plan =
-            displayable(explanation.execution_plan.as_ref()).indent(false);
+            DisplayableExecutionPlan::with_metrics(explanation.execution_plan.as_ref())
+                .set_show_statistics(true)
+                .indent(false);
         fs::write(
             &execution_plan_file,
             format!("Execution Plan:\n\n{execution_plan}"),

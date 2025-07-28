@@ -1,16 +1,17 @@
 use datafusion::common::{exec_err, internal_err, plan_err};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
-use datafusion::physical_plan::execution_plan::{
-    Boundedness, EmissionType,
+use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
+use datafusion::physical_plan::metrics::{
+    BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet,
 };
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
 use rdf_fusion_api::storage::QuadPatternEvaluator;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::EnumeratedActiveGraph;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{TriplePattern, Variable};
 use std::any::Any;
 use std::fmt::{Debug, Formatter};
@@ -36,6 +37,8 @@ pub struct QuadPatternExec {
     blank_node_mode: BlankNodeMatchingMode,
     /// The execution properties of this operator.
     plan_properties: PlanProperties,
+    /// Execution metrics
+    metrics: ExecutionPlanMetricsSet,
 }
 
 impl QuadPatternExec {
@@ -69,6 +72,7 @@ impl QuadPatternExec {
             triple_pattern,
             blank_node_mode,
             plan_properties,
+            metrics: ExecutionPlanMetricsSet::default(),
         }
     }
 }
@@ -113,11 +117,13 @@ impl ExecutionPlan for QuadPatternExec {
             );
         }
 
+        let baseline_metrics = BaselineMetrics::new(&self.metrics, partition);
         let result = self.quads_evaluator.evaluate_pattern(
             self.active_graph.0[partition].clone(),
             self.graph_variable.clone(),
             self.triple_pattern.clone(),
             self.blank_node_mode,
+            baseline_metrics,
             context.session_config().batch_size(),
         )?;
         if result.schema() != self.schema() {
@@ -125,6 +131,10 @@ impl ExecutionPlan for QuadPatternExec {
         }
 
         Ok(result)
+    }
+
+    fn metrics(&self) -> Option<MetricsSet> {
+        Some(self.metrics.clone_inner())
     }
 }
 

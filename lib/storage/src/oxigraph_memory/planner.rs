@@ -7,6 +7,7 @@ use datafusion::error::{DataFusionError, Result as DFResult};
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
+use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_plan::{EmptyRecordBatchStream, ExecutionPlan};
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 use rdf_fusion_api::storage::QuadPatternEvaluator;
@@ -116,6 +117,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
         blank_node_mode: BlankNodeMatchingMode,
+        metrics: BaselineMetrics,
         batch_size: usize,
     ) -> DFResult<SendableRecordBatchStream> {
         let storage_encoding = self.storage().storage_encoding();
@@ -221,6 +223,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             graph_variable,
             pattern,
             blank_node_mode,
+            metrics,
             batch_size,
         )))
     }
