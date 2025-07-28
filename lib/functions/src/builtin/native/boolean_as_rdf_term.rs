@@ -10,6 +10,7 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use std::any::Any;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
 pub fn native_boolean_as_term() -> Arc<ScalarUDF> {
@@ -75,5 +76,12 @@ impl ScalarUDFImpl for NativeBooleanAsTerm {
         }
 
         Ok(ColumnarValue::Array(builder.finish()))
+    }
+
+    fn hash_value(&self) -> u64 {
+        let hasher = &mut DefaultHasher::new();
+        self.as_any().type_id().hash(hasher);
+        self.name().hash(hasher);
+        hasher.finish()
     }
 }

@@ -2,7 +2,7 @@ use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, ExprSchema, JoinType, plan_err};
+use datafusion::common::{Column, ExprSchema, JoinType, NullEquality, plan_err};
 use datafusion::logical_expr::{Expr, ExprSchemable, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
@@ -194,7 +194,7 @@ impl SparqlJoinLoweringRule {
             get_data_fusion_join_type(node),
             (Vec::<Column>::new(), Vec::<Column>::new()),
             filter_expr,
-            false,
+            NullEquality::NullEqualsNothing,
         )?;
 
         join.project(projections)?.build()

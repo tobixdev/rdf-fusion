@@ -2,7 +2,9 @@ use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::minus::MinusNode;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, DFSchemaRef, JoinType, plan_datafusion_err};
+use datafusion::common::{
+    Column, DFSchemaRef, JoinType, NullEquality, plan_datafusion_err,
+};
 use datafusion::logical_expr::{Expr, UserDefinedLogicalNode, and};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
@@ -76,7 +78,7 @@ impl MinusLoweringRule {
             JoinType::LeftAnti,
             (Vec::<Column>::new(), Vec::<Column>::new()),
             filter_expr,
-            false,
+            NullEquality::NullEqualsNothing,
         )?;
 
         // Eliminate the "lhs" qualifier.

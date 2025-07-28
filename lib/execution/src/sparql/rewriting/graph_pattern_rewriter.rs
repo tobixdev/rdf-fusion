@@ -327,7 +327,7 @@ impl GraphPatternRewriter {
                             exprs,
                             true,
                             None,
-                            None,
+                            Vec::new(),
                             None,
                         ),
                     ))

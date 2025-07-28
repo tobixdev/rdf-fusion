@@ -766,7 +766,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     )]
     pub fn sample(self) -> DFResult<Self> {
         Ok(Self {
-            expr: first_value(self.expr, None),
+            expr: first_value(self.expr, Vec::new()),
             ..self
         })
     }
