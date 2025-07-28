@@ -1,4 +1,6 @@
+use crate::RdfFusionContext;
 use crate::sparql::error::QueryEvaluationError;
+use crate::sparql::optimizer::create_optimizer_rules;
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::sparql::{
     Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults,
@@ -6,9 +8,8 @@ use crate::sparql::{
 };
 use datafusion::arrow::datatypes::Schema;
 use datafusion::common::instant::Instant;
-use datafusion::execution::SessionState;
+use datafusion::execution::{SessionState, SessionStateBuilder};
 use datafusion::physical_plan::{ExecutionPlan, execute_stream};
-use datafusion::prelude::SessionContext;
 use futures::StreamExt;
 use itertools::izip;
 use rdf_fusion_logical::RdfFusionLogicalPlanBuilderContext;
@@ -23,17 +24,24 @@ use std::sync::Arc;
 /// Most users should refrain from directly using this function, as there are higher-level
 /// abstractions that provide APIs for querying.
 pub async fn evaluate_query(
-    ctx: &SessionContext,
+    ctx: &RdfFusionContext,
     builder_context: RdfFusionLogicalPlanBuilderContext,
     query: &Query,
-    _options: QueryOptions,
+    options: QueryOptions,
 ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
+    let session_state = SessionStateBuilder::from(ctx.session_context().state())
+        .with_optimizer_rules(create_optimizer_rules(
+            ctx.create_view(),
+            options.optimization_level,
+        ))
+        .build();
+
     match &query.inner {
         spargebra::Query::Select {
             pattern, base_iri, ..
         } => {
             let (stream, explanation) = graph_pattern_to_stream(
-                ctx.state(),
+                session_state,
                 builder_context,
                 query,
                 pattern,
@@ -49,7 +57,7 @@ pub async fn evaluate_query(
             ..
         } => {
             let (stream, explanation) = graph_pattern_to_stream(
-                ctx.state(),
+                session_state,
                 builder_context,
                 query,
                 pattern,
@@ -65,7 +73,7 @@ pub async fn evaluate_query(
             pattern, base_iri, ..
         } => {
             let (mut stream, explanation) = graph_pattern_to_stream(
-                ctx.state(),
+                session_state,
                 builder_context,
                 query,
                 pattern,
@@ -118,7 +126,7 @@ pub async fn evaluate_query(
                 }),
             };
             let (stream, explanation) = graph_pattern_to_stream(
-                ctx.state(),
+                session_state,
                 builder_context,
                 query,
                 &pattern,
