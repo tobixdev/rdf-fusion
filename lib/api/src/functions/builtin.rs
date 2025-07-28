@@ -79,6 +79,7 @@ pub enum BuiltinName {
     // Logical
     And,
     Or,
+    Not,
 
     // Conversion Functions
     CastString,
@@ -187,6 +188,7 @@ impl fmt::Display for BuiltinName {
             Self::WithPlainTermEncoding => "WITH_PLAIN_TERM_ENCODING",
             Self::And => "AND",
             Self::Or => "OR",
+            Self::Not => "NOT",
         };
         f.write_str(name)
     }

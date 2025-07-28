@@ -351,9 +351,7 @@ impl GraphPatternRewriter {
                     AggregateFunction::Min => {
                         expr.with_encoding(EncodingName::TypedValue)?.min()
                     }
-                    AggregateFunction::Sample => {
-                        expr.with_encoding(EncodingName::TypedValue)?.sample()
-                    }
+                    AggregateFunction::Sample => expr.sample(),
                     AggregateFunction::Sum => {
                         expr.with_encoding(EncodingName::TypedValue)?.sum(*distinct)
                     }

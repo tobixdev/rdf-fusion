@@ -7,8 +7,8 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
+use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArray};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_model::{
     Decimal, Double, Float, Int, Integer, Numeric, ThinError, ThinResult, TypedValueRef,
@@ -65,9 +65,7 @@ impl ScalarUDFImpl for EffectiveBooleanValue {
         match TryInto::<[_; 1]>::try_into(args.args) {
             Ok([ColumnarValue::Array(array)]) => {
                 let array = TYPED_VALUE_ENCODING.try_new_array(array)?;
-                let result = DefaultTypedValueDecoder::decode_terms(&array)
-                    .map(|res| res.and_then(evaluate).ok())
-                    .collect::<BooleanArray>();
+                let result = ebv(&array);
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             Ok([ColumnarValue::Scalar(scalar)]) => {
@@ -87,6 +85,13 @@ impl ScalarUDFImpl for EffectiveBooleanValue {
         self.name().hash(hasher);
         hasher.finish()
     }
+}
+
+/// Calculates the effective boolean value (EBV) from `array`.
+pub fn ebv(array: &TypedValueArray) -> BooleanArray {
+    DefaultTypedValueDecoder::decode_terms(array)
+        .map(|res| res.and_then(evaluate).ok())
+        .collect::<BooleanArray>()
 }
 
 fn evaluate(value: TypedValueRef<'_>) -> ThinResult<bool> {
