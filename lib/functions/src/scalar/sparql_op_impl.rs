@@ -19,6 +19,19 @@ pub struct ClosureSparqlOpImpl<Args> {
     closure: Box<dyn Fn(Args) -> DFResult<ColumnarValue>>,
 }
 
+impl<Args> ClosureSparqlOpImpl<Args> {
+    /// Create a new `ClosureSparqlOpImpl`.
+    pub fn new(
+        return_type: DataType,
+        closure: impl Fn(Args) -> DFResult<ColumnarValue> + 'static,
+    ) -> Self {
+        Self {
+            return_type,
+            closure: Box::new(closure),
+        }
+    }
+}
+
 impl<Args> SparqlOpImpl<Args> for ClosureSparqlOpImpl<Args> {
     fn return_type(&self) -> DataType {
         self.return_type.clone()
