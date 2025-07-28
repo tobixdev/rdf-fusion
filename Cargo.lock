@@ -3817,7 +3817,7 @@ dependencies = [
  "datafusion",
  "rdf-fusion-common",
  "rdf-fusion-model",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
