@@ -5,7 +5,6 @@ use crate::aggregates::{
 use crate::builtin::encoding::{
     with_plain_term_encoding, with_sortable_term_encoding, with_typed_value_encoding,
 };
-use crate::builtin::logical::{sparql_and, sparql_or};
 use crate::builtin::native::{
     effective_boolean_value, native_boolean_as_term, native_int64_as_term,
 };
@@ -30,6 +29,7 @@ use crate::scalar::dates_and_times::TimezoneSparqlOp;
 use crate::scalar::dates_and_times::YearSparqlOp;
 use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
 use crate::scalar::functional_form::{BoundSparqlOp, CoalesceSparqlOp, IfSparqlOp};
+use crate::scalar::logical::{NotSparqlOp, sparql_and, sparql_or};
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
 use crate::scalar::numeric::{
@@ -434,6 +434,10 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         ),
         (BuiltinName::And, (Box::new(|_| Ok(sparql_and())), vec![])),
         (BuiltinName::Or, (Box::new(|_| Ok(sparql_or())), vec![])),
+        (
+            BuiltinName::Not,
+            registry.create_scalar_sparql_op::<NotSparqlOp>(),
+        ),
         (
             BuiltinName::CastString,
             registry.create_scalar_sparql_op::<CastStringSparqlOp>(),

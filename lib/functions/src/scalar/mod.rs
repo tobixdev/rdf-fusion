@@ -4,6 +4,7 @@ pub mod conversion;
 pub mod dates_and_times;
 mod dispatch;
 pub mod functional_form;
+pub mod logical;
 pub mod numeric;
 mod sparql_op;
 mod sparql_op_impl;

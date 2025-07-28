@@ -693,13 +693,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     #[allow(clippy::should_implement_trait)]
     pub fn not(self) -> DFResult<Self> {
-        let root = self.context;
-        let ebv = self.build_effective_boolean_value()?;
-        let not = Self {
-            expr: Expr::Not(Box::new(ebv)),
-            context: root,
-        };
-        not.native_boolean_as_term()
+        self.apply_builtin(BuiltinName::Not, vec![])
     }
 
     //
