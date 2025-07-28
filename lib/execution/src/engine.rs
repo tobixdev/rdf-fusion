@@ -1,20 +1,25 @@
 use crate::planner::RdfFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{
-    Query, QueryExplanation, QueryOptions, QueryResults, evaluate_query,
+    evaluate_query, OptimizationLevel, Query, QueryExplanation, QueryOptions,
+    QueryResults,
 };
 use datafusion::dataframe::DataFrame;
 use datafusion::error::DataFusionError;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
+use datafusion::optimizer::decorrelate_predicate_subquery::DecorrelatePredicateSubquery;
+use datafusion::optimizer::eliminate_limit::EliminateLimit;
+use datafusion::optimizer::replace_distinct_aggregate::ReplaceDistinctWithAggregate;
+use datafusion::optimizer::scalar_subquery_to_join::ScalarSubqueryToJoin;
 use datafusion::optimizer::{Optimizer, OptimizerRule};
 use datafusion::prelude::{SessionConfig, SessionContext};
-use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_api::functions::{
     RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
 use rdf_fusion_api::storage::QuadStorage;
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
@@ -78,7 +83,10 @@ impl RdfFusionContext {
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            .with_optimizer_rules(create_default_optimizer_rules(context_view))
+            .with_optimizer_rules(create_default_optimizer_rules(
+                context_view,
+                OptimizationLevel::default(),
+            ))
             // TODO: For now we use only a single partition. This should be configurable.
             .with_config(SessionConfig::new().with_target_partitions(1))
             .build();
@@ -185,9 +193,9 @@ impl RdfFusionContext {
 
 fn create_default_optimizer_rules(
     context: RdfFusionContextView,
+    optimization_level: OptimizationLevel,
 ) -> Vec<Arc<dyn OptimizerRule + Send + Sync>> {
-    let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = vec![
-        Arc::new(SparqlJoinReorderingRule::new(context.encodings().clone())),
+    let lowering_rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = vec![
         Arc::new(MinusLoweringRule::new(context.clone())),
         Arc::new(ExtendLoweringRule::new()),
         Arc::new(PropertyPathLoweringRule::new(context.clone())),
@@ -195,11 +203,47 @@ fn create_default_optimizer_rules(
         Arc::new(PatternLoweringRule::new(context.clone())),
     ];
 
-    rules.extend(Optimizer::default().rules);
+    match optimization_level {
+        OptimizationLevel::None => {
+            let mut rules = Vec::new();
+            rules.extend(lowering_rules);
+            rules.extend(create_essential_datafusion_optimizers());
+            rules
+        }
+        OptimizationLevel::Default => {
+            let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = Vec::new();
+            rules.push(Arc::new(SparqlJoinReorderingRule::new(
+                context.encodings().clone(),
+            )));
+            rules.extend(lowering_rules);
 
-    rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            // DataFusion Optimizers
+            // TODO: Replace with a good subset
+            rules.extend(create_essential_datafusion_optimizers());
 
-    rules
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules
+        }
+        OptimizationLevel::Full => {
+            let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = Vec::new();
+            rules.push(Arc::new(SparqlJoinReorderingRule::new(
+                context.encodings().clone(),
+            )));
+            rules.extend(lowering_rules);
+            rules.extend(Optimizer::default().rules);
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules
+        }
+    }
+}
+
+fn create_essential_datafusion_optimizers() -> Vec<Arc<dyn OptimizerRule + Send + Sync>> {
+    vec![
+        Arc::new(ReplaceDistinctWithAggregate::new()),
+        Arc::new(DecorrelatePredicateSubquery::new()),
+        Arc::new(EliminateLimit::new()),
+        Arc::new(ScalarSubqueryToJoin::new()),
+    ]
 }
 
 fn graph_name_to_active_graph(graph_name: Option<GraphNameRef<'_>>) -> ActiveGraph {
