@@ -165,7 +165,7 @@ impl RdfFusionContext {
         options: QueryOptions,
     ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
         Box::pin(evaluate_query(
-            &self,
+            self,
             self.plan_builder_context(),
             query,
             options,
