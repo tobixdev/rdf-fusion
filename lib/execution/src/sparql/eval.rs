@@ -40,13 +40,13 @@ pub async fn evaluate_query(
         spargebra::Query::Select {
             pattern, base_iri, ..
         } => {
-            let (stream, explanation) = graph_pattern_to_stream(
+            let (stream, explanation) = Box::pin(graph_pattern_to_stream(
                 session_state,
                 builder_context,
                 query,
                 pattern,
                 base_iri,
-            )
+            ))
             .await?;
             Ok((QueryResults::Solutions(stream), explanation))
         }
@@ -56,13 +56,13 @@ pub async fn evaluate_query(
             base_iri,
             ..
         } => {
-            let (stream, explanation) = graph_pattern_to_stream(
+            let (stream, explanation) = Box::pin(graph_pattern_to_stream(
                 session_state,
                 builder_context,
                 query,
                 pattern,
                 base_iri,
-            )
+            ))
             .await?;
             Ok((
                 QueryResults::Graph(QueryTripleStream::new(template.clone(), stream)),
@@ -72,13 +72,13 @@ pub async fn evaluate_query(
         spargebra::Query::Ask {
             pattern, base_iri, ..
         } => {
-            let (mut stream, explanation) = graph_pattern_to_stream(
+            let (mut stream, explanation) = Box::pin(graph_pattern_to_stream(
                 session_state,
                 builder_context,
                 query,
                 pattern,
                 base_iri,
-            )
+            ))
             .await?;
             let count = stream.next().await;
             Ok((QueryResults::Boolean(count.is_some()), explanation))
@@ -125,13 +125,13 @@ pub async fn evaluate_query(
                     patterns: describe_pattern.clone(),
                 }),
             };
-            let (stream, explanation) = graph_pattern_to_stream(
+            let (stream, explanation) = Box::pin(graph_pattern_to_stream(
                 session_state,
                 builder_context,
                 query,
                 &pattern,
                 base_iri,
-            )
+            ))
             .await?;
 
             Ok((

@@ -4,7 +4,7 @@ use crate::paths::{COL_PATH_GRAPH, COL_PATH_SOURCE, COL_PATH_TARGET, PropertyPat
 use crate::patterns::PatternNode;
 use crate::{ActiveGraph, RdfFusionExprBuilderContext, check_same_schema};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, JoinType, plan_datafusion_err, NullEquality};
+use datafusion::common::{Column, JoinType, NullEquality, plan_datafusion_err};
 use datafusion::logical_expr::{
     Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, col,
 };
