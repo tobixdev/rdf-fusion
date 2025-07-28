@@ -15,6 +15,7 @@ use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
 use std::any::Any;
 use std::collections::HashSet;
 use std::fmt::Debug;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 /// TODO
 pub trait ScalarSparqlOp: Debug + Send + Sync {
@@ -258,5 +259,12 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             }
             EncodingName::Sortable => exec_err!("Not supported"),
         }
+    }
+
+    fn hash_value(&self) -> u64 {
+        let hasher = &mut DefaultHasher::new();
+        self.as_any().type_id().hash(hasher);
+        self.name().hash(hasher);
+        hasher.finish()
     }
 }
