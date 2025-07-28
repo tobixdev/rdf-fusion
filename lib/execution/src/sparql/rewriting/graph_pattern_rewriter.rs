@@ -339,19 +339,27 @@ impl GraphPatternRewriter {
                 distinct,
             } => {
                 let expr = expression_rewriter.rewrite(expr)?;
-                let expr = expr_builder
-                    .try_create_builder(expr)?
-                    .with_encoding(EncodingName::TypedValue)?;
+                let expr = expr_builder.try_create_builder(expr)?;
                 Ok(match name {
-                    AggregateFunction::Avg => expr.avg(*distinct),
-                    AggregateFunction::Count => expr.count(*distinct),
-                    AggregateFunction::Max => expr.max(),
-                    AggregateFunction::Min => expr.min(),
-                    AggregateFunction::Sample => expr.sample(),
-                    AggregateFunction::Sum => expr.sum(*distinct),
-                    AggregateFunction::GroupConcat { separator } => {
-                        expr.group_concat(*distinct, separator.as_deref())
+                    AggregateFunction::Avg => {
+                        expr.with_encoding(EncodingName::TypedValue)?.avg(*distinct)
                     }
+                    AggregateFunction::Count => expr.count(*distinct),
+                    AggregateFunction::Max => {
+                        expr.with_encoding(EncodingName::TypedValue)?.max()
+                    }
+                    AggregateFunction::Min => {
+                        expr.with_encoding(EncodingName::TypedValue)?.min()
+                    }
+                    AggregateFunction::Sample => {
+                        expr.with_encoding(EncodingName::TypedValue)?.sample()
+                    }
+                    AggregateFunction::Sum => {
+                        expr.with_encoding(EncodingName::TypedValue)?.sum(*distinct)
+                    }
+                    AggregateFunction::GroupConcat { separator } => expr
+                        .with_encoding(EncodingName::TypedValue)?
+                        .group_concat(*distinct, separator.as_deref()),
                     AggregateFunction::Custom(name) => {
                         plan_err!("Unsupported custom aggregate function: {name}")
                     }
@@ -377,10 +385,7 @@ impl GraphPatternRewriter {
                     .builder_context
                     .encodings()
                     .try_get_encoding_name(f.data_type());
-                if matches!(
-                    encoding,
-                    Some(EncodingName::TypedValue | EncodingName::PlainTerm)
-                ) {
+                if encoding.is_some() {
                     Ok(column)
                 } else {
                     match f.data_type() {

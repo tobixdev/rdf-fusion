@@ -816,18 +816,29 @@ impl<'root> RdfFusionExprBuilder<'root> {
         ))
     }
 
-    /// Ensures that the expression is of a certain encoding.
+    /// Equivalent to calling [Self::with_any_encoding] with a `&[target_encoding]`.
+    pub fn with_encoding(self, target_encoding: EncodingName) -> DFResult<Self> {
+        self.with_any_encoding(&[target_encoding])
+    }
+
+    /// Ensures that the expression is one of the given `target_encodings`.
     ///
     /// Generally one of the following things happens:
-    /// - The expression already is in the `target_encoding` and the builder itself is returns.
-    /// - The expression is in another encoding and the builder tries to cast the expression.
+    /// - The expression already in a target encoding and the builder itself is returns.
+    /// - The expression is in another encoding and the builder tries to cast the expression to the
+    ///   first encoding in `target_encodings`.
     /// - The expression is not an RDF term and an error is returned.
-    pub fn with_encoding(self, target_encoding: EncodingName) -> DFResult<Self> {
+    pub fn with_any_encoding(self, target_encodings: &[EncodingName]) -> DFResult<Self> {
+        if target_encodings.is_empty() {
+            return Err(plan_datafusion_err!("Target encodings are empty."));
+        }
+
         let source_encoding = self.encoding()?;
-        if source_encoding == target_encoding {
+        if target_encodings.contains(&source_encoding) {
             return Ok(self);
         }
 
+        let target_encoding = target_encodings[0];
         let functions_to_apply = match (source_encoding, target_encoding) {
             (
                 EncodingName::ObjectId | EncodingName::TypedValue,
