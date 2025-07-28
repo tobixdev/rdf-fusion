@@ -137,7 +137,7 @@ impl Store {
         &self,
         query: impl TryInto<Query, Error = impl Into<QueryEvaluationError> + std::fmt::Debug>,
     ) -> Result<QueryResults, QueryEvaluationError> {
-        self.query_opt(query, QueryOptions).await
+        self.query_opt(query, QueryOptions::default()).await
     }
 
     /// Executes a [SPARQL 1.1 query](https://www.w3.org/TR/sparql11-query/) with some options.

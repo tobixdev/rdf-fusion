@@ -15,9 +15,25 @@ pub use eval::evaluate_query;
 pub use rdf_fusion_model::{Variable, VariableNameParseError};
 pub use spargebra::SparqlSyntaxError;
 
+/// Defines how many optimizations the query optimizer should apply.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OptimizationLevel {
+    /// No optimizations, except rewrites that are necessary for a working query.
+    None,
+    /// A balanced default optimization level. Suitable for simple queries or those handling modest
+    /// data volumes.
+    #[default]
+    Default,
+    /// Runs all optimizations. Ideal for complex queries or those processing large datasets.
+    Full,
+}
+
 /// Options for SPARQL query evaluation.
 #[derive(Clone, Default)]
-pub struct QueryOptions;
+pub struct QueryOptions {
+    /// The defined optimization level
+    pub optimization_level: OptimizationLevel,
+}
 
 /// Options for SPARQL update evaluation.
 #[derive(Clone, Default)]
