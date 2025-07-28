@@ -57,9 +57,10 @@ impl QuerySolutionStream {
         self.variables.as_ref()
     }
 
-    /// Returns the underlying DataFusion [DataFrame].
+    /// Returns the underlying DataFusion [SendableRecordBatchStream].
     ///
-    /// It is guaranteed that [DataFrame] has only column with RDF terms in the [PlainTermEncoding].
+    /// It is guaranteed that [SendableRecordBatchStream] has only column with RDF terms in the
+    /// [PlainTermEncoding].
     ///
     /// # Errors
     ///
