@@ -1,6 +1,7 @@
 #![allow(clippy::print_stdout)]
 
 use crate::benchmarks::bsbm::{BsbmBusinessIntelligenceBenchmark, BsbmExploreBenchmark};
+use crate::benchmarks::windfarm::WindFarmBenchmark;
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::RdfFusionBenchContext;
 use clap::ValueEnum;
@@ -91,5 +92,8 @@ fn create_benchmark_instance(benchmark: BenchmarkName) -> Box<dyn Benchmark> {
             dataset_size,
             query_size,
         )),
+        BenchmarkName::WindFarm { num_turbines } => {
+            Box::new(WindFarmBenchmark::new(num_turbines))
+        }
     }
 }

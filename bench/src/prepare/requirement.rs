@@ -12,6 +12,13 @@ pub enum PrepRequirement {
         /// An optional action that is applied to the downloaded file.
         action: Option<FileDownloadAction>,
     },
+    /// Runs a closure.
+    RunClosure {
+        /// The closure to execute.
+        execute: Box<dyn Fn() -> anyhow::Result<()>>,
+        /// A checking function that can be used to check if the requirement is fulfilled.
+        check_requirement: Box<dyn Fn() -> anyhow::Result<bool>>,
+    },
     /// Runs a command.
     RunCommand {
         /// The working directory.
