@@ -1,12 +1,12 @@
+use crate::benchmarks::bsbm::NumProducts;
 use crate::benchmarks::bsbm::operation::{
-    list_raw_operations, BsbmOperation, BsbmRawOperation,
+    BsbmOperation, BsbmRawOperation, list_raw_operations,
 };
-use crate::benchmarks::bsbm::report::{BsbmReport, ExploreReportBuilder};
+use crate::benchmarks::bsbm::report::{BsbmReport, ExploreReportBuilder, QueryDetails};
 use crate::benchmarks::bsbm::requirements::{
     download_bsbm_tools, download_pre_generated_queries, generate_dataset_requirement,
 };
 use crate::benchmarks::bsbm::use_case::BsbmUseCase;
-use crate::benchmarks::bsbm::NumProducts;
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::BenchmarkContext;
 use crate::prepare::PrepRequirement;
@@ -66,7 +66,7 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
             num_products,
             max_query_count,
             paths,
-            phantom_data: PhantomData::default(),
+            phantom_data: PhantomData,
         })
     }
 
@@ -113,7 +113,7 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
 #[async_trait]
 impl<TUseCase: BsbmUseCase + 'static> Benchmark for BsbmBenchmark<TUseCase> {
     fn name(&self) -> BenchmarkName {
-        self.name.clone()
+        self.name
     }
 
     #[allow(clippy::expect_used)]
@@ -147,9 +147,10 @@ fn parse_query<TQueryName>(
     query: BsbmRawOperation<TQueryName>,
 ) -> BsbmOperation<TQueryName> {
     match query {
-        BsbmRawOperation::Query(name, query) => {
-            BsbmOperation::Query(name, Query::parse(&query.replace(" #", ""), None).unwrap())
-        }
+        BsbmRawOperation::Query(name, query) => BsbmOperation::Query(
+            name,
+            Query::parse(&query.replace(" #", ""), None).unwrap(),
+        ),
     }
 }
 
@@ -192,7 +193,7 @@ async fn run_operation<TUseCase: BsbmUseCase>(
     let start = Instant::now();
 
     let options = QueryOptions::default();
-    let (name, explanation) = match operation {
+    let (name, explanation) = match &operation {
         BsbmOperation::Query(name, q) => {
             let (result, explanation) =
                 store.explain_query_opt(q.clone(), options.clone()).await?;
@@ -213,13 +214,20 @@ async fn run_operation<TUseCase: BsbmUseCase>(
         }
     };
 
+    let duration = start.elapsed();
     let run = BenchmarkRun {
-        duration: start.elapsed(),
+        duration,
         report: Some(guard.report().build()?),
     };
     report.add_run(name, run);
     if context.parent().options().verbose_results {
-        report.add_explanation(explanation);
+        let details = QueryDetails {
+            query: operation.query().to_string(),
+            query_type: operation.query_name().to_string(),
+            total_time: duration,
+            explanation,
+        };
+        report.add_explanation(details);
     }
 
     Ok(())

@@ -1,5 +1,5 @@
-use crate::benchmarks::bsbm::NumProducts;
 use crate::benchmarks::BenchmarkName;
+use crate::benchmarks::bsbm::NumProducts;
 use std::fmt::Display;
 use std::hash::Hash;
 
@@ -15,7 +15,7 @@ pub enum BsbmUseCaseName {
 impl BsbmUseCaseName {
     /// Creates a [BenchmarkName] with the given arguments.
     pub fn into_benchmark_name(
-        &self,
+        self,
         num_products: NumProducts,
         max_query_count: Option<u64>,
     ) -> BenchmarkName {
@@ -46,7 +46,13 @@ impl Display for BsbmUseCaseName {
 /// Implements the use-case-specific logic for BSBM benchmarks.
 pub trait BsbmUseCase: Send + Sync {
     /// The type for
-    type QueryName: Copy + TryFrom<u8, Error = anyhow::Error> + Hash + Eq + Display + Send + Sync;
+    type QueryName: Copy
+        + TryFrom<u8, Error = anyhow::Error>
+        + Hash
+        + Eq
+        + Display
+        + Send
+        + Sync;
 
     /// Returns the name of the use case.
     fn name() -> BsbmUseCaseName;

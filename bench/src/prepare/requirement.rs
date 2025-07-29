@@ -2,6 +2,8 @@ use crate::environment::RdfFusionBenchContext;
 use reqwest::Url;
 use std::path::PathBuf;
 
+type PrepClosure = Box<dyn Fn(&RdfFusionBenchContext) -> anyhow::Result<()>>;
+
 /// Defines a requirement of preparing for a benchmark.
 pub enum PrepRequirement {
     /// Requires that a file is downloaded at a given (relative) path.
@@ -16,9 +18,9 @@ pub enum PrepRequirement {
     /// Runs a closure.
     RunClosure {
         /// The closure to execute.
-        execute: Box<dyn Fn(&RdfFusionBenchContext) -> anyhow::Result<()>>,
+        execute: PrepClosure,
         /// A checking function that can be used to check if the requirement is fulfilled.
-        check_requirement: Box<dyn Fn(&RdfFusionBenchContext) -> anyhow::Result<()>>,
+        check_requirement: PrepClosure,
     },
     /// Runs a command.
     RunCommand {
@@ -29,7 +31,7 @@ pub enum PrepRequirement {
         /// The args for the program.
         args: Vec<String>,
         /// A checking function that can be used to check if the requirement is fulfilled.
-        check_requirement: Box<dyn Fn(&RdfFusionBenchContext) -> anyhow::Result<()>>,
+        check_requirement: PrepClosure,
     },
 }
 

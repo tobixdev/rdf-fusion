@@ -36,3 +36,19 @@ pub enum BsbmRawOperation<QueryName> {
 pub enum BsbmOperation<QueryName> {
     Query(QueryName, Query),
 }
+
+impl<QueryName> BsbmOperation<QueryName> {
+    pub fn query(&self) -> &Query {
+        match self {
+            BsbmOperation::Query(_, query) => query,
+        }
+    }
+}
+
+impl<QueryName: Clone> BsbmOperation<QueryName> {
+    pub fn query_name(&self) -> QueryName {
+        match self {
+            BsbmOperation::Query(name, _) => name.clone(),
+        }
+    }
+}

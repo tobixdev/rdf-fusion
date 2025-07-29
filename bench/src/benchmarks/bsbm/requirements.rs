@@ -35,7 +35,7 @@ pub fn generate_dataset_requirement(
         ],
         check_requirement: Box::new(move |ctx| {
             let path = ctx.join_data_dir(&file_name)?;
-            if !File::open(&path).is_ok() {
+            if File::open(&path).is_err() {
                 bail!("File {} does not exist", path.display());
             }
             Ok(())

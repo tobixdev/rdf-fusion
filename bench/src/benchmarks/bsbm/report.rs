@@ -2,22 +2,36 @@ use crate::benchmarks::bsbm::use_case::BsbmUseCase;
 use crate::report::BenchmarkReport;
 use crate::runs::{BenchmarkRun, BenchmarkRuns};
 use crate::utils::write_flamegraph;
-use anyhow::{bail, Context};
-use datafusion::physical_plan::displayable;
-use prettytable::{row, Table};
+use anyhow::{Context, bail};
+use datafusion::logical_expr::LogicalPlan;
+use datafusion::physical_plan::ExecutionPlan;
+use datafusion::physical_plan::display::DisplayableExecutionPlan;
+use prettytable::{Table, row};
 use rdf_fusion::QueryExplanation;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 
+/// Holds details of a single
+pub struct QueryDetails {
+    /// The query itself
+    pub query: String,
+    /// The query type
+    pub query_type: String,
+    /// The total time taken
+    pub total_time: std::time::Duration,
+    /// The explanation returned from the engine
+    pub explanation: QueryExplanation,
+}
+
 /// Stores the final report of executing a BSBM explore benchmark.
 pub struct BsbmReport<TUseCase: BsbmUseCase> {
     /// Stores all runs of the benchmark grouped by the query name.
     /// A single query name can have multiple instances (with random variables) in BSBM.
     runs: HashMap<TUseCase::QueryName, BenchmarkRuns>,
-    /// Query explanations for each run.
-    explanations: Vec<QueryExplanation>,
+    /// Query details for each run.
+    details: Vec<QueryDetails>,
 }
 
 impl<TUseCase: BsbmUseCase> BsbmReport<TUseCase> {
@@ -76,7 +90,8 @@ impl<TUseCase: BsbmUseCase> BsbmReport<TUseCase> {
         Ok(())
     }
 
-    fn write_query_results(
+    /// Writes the query details to disk in when verbose results are active.
+    fn write_query_details(
         &self,
         output_directory: &Path,
         index: usize,
@@ -84,70 +99,89 @@ impl<TUseCase: BsbmUseCase> BsbmReport<TUseCase> {
         let query_i_path = output_directory.join(format!("query{index}"));
         fs::create_dir_all(&query_i_path).context("Cannot create query directory")?;
 
-        let summary_file = query_i_path.join("0_summary.txt");
-        let initial_logical_plan_file = query_i_path.join("1_initial_logical_plan.txt");
-        let optimized_logical_plan_file =
-            query_i_path.join("2_optimized_logical_plan.txt");
-        let execution_plan_file = query_i_path.join("3_execution_plan.txt");
+        let details = self.details.get(index).context("Cannot get explanation")?;
 
-        let explanation = self
-            .explanations
-            .get(index)
-            .context("Cannot get explanation")?;
-
-        // Write the initial logical plan
-        fs::write(
-            &summary_file,
-            format!("Planning Time:{:?}", explanation.planning_time),
-        )
-        .with_context(|| {
-            format!(
-                "Failed to write summary plan to {}",
-                initial_logical_plan_file.display()
-            )
-        })?;
-
-        // Write the initial logical plan
-        let initial_logical_plan = explanation.initial_logical_plan.to_string();
-        fs::write(
-            &initial_logical_plan_file,
-            format!("Initial Logical Plan:\n\n{initial_logical_plan}"),
-        )
-        .with_context(|| {
-            format!(
-                "Failed to write initial logical plan to {}",
-                initial_logical_plan_file.display()
-            )
-        })?;
-
-        // Write the optimized logical plan
-        let optimized_logical_plan = explanation.optimized_logical_plan.to_string();
-        fs::write(
-            &optimized_logical_plan_file,
-            format!("Optimized Logical Plan:\n\n{optimized_logical_plan}"),
-        )
-        .with_context(|| {
-            format!(
-                "Failed to write optimized logical plan to {}",
-                optimized_logical_plan_file.display()
-            )
-        })?;
-
-        // Write the execution plan
-        let execution_plan =
-            displayable(explanation.execution_plan.as_ref()).indent(false);
-        fs::write(
-            &execution_plan_file,
-            format!("Execution Plan:\n\n{execution_plan}"),
-        )
-        .with_context(|| {
-            format!(
-                "Failed to write execution plan to {}",
-                execution_plan_file.display()
-            )
-        })?;
+        self.dump_query_text(&query_i_path.join("0_query.txt"), details)?;
+        self.dump_query_result_summary(&query_i_path.join("1_summary.txt"), details)?;
+        self.dump_logical_plan(
+            &query_i_path.join("2_initial_logical_plan.txt"),
+            &details.explanation.initial_logical_plan,
+        )?;
+        self.dump_logical_plan(
+            &query_i_path.join("3_opt_logical_plan.txt"),
+            &details.explanation.optimized_logical_plan,
+        )?;
+        self.dump_execution_plan(
+            &query_i_path.join("4_execution_plan.txt"),
+            details.explanation.execution_plan.as_ref(),
+        )?;
 
         Ok(())
+    }
+
+    /// Dumps the query text for easier inspection.
+    fn dump_query_text(
+        &self,
+        output_file: &Path,
+        details: &QueryDetails,
+    ) -> anyhow::Result<()> {
+        fs::write(output_file, details.query.as_str()).with_context(|| {
+            format!("Failed to dump query text to '{}'", output_file.display())
+        })
+    }
+
+    /// Dumps a summary of the query exeuction.
+    fn dump_query_result_summary(
+        &self,
+        output_file: &Path,
+        details: &QueryDetails,
+    ) -> anyhow::Result<()> {
+        let text = format!(
+            "\
+Query Type: {:?}
+Total Time: {:?}
+Planning Time: {:?}
+",
+            details.query_type, details.total_time, details.explanation.planning_time
+        );
+        fs::write(output_file, text).with_context(|| {
+            format!(
+                "Failed to dump query result summary to '{}'",
+                output_file.display()
+            )
+        })
+    }
+
+    /// Dumps a [LogicalPLan].
+    fn dump_logical_plan(
+        &self,
+        output_file: &Path,
+        plan: &LogicalPlan,
+    ) -> anyhow::Result<()> {
+        fs::write(output_file, format!("Initial Logical Plan:\n\n{plan}")).with_context(
+            || {
+                format!(
+                    "Failed to write initial logical plan to {}",
+                    output_file.display()
+                )
+            },
+        )
+    }
+
+    /// Dumps an [ExecutionPlan].
+    fn dump_execution_plan(
+        &self,
+        output_file: &Path,
+        plan: &dyn ExecutionPlan,
+    ) -> anyhow::Result<()> {
+        let execution_plan = DisplayableExecutionPlan::with_metrics(plan).indent(false);
+        fs::write(output_file, format!("Execution Plan:\n\n{execution_plan}"))
+            .with_context(|| {
+                format!(
+                    "Failed to write execution plan to '{}'",
+                    output_file.display()
+                )
+            })
     }
 }
 
@@ -162,12 +196,12 @@ impl<TUseCase: BsbmUseCase> BenchmarkReport for BsbmReport<TUseCase> {
             .context("Cannot create flamegraphs directory before writing flamegraphs")?;
         self.write_aggregated_flamegraphs(&flamegraphs_dir)?;
 
-        if !self.explanations.is_empty() {
+        if !self.details.is_empty() {
             let queries_path = output_dir.join("queries");
             fs::create_dir_all(&queries_path)
                 .context("Cannot create queries directory")?;
-            for i in 0..self.explanations.len() {
-                self.write_query_results(&queries_path, i)?;
+            for i in 0..self.details.len() {
+                self.write_query_details(&queries_path, i)?;
             }
         }
 
@@ -189,7 +223,7 @@ impl<TUseCase: BsbmUseCase> ExploreReportBuilder<TUseCase> {
         Self {
             report: BsbmReport {
                 runs: HashMap::new(),
-                explanations: Vec::new(),
+                details: Vec::new(),
             },
         }
     }
@@ -200,11 +234,11 @@ impl<TUseCase: BsbmUseCase> ExploreReportBuilder<TUseCase> {
         runs.add_run(run);
     }
 
-    /// Adds an explanation for a particular query.
+    /// Adds a detail for a particular query.
     ///
-    /// It is expected that the n-th call of this method is the explanation of the n-th query.
-    pub fn add_explanation(&mut self, explanation: QueryExplanation) {
-        self.report.explanations.push(explanation)
+    /// It is expected that the n-th call of this method is the detail of the n-th query.
+    pub fn add_explanation(&mut self, details: QueryDetails) {
+        self.report.details.push(details)
     }
 
     /// Finalizes the report.
