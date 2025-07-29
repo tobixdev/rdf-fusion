@@ -1,34 +1,32 @@
-use crate::benchmarks::bsbm::business_intelligence::{
-    BSBM_BUSINESS_INTELLIGENCE_QUERIES, BsbmBusinessIntelligenceQueryName,
-};
+use crate::benchmarks::bsbm::use_case::BsbmUseCase;
 use crate::report::BenchmarkReport;
 use crate::runs::{BenchmarkRun, BenchmarkRuns};
 use crate::utils::write_flamegraph;
-use anyhow::{Context, bail};
+use anyhow::{bail, Context};
 use datafusion::physical_plan::displayable;
-use prettytable::{Table, row};
+use prettytable::{row, Table};
 use rdf_fusion::QueryExplanation;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-/// Stores the final report of executing a BSBM business intelligence benchmark.
-pub struct BusinessIntelligenceReport {
+/// Stores the final report of executing a BSBM explore benchmark.
+pub struct BsbmReport<TUseCase: BsbmUseCase> {
     /// Stores all runs of the benchmark grouped by the query name.
     /// A single query name can have multiple instances (with random variables) in BSBM.
-    runs: HashMap<BsbmBusinessIntelligenceQueryName, BenchmarkRuns>,
+    runs: HashMap<TUseCase::QueryName, BenchmarkRuns>,
     /// Query explanations for each run.
     explanations: Vec<QueryExplanation>,
 }
 
-impl BusinessIntelligenceReport {
+impl<TUseCase: BsbmUseCase> BsbmReport<TUseCase> {
     /// Writes a tabular summary of the query execution time.
     fn write_summary<W: Write + ?Sized>(&self, writer: &mut W) -> anyhow::Result<()> {
         // Create the table
         let mut table = Table::new();
         table.add_row(row!["Query", "Samples", "Average Duration"]);
-        for query in BSBM_BUSINESS_INTELLIGENCE_QUERIES {
+        for query in TUseCase::list_queries() {
             let summary = self
                 .runs
                 .get(&query)
@@ -61,7 +59,7 @@ impl BusinessIntelligenceReport {
             );
         }
 
-        for query in BSBM_BUSINESS_INTELLIGENCE_QUERIES {
+        for query in TUseCase::list_queries() {
             let frames = self
                 .runs
                 .get(&query)
@@ -153,7 +151,7 @@ impl BusinessIntelligenceReport {
     }
 }
 
-impl BenchmarkReport for BusinessIntelligenceReport {
+impl<TUseCase: BsbmUseCase> BenchmarkReport for BsbmReport<TUseCase> {
     fn write_results(&self, output_dir: &Path) -> anyhow::Result<()> {
         let summary_txt = output_dir.join("summary.txt");
         let mut summary_file = fs::File::create(summary_txt)?;
@@ -177,19 +175,19 @@ impl BenchmarkReport for BusinessIntelligenceReport {
     }
 }
 
-/// Builder for the [`BusinessIntelligenceReport`].
+/// Builder for the [`BsbmReport`].
 ///
 /// This should only be accessible to the benchmark code.
-pub(super) struct BusinessIntelligenceReportBuilder {
+pub(super) struct ExploreReportBuilder<TUseCase: BsbmUseCase> {
     /// The inner report that is being built.
-    report: BusinessIntelligenceReport,
+    report: BsbmReport<TUseCase>,
 }
 
-impl BusinessIntelligenceReportBuilder {
+impl<TUseCase: BsbmUseCase> ExploreReportBuilder<TUseCase> {
     /// Creates a new builder.
     pub(super) fn new() -> Self {
         Self {
-            report: BusinessIntelligenceReport {
+            report: BsbmReport {
                 runs: HashMap::new(),
                 explanations: Vec::new(),
             },
@@ -197,11 +195,7 @@ impl BusinessIntelligenceReportBuilder {
     }
 
     /// Adds a run to a particular query.
-    pub(super) fn add_run(
-        &mut self,
-        name: BsbmBusinessIntelligenceQueryName,
-        run: BenchmarkRun,
-    ) {
+    pub fn add_run(&mut self, name: TUseCase::QueryName, run: BenchmarkRun) {
         let runs = self.report.runs.entry(name).or_default();
         runs.add_run(run);
     }
@@ -209,18 +203,12 @@ impl BusinessIntelligenceReportBuilder {
     /// Adds an explanation for a particular query.
     ///
     /// It is expected that the n-th call of this method is the explanation of the n-th query.
-    pub(super) fn add_explanation(&mut self, explanation: QueryExplanation) {
+    pub fn add_explanation(&mut self, explanation: QueryExplanation) {
         self.report.explanations.push(explanation)
     }
 
     /// Finalizes the report.
-    pub(super) fn build(self) -> BusinessIntelligenceReport {
+    pub fn build(self) -> BsbmReport<TUseCase> {
         self.report
-    }
-}
-
-impl Default for BusinessIntelligenceReportBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -1,3 +1,4 @@
+use crate::environment::RdfFusionBenchContext;
 use reqwest::Url;
 use std::path::PathBuf;
 
@@ -12,6 +13,13 @@ pub enum PrepRequirement {
         /// An optional action that is applied to the downloaded file.
         action: Option<FileDownloadAction>,
     },
+    /// Runs a closure.
+    RunClosure {
+        /// The closure to execute.
+        execute: Box<dyn Fn(&RdfFusionBenchContext) -> anyhow::Result<()>>,
+        /// A checking function that can be used to check if the requirement is fulfilled.
+        check_requirement: Box<dyn Fn(&RdfFusionBenchContext) -> anyhow::Result<()>>,
+    },
     /// Runs a command.
     RunCommand {
         /// The working directory.
@@ -21,7 +29,7 @@ pub enum PrepRequirement {
         /// The args for the program.
         args: Vec<String>,
         /// A checking function that can be used to check if the requirement is fulfilled.
-        check_requirement: Box<dyn Fn() -> anyhow::Result<bool>>,
+        check_requirement: Box<dyn Fn(&RdfFusionBenchContext) -> anyhow::Result<()>>,
     },
 }
 

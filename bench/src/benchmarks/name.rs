@@ -1,4 +1,4 @@
-use crate::benchmarks::bsbm::BsbmDatasetSize;
+use crate::benchmarks::bsbm::NumProducts;
 use clap::Subcommand;
 use std::fmt::{Display, Formatter};
 
@@ -8,7 +8,7 @@ pub enum BenchmarkName {
     BsbmExplore {
         /// Indicates the scaling of the dataset.
         #[arg(short, long, default_value = "1000")]
-        dataset_size: BsbmDatasetSize,
+        num_products: NumProducts,
         /// Provides an upper bound on the number of queries to be executed.
         #[arg(short, long)]
         max_query_count: Option<u64>,
@@ -17,7 +17,7 @@ pub enum BenchmarkName {
     BsbmBusinessIntelligence {
         /// Indicates the scaling of the dataset.
         #[arg(short, long, default_value = "1000")]
-        dataset_size: BsbmDatasetSize,
+        num_products: NumProducts,
         /// Provides an upper bound on the number of queries to be executed.
         #[arg(short, long)]
         max_query_count: Option<u64>,
@@ -29,7 +29,7 @@ impl BenchmarkName {
     pub fn dir_name(&self) -> String {
         match self {
             BenchmarkName::BsbmExplore {
-                dataset_size,
+                num_products: dataset_size,
                 max_query_count,
             } => match max_query_count {
                 Some(max_query_count) => {
@@ -38,7 +38,7 @@ impl BenchmarkName {
                 None => format!("bsbm-explore-{dataset_size}"),
             },
             BenchmarkName::BsbmBusinessIntelligence {
-                dataset_size,
+                num_products: dataset_size,
                 max_query_count,
             } => match max_query_count {
                 Some(max_query_count) => {
@@ -54,7 +54,7 @@ impl Display for BenchmarkName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             BenchmarkName::BsbmExplore {
-                dataset_size,
+                num_products: dataset_size,
                 max_query_count,
             } => match max_query_count {
                 Some(max_query_count) => write!(
@@ -64,7 +64,7 @@ impl Display for BenchmarkName {
                 None => write!(f, "BSBM Explore: dataset_size={dataset_size}"),
             },
             BenchmarkName::BsbmBusinessIntelligence {
-                dataset_size,
+                num_products: dataset_size,
                 max_query_count,
             } => match max_query_count {
                 Some(max_query_count) => write!(
