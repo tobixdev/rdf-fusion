@@ -72,14 +72,13 @@ fn try_pushdown_join_filter(
     join: &NestedLoopJoinExec,
     alias_generator: &AliasGenerator,
 ) -> DFResult<Transformed<Arc<dyn ExecutionPlan>>> {
-    // Projections must be updated, currently not implemented.
-    if join.projection().is_some() {
-        return Ok(Transformed::no(original_plan));
-    }
-
+    let projections = join.projection();
     let Some(filter) = join.filter() else {
         return Ok(Transformed::no(original_plan));
     };
+
+    let original_lhs_length = join.left().schema().fields().len();
+    let original_rhs_length = join.right().schema().fields().len();
 
     let lhs_rewrite = try_pushdown_projection(
         Arc::clone(&join.right().schema()),
@@ -104,12 +103,33 @@ fn try_pushdown_join_filter(
         rhs_rewrite.data.1.column_indices().to_vec(),
         rhs_rewrite.data.1.schema().fields.clone(),
     );
+
+    let new_lhs_length = lhs_rewrite.data.0.schema().fields.len();
+    let projections = match projections {
+        None => {
+            // Build projections that ignores the newly projected columns.
+            let mut projections = (0..original_lhs_length).collect::<Vec<usize>>();
+            projections.extend(new_lhs_length..new_lhs_length + original_rhs_length);
+            projections
+        }
+        Some(projections) => projections
+            .iter()
+            .map(|idx| {
+                if *idx >= original_lhs_length {
+                    idx + new_lhs_length
+                } else {
+                    *idx
+                }
+            })
+            .collect(),
+    };
+
     Ok(Transformed::yes(Arc::new(NestedLoopJoinExec::try_new(
         lhs_rewrite.data.0,
         rhs_rewrite.data.0,
         Some(join_filter),
         join.join_type(),
-        None,
+        Some(projections),
     )?)))
 }
 
@@ -178,6 +198,13 @@ fn minimize_join_filter(
     .expect("Closure cannot fail");
 
     column_indices.retain(|ci| used_columns.contains(&ci.index));
+    let fields = intermediate_schema
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| used_columns.contains(&idx))
+        .map(|(_, field)| field.clone())
+        .collect::<Fields>();
+
     let final_expr = expr
         .transform_up(|expr| match expr.as_any().downcast_ref::<Column>() {
             None => Ok(Transformed::no(expr)),
@@ -197,7 +224,7 @@ fn minimize_join_filter(
     JoinFilter::new(
         final_expr.data,
         column_indices,
-        Arc::new(Schema::new(intermediate_schema)),
+        Arc::new(Schema::new(fields)),
     )
 }
 
