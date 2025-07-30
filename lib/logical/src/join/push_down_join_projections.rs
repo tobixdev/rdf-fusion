@@ -8,6 +8,10 @@ use rdf_fusion_common::DFResult;
 use std::sync::Arc;
 
 /// Tries to push down projections from join filters that only depend on one side of the join.
+///
+/// This can be a crucial optimization for joins that must become a nested loop join. Without
+/// pushing these projections down, even functions that only depend on one side of the join
+/// must be done for all row combinations.
 #[derive(Debug)]
 pub struct JoinProjectionPushDownRule {}
 
@@ -44,6 +48,9 @@ impl OptimizerRule for JoinProjectionPushDownRule {
     }
 }
 
+/// Tries to push down parts of the filter.
+///
+/// See [JoinFilterRewriter] for details.
 fn try_pushdown_join_filter(
     join: Join,
     alias_generator: &AliasGenerator,
@@ -90,7 +97,7 @@ fn try_pushdown_join_filter(
     })
 }
 
-/// TODO
+/// Tries to push down parts of `expr` into the `join_side`.
 fn try_pushdown_projection(
     join_side: &Arc<LogicalPlan>,
     expr: Expr,
@@ -113,6 +120,13 @@ fn try_pushdown_projection(
     }
 }
 
+/// Implements the push-down machinery.
+///
+/// The rewriter starts at the top of the filter expression and traverses the expression tree. For
+/// each (sub-)expression, the rewriter checks whether it only refers to one side of the join. If
+/// this is never the case, no subexpressions of the filter can be pushed down. If there is a
+/// subexpression that can be computed using only one side of the join, the entire subexpression is
+/// pushed down to the join side.
 struct JoinFilterRewriter<'a> {
     schema: &'a DFSchema,
     alias_generator: &'a AliasGenerator,
