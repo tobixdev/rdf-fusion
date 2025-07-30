@@ -1,8 +1,6 @@
 use datafusion::arrow::datatypes::{Fields, Schema, SchemaRef};
 use datafusion::common::alias::AliasGenerator;
-use datafusion::common::tree_node::{
-    Transformed, TreeNode, TreeNodeRecursion, TreeNodeRewriter,
-};
+use datafusion::common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
 use datafusion::common::JoinSide;
 use datafusion::config::ConfigOptions;
 use datafusion::physical_expr::expressions::Column;
@@ -87,23 +85,21 @@ fn try_pushdown_join_filter(
         filter.clone(),
         &alias_generator,
     )?;
-    // let rhs_rewrite = try_pushdown_projection(
-    //     Arc::clone(&join.left().schema()),
-    //     Arc::clone(join.right()),
-    //     JoinSide::Right,
-    //     lhs_rewrite.data.1,
-    //     &alias_generator,
-    // )?;
-    if !lhs_rewrite.transformed
-    /*&& !rhs_rewrite.transformed */
-    {
+    let rhs_rewrite = try_pushdown_projection(
+        Arc::clone(&lhs_rewrite.data.0.schema()),
+        Arc::clone(join.right()),
+        JoinSide::Right,
+        lhs_rewrite.data.1,
+        &alias_generator,
+    )?;
+    if !lhs_rewrite.transformed && !rhs_rewrite.transformed {
         return Ok(Transformed::no(original_plan));
     }
 
     Ok(Transformed::yes(Arc::new(NestedLoopJoinExec::try_new(
         lhs_rewrite.data.0,
-        original_plan,
-        Some(lhs_rewrite.data.1),
+        rhs_rewrite.data.0,
+        Some(rhs_rewrite.data.1),
         join.join_type(),
         None,
     )?)))
@@ -125,10 +121,11 @@ fn try_pushdown_projection(
         join_filter.column_indices().to_vec(),
         alias_generator,
     );
-    let new_expr = expr.rewrite(&mut rewriter)?;
+    let new_expr = rewriter.rewrite(expr)?;
 
     if new_expr.transformed {
-        let new_join_side = ProjectionExec::try_new(rewriter.join_side_projections, plan)?;
+        let new_join_side =
+            ProjectionExec::try_new(rewriter.join_side_projections, plan)?;
         let new_schema = Arc::clone(&new_join_side.schema());
 
         let (lhs_schema, rhs_schema) = match join_side {
@@ -201,6 +198,41 @@ impl<'a> JoinFilterRewriter<'a> {
         }
     }
 
+    /// TODO
+    fn rewrite(
+        &mut self,
+        expr: Arc<dyn PhysicalExpr>,
+    ) -> DFResult<Transformed<Arc<dyn PhysicalExpr>>> {
+        let depends_on_this_side = self.depends_on_join_side(&expr, self.join_side)?;
+        // We don't push down things that do not depend on this side (other side or no side).
+        if !depends_on_this_side {
+            return Ok(Transformed::no(expr));
+        }
+
+        // Recurse if there is a dependency to both sides.
+        let depends_on_other_side =
+            self.depends_on_join_side(&expr, self.join_side.negate())?;
+        if depends_on_other_side {
+            return expr.map_children(|expr| self.rewrite(expr));
+        }
+
+        // There is only a dependency on this side.
+
+        // If this expression has no children, we do not push down, as it should already be a column
+        // reference.
+        if expr.children().is_empty() {
+            return Ok(Transformed::no(expr));
+        }
+
+        // Otherwise, we push down a projection.
+        let alias = self.alias_generator.next("join_proj_push_down");
+        let idx = self.create_new_column(alias.clone(), expr)?;
+
+        Ok(Transformed::yes(
+            Arc::new(Column::new(&alias, idx)) as Arc<dyn PhysicalExpr>
+        ))
+    }
+
     /// Creates a new column in the current join side.
     fn create_new_column(
         &mut self,
@@ -214,7 +246,8 @@ impl<'a> JoinFilterRewriter<'a> {
             Ok(match expr.as_any().downcast_ref::<Column>() {
                 None => Transformed::no(expr),
                 Some(column) => {
-                    let intermediate_column = &self.intermediate_column_indices[column.index()];
+                    let intermediate_column =
+                        &self.intermediate_column_indices[column.index()];
                     assert_eq!(intermediate_column.side, self.join_side);
 
                     let join_side_index = intermediate_column.index;
@@ -238,16 +271,17 @@ impl<'a> JoinFilterRewriter<'a> {
     }
 
     /// Checks whether the entire expression depends on the current join side.
-    fn depends_on_other_join_side(
+    fn depends_on_join_side(
         &mut self,
         expr: &Arc<dyn PhysicalExpr>,
+        join_side: JoinSide,
     ) -> DFResult<bool> {
         let mut result = false;
         expr.apply(|expr| match expr.as_any().downcast_ref::<Column>() {
             None => Ok(TreeNodeRecursion::Continue),
             Some(c) => {
                 let column_index = &self.intermediate_column_indices[c.index()];
-                if column_index.side != self.join_side {
+                if column_index.side == join_side {
                     result = true;
                     return Ok(TreeNodeRecursion::Stop);
                 }
@@ -259,19 +293,132 @@ impl<'a> JoinFilterRewriter<'a> {
     }
 }
 
-impl TreeNodeRewriter for JoinFilterRewriter<'_> {
-    type Node = Arc<dyn PhysicalExpr>;
+#[cfg(test)]
+mod test {
+    use super::*;
+    use datafusion::arrow::datatypes::{DataType, Field, Schema};
+    use datafusion::common::{JoinSide, JoinType};
+    use datafusion::physical_expr::expressions::{binary, lit, Column};
+    use datafusion::physical_optimizer::PhysicalOptimizerRule;
+    use datafusion::physical_plan::displayable;
+    use datafusion::physical_plan::empty::EmptyExec;
+    use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
+    use datafusion::physical_plan::joins::NestedLoopJoinExec;
+    use insta::assert_snapshot;
+    use rdf_fusion_common::DFResult;
+    use std::sync::Arc;
 
-    fn f_down(&mut self, node: Self::Node) -> DFResult<Transformed<Self::Node>> {
-        if self.depends_on_other_join_side(&node)? {
-            return Ok(Transformed::no(node));
-        }
+    #[tokio::test]
+    async fn no_computation_does_not_project() -> DFResult<()> {
+        let (left, right) = create_simple_schema();
+        let (join_schema, column_indices) =
+            join_first_column(&left.schema(), &right.schema());
 
-        let alias = self.alias_generator.next("join_proj_push_down");
-        let idx = self.create_new_column(alias.clone(), node)?;
+        let left_expr = Arc::new(Column::new("A", 0));
+        let right_expr = Arc::new(Column::new("B", 1));
+        let filter_expr = binary(
+            left_expr,
+            datafusion::logical_expr::Operator::Gt,
+            right_expr,
+            &join_schema,
+        )?;
 
-        Ok(Transformed::yes(
-            Arc::new(Column::new(&alias, idx)) as Self::Node
-        ))
+        let join = NestedLoopJoinExec::try_new(
+            left,
+            right,
+            Some(JoinFilter::new(
+                filter_expr,
+                column_indices,
+                Arc::new(join_schema),
+            )),
+            &JoinType::Inner,
+            None,
+        )?;
+
+        let optimizer = NestedLoopJoinProjectionPushDown::new();
+        let optimized_plan = optimizer.optimize(Arc::new(join), &Default::default())?;
+
+        assert_snapshot!(displayable(optimized_plan.as_ref()).indent(false), @r"
+        NestedLoopJoinExec: join_type=Inner, filter=A@0 > B@1
+          EmptyExec
+          EmptyExec
+        ");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn simple_pushed_down_projections() -> DFResult<()> {
+        let (left, right) = create_simple_schema();
+        let (join_schema, column_indices) =
+            join_first_column(&left.schema(), &right.schema());
+
+        let left_expr = binary(
+            Arc::new(Column::new("A", 0)),
+            datafusion::logical_expr::Operator::Plus,
+            lit(1),
+            &join_schema,
+        )?;
+        let right_expr = binary(
+            Arc::new(Column::new("B", 1)),
+            datafusion::logical_expr::Operator::Plus,
+            lit(1),
+            &join_schema,
+        )?;
+        let filter_expr = binary(
+            left_expr,
+            datafusion::logical_expr::Operator::Gt,
+            right_expr,
+            &join_schema,
+        )?;
+
+        let join = NestedLoopJoinExec::try_new(
+            left,
+            right,
+            Some(JoinFilter::new(
+                filter_expr,
+                column_indices,
+                Arc::new(join_schema),
+            )),
+            &JoinType::Inner,
+            None,
+        )?;
+
+        let optimizer = NestedLoopJoinProjectionPushDown::new();
+        let optimized_plan = optimizer.optimize(Arc::new(join), &Default::default())?;
+
+        assert_snapshot!(displayable(optimized_plan.as_ref()).indent(false), @r"
+        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@2 > join_proj_push_down_2@3
+          ProjectionExec: expr=[A@0 as A, A@0 + 1 as join_proj_push_down_1]
+            EmptyExec
+          ProjectionExec: expr=[B@0 as B, B@0 + 1 as join_proj_push_down_2]
+            EmptyExec
+        ");
+        Ok(())
+    }
+
+    fn create_simple_schema() -> (Arc<EmptyExec>, Arc<EmptyExec>) {
+        let left_schema = Schema::new(vec![Field::new("A", DataType::Int32, false)]);
+        let right_schema = Schema::new(vec![Field::new("B", DataType::Int32, false)]);
+
+        let left = Arc::new(EmptyExec::new(Arc::new(left_schema.clone())));
+        let right = Arc::new(EmptyExec::new(Arc::new(right_schema.clone())));
+
+        (left, right)
+    }
+
+    fn join_first_column(left: &Schema, right: &Schema) -> (Schema, Vec<ColumnIndex>) {
+        let join_schema =
+            Schema::new(vec![left.fields[0].clone(), right.fields[0].clone()]);
+        let column_indices = vec![
+            ColumnIndex {
+                index: 0,
+                side: JoinSide::Left,
+            },
+            ColumnIndex {
+                index: 0,
+                side: JoinSide::Right,
+            },
+        ];
+        (join_schema, column_indices)
     }
 }
