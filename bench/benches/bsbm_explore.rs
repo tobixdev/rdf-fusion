@@ -403,7 +403,7 @@ fn create_runtime() -> Runtime {
 }
 
 async fn load_bsbm_1000() -> anyhow::Result<Store> {
-    let data_path = PathBuf::from("./data/dataset-1000.nt");
+    let data_path = PathBuf::from("./data/bsbm-explore-1000/dataset.nt");
     let data = fs::read(data_path)?;
     let memory_store = Store::new();
     memory_store

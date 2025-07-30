@@ -1,15 +1,21 @@
 use clap::ValueEnum;
 use std::fmt::{Display, Formatter};
 
+mod benchmark;
 mod business_intelligence;
 mod explore;
+mod operation;
+mod report;
+mod requirements;
+mod use_case;
 
-pub use business_intelligence::BsbmBusinessIntelligenceBenchmark;
-pub use explore::BsbmExploreBenchmark;
+pub use benchmark::BsbmBenchmark;
+pub use business_intelligence::BusinessIntelligenceUseCase;
+pub use explore::ExploreUseCase;
 
 /// Indicates the size of the dataset.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
-pub enum BsbmDatasetSize {
+pub enum NumProducts {
     #[value(name = "1000")]
     N1_000,
     #[value(name = "2500")]
@@ -32,19 +38,19 @@ pub enum BsbmDatasetSize {
     N500_000,
 }
 
-impl Display for BsbmDatasetSize {
+impl Display for NumProducts {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let string = match self {
-            BsbmDatasetSize::N1_000 => "1000",
-            BsbmDatasetSize::N2_500 => "2500",
-            BsbmDatasetSize::N5_000 => "5000",
-            BsbmDatasetSize::N7_500 => "7500",
-            BsbmDatasetSize::N10_000 => "10000",
-            BsbmDatasetSize::N25_000 => "25000",
-            BsbmDatasetSize::N50_000 => "50000",
-            BsbmDatasetSize::N75_000 => "75000",
-            BsbmDatasetSize::N250_000 => "250000",
-            BsbmDatasetSize::N500_000 => "500000",
+            NumProducts::N1_000 => "1000",
+            NumProducts::N2_500 => "2500",
+            NumProducts::N5_000 => "5000",
+            NumProducts::N7_500 => "7500",
+            NumProducts::N10_000 => "10000",
+            NumProducts::N25_000 => "25000",
+            NumProducts::N50_000 => "50000",
+            NumProducts::N75_000 => "75000",
+            NumProducts::N250_000 => "250000",
+            NumProducts::N500_000 => "500000",
         };
         write!(f, "{string}")
     }

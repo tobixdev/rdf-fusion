@@ -1,6 +1,8 @@
 #![allow(clippy::print_stdout)]
 
-use crate::benchmarks::bsbm::{BsbmBusinessIntelligenceBenchmark, BsbmExploreBenchmark};
+use crate::benchmarks::bsbm::{
+    BsbmBenchmark, BusinessIntelligenceUseCase, ExploreUseCase,
+};
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::RdfFusionBenchContext;
 use clap::ValueEnum;
@@ -41,12 +43,12 @@ pub async fn execute_benchmark_operation(
     operation: Operation,
     benchmark: BenchmarkName,
 ) -> anyhow::Result<()> {
-    let data = PathBuf::from("./data");
+    let data = PathBuf::from(format!("./data/{}", benchmark.dir_name()));
     let results = PathBuf::from("./results");
     fs::create_dir_all(&results)?;
     let mut context = RdfFusionBenchContext::new(options, data, results);
 
-    let benchmark = create_benchmark_instance(benchmark);
+    let benchmark = create_benchmark_instance(benchmark)?;
     match operation {
         Operation::Prepare => {
             println!("Preparing benchmark '{}' ...", benchmark.name());
@@ -78,18 +80,24 @@ pub async fn execute_benchmark_operation(
     Ok(())
 }
 
-fn create_benchmark_instance(benchmark: BenchmarkName) -> Box<dyn Benchmark> {
-    match benchmark {
+fn create_benchmark_instance(
+    benchmark: BenchmarkName,
+) -> anyhow::Result<Box<dyn Benchmark>> {
+    let benchmark: Box<dyn Benchmark> = match benchmark {
         BenchmarkName::BsbmExplore {
-            dataset_size,
+            num_products: dataset_size,
             max_query_count: query_size,
-        } => Box::new(BsbmExploreBenchmark::new(dataset_size, query_size)),
-        BenchmarkName::BsbmBusinessIntelligence {
-            dataset_size,
-            max_query_count: query_size,
-        } => Box::new(BsbmBusinessIntelligenceBenchmark::new(
+        } => Box::new(BsbmBenchmark::<ExploreUseCase>::try_new(
             dataset_size,
             query_size,
-        )),
-    }
+        )?),
+        BenchmarkName::BsbmBusinessIntelligence {
+            num_products: dataset_size,
+            max_query_count: query_size,
+        } => Box::new(BsbmBenchmark::<BusinessIntelligenceUseCase>::try_new(
+            dataset_size,
+            query_size,
+        )?),
+    };
+    Ok(benchmark)
 }
