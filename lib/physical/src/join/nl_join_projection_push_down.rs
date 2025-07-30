@@ -12,6 +12,7 @@ use datafusion::physical_plan::joins::NestedLoopJoinExec;
 use datafusion::physical_plan::projection::ProjectionExec;
 use datafusion::physical_plan::{ExecutionPlan, PhysicalExpr};
 use rdf_fusion_common::DFResult;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 /// Tries to push down projections from join filters that only depend on one side of the join.
@@ -98,10 +99,15 @@ fn try_pushdown_join_filter(
         return Ok(Transformed::no(original_plan));
     }
 
+    let join_filter = minimize_join_filter(
+        Arc::clone(rhs_rewrite.data.1.expression()),
+        rhs_rewrite.data.1.column_indices().to_vec(),
+        rhs_rewrite.data.1.schema().fields.clone(),
+    );
     Ok(Transformed::yes(Arc::new(NestedLoopJoinExec::try_new(
         lhs_rewrite.data.0,
         rhs_rewrite.data.0,
-        Some(rhs_rewrite.data.1),
+        Some(join_filter),
         join.join_type(),
         None,
     )?)))
@@ -154,6 +160,45 @@ fn try_pushdown_projection(
     } else {
         Ok(Transformed::no((plan, join_filter)))
     }
+}
+
+/// Creates a new [JoinFilter] and tries to minimize the internal schema.
+fn minimize_join_filter(
+    expr: Arc<dyn PhysicalExpr>,
+    mut column_indices: Vec<ColumnIndex>,
+    intermediate_schema: Fields,
+) -> JoinFilter {
+    let mut used_columns = HashSet::new();
+    expr.apply(|expr| {
+        if let Some(col) = expr.as_any().downcast_ref::<Column>() {
+            used_columns.insert(col.index());
+        }
+        Ok(TreeNodeRecursion::Continue)
+    })
+    .expect("Closure cannot fail");
+
+    column_indices.retain(|ci| used_columns.contains(&ci.index));
+    let final_expr = expr
+        .transform_up(|expr| match expr.as_any().downcast_ref::<Column>() {
+            None => Ok(Transformed::no(expr)),
+            Some(column) => {
+                let new_idx = used_columns
+                    .iter()
+                    .filter(|idx| **idx < column.index())
+                    .count();
+                let new_column = Column::new(column.name(), new_idx);
+                Ok(Transformed::yes(
+                    Arc::new(new_column) as Arc<dyn PhysicalExpr>
+                ))
+            }
+        })
+        .expect("Closure cannot fail");
+
+    JoinFilter::new(
+        final_expr.data,
+        column_indices,
+        Arc::new(Schema::new(intermediate_schema)),
+    )
 }
 
 /// Implements the push-down machinery.
@@ -403,7 +448,7 @@ mod test {
         let optimized_plan = optimizer.optimize(Arc::new(join), &Default::default())?;
 
         assert_snapshot!(displayable(optimized_plan.as_ref()).indent(false), @r"
-        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@2 > join_proj_push_down_2@3
+        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1
           ProjectionExec: expr=[A@0 as A, A@0 + 1 as join_proj_push_down_1]
             EmptyExec
           ProjectionExec: expr=[B@0 as B, B@0 + 1 as join_proj_push_down_2]
@@ -484,5 +529,102 @@ mod test {
             },
         ];
         (join_schema, column_indices)
+    }
+
+    #[tokio::test]
+    async fn complex_schema_pushdown() {
+        // Left schema: (a, b, c)
+        let left_schema = Arc::new(Schema::new(vec![
+            Field::new("a", DataType::Int32, false),
+            Field::new("b", DataType::Int32, false),
+            Field::new("c", DataType::Int32, false),
+        ]));
+        let left = Arc::new(EmptyExec::new(left_schema.clone()));
+
+        // Right schema: (x, y, z)
+        let right_schema = Arc::new(Schema::new(vec![
+            Field::new("x", DataType::Int32, false),
+            Field::new("y", DataType::Int32, false),
+            Field::new("z", DataType::Int32, false),
+        ]));
+        let right = Arc::new(EmptyExec::new(right_schema.clone()));
+
+        // The filter will see the columns as [a, b, x, z]
+        let join_schema = Arc::new(Schema::new(vec![
+            left_schema.field(0).clone(),
+            left_schema.field(1).clone(),
+            right_schema.field(0).clone(),
+            right_schema.field(2).clone(),
+        ]));
+        let column_indices = vec![
+            ColumnIndex {
+                index: 0,
+                side: JoinSide::Left,
+            },
+            ColumnIndex {
+                index: 1,
+                side: JoinSide::Left,
+            },
+            ColumnIndex {
+                index: 0,
+                side: JoinSide::Right,
+            },
+            ColumnIndex {
+                index: 2,
+                side: JoinSide::Right,
+            },
+        ];
+
+        // Filter expression: a + b > x + z
+        let a_col = Arc::new(Column::new("a", 0));
+        let b_col = Arc::new(Column::new("b", 1));
+        let x_col = Arc::new(Column::new("x", 2));
+        let z_col = Arc::new(Column::new("z", 3));
+        let lhs_expr = binary(
+            a_col,
+            datafusion::logical_expr::Operator::Plus,
+            b_col,
+            join_schema.as_ref(),
+        )
+        .unwrap();
+        let rhs_expr = binary(
+            x_col,
+            datafusion::logical_expr::Operator::Plus,
+            z_col,
+            join_schema.as_ref(),
+        )
+        .unwrap();
+        let filter_expr = binary(
+            lhs_expr,
+            datafusion::logical_expr::Operator::Gt,
+            rhs_expr,
+            join_schema.as_ref(),
+        )
+        .unwrap();
+
+        let join_filter =
+            JoinFilter::new(filter_expr, column_indices, join_schema.clone());
+
+        let join = NestedLoopJoinExec::try_new(
+            left,
+            right,
+            Some(join_filter),
+            &JoinType::Inner,
+            None,
+        )
+        .unwrap();
+
+        let optimizer = NestedLoopJoinProjectionPushDown::new();
+        let optimized_plan = optimizer
+            .optimize(Arc::new(join), &Default::default())
+            .unwrap();
+
+        assert_snapshot!(displayable(optimized_plan.as_ref()).indent(false), @r"
+        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1
+          ProjectionExec: expr=[a@0 as a, b@1 as b, c@2 as c, a@0 + b@1 as join_proj_push_down_1]
+            EmptyExec
+          ProjectionExec: expr=[x@0 as x, y@1 as y, z@2 as z, x@0 + z@2 as join_proj_push_down_2]
+            EmptyExec
+        ");
     }
 }
