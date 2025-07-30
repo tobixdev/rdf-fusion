@@ -1,13 +1,13 @@
 use crate::extend::ExtendNode;
-use crate::join::{compute_sparql_join_columns, SparqlJoinNode, SparqlJoinType};
+use crate::join::{SparqlJoinNode, SparqlJoinType, compute_sparql_join_columns};
 use crate::logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use crate::minus::MinusNode;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{Column, DFSchemaRef};
 use datafusion::logical_expr::{
-    col, Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort,
-    SortExpr, UserDefinedLogicalNode,
+    Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
+    UserDefinedLogicalNode, col,
 };
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingName;
@@ -333,16 +333,6 @@ impl RdfFusionLogicalPlanBuilder {
     /// Returns a new [RdfFusionExprBuilder] for a given expression.
     pub fn expr_builder(&self, expr: Expr) -> DFResult<RdfFusionExprBuilder<'_>> {
         self.expr_builder_root().try_create_builder(expr)
-    }
-
-    /// Tries to push down any encoding changes in `expr` into a projection on the logical plan.
-    ///
-    /// TODO
-    fn push_down_encoding_changes(
-        self,
-        expr: Vec<Expr>,
-    ) -> DFResult<(RdfFusionLogicalPlanBuilder, Vec<Expr>)> {
-        todo!()
     }
 
     /// TODO

@@ -7,7 +7,9 @@ use datafusion::optimizer::{Optimizer, OptimizerRule};
 use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_logical::expr::SimplifySparqlExpressionsRule;
 use rdf_fusion_logical::extend::ExtendLoweringRule;
-use rdf_fusion_logical::join::{SparqlJoinLoweringRule, SparqlJoinReorderingRule};
+use rdf_fusion_logical::join::{
+    JoinProjectionPushDownRule, SparqlJoinLoweringRule, SparqlJoinReorderingRule,
+};
 use rdf_fusion_logical::minus::MinusLoweringRule;
 use rdf_fusion_logical::paths::PropertyPathLoweringRule;
 use rdf_fusion_logical::patterns::PatternLoweringRule;
@@ -39,6 +41,7 @@ pub fn create_optimizer_rules(
                 context.encodings().clone(),
             )));
             rules.extend(lowering_rules);
+            rules.push(Arc::new(JoinProjectionPushDownRule::new()));
 
             // DataFusion Optimizers
             // TODO: Replace with a good subset
@@ -53,6 +56,7 @@ pub fn create_optimizer_rules(
                 context.encodings().clone(),
             )));
             rules.extend(lowering_rules);
+            rules.push(Arc::new(JoinProjectionPushDownRule::new()));
             rules.extend(Optimizer::default().rules);
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
             rules
