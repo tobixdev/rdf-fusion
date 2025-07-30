@@ -3,7 +3,9 @@ use datafusion::common::alias::AliasGenerator;
 use datafusion::common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
 use datafusion::common::JoinSide;
 use datafusion::config::ConfigOptions;
+use datafusion::logical_expr::Volatility;
 use datafusion::physical_expr::expressions::Column;
+use datafusion::physical_expr::ScalarFunctionExpr;
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
 use datafusion::physical_plan::joins::NestedLoopJoinExec;
@@ -209,10 +211,11 @@ impl<'a> JoinFilterRewriter<'a> {
             return Ok(Transformed::no(expr));
         }
 
-        // Recurse if there is a dependency to both sides.
+        // Recurse if there is a dependency to both sides or if the entire expression is volatile.
         let depends_on_other_side =
             self.depends_on_join_side(&expr, self.join_side.negate())?;
-        if depends_on_other_side {
+        let is_volatile = is_volatile(expr.as_ref());
+        if depends_on_other_side || is_volatile {
             return expr.map_children(|expr| self.rewrite(expr));
         }
 
@@ -293,11 +296,24 @@ impl<'a> JoinFilterRewriter<'a> {
     }
 }
 
+fn is_volatile(expr: &dyn PhysicalExpr) -> bool {
+    match expr.as_any().downcast_ref::<ScalarFunctionExpr>() {
+        None => expr
+            .children()
+            .iter()
+            .map(|expr| is_volatile(expr.as_ref()))
+            .reduce(|lhs, rhs| lhs || rhs)
+            .unwrap_or(false),
+        Some(expr) => expr.fun().signature().volatility == Volatility::Volatile,
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
-    use datafusion::arrow::datatypes::{DataType, Field, Schema};
+    use datafusion::arrow::datatypes::{DataType, Field, FieldRef, Schema};
     use datafusion::common::{JoinSide, JoinType};
+    use datafusion::functions::math::random;
     use datafusion::physical_expr::expressions::{binary, lit, Column};
     use datafusion::physical_optimizer::PhysicalOptimizerRule;
     use datafusion::physical_plan::displayable;
@@ -392,6 +408,54 @@ mod test {
             EmptyExec
           ProjectionExec: expr=[B@0 as B, B@0 + 1 as join_proj_push_down_2]
             EmptyExec
+        ");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn does_not_pushdown_volatile_functions() -> DFResult<()> {
+        let (left, right) = create_simple_schema();
+        let (join_schema, column_indices) =
+            join_first_column(&left.schema(), &right.schema());
+
+        let left_expr = binary(
+            Arc::new(Column::new("A", 0)),
+            datafusion::logical_expr::Operator::Plus,
+            Arc::new(ScalarFunctionExpr::new(
+                "rand",
+                random(),
+                vec![],
+                FieldRef::new(Field::new("rand", DataType::Float64, false)),
+            )),
+            &join_schema,
+        )?;
+        let right_expr = Arc::new(Column::new("B", 1));
+        let filter_expr = binary(
+            left_expr,
+            datafusion::logical_expr::Operator::Gt,
+            right_expr,
+            &join_schema,
+        )?;
+
+        let join = NestedLoopJoinExec::try_new(
+            left,
+            right,
+            Some(JoinFilter::new(
+                filter_expr,
+                column_indices,
+                Arc::new(join_schema),
+            )),
+            &JoinType::Inner,
+            None,
+        )?;
+
+        let optimizer = NestedLoopJoinProjectionPushDown::new();
+        let optimized_plan = optimizer.optimize(Arc::new(join), &Default::default())?;
+
+        assert_snapshot!(displayable(optimized_plan.as_ref()).indent(false), @r"
+        NestedLoopJoinExec: join_type=Inner, filter=A@0 + rand() > B@1
+          EmptyExec
+          EmptyExec
         ");
         Ok(())
     }
