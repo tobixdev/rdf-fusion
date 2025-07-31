@@ -2,6 +2,9 @@ use clap::Parser;
 use rdf_fusion_bench::benchmarks::BenchmarkName;
 use rdf_fusion_bench::{BenchmarkingOptions, Operation, execute_benchmark_operation};
 
+#[global_allocator]
+static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = RdfFusionBenchArgs::parse();
