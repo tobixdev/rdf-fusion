@@ -3,12 +3,12 @@ use datafusion::common::alias::AliasGenerator;
 use datafusion::common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
 use datafusion::common::{JoinSide, JoinType};
 use datafusion::config::ConfigOptions;
-use datafusion::logical_expr::Volatility;
-use datafusion::physical_expr::expressions::Column;
+use datafusion::logical_expr::{Operator, Volatility};
 use datafusion::physical_expr::ScalarFunctionExpr;
+use datafusion::physical_expr::expressions::{BinaryExpr, CaseExpr, Column};
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
-use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
 use datafusion::physical_plan::joins::NestedLoopJoinExec;
+use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
 use datafusion::physical_plan::projection::ProjectionExec;
 use datafusion::physical_plan::{ExecutionPlan, PhysicalExpr};
 use rdf_fusion_common::DFResult;
@@ -46,7 +46,7 @@ impl PhysicalOptimizerRule for NestedLoopJoinProjectionPushDown {
         plan.transform_up(|plan| {
             match plan.as_any().downcast_ref::<NestedLoopJoinExec>() {
                 None => Ok(Transformed::no(plan)),
-                Some(hash_join) => try_pushdown_join_filter(
+                Some(hash_join) => try_push_down_join_filter(
                     Arc::clone(&plan),
                     hash_join,
                     &alias_generator,
@@ -67,32 +67,38 @@ impl PhysicalOptimizerRule for NestedLoopJoinProjectionPushDown {
 /// Tries to push down parts of the filter.
 ///
 /// See [JoinFilterRewriter] for details.
-fn try_pushdown_join_filter(
+fn try_push_down_join_filter(
     original_plan: Arc<dyn ExecutionPlan>,
     join: &NestedLoopJoinExec,
     alias_generator: &AliasGenerator,
 ) -> DFResult<Transformed<Arc<dyn ExecutionPlan>>> {
+    // Mark joins are currently not supported.
+    if matches!(join.join_type(), JoinType::LeftMark | JoinType::RightMark) {
+        return Ok(Transformed::no(original_plan));
+    }
+
     let projections = join.projection();
     let Some(filter) = join.filter() else {
         return Ok(Transformed::no(original_plan));
     };
 
-    // Mark joins are currently not supported.
-    if matches!(join.join_type(), JoinType::LeftMark | JoinType::RightMark) {
+    // If the expression contains short-circuited (e.g., && and ||) expressions, we do not push down
+    // projections as this could pessimize the query.
+    if could_short_circuit(filter.expression().as_ref()) {
         return Ok(Transformed::no(original_plan));
     }
 
     let original_lhs_length = join.left().schema().fields().len();
     let original_rhs_length = join.right().schema().fields().len();
 
-    let lhs_rewrite = try_pushdown_projection(
+    let lhs_rewrite = try_push_down_projection(
         Arc::clone(&join.right().schema()),
         Arc::clone(join.left()),
         JoinSide::Left,
         filter.clone(),
         alias_generator,
     )?;
-    let rhs_rewrite = try_pushdown_projection(
+    let rhs_rewrite = try_push_down_projection(
         Arc::clone(&lhs_rewrite.data.0.schema()),
         Arc::clone(join.right()),
         JoinSide::Right,
@@ -159,7 +165,7 @@ fn try_pushdown_join_filter(
 }
 
 /// Tries to push down parts of `expr` into the `join_side`.
-fn try_pushdown_projection(
+fn try_push_down_projection(
     other_schema: SchemaRef,
     plan: Arc<dyn ExecutionPlan>,
     join_side: JoinSide,
@@ -403,6 +409,21 @@ impl<'a> JoinFilterRewriter<'a> {
     }
 }
 
+fn could_short_circuit(expr: &dyn PhysicalExpr) -> bool {
+    if let Some(expr) = expr.as_any().downcast_ref::<ScalarFunctionExpr>() {
+        return expr.fun().short_circuits();
+    }
+    if let Some(expr) = expr.as_any().downcast_ref::<BinaryExpr>() {
+        return matches!(expr.op(), Operator::And | Operator::Or);
+    }
+    if expr.as_any().downcast_ref::<CaseExpr>().is_some() {
+        return true;
+    }
+
+    // We must keep this up to date if new expressions are added to DF.
+    false
+}
+
 fn is_volatile(expr: &dyn PhysicalExpr) -> bool {
     match expr.as_any().downcast_ref::<ScalarFunctionExpr>() {
         None => expr
@@ -421,13 +442,13 @@ mod test {
     use datafusion::arrow::datatypes::{DataType, Field, FieldRef, Schema};
     use datafusion::common::{JoinSide, JoinType};
     use datafusion::functions::math::random;
-    use datafusion::physical_expr::expressions::{binary, lit, Column};
     use datafusion::physical_expr::PhysicalExpr;
+    use datafusion::physical_expr::expressions::{Column, binary, lit};
     use datafusion::physical_optimizer::PhysicalOptimizerRule;
     use datafusion::physical_plan::displayable;
     use datafusion::physical_plan::empty::EmptyExec;
-    use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
     use datafusion::physical_plan::joins::NestedLoopJoinExec;
+    use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
     use insta::assert_snapshot;
     use rdf_fusion_common::DFResult;
     use std::sync::Arc;
@@ -438,13 +459,14 @@ mod test {
         let optimized_plan = run_test(
             left_schema,
             right_schema,
-            join_first_column_indices(),
-            a_greater_than_b,
+            a_x(),
+            None,
+            a_greater_than_x,
             JoinType::Inner,
         )?;
 
         assert_snapshot!(optimized_plan, @r"
-        NestedLoopJoinExec: join_type=Inner, filter=A@0 > B@1
+        NestedLoopJoinExec: join_type=Inner, filter=a@0 > x@1
           EmptyExec
           EmptyExec
         ");
@@ -452,115 +474,112 @@ mod test {
     }
 
     #[tokio::test]
-    async fn simple_pushed_down_projections() -> DFResult<()> {
+    async fn simple_push_down() -> DFResult<()> {
         let (left_schema, right_schema) = create_simple_schemas();
         let optimized_plan = run_test(
             left_schema,
             right_schema,
-            join_first_column_indices(),
-            a_plus_one_greater_than_b_plus_one,
+            a_x(),
+            None,
+            a_plus_one_greater_than_x_plus_one,
             JoinType::Inner,
         )?;
 
         assert_snapshot!(optimized_plan, @r"
-        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[A@0, B@2]
-          ProjectionExec: expr=[A@0 as A, A@0 + 1 as join_proj_push_down_1]
+        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[a@0, x@2]
+          ProjectionExec: expr=[a@0 as a, a@0 + 1 as join_proj_push_down_1]
             EmptyExec
-          ProjectionExec: expr=[B@0 as B, B@0 + 1 as join_proj_push_down_2]
+          ProjectionExec: expr=[x@0 as x, x@0 + 1 as join_proj_push_down_2]
             EmptyExec
         ");
         Ok(())
     }
 
     #[tokio::test]
-    async fn does_not_pushdown_volatile_functions() -> DFResult<()> {
+    async fn does_not_push_down_short_circuiting_expressions() -> DFResult<()> {
         let (left_schema, right_schema) = create_simple_schemas();
         let optimized_plan = run_test(
             left_schema,
             right_schema,
-            join_first_column_indices(),
-            a_plus_rand_greater_than_b,
-            JoinType::Inner,
-        )?;
-
-        assert_snapshot!(optimized_plan, @r"
-        NestedLoopJoinExec: join_type=Inner, filter=A@0 + rand() > B@1
-          EmptyExec
-          EmptyExec
-        ");
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn complex_schema_pushdown() -> DFResult<()> {
-        // Left schema: (a, b, c)
-        let left_schema = Schema::new(vec![
-            Field::new("a", DataType::Int32, false),
-            Field::new("b", DataType::Int32, false),
-            Field::new("c", DataType::Int32, false),
-        ]);
-
-        // Right schema: (x, y, z)
-        let right_schema = Schema::new(vec![
-            Field::new("x", DataType::Int32, false),
-            Field::new("y", DataType::Int32, false),
-            Field::new("z", DataType::Int32, false),
-        ]);
-
-        // The filter will see the columns as [a, b, x, z]
-        let column_indices = vec![
-            ColumnIndex {
-                index: 0,
-                side: JoinSide::Left,
-            },
-            ColumnIndex {
-                index: 1,
-                side: JoinSide::Left,
-            },
-            ColumnIndex {
-                index: 0,
-                side: JoinSide::Right,
-            },
-            ColumnIndex {
-                index: 2,
-                side: JoinSide::Right,
-            },
-        ];
-
-        let optimized_plan = run_test(
-            left_schema,
-            right_schema,
-            column_indices,
-            |join_schema| {
-                // Filter expression: a + b > x + z
-                let a_col = Arc::new(Column::new("a", 0));
-                let b_col = Arc::new(Column::new("b", 1));
-                let x_col = Arc::new(Column::new("x", 2));
-                let z_col = Arc::new(Column::new("z", 3));
-                let lhs_expr = binary(
-                    a_col,
-                    datafusion::logical_expr::Operator::Plus,
-                    b_col,
-                    join_schema,
-                )?;
-                let rhs_expr = binary(
-                    x_col,
-                    datafusion::logical_expr::Operator::Plus,
-                    z_col,
-                    join_schema,
-                )?;
+            a_x(),
+            None,
+            |schema| {
                 binary(
-                    lhs_expr,
-                    datafusion::logical_expr::Operator::Gt,
-                    rhs_expr,
-                    join_schema,
+                    lit(false),
+                    Operator::And,
+                    a_plus_one_greater_than_x_plus_one(schema)?,
+                    schema,
                 )
             },
             JoinType::Inner,
         )?;
 
         assert_snapshot!(optimized_plan, @r"
+        NestedLoopJoinExec: join_type=Inner, filter=false AND a@0 + 1 > x@1 + 1
+          EmptyExec
+          EmptyExec
+        ");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn does_not_push_down_volatile_functions() -> DFResult<()> {
+        let (left_schema, right_schema) = create_simple_schemas();
+        let optimized_plan = run_test(
+            left_schema,
+            right_schema,
+            a_x(),
+            None,
+            a_plus_rand_greater_than_x,
+            JoinType::Inner,
+        )?;
+
+        assert_snapshot!(optimized_plan, @r"
+        NestedLoopJoinExec: join_type=Inner, filter=a@0 + rand() > x@1
+          EmptyExec
+          EmptyExec
+        ");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn complex_schema_push_down() -> DFResult<()> {
+        let (left_schema, right_schema) = create_complex_schemas();
+
+        let optimized_plan = run_test(
+            left_schema,
+            right_schema,
+            a_b_x_z(),
+            None,
+            a_plus_b_greater_than_x_plus_z,
+            JoinType::Inner,
+        )?;
+
+        assert_snapshot!(optimized_plan, @r"
         NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[a@0, b@1, c@2, x@4, y@5, z@6]
+          ProjectionExec: expr=[a@0 as a, b@1 as b, c@2 as c, a@0 + b@1 as join_proj_push_down_1]
+            EmptyExec
+          ProjectionExec: expr=[x@0 as x, y@1 as y, z@2 as z, x@0 + z@2 as join_proj_push_down_2]
+            EmptyExec
+        ");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn push_down_with_existing_projections() -> DFResult<()> {
+        let (left_schema, right_schema) = create_complex_schemas();
+
+        let optimized_plan = run_test(
+            left_schema,
+            right_schema,
+            a_b_x_z(),
+            Some(vec![1, 3, 5]), // ("b", "x", "z")
+            a_plus_b_greater_than_x_plus_z,
+            JoinType::Inner,
+        )?;
+
+        assert_snapshot!(optimized_plan, @r"
+        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[b@1, x@4, z@6]
           ProjectionExec: expr=[a@0 as a, b@1 as b, c@2 as c, a@0 + b@1 as join_proj_push_down_1]
             EmptyExec
           ProjectionExec: expr=[x@0 as x, y@1 as y, z@2 as z, x@0 + z@2 as join_proj_push_down_2]
@@ -576,16 +595,17 @@ mod test {
         let left_semi_join_plan = run_test(
             left_schema.clone(),
             right_schema.clone(),
-            join_first_column_indices(),
-            a_plus_one_greater_than_b_plus_one,
+            a_x(),
+            None,
+            a_plus_one_greater_than_x_plus_one,
             JoinType::LeftSemi,
         )?;
 
         assert_snapshot!(left_semi_join_plan, @r"
-        NestedLoopJoinExec: join_type=LeftSemi, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[A@0]
-          ProjectionExec: expr=[A@0 as A, A@0 + 1 as join_proj_push_down_1]
+        NestedLoopJoinExec: join_type=LeftSemi, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[a@0]
+          ProjectionExec: expr=[a@0 as a, a@0 + 1 as join_proj_push_down_1]
             EmptyExec
-          ProjectionExec: expr=[B@0 as B, B@0 + 1 as join_proj_push_down_2]
+          ProjectionExec: expr=[x@0 as x, x@0 + 1 as join_proj_push_down_2]
             EmptyExec
         ");
         Ok(())
@@ -597,15 +617,16 @@ mod test {
         let right_semi_join_plan = run_test(
             left_schema,
             right_schema,
-            join_first_column_indices(),
-            a_plus_one_greater_than_b_plus_one,
+            a_x(),
+            None,
+            a_plus_one_greater_than_x_plus_one,
             JoinType::RightSemi,
         )?;
         assert_snapshot!(right_semi_join_plan, @r"
-        NestedLoopJoinExec: join_type=RightSemi, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[B@0]
-          ProjectionExec: expr=[A@0 as A, A@0 + 1 as join_proj_push_down_1]
+        NestedLoopJoinExec: join_type=RightSemi, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[x@0]
+          ProjectionExec: expr=[a@0 as a, a@0 + 1 as join_proj_push_down_1]
             EmptyExec
-          ProjectionExec: expr=[B@0 as B, B@0 + 1 as join_proj_push_down_2]
+          ProjectionExec: expr=[x@0 as x, x@0 + 1 as join_proj_push_down_2]
             EmptyExec
         ");
         Ok(())
@@ -615,6 +636,7 @@ mod test {
         left_schema: Schema,
         right_schema: Schema,
         column_indices: Vec<ColumnIndex>,
+        existing_projections: Option<Vec<usize>>,
         filter_expr_builder: impl FnOnce(&Schema) -> DFResult<Arc<dyn PhysicalExpr>>,
         join_type: JoinType,
     ) -> DFResult<String> {
@@ -640,7 +662,7 @@ mod test {
             right,
             Some(join_filter),
             &join_type,
-            None,
+            existing_projections,
         )?;
 
         let optimizer = NestedLoopJoinProjectionPushDown::new();
@@ -652,13 +674,29 @@ mod test {
     }
 
     fn create_simple_schemas() -> (Schema, Schema) {
-        let left_schema = Schema::new(vec![Field::new("A", DataType::Int32, false)]);
-        let right_schema = Schema::new(vec![Field::new("B", DataType::Int32, false)]);
+        let left_schema = Schema::new(vec![Field::new("a", DataType::Int32, false)]);
+        let right_schema = Schema::new(vec![Field::new("x", DataType::Int32, false)]);
 
         (left_schema, right_schema)
     }
 
-    fn join_first_column_indices() -> Vec<ColumnIndex> {
+    fn create_complex_schemas() -> (Schema, Schema) {
+        let left_schema = Schema::new(vec![
+            Field::new("a", DataType::Int32, false),
+            Field::new("b", DataType::Int32, false),
+            Field::new("c", DataType::Int32, false),
+        ]);
+
+        let right_schema = Schema::new(vec![
+            Field::new("x", DataType::Int32, false),
+            Field::new("y", DataType::Int32, false),
+            Field::new("z", DataType::Int32, false),
+        ]);
+
+        (left_schema, right_schema)
+    }
+
+    fn a_x() -> Vec<ColumnIndex> {
         vec![
             ColumnIndex {
                 index: 0,
@@ -671,35 +709,51 @@ mod test {
         ]
     }
 
-    fn a_plus_one_greater_than_b_plus_one(
+    fn a_b_x_z() -> Vec<ColumnIndex> {
+        vec![
+            ColumnIndex {
+                index: 0,
+                side: JoinSide::Left,
+            },
+            ColumnIndex {
+                index: 1,
+                side: JoinSide::Left,
+            },
+            ColumnIndex {
+                index: 0,
+                side: JoinSide::Right,
+            },
+            ColumnIndex {
+                index: 2,
+                side: JoinSide::Right,
+            },
+        ]
+    }
+
+    fn a_plus_one_greater_than_x_plus_one(
         join_schema: &Schema,
     ) -> DFResult<Arc<dyn PhysicalExpr>> {
         let left_expr = binary(
-            Arc::new(Column::new("A", 0)),
-            datafusion::logical_expr::Operator::Plus,
+            Arc::new(Column::new("a", 0)),
+            Operator::Plus,
             lit(1),
             &join_schema,
         )?;
         let right_expr = binary(
-            Arc::new(Column::new("B", 1)),
-            datafusion::logical_expr::Operator::Plus,
+            Arc::new(Column::new("x", 1)),
+            Operator::Plus,
             lit(1),
             &join_schema,
         )?;
-        binary(
-            left_expr,
-            datafusion::logical_expr::Operator::Gt,
-            right_expr,
-            &join_schema,
-        )
+        binary(left_expr, Operator::Gt, right_expr, &join_schema)
     }
 
-    fn a_plus_rand_greater_than_b(
+    fn a_plus_rand_greater_than_x(
         join_schema: &Schema,
     ) -> DFResult<Arc<dyn PhysicalExpr>> {
         let left_expr = binary(
-            Arc::new(Column::new("A", 0)),
-            datafusion::logical_expr::Operator::Plus,
+            Arc::new(Column::new("a", 0)),
+            Operator::Plus,
             Arc::new(ScalarFunctionExpr::new(
                 "rand",
                 random(),
@@ -708,21 +762,34 @@ mod test {
             )),
             join_schema,
         )?;
-        let right_expr = Arc::new(Column::new("B", 1));
+        let right_expr = Arc::new(Column::new("x", 1));
+        binary(left_expr, Operator::Gt, right_expr, &join_schema)
+    }
+
+    fn a_greater_than_x(join_schema: &Schema) -> DFResult<Arc<dyn PhysicalExpr>> {
         binary(
-            left_expr,
-            datafusion::logical_expr::Operator::Gt,
-            right_expr,
+            Arc::new(Column::new("a", 0)),
+            Operator::Gt,
+            Arc::new(Column::new("x", 1)),
             &join_schema,
         )
     }
 
-    fn a_greater_than_b(join_schema: &Schema) -> DFResult<Arc<dyn PhysicalExpr>> {
-        binary(
-            Arc::new(Column::new("A", 0)),
-            datafusion::logical_expr::Operator::Gt,
-            Arc::new(Column::new("B", 1)),
+    fn a_plus_b_greater_than_x_plus_z(
+        join_schema: &Schema,
+    ) -> DFResult<Arc<dyn PhysicalExpr>> {
+        let lhs = binary(
+            Arc::new(Column::new("a", 0)),
+            Operator::Plus,
+            Arc::new(Column::new("b", 1)),
             &join_schema,
-        )
+        )?;
+        let rhs = binary(
+            Arc::new(Column::new("x", 2)),
+            Operator::Plus,
+            Arc::new(Column::new("z", 3)),
+            &join_schema,
+        )?;
+        binary(lhs, Operator::Gt, rhs, &join_schema)
     }
 }
