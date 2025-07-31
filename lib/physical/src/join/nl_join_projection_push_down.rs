@@ -77,10 +77,8 @@ fn try_pushdown_join_filter(
         return Ok(Transformed::no(original_plan));
     };
 
-    if !matches!(
-        join.join_type(),
-        JoinType::Inner | JoinType::Left | JoinType::Full | JoinType::Right
-    ) {
+    // Mark joins are currently not supported.
+    if matches!(join.join_type(), JoinType::LeftMark | JoinType::RightMark) {
         return Ok(Transformed::no(original_plan));
     }
 
@@ -115,13 +113,28 @@ fn try_pushdown_join_filter(
     let new_lhs_length = lhs_rewrite.data.0.schema().fields.len();
     let new_rhs_length = rhs_rewrite.data.0.schema().fields.len();
     let projections = match projections {
-        None => {
-            // Build projections that ignore the newly projected columns.
-            let mut projections = Vec::new();
-            projections.extend(0..original_lhs_length);
-            projections.extend(new_lhs_length..new_lhs_length + original_rhs_length);
-            projections
-        }
+        None => match join.join_type() {
+            JoinType::Inner | JoinType::Left | JoinType::Right | JoinType::Full => {
+                // Build projections that ignore the newly projected columns.
+                let mut projections = Vec::new();
+                projections.extend(0..original_lhs_length);
+                projections.extend(new_lhs_length..new_lhs_length + original_rhs_length);
+                projections
+            }
+            JoinType::LeftSemi | JoinType::LeftAnti => {
+                // Only return original left columns
+                let mut projections = Vec::new();
+                projections.extend(0..original_lhs_length);
+                projections
+            }
+            JoinType::RightSemi | JoinType::RightAnti => {
+                // Only return original right columns
+                let mut projections = Vec::new();
+                projections.extend(new_lhs_length..new_lhs_length + original_rhs_length);
+                projections
+            }
+            _ => unreachable!("Unsupported join type"),
+        },
         Some(projections) => {
             let rhs_offset = new_lhs_length - original_lhs_length;
             projections
