@@ -3,8 +3,8 @@ use datafusion::common::alias::AliasGenerator;
 use datafusion::common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
 use datafusion::common::{JoinSide, JoinType};
 use datafusion::config::ConfigOptions;
-use datafusion::logical_expr::{Operator, Volatility};
-use datafusion::physical_expr::expressions::{BinaryExpr, CaseExpr, Column};
+use datafusion::logical_expr::Volatility;
+use datafusion::physical_expr::expressions::Column;
 use datafusion::physical_expr::ScalarFunctionExpr;
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::physical_plan::coalesce_batches::CoalesceBatchesExec;
@@ -84,12 +84,6 @@ fn try_push_down_join_filter(
     let Some(filter) = join.filter() else {
         return Ok(Transformed::no(original_plan));
     };
-
-    // If the expression contains short-circuited (e.g., && and ||) expressions, we do not push down
-    // projections as this could pessimize the query.
-    if could_short_circuit(filter.expression().as_ref()) {
-        return Ok(Transformed::no(original_plan));
-    }
 
     let original_lhs_length = join.left().schema().fields().len();
     let original_rhs_length = join.right().schema().fields().len();
@@ -433,21 +427,6 @@ impl<'a> JoinFilterRewriter<'a> {
 
         Ok(result)
     }
-}
-
-fn could_short_circuit(expr: &dyn PhysicalExpr) -> bool {
-    if let Some(expr) = expr.as_any().downcast_ref::<ScalarFunctionExpr>() {
-        return expr.fun().short_circuits();
-    }
-    if let Some(expr) = expr.as_any().downcast_ref::<BinaryExpr>() {
-        return matches!(expr.op(), Operator::And | Operator::Or);
-    }
-    if expr.as_any().downcast_ref::<CaseExpr>().is_some() {
-        return true;
-    }
-
-    // We must keep this up to date if new expressions are added to DF.
-    false
 }
 
 fn is_volatile(expr: &dyn PhysicalExpr) -> bool {
