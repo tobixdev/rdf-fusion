@@ -1,14 +1,14 @@
 use datafusion::arrow::datatypes::{Fields, Schema, SchemaRef};
 use datafusion::common::alias::AliasGenerator;
 use datafusion::common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
-use datafusion::common::JoinSide;
+use datafusion::common::{JoinSide, JoinType};
 use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::Volatility;
-use datafusion::physical_expr::expressions::Column;
 use datafusion::physical_expr::ScalarFunctionExpr;
+use datafusion::physical_expr::expressions::Column;
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
-use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
 use datafusion::physical_plan::joins::NestedLoopJoinExec;
+use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
 use datafusion::physical_plan::projection::ProjectionExec;
 use datafusion::physical_plan::{ExecutionPlan, PhysicalExpr};
 use rdf_fusion_common::DFResult;
@@ -77,6 +77,13 @@ fn try_pushdown_join_filter(
         return Ok(Transformed::no(original_plan));
     };
 
+    if !matches!(
+        join.join_type(),
+        JoinType::Inner | JoinType::Left | JoinType::Full | JoinType::Right
+    ) {
+        return Ok(Transformed::no(original_plan));
+    }
+
     let original_lhs_length = join.left().schema().fields().len();
     let original_rhs_length = join.right().schema().fields().len();
 
@@ -85,14 +92,14 @@ fn try_pushdown_join_filter(
         Arc::clone(join.left()),
         JoinSide::Left,
         filter.clone(),
-        &alias_generator,
+        alias_generator,
     )?;
     let rhs_rewrite = try_pushdown_projection(
         Arc::clone(&lhs_rewrite.data.0.schema()),
         Arc::clone(join.right()),
         JoinSide::Right,
         lhs_rewrite.data.1,
-        &alias_generator,
+        alias_generator,
     )?;
     if !lhs_rewrite.transformed && !rhs_rewrite.transformed {
         return Ok(Transformed::no(original_plan));
@@ -101,28 +108,37 @@ fn try_pushdown_join_filter(
     let join_filter = minimize_join_filter(
         Arc::clone(rhs_rewrite.data.1.expression()),
         rhs_rewrite.data.1.column_indices().to_vec(),
-        rhs_rewrite.data.1.schema().fields.clone(),
+        lhs_rewrite.data.0.schema().as_ref(),
+        rhs_rewrite.data.0.schema().as_ref(),
     );
 
     let new_lhs_length = lhs_rewrite.data.0.schema().fields.len();
+    let new_rhs_length = rhs_rewrite.data.0.schema().fields.len();
     let projections = match projections {
         None => {
-            // Build projections that ignores the newly projected columns.
-            let mut projections = (0..original_lhs_length).collect::<Vec<usize>>();
+            // Build projections that ignore the newly projected columns.
+            let mut projections = Vec::new();
+            projections.extend(0..original_lhs_length);
             projections.extend(new_lhs_length..new_lhs_length + original_rhs_length);
             projections
         }
-        Some(projections) => projections
-            .iter()
-            .map(|idx| {
-                if *idx >= original_lhs_length {
-                    idx + new_lhs_length
-                } else {
-                    *idx
-                }
-            })
-            .collect(),
+        Some(projections) => {
+            let rhs_offset = new_lhs_length - original_lhs_length;
+            projections
+                .iter()
+                .map(|idx| {
+                    if *idx >= original_lhs_length {
+                        idx + rhs_offset
+                    } else {
+                        *idx
+                    }
+                })
+                .collect()
+        }
     };
+    projections
+        .iter()
+        .for_each(|idx| assert!(*idx < new_lhs_length + new_rhs_length));
 
     Ok(Transformed::yes(Arc::new(NestedLoopJoinExec::try_new(
         lhs_rewrite.data.0,
@@ -185,8 +201,9 @@ fn try_pushdown_projection(
 /// Creates a new [JoinFilter] and tries to minimize the internal schema.
 fn minimize_join_filter(
     expr: Arc<dyn PhysicalExpr>,
-    mut column_indices: Vec<ColumnIndex>,
-    intermediate_schema: Fields,
+    old_column_indices: Vec<ColumnIndex>,
+    lhs_schema: &Schema,
+    rhs_schema: &Schema,
 ) -> JoinFilter {
     let mut used_columns = HashSet::new();
     expr.apply(|expr| {
@@ -197,12 +214,19 @@ fn minimize_join_filter(
     })
     .expect("Closure cannot fail");
 
-    column_indices.retain(|ci| used_columns.contains(&ci.index));
-    let fields = intermediate_schema
+    let new_column_indices = old_column_indices
         .iter()
         .enumerate()
-        .filter(|(idx, _)| used_columns.contains(&idx))
-        .map(|(_, field)| field.clone())
+        .filter(|(idx, _)| used_columns.contains(idx))
+        .map(|(_, ci)| ci.clone())
+        .collect::<Vec<_>>();
+    let fields = new_column_indices
+        .iter()
+        .map(|ci| match ci.side {
+            JoinSide::Left => lhs_schema.field(ci.index).clone(),
+            JoinSide::Right => rhs_schema.field(ci.index).clone(),
+            JoinSide::None => unreachable!("Mark join not supported"),
+        })
         .collect::<Fields>();
 
     let final_expr = expr
@@ -223,7 +247,7 @@ fn minimize_join_filter(
 
     JoinFilter::new(
         final_expr.data,
-        column_indices,
+        new_column_indices,
         Arc::new(Schema::new(fields)),
     )
 }
@@ -272,7 +296,9 @@ impl<'a> JoinFilterRewriter<'a> {
         }
     }
 
-    /// TODO
+    /// Executes the push-down machinery on `expr`.
+    ///
+    /// See the [JoinFilterRewriter] for further information.
     fn rewrite(
         &mut self,
         expr: Arc<dyn PhysicalExpr>,
@@ -386,12 +412,12 @@ mod test {
     use datafusion::arrow::datatypes::{DataType, Field, FieldRef, Schema};
     use datafusion::common::{JoinSide, JoinType};
     use datafusion::functions::math::random;
-    use datafusion::physical_expr::expressions::{binary, lit, Column};
+    use datafusion::physical_expr::expressions::{Column, binary, lit};
     use datafusion::physical_optimizer::PhysicalOptimizerRule;
     use datafusion::physical_plan::displayable;
     use datafusion::physical_plan::empty::EmptyExec;
-    use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
     use datafusion::physical_plan::joins::NestedLoopJoinExec;
+    use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
     use insta::assert_snapshot;
     use rdf_fusion_common::DFResult;
     use std::sync::Arc;
@@ -475,7 +501,7 @@ mod test {
         let optimized_plan = optimizer.optimize(Arc::new(join), &Default::default())?;
 
         assert_snapshot!(displayable(optimized_plan.as_ref()).indent(false), @r"
-        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1
+        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[A@0, B@2]
           ProjectionExec: expr=[A@0 as A, A@0 + 1 as join_proj_push_down_1]
             EmptyExec
           ProjectionExec: expr=[B@0 as B, B@0 + 1 as join_proj_push_down_2]
@@ -647,7 +673,7 @@ mod test {
             .unwrap();
 
         assert_snapshot!(displayable(optimized_plan.as_ref()).indent(false), @r"
-        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1
+        NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[a@0, b@1, c@2, x@4, y@5, z@6]
           ProjectionExec: expr=[a@0 as a, b@1 as b, c@2 as c, a@0 + b@1 as join_proj_push_down_1]
             EmptyExec
           ProjectionExec: expr=[x@0 as x, y@1 as y, z@2 as z, x@0 + z@2 as join_proj_push_down_2]
