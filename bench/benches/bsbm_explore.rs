@@ -5,6 +5,9 @@
 //!
 //! The tests assume the presence of the benchmark data.
 
+#[global_allocator]
+static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use futures::StreamExt;
 use rdf_fusion::io::RdfFormat;
