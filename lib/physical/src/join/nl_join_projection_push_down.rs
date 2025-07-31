@@ -4,12 +4,12 @@ use datafusion::common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
 use datafusion::common::{JoinSide, JoinType};
 use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::Volatility;
-use datafusion::physical_expr::ScalarFunctionExpr;
 use datafusion::physical_expr::expressions::Column;
+use datafusion::physical_expr::ScalarFunctionExpr;
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::physical_plan::coalesce_batches::CoalesceBatchesExec;
-use datafusion::physical_plan::joins::NestedLoopJoinExec;
 use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
+use datafusion::physical_plan::joins::NestedLoopJoinExec;
 use datafusion::physical_plan::projection::ProjectionExec;
 use datafusion::physical_plan::{ExecutionPlan, PhysicalExpr};
 use rdf_fusion_common::DFResult;
@@ -447,13 +447,14 @@ mod test {
     use datafusion::arrow::datatypes::{DataType, Field, FieldRef, Schema};
     use datafusion::common::{JoinSide, JoinType};
     use datafusion::functions::math::random;
+    use datafusion::logical_expr::Operator;
+    use datafusion::physical_expr::expressions::{binary, lit, Column};
     use datafusion::physical_expr::PhysicalExpr;
-    use datafusion::physical_expr::expressions::{Column, binary, lit};
     use datafusion::physical_optimizer::PhysicalOptimizerRule;
     use datafusion::physical_plan::displayable;
     use datafusion::physical_plan::empty::EmptyExec;
-    use datafusion::physical_plan::joins::NestedLoopJoinExec;
     use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
+    use datafusion::physical_plan::joins::NestedLoopJoinExec;
     use insta::assert_snapshot;
     use rdf_fusion_common::DFResult;
     use std::sync::Arc;
@@ -493,9 +494,11 @@ mod test {
         assert_snapshot!(optimized_plan, @r"
         NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[a@0, x@2]
           ProjectionExec: expr=[a@0 as a, a@0 + 1 as join_proj_push_down_1]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
           ProjectionExec: expr=[x@0 as x, x@0 + 1 as join_proj_push_down_2]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
         ");
         Ok(())
     }
@@ -520,9 +523,13 @@ mod test {
         )?;
 
         assert_snapshot!(optimized_plan, @r"
-        NestedLoopJoinExec: join_type=Inner, filter=false AND a@0 + 1 > x@1 + 1
-          EmptyExec
-          EmptyExec
+        NestedLoopJoinExec: join_type=Inner, filter=false AND join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[a@0, x@2]
+          ProjectionExec: expr=[a@0 as a, a@0 + 1 as join_proj_push_down_1]
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
+          ProjectionExec: expr=[x@0 as x, x@0 + 1 as join_proj_push_down_2]
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
         ");
         Ok(())
     }
@@ -563,9 +570,11 @@ mod test {
         assert_snapshot!(optimized_plan, @r"
         NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[a@0, b@1, c@2, x@4, y@5, z@6]
           ProjectionExec: expr=[a@0 as a, b@1 as b, c@2 as c, a@0 + b@1 as join_proj_push_down_1]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
           ProjectionExec: expr=[x@0 as x, y@1 as y, z@2 as z, x@0 + z@2 as join_proj_push_down_2]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
         ");
         Ok(())
     }
@@ -586,9 +595,11 @@ mod test {
         assert_snapshot!(optimized_plan, @r"
         NestedLoopJoinExec: join_type=Inner, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[b@1, x@4, z@6]
           ProjectionExec: expr=[a@0 as a, b@1 as b, c@2 as c, a@0 + b@1 as join_proj_push_down_1]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
           ProjectionExec: expr=[x@0 as x, y@1 as y, z@2 as z, x@0 + z@2 as join_proj_push_down_2]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
         ");
         Ok(())
     }
@@ -609,9 +620,11 @@ mod test {
         assert_snapshot!(left_semi_join_plan, @r"
         NestedLoopJoinExec: join_type=LeftSemi, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[a@0]
           ProjectionExec: expr=[a@0 as a, a@0 + 1 as join_proj_push_down_1]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
           ProjectionExec: expr=[x@0 as x, x@0 + 1 as join_proj_push_down_2]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
         ");
         Ok(())
     }
@@ -630,9 +643,11 @@ mod test {
         assert_snapshot!(right_semi_join_plan, @r"
         NestedLoopJoinExec: join_type=RightSemi, filter=join_proj_push_down_1@0 > join_proj_push_down_2@1, projection=[x@0]
           ProjectionExec: expr=[a@0 as a, a@0 + 1 as join_proj_push_down_1]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
           ProjectionExec: expr=[x@0 as x, x@0 + 1 as join_proj_push_down_2]
-            EmptyExec
+            CoalesceBatchesExec: target_batch_size=8192
+              EmptyExec
         ");
         Ok(())
     }
