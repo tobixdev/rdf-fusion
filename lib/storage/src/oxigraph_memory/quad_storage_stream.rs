@@ -4,6 +4,7 @@ use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt64Bui
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::common::{Column, DataFusionError, exec_err};
 use datafusion::execution::RecordBatchStream;
+use datafusion::physical_plan::metrics::BaselineMetrics;
 use futures::Stream;
 use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::TermEncoding;
@@ -21,6 +22,7 @@ pub struct QuadPatternBatchRecordStream {
     graph_variable: Option<Variable>,
     pattern: TriplePattern,
     blank_node_mode: BlankNodeMatchingMode,
+    metrics: BaselineMetrics,
     batch_size: usize,
     equalities: Option<QuadEqualities>,
 }
@@ -39,6 +41,7 @@ impl QuadPatternBatchRecordStream {
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
         blank_node_mode: BlankNodeMatchingMode,
+        metrics: BaselineMetrics,
         batch_size: usize,
     ) -> Self {
         let schema = Arc::clone(
@@ -59,6 +62,7 @@ impl QuadPatternBatchRecordStream {
             pattern,
             blank_node_mode,
             batch_size,
+            metrics,
             equalities,
         }
     }
@@ -116,6 +120,8 @@ impl Stream for QuadPatternBatchRecordStream {
 
             buffer.fill(None);
         }
+
+        self.metrics.output_rows().add(rb_builder.count);
 
         if rb_builder.count == 0 {
             return Poll::Ready(None);

@@ -36,6 +36,10 @@ microbench:
 microbench-flamegraph bench:
     cargo flamegraph --bench {{bench}} -- --bench
 
-# Starts a webserver that can answer SPARQL queries
-serve:
+# Starts a webserver that can answer SPARQL queries (debug)
+serve-dbg:
     cargo run --bin rdf-fusion -- serve --bind 0.0.0.0:7878
+
+# Starts a webserver that can answer SPARQL queries (profiling)
+serve:
+    RUSTFLAGS="-C target-cpu=native" cargo run --profile profiling --bin rdf-fusion -- serve --bind 0.0.0.0:7878

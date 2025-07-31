@@ -2,6 +2,9 @@ use datafusion::common::{exec_err, internal_err, plan_err};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
+use datafusion::physical_plan::metrics::{
+    BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet,
+};
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
@@ -34,6 +37,8 @@ pub struct QuadPatternExec {
     blank_node_mode: BlankNodeMatchingMode,
     /// The execution properties of this operator.
     plan_properties: PlanProperties,
+    /// Execution metrics
+    metrics: ExecutionPlanMetricsSet,
 }
 
 impl QuadPatternExec {
@@ -67,6 +72,7 @@ impl QuadPatternExec {
             triple_pattern,
             blank_node_mode,
             plan_properties,
+            metrics: ExecutionPlanMetricsSet::default(),
         }
     }
 }
@@ -111,11 +117,13 @@ impl ExecutionPlan for QuadPatternExec {
             );
         }
 
+        let baseline_metrics = BaselineMetrics::new(&self.metrics, partition);
         let result = self.quads_evaluator.evaluate_pattern(
             self.active_graph.0[partition].clone(),
             self.graph_variable.clone(),
             self.triple_pattern.clone(),
             self.blank_node_mode,
+            baseline_metrics,
             context.session_config().batch_size(),
         )?;
         if result.schema() != self.schema() {
@@ -124,20 +132,26 @@ impl ExecutionPlan for QuadPatternExec {
 
         Ok(result)
     }
+
+    fn metrics(&self) -> Option<MetricsSet> {
+        Some(self.metrics.clone_inner())
+    }
 }
 
 impl DisplayAs for QuadPatternExec {
     fn fmt_as(&self, _: DisplayFormatType, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "QuadPatternExec ({} Graphs, ",
+            "QuadPatternExec: n_graphs={}",
             self.plan_properties.partitioning.partition_count()
         )?;
 
         if let Some(graph_variable) = &self.graph_variable {
-            write!(f, " {graph_variable}")?;
+            write!(f, ", graph={graph_variable}")?;
         }
 
-        write!(f, " {}", &self.triple_pattern)
+        write!(f, ", subject={}", &self.triple_pattern.subject)?;
+        write!(f, ", predicate={}", &self.triple_pattern.predicate)?;
+        write!(f, ", object={}", &self.triple_pattern.object)
     }
 }
