@@ -4,11 +4,12 @@ use datafusion::common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
 use datafusion::common::{JoinSide, JoinType};
 use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::{Operator, Volatility};
-use datafusion::physical_expr::ScalarFunctionExpr;
 use datafusion::physical_expr::expressions::{BinaryExpr, CaseExpr, Column};
+use datafusion::physical_expr::ScalarFunctionExpr;
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
-use datafusion::physical_plan::joins::NestedLoopJoinExec;
+use datafusion::physical_plan::coalesce_batches::CoalesceBatchesExec;
 use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
+use datafusion::physical_plan::joins::NestedLoopJoinExec;
 use datafusion::physical_plan::projection::ProjectionExec;
 use datafusion::physical_plan::{ExecutionPlan, PhysicalExpr};
 use rdf_fusion_common::DFResult;
@@ -40,7 +41,7 @@ impl PhysicalOptimizerRule for NestedLoopJoinProjectionPushDown {
     fn optimize(
         &self,
         plan: Arc<dyn ExecutionPlan>,
-        _config: &ConfigOptions,
+        config: &ConfigOptions,
     ) -> DFResult<Arc<dyn ExecutionPlan>> {
         let alias_generator = AliasGenerator::new();
         plan.transform_up(|plan| {
@@ -49,6 +50,7 @@ impl PhysicalOptimizerRule for NestedLoopJoinProjectionPushDown {
                 Some(hash_join) => try_push_down_join_filter(
                     Arc::clone(&plan),
                     hash_join,
+                    config,
                     &alias_generator,
                 ),
             }
@@ -70,6 +72,7 @@ impl PhysicalOptimizerRule for NestedLoopJoinProjectionPushDown {
 fn try_push_down_join_filter(
     original_plan: Arc<dyn ExecutionPlan>,
     join: &NestedLoopJoinExec,
+    config: &ConfigOptions,
     alias_generator: &AliasGenerator,
 ) -> DFResult<Transformed<Arc<dyn ExecutionPlan>>> {
     // Mark joins are currently not supported.
@@ -96,6 +99,7 @@ fn try_push_down_join_filter(
         Arc::clone(join.left()),
         JoinSide::Left,
         filter.clone(),
+        config,
         alias_generator,
     )?;
     let rhs_rewrite = try_push_down_projection(
@@ -103,6 +107,7 @@ fn try_push_down_join_filter(
         Arc::clone(join.right()),
         JoinSide::Right,
         lhs_rewrite.data.1,
+        config,
         alias_generator,
     )?;
     if !lhs_rewrite.transformed && !rhs_rewrite.transformed {
@@ -170,6 +175,7 @@ fn try_push_down_projection(
     plan: Arc<dyn ExecutionPlan>,
     join_side: JoinSide,
     join_filter: JoinFilter,
+    config: &ConfigOptions,
     alias_generator: &AliasGenerator,
 ) -> DFResult<Transformed<(Arc<dyn ExecutionPlan>, JoinFilter)>> {
     let expr = join_filter.expression().clone();
@@ -183,6 +189,7 @@ fn try_push_down_projection(
     let new_expr = rewriter.rewrite(expr)?;
 
     if new_expr.transformed {
+        let plan = ensure_batch_size(plan, config);
         let new_join_side =
             ProjectionExec::try_new(rewriter.join_side_projections, plan)?;
         let new_schema = Arc::clone(&new_join_side.schema());
@@ -210,6 +217,25 @@ fn try_push_down_projection(
         Ok(Transformed::yes((Arc::new(new_join_side), join_filter)))
     } else {
         Ok(Transformed::no((plan, join_filter)))
+    }
+}
+
+/// Adds a [CoalesceBatchesExec], if necessary.
+///
+/// The nested loop join can handle small batches quite efficiently, but our UDFs suffer greatly
+/// from small batches.
+fn ensure_batch_size(
+    plan: Arc<dyn ExecutionPlan>,
+    config: &ConfigOptions,
+) -> Arc<dyn ExecutionPlan> {
+    if plan
+        .as_any()
+        .downcast_ref::<CoalesceBatchesExec>()
+        .is_some()
+    {
+        plan
+    } else {
+        Arc::new(CoalesceBatchesExec::new(plan, config.execution.batch_size))
     }
 }
 
@@ -442,13 +468,13 @@ mod test {
     use datafusion::arrow::datatypes::{DataType, Field, FieldRef, Schema};
     use datafusion::common::{JoinSide, JoinType};
     use datafusion::functions::math::random;
+    use datafusion::physical_expr::expressions::{binary, lit, Column};
     use datafusion::physical_expr::PhysicalExpr;
-    use datafusion::physical_expr::expressions::{Column, binary, lit};
     use datafusion::physical_optimizer::PhysicalOptimizerRule;
     use datafusion::physical_plan::displayable;
     use datafusion::physical_plan::empty::EmptyExec;
-    use datafusion::physical_plan::joins::NestedLoopJoinExec;
     use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
+    use datafusion::physical_plan::joins::NestedLoopJoinExec;
     use insta::assert_snapshot;
     use rdf_fusion_common::DFResult;
     use std::sync::Arc;

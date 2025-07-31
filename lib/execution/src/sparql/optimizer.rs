@@ -4,8 +4,8 @@ use datafusion::optimizer::eliminate_limit::EliminateLimit;
 use datafusion::optimizer::replace_distinct_aggregate::ReplaceDistinctWithAggregate;
 use datafusion::optimizer::scalar_subquery_to_join::ScalarSubqueryToJoin;
 use datafusion::optimizer::{Optimizer, OptimizerRule};
-use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::physical_optimizer::optimizer::PhysicalOptimizer;
+use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_logical::expr::SimplifySparqlExpressionsRule;
 use rdf_fusion_logical::extend::ExtendLoweringRule;
@@ -78,6 +78,15 @@ pub fn create_pyhsical_optimizer_rules(
 ) -> Vec<Arc<dyn PhysicalOptimizerRule + Send + Sync>> {
     // TODO: build based on optimization level
     let mut rules = PhysicalOptimizer::default().rules;
-    rules.push(Arc::new(NestedLoopJoinProjectionPushDown::new()));
+
+    let join_selection_idx = rules
+        .iter()
+        .position(|r| r.name() == "join_selection")
+        .expect("Could not find join_selection rule");
+    rules.insert(
+        join_selection_idx + 1,
+        Arc::new(NestedLoopJoinProjectionPushDown::new()),
+    );
+
     rules
 }
