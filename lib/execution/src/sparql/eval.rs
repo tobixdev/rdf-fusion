@@ -1,6 +1,6 @@
 use crate::RdfFusionContext;
 use crate::sparql::error::QueryEvaluationError;
-use crate::sparql::optimizer::create_optimizer_rules;
+use crate::sparql::optimizer::{create_optimizer_rules, create_pyhsical_optimizer_rules};
 use crate::sparql::rewriting::GraphPatternRewriter;
 use crate::sparql::{
     Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults,
@@ -32,6 +32,9 @@ pub async fn evaluate_query(
     let session_state = SessionStateBuilder::from(ctx.session_context().state())
         .with_optimizer_rules(create_optimizer_rules(
             ctx.create_view(),
+            options.optimization_level,
+        ))
+        .with_physical_optimizer_rules(create_pyhsical_optimizer_rules(
             options.optimization_level,
         ))
         .build();
