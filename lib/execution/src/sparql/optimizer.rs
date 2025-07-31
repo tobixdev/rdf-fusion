@@ -78,15 +78,6 @@ pub fn create_pyhsical_optimizer_rules(
 ) -> Vec<Arc<dyn PhysicalOptimizerRule + Send + Sync>> {
     // TODO: build based on optimization level
     let mut rules = PhysicalOptimizer::default().rules;
-
-    let join_selection_idx = rules
-        .iter()
-        .position(|r| r.name() == "join_selection")
-        .expect("Could not find join_selection rule");
-    rules.insert(
-        join_selection_idx + 1,
-        Arc::new(NestedLoopJoinProjectionPushDown::new()),
-    );
-
+    rules.push(Arc::new(NestedLoopJoinProjectionPushDown::new()));
     rules
 }
