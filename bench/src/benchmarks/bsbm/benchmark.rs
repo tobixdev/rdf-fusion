@@ -1,12 +1,12 @@
-use crate::benchmarks::bsbm::NumProducts;
 use crate::benchmarks::bsbm::operation::{
-    BsbmOperation, BsbmRawOperation, list_raw_operations,
+    list_raw_operations, BsbmOperation, BsbmRawOperation,
 };
 use crate::benchmarks::bsbm::report::{BsbmReport, ExploreReportBuilder, QueryDetails};
 use crate::benchmarks::bsbm::requirements::{
     download_bsbm_tools, download_pre_generated_queries, generate_dataset_requirement,
 };
 use crate::benchmarks::bsbm::use_case::BsbmUseCase;
+use crate::benchmarks::bsbm::NumProducts;
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::BenchmarkContext;
 use crate::prepare::PrepRequirement;
@@ -194,8 +194,9 @@ async fn run_operation<TUseCase: BsbmUseCase>(
                 store.explain_query_opt(q.clone(), options.clone()).await?;
             match result {
                 QueryResults::Boolean(_) => (),
-                QueryResults::Solutions(mut s) => {
-                    while let Some(s) = s.next().await {
+                QueryResults::Solutions(s) => {
+                    let mut stream = s.into_record_batch_stream()?;
+                    while let Some(s) = stream.next().await {
                         s?;
                     }
                 }
