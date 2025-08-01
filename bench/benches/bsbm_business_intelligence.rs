@@ -142,7 +142,7 @@ fn bsbm_business_intelligence_q4(c: &mut Criterion) {
                  {
                     Select ?feature (avg(xsd:float(xsd:string(?price))) As ?withFeaturePrice)
                     {
-                        ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType3> ;
+                        ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> ;
                             bsbm:productFeature ?feature .
                         ?offer bsbm:product ?product ;
                             bsbm:price ?price .
@@ -155,11 +155,11 @@ fn bsbm_business_intelligence_q4(c: &mut Criterion) {
                         {
                             Select distinct ?feature
                             {
-                                ?p a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType3> ;
+                                ?p a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> ;
                                     bsbm:productFeature ?feature .
                             }
                         }
-                        ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType3> .
+                        ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> .
                         ?offer bsbm:product ?product ;
                             bsbm:price ?price .
                         FILTER NOT EXISTS { ?product bsbm:productFeature ?feature }
