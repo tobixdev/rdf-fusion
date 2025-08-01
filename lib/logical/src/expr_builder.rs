@@ -79,8 +79,6 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self.apply_builtin(BuiltinName::Coalesce, args)
     }
 
-    // TODO exists
-
     /// Creates an expression that checks for RDF term equality.
     ///
     /// # Relevant Resources

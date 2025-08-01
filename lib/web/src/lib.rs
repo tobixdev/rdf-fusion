@@ -6,6 +6,7 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Router, middleware, routing::get};
 use std::net::SocketAddr;
 use std::str::FromStr;
+use std::sync::Arc;
 use tower_http::trace::{HttpMakeClassifier, TraceLayer};
 use tracing::{Level, error};
 
@@ -26,7 +27,7 @@ pub async fn serve(config: ServerConfig) -> anyhow::Result<()> {
     let addr = SocketAddr::from_str(&config.bind)?;
 
     let app_state = AppState {
-        store: config.store,
+        store: Arc::new(config.store),
         read_only: config.read_only,
         union_default_graph: config.union_default_graph,
     };
