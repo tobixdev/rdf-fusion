@@ -149,7 +149,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     }
 }
 
-fn supported_encodings<TSparqlOp>() -> Vec<EncodingName>
+fn supported_encodings<TSparqlOp>(encodings: RdfFusionEncodings) -> Vec<EncodingName>
 where
     TSparqlOp: Default + ScalarSparqlOp + 'static,
 {
@@ -162,8 +162,10 @@ where
     if op.typed_value_encoding_op().is_some() {
         result.push(EncodingName::TypedValue);
     }
-    if op.object_id_encoding_op().is_some() {
-        result.push(EncodingName::ObjectId);
+    if let Some(oid_encoding) = encodings.object_id() {
+        if op.object_id_encoding_op(oid_encoding).is_some() {
+            result.push(EncodingName::ObjectId);
+        }
     }
 
     result
@@ -175,8 +177,8 @@ fn create_scalar_sparql_op<TSparqlOp>(
 where
     TSparqlOp: Default + ScalarSparqlOp + 'static,
 {
-    let udf = create_scalar_udf(encodings, TSparqlOp::default());
-    let encodings = supported_encodings::<TSparqlOp>();
+    let udf = create_scalar_udf(encodings.clone(), TSparqlOp::default());
+    let encodings = supported_encodings::<TSparqlOp>(encodings);
     let factory = Box::new(move |_| Ok(Arc::clone(&udf)));
     (factory, encodings)
 }

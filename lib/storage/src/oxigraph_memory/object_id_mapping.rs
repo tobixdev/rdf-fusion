@@ -1,13 +1,11 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::oxigraph_memory::object_id::{
-    DEFAULT_GRAPH_OBJECT_ID, ObjectId, ObjectIdQuad,
-};
+use crate::oxigraph_memory::object_id::{DEFAULT_GRAPH_OBJECT_ID, ObjectIdQuad};
 use dashmap::DashMap;
 use datafusion::common::{ScalarValue, exec_err};
 use datafusion::error::DataFusionError;
-use rdf_fusion_common::DFResult;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
+use rdf_fusion_common::{DFResult, ObjectId};
 use rdf_fusion_encoding::object_id::{ObjectIdArray, ObjectIdMapping, ObjectIdScalar};
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::{PlainTermArray, PlainTermScalar};
@@ -62,7 +60,7 @@ impl MemoryObjectIdMapping {
         match graph {
             GraphNameRef::NamedNode(nn) => self.try_get_object_id(nn),
             GraphNameRef::BlankNode(bnode) => self.try_get_object_id(bnode),
-            GraphNameRef::DefaultGraph => Some(ObjectId::new(DEFAULT_GRAPH_OBJECT_ID)),
+            GraphNameRef::DefaultGraph => Some(DEFAULT_GRAPH_OBJECT_ID),
         }
     }
 
@@ -85,7 +83,7 @@ impl MemoryObjectIdMapping {
         let id = self
             .next_id
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let id = ObjectId::new(id);
+        let id = ObjectId::from(id);
 
         self.id2term.insert(id, term.clone());
         self.term2id.insert(term, id);
@@ -108,7 +106,7 @@ impl MemoryObjectIdMapping {
         match graph {
             GraphNameRef::NamedNode(nn) => self.encode_term(nn),
             GraphNameRef::BlankNode(bnode) => self.encode_term(bnode),
-            GraphNameRef::DefaultGraph => ObjectId::new(DEFAULT_GRAPH_OBJECT_ID),
+            GraphNameRef::DefaultGraph => DEFAULT_GRAPH_OBJECT_ID,
         }
     }
 
@@ -136,11 +134,11 @@ impl Default for MemoryObjectIdMapping {
 }
 
 impl ObjectIdMapping for MemoryObjectIdMapping {
-    fn try_get_object_id(&self, id: TermRef<'_>) -> Option<u64> {
+    fn try_get_object_id(&self, id: TermRef<'_>) -> Option<ObjectId> {
         self.try_get_object_id(id).map(Into::into)
     }
 
-    fn encode(&self, id: TermRef<'_>) -> u64 {
+    fn encode(&self, id: TermRef<'_>) -> ObjectId {
         self.encode_term(id).into()
     }
 
@@ -148,7 +146,13 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
         let terms = array
             .object_ids()
             .iter()
-            .map(|oid| self.decode_opt(oid.map(ObjectId::new)))
+            .map(|oid| {
+                let oid = oid
+                    .map(ObjectId::try_from)
+                    .transpose()
+                    .expect("Invalid object ID");
+                self.decode_opt(oid)
+            })
             .collect::<Result<Vec<ThinResult<Term>>, _>>();
 
         match terms {
@@ -164,11 +168,12 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
 
     fn decode_scalar(&self, scalar: &ObjectIdScalar) -> DFResult<PlainTermScalar> {
         match scalar.scalar_value() {
-            ScalarValue::UInt64(None) => {
+            ScalarValue::FixedSizeBinary(ObjectId::SIZE_I32, None) => {
                 DefaultPlainTermEncoder::encode_term(ThinError::expected())
             }
-            ScalarValue::UInt64(Some(oid)) => {
-                let oid = ObjectId::new(*oid);
+            ScalarValue::FixedSizeBinary(ObjectId::SIZE_I32, Some(oid)) => {
+                let oid =
+                    ObjectId::try_from(oid.as_slice()).expect("Size already checked.");
                 let term = self.try_decode::<Term>(oid);
                 match term {
                     Ok(term) => DefaultPlainTermEncoder::encode_term(Ok(term.as_ref())),
@@ -194,7 +199,7 @@ impl Resolvable for Option<Term> {
         mapping: &MemoryObjectIdMapping,
         object_id: ObjectId,
     ) -> Result<Self, StorageError> {
-        if object_id.is_default_graph() {
+        if object_id == DEFAULT_GRAPH_OBJECT_ID {
             return Ok(None);
         }
         mapping
@@ -225,7 +230,7 @@ impl Resolvable for GraphName {
         mapping: &MemoryObjectIdMapping,
         object_id: ObjectId,
     ) -> Result<Self, StorageError> {
-        if object_id.is_default_graph() {
+        if object_id == DEFAULT_GRAPH_OBJECT_ID {
             return Ok(GraphName::DefaultGraph);
         }
 

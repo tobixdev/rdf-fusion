@@ -45,6 +45,7 @@ pub trait ScalarSparqlOp: Debug + Send + Sync {
     /// TODO
     fn object_id_encoding_op(
         &self,
+        _object_id_encoding: &ObjectIdEncoding,
     ) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
         None
     }
@@ -78,11 +79,11 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
                 ),
             );
         }
-        if op.object_id_encoding_op().is_some() {
-            if let Some(object_id_encoding) = &encodings.object_id() {
+        if let Some(oid_encoding) = encodings.object_id() {
+            if op.object_id_encoding_op(oid_encoding).is_some() {
                 type_signatures.push(
                     TScalarSparqlOp::Args::<ObjectIdEncoding>::type_signature(
-                        object_id_encoding,
+                        oid_encoding,
                     ),
                 );
             }
@@ -155,7 +156,9 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                     Ok(op_impl.return_type())
                 } else if let Some(op_impl) = self.op.typed_value_encoding_op() {
                     Ok(op_impl.return_type())
-                } else if let Some(op_impl) = self.op.object_id_encoding_op() {
+                } else if let Some(oid_encoding) = self.encodings.object_id()
+                    && let Some(op_impl) = self.op.object_id_encoding_op(oid_encoding)
+                {
                     Ok(op_impl.return_type())
                 } else {
                     exec_err!(
@@ -185,14 +188,20 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                     "The SparqlOp infrastructure does not support the Sortable encoding."
                 )
             }
-            Some(EncodingName::ObjectId) => self
-                .op
-                .object_id_encoding_op()
-                .ok_or(exec_datafusion_err!(
+            Some(EncodingName::ObjectId) => {
+                let encoding = self.encodings.object_id().ok_or(exec_datafusion_err!(
+                    "Could not find the object id encoding."
+                ))?;
+
+                self
+                    .op
+                    .object_id_encoding_op(encoding)
+                    .ok_or(exec_datafusion_err!(
                     "The SPARQL operation '{}' does not support the ObjectID encoding.",
                     &self.name
                 ))
-                .map(|op_impl| op_impl.return_type()),
+                    .map(|op_impl| op_impl.return_type())
+            }
         }
     }
 
@@ -210,7 +219,9 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                     EncodingName::TypedValue
                 } else if self.op.plain_term_encoding_op().is_some() {
                     EncodingName::PlainTerm
-                } else if self.op.object_id_encoding_op().is_some() {
+                } else if let Some(oid_encoding) = self.encodings.object_id()
+                    && self.op.object_id_encoding_op(oid_encoding).is_some()
+                {
                     EncodingName::ObjectId
                 } else {
                     return exec_err!("No supported encodings");
@@ -251,7 +262,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                     object_id_encoding,
                     args,
                 )?;
-                if let Some(op) = self.op.object_id_encoding_op() {
+                if let Some(op) = self.op.object_id_encoding_op(object_id_encoding) {
                     op.invoke(args)
                 } else {
                     exec_err!("TypedValue encoding not supported for this operation")

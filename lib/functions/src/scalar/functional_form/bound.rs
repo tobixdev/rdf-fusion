@@ -65,10 +65,11 @@ impl ScalarSparqlOp for BoundSparqlOp {
 
     fn object_id_encoding_op(
         &self,
+        object_id_encoding: &ObjectIdEncoding,
     ) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
         Some(Box::new(
             ClosureSparqlOpImpl::<UnaryArgs<ObjectIdEncoding>>::new(
-                TYPED_VALUE_ENCODING.data_type(),
+                object_id_encoding.data_type(),
                 Box::new(|UnaryArgs(args)| impl_bound_object_id(&args)),
             ),
         ))
