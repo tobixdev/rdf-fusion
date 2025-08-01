@@ -4,8 +4,8 @@ use thiserror::Error;
 pub struct ObjectId([u8; ObjectId::SIZE]);
 
 impl ObjectId {
-    pub const SIZE: usize = 12;
-    pub const SIZE_I32: i32 = 12;
+    pub const SIZE: usize = 20;
+    pub const SIZE_I32: i32 = 20;
 
     pub const fn from_u64(value: u64) -> Self {
         let bytes = value.to_be_bytes();
