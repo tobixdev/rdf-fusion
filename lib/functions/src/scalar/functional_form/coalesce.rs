@@ -83,10 +83,13 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
 
     fn object_id_encoding_op(
         &self,
+        object_id_encoding: &ObjectIdEncoding,
     ) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
+        let object_id_encoding = object_id_encoding.clone();
         Some(create_object_id_sparql_op_impl(
-            |NAryArgs(args, number_rows)| {
-                Ok(dispatch_n_ary_object_id(
+            move |NAryArgs(args, number_rows)| {
+                dispatch_n_ary_object_id(
+                    &object_id_encoding,
                     &args,
                     number_rows,
                     |args| args.first().copied().ok_or(ThinError::ExpectedError),
@@ -95,7 +98,7 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
                             .find_map(|arg| arg.ok())
                             .ok_or(ThinError::ExpectedError)
                     },
-                ))
+                )
             },
         ))
     }

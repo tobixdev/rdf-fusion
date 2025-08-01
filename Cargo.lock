@@ -3718,9 +3718,7 @@ dependencies = [
 name = "rdf-fusion-common"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "datafusion",
- "rdf-fusion-model",
  "thiserror 2.0.12",
 ]
 

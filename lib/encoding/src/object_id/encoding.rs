@@ -5,7 +5,7 @@ use crate::object_id::{ObjectIdArray, ObjectIdScalar};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::ScalarValue;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_common::{DFResult, ObjectId};
 use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
 use std::hash::{Hash, Hasher};
@@ -32,7 +32,7 @@ impl ObjectIdEncoding {
     ///
     /// The type of the [ObjectIdEncoding] is statically known and cannot be configured.
     pub fn data_type() -> DataType {
-        DataType::UInt64
+        DataType::FixedSizeBinary(ObjectId::SIZE_I32)
     }
 }
 
@@ -60,7 +60,10 @@ impl TermEncoding for ObjectIdEncoding {
         match term {
             Ok(term) => {
                 let encoded = self.mapping.encode(term);
-                self.try_new_scalar(ScalarValue::UInt64(Some(encoded)))
+                self.try_new_scalar(ScalarValue::FixedSizeBinary(
+                    ObjectId::SIZE_I32,
+                    Some(encoded.into()),
+                ))
             }
             Err(_) => self.try_new_scalar(ScalarValue::UInt64(None)),
         }

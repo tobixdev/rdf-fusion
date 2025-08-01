@@ -1,6 +1,7 @@
 use crate::TermEncoding;
 use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
-use datafusion::arrow::array::UInt64Builder;
+use datafusion::arrow::array::FixedSizeBinaryBuilder;
+use rdf_fusion_common::{AResult, ObjectId};
 use rdf_fusion_model::TermRef;
 use std::sync::Arc;
 
@@ -9,8 +10,8 @@ use std::sync::Arc;
 pub struct ObjectIdArrayBuilder {
     /// The mapping that is used for obtaining object ids.
     encoding: ObjectIdEncoding,
-    /// The underlying [UInt64Builder].
-    builder: UInt64Builder,
+    /// The underlying [FixedSizeBinaryBuilder].
+    builder: FixedSizeBinaryBuilder,
 }
 
 impl ObjectIdArrayBuilder {
@@ -18,20 +19,36 @@ impl ObjectIdArrayBuilder {
     pub fn new(encoding: ObjectIdEncoding) -> Self {
         Self {
             encoding,
-            builder: UInt64Builder::new(),
+            builder: FixedSizeBinaryBuilder::new(ObjectId::SIZE as i32),
         }
     }
 
     /// Appends a null value to the array.
     pub fn append_null(&mut self) {
-        self.builder.append_value(0);
+        self.builder.append_null()
+    }
+
+    /// Appends an object id.
+    pub fn append_object_id(&mut self, term: ObjectId) -> AResult<()> {
+        self.builder.append_value(term)
+    }
+
+    /// Appends an object id.
+    pub fn append_object_id_opt(&mut self, term: Option<ObjectId>) -> AResult<()> {
+        match term {
+            None => {
+                self.builder.append_null();
+                Ok(())
+            }
+            Some(term) => self.builder.append_value(term),
+        }
     }
 
     /// Appends an arbitrary RDF term to the array. The corresponding object id is obtained by
     /// consulting the mapping.
-    pub fn append_term(&mut self, term: TermRef<'_>) {
+    pub fn append_term(&mut self, term: TermRef<'_>) -> AResult<()> {
         let value = self.encoding.mapping().encode(term);
-        self.builder.append_value(value);
+        self.append_object_id(value)
     }
 
     #[allow(clippy::expect_used, reason = "Programming error")]

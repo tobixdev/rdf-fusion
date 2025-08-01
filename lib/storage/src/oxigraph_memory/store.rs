@@ -1,10 +1,11 @@
 #![allow(dead_code)] // We want to keep this as close to the original as possible
 
-use crate::oxigraph_memory::object_id::{ObjectId, ObjectIdQuad};
+use crate::oxigraph_memory::object_id::{DEFAULT_GRAPH_OBJECT_ID, ObjectIdQuad};
 use crate::oxigraph_memory::object_id_mapping::MemoryObjectIdMapping;
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
+use rdf_fusion_common::ObjectId;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
@@ -317,7 +318,7 @@ impl MemoryStorageReader {
                 )
                 .into());
             }
-            if !current.quad.graph_name.is_default_graph()
+            if current.quad.graph_name != DEFAULT_GRAPH_OBJECT_ID
                 && !self
                     .storage
                     .content

@@ -1,12 +1,14 @@
 use crate::oxigraph_memory::object_id::ObjectIdQuad;
 use crate::oxigraph_memory::store::QuadIterator;
-use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt64Builder};
+use datafusion::arrow::array::{
+    Array, FixedSizeBinaryBuilder, RecordBatch, RecordBatchOptions,
+};
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::common::{Column, DataFusionError, exec_err};
 use datafusion::execution::RecordBatchStream;
 use datafusion::physical_plan::metrics::BaselineMetrics;
 use futures::Stream;
-use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
+use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult, ObjectId};
 use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
@@ -115,7 +117,7 @@ impl Stream for QuadPatternBatchRecordStream {
                 equalities.filter(&mut buffer);
             }
 
-            let encoded = rb_builder.encode_batch(&buffer);
+            let encoded = rb_builder.encode_batch(&buffer)?;
             remaining_items -= encoded;
 
             buffer.fill(None);
@@ -143,10 +145,10 @@ impl RecordBatchStream for QuadPatternBatchRecordStream {
 
 #[allow(clippy::struct_excessive_bools)]
 struct RdfQuadsRecordBatchBuilder {
-    graph: Option<(Column, UInt64Builder)>,
-    subject: Option<(Column, UInt64Builder)>,
-    predicate: Option<(Column, UInt64Builder)>,
-    object: Option<(Column, UInt64Builder)>,
+    graph: Option<(Column, FixedSizeBinaryBuilder)>,
+    subject: Option<(Column, FixedSizeBinaryBuilder)>,
+    predicate: Option<(Column, FixedSizeBinaryBuilder)>,
+    object: Option<(Column, FixedSizeBinaryBuilder)>,
     count: usize,
 }
 
@@ -159,8 +161,8 @@ impl RdfQuadsRecordBatchBuilder {
         mut object: Option<Column>,
         capacity: usize,
     ) -> DFResult<Self> {
-        if encoding.data_type() != DataType::UInt64 {
-            return exec_err!("The registered ObjectID encoding does not use 64 UInts.");
+        if encoding.data_type() != DataType::FixedSizeBinary(ObjectId::SIZE_I32) {
+            return exec_err!("The registered ObjectID uses an unexpected data type.");
         }
 
         let mut seen = HashSet::new();
@@ -170,10 +172,30 @@ impl RdfQuadsRecordBatchBuilder {
         deduplicate(&mut seen, &mut object);
 
         Ok(Self {
-            graph: graph.map(|v| (v, UInt64Builder::with_capacity(capacity))),
-            subject: subject.map(|v| (v, UInt64Builder::with_capacity(capacity))),
-            predicate: predicate.map(|v| (v, UInt64Builder::with_capacity(capacity))),
-            object: object.map(|v| (v, UInt64Builder::with_capacity(capacity))),
+            graph: graph.map(|v| {
+                (
+                    v,
+                    FixedSizeBinaryBuilder::with_capacity(capacity, ObjectId::SIZE_I32),
+                )
+            }),
+            subject: subject.map(|v| {
+                (
+                    v,
+                    FixedSizeBinaryBuilder::with_capacity(capacity, ObjectId::SIZE_I32),
+                )
+            }),
+            predicate: predicate.map(|v| {
+                (
+                    v,
+                    FixedSizeBinaryBuilder::with_capacity(capacity, ObjectId::SIZE_I32),
+                )
+            }),
+            object: object.map(|v| {
+                (
+                    v,
+                    FixedSizeBinaryBuilder::with_capacity(capacity, ObjectId::SIZE_I32),
+                )
+            }),
             count: 0,
         })
     }
@@ -182,52 +204,52 @@ impl RdfQuadsRecordBatchBuilder {
         clippy::expect_used,
         reason = "Checked via count, Maybe use unsafe if performance is an issue"
     )]
-    fn encode_batch(&mut self, quads: &[Option<ObjectIdQuad>; 32]) -> usize {
+    fn encode_batch(&mut self, quads: &[Option<ObjectIdQuad>; 32]) -> AResult<usize> {
         let count = quads.iter().position(Option::is_none).unwrap_or(32);
 
         if let Some((_, builder)) = &mut self.graph {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").graph_name;
-                builder.append_value((*value).into())
+                builder.append_value(value.as_ref())?;
             }
         }
 
         if let Some((_, builder)) = &mut self.subject {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").subject;
-                builder.append_value((*value).into())
+                builder.append_value(value.as_ref())?;
             }
         }
 
         if let Some((_, builder)) = &mut self.predicate {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").predicate;
-                builder.append_value((*value).into())
+                builder.append_value(value.as_ref())?;
             }
         }
 
         if let Some((_, builder)) = &mut self.object {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").object;
-                builder.append_value((*value).into())
+                builder.append_value(value.as_ref())?;
             }
         }
 
         self.count += count;
-        count
+        Ok(count)
     }
 
     fn finish(self) -> AResult<RecordBatch> {
         fn try_add_column(
             fields: &mut Vec<Field>,
             arrays: &mut Vec<Arc<dyn Array>>,
-            column: Option<(Column, UInt64Builder)>,
+            column: Option<(Column, FixedSizeBinaryBuilder)>,
             nullable: bool,
         ) {
             if let Some((var, mut builder)) = column {
                 fields.push(Field::new(
                     var.name(),
-                    DataType::UInt64, // TODO: Use encoding
+                    DataType::FixedSizeBinary(ObjectId::SIZE_I32), // TODO: Use encoding
                     nullable,
                 ));
                 arrays.push(Arc::new(builder.finish()));

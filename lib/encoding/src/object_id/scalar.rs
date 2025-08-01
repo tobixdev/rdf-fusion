@@ -19,8 +19,9 @@ impl ObjectIdScalar {
     pub fn try_new(encoding: ObjectIdEncoding, value: ScalarValue) -> DFResult<Self> {
         if value.data_type() != encoding.data_type() {
             return exec_err!(
-                "Expected scalar value with PlainTermEncoding, got {:?}",
-                value
+                "Expected scalar value with ObjectID encoding. Expected: {:?}, got {:?}",
+                encoding.data_type(),
+                value.data_type()
             );
         }
         Ok(Self::new_unchecked(encoding, value))
