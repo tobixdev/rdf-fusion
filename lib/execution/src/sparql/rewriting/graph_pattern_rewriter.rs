@@ -56,11 +56,6 @@ impl GraphPatternRewriter {
         }
     }
 
-    /// Returns a reference to the storage encoding used.
-    pub fn plan_builder_context(&self) -> &RdfFusionLogicalPlanBuilderContext {
-        &self.builder_context
-    }
-
     /// Rewrites a SPARQL graph pattern into a DataFusion logical plan.
     ///
     /// The method ensures that all results are encoded as plain terms and can be displayed to

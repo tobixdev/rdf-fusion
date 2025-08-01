@@ -3,7 +3,10 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
-use datafusion::logical_expr::{Expr, ExprSchemable, lit};
+use datafusion::logical_expr::{
+    lit, Expr, ExprSchemable
+    ,
+};
 use rdf_fusion_api::functions::{
     BuiltinName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs,
     RdfFusionFunctionArgsBuilder,
@@ -78,8 +81,6 @@ impl<'root> RdfFusionExprBuilder<'root> {
     pub fn coalesce(self, args: Vec<Expr>) -> DFResult<Self> {
         self.apply_builtin(BuiltinName::Coalesce, args)
     }
-
-    // TODO exists
 
     /// Creates an expression that checks for RDF term equality.
     ///

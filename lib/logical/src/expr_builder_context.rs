@@ -1,18 +1,26 @@
 use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{Column, DFSchema, exec_datafusion_err, plan_err};
+use datafusion::common::{
+    exec_datafusion_err, plan_datafusion_err, plan_err, Column, DFSchema, Spans,
+};
+use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::expr::AggregateFunction;
-use datafusion::logical_expr::{Expr, ExprSchemable, ScalarUDF, lit};
-use rdf_fusion_api::RdfFusionContextView;
+use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
+use datafusion::logical_expr::{
+    and, exists, lit, not_exists, Expr, ExprSchemable, LogicalPlan,
+    LogicalPlanBuilder, ScalarUDF, Subquery,
+};
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
 };
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
     EncodingName, EncodingScalar, RdfFusionEncodings, TermEncoder,
 };
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 /// An expression builder for creating SPARQL expressions.
@@ -46,6 +54,11 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// Returns the schema of the input data.
     pub fn schema(&self) -> &DFSchema {
         self.schema
+    }
+
+    /// Returns a reference to the RDF Fusion context.
+    pub fn rdf_fusion_context(&self) -> &RdfFusionContextView {
+        &self.rdf_fusion_context
     }
 
     /// Returns a reference to the used function registry.
@@ -157,6 +170,106 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     pub fn null_literal(&'context self) -> DFResult<RdfFusionExprBuilder<'context>> {
         let scalar = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
         self.try_create_builder(lit(scalar.into_scalar_value()))
+    }
+
+    /// TODO
+    pub fn exists(
+        self,
+        exists_plan: LogicalPlan,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
+        self.exists_impl(exists_plan, false)
+    }
+
+    /// TODO
+    pub fn not_exists(
+        self,
+        exists_plan: LogicalPlan,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
+        self.exists_impl(exists_plan, true)
+    }
+
+    fn exists_impl(
+        self,
+        exists_plan: LogicalPlan,
+        is_not: bool,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
+        let exists_pattern = LogicalPlanBuilder::new(exists_plan);
+        let outer_schema = self.schema();
+
+        let outer_keys: HashSet<_> = outer_schema
+            .columns()
+            .into_iter()
+            .map(|c| c.name().to_owned())
+            .collect();
+        let exists_keys: HashSet<_> = exists_pattern
+            .schema()
+            .columns()
+            .into_iter()
+            .map(|c| c.name().to_owned())
+            .collect();
+
+        // This check is necessary to avoid a crash during query planning. However, we don't know
+        // whether this is our fault or it is a bug in DataFusion.
+        // TODO: Investigate why this causes issues and file an issue if necessary
+        if outer_keys.is_disjoint(&exists_keys) {
+            let group_expr: [Expr; 0] = [];
+            let count = exists_pattern.aggregate(
+                group_expr,
+                [count(Expr::Literal(COUNT_STAR_EXPANSION, None))],
+            )?;
+            let subquery = Subquery {
+                subquery: count.build()?.into(),
+                outer_ref_columns: vec![],
+                spans: Spans(vec![]),
+            };
+
+            return self
+                .native_boolean_as_term(Expr::ScalarSubquery(subquery).gt(lit(0)));
+        }
+
+        // TODO: Investigate why we need this renaming and cannot refer to the unqualified column
+        let projections = exists_pattern
+            .schema()
+            .columns()
+            .into_iter()
+            .map(|c| Expr::from(c.clone()).alias(format!("__inner__{}", c.name())))
+            .collect::<Vec<_>>();
+        let exists_pattern = exists_pattern.project(projections)?;
+        let exists_expr_builder_root = RdfFusionExprBuilderContext::new(
+            self.rdf_fusion_context(),
+            exists_pattern.schema(),
+        );
+
+        let compatible_filters = outer_keys
+            .intersection(&exists_keys)
+            .map(|k| {
+                let data_type = outer_schema
+                    .field_with_name(None, k)
+                    .map_err(|_| {
+                        plan_datafusion_err!("Could not find column {} in schema.", k)
+                    })?
+                    .data_type();
+                exists_expr_builder_root
+                    .try_create_builder(Expr::OuterReferenceColumn(
+                        data_type.clone(),
+                        Column::new_unqualified(k),
+                    ))?
+                    .build_is_compatible(Expr::from(Column::new_unqualified(format!(
+                        "__inner__{k}"
+                    ))))
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+        let compatible_filter = compatible_filters
+            .into_iter()
+            .reduce(and)
+            .unwrap_or_else(|| lit(true));
+
+        let subquery = Arc::new(exists_pattern.filter(compatible_filter)?.build()?);
+        if is_not {
+            self.native_boolean_as_term(not_exists(subquery))
+        } else {
+            self.native_boolean_as_term(exists(subquery))
+        }
     }
 
     //
