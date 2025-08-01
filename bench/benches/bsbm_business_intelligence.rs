@@ -5,7 +5,7 @@
 //!
 //! The tests assume the presence of the benchmark data.
 
-use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use futures::StreamExt;
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
@@ -142,10 +142,10 @@ fn bsbm_business_intelligence_q4(c: &mut Criterion) {
                  {
                     Select ?feature (avg(xsd:float(xsd:string(?price))) As ?withFeaturePrice)
                     {
-                        ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> ;
-                        bsbm:productFeature ?feature .
+                        ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType3> ;
+                            bsbm:productFeature ?feature .
                         ?offer bsbm:product ?product ;
-                        bsbm:price ?price .
+                            bsbm:price ?price .
                     }
                     Group By ?feature
                 }
@@ -153,13 +153,12 @@ fn bsbm_business_intelligence_q4(c: &mut Criterion) {
                     Select ?feature (avg(xsd:float(xsd:string(?price))) As ?withoutFeaturePrice)
                     {
                         {
-                            Select distinct ?feature
-                            {
-                                ?p a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> ;
-                                bsbm:productFeature ?feature .
+                            Select distinct ?feature {
+                                ?p a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType3> ;
+                                    bsbm:productFeature ?feature .
                             }
                         }
-                        ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> .
+                        ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType3> .
                         ?offer bsbm:product ?product ;
                             bsbm:price ?price .
                         FILTER NOT EXISTS { ?product bsbm:productFeature ?feature }
