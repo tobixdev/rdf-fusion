@@ -1,12 +1,12 @@
+use crate::benchmarks::bsbm::NumProducts;
 use crate::benchmarks::bsbm::operation::{
-    list_raw_operations, BsbmOperation, BsbmRawOperation,
+    BsbmOperation, BsbmRawOperation, list_raw_operations,
 };
 use crate::benchmarks::bsbm::report::{BsbmReport, ExploreReportBuilder, QueryDetails};
 use crate::benchmarks::bsbm::requirements::{
     download_bsbm_tools, download_pre_generated_queries, generate_dataset_requirement,
 };
 use crate::benchmarks::bsbm::use_case::BsbmUseCase;
-use crate::benchmarks::bsbm::NumProducts;
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::BenchmarkContext;
 use crate::prepare::PrepRequirement;
