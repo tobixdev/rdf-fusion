@@ -1,8 +1,7 @@
 use crate::benchmarks::bsbm::use_case::BsbmUseCase;
 use crate::report::BenchmarkReport;
 use crate::runs::{BenchmarkRun, BenchmarkRuns};
-use crate::utils::write_flamegraph;
-use anyhow::{Context, bail};
+use anyhow::Context;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_plan::display::DisplayableExecutionPlan;
@@ -61,30 +60,17 @@ impl<TUseCase: BsbmUseCase> BsbmReport<TUseCase> {
         Ok(())
     }
 
-    /// Write aggregated flamegraph.
-    fn write_aggregated_flamegraphs(
-        &self,
-        output_directory: &Path,
-    ) -> anyhow::Result<()> {
-        if !output_directory.is_dir() {
-            bail!(
-                "Output directory {} does not exist",
-                output_directory.display()
-            );
-        }
+    /// Writes a csv file that contains detailed information.
+    fn write_details<W: Write + ?Sized>(&self, writer: &mut W) -> anyhow::Result<()> {
+        let mut writer = csv::Writer::from_writer(writer);
 
-        for query in TUseCase::list_queries() {
-            let frames = self
-                .runs
-                .get(&query)
-                .map(BenchmarkRuns::accumulate_profiles)
-                .transpose()?;
-            if let Some(frames) = frames {
-                let flamegraph_file = output_directory.join(format!("{query}.svg"));
-                let mut flamegraph_file = fs::File::create(flamegraph_file)
-                    .context("Cannot create flamegraph file")?;
-                write_flamegraph(&mut flamegraph_file, &frames)?;
-            }
+        writer.write_record(["id", "type", "duration (us)"])?;
+        for (i, details) in self.details.iter().enumerate() {
+            writer.write_record([
+                i.to_string(),
+                details.query_type.to_string(),
+                details.total_time.as_micros().to_string(),
+            ])?;
         }
 
         Ok(())
@@ -191,10 +177,9 @@ impl<TUseCase: BsbmUseCase> BenchmarkReport for BsbmReport<TUseCase> {
         let mut summary_file = fs::File::create(summary_txt)?;
         self.write_summary(&mut summary_file)?;
 
-        let flamegraphs_dir = output_dir.join("flamegraphs");
-        fs::create_dir_all(&flamegraphs_dir)
-            .context("Cannot create flamegraphs directory before writing flamegraphs")?;
-        self.write_aggregated_flamegraphs(&flamegraphs_dir)?;
+        let details_csv = output_dir.join("details.csv");
+        let mut details_file = fs::File::create(details_csv)?;
+        self.write_details(&mut details_file)?;
 
         if !self.details.is_empty() {
             let queries_path = output_dir.join("queries");
