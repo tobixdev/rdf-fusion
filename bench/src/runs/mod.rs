@@ -3,9 +3,7 @@ mod summary;
 
 use crate::runs::summary::BenchmarkRunsSummary;
 use anyhow::Context;
-use pprof::Frames;
 pub use run::*;
-use std::collections::HashMap;
 use std::time::Duration;
 
 /// Contains the runs of a single benchmark.
@@ -42,39 +40,6 @@ impl BenchmarkRuns {
             number_of_samples,
             avg_duration,
         })
-    }
-
-    /// Accumulates the profiles of the individual runs.
-    ///
-    /// The result is a mapping from a [Frames] (i.e., stack trace) to a count. The higher the
-    /// count, the more often a stack configuration has been observed. This information can then
-    /// be plotted in a flamegraph.
-    ///
-    /// The goal is to obtain a single profile for multiple executions of the same benchmark.
-    pub fn accumulate_profiles(&self) -> anyhow::Result<HashMap<Frames, isize>> {
-        let mut result = HashMap::new();
-
-        for report in self.runs.iter().filter_map(|r| r.report.as_ref()) {
-            for (frame, count) in &report.data {
-                let existing = result.get_mut(frame);
-                match existing {
-                    None => {
-                        result.insert(frame.clone(), *count);
-                    }
-                    Some(old_count) => {
-                        let new_count =
-                            (*old_count).checked_add(*count).ok_or_else(|| {
-                                anyhow::anyhow!(
-                                    "Overflow occurred when accumulating profile data"
-                                )
-                            })?;
-                        *old_count = new_count;
-                    }
-                }
-            }
-        }
-
-        Ok(result)
     }
 }
 

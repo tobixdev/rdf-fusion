@@ -178,18 +178,13 @@ async fn execute_benchmark<TUseCase: BsbmUseCase>(
     Ok(report)
 }
 
-/// Executes a single [crate::benchmarks::bsbm::explore::BsbmExploreOperation], profiles the execution, and stores the results of the
-/// profiling in the `report`.
+/// Executes a single [BsbmOperation] and stores the results of the profiling in the `report`.
 async fn run_operation<TUseCase: BsbmUseCase>(
     context: &BenchmarkContext<'_>,
     report: &mut ExploreReportBuilder<TUseCase>,
     store: &Store,
     operation: &BsbmOperation<TUseCase::QueryName>,
 ) -> anyhow::Result<()> {
-    let guard = pprof::ProfilerGuardBuilder::default()
-        .frequency(1000)
-        .blocklist(&["libc", "libgcc", "pthread", "vdso"])
-        .build()?;
     let start = Instant::now();
 
     let options = QueryOptions::default();
@@ -215,10 +210,7 @@ async fn run_operation<TUseCase: BsbmUseCase>(
     };
 
     let duration = start.elapsed();
-    let run = BenchmarkRun {
-        duration,
-        report: Some(guard.report().build()?),
-    };
+    let run = BenchmarkRun { duration };
     report.add_run(name, run);
     if context.parent().options().verbose_results {
         let details = QueryDetails {
