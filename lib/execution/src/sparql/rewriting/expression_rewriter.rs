@@ -1,10 +1,10 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use datafusion::common::{internal_err, plan_err};
-use datafusion::logical_expr::{lit, or, Expr, Operator};
+use datafusion::logical_expr::{Expr, Operator, lit, or};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
-use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::Iri;
+use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{DateTime, TermRef};
 use rdf_fusion_model::{Literal, NamedNode};
 use spargebra::algebra::{Expression, Function, GraphPattern};
