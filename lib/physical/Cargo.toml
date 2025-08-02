@@ -17,5 +17,9 @@ rdf-fusion-model.workspace = true
 rdf-fusion-logical.workspace = true
 itertools.workspace = true
 
+[dev-dependencies]
+insta.workspace = true
+tokio.workspace = true
+
 [lints]
 workspace = true

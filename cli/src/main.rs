@@ -16,6 +16,9 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 mod cli;
 
+#[global_allocator]
+static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
+
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()

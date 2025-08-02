@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use datafusion::execution::SendableRecordBatchStream;
+use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
@@ -84,6 +85,7 @@ pub trait QuadPatternEvaluator: Debug + Send + Sync {
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
         blank_node_mode: BlankNodeMatchingMode,
+        metrics: BaselineMetrics,
         batch_size: usize,
     ) -> DFResult<SendableRecordBatchStream>;
 }

@@ -82,9 +82,9 @@ impl ScalarUDFImpl for IsCompatible {
     }
 
     fn hash_value(&self) -> u64 {
+        // Remove once https://github.com/apache/datafusion/pull/16977 is in release
         let hasher = &mut DefaultHasher::new();
         self.as_any().type_id().hash(hasher);
-        self.name().hash(hasher);
         hasher.finish()
     }
 }

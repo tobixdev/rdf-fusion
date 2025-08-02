@@ -1,31 +1,39 @@
-mod benchmark;
-mod operation;
-mod report;
-
+use crate::benchmarks::bsbm::use_case::{BsbmUseCase, BsbmUseCaseName};
 use clap::ValueEnum;
 use std::fmt::{Display, Formatter};
 
-pub use benchmark::BsbmExploreBenchmark;
+/// The BSBM Explore Use Case.
+pub struct ExploreUseCase;
 
-pub(super) const BSBM_EXPLORE_QUERIES: [BsbmExploreQueryName; 11] = [
-    BsbmExploreQueryName::Q1,
-    BsbmExploreQueryName::Q2,
-    BsbmExploreQueryName::Q3,
-    BsbmExploreQueryName::Q4,
-    BsbmExploreQueryName::Q5,
-    BsbmExploreQueryName::Q7,
-    BsbmExploreQueryName::Q8,
-    BsbmExploreQueryName::Q9,
-    BsbmExploreQueryName::Q10,
-    BsbmExploreQueryName::Q11,
-    BsbmExploreQueryName::Q12,
-];
+impl BsbmUseCase for ExploreUseCase {
+    type QueryName = BsbmExploreQueryName;
+
+    fn name() -> BsbmUseCaseName {
+        BsbmUseCaseName::Explore
+    }
+
+    fn list_queries() -> Vec<Self::QueryName> {
+        vec![
+            BsbmExploreQueryName::Q1,
+            BsbmExploreQueryName::Q2,
+            BsbmExploreQueryName::Q3,
+            BsbmExploreQueryName::Q4,
+            BsbmExploreQueryName::Q5,
+            BsbmExploreQueryName::Q7,
+            BsbmExploreQueryName::Q8,
+            BsbmExploreQueryName::Q9,
+            BsbmExploreQueryName::Q10,
+            BsbmExploreQueryName::Q11,
+            BsbmExploreQueryName::Q12,
+        ]
+    }
+}
 
 /// The BSBM explore query names.
 ///
 /// Q6 is no longer part of the benchmark and is thus missing.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
-pub(super) enum BsbmExploreQueryName {
+pub enum BsbmExploreQueryName {
     Q1,
     Q2,
     Q3,

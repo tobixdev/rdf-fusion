@@ -44,8 +44,8 @@ jobs:
       - name: Prepare BSBM Benchmark
         working-directory: bench
         run: |
-          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-explore --dataset-size 1000
-          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-business-intelligence --dataset-size 1000
+          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-explore --num-products 1000
+          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-business-intelligence --num-products 1000
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3

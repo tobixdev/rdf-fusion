@@ -24,10 +24,10 @@ clap = { workspace = true, features = ["derive"] }
 csv.workspace = true
 datafusion.workspace = true
 futures.workspace = true
-pprof = { workspace = true, features = ["flamegraph"] }
 prettytable-rs.workspace = true
 rdf-fusion.workspace = true
 reqwest.workspace = true
+snmalloc-rs.workspace = true
 tokio.workspace = true
 zip-extract.workspace = true
 

@@ -143,9 +143,9 @@ fn bsbm_business_intelligence_q4(c: &mut Criterion) {
                     Select ?feature (avg(xsd:float(xsd:string(?price))) As ?withFeaturePrice)
                     {
                         ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> ;
-                        bsbm:productFeature ?feature .
+                            bsbm:productFeature ?feature .
                         ?offer bsbm:product ?product ;
-                        bsbm:price ?price .
+                            bsbm:price ?price .
                     }
                     Group By ?feature
                 }
@@ -156,7 +156,7 @@ fn bsbm_business_intelligence_q4(c: &mut Criterion) {
                             Select distinct ?feature
                             {
                                 ?p a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> ;
-                                bsbm:productFeature ?feature .
+                                    bsbm:productFeature ?feature .
                             }
                         }
                         ?product a <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> .
@@ -388,7 +388,7 @@ fn create_runtime() -> Runtime {
 }
 
 async fn load_bsbm_1000() -> anyhow::Result<Store> {
-    let data_path = PathBuf::from("./data/dataset-1000.nt");
+    let data_path = PathBuf::from("./data/bsbm-bi-1000/dataset.nt");
     let data = fs::read(data_path)?;
     let memory_store = Store::new();
     memory_store

@@ -1,7 +1,6 @@
 use crate::benchmarks::BenchmarkName;
-use crate::prepare::{ensure_file_download, prepare_file_download, prepare_run_closure};
-use crate::prepare::{prepare_run_command, PrepRequirement};
-use crate::BenchmarkingOptions;
+use crate::prepare::{PrepRequirement, prepare_run_closure, prepare_run_command};
+use crate::prepare::{ensure_file_download, prepare_file_download};
 use anyhow::bail;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -56,7 +55,9 @@ impl RdfFusionBenchContext {
                 file_name,
                 action,
             } => prepare_file_download(self, url, file_name, action).await,
-            PrepRequirement::RunClosure { execute, .. } => prepare_run_closure(&execute),
+            PrepRequirement::RunClosure { execute, .. } => {
+                prepare_run_closure(self, &execute)
+            }
             PrepRequirement::RunCommand {
                 workdir,
                 program,
@@ -78,15 +79,12 @@ impl RdfFusionBenchContext {
             PrepRequirement::RunClosure {
                 check_requirement, ..
             }
+            | PrepRequirement::RunClosure {
+                check_requirement, ..
+            }
             | PrepRequirement::RunCommand {
                 check_requirement, ..
-            } => {
-                if check_requirement()? {
-                    Ok(())
-                } else {
-                    bail!("Requirement check returned false.")
-                }
-            }
+            } => check_requirement(self),
         }
     }
 

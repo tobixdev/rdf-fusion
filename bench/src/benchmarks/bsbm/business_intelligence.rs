@@ -1,27 +1,34 @@
-mod benchmark;
-mod operation;
-mod report;
-
+use crate::benchmarks::bsbm::use_case::{BsbmUseCase, BsbmUseCaseName};
 use clap::ValueEnum;
 use std::fmt::{Display, Formatter};
 
-pub use benchmark::BsbmBusinessIntelligenceBenchmark;
+/// The BSBM Business Intelligence Use Case.
+pub struct BusinessIntelligenceUseCase;
 
-pub(super) const BSBM_BUSINESS_INTELLIGENCE_QUERIES: [BsbmBusinessIntelligenceQueryName;
-    8] = [
-    BsbmBusinessIntelligenceQueryName::Q1,
-    BsbmBusinessIntelligenceQueryName::Q2,
-    BsbmBusinessIntelligenceQueryName::Q3,
-    BsbmBusinessIntelligenceQueryName::Q4,
-    BsbmBusinessIntelligenceQueryName::Q5,
-    BsbmBusinessIntelligenceQueryName::Q6,
-    BsbmBusinessIntelligenceQueryName::Q7,
-    BsbmBusinessIntelligenceQueryName::Q8,
-];
+impl BsbmUseCase for BusinessIntelligenceUseCase {
+    type QueryName = BsbmBusinessIntelligenceQueryName;
+
+    fn name() -> BsbmUseCaseName {
+        BsbmUseCaseName::BusinessIntelligence
+    }
+
+    fn list_queries() -> Vec<Self::QueryName> {
+        vec![
+            BsbmBusinessIntelligenceQueryName::Q1,
+            BsbmBusinessIntelligenceQueryName::Q2,
+            BsbmBusinessIntelligenceQueryName::Q3,
+            BsbmBusinessIntelligenceQueryName::Q4,
+            BsbmBusinessIntelligenceQueryName::Q5,
+            BsbmBusinessIntelligenceQueryName::Q6,
+            BsbmBusinessIntelligenceQueryName::Q7,
+            BsbmBusinessIntelligenceQueryName::Q8,
+        ]
+    }
+}
 
 /// The BSBM business intelligence query names.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
-pub(super) enum BsbmBusinessIntelligenceQueryName {
+pub enum BsbmBusinessIntelligenceQueryName {
     Q1,
     Q2,
     Q3,

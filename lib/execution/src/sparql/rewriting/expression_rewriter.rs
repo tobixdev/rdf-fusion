@@ -1,9 +1,6 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
-use datafusion::common::{Column, Spans, internal_err, plan_datafusion_err, plan_err};
-use datafusion::functions_aggregate::count::count;
-use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
-use datafusion::logical_expr::{Expr, LogicalPlanBuilder, Operator, Subquery, lit, or};
-use datafusion::prelude::{and, exists};
+use datafusion::common::{internal_err, plan_err};
+use datafusion::logical_expr::{Expr, Operator, lit, or};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use rdf_fusion_model::Iri;
@@ -11,8 +8,6 @@ use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{DateTime, TermRef};
 use rdf_fusion_model::{Literal, NamedNode};
 use spargebra::algebra::{Expression, Function, GraphPattern};
-use std::collections::HashSet;
-use std::sync::Arc;
 
 pub(super) struct ExpressionRewriter<'rewriter> {
     graph_rewriter: &'rewriter GraphPatternRewriter,
@@ -53,7 +48,10 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             Expression::Bound(var) => self
                 .rewrite_internal(&Expression::Variable(var.clone()))?
                 .bound(),
-            Expression::Not(inner) => self.rewrite_internal(inner)?.not(),
+            Expression::Not(inner) => match inner.as_ref() {
+                Expression::Exists(pattern) => self.rewrite_not_exists(pattern),
+                _ => self.rewrite_internal(inner)?.not(),
+            },
             Expression::Equal(lhs, rhs) => self
                 .rewrite_internal(lhs)?
                 .rdf_term_equal(self.rewrite(rhs)?),
@@ -321,88 +319,22 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
         self.expr_builder_root.native_boolean_as_term(result)
     }
 
-    /// Rewrites an EXISTS expression to a correlated subquery.
+    /// Rewrites an EXISTS expression
     fn rewrite_exists(
         &self,
         inner: &GraphPattern,
     ) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
         let exists_plan = self.graph_rewriter.rewrite_with_existing_encoding(inner)?;
-        let exists_pattern = LogicalPlanBuilder::new(exists_plan);
-        let outer_schema = self.expr_builder_root.schema();
+        self.expr_builder_root.exists(exists_plan)
+    }
 
-        let outer_keys: HashSet<_> = outer_schema
-            .columns()
-            .into_iter()
-            .map(|c| c.name().to_owned())
-            .collect();
-        let exists_keys: HashSet<_> = exists_pattern
-            .schema()
-            .columns()
-            .into_iter()
-            .map(|c| c.name().to_owned())
-            .collect();
-
-        // This check is necessary to avoid a crash during query planning. However, we don't know
-        // whether this is our fault or it is a bug in DataFusion.
-        // TODO: Investigate why this causes issues and file an issue if necessary
-        if outer_keys.is_disjoint(&exists_keys) {
-            let group_expr: [Expr; 0] = [];
-            let count = exists_pattern.aggregate(
-                group_expr,
-                [count(Expr::Literal(COUNT_STAR_EXPANSION, None))],
-            )?;
-            let subquery = Subquery {
-                subquery: count.build()?.into(),
-                outer_ref_columns: vec![],
-                spans: Spans(vec![]),
-            };
-
-            return self
-                .expr_builder_root
-                .native_boolean_as_term(Expr::ScalarSubquery(subquery).gt(lit(0)));
-        }
-
-        // TODO: Investigate why we need this renaming and cannot refer to the unqualified column
-        let projections = exists_pattern
-            .schema()
-            .columns()
-            .into_iter()
-            .map(|c| Expr::from(c.clone()).alias(format!("__inner__{}", c.name())))
-            .collect::<Vec<_>>();
-        let exists_pattern = exists_pattern.project(projections)?;
-        let exists_schema = Arc::clone(exists_pattern.schema());
-        let exists_expr_builder_root = self
-            .graph_rewriter
-            .plan_builder_context()
-            .expr_builder_context_with_schema(exists_schema.as_ref());
-
-        let compatible_filters = outer_keys
-            .intersection(&exists_keys)
-            .map(|k| {
-                let data_type = outer_schema
-                    .field_with_name(None, k)
-                    .map_err(|_| {
-                        plan_datafusion_err!("Could not find column {} in schema.", k)
-                    })?
-                    .data_type();
-                exists_expr_builder_root
-                    .try_create_builder(Expr::OuterReferenceColumn(
-                        data_type.clone(),
-                        Column::new_unqualified(k),
-                    ))?
-                    .build_is_compatible(Expr::from(Column::new_unqualified(format!(
-                        "__inner__{k}"
-                    ))))
-            })
-            .collect::<DFResult<Vec<_>>>()?;
-        let compatible_filter = compatible_filters
-            .into_iter()
-            .reduce(and)
-            .unwrap_or_else(|| lit(true));
-
-        let subquery = Arc::new(exists_pattern.filter(compatible_filter)?.build()?);
-        self.expr_builder_root
-            .native_boolean_as_term(exists(subquery))
+    /// Rewrites an NOT EXISTS expression
+    fn rewrite_not_exists(
+        &self,
+        inner: &GraphPattern,
+    ) -> DFResult<RdfFusionExprBuilder<'rewriter>> {
+        let exists_plan = self.graph_rewriter.rewrite_with_existing_encoding(inner)?;
+        self.expr_builder_root.not_exists(exists_plan)
     }
 
     /// Rewrites an IF expression to a case expression.

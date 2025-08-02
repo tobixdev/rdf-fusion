@@ -3,6 +3,7 @@ use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use rdf_fusion::model::{GraphName, NamedNode, Quad, Subject, Term};
 use rdf_fusion::store::Store;
 use rdf_fusion_web::{AppState, create_router};
+use std::sync::Arc;
 use tokio::runtime::Builder;
 
 fn encode_solution(criterion: &mut Criterion) {
@@ -16,7 +17,7 @@ fn encode_solution(criterion: &mut Criterion) {
     });
 
     let app_state = AppState {
-        store,
+        store: Arc::new(store),
         read_only: false,
         union_default_graph: false,
     };
