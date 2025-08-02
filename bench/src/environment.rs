@@ -4,6 +4,7 @@ use crate::prepare::{ensure_file_download, prepare_file_download};
 use anyhow::bail;
 use std::fs;
 use std::path::{Path, PathBuf};
+use crate::BenchmarkingOptions;
 
 /// Represents a context used to execute benchmarks.
 pub struct RdfFusionBenchContext {
@@ -77,9 +78,6 @@ impl RdfFusionBenchContext {
                 ensure_file_download(self, file_name.as_path())
             }
             PrepRequirement::RunClosure {
-                check_requirement, ..
-            }
-            | PrepRequirement::RunClosure {
                 check_requirement, ..
             }
             | PrepRequirement::RunCommand {

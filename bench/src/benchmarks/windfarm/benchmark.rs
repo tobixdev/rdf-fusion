@@ -4,9 +4,21 @@ use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::BenchmarkContext;
 use crate::prepare::PrepRequirement;
 use crate::report::BenchmarkReport;
+use anyhow::Context;
 use async_trait::async_trait;
 use rdf_fusion::io::{RdfFormat, RdfSerializer};
 use std::fs::File;
+use std::path::PathBuf;
+
+/// Holds file paths for the files required for executing a BSBM run.
+struct WindfarmFilePaths {
+    /// A path to the wind farm data NTriples file.
+    wind_farm_data: PathBuf,
+    /// A path to the time series NTriples file.
+    time_series_data: PathBuf,
+    /// A path to the folder that contains all the queries.
+    query_folder: PathBuf,
+}
 
 /// The "Wind Farm" benchmark is derived from the benchmarks used to evaluate Chrontext [1], an
 /// ontology-based data access framework for time series data.
@@ -25,13 +37,28 @@ use std::fs::File;
 pub struct WindFarmBenchmark {
     name: BenchmarkName,
     num_turbines: NumberOfWindTurbines,
+    paths: WindfarmFilePaths,
 }
 
 impl WindFarmBenchmark {
     /// Creates a new [WindFarmBenchmark] with the given sizes.
     pub fn new(num_turbines: NumberOfWindTurbines) -> Self {
         let name = BenchmarkName::WindFarm { num_turbines };
-        Self { name, num_turbines }
+
+        let wind_farm_data = PathBuf::from("./windfarm.nt".to_string());
+        let time_series_data = PathBuf::from("./timeseries.nt".to_string());
+        let query_folder =
+            PathBuf::from("./benchmark-docker/queries_chrontext/".to_string());
+        let paths = WindfarmFilePaths {
+            wind_farm_data,
+            time_series_data,
+            query_folder,
+        };
+        Self {
+            name,
+            num_turbines,
+            paths,
+        }
     }
 }
 
@@ -44,20 +71,20 @@ impl Benchmark for WindFarmBenchmark {
     #[allow(clippy::expect_used)]
     fn requirements(&self) -> Vec<PrepRequirement> {
         let num_turbines = self.num_turbines.into_usize();
+        let wind_farm_data_path = self.paths.wind_farm_data.clone();
         let generate_dataset = PrepRequirement::RunClosure {
-            execute: Box::new(move || {
-                let dataset_file =
-                    File::create(format!("./data/windfarm-static-{num_turbines}.nt",))
-                        .expect("Could not create file");
+            execute: Box::new(move |_| {
+                let wind_farm_file = File::create(&wind_farm_data_path)
+                    .context("Could not create file for static wind farm data")?;
+
                 let mut rdf_writer = RdfSerializer::from_format(RdfFormat::NTriples)
-                    .for_writer(&dataset_file);
+                    .for_writer(&wind_farm_file);
                 generate_static(&mut rdf_writer, num_turbines)
             }),
-            check_requirement: Box::new(move || {
-                let exists =
-                    File::open(format!("./data/windfarm-static-{num_turbines}.nt",))
-                        .is_ok();
-                Ok(exists)
+            check_requirement: Box::new(move |_| {
+                File::open(format!("windfarm{num_turbines}.nt",))
+                    .context("Could not open file for static wind farm data")?;
+                Ok(())
             }),
         };
 
