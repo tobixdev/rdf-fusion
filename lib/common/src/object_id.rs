@@ -23,6 +23,10 @@ impl ObjectId {
 
         Self(buffer)
     }
+
+    pub const fn into_bytes(self) -> [u8; ObjectId::SIZE] {
+        self.0
+    }
 }
 
 impl From<[u8; ObjectId::SIZE]> for ObjectId {

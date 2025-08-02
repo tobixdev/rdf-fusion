@@ -1,8 +1,8 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::oxigraph_memory::object_id::{DEFAULT_GRAPH_OBJECT_ID, ObjectIdQuad};
+use crate::oxigraph_memory::object_id::{ObjectIdQuad, DEFAULT_GRAPH_OBJECT_ID};
 use dashmap::DashMap;
-use datafusion::common::{ScalarValue, exec_err};
+use datafusion::common::{exec_err, ScalarValue};
 use datafusion::error::DataFusionError;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_common::{DFResult, ObjectId};
@@ -11,12 +11,13 @@ use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::{PlainTermArray, PlainTermScalar};
 use rdf_fusion_encoding::{EncodingScalar, TermEncoder};
 use rdf_fusion_model::{
-    GraphName, GraphNameRef, NamedOrBlankNode, QuadRef, Term, TermRef, ThinError,
-    ThinResult,
+    BlankNode, GraphName, GraphNameRef, NamedOrBlankNode, QuadRef, Term, TermRef,
+    ThinError, ThinResult,
 };
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
 use std::sync::atomic::AtomicU64;
+use thiserror::Error;
 
 /// TODO
 #[derive(Debug)]
@@ -31,6 +32,55 @@ pub struct MemoryObjectIdMapping {
 ///
 /// - 0: Default Graph
 const FIRST_REGULAR_OBJECT_ID: u64 = 1;
+
+pub enum MappingTypeId {
+    Mapped,
+    NamedNode,
+    BlankNode,
+    String,
+    Boolean,
+    Integer,
+    Decimal,
+    Float,
+    Double,
+}
+
+impl Into<u8> for MappingTypeId {
+    fn into(self) -> u8 {
+        match self {
+            MappingTypeId::Mapped => 0,
+            MappingTypeId::NamedNode => 1,
+            MappingTypeId::BlankNode => 2,
+            MappingTypeId::String => 3,
+            MappingTypeId::Boolean => 4,
+            MappingTypeId::Integer => 5,
+            MappingTypeId::Decimal => 6,
+            MappingTypeId::Float => 7,
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("Invalid mapping type.")]
+struct InvalidMappingTypeId;
+
+impl TryFrom<u8> for MappingTypeId {
+    type Error = InvalidMappingTypeId;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => MappingTypeId::Mapped,
+            1 => MappingTypeId::NamedNode,
+            2 => MappingTypeId::BlankNode,
+            3 => MappingTypeId::String,
+            4 => MappingTypeId::Boolean,
+            5 => MappingTypeId::Integer,
+            6 => MappingTypeId::Decimal,
+            7 => MappingTypeId::Float,
+            _ => return Err(InvalidMappingTypeId),
+        })
+    }
+}
 
 impl MemoryObjectIdMapping {
     /// TODO
@@ -48,8 +98,30 @@ impl MemoryObjectIdMapping {
         &self,
         term: impl Into<TermRef<'term>>,
     ) -> Option<ObjectId> {
-        let term_ref = term.into().into_owned();
-        self.term2id.get(&term_ref).map(|id| *id)
+        let term_ref = term.into();
+        let mut bytes = [0; ObjectId::SIZE];
+        let could_be_mapped = match term_ref {
+            TermRef::NamedNode(nn) => {
+                if nn.as_str().len() <= bytes.len() - 1 {
+                    bytes[0] = MappingTypeId::NamedNode.into();
+                    bytes[1..].copy_from_slice(nn.as_str().as_bytes());
+                    true
+                } else {
+                    false
+                }
+            }
+            TermRef::BlankNode(bnode) => {
+                bytes[0] = MappingTypeId::BlankNode.into();
+                bytes[1..].copy_from_slice(bnode.as_str().as_bytes());
+                true
+            }
+            TermRef::Literal(_) => false,
+        };
+        if could_be_mapped {
+            return Some(ObjectId::from(bytes));
+        }
+
+        self.term2id.get(&term_ref.into_owned()).map(|id| *id)
     }
 
     /// TODO
@@ -65,11 +137,31 @@ impl MemoryObjectIdMapping {
     }
 
     /// TODO
-    pub fn try_decode<TResolvable: Resolvable>(
-        &self,
-        object_id: ObjectId,
-    ) -> Result<TResolvable, StorageError> {
-        TResolvable::resolve(self, object_id)
+    pub fn try_decode(&self, object_id: ObjectId) -> Result<Option<Term>, StorageError> {
+        let mapping_type = MappingTypeId::try_from(object_id.as_ref()[0])
+            .map_err(|e| StorageError::Corruption(CorruptionError::msg(e.to_string())))?;
+
+        match mapping_type {
+            MappingTypeId::NamedNode => unsafe {
+                let str = str::from_utf8_unchecked(&object_id.as_ref()[1..]);
+                Ok(Some(Term::BlankNode(BlankNode::new_unchecked(
+                    str.to_owned(),
+                ))))
+            },
+            MappingTypeId::BlankNode => unsafe {
+                let str = str::from_utf8_unchecked(&object_id.as_ref()[1..]);
+                Ok(Some(Term::BlankNode(BlankNode::new_unchecked(
+                    str.to_owned(),
+                ))))
+            },
+            _ => self
+                .id2term
+                .get(&object_id)
+                .map(|t| Some(t.as_ref().into_owned()))
+                .ok_or(StorageError::Corruption(CorruptionError::msg(
+                    "Unmapped object ID.",
+                ))),
+        }
     }
 
     /// TODO
@@ -182,79 +274,5 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
             }
             _ => exec_err!("Unexpected scalar value in decode_scalar."),
         }
-    }
-}
-
-pub trait Resolvable {
-    fn resolve(
-        mapping: &MemoryObjectIdMapping,
-        object_id: ObjectId,
-    ) -> Result<Self, StorageError>
-    where
-        Self: Sized;
-}
-
-impl Resolvable for Option<Term> {
-    fn resolve(
-        mapping: &MemoryObjectIdMapping,
-        object_id: ObjectId,
-    ) -> Result<Self, StorageError> {
-        if object_id == DEFAULT_GRAPH_OBJECT_ID {
-            return Ok(None);
-        }
-        mapping
-            .id2term
-            .get(&object_id)
-            .map(|t| Some(t.as_ref().into_owned()))
-            .ok_or(StorageError::Corruption(CorruptionError::msg(
-                "Unmapped object ID.",
-            )))
-    }
-}
-
-impl Resolvable for Term {
-    fn resolve(
-        mapping: &MemoryObjectIdMapping,
-        object_id: ObjectId,
-    ) -> Result<Self, StorageError> {
-        Option::<Term>::resolve(mapping, object_id).and_then(|t| {
-            t.ok_or(StorageError::Corruption(CorruptionError::msg(
-                "None term found.",
-            )))
-        })
-    }
-}
-
-impl Resolvable for GraphName {
-    fn resolve(
-        mapping: &MemoryObjectIdMapping,
-        object_id: ObjectId,
-    ) -> Result<Self, StorageError> {
-        if object_id == DEFAULT_GRAPH_OBJECT_ID {
-            return Ok(GraphName::DefaultGraph);
-        }
-
-        Term::resolve(mapping, object_id).and_then(|t| match t {
-            Term::NamedNode(nn) => Ok(GraphName::NamedNode(nn)),
-            Term::BlankNode(bnode) => Ok(GraphName::BlankNode(bnode)),
-            Term::Literal(_) => Err(StorageError::Corruption(CorruptionError::msg(
-                "Unexpected literal term.",
-            ))),
-        })
-    }
-}
-
-impl Resolvable for NamedOrBlankNode {
-    fn resolve(
-        mapping: &MemoryObjectIdMapping,
-        object_id: ObjectId,
-    ) -> Result<Self, StorageError> {
-        Term::resolve(mapping, object_id).and_then(|t| match t {
-            Term::NamedNode(nn) => Ok(NamedOrBlankNode::NamedNode(nn)),
-            Term::BlankNode(bnode) => Ok(NamedOrBlankNode::BlankNode(bnode)),
-            Term::Literal(_) => Err(StorageError::Corruption(CorruptionError::msg(
-                "Unexpected literal term.",
-            ))),
-        })
     }
 }
