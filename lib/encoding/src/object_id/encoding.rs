@@ -1,11 +1,12 @@
-use crate::EncodingName;
 use crate::encoding::TermEncoding;
 use crate::object_id::mapping::ObjectIdMapping;
 use crate::object_id::{ObjectIdArray, ObjectIdScalar};
+use crate::plain_term::encoders::DefaultPlainTermEncoder;
+use crate::{EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::ScalarValue;
-use rdf_fusion_common::{DFResult, ObjectId};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
 use std::hash::{Hash, Hasher};
@@ -23,16 +24,14 @@ impl ObjectIdEncoding {
         Self { mapping }
     }
 
+    /// Returns the size of the object id.
+    pub fn object_id_len(&self) -> u8 {
+        self.mapping.object_id_len()
+    }
+
     /// Returns a reference to the object id mapping.
     pub fn mapping(&self) -> &dyn ObjectIdMapping {
         self.mapping.as_ref()
-    }
-
-    /// Returns the data type of the [ObjectIdEncoding].
-    ///
-    /// The type of the [ObjectIdEncoding] is statically known and cannot be configured.
-    pub fn data_type() -> DataType {
-        DataType::FixedSizeBinary(ObjectId::SIZE_I32)
     }
 }
 
@@ -45,7 +44,7 @@ impl TermEncoding for ObjectIdEncoding {
     }
 
     fn data_type(&self) -> DataType {
-        ObjectIdEncoding::data_type()
+        DataType::FixedSizeBinary(self.object_id_len() as i32)
     }
 
     fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
@@ -57,14 +56,9 @@ impl TermEncoding for ObjectIdEncoding {
     }
 
     fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
+        let term = DefaultPlainTermEncoder::encode_term(term);
         match term {
-            Ok(term) => {
-                let encoded = self.mapping.encode(term);
-                self.try_new_scalar(ScalarValue::FixedSizeBinary(
-                    ObjectId::SIZE_I32,
-                    Some(encoded.into()),
-                ))
-            }
+            Ok(term) => Ok(self.mapping.encode_scalar(term)),
             Err(_) => self.try_new_scalar(ScalarValue::UInt64(None)),
         }
     }

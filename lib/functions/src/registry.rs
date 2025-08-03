@@ -29,7 +29,7 @@ use crate::scalar::dates_and_times::TimezoneSparqlOp;
 use crate::scalar::dates_and_times::YearSparqlOp;
 use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
 use crate::scalar::functional_form::{BoundSparqlOp, CoalesceSparqlOp, IfSparqlOp};
-use crate::scalar::logical::{NotSparqlOp, sparql_and, sparql_or};
+use crate::scalar::logical::{sparql_and, sparql_or, NotSparqlOp};
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
 use crate::scalar::numeric::{
@@ -49,7 +49,7 @@ use crate::scalar::terms::{
     StrSparqlOp, UuidSparqlOp,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
-use datafusion::common::{HashMap, plan_err};
+use datafusion::common::{plan_err, HashMap};
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs,
@@ -197,6 +197,7 @@ where
 fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
     let encodings1 = registry.encodings.clone();
     let encodings2 = registry.encodings.clone();
+    let encodings3 = registry.encodings.clone();
     let scalar_fns: Vec<(BuiltinName, (ScalarUdfFactory, Vec<EncodingName>))> = vec![
         (
             BuiltinName::Str,
@@ -500,7 +501,7 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         (
             BuiltinName::IsCompatible,
             (
-                Box::new(move |_| Ok(is_compatible())),
+                Box::new(move |_| Ok(is_compatible(&encodings3))),
                 vec![EncodingName::PlainTerm, EncodingName::ObjectId],
             ),
         ),

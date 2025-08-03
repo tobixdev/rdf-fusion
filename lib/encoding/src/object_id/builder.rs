@@ -1,8 +1,7 @@
-use crate::TermEncoding;
 use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
+use crate::TermEncoding;
 use datafusion::arrow::array::FixedSizeBinaryBuilder;
 use rdf_fusion_common::{AResult, ObjectId};
-use rdf_fusion_model::TermRef;
 use std::sync::Arc;
 
 /// Provides a convenient API for building arrays of RDF terms with the [ObjectIdEncoding]. The
@@ -17,10 +16,8 @@ pub struct ObjectIdArrayBuilder {
 impl ObjectIdArrayBuilder {
     /// Create a [ObjectIdArrayBuilder] with the given `capacity`.
     pub fn new(encoding: ObjectIdEncoding) -> Self {
-        Self {
-            encoding,
-            builder: FixedSizeBinaryBuilder::new(ObjectId::SIZE as i32),
-        }
+        let builder = FixedSizeBinaryBuilder::new(encoding.object_id_len() as i32);
+        Self { encoding, builder }
     }
 
     /// Appends a null value to the array.
@@ -42,13 +39,6 @@ impl ObjectIdArrayBuilder {
             }
             Some(term) => self.builder.append_value(term),
         }
-    }
-
-    /// Appends an arbitrary RDF term to the array. The corresponding object id is obtained by
-    /// consulting the mapping.
-    pub fn append_term(&mut self, term: TermRef<'_>) -> AResult<()> {
-        let value = self.encoding.mapping().encode(term);
-        self.append_object_id(value)
     }
 
     #[allow(clippy::expect_used, reason = "Programming error")]

@@ -1,10 +1,10 @@
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::TermEncoding;
 
 pub trait SparqlOpImpl<Args> {
     /// TODO
@@ -61,10 +61,11 @@ pub fn create_typed_value_sparql_op_impl<Args: 'static>(
 }
 
 pub fn create_object_id_sparql_op_impl<Args: 'static>(
+    object_id_encoding: &ObjectIdEncoding,
     closure: impl Fn(Args) -> DFResult<ColumnarValue> + 'static,
 ) -> Box<dyn SparqlOpImpl<Args>> {
     Box::new(ClosureSparqlOpImpl {
-        return_type: ObjectIdEncoding::data_type(),
+        return_type: object_id_encoding.data_type(),
         closure: Box::new(closure),
     })
 }
