@@ -1,7 +1,5 @@
 use crate::benchmarks::bsbm::NumProducts;
-use crate::benchmarks::bsbm::operation::{
-    BsbmOperation, BsbmRawOperation, list_raw_operations,
-};
+use crate::benchmarks::bsbm::operation::list_raw_operations;
 use crate::benchmarks::bsbm::report::{BsbmReport, ExploreReportBuilder, QueryDetails};
 use crate::benchmarks::bsbm::requirements::{
     download_bsbm_tools, download_pre_generated_queries, generate_dataset_requirement,
@@ -9,18 +7,16 @@ use crate::benchmarks::bsbm::requirements::{
 use crate::benchmarks::bsbm::use_case::BsbmUseCase;
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::BenchmarkContext;
+use crate::operation::{SparqlOperation, SparqlRawOperation};
 use crate::prepare::PrepRequirement;
 use crate::report::BenchmarkReport;
-use crate::runs::BenchmarkRun;
 use async_trait::async_trait;
-use futures::StreamExt;
+use rdf_fusion::Query;
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
-use rdf_fusion::{Query, QueryOptions, QueryResults};
 use std::fs;
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use tokio::time::Instant;
 
 /// Holds file paths for the files required for executing a BSBM run.
 struct BsbmFilePaths {
@@ -75,7 +71,7 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
     fn list_operations(
         &self,
         ctx: &BenchmarkContext,
-    ) -> anyhow::Result<Vec<BsbmOperation<TUseCase::QueryName>>> {
+    ) -> anyhow::Result<Vec<SparqlOperation<TUseCase::QueryName>>> {
         println!("Loading queries ...");
 
         let queries_path = ctx.parent().join_data_dir(&self.paths.queries)?;
@@ -142,12 +138,12 @@ impl<TUseCase: BsbmUseCase + 'static> Benchmark for BsbmBenchmark<TUseCase> {
     }
 }
 
-/// Parses the SPARQL query by turning an [BsbmRawOperation] to an [BsbmOperation].
+/// Parses the SPARQL query by turning an [SparqlRawOperation] to an [SparqlOperation].
 fn parse_query<TQueryName>(
-    query: BsbmRawOperation<TQueryName>,
-) -> BsbmOperation<TQueryName> {
+    query: SparqlRawOperation<TQueryName>,
+) -> SparqlOperation<TQueryName> {
     match query {
-        BsbmRawOperation::Query(name, query) => BsbmOperation::Query(
+        SparqlRawOperation::Query(name, query) => SparqlOperation::Query(
             name,
             Query::parse(&query.replace(" #", ""), None).unwrap(),
         ),
@@ -156,7 +152,7 @@ fn parse_query<TQueryName>(
 
 async fn execute_benchmark<TUseCase: BsbmUseCase>(
     context: &BenchmarkContext<'_>,
-    operations: Vec<BsbmOperation<TUseCase::QueryName>>,
+    operations: Vec<SparqlOperation<TUseCase::QueryName>>,
     memory_store: &Store,
 ) -> anyhow::Result<BsbmReport<TUseCase>> {
     println!("Evaluating queries ...");
@@ -178,50 +174,23 @@ async fn execute_benchmark<TUseCase: BsbmUseCase>(
     Ok(report)
 }
 
-/// Executes a single [BsbmOperation] and stores the results of the profiling in the `report`.
+/// Executes a single [SparqlOperation] and stores the results of the profiling in the `report`.
 async fn run_operation<TUseCase: BsbmUseCase>(
     context: &BenchmarkContext<'_>,
     report: &mut ExploreReportBuilder<TUseCase>,
     store: &Store,
-    operation: &BsbmOperation<TUseCase::QueryName>,
+    operation: &SparqlOperation<TUseCase::QueryName>,
 ) -> anyhow::Result<()> {
-    let start = Instant::now();
-
-    let options = QueryOptions::default();
-    let (name, explanation) = match &operation {
-        BsbmOperation::Query(name, q) => {
-            let (result, explanation) =
-                store.explain_query_opt(q.clone(), options.clone()).await?;
-            match result {
-                QueryResults::Boolean(_) => (),
-                QueryResults::Solutions(s) => {
-                    let mut stream = s.into_record_batch_stream()?;
-                    while let Some(s) = stream.next().await {
-                        s?;
-                    }
-                }
-                QueryResults::Graph(mut g) => {
-                    while let Some(t) = g.next().await {
-                        t?;
-                    }
-                }
-            }
-            (*name, explanation)
-        }
-    };
-
-    let duration = start.elapsed();
-    let run = BenchmarkRun { duration };
-    report.add_run(name, run);
+    let (run, explanation) = operation.run(store).await?;
+    report.add_run(operation.query_name(), run.clone());
     if context.parent().options().verbose_results {
         let details = QueryDetails {
             query: operation.query().to_string(),
             query_type: operation.query_name().to_string(),
-            total_time: duration,
+            total_time: run.duration,
             explanation,
         };
         report.add_explanation(details);
     }
-
     Ok(())
 }

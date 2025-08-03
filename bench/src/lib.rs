@@ -12,6 +12,7 @@ use std::path::PathBuf;
 
 pub mod benchmarks;
 mod environment;
+pub(crate) mod operation;
 mod prepare;
 mod report;
 mod runs;
@@ -43,18 +44,31 @@ pub async fn execute_benchmark_operation(
     operation: Operation,
     benchmark: BenchmarkName,
 ) -> anyhow::Result<()> {
-    let data = PathBuf::from(format!("./data/{}", benchmark.dir_name()));
+    let data = PathBuf::from("./data");
     let results = PathBuf::from("./results");
+
+    fs::create_dir_all(&data)?;
     fs::create_dir_all(&results)?;
-    let mut context = RdfFusionBenchContext::new(options, data, results);
+
+    let context = RdfFusionBenchContext::new(options, data, results);
 
     let benchmark = create_benchmark_instance(benchmark)?;
     match operation {
         Operation::Prepare => {
             println!("Preparing benchmark '{}' ...", benchmark.name());
 
+            let bench_ctx = context.create_benchmark_context(benchmark.name())?;
+            if bench_ctx.data_dir().exists() {
+                println!(
+                    "Cleaning data directory '{}' ...",
+                    bench_ctx.data_dir().display()
+                );
+                fs::remove_dir_all(bench_ctx.data_dir())?;
+            }
+            fs::create_dir_all(bench_ctx.data_dir())?;
+
             for requirement in benchmark.requirements() {
-                context.prepare_requirement(requirement).await?;
+                bench_ctx.prepare_requirement(requirement).await?;
             }
 
             println!("Benchmark '{}' prepared.\n", benchmark.name());
@@ -62,17 +76,26 @@ pub async fn execute_benchmark_operation(
         Operation::Execute => {
             println!("Executing benchmark '{}' ...\n", benchmark.name());
 
+            let bench_ctx = context.create_benchmark_context(benchmark.name())?;
+            if bench_ctx.results_dir().exists() {
+                println!(
+                    "Cleaning results directory '{}' ...",
+                    bench_ctx.results_dir().display()
+                );
+                fs::remove_dir_all(bench_ctx.results_dir())?;
+            }
+            fs::create_dir_all(bench_ctx.results_dir())?;
+
             println!("Verifying requirements ...");
             for requirement in benchmark.requirements() {
-                context.ensure_requirement(requirement)?;
+                bench_ctx.ensure_requirement(requirement)?;
             }
             println!("Requirements verified\n");
 
             println!("Executing benchmark ...");
             {
-                let bench_context = context.create_benchmark_context(benchmark.name())?;
-                let report = benchmark.execute(&bench_context).await?;
-                report.write_results(bench_context.results_dir())?;
+                let report = benchmark.execute(&bench_ctx).await?;
+                report.write_results(bench_ctx.results_dir().as_path())?;
             }
             println!("Benchmark '{}' done\n", benchmark.name());
         }

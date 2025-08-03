@@ -797,7 +797,9 @@ checksum = "c469d952047f47f91b68d1cba3f10d63c11d73e4636f24f08daf0278abf01c4d"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
+ "wasm-bindgen",
  "windows-link",
 ]
 
@@ -3629,6 +3631,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_distr"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
+dependencies = [
+ "num-traits",
+ "rand 0.9.1",
+]
+
+[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3683,12 +3695,15 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bzip2 0.6.0",
+ "chrono",
  "clap",
  "codspeed-criterion-compat",
  "csv",
  "datafusion",
  "futures",
  "prettytable-rs",
+ "rand 0.9.1",
+ "rand_distr",
  "rdf-fusion",
  "reqwest",
  "snmalloc-rs",

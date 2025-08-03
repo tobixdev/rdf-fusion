@@ -1,14 +1,23 @@
-use crate::benchmarks::windfarm::generate::generate_static;
 use crate::benchmarks::windfarm::NumberOfWindTurbines;
+use crate::benchmarks::windfarm::generate::{generate_static, generate_time_series};
+use crate::benchmarks::windfarm::queries::WindFarmQueryName;
+use crate::benchmarks::windfarm::report::{
+    QueryDetails, WindFarmReport, WindFarmReportBuilder,
+};
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::BenchmarkContext;
-use crate::prepare::PrepRequirement;
+use crate::operation::SparqlRawOperation;
+use crate::prepare::{ArchiveType, FileDownloadAction, PrepRequirement};
 use crate::report::BenchmarkReport;
 use anyhow::Context;
 use async_trait::async_trait;
-use rdf_fusion::io::{RdfFormat, RdfSerializer};
+use rdf_fusion::io::RdfFormat;
+use rdf_fusion::store::Store;
+use reqwest::Url;
+use std::fs;
 use std::fs::File;
-use std::path::PathBuf;
+use std::io::BufWriter;
+use std::path::{Path, PathBuf};
 
 /// Holds file paths for the files required for executing a BSBM run.
 struct WindfarmFilePaths {
@@ -37,28 +46,71 @@ struct WindfarmFilePaths {
 pub struct WindFarmBenchmark {
     name: BenchmarkName,
     num_turbines: NumberOfWindTurbines,
-    paths: WindfarmFilePaths,
 }
 
 impl WindFarmBenchmark {
     /// Creates a new [WindFarmBenchmark] with the given sizes.
     pub fn new(num_turbines: NumberOfWindTurbines) -> Self {
         let name = BenchmarkName::WindFarm { num_turbines };
+        Self { name, num_turbines }
+    }
 
-        let wind_farm_data = PathBuf::from("./windfarm.nt".to_string());
-        let time_series_data = PathBuf::from("./timeseries.nt".to_string());
-        let query_folder =
-            PathBuf::from("./benchmark-docker/queries_chrontext/".to_string());
-        let paths = WindfarmFilePaths {
-            wind_farm_data,
-            time_series_data,
-            query_folder,
-        };
-        Self {
-            name,
-            num_turbines,
-            paths,
+    fn generate_data_set(&self, num_turbines: usize) -> PrepRequirement {
+        PrepRequirement::RunClosure {
+            execute: Box::new(move |ctx| {
+                let files = create_files(ctx)?;
+
+                let mut wind_farm_static_file = BufWriter::new(
+                    File::create(&files.wind_farm_data)
+                        .context("Could not create file for static wind farm data")?,
+                );
+                generate_static(&mut wind_farm_static_file, num_turbines)?;
+
+                let mut time_series_file =
+                    BufWriter::new(File::create(&files.time_series_data).context(
+                        "Could not create file for time series wind farm data",
+                    )?);
+                generate_time_series(&mut time_series_file, num_turbines)
+            }),
+            check_requirement: Box::new(move |ctx| {
+                let files = create_files(ctx)?;
+                File::open(files.wind_farm_data.clone())
+                    .context("Could not open file for static wind farm data")?;
+                File::open(files.time_series_data.clone())
+                    .context("Could not open file for time series wind farm data")?;
+                Ok(())
+            }),
         }
+    }
+
+    fn download_source() -> PrepRequirement {
+        PrepRequirement::FileDownload {
+            url: Url::parse("https://github.com/magbak/chrontext_benchmarks/archive/7947750d4f929b3483b5f4250aaf275676ec1139.zip").unwrap(),
+            file_name: PathBuf::from("./source"),
+            action: Some(FileDownloadAction::Unpack(ArchiveType::Zip)),
+        }
+    }
+
+    /// Loads the dataset file into the resulting [Store].
+    async fn prepare_store(&self, ctx: &BenchmarkContext<'_>) -> anyhow::Result<Store> {
+        println!("Creating in-memory store and loading data ...");
+        let dataset_path = create_files(ctx)?;
+        let memory_store = Store::new();
+
+        println!("Loading static data ...");
+        let data = fs::read(&dataset_path.wind_farm_data)?;
+        memory_store
+            .load_from_reader(RdfFormat::N3, data.as_slice())
+            .await?;
+
+        println!("Loading time series data ...");
+        let data = fs::read(&dataset_path.time_series_data)?;
+        memory_store
+            .load_from_reader(RdfFormat::N3, data.as_slice())
+            .await?;
+
+        println!("Store created and data loaded.");
+        Ok(memory_store)
     }
 }
 
@@ -71,30 +123,66 @@ impl Benchmark for WindFarmBenchmark {
     #[allow(clippy::expect_used)]
     fn requirements(&self) -> Vec<PrepRequirement> {
         let num_turbines = self.num_turbines.into_usize();
-        let wind_farm_data_path = self.paths.wind_farm_data.clone();
-        let generate_dataset = PrepRequirement::RunClosure {
-            execute: Box::new(move |_| {
-                let wind_farm_file = File::create(&wind_farm_data_path)
-                    .context("Could not create file for static wind farm data")?;
-
-                let mut rdf_writer = RdfSerializer::from_format(RdfFormat::NTriples)
-                    .for_writer(&wind_farm_file);
-                generate_static(&mut rdf_writer, num_turbines)
-            }),
-            check_requirement: Box::new(move |_| {
-                File::open(format!("windfarm{num_turbines}.nt",))
-                    .context("Could not open file for static wind farm data")?;
-                Ok(())
-            }),
-        };
-
-        vec![generate_dataset]
+        let generate_dataset = self.generate_data_set(num_turbines);
+        let download_source = Self::download_source();
+        vec![generate_dataset, download_source]
     }
 
     async fn execute(
         &self,
-        _bench_context: &BenchmarkContext<'_>,
+        bench_context: &BenchmarkContext<'_>,
     ) -> anyhow::Result<Box<dyn BenchmarkReport>> {
-        todo!()
+        let memory_store = self.prepare_store(bench_context).await?;
+        let report = execute_benchmark(bench_context, &memory_store).await?;
+        Ok(Box::new(report))
     }
+}
+
+async fn execute_benchmark(
+    context: &BenchmarkContext<'_>,
+    store: &Store,
+) -> anyhow::Result<WindFarmReport> {
+    println!("Evaluating queries ...");
+    let files = create_files(context)?;
+
+    let mut report = WindFarmReportBuilder::new();
+    for query_name in WindFarmQueryName::list_queries() {
+        println!("Executing query: {}", query_name);
+
+        let query_file = files.query_folder.join(query_name.file_name());
+        let query = fs::read_to_string(&query_file).context(format!(
+            "Could not read query file: {}",
+            query_file.display()
+        ))?;
+        let operation = SparqlRawOperation::Query(query_name, query.clone()).parse()?;
+
+        let (run, explanation) = operation.run(store).await?;
+        report.add_run(query_name, run.clone());
+        if context.parent().options().verbose_results {
+            let details = QueryDetails {
+                query,
+                total_time: run.duration,
+                explanation,
+            };
+            report.add_explanation(query_name, details);
+        }
+    }
+    let report = report.build();
+
+    println!("All queries evaluated.");
+
+    Ok(report)
+}
+
+fn create_files(ctx: &BenchmarkContext) -> anyhow::Result<WindfarmFilePaths> {
+    let wind_farm_data = ctx.parent().join_data_dir(Path::new("windfarm.nt"))?;
+    let time_series_data = ctx.parent().join_data_dir(Path::new("timeseries.nt"))?;
+    let query_folder = ctx
+        .parent()
+        .join_data_dir(Path::new("./source/benchmark-docker/queries_chrontext/"))?;
+    Ok(WindfarmFilePaths {
+        wind_farm_data,
+        time_series_data,
+        query_folder,
+    })
 }
