@@ -1,7 +1,7 @@
 use crate::EncodingName;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::ThinResult;

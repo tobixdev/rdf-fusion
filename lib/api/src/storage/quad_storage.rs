@@ -4,8 +4,8 @@ use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_model::{
     GraphName, GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
     TriplePattern, Variable,

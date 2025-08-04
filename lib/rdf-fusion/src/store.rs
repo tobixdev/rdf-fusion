@@ -35,11 +35,11 @@ use crate::sparql::error::QueryEvaluationError;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
 use rdf_fusion_common::error::StorageError;
+use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_execution::results::{QuadStream, QuerySolutionStream};
 use rdf_fusion_execution::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
     SubjectRef, TermRef, Variable,
@@ -780,6 +780,37 @@ mod tests {
     fn test_send_sync() {
         fn is_send_sync<T: Send + Sync>() {}
         is_send_sync::<Store>();
+    }
+
+    #[tokio::test]
+    async fn test_stream_default_graph_quads() -> Result<(), QueryEvaluationError> {
+        let store = Store::new();
+        let ex = NamedNodeRef::new("http://example.com")
+            .map_err(|e| QueryEvaluationError::InternalError(e.to_string()))?;
+        let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
+
+        store.insert(quad).await?;
+
+        let collected_quads = store.stream().await?.try_collect_to_vec().await?;
+        assert_eq!(collected_quads, vec![quad.into_owned()]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_stream_named_graph_quads() -> Result<(), QueryEvaluationError> {
+        let store = Store::new();
+        let ex = NamedNodeRef::new("http://example.com")
+            .map_err(|e| QueryEvaluationError::InternalError(e.to_string()))?;
+        let graph = GraphName::BlankNode(BlankNode::default());
+        let quad = QuadRef::new(ex, ex, ex, graph.as_ref());
+
+        store.insert(quad).await?;
+
+        let collected_quads = store.stream().await?.try_collect_to_vec().await?;
+        assert_eq!(collected_quads, vec![quad.into_owned()]);
+
+        Ok(())
     }
 
     #[tokio::test]

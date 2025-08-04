@@ -98,7 +98,10 @@ impl SortableTermEncoding {
     }
 
     /// Encodes the `term` as a [SortableTermScalar].
-    pub fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<SortableTermScalar> {
+    pub fn encode_term(
+        &self,
+        term: ThinResult<TermRef<'_>>,
+    ) -> DFResult<SortableTermScalar> {
         TermRefSortableTermEncoder::encode_terms([term])?.try_as_scalar(0)
     }
 }

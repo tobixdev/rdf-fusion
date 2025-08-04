@@ -1,12 +1,13 @@
 #![allow(clippy::unreadable_literal)]
 
+use crate::oxigraph_memory::store::GraphObjectId;
 use datafusion::parquet::data_type::AsBytes;
 use rdf_fusion_common::ObjectId;
 use std::fmt::Debug;
 use std::hash::Hash;
 use thiserror::Error;
 
-const SIZE: u8 = 6;
+const SIZE: u8 = 4;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct EncodedObjectId([u8; SIZE as usize]);
@@ -70,7 +71,7 @@ impl TryFrom<u64> for EncodedObjectId {
 
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub struct ObjectIdQuad {
-    pub graph_name: Option<ObjectId>,
+    pub graph_name: GraphObjectId,
     pub subject: ObjectId,
     pub predicate: ObjectId,
     pub object: ObjectId,

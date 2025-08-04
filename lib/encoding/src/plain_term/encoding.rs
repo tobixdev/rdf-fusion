@@ -151,7 +151,10 @@ impl PlainTermEncoding {
     }
 
     /// Encodes the `term` as a [PlainTermScalar].
-    pub fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<PlainTermScalar> {
+    pub fn encode_term(
+        &self,
+        term: ThinResult<TermRef<'_>>,
+    ) -> DFResult<PlainTermScalar> {
         DefaultPlainTermEncoder::encode_term(term)
     }
 }

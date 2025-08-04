@@ -1,8 +1,8 @@
-use datafusion::arrow::array::{make_comparator, Array, BooleanArray, BooleanBuilder};
-use datafusion::arrow::compute::kernels::cmp::eq;
+use datafusion::arrow::array::{Array, BooleanArray, BooleanBuilder, make_comparator};
 use datafusion::arrow::compute::SortOptions;
+use datafusion::arrow::compute::kernels::cmp::eq;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,

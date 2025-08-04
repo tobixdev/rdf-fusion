@@ -4,9 +4,9 @@ use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
-use rdf_fusion_encoding::object_id::{ObjectIdMapping, ObjectIdScalar};
-use rdf_fusion_encoding::plain_term::{PlainTermScalar, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_encoding::object_id::{ObjectIdMapping, ObjectIdScalar};
+use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermScalar};
 use rdf_fusion_model::{
     GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, TermRef,
     ThinResult,

@@ -10,7 +10,10 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     fn encoding(&self) -> ObjectIdEncoding;
 
     /// TODO
-    fn try_get_object_id(&self, scalar: &PlainTermScalar) -> DFResult<Option<ObjectIdScalar>>;
+    fn try_get_object_id(
+        &self,
+        scalar: &PlainTermScalar,
+    ) -> DFResult<Option<ObjectIdScalar>>;
 
     /// TODO
     fn encode_array(&self, array: &PlainTermArray) -> DFResult<ObjectIdArray>;

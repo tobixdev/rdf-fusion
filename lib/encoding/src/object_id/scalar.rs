@@ -1,7 +1,7 @@
+use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
 use crate::object_id::ObjectIdEncoding;
-use crate::TermEncoding;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::parquet::data_type::AsBytes;
 use rdf_fusion_common::{DFResult, ObjectId};
 
@@ -31,6 +31,12 @@ impl ObjectIdScalar {
     /// Creates a new [ObjectIdScalar] without checking invariants.
     pub fn new_unchecked(encoding: ObjectIdEncoding, inner: ScalarValue) -> Self {
         Self { encoding, inner }
+    }
+
+    /// Creates a new [ObjectIdScalar] from the given `object_id`.
+    pub fn null(encoding: ObjectIdEncoding) -> Self {
+        let scalar = ScalarValue::FixedSizeBinary(encoding.object_id_size() as i32, None);
+        Self::new_unchecked(encoding, scalar)
     }
 
     /// Creates a new [ObjectIdScalar] from the given `object_id`.

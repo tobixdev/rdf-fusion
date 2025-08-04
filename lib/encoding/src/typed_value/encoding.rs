@@ -185,7 +185,10 @@ impl TypedValueEncoding {
     }
 
     /// Encodes the `term` as a [TypedValueScalar].
-    pub fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<TypedValueScalar> {
+    pub fn encode_term(
+        &self,
+        term: ThinResult<TermRef<'_>>,
+    ) -> DFResult<TypedValueScalar> {
         TermRefTypedValueEncoder::encode_terms([term])?.try_as_scalar(0)
     }
 }

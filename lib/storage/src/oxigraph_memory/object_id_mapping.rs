@@ -17,8 +17,8 @@ use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoding};
 use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, QuadRef, TermRef};
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 enum TermType {
@@ -61,7 +61,7 @@ impl MemoryObjectIdMapping {
         Ok(ObjectIdQuad {
             graph_name: self
                 .encode_scalar(&PlainTermScalar::from_graph_name(quad.graph_name)?)
-                .map(|scalar| scalar.into_object_id())?,
+                .map(|scalar| scalar.into_object_id().into())?,
             subject: self
                 .encode_scalar(&PlainTermScalar::from(quad.subject))?
                 .into_object_id()
@@ -188,7 +188,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
                     }
                 }
             },
-            Err(_) => None,
+            Err(_) => Some(ObjectIdScalar::null(self.encoding())),
         })
     }
 
@@ -285,9 +285,7 @@ mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
     use rdf_fusion_encoding::object_id::ObjectIdArrayBuilder;
-    use rdf_fusion_encoding::plain_term::{
-        PlainTermArrayBuilder, PLAIN_TERM_ENCODING,
-    };
+    use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
     use rdf_fusion_encoding::{EncodingArray, EncodingScalar};
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{
@@ -432,7 +430,7 @@ mod tests {
         builder.append_object_id_bytes(object_id_quad.subject.as_ref())?;
         builder.append_object_id_bytes(object_id_quad.predicate.as_ref())?;
         builder.append_object_id_bytes(object_id_quad.object.as_ref())?;
-        if let Some(graph_id) = object_id_quad.graph_name {
+        if let Some(graph_id) = object_id_quad.graph_name.0.as_ref() {
             builder.append_object_id_bytes(graph_id.as_ref())?;
         }
         let id_array = builder.finish();

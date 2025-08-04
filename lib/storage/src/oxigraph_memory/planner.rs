@@ -1,20 +1,20 @@
-use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
-use crate::oxigraph_memory::store::MemoryStorageReader;
 use crate::MemoryQuadStorage;
+use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
+use crate::oxigraph_memory::store::{GraphObjectId, MemoryStorageReader};
 use async_trait::async_trait;
 use datafusion::common::plan_err;
 use datafusion::error::{DataFusionError, Result as DFResult};
-use datafusion::execution::context::SessionState;
 use datafusion::execution::SendableRecordBatchStream;
+use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
 use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_plan::{EmptyRecordBatchStream, ExecutionPlan};
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 use rdf_fusion_api::storage::QuadPatternEvaluator;
 use rdf_fusion_common::BlankNodeMatchingMode;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::{ObjectIdMapping, ObjectIdScalar};
 use rdf_fusion_encoding::plain_term::PlainTermScalar;
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
 use rdf_fusion_logical::{ActiveGraph, EnumeratedActiveGraph};
@@ -231,8 +231,12 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         }
         .and_then(|oid| oid.into_object_id());
 
-        let iterator =
-            self.quads_for_pattern(graph.into_object_id(), subject, predicate, object);
+        let iterator = self.quads_for_pattern(
+            Some(GraphObjectId::from(graph.into_object_id())),
+            subject,
+            predicate,
+            object,
+        );
         Ok(Box::pin(QuadPatternBatchRecordStream::new(
             iterator,
             graph_variable,

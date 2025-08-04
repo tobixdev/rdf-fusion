@@ -3,13 +3,13 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
-use datafusion::logical_expr::{lit, Expr, ExprSchemable};
+use datafusion::logical_expr::{Expr, ExprSchemable, lit};
 use rdf_fusion_api::functions::{
     BuiltinName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs,
     RdfFusionFunctionArgsBuilder,
 };
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::{PlainTermScalar, PLAIN_TERM_ENCODING};
+use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermScalar};
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar};
 use rdf_fusion_model::{Iri, TermRef};
@@ -1030,7 +1030,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
                     }
                     Some(object_id_mapping) => {
                         let scalar = PlainTermScalar::from(scalar);
-                        object_id_mapping.encode_scalar(&scalar)?.into_scalar_value()
+                        object_id_mapping
+                            .encode_scalar(&scalar)?
+                            .into_scalar_value()
                     }
                 }
             }

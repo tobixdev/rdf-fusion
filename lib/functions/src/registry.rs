@@ -29,7 +29,7 @@ use crate::scalar::dates_and_times::TimezoneSparqlOp;
 use crate::scalar::dates_and_times::YearSparqlOp;
 use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
 use crate::scalar::functional_form::{BoundSparqlOp, CoalesceSparqlOp, IfSparqlOp};
-use crate::scalar::logical::{sparql_and, sparql_or, NotSparqlOp};
+use crate::scalar::logical::{NotSparqlOp, sparql_and, sparql_or};
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
 use crate::scalar::numeric::{
@@ -49,7 +49,7 @@ use crate::scalar::terms::{
     StrSparqlOp, UuidSparqlOp,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
-use datafusion::common::{plan_err, HashMap};
+use datafusion::common::{HashMap, plan_err};
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs,

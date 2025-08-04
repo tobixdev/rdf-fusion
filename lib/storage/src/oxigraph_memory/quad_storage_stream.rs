@@ -4,13 +4,13 @@ use datafusion::arrow::array::{
     Array, FixedSizeBinaryBuilder, RecordBatch, RecordBatchOptions,
 };
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
-use datafusion::common::{exec_err, Column, DataFusionError};
+use datafusion::common::{Column, DataFusionError, exec_err};
 use datafusion::execution::RecordBatchStream;
 use datafusion::physical_plan::metrics::BaselineMetrics;
 use futures::Stream;
 use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::collections::{HashMap, HashSet};
@@ -224,7 +224,7 @@ impl RdfQuadsRecordBatchBuilder {
         if let Some((_, builder)) = &mut self.graph {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").graph_name;
-                match value {
+                match &value.0 {
                     None => builder.append_null(),
                     Some(value) => builder.append_value(value.as_ref())?,
                 }
@@ -362,7 +362,7 @@ impl QuadEqualities {
                 for j in (i + 1)..4 {
                     if equality[i] == 1 && equality[j] == 1 {
                         let quad = [
-                            quad.graph_name.as_ref(),
+                            quad.graph_name.0.as_ref(),
                             Some(&quad.subject),
                             Some(&quad.predicate),
                             Some(&quad.object),
