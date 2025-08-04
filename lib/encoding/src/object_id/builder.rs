@@ -1,7 +1,7 @@
-use crate::TermEncoding;
 use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
+use crate::TermEncoding;
 use datafusion::arrow::array::FixedSizeBinaryBuilder;
-use rdf_fusion_common::{AResult, ObjectId};
+use rdf_fusion_common::{AResult, ObjectIdRef};
 use std::sync::Arc;
 
 /// Provides a convenient API for building arrays of RDF terms with the [ObjectIdEncoding]. The
@@ -26,17 +26,12 @@ impl ObjectIdArrayBuilder {
     }
 
     /// Appends an object id.
-    pub fn append_object_id_bytes(&mut self, term: &[u8]) -> AResult<()> {
+    pub fn append_object_id(&mut self, term: ObjectIdRef<'_>) -> AResult<()> {
         self.builder.append_value(term)
     }
 
     /// Appends an object id.
-    pub fn append_object_id(&mut self, term: ObjectId) -> AResult<()> {
-        self.builder.append_value(term)
-    }
-
-    /// Appends an object id.
-    pub fn append_object_id_opt(&mut self, term: Option<ObjectId>) -> AResult<()> {
+    pub fn append_object_id_opt(&mut self, term: Option<ObjectIdRef<'_>>) -> AResult<()> {
         match term {
             None => {
                 self.builder.append_null();

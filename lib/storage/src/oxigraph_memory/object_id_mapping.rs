@@ -1,9 +1,10 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::oxigraph_memory::object_id::{EncodedObjectId, ObjectIdQuad};
+use crate::oxigraph_memory::object_id::{
+    EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId,
+};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
-use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::{
     ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncoding, ObjectIdMapping,
@@ -14,26 +15,21 @@ use rdf_fusion_encoding::plain_term::{
     PlainTermArray, PlainTermArrayBuilder, PlainTermEncoding, PlainTermScalar,
 };
 use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoding};
-use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, QuadRef, TermRef};
+use rdf_fusion_model::{
+    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, QuadRef, TermRef,
+};
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-enum TermType {
-    /// Only a single relevant string pointer: The IRI
-    NamedNode,
-    /// Only a single relevant string pointer: The BNode id
-    BlankNode,
-    /// Two relevant string pointers: The value and the data type
-    TypedLiteral,
-    /// Two relevant string pointers: The value and the language
-    LangString,
-}
+use std::sync::Arc;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
-struct EncodedTerm(TermType, Arc<str>, Option<Arc<str>>);
+pub enum EncodedTerm {
+    NamedNode(Arc<str>),
+    BlankNode(Arc<str>),
+    TypedLiteral(Arc<str>, Arc<str>),
+    LangString(Arc<str>, Arc<str>),
+}
 
 /// TODO
 #[derive(Debug)]
@@ -56,40 +52,141 @@ impl MemoryObjectIdMapping {
         }
     }
 
+    pub fn encode_scalar_intern(
+        &self,
+        scalar: &PlainTermScalar,
+    ) -> Option<EncodedObjectId> {
+        DefaultPlainTermDecoder::decode_term(scalar)
+            .map(|term| self.obtain_encoded_term(term))
+            .map(|term| self.obtain_object_id(&term))
+            .ok()
+    }
+
     /// TODO
-    pub fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<ObjectIdQuad> {
-        Ok(ObjectIdQuad {
+    pub fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedObjectIdQuad> {
+        Ok(EncodedObjectIdQuad {
             graph_name: self
-                .encode_scalar(&PlainTermScalar::from_graph_name(quad.graph_name)?)
-                .map(|scalar| scalar.into_object_id().into())?,
+                .encode_scalar_intern(&PlainTermScalar::from_graph_name(quad.graph_name)?)
+                .into(),
             subject: self
-                .encode_scalar(&PlainTermScalar::from(quad.subject))?
-                .into_object_id()
-                .expect("Input is never none"),
+                .encode_scalar_intern(&PlainTermScalar::from(quad.subject))
+                .expect("Input is never none")
+                .into(),
             predicate: self
-                .encode_scalar(&PlainTermScalar::from(quad.predicate))?
-                .into_object_id()
-                .expect("Input is never none"),
+                .encode_scalar_intern(&PlainTermScalar::from(quad.predicate))
+                .expect("Input is never none")
+                .into(),
             object: self
-                .encode_scalar(&PlainTermScalar::from(quad.object))?
-                .into_object_id()
-                .expect("Input is never none"),
+                .encode_scalar_intern(&PlainTermScalar::from(quad.object))
+                .expect("Input is never none")
+                .into(),
         })
     }
 
-    fn intern_str(&self, value: &str) -> Arc<str> {
-        let found = self.str_interning.get(value);
-        match found {
-            None => {
-                let result = Arc::<str>::from(value);
-                self.str_interning.insert(result.clone());
-                result
+    pub fn try_get_encoded_term(&self, term: TermRef<'_>) -> Option<EncodedTerm> {
+        match term {
+            TermRef::NamedNode(nn) => match self.str_interning.get(nn.as_str()) {
+                None => None,
+                Some(value) => Some(EncodedTerm::NamedNode(value.clone())),
+            },
+            TermRef::BlankNode(bnode) => match self.str_interning.get(bnode.as_str()) {
+                None => None,
+                Some(value) => Some(EncodedTerm::BlankNode(value.clone())),
+            },
+            TermRef::Literal(lit) => {
+                if let Some(language) = lit.language() {
+                    match (
+                        self.str_interning.get(lit.value()),
+                        self.str_interning.get(language),
+                    ) {
+                        (Some(value), Some(language)) => {
+                            Some(EncodedTerm::LangString(value.clone(), language.clone()))
+                        }
+                        _ => None,
+                    }
+                } else {
+                    match (
+                        self.str_interning.get(lit.value()),
+                        self.str_interning.get(lit.datatype().as_str()),
+                    ) {
+                        (Some(value), Some(data_type)) => Some(
+                            EncodedTerm::TypedLiteral(value.clone(), data_type.clone()),
+                        ),
+                        _ => None,
+                    }
+                }
             }
-            Some(entry) => entry.clone(),
         }
     }
 
-    fn obtain_object_id(&self, encoded_term: &EncodedTerm) -> EncodedObjectId {
+    pub fn obtain_encoded_term(&self, term: TermRef<'_>) -> EncodedTerm {
+        match term {
+            TermRef::NamedNode(nn) => {
+                let arc = self.intern_str(nn.as_str());
+                EncodedTerm::NamedNode(arc)
+            }
+            TermRef::BlankNode(bnode) => {
+                let arc = self.intern_str(bnode.as_str());
+                EncodedTerm::BlankNode(arc)
+            }
+            TermRef::Literal(lit) => {
+                if let Some(language) = lit.language() {
+                    let value = self.intern_str(lit.value());
+                    let language = self.intern_str(language);
+                    EncodedTerm::LangString(value, language)
+                } else {
+                    let value = self.intern_str(lit.value());
+                    let datatype = self.intern_str(lit.datatype().as_str());
+                    EncodedTerm::TypedLiteral(value, datatype)
+                }
+            }
+        }
+    }
+
+    pub fn try_get_encoded_object_id_from_term(
+        &self,
+        encoded_term: TermRef<'_>,
+    ) -> Option<EncodedObjectId> {
+        self.try_get_encoded_term(encoded_term)
+            .and_then(|term| self.try_get_encoded_object_id(&term))
+    }
+
+    pub fn try_get_encoded_object_id_from_graph_name(
+        &self,
+        encoded_term: GraphNameRef<'_>,
+    ) -> Option<GraphEncodedObjectId> {
+        match encoded_term {
+            GraphNameRef::NamedNode(nn) => self
+                .try_get_encoded_object_id_from_term(TermRef::from(nn))
+                .map(|inner| GraphEncodedObjectId(Some(inner))),
+            GraphNameRef::BlankNode(bnode) => self
+                .try_get_encoded_object_id_from_term(TermRef::from(bnode))
+                .map(|inner| GraphEncodedObjectId(Some(inner))),
+            GraphNameRef::DefaultGraph => Some(GraphEncodedObjectId(None)),
+        }
+    }
+
+    pub fn try_get_encoded_object_id(
+        &self,
+        encoded_term: &EncodedTerm,
+    ) -> Option<EncodedObjectId> {
+        let found = self.term2id.get(encoded_term);
+        match found {
+            None => None,
+            Some(entry) => Some(entry.clone()),
+        }
+    }
+
+    pub fn try_get_encoded_term_from_object_id(
+        &self,
+        object_id: EncodedObjectId,
+    ) -> Option<EncodedTerm> {
+        self.id2term
+            .get(&object_id)
+            .map(|entry| entry.value().clone())
+    }
+
+    pub fn obtain_object_id(&self, encoded_term: &EncodedTerm) -> EncodedObjectId {
         let found = self.term2id.get(encoded_term);
         match found {
             None => {
@@ -99,6 +196,18 @@ impl MemoryObjectIdMapping {
                 self.id2term.insert(object_id, encoded_term.clone());
                 self.term2id.insert(encoded_term.clone(), object_id);
                 object_id
+            }
+            Some(entry) => entry.clone(),
+        }
+    }
+
+    fn intern_str(&self, value: &str) -> Arc<str> {
+        let found = self.str_interning.get(value);
+        match found {
+            None => {
+                let result = Arc::<str>::from(value);
+                self.str_interning.insert(result.clone());
+                result
             }
             Some(entry) => entry.clone(),
         }
@@ -115,123 +224,28 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
         scalar: &PlainTermScalar,
     ) -> DFResult<Option<ObjectIdScalar>> {
         let term = DefaultPlainTermDecoder::decode_term(scalar);
-        Ok(match term {
-            Ok(term) => match term {
-                TermRef::NamedNode(nn) => match self.str_interning.get(nn.as_str()) {
-                    None => None,
-                    Some(value) => {
-                        let encoded_term =
-                            EncodedTerm(TermType::NamedNode, value.clone(), None);
-                        self.term2id.get(&encoded_term).map(|oid| {
-                            ObjectIdScalar::from_object_id(
-                                self.encoding(),
-                                (*oid.value()).into(),
-                            )
-                        })
-                    }
-                },
-                TermRef::BlankNode(bnode) => match self.str_interning.get(bnode.as_str())
-                {
-                    None => None,
-                    Some(value) => {
-                        let encoded_term =
-                            EncodedTerm(TermType::BlankNode, value.clone(), None);
-                        self.term2id.get(&encoded_term).map(|oid| {
-                            ObjectIdScalar::from_object_id(
-                                self.encoding(),
-                                (*oid.value()).into(),
-                            )
-                        })
-                    }
-                },
-                TermRef::Literal(lit) => {
-                    if let Some(language) = lit.language() {
-                        match (
-                            self.str_interning.get(lit.value()),
-                            self.str_interning.get(language),
-                        ) {
-                            (Some(value), Some(language)) => {
-                                let encoded_term = EncodedTerm(
-                                    TermType::LangString,
-                                    value.clone(),
-                                    Some(language.clone()),
-                                );
-                                self.term2id.get(&encoded_term).map(|oid| {
-                                    ObjectIdScalar::from_object_id(
-                                        self.encoding(),
-                                        (*oid.value()).into(),
-                                    )
-                                })
-                            }
-                            _ => None,
-                        }
-                    } else {
-                        match (
-                            self.str_interning.get(lit.value()),
-                            self.str_interning.get(lit.datatype().as_str()),
-                        ) {
-                            (Some(value), Some(data_type)) => {
-                                let encoded_term = EncodedTerm(
-                                    TermType::TypedLiteral,
-                                    value.clone(),
-                                    Some(data_type.clone()),
-                                );
-                                self.term2id.get(&encoded_term).map(|oid| {
-                                    ObjectIdScalar::from_object_id(
-                                        self.encoding(),
-                                        (*oid.value()).into(),
-                                    )
-                                })
-                            }
-                            _ => None,
-                        }
-                    }
-                }
-            },
-            Err(_) => Some(ObjectIdScalar::null(self.encoding())),
-        })
+        let result = term
+            .ok()
+            .and_then(|term| self.try_get_encoded_term(term))
+            .and_then(|term| self.try_get_encoded_object_id(&term))
+            .map(|oid| {
+                ObjectIdScalar::from_object_id(self.encoding(), oid.as_object_id_ref())
+            });
+        Ok(result)
     }
 
     fn encode_array(&self, array: &PlainTermArray) -> DFResult<ObjectIdArray> {
         let terms = DefaultPlainTermDecoder::decode_terms(array);
 
+        // TODO: without alloc/Arc copy
         let mut result = ObjectIdArrayBuilder::new(self.encoding());
         for term in terms {
             match term {
-                Ok(term) => match term {
-                    TermRef::NamedNode(nn) => {
-                        let nn = self.intern_str(nn.as_str());
-                        let encoded_term = EncodedTerm(TermType::NamedNode, nn, None);
-                        let object_id = self.obtain_object_id(&encoded_term);
-                        result.append_object_id_bytes(object_id.as_ref())?;
-                    }
-                    TermRef::BlankNode(bnode) => {
-                        let nn = self.intern_str(bnode.as_str());
-                        let encoded_term = EncodedTerm(TermType::BlankNode, nn, None);
-                        let object_id = self.obtain_object_id(&encoded_term);
-                        result.append_object_id_bytes(object_id.as_ref())?;
-                    }
-                    TermRef::Literal(lit) => {
-                        if let Some(language) = lit.language() {
-                            let value = self.intern_str(lit.value());
-                            let language = self.intern_str(language);
-                            let encoded_term =
-                                EncodedTerm(TermType::LangString, value, Some(language));
-                            let object_id = self.obtain_object_id(&encoded_term);
-                            result.append_object_id_bytes(object_id.as_ref())?;
-                        } else {
-                            let value = self.intern_str(lit.value());
-                            let data_type = self.intern_str(lit.datatype().as_str());
-                            let encoded_term = EncodedTerm(
-                                TermType::TypedLiteral,
-                                value,
-                                Some(data_type),
-                            );
-                            let object_id = self.obtain_object_id(&encoded_term);
-                            result.append_object_id_bytes(object_id.as_ref())?;
-                        }
-                    }
-                },
+                Ok(term) => {
+                    let encoded_term = self.obtain_encoded_term(term);
+                    let object_id = self.obtain_object_id(&encoded_term);
+                    result.append_object_id(object_id.as_object_id_ref())?
+                }
                 Err(_) => result.append_null(),
             }
         }
@@ -248,31 +262,32 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
             oid.map(|oid| self.id2term.get(&oid).expect("Missing object id").clone())
         });
 
+        // TODO: can we remove the clone?
         let mut builder = PlainTermArrayBuilder::new(array.array().len());
         for term in terms {
             match term {
-                Some(EncodedTerm(TermType::NamedNode, value, _)) => {
+                Some(EncodedTerm::NamedNode(value)) => {
                     builder
                         .append_named_node(NamedNodeRef::new_unchecked(value.as_ref()));
                 }
-                Some(EncodedTerm(TermType::BlankNode, value, _)) => {
+                Some(EncodedTerm::BlankNode(value)) => {
                     builder
                         .append_blank_node(BlankNodeRef::new_unchecked(value.as_ref()));
                 }
-                Some(EncodedTerm(TermType::TypedLiteral, value, Some(data_type))) => {
+                Some(EncodedTerm::TypedLiteral(value, data_type)) => {
                     let data_type = NamedNodeRef::new_unchecked(data_type.as_ref());
                     builder.append_literal(LiteralRef::new_typed_literal(
                         value.as_ref(),
                         data_type,
                     ));
                 }
-                Some(EncodedTerm(TermType::LangString, value, Some(language))) => builder
-                    .append_literal(LiteralRef::new_language_tagged_literal_unchecked(
+                Some(EncodedTerm::LangString(value, language)) => builder.append_literal(
+                    LiteralRef::new_language_tagged_literal_unchecked(
                         value.as_ref(),
                         language.as_ref(),
-                    )),
+                    ),
+                ),
                 None => builder.append_null(),
-                _ => return exec_err!("Invalid object id encoding"),
             }
         }
 
@@ -285,7 +300,7 @@ mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
     use rdf_fusion_encoding::object_id::ObjectIdArrayBuilder;
-    use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
+    use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PLAIN_TERM_ENCODING};
     use rdf_fusion_encoding::{EncodingArray, EncodingScalar};
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{
@@ -393,11 +408,11 @@ mod tests {
 
         // Check if IDs match what's in the array
         assert_eq!(
-            object_id1.unwrap().into_object_id().unwrap().as_ref(),
+            object_id1.unwrap().as_object_ref().unwrap().as_ref(),
             object_id_array.object_ids().value(0)
         );
         assert_eq!(
-            object_id2.unwrap().into_object_id().unwrap().as_ref(),
+            object_id2.unwrap().as_object_ref().unwrap().as_ref(),
             object_id_array.object_ids().value(1)
         );
 
@@ -427,11 +442,11 @@ mod tests {
         // To verify, we can decode the IDs.
         // Let's build an array with the IDs and decode it.
         let mut builder = ObjectIdArrayBuilder::new(mapping.encoding());
-        builder.append_object_id_bytes(object_id_quad.subject.as_ref())?;
-        builder.append_object_id_bytes(object_id_quad.predicate.as_ref())?;
-        builder.append_object_id_bytes(object_id_quad.object.as_ref())?;
+        builder.append_object_id(object_id_quad.subject.as_object_id_ref())?;
+        builder.append_object_id(object_id_quad.predicate.as_object_id_ref())?;
+        builder.append_object_id(object_id_quad.object.as_object_id_ref())?;
         if let Some(graph_id) = object_id_quad.graph_name.0.as_ref() {
-            builder.append_object_id_bytes(graph_id.as_ref())?;
+            builder.append_object_id(graph_id.as_object_id_ref())?;
         }
         let id_array = builder.finish();
 

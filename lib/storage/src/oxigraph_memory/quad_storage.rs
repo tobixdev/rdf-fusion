@@ -1,15 +1,16 @@
+use crate::oxigraph_memory::object_id_mapping::EncodedTerm;
 use crate::oxigraph_memory::planner::OxigraphMemoryQuadNodePlanner;
 use crate::oxigraph_memory::store::{MemoryStorageReader, OxigraphMemoryStorage};
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
+use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_encoding::object_id::{ObjectIdMapping, ObjectIdScalar};
-use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermScalar};
 use rdf_fusion_model::{
-    GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, TermRef,
-    ThinResult,
+    BlankNode, GraphNameRef, NamedNode, NamedOrBlankNode, NamedOrBlankNodeRef, Quad,
+    QuadRef,
 };
 use std::sync::Arc;
 
@@ -80,18 +81,18 @@ impl QuadStorage for MemoryQuadStorage {
         snapshot
             .named_graphs()
             .map(|object_id| {
-                let result = object_id_mapping
-                    .decode_scalar(&ObjectIdScalar::from_object_id(
-                        object_id_mapping.encoding().clone(),
-                        object_id,
-                    ))
-                    .map_err(|err| CorruptionError::new(err.to_string()))?;
-                match ThinResult::<TermRef>::from(&result) {
-                    Ok(TermRef::NamedNode(node)) => {
-                        Ok(NamedOrBlankNodeRef::NamedNode(node).into_owned())
+                let result =
+                    object_id_mapping.try_get_encoded_term_from_object_id(object_id);
+                match result {
+                    Some(EncodedTerm::NamedNode(node)) => {
+                        Ok(NamedOrBlankNode::NamedNode(NamedNode::new_unchecked(
+                            node.as_ref(),
+                        )))
                     }
-                    Ok(TermRef::BlankNode(node)) => {
-                        Ok(NamedOrBlankNodeRef::BlankNode(node).into_owned())
+                    Some(EncodedTerm::BlankNode(node)) => {
+                        Ok(NamedOrBlankNode::BlankNode(BlankNode::new_unchecked(
+                            node.as_ref(),
+                        )))
                     }
                     _ => Err(StorageError::Corruption(CorruptionError::new(
                         "Invalid named graph name",
@@ -105,19 +106,15 @@ impl QuadStorage for MemoryQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        let plain_term_scalar = PlainTermScalar::from(graph_name);
         let object_id = self
             .storage
             .object_ids()
-            .try_get_object_id(&plain_term_scalar)
-            .map_err(|_| {
-                StorageError::Corruption(CorruptionError::new("Error decoding object ID"))
-            })?;
+            .try_get_encoded_object_id_from_term(graph_name.into());
         match object_id {
             None => Ok(false),
-            Some(object_id) => Ok(self.storage.snapshot().contains_named_graph(
-                object_id.into_object_id().expect("Invalid object ID"),
-            )),
+            Some(object_id) => {
+                Ok(self.storage.snapshot().contains_named_graph(object_id))
+            }
         }
     }
 

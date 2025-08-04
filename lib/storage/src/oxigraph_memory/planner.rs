@@ -1,29 +1,29 @@
-use crate::MemoryQuadStorage;
+use crate::oxigraph_memory::object_id_mapping::EncodedTerm;
 use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
-use crate::oxigraph_memory::store::{GraphObjectId, MemoryStorageReader};
+use crate::MemoryQuadStorage;
 use async_trait::async_trait;
 use datafusion::common::plan_err;
 use datafusion::error::{DataFusionError, Result as DFResult};
-use datafusion::execution::SendableRecordBatchStream;
 use datafusion::execution::context::SessionState;
+use datafusion::execution::SendableRecordBatchStream;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
 use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_plan::{EmptyRecordBatchStream, ExecutionPlan};
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 use rdf_fusion_api::storage::QuadPatternEvaluator;
+use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_common::BlankNodeMatchingMode;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_encoding::object_id::{ObjectIdMapping, ObjectIdScalar};
-use rdf_fusion_encoding::plain_term::PlainTermScalar;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
 use rdf_fusion_logical::{ActiveGraph, EnumeratedActiveGraph};
 use rdf_fusion_model::{
-    GraphName, GraphNameRef, NamedNodePattern, Term, TermPattern, TriplePattern,
+    BlankNode, GraphName, NamedNode, NamedNodePattern, Term, TermPattern, TriplePattern,
     Variable, VariableRef,
 };
 use rdf_fusion_physical::quad_pattern::QuadPatternExec;
 use std::sync::Arc;
+use crate::oxigraph_memory::store::MemoryStorageReader;
 
 /// Planner for [QuadPatternNode].
 pub struct OxigraphMemoryQuadNodePlanner {
@@ -62,13 +62,21 @@ impl OxigraphMemoryQuadNodePlanner {
         let object_id_mapping = self.snapshot.object_ids();
         self.snapshot
             .named_graphs()
-            .map(|oid| {
-                ObjectIdScalar::from_object_id(object_id_mapping.encoding().clone(), oid)
-            })
             .map(|et| {
                 object_id_mapping
-                    .decode_scalar(&et)
-                    .map(|pt_scalar| GraphNameRef::from(&pt_scalar).into_owned())
+                    .try_get_encoded_term_from_object_id(et)
+                    .map(|pt_scalar| match pt_scalar {
+                        EncodedTerm::NamedNode(nn) => {
+                            Ok(GraphName::NamedNode(NamedNode::new_unchecked(nn.as_ref())))
+                        }
+                        EncodedTerm::BlankNode(nn) => {
+                            Ok(GraphName::BlankNode(BlankNode::new_unchecked(nn.as_ref())))
+                        }
+                        _ => Err(StorageError::Corruption(CorruptionError::new(
+                            "Got literal for named graph.",
+                        ))),
+                    })
+                    .expect("TODO")
                     .map_err(|err| DataFusionError::External(Box::new(err)))
             })
             .collect::<DFResult<Vec<_>>>()
@@ -132,10 +140,10 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         let subject = match &pattern.subject {
             TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
             TermPattern::BlankNode(bnode)
-                if blank_node_mode == BlankNodeMatchingMode::Filter =>
-            {
-                Some(Term::BlankNode(bnode.clone()))
-            }
+            if blank_node_mode == BlankNodeMatchingMode::Filter =>
+                {
+                    Some(Term::BlankNode(bnode.clone()))
+                }
             TermPattern::Literal(_) => {
                 // If the subject is a literal, then the result is always empty.
                 return Ok(empty_result(
@@ -154,16 +162,15 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         let object = match &pattern.object {
             TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
             TermPattern::BlankNode(bnode)
-                if blank_node_mode == BlankNodeMatchingMode::Filter =>
-            {
-                Some(Term::BlankNode(bnode.clone()))
-            }
+            if blank_node_mode == BlankNodeMatchingMode::Filter =>
+                {
+                    Some(Term::BlankNode(bnode.clone()))
+                }
             TermPattern::Literal(lit) => Some(Term::Literal(lit.clone())),
             _ => None,
         };
 
-        let graph_scalar = PlainTermScalar::from_graph_name(graph.as_ref())?;
-        let Some(graph) = self.object_ids().try_get_object_id(&graph_scalar)? else {
+        let Some(graph) = self.object_ids().try_get_encoded_object_id_from_graph_name(graph.as_ref()) else {
             // If the there is no matching object id the result is empty.
             return Ok(empty_result(
                 &storage_encoding,
@@ -178,7 +185,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
             Some(subject) => {
                 let Some(subject) = self
                     .object_ids()
-                    .try_get_object_id(&PlainTermScalar::from(subject.as_ref()))?
+                    .try_get_encoded_object_id_from_term(subject.as_ref())
                 else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
@@ -190,14 +197,13 @@ impl QuadPatternEvaluator for MemoryStorageReader {
                 };
                 Some(subject)
             }
-        }
-        .and_then(|oid| oid.into_object_id());
+        };
         let predicate = match predicate {
             None => None,
             Some(predicate) => {
                 let Some(predicate) = self
                     .object_ids()
-                    .try_get_object_id(&PlainTermScalar::from(predicate.as_ref()))?
+                    .try_get_encoded_object_id_from_term(predicate.as_ref())
                 else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
@@ -209,14 +215,13 @@ impl QuadPatternEvaluator for MemoryStorageReader {
                 };
                 Some(predicate)
             }
-        }
-        .and_then(|oid| oid.into_object_id());
+        };
         let object = match object {
             None => None,
             Some(object) => {
                 let Some(object) = self
                     .object_ids()
-                    .try_get_object_id(&PlainTermScalar::from(object.as_ref()))?
+                    .try_get_encoded_object_id_from_term(object.as_ref())
                 else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
@@ -228,11 +233,10 @@ impl QuadPatternEvaluator for MemoryStorageReader {
                 };
                 Some(object)
             }
-        }
-        .and_then(|oid| oid.into_object_id());
+        };
 
         let iterator = self.quads_for_pattern(
-            Some(GraphObjectId::from(graph.into_object_id())),
+            Some(graph),
             subject,
             predicate,
             object,

@@ -1,9 +1,9 @@
-use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
 use crate::object_id::ObjectIdEncoding;
-use datafusion::common::{ScalarValue, exec_err};
+use crate::TermEncoding;
+use datafusion::common::{exec_err, ScalarValue};
 use datafusion::parquet::data_type::AsBytes;
-use rdf_fusion_common::{DFResult, ObjectId};
+use rdf_fusion_common::{DFResult, ObjectIdRef};
 
 /// Represents an Arrow scalar with a [ObjectIdEncoding].
 pub struct ObjectIdScalar {
@@ -40,7 +40,10 @@ impl ObjectIdScalar {
     }
 
     /// Creates a new [ObjectIdScalar] from the given `object_id`.
-    pub fn from_object_id(encoding: ObjectIdEncoding, object_id: ObjectId) -> Self {
+    pub fn from_object_id(
+        encoding: ObjectIdEncoding,
+        object_id: ObjectIdRef<'_>,
+    ) -> Self {
         let scalar = ScalarValue::FixedSizeBinary(
             encoding.object_id_size() as i32,
             Some(object_id.as_bytes().to_vec()),
@@ -49,10 +52,10 @@ impl ObjectIdScalar {
     }
 
     /// Returns an [ObjectId] from this scalar.
-    pub fn into_object_id(self) -> Option<ObjectId> {
-        match self.inner {
+    pub fn as_object_ref(&self) -> Option<ObjectIdRef> {
+        match &self.inner {
             ScalarValue::FixedSizeBinary(_, bytes) => {
-                bytes.as_ref().map(|b| ObjectId::from(b.as_bytes()))
+                bytes.as_ref().map(|b| ObjectIdRef::from(b.as_bytes()))
             }
             _ => unreachable!("Checked in constructor."),
         }

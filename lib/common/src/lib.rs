@@ -6,7 +6,7 @@ mod object_id;
 pub mod quads;
 
 pub use blank_node_mode::BlankNodeMatchingMode;
-pub use object_id::ObjectId;
+pub use object_id::ObjectIdRef;
 
 use datafusion::arrow::error::ArrowError;
 

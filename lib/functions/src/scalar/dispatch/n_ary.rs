@@ -1,14 +1,14 @@
 use datafusion::logical_expr::ColumnarValue;
-use rdf_fusion_common::{DFResult, ObjectId};
+use rdf_fusion_common::{DFResult, ObjectIdRef};
 use rdf_fusion_encoding::object_id::{
     DefaultObjectIdDecoder, ObjectIdArrayBuilder, ObjectIdEncoding,
 };
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
 use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
 
@@ -115,8 +115,8 @@ pub fn dispatch_n_ary_object_id(
     encoding: &ObjectIdEncoding,
     args: &[EncodingDatum<ObjectIdEncoding>],
     number_of_rows: usize,
-    op: impl for<'a> Fn(&[ObjectId]) -> ThinResult<ObjectId>,
-    error_op: impl for<'a> Fn(&[ThinResult<ObjectId>]) -> ThinResult<ObjectId>,
+    op: impl for<'a> Fn(&[ObjectIdRef<'a>]) -> ThinResult<ObjectIdRef<'a>>,
+    error_op: impl for<'a> Fn(&[ThinResult<ObjectIdRef<'a>>]) -> ThinResult<ObjectIdRef<'a>>,
 ) -> DFResult<ColumnarValue> {
     if args.is_empty() {
         let mut builder = ObjectIdArrayBuilder::new(encoding.clone());

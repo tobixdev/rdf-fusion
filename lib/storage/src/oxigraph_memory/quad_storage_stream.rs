@@ -1,4 +1,4 @@
-use crate::oxigraph_memory::object_id::{EncodedObjectId, ObjectIdQuad};
+use crate::oxigraph_memory::object_id::{EncodedObjectId, EncodedObjectIdQuad};
 use crate::oxigraph_memory::store::QuadIterator;
 use datafusion::arrow::array::{
     Array, FixedSizeBinaryBuilder, RecordBatch, RecordBatchOptions,
@@ -103,7 +103,7 @@ impl Stream for QuadPatternBatchRecordStream {
         let mut rb_builder = self.create_builder()?;
 
         let mut remaining_items = self.batch_size;
-        let mut buffer: [Option<ObjectIdQuad>; 32] = [const { None }; 32];
+        let mut buffer: [Option<EncodedObjectIdQuad>; 32] = [const { None }; 32];
         while !exhausted && remaining_items > 0 {
             for element in &mut buffer {
                 let Some(quad) = self.iterator.next() else {
@@ -218,7 +218,7 @@ impl RdfQuadsRecordBatchBuilder {
         clippy::expect_used,
         reason = "Checked via count, Maybe use unsafe if performance is an issue"
     )]
-    fn encode_batch(&mut self, quads: &[Option<ObjectIdQuad>; 32]) -> AResult<usize> {
+    fn encode_batch(&mut self, quads: &[Option<EncodedObjectIdQuad>; 32]) -> AResult<usize> {
         let count = quads.iter().position(Option::is_none).unwrap_or(32);
 
         if let Some((_, builder)) = &mut self.graph {
@@ -334,7 +334,7 @@ impl QuadEqualities {
 
     /// Filters the buffer in-place and fills up holes by moving all non-None entries to the front.
     /// After this, all `None` slots (holes) will be at the end of the buffer.
-    fn filter(&self, quads: &mut [Option<ObjectIdQuad>; 32]) {
+    fn filter(&self, quads: &mut [Option<EncodedObjectIdQuad>; 32]) {
         let mut write_idx = 0;
 
         // Iterate over the buffer and write any matching quad to the write position.
@@ -356,7 +356,7 @@ impl QuadEqualities {
     }
 
     /// Evaluates whether the equalities hold for `quad`.
-    fn evaluate(&self, quad: &ObjectIdQuad) -> bool {
+    fn evaluate(&self, quad: &EncodedObjectIdQuad) -> bool {
         for equality in &self.0 {
             for i in 0..4 {
                 for j in (i + 1)..4 {
