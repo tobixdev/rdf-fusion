@@ -1,16 +1,16 @@
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
+use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::encoders::TermRefTypedValueEncoder;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
     TermEncoder, TermEncoding,
@@ -40,7 +40,13 @@ impl WithTypedValueEncoding {
         Self {
             name: BuiltinName::WithTypedValueEncoding.to_string(),
             signature: Signature::new(
-                TypeSignature::Uniform(1, vec![PLAIN_TERM_ENCODING.data_type()]),
+                TypeSignature::Uniform(
+                    1,
+                    encodings.get_data_types(&[
+                        EncodingName::PlainTerm,
+                        EncodingName::ObjectId,
+                    ]),
+                ),
                 Volatility::Immutable,
             ),
             encodings,
@@ -48,6 +54,7 @@ impl WithTypedValueEncoding {
     }
 
     fn convert_array(
+        &self,
         encoding_name: EncodingName,
         array: ArrayRef,
     ) -> DFResult<ColumnarValue> {
@@ -60,11 +67,21 @@ impl WithTypedValueEncoding {
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Array(array)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => exec_err!("Cannot from object id."),
+            EncodingName::ObjectId => match &self.encodings.object_id() {
+                None => exec_err!("Cannot from object id as no encoding is provided."),
+                Some(object_id_encoding) => {
+                    let array = object_id_encoding.try_new_array(array)?;
+                    let decoded = object_id_encoding.mapping().decode_array(&array)?;
+                    let mut decoded = DefaultPlainTermDecoder::decode_terms(&decoded);
+                    let result = TermRefTypedValueEncoder::encode_terms(&mut decoded)?;
+                    Ok(ColumnarValue::Array(result.into_array()))
+                }
+            },
         }
     }
 
     fn convert_scalar(
+        &self,
         encoding_name: EncodingName,
         scalar: ScalarValue,
     ) -> DFResult<ColumnarValue> {
@@ -77,7 +94,16 @@ impl WithTypedValueEncoding {
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Scalar(scalar)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => exec_err!("Cannot from object id."),
+            EncodingName::ObjectId => match &self.encodings.object_id() {
+                None => exec_err!("Cannot from object id as no encoding is provided."),
+                Some(object_id_encoding) => {
+                    let scalar = object_id_encoding.try_new_scalar(scalar)?;
+                    let decoded = object_id_encoding.mapping().decode_scalar(&scalar)?;
+                    let decoded = DefaultPlainTermDecoder::decode_term(&decoded);
+                    let result = TermRefTypedValueEncoder::encode_term(decoded)?;
+                    Ok(ColumnarValue::Scalar(result.into_scalar_value()))
+                }
+            },
         }
     }
 }
@@ -110,10 +136,8 @@ impl ScalarUDFImpl for WithTypedValueEncoding {
             ))?;
 
         match args {
-            [ColumnarValue::Array(array)] => Self::convert_array(encoding_name, array),
-            [ColumnarValue::Scalar(scalar)] => {
-                Self::convert_scalar(encoding_name, scalar)
-            }
+            [ColumnarValue::Array(array)] => self.convert_array(encoding_name, array),
+            [ColumnarValue::Scalar(scalar)] => self.convert_scalar(encoding_name, scalar),
         }
     }
 
