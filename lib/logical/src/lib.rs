@@ -19,6 +19,7 @@ pub mod minus;
 pub mod paths;
 pub mod patterns;
 pub mod quad_pattern;
+mod system_columns;
 
 pub use active_graph::{ActiveGraph, EnumeratedActiveGraph};
 use datafusion::common::{DFSchema, plan_err};

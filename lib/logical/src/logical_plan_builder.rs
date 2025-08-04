@@ -2,6 +2,7 @@ use crate::extend::ExtendNode;
 use crate::join::{SparqlJoinNode, SparqlJoinType, compute_sparql_join_columns};
 use crate::logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use crate::minus::MinusNode;
+use crate::system_columns::SystemColumns;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::tree_node::{Transformed, TreeNode};
@@ -76,7 +77,7 @@ pub struct RdfFusionLogicalPlanBuilder {
 
 impl RdfFusionLogicalPlanBuilder {
     /// Creates a new [RdfFusionLogicalPlanBuilder] with an existing `plan`.
-    pub(crate) fn new(
+    pub fn new(
         context: RdfFusionLogicalPlanBuilderContext,
         plan: Arc<LogicalPlan>,
     ) -> Self {
@@ -398,25 +399,26 @@ impl RdfFusionLogicalPlanBuilder {
         let new_expression = expr.transform_up(|expr| {
             match &expr {
                 Expr::ScalarFunction(function) => {
-                    let encoding_functions = HashMap::from([
-                        (BuiltinName::WithPlainTermEncoding.to_string(), "pt"),
-                        (BuiltinName::WithTypedValueEncoding.to_string(), "tv"),
-                        (BuiltinName::WithSortableEncoding.to_string(), "sort"),
-                    ]);
+                    // All supported functions have one argument
+                    if function.args.len() != 1 {
+                        return Ok(Transformed::no(expr));
+                    }
 
-                    let Some(encoding_nick_name) =
-                        encoding_functions.get(function.func.name())
+                    // If the function is not a built-in, do nothing
+                    let Ok(built_in_name) = BuiltinName::try_from(function.func.name())
                     else {
                         return Ok(Transformed::no(expr));
                     };
 
-                    // We only handle encoding changes directly to columns.
                     let arg = &function.args[0];
                     match arg {
+                        // We only handle encoding changes directly to columns.
                         Expr::Column(column) => {
-                            let encoding_column_name = Column::new_unqualified(format!(
-                                "_{column}_{encoding_nick_name}"
-                            ));
+                            let Ok(encoding_column_name) =
+                                SystemColumns::encoding_push_down(column, built_in_name)
+                            else {
+                                return Ok(Transformed::no(expr));
+                            };
 
                             // Prevent rewriting nested encoding changes, as this is not supported.
                             if column.name.starts_with("_") {

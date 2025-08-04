@@ -14,5 +14,12 @@ rdf-fusion-functions.workspace = true
 datafusion.workspace = true
 rdf-fusion-model.workspace = true
 
+[dev-dependencies]
+insta = { version = "1.39.0", features = ["redactions", "serde"] }
+
 [lints]
 workspace = true
+
+[[test]]
+name = "logical_plan"
+path = "tests/logical_plan/mod.rs"

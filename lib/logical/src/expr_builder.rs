@@ -1,6 +1,7 @@
 use crate::RdfFusionExprBuilderContext;
+use crate::system_columns::SystemColumns;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{plan_datafusion_err, plan_err};
+use datafusion::common::{DFSchema, plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{Expr, ExprSchemable, lit};
@@ -831,7 +832,36 @@ impl<'root> RdfFusionExprBuilder<'root> {
         }
 
         let target_encoding = target_encodings[0];
-        let functions_to_apply = match (source_encoding, target_encoding) {
+        let functions_to_apply =
+            Self::get_functions_to_apply(source_encoding, target_encoding)?;
+
+        // Try to re-use already computed encoding changes.
+        let (expr, functions_to_apply) = try_reuse_system_column(
+            self.context.schema(),
+            self.expr,
+            &functions_to_apply,
+        )?;
+        if functions_to_apply.is_empty() {
+            return Ok(Self { expr, ..self });
+        }
+
+        // Build the expression that actually changes the encoding.
+        let mut expr = expr;
+        for function in functions_to_apply {
+            let udf = self.context.create_builtin_udf(function)?;
+            expr = udf.call(vec![expr]);
+        }
+
+        Ok(Self { expr, ..self })
+    }
+
+    /// Provides a list of built-in functions that must be applied to go from the `source_encoding`
+    /// to the `target_encoding`.
+    fn get_functions_to_apply(
+        source_encoding: EncodingName,
+        target_encoding: EncodingName,
+    ) -> DFResult<Vec<BuiltinName>> {
+        let builtins = match (source_encoding, target_encoding) {
             (
                 EncodingName::ObjectId | EncodingName::TypedValue,
                 EncodingName::PlainTerm,
@@ -863,14 +893,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
                 );
             }
         };
-
-        let mut expr = self.expr;
-        for function in functions_to_apply {
-            let udf = self.context.create_builtin_udf(function)?;
-            expr = udf.call(vec![expr]);
-        }
-
-        Ok(Self { expr, ..self })
+        Ok(builtins)
     }
 
     /// Converts a native boolean expression to a term-encoded expression.
@@ -1032,4 +1055,34 @@ impl<'root> RdfFusionExprBuilder<'root> {
         };
         self.build_same_term(lit(literal))
     }
+}
+
+/// Tries to re-use existing system columns
+fn try_reuse_system_column(
+    schema: &DFSchema,
+    expr: Expr,
+    functions_to_apply: &[BuiltinName],
+) -> DFResult<(Expr, Vec<BuiltinName>)> {
+    let Expr::Column(column) = expr else {
+        return Ok((expr, functions_to_apply.to_vec()));
+    };
+
+    let mut expr = Expr::Column(column.clone());
+    let mut new_functions_to_apply = vec![];
+    for function in functions_to_apply.iter().rev() {
+        let Ok(column) = SystemColumns::encoding_push_down(&column, *function) else {
+            return Ok((expr, functions_to_apply.to_vec()));
+        };
+
+        // If we have a match, we can abort and use that result and the collected built-ins
+        if schema.has_column(&column) {
+            expr = Expr::Column(column);
+            return Ok((expr, new_functions_to_apply));
+        }
+
+        // If the column does not exists, we remember that we have to apply this function
+        new_functions_to_apply.push(*function);
+    }
+
+    Ok((expr, functions_to_apply.to_vec()))
 }
