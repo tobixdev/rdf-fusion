@@ -113,16 +113,16 @@ impl From<LiteralRef<'_>> for PlainTermScalar {
     }
 }
 
+impl From<Term> for PlainTermScalar {
+    fn from(term: Term) -> Self {
+        Self::from(term.as_ref())
+    }
+}
+
 impl<'a> From<&'a PlainTermScalar> for GraphNameRef<'a> {
     fn from(value: &'a PlainTermScalar) -> Self {
         GraphNameRefPlainTermDecoder::decode_term(value)
             .expect("GraphName is always some")
-    }
-}
-
-impl From<Term> for PlainTermScalar {
-    fn from(term: Term) -> Self {
-        Self::from(term.as_ref())
     }
 }
 
