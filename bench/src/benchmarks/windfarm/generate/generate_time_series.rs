@@ -146,7 +146,7 @@ fn generate_energy_production_for_hour<W: Write>(
             write!(
                 writer,
                 r#"
-wpex:ep{turbine_id} ct:hasDataPoint [
+wpex:w{turbine_id} ct:hasDataPoint [
     ct:hasTimestamp "{timestamp}"^^xsd:dateTime ;
     ct:hasValue "{value}"^^xsd:double ] ."#,
                 timestamp = timestamp.format("%Y-%m-%dT%H:%M:%S"),

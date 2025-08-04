@@ -47,3 +47,7 @@ harness = false
 [[bench]]
 name = "bsbm_business_intelligence"
 harness = false
+
+[[bench]]
+name = "wind_farm"
+harness = false

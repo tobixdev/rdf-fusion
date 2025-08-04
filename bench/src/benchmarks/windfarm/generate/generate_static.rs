@@ -72,8 +72,8 @@ wpex:oper{i} ct:hasExternalId "oper{i}" ;
 wpex:WindTurbineMaximumPower{i} rdfs:label "MaximumPower" ;
     ct:hasStaticValue "{max_power_value}"^^xsd:integer .
 wpex:Site{site_idx} rds:hasFunctionalAspect wpex:WindTurbineFunctionalAspect{i} .
-wpex:WindTurbineFunctionalAspect{i} rds:hasFunctionalAspectNode wpex:WindTurbine{i} ;
-    rdfs:label "A{idx_within_site}" .
+wpex:WindTurbine{i} rds:hasFunctionalAspectNode wpex:WindTurbineFunctionalAspect{i} .
+wpex:WindTurbineFunctionalAspect{i} rdfs:label "A{idx_within_site}" .
 "#
         )?;
     }
@@ -100,16 +100,16 @@ fn generate_generators<W: Write>(
         write!(
             writer,
             r#"
-wpex:WeatherMeasuringSystem{i} rdf:type rds:LE ;
+wpex:GeneratorSystem{i} rdf:type rds:RA ;
     rdfs:label "Weather Measuring System" .
 wpex:Generator{i} rdf:type rds:GAA ;
     rdfs:label "Generator" .
 {turbine} rds:hasFunctionalAspect wpex:GeneratorSystemFunctionalAspect{i} .
-wpex:GeneratorSystemFunctionalAspect{i} rds:hasFunctionalAspectNode wpex:GeneratorSystem{i} ;
-    rdfs:label "RA{i}" .
+wpex:GeneratorSystem{i} rds:hasFunctionalAspectNode wpex:GeneratorSystemFunctionalAspect{i} .
+wpex:GeneratorSystemFunctionalAspect{i} rdfs:label "RA{i}" .
 wpex:GeneratorSystem{i} rds:hasFunctionalAspect wpex:GeneratorFunctionalAspect{i} .
-wpex:GeneratorFunctionalAspect{i} rds:hasFunctionalAspectNode wpex:Generator{i} ;
-    rdfs:label "GAA{i}" .
+wpex:Generator{i} rds:hasFunctionalAspectNode wpex:GeneratorFunctionalAspect{i} .
+wpex:GeneratorFunctionalAspect{i} rdfs:label "GAA{i}" .
 wpex:Generator{i} ct:hasTimeseries wpex:w{i} .
 wpex:w{i} ct:hasExternalId "w{i}" ;
     ct:hasDatatype xsd:double ;
@@ -134,8 +134,8 @@ fn generate_weather_measuring_system<W: Write>(
 wpex:WeatherMeasuringSystem{i} rdf:type rds:LE ;
     rdfs:label "Weather Measuring System" .
 {turbine} rds:hasFunctionalAspect wpex:WMSFunctionalAspect{i} .
-wpex:WMSFunctionalAspect{i} rds:hasFunctionalAspectNode wpex:WeatherMeasuringSystem{i} ;
-    rdfs:label "LE{i}" .
+wpex:WeatherMeasuringSystem{i} rds:hasFunctionalAspectNode wpex:WMSFunctionalAspect{i} .
+wpex:WMSFunctionalAspect{i} rdfs:label "LE{i}" .
 wpex:WeatherMeasuringSystem{i} ct:hasTimeseries wpex:wsp{i} .
 wpex:wsp{i} ct:hasExternalId "wsp{i}" ;
     ct:hasDatatype xsd:double ;
