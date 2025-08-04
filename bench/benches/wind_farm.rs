@@ -1,6 +1,6 @@
 //! Runs the queries from the Wind Farm Benchmark.
 
-use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use futures::StreamExt;
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
@@ -98,10 +98,9 @@ fn wind_farm_production(c: &mut Criterion) {
 }
 
 criterion_group!(
-    wind_farm,
-    wind_farm_grouped_production,
-    // wind_farm_multi_grouped,
-    wind_farm_production,
+    name = wind_farm;
+    config = Criterion::default().sample_size(10);
+    targets = wind_farm_grouped_production, wind_farm_production
 );
 criterion_main!(wind_farm);
 
