@@ -81,8 +81,7 @@ wpex:WindTurbineFunctionalAspect{i} rdfs:label "A{idx_within_site}" .
     let result = (1..=n_turbines)
         .map(|tid| {
             let iri = format!(
-                "https://github.com/magbak/chrontext/windpower_example#WindTurbine{}",
-                tid
+                "https://github.com/magbak/chrontext/windpower_example#WindTurbine{tid}",
             );
             NamedNode::new(iri).context("Invalid IRI")
         })

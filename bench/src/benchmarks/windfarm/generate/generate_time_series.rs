@@ -32,7 +32,7 @@ pub fn generate_time_series<W: Write>(
     const DAYS: [(u32, u32); 3] = [(8, 29), (8, 30), (9, 1)];
     for (month, day) in DAYS {
         for hour in 0..24 {
-            println!("Generating data for 2022-{}-{} hour {}", month, day, hour);
+            println!("Generating data for 2022-{month}-{day} hour {hour}");
             let timestamps = create_timestamps(month, day, hour);
 
             generate_energy_production_for_hour(

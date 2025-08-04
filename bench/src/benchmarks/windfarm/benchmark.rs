@@ -147,7 +147,7 @@ async fn execute_benchmark(
 
     let mut report = WindFarmReportBuilder::new();
     for query_name in WindFarmQueryName::list_queries() {
-        println!("Executing query: {}", query_name);
+        println!("Executing query: {query_name}");
 
         let query_file = files.query_folder.join(query_name.file_name());
         let query = fs::read_to_string(&query_file).context(format!(

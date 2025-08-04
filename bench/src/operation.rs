@@ -35,7 +35,7 @@ impl<QueryName> SparqlOperation<QueryName> {
         &self,
         store: &Store,
     ) -> anyhow::Result<(BenchmarkRun, QueryExplanation)> {
-        let start = std::time::Instant::now();
+        let start = datafusion::common::instant::Instant::now();
 
         let options = QueryOptions::default();
         let explanation = match &self {
