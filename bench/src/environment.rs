@@ -3,18 +3,18 @@ use crate::benchmarks::BenchmarkName;
 use crate::prepare::{PrepRequirement, prepare_run_closure, prepare_run_command};
 use crate::prepare::{ensure_file_download, prepare_file_download};
 use anyhow::bail;
-use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 /// Represents a context used to execute benchmarks.
 pub struct RdfFusionBenchContext {
     /// General options for the benchmarks.
     options: BenchmarkingOptions,
     /// The path to the data dir.
-    data_dir: PathBuf,
+    data_dir: Mutex<PathBuf>,
     /// The path to the current directory. This might be different from the `data_dir` if a
     /// benchmark is running.
-    results_dir: PathBuf,
+    results_dir: Mutex<PathBuf>,
 }
 
 impl RdfFusionBenchContext {
@@ -26,8 +26,8 @@ impl RdfFusionBenchContext {
     ) -> Self {
         Self {
             options,
-            data_dir,
-            results_dir,
+            data_dir: Mutex::new(data_dir),
+            results_dir: Mutex::new(results_dir),
         }
     }
 
@@ -42,7 +42,76 @@ impl RdfFusionBenchContext {
             bail!("Only relative paths can be resolved.")
         }
 
-        Ok(self.data_dir.join(file))
+        Ok(self.data_dir.lock().unwrap().join(file))
+    }
+
+    /// Creates a new folder in the results directory and uses it until [Self::pop_dir] is
+    /// called.
+    ///
+    /// This can be used to create folder hierarchies to separate the results of different
+    /// benchmarks.
+    #[allow(clippy::create_dir)]
+    pub fn push_dir(&self, dir: &str) -> anyhow::Result<()> {
+        let mut data_dir = self.data_dir.lock().unwrap();
+        let mut results_dir = self.results_dir.lock().unwrap();
+
+        data_dir.push(dir);
+        results_dir.push(dir);
+
+        Ok(())
+    }
+
+    /// Pops the last directory from the stack.
+    pub fn pop_dir(&self) {
+        let mut data_dir = self.data_dir.lock().unwrap();
+        let mut results_dir = self.results_dir.lock().unwrap();
+
+        data_dir.pop();
+        results_dir.pop();
+    }
+
+    /// Creates a new bencher and modifies the context for this benchmark.
+    pub fn create_benchmark_context(
+        &self,
+        benchmark_name: BenchmarkName,
+    ) -> anyhow::Result<BenchmarkContext<'_>> {
+        self.push_dir(&benchmark_name.dir_name())?;
+        Ok(BenchmarkContext {
+            context: self,
+            benchmark_name,
+        })
+    }
+}
+
+/// A benchmarker that can be used to execute benchmarks.
+///
+/// It holds a reference to the current context to store its results.
+pub struct BenchmarkContext<'ctx> {
+    /// Reference to the benchmarking context.
+    context: &'ctx RdfFusionBenchContext,
+    /// Name of the benchmark that is being executed.
+    benchmark_name: BenchmarkName,
+}
+
+impl<'ctx> BenchmarkContext<'ctx> {
+    /// Returns a reference to the benchmarking context.
+    pub fn parent(&self) -> &RdfFusionBenchContext {
+        self.context
+    }
+
+    /// Returns the name of the benchmark that is being executed.
+    pub fn benchmark_name(&self) -> BenchmarkName {
+        self.benchmark_name
+    }
+
+    /// Returns the path to the results directory of this benchmark.
+    pub fn data_dir(&self) -> PathBuf {
+        self.context.data_dir.lock().unwrap().clone()
+    }
+
+    /// Returns the path to the results directory of this benchmark.
+    pub fn results_dir(&self) -> PathBuf {
+        self.context.results_dir.lock().unwrap().clone()
     }
 
     /// Prepares the context such that `requirement` is fulfilled.
@@ -65,7 +134,7 @@ impl RdfFusionBenchContext {
                 args,
                 ..
             } => {
-                let workdir = self.join_data_dir(&workdir)?;
+                let workdir = self.context.join_data_dir(&workdir)?;
                 prepare_run_command(&workdir, &program, &args)
             }
         }
@@ -85,74 +154,11 @@ impl RdfFusionBenchContext {
             } => check_requirement(self),
         }
     }
-
-    /// Creates a new folder in the results directory and uses it until [Self::pop_results_dir] is
-    /// called.
-    ///
-    /// This can be used to create folder hierarchies to separate the results of different
-    /// benchmarks.
-    #[allow(clippy::create_dir)]
-    pub fn push_results_dir(&mut self, dir: &str) -> anyhow::Result<()> {
-        self.results_dir.push(dir);
-        if self.results_dir.exists() {
-            println!(
-                "Cleaning results directory '{}' ...",
-                self.results_dir.as_path().display()
-            );
-            fs::remove_dir_all(self.results_dir.as_path())?;
-        }
-        fs::create_dir(self.results_dir.as_path())?;
-        Ok(())
-    }
-
-    /// Pops the last directory from the stack.
-    pub fn pop_results_dir(&mut self) {
-        self.results_dir.pop();
-    }
-
-    /// Creates a new bencher and modifies the context for this benchmark.
-    pub fn create_benchmark_context(
-        &mut self,
-        benchmark_name: BenchmarkName,
-    ) -> anyhow::Result<BenchmarkContext<'_>> {
-        self.push_results_dir(&benchmark_name.dir_name())?;
-        Ok(BenchmarkContext {
-            context: self,
-            benchmark_name,
-        })
-    }
-}
-
-/// A benchmarker that can be used to execute benchmarks.
-///
-/// It holds a reference to the current context to store its results.
-pub struct BenchmarkContext<'ctx> {
-    /// Reference to the benchmarking context.
-    context: &'ctx mut RdfFusionBenchContext,
-    /// Name of the benchmark that is being executed.
-    benchmark_name: BenchmarkName,
-}
-
-impl<'ctx> BenchmarkContext<'ctx> {
-    /// Returns a reference to the benchmarking context.
-    pub fn parent(&self) -> &RdfFusionBenchContext {
-        self.context
-    }
-
-    /// Returns the name of the benchmark that is being executed.
-    pub fn benchmark_name(&self) -> BenchmarkName {
-        self.benchmark_name
-    }
-
-    /// Returns the path to the results directory of this benchmark.
-    pub fn results_dir(&self) -> &Path {
-        self.context.results_dir.as_path()
-    }
 }
 
 /// Pops the results directory from the context when the bencher is dropped.
 impl Drop for BenchmarkContext<'_> {
     fn drop(&mut self) {
-        self.context.pop_results_dir();
+        self.context.pop_dir();
     }
 }

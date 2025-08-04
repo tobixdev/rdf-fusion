@@ -20,14 +20,17 @@ doc = false
 anyhow.workspace = true
 async-trait.workspace = true
 bzip2.workspace = true
+chrono.workspace = true
 clap = { workspace = true, features = ["derive"] }
 csv.workspace = true
 datafusion.workspace = true
 futures.workspace = true
 prettytable-rs.workspace = true
+rand.workspace = true
+rand_distr.workspace = true
 rdf-fusion.workspace = true
 reqwest.workspace = true
-snmalloc-rs = { workspace = true, features = ["stats"] }
+snmalloc-rs.workspace = true
 tokio.workspace = true
 zip-extract.workspace = true
 
@@ -43,4 +46,8 @@ harness = false
 
 [[bench]]
 name = "bsbm_business_intelligence"
+harness = false
+
+[[bench]]
+name = "wind_farm"
 harness = false

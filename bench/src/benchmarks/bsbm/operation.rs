@@ -1,4 +1,4 @@
-use rdf_fusion::Query;
+use crate::operation::SparqlRawOperation;
 use std::fs;
 use std::path::Path;
 
@@ -7,7 +7,7 @@ use std::path::Path;
 #[allow(clippy::expect_used)]
 pub fn list_raw_operations<TQueryName: TryFrom<u8>>(
     path: &Path,
-) -> anyhow::Result<impl Iterator<Item = BsbmRawOperation<TQueryName>>> {
+) -> anyhow::Result<impl Iterator<Item = SparqlRawOperation<TQueryName>>> {
     let reader = fs::read(path)?;
     let result = csv::Reader::from_reader(reader.as_slice())
         .records()
@@ -20,35 +20,9 @@ pub fn list_raw_operations<TQueryName: TryFrom<u8>>(
             };
 
             match &record[1] {
-                "query" => BsbmRawOperation::Query(query_name, record[2].into()),
+                "query" => SparqlRawOperation::Query(query_name, record[2].into()),
                 _ => panic!("Unexpected operation kind {}", &record[1]),
             }
         });
     Ok(result)
-}
-
-#[derive(Clone)]
-pub enum BsbmRawOperation<QueryName> {
-    Query(QueryName, String),
-}
-
-#[derive(Clone)]
-pub enum BsbmOperation<QueryName> {
-    Query(QueryName, Query),
-}
-
-impl<QueryName> BsbmOperation<QueryName> {
-    pub fn query(&self) -> &Query {
-        match self {
-            BsbmOperation::Query(_, query) => query,
-        }
-    }
-}
-
-impl<QueryName: Clone> BsbmOperation<QueryName> {
-    pub fn query_name(&self) -> QueryName {
-        match self {
-            BsbmOperation::Query(name, _) => name.clone(),
-        }
-    }
 }
