@@ -16,7 +16,7 @@ pub struct ObjectIdArrayBuilder {
 impl ObjectIdArrayBuilder {
     /// Create a [ObjectIdArrayBuilder] with the given `capacity`.
     pub fn new(encoding: ObjectIdEncoding) -> Self {
-        let builder = FixedSizeBinaryBuilder::new(encoding.object_id_len() as i32);
+        let builder = FixedSizeBinaryBuilder::new(encoding.object_id_size() as i32);
         Self { encoding, builder }
     }
 

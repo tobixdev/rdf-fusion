@@ -1,10 +1,10 @@
 use crate::EncodingName;
 use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{ScalarValue, exec_err};
+use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{TermRef, ThinResult};
+use rdf_fusion_model::ThinResult;
 use std::fmt::Debug;
 
 /// Represents an Arrow [Array] with a specific [TermEncoding].
@@ -127,9 +127,6 @@ pub trait TermEncoding: Debug + Send + Sync {
         };
         Ok(datum)
     }
-
-    /// Encodes the `term` in a type-safe scalar of this encoding.
-    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar>;
 }
 
 /// Allows extracting an iterator of a type from an [EncodingArray].

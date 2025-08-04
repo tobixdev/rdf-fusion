@@ -1,37 +1,28 @@
 use crate::encoding::TermEncoding;
-use crate::object_id::mapping::ObjectIdMapping;
 use crate::object_id::{ObjectIdArray, ObjectIdScalar};
-use crate::plain_term::encoders::DefaultPlainTermEncoder;
-use crate::{EncodingName, TermEncoder};
+use crate::EncodingName;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::ScalarValue;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
+use std::hash::Hash;
 
 /// TODO
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ObjectIdEncoding {
-    mapping: Arc<dyn ObjectIdMapping>,
+    object_id_size: u8,
 }
 
 impl ObjectIdEncoding {
     /// Creates a new [ObjectIdEncoding].
-    pub fn new(mapping: Arc<dyn ObjectIdMapping>) -> Self {
-        Self { mapping }
+    pub fn new(object_id_size: u8) -> Self {
+        Self { object_id_size }
     }
 
     /// Returns the size of the object id.
-    pub fn object_id_len(&self) -> u8 {
-        self.mapping.object_id_len()
-    }
-
-    /// Returns a reference to the object id mapping.
-    pub fn mapping(&self) -> &dyn ObjectIdMapping {
-        self.mapping.as_ref()
+    pub fn object_id_size(&self) -> u8 {
+        self.object_id_size
     }
 }
 
@@ -44,7 +35,7 @@ impl TermEncoding for ObjectIdEncoding {
     }
 
     fn data_type(&self) -> DataType {
-        DataType::FixedSizeBinary(self.object_id_len() as i32)
+        DataType::FixedSizeBinary(self.object_id_size() as i32)
     }
 
     fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
@@ -53,27 +44,5 @@ impl TermEncoding for ObjectIdEncoding {
 
     fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         ObjectIdScalar::try_new(self.clone(), scalar)
-    }
-
-    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
-        let term = DefaultPlainTermEncoder::encode_term(term);
-        match term {
-            Ok(term) => self.mapping.encode_scalar(&term),
-            Err(_) => self.try_new_scalar(ScalarValue::UInt64(None)),
-        }
-    }
-}
-
-impl PartialEq for ObjectIdEncoding {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.mapping, &other.mapping)
-    }
-}
-
-impl Eq for ObjectIdEncoding {}
-
-impl Hash for ObjectIdEncoding {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        Arc::as_ptr(&self.mapping).hash(state);
     }
 }

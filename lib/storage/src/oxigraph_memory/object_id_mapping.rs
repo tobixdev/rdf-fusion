@@ -38,7 +38,6 @@ struct EncodedTerm(TermType, Arc<str>, Option<Arc<str>>);
 /// TODO
 #[derive(Debug)]
 pub struct MemoryObjectIdMapping {
-    oid_encoding: ObjectIdEncoding,
     plain_term_encoding: PlainTermEncoding,
     next_id: AtomicU64,
     str_interning: DashSet<Arc<str>>,
@@ -47,26 +46,14 @@ pub struct MemoryObjectIdMapping {
 }
 
 impl MemoryObjectIdMapping {
-    pub fn try_new(
-        encoding: ObjectIdEncoding,
-        plain_term_encoding: PlainTermEncoding,
-    ) -> DFResult<Self> {
-        if encoding.object_id_len() != EncodedObjectId::SIZE {
-            panic!("Invalid object ID encoding");
-        }
-
-        Ok(Self {
-            oid_encoding: encoding,
+    pub fn new(plain_term_encoding: PlainTermEncoding) -> Self {
+        Self {
             plain_term_encoding,
             next_id: AtomicU64::new(0),
             str_interning: DashSet::new(),
             id2term: DashMap::with_hasher(BuildHasherDefault::default()),
             term2id: DashMap::with_hasher(BuildHasherDefault::default()),
-        })
-    }
-
-    pub fn encoding(&self) -> &ObjectIdEncoding {
-        &self.oid_encoding
+        }
     }
 
     /// TODO
@@ -119,8 +106,8 @@ impl MemoryObjectIdMapping {
 }
 
 impl ObjectIdMapping for MemoryObjectIdMapping {
-    fn object_id_len(&self) -> u8 {
-        EncodedObjectId::SIZE
+    fn encoding(&self) -> ObjectIdEncoding {
+        ObjectIdEncoding::new(EncodedObjectId::SIZE)
     }
 
     fn try_get_object_id(
@@ -137,7 +124,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
                             EncodedTerm(TermType::NamedNode, value.clone(), None);
                         self.term2id.get(&encoded_term).map(|oid| {
                             ObjectIdScalar::from_object_id(
-                                self.oid_encoding.clone(),
+                                self.encoding(),
                                 (*oid.value()).into(),
                             )
                         })
@@ -151,7 +138,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
                             EncodedTerm(TermType::BlankNode, value.clone(), None);
                         self.term2id.get(&encoded_term).map(|oid| {
                             ObjectIdScalar::from_object_id(
-                                self.oid_encoding.clone(),
+                                self.encoding(),
                                 (*oid.value()).into(),
                             )
                         })
@@ -171,7 +158,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
                                 );
                                 self.term2id.get(&encoded_term).map(|oid| {
                                     ObjectIdScalar::from_object_id(
-                                        self.oid_encoding.clone(),
+                                        self.encoding(),
                                         (*oid.value()).into(),
                                     )
                                 })
@@ -191,7 +178,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
                                 );
                                 self.term2id.get(&encoded_term).map(|oid| {
                                     ObjectIdScalar::from_object_id(
-                                        self.oid_encoding.clone(),
+                                        self.encoding(),
                                         (*oid.value()).into(),
                                     )
                                 })
@@ -208,7 +195,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
     fn encode_array(&self, array: &PlainTermArray) -> DFResult<ObjectIdArray> {
         let terms = DefaultPlainTermDecoder::decode_terms(array);
 
-        let mut result = ObjectIdArrayBuilder::new(self.oid_encoding.clone());
+        let mut result = ObjectIdArrayBuilder::new(self.encoding());
         for term in terms {
             match term {
                 Ok(term) => match term {

@@ -7,8 +7,8 @@ use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_common::ObjectId;
-use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
-use rdf_fusion_encoding::plain_term::PlainTermScalar;
+use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PlainTermScalar};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::Quad;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
@@ -51,9 +51,9 @@ struct Content {
 }
 
 impl OxigraphMemoryStorage {
-    pub fn new() -> Self {
+    pub fn new(plain_term_encoding: PlainTermEncoding) -> Self {
         Self {
-            object_ids: Arc::new(MemoryObjectIdMapping::new()),
+            object_ids: Arc::new(MemoryObjectIdMapping::new(plain_term_encoding)),
             content: Arc::new(Content {
                 quad_set: DashSet::default(),
                 last_quad: RwLock::new(None),
@@ -71,12 +71,12 @@ impl OxigraphMemoryStorage {
 
     #[allow(clippy::clone_on_ref_ptr)]
     pub fn storage_encoding(&self) -> QuadStorageEncoding {
-        let encoding = ObjectIdEncoding::new(self.object_ids.clone());
+        let encoding = self.object_ids.encoding();
         QuadStorageEncoding::ObjectId(encoding)
     }
 
-    pub fn object_ids(&self) -> &MemoryObjectIdMapping {
-        self.object_ids.as_ref()
+    pub fn object_ids(&self) -> &Arc<MemoryObjectIdMapping> {
+        &self.object_ids
     }
 
     pub fn snapshot(&self) -> MemoryStorageReader {
@@ -150,12 +150,6 @@ impl OxigraphMemoryStorage {
             storage: self.clone(),
             hooks: Vec::new(),
         }
-    }
-}
-
-impl Default for OxigraphMemoryStorage {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

@@ -35,11 +35,11 @@ use crate::sparql::error::QueryEvaluationError;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_execution::results::{QuadStream, QuerySolutionStream};
 use rdf_fusion_execution::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
+use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
     SubjectRef, TermRef, Variable,
@@ -764,13 +764,9 @@ impl Store {
         self.engine.storage().clear().await
     }
 
-    /// Validates that all the store invariants held in the data
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    #[allow(clippy::unnecessary_wraps, reason = "Not implemented")]
-    #[doc(hidden)]
-    pub fn validate(&self) -> Result<(), StorageError> {
-        // TODO: Is there anything we should do here?
-        Ok(())
+    /// Validates that all the store invariants hold in the data storage
+    pub async fn validate(&self) -> Result<(), StorageError> {
+        self.engine.storage().validate().await
     }
 }
 
@@ -849,7 +845,7 @@ mod tests {
         assert!(!store.insert(&named_quad).await?);
         assert!(store.insert(&default_quad).await?);
         assert!(!store.insert(&default_quad).await?);
-        store.validate()?;
+        store.validate().await?;
 
         assert_eq!(store.len().await?, 4);
         assert_eq!(store.stream().await?.try_collect_to_vec().await?, all_quads);

@@ -36,7 +36,7 @@ impl ObjectIdScalar {
     /// Creates a new [ObjectIdScalar] from the given `object_id`.
     pub fn from_object_id(encoding: ObjectIdEncoding, object_id: ObjectId) -> Self {
         let scalar = ScalarValue::FixedSizeBinary(
-            encoding.object_id_len() as i32,
+            encoding.object_id_size() as i32,
             Some(object_id.as_bytes().to_vec()),
         );
         Self::new_unchecked(encoding, scalar)

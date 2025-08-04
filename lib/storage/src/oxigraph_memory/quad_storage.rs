@@ -5,7 +5,7 @@ use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_encoding::object_id::{ObjectIdMapping, ObjectIdScalar};
-use rdf_fusion_encoding::plain_term::PlainTermScalar;
+use rdf_fusion_encoding::plain_term::{PlainTermScalar, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{
     GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef, TermRef,
@@ -23,7 +23,7 @@ impl MemoryQuadStorage {
     ///
     /// It is intended to pass this storage into a RDF Fusion engine.
     pub fn new() -> Self {
-        let storage = Arc::new(OxigraphMemoryStorage::new());
+        let storage = Arc::new(OxigraphMemoryStorage::new(PLAIN_TERM_ENCODING));
         Self { storage }
     }
 
@@ -115,9 +115,9 @@ impl QuadStorage for MemoryQuadStorage {
             })?;
         match object_id {
             None => Ok(false),
-            Some(object_id) => {
-                Ok(self.storage.snapshot().contains_named_graph(object_id.into_object_id().expect("Invalid object ID")))
-            }
+            Some(object_id) => Ok(self.storage.snapshot().contains_named_graph(
+                object_id.into_object_id().expect("Invalid object ID"),
+            )),
         }
     }
 
@@ -156,5 +156,13 @@ impl QuadStorage for MemoryQuadStorage {
 
     async fn len(&self) -> Result<usize, StorageError> {
         Ok(self.storage.snapshot().len())
+    }
+
+    fn object_id_mapping(&self) -> Option<Arc<dyn ObjectIdMapping>> {
+        Some(Arc::clone(self.storage.object_ids()) as Arc<dyn ObjectIdMapping>)
+    }
+
+    async fn validate(&self) -> Result<(), StorageError> {
+        self.storage.snapshot().validate()
     }
 }

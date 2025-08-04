@@ -1,4 +1,4 @@
-use crate::object_id::{ObjectIdArray, ObjectIdScalar};
+use crate::object_id::{ObjectIdArray, ObjectIdEncoding, ObjectIdScalar};
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
 use crate::{EncodingArray, EncodingScalar};
 use rdf_fusion_common::DFResult;
@@ -6,8 +6,8 @@ use std::fmt::Debug;
 
 /// TODO
 pub trait ObjectIdMapping: Debug + Send + Sync {
-    /// Returns the size of the object id.
-    fn object_id_len(&self) -> u8;
+    /// Returns the encoding.
+    fn encoding(&self) -> ObjectIdEncoding;
 
     /// TODO
     fn try_get_object_id(&self, scalar: &PlainTermScalar) -> DFResult<Option<ObjectIdScalar>>;
