@@ -1076,6 +1076,7 @@ impl Debug for OxigraphMemoryStorage {
 #[cfg(test)]
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
+    use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use super::*;
     use rdf_fusion_model::NamedNodeRef;
 
@@ -1148,15 +1149,18 @@ mod tests {
     fn test_transaction() -> Result<(), StorageError> {
         let example = NamedNodeRef::new_unchecked("http://example.com/1");
         let example2 = NamedNodeRef::new_unchecked("http://example.com/2");
-        let storage = OxigraphMemoryStorage::new();
+        let storage = OxigraphMemoryStorage::new(PLAIN_TERM_ENCODING);
 
-        let encoded_example = storage.object_ids().encode_term(example);
-        let encoded_example2 = storage.object_ids().encode_term(example2);
+        let example_scalar = PlainTermScalar::from(example);
+        let example2_scalar = PlainTermScalar::from(example2);
+
+        let encoded_example = storage.object_ids().encode_scalar(&example_scalar).unwrap().into_object_id().unwrap();
+        let encoded_example2 = storage.object_ids().encode_scalar(&example2_scalar).unwrap().into_object_id().unwrap();
         let default_quad =
             QuadRef::new(example, example, example, GraphNameRef::DefaultGraph);
-        let encoded_default_quad = storage.object_ids().encode_quad(default_quad);
+        let encoded_default_quad = storage.object_ids().encode_quad(default_quad).unwrap();
         let named_graph_quad = QuadRef::new(example, example, example, example);
-        let encoded_named_graph_quad = storage.object_ids().encode_quad(named_graph_quad);
+        let encoded_named_graph_quad = storage.object_ids().encode_quad(named_graph_quad).unwrap();
 
         // We start with a graph
         let snapshot = storage.snapshot();
@@ -1164,8 +1168,8 @@ mod tests {
             writer.insert_named_graph(example.into());
             Ok::<_, StorageError>(())
         })?;
-        assert!(!snapshot.contains_named_graph(encoded_example));
-        assert!(storage.snapshot().contains_named_graph(encoded_example));
+        assert!(!snapshot.contains_named_graph(encoded_example.clone()));
+        assert!(storage.snapshot().contains_named_graph(encoded_example.clone()));
         storage.snapshot().validate()?;
 
         // We add two quads
@@ -1190,10 +1194,10 @@ mod tests {
         })?;
         assert!(snapshot.contains(&encoded_default_quad));
         assert!(snapshot.contains(&encoded_named_graph_quad));
-        assert!(snapshot.contains_named_graph(encoded_example));
+        assert!(snapshot.contains_named_graph(encoded_example.clone()));
         assert!(!storage.snapshot().contains(&encoded_default_quad));
         assert!(!storage.snapshot().contains(&encoded_named_graph_quad));
-        assert!(!storage.snapshot().contains_named_graph(encoded_example));
+        assert!(!storage.snapshot().contains_named_graph(encoded_example.clone()));
         storage.snapshot().validate()?;
 
         // We add the quads again but rollback
@@ -1210,12 +1214,12 @@ mod tests {
         );
         assert!(!snapshot.contains(&encoded_default_quad));
         assert!(!snapshot.contains(&encoded_named_graph_quad));
-        assert!(!snapshot.contains_named_graph(encoded_example));
-        assert!(!snapshot.contains_named_graph(encoded_example2));
+        assert!(!snapshot.contains_named_graph(encoded_example.clone()));
+        assert!(!snapshot.contains_named_graph(encoded_example2.clone()));
         assert!(!storage.snapshot().contains(&encoded_default_quad));
         assert!(!storage.snapshot().contains(&encoded_named_graph_quad));
-        assert!(!storage.snapshot().contains_named_graph(encoded_example));
-        assert!(!storage.snapshot().contains_named_graph(encoded_example2));
+        assert!(!storage.snapshot().contains_named_graph(encoded_example.clone()));
+        assert!(!storage.snapshot().contains_named_graph(encoded_example2.clone()));
         storage.snapshot().validate()?;
 
         // We add quads and graph, then clear

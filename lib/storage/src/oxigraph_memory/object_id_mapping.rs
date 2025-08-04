@@ -279,3 +279,191 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
         self.plain_term_encoding.try_new_array(builder.finish())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use datafusion::arrow::array::AsArray;
+    use rdf_fusion_encoding::object_id::ObjectIdArrayBuilder;
+    use rdf_fusion_encoding::plain_term::{
+        PlainTermArrayBuilder, PLAIN_TERM_ENCODING,
+    };
+    use rdf_fusion_encoding::{EncodingArray, EncodingScalar};
+    use rdf_fusion_model::vocab::xsd;
+    use rdf_fusion_model::{
+        BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, QuadRef, TermRef,
+    };
+
+    #[test]
+    fn test_encode_decode_roundtrip() -> DFResult<()> {
+        let mapping = MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING);
+        let mut builder = PlainTermArrayBuilder::new(5);
+        builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
+        builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
+        builder.append_literal(LiteralRef::new_typed_literal("hello", xsd::STRING));
+        builder.append_literal(LiteralRef::new_language_tagged_literal_unchecked(
+            "world", "en",
+        ));
+        builder.append_null();
+        let plain_term_array = mapping
+            .plain_term_encoding
+            .try_new_array(builder.finish())?;
+
+        let object_id_array = mapping.encode_array(&plain_term_array)?;
+        let decoded_plain_term_array = mapping.decode_array(&object_id_array)?;
+
+        assert_eq!(
+            plain_term_array.array().len(),
+            decoded_plain_term_array.array().len()
+        );
+        assert_eq!(
+            plain_term_array.array().as_struct(),
+            decoded_plain_term_array.array().as_struct()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_id_uniqueness_and_consistency() -> DFResult<()> {
+        let mapping = MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING);
+        let mut builder = PlainTermArrayBuilder::new(5);
+        let nn1 = NamedNodeRef::new_unchecked("http://example.com/a");
+        let nn2 = NamedNodeRef::new_unchecked("http://example.com/b");
+
+        // Add two identical terms and one different one
+        builder.append_named_node(nn1);
+        builder.append_named_node(nn2);
+        builder.append_named_node(nn1);
+        let plain_term_array = mapping
+            .plain_term_encoding
+            .try_new_array(builder.finish())?;
+
+        let object_id_array = mapping.encode_array(&plain_term_array)?;
+
+        let id1 = object_id_array.object_ids().value(0);
+        let id2 = object_id_array.object_ids().value(1);
+        let id3 = object_id_array.object_ids().value(2);
+
+        assert_eq!(id1, id3);
+        assert_ne!(id1, id2);
+
+        // Now encode again, the IDs should be the same
+        let mut builder2 = PlainTermArrayBuilder::new(2);
+        builder2.append_named_node(nn2);
+        builder2.append_named_node(nn1);
+        let plain_term_array2 = mapping
+            .plain_term_encoding
+            .try_new_array(builder2.finish())?;
+        let object_id_array2 = mapping.encode_array(&plain_term_array2)?;
+
+        let id4 = object_id_array2.object_ids().value(0);
+        let id5 = object_id_array2.object_ids().value(1);
+
+        assert_eq!(id2, id4);
+        assert_eq!(id1, id5);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_try_get_object_id() -> DFResult<()> {
+        let mapping = MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING);
+
+        let term1 = PlainTermScalar::from(TermRef::NamedNode(
+            NamedNodeRef::new_unchecked("http://example.com/a"),
+        ));
+        let term2 =
+            PlainTermScalar::from(TermRef::BlankNode(BlankNodeRef::new_unchecked("b1")));
+
+        // Before encoding, should be None
+        assert!(mapping.try_get_object_id(&term1)?.is_none());
+        assert!(mapping.try_get_object_id(&term2)?.is_none());
+
+        // Encode an array to populate the mapping
+        let mut builder = PlainTermArrayBuilder::new(2);
+        builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
+        builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
+        let plain_term_array = PLAIN_TERM_ENCODING.try_new_array(builder.finish())?;
+        let object_id_array = mapping.encode_array(&plain_term_array)?;
+
+        // After encoding, should be Some
+        let object_id1 = mapping.try_get_object_id(&term1)?;
+        assert!(object_id1.is_some());
+        let object_id2 = mapping.try_get_object_id(&term2)?;
+        assert!(object_id2.is_some());
+
+        // Check if IDs match what's in the array
+        assert_eq!(
+            object_id1.unwrap().into_object_id().unwrap().as_ref(),
+            object_id_array.object_ids().value(0)
+        );
+        assert_eq!(
+            object_id2.unwrap().into_object_id().unwrap().as_ref(),
+            object_id_array.object_ids().value(1)
+        );
+
+        // A term not in the mapping
+        let term3 = PlainTermScalar::from(TermRef::NamedNode(
+            NamedNodeRef::new_unchecked("http://example.com/c"),
+        ));
+        assert!(mapping.try_get_object_id(&term3)?.is_none());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_encode_quad() -> DFResult<()> {
+        let mapping = MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING);
+        let quad = QuadRef {
+            subject: NamedNodeRef::new_unchecked("http://example.com/s").into(),
+            predicate: NamedNodeRef::new_unchecked("http://example.com/p").into(),
+            object: LiteralRef::new_typed_literal("object", xsd::STRING).into(),
+            graph_name: GraphNameRef::NamedNode(NamedNodeRef::new_unchecked(
+                "http://example.com/g",
+            )),
+        };
+
+        let object_id_quad = mapping.encode_quad(quad)?;
+
+        // To verify, we can decode the IDs.
+        // Let's build an array with the IDs and decode it.
+        let mut builder = ObjectIdArrayBuilder::new(mapping.encoding());
+        builder.append_object_id_bytes(object_id_quad.subject.as_ref())?;
+        builder.append_object_id_bytes(object_id_quad.predicate.as_ref())?;
+        builder.append_object_id_bytes(object_id_quad.object.as_ref())?;
+        if let Some(graph_id) = object_id_quad.graph_name {
+            builder.append_object_id_bytes(graph_id.as_ref())?;
+        }
+        let id_array = builder.finish();
+
+        let decoded_array = mapping.decode_array(&id_array)?;
+
+        let decoded_subject = decoded_array.try_as_scalar(0)?;
+        let decoded_predicate = decoded_array.try_as_scalar(1)?;
+        let decoded_object = decoded_array.try_as_scalar(2)?;
+
+        assert_eq!(
+            PlainTermScalar::from(quad.subject).into_scalar_value(),
+            decoded_subject.into_scalar_value()
+        );
+        assert_eq!(
+            PlainTermScalar::from(quad.predicate).into_scalar_value(),
+            decoded_predicate.into_scalar_value()
+        );
+        assert_eq!(
+            PlainTermScalar::from(quad.object).into_scalar_value(),
+            decoded_object.into_scalar_value()
+        );
+
+        if !quad.graph_name.is_default_graph() {
+            let decoded_graph = decoded_array.try_as_scalar(3)?;
+            assert_eq!(
+                PlainTermScalar::from_graph_name(quad.graph_name)?.into_scalar_value(),
+                decoded_graph.into_scalar_value()
+            );
+        }
+
+        Ok(())
+    }
+}
