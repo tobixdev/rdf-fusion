@@ -1,4 +1,4 @@
-use crate::environment::RdfFusionBenchContext;
+use crate::environment::BenchmarkContext;
 use crate::prepare::FileDownloadAction;
 use crate::prepare::requirement::ArchiveType;
 use anyhow::{Context, bail};
@@ -10,10 +10,10 @@ use std::path::{Path, PathBuf};
 use std::{fs, path};
 
 pub fn ensure_file_download(
-    env: &RdfFusionBenchContext,
+    env: &BenchmarkContext,
     file_name: &Path,
 ) -> anyhow::Result<()> {
-    let file_path = env.join_data_dir(file_name)?;
+    let file_path = env.parent().join_data_dir(file_name)?;
     if !file_path.exists() {
         bail!(
             "{:?} does not exist ({:?})",
@@ -27,13 +27,14 @@ pub fn ensure_file_download(
 /// Downloads a file from the given url and executes a possible `action` afterward
 /// (e.g., Extract Archive).
 pub async fn prepare_file_download(
-    env: &RdfFusionBenchContext,
+    env: &BenchmarkContext<'_>,
     url: Url,
     file_name: PathBuf,
     action: Option<FileDownloadAction>,
 ) -> anyhow::Result<()> {
     println!("Downloading file '{url}' ...");
     let file_path = env
+        .parent()
         .join_data_dir(&file_name)
         .context("Cant join data dir with file name")?;
     if file_path.exists() {

@@ -3,6 +3,7 @@ use async_trait::async_trait;
 
 pub mod bsbm;
 mod name;
+pub mod windfarm;
 
 use crate::environment::BenchmarkContext;
 use crate::report::BenchmarkReport;

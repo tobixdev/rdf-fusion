@@ -1,8 +1,8 @@
-use crate::environment::RdfFusionBenchContext;
+use crate::environment::BenchmarkContext;
 use reqwest::Url;
 use std::path::PathBuf;
 
-type PrepClosure = Box<dyn Fn(&RdfFusionBenchContext) -> anyhow::Result<()>>;
+type PrepClosure = Box<dyn Fn(&BenchmarkContext) -> anyhow::Result<()>>;
 
 /// Defines a requirement of preparing for a benchmark.
 pub enum PrepRequirement {

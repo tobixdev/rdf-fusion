@@ -1,4 +1,5 @@
 use crate::benchmarks::bsbm::NumProducts;
+use crate::benchmarks::windfarm::NumberOfWindTurbines;
 use clap::Subcommand;
 use std::fmt::{Display, Formatter};
 
@@ -21,6 +22,12 @@ pub enum BenchmarkName {
         /// Provides an upper bound on the number of queries to be executed.
         #[arg(short, long)]
         max_query_count: Option<u64>,
+    },
+    /// Represents the wind farm benchmark.
+    WindFarm {
+        /// Indicates the scaling of the dataset.
+        #[arg(short, long, default_value = "400")]
+        num_turbines: NumberOfWindTurbines,
     },
 }
 
@@ -46,6 +53,9 @@ impl BenchmarkName {
                 }
                 None => format!("bsbm-bi-{dataset_size}"),
             },
+            BenchmarkName::WindFarm { num_turbines } => {
+                format!("windfarm-{num_turbines}")
+            }
         }
     }
 }
@@ -75,6 +85,9 @@ impl Display for BenchmarkName {
                     write!(f, "BSBM Business Intelligence: dataset_size={dataset_size}")
                 }
             },
+            BenchmarkName::WindFarm { num_turbines } => {
+                write!(f, "Wind Farm: num_turbines={num_turbines}")
+            }
         }
     }
 }

@@ -41,11 +41,12 @@ jobs:
       - name: Build the benchmark target(s)
         run: cargo codspeed build --profile profiling-nonlto
 
-      - name: Prepare BSBM Benchmark
+      - name: Prepare Benchmarks
         working-directory: bench
         run: |
           ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-explore --num-products 1000
           ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-business-intelligence --num-products 1000
+          ../target/profiling-nonlto/rdf-fusion-bench prepare wind-farm --num-turbines 16
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3

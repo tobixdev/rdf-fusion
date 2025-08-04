@@ -1,9 +1,9 @@
-use crate::environment::RdfFusionBenchContext;
+use crate::environment::BenchmarkContext;
 
 /// Executes a closure.
 pub fn prepare_run_closure(
-    context: &RdfFusionBenchContext,
-    closure: &dyn Fn(&RdfFusionBenchContext) -> anyhow::Result<()>,
+    context: &BenchmarkContext,
+    closure: &dyn Fn(&BenchmarkContext) -> anyhow::Result<()>,
 ) -> anyhow::Result<()> {
     closure(context)
 }
