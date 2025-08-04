@@ -1,16 +1,16 @@
-use crate::oxigraph_memory::object_id::ObjectIdQuad;
+use crate::oxigraph_memory::object_id::{EncodedObjectId, ObjectIdQuad};
 use crate::oxigraph_memory::store::QuadIterator;
 use datafusion::arrow::array::{
     Array, FixedSizeBinaryBuilder, RecordBatch, RecordBatchOptions,
 };
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
-use datafusion::common::{Column, DataFusionError, exec_err};
+use datafusion::common::{exec_err, Column, DataFusionError};
 use datafusion::execution::RecordBatchStream;
 use datafusion::physical_plan::metrics::BaselineMetrics;
 use futures::Stream;
-use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult, ObjectId};
-use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 use std::collections::{HashMap, HashSet};
@@ -145,6 +145,7 @@ impl RecordBatchStream for QuadPatternBatchRecordStream {
 
 #[allow(clippy::struct_excessive_bools)]
 struct RdfQuadsRecordBatchBuilder {
+    encoding: ObjectIdEncoding,
     graph: Option<(Column, FixedSizeBinaryBuilder)>,
     subject: Option<(Column, FixedSizeBinaryBuilder)>,
     predicate: Option<(Column, FixedSizeBinaryBuilder)>,
@@ -161,7 +162,7 @@ impl RdfQuadsRecordBatchBuilder {
         mut object: Option<Column>,
         capacity: usize,
     ) -> DFResult<Self> {
-        if encoding.data_type() != DataType::FixedSizeBinary(ObjectId::SIZE_I32) {
+        if encoding.data_type() != DataType::FixedSizeBinary(EncodedObjectId::SIZE_I32) {
             return exec_err!("The registered ObjectID uses an unexpected data type.");
         }
 
@@ -172,28 +173,41 @@ impl RdfQuadsRecordBatchBuilder {
         deduplicate(&mut seen, &mut object);
 
         Ok(Self {
+            encoding,
             graph: graph.map(|v| {
                 (
                     v,
-                    FixedSizeBinaryBuilder::with_capacity(capacity, ObjectId::SIZE_I32),
+                    FixedSizeBinaryBuilder::with_capacity(
+                        capacity,
+                        EncodedObjectId::SIZE_I32,
+                    ),
                 )
             }),
             subject: subject.map(|v| {
                 (
                     v,
-                    FixedSizeBinaryBuilder::with_capacity(capacity, ObjectId::SIZE_I32),
+                    FixedSizeBinaryBuilder::with_capacity(
+                        capacity,
+                        EncodedObjectId::SIZE_I32,
+                    ),
                 )
             }),
             predicate: predicate.map(|v| {
                 (
                     v,
-                    FixedSizeBinaryBuilder::with_capacity(capacity, ObjectId::SIZE_I32),
+                    FixedSizeBinaryBuilder::with_capacity(
+                        capacity,
+                        EncodedObjectId::SIZE_I32,
+                    ),
                 )
             }),
             object: object.map(|v| {
                 (
                     v,
-                    FixedSizeBinaryBuilder::with_capacity(capacity, ObjectId::SIZE_I32),
+                    FixedSizeBinaryBuilder::with_capacity(
+                        capacity,
+                        EncodedObjectId::SIZE_I32,
+                    ),
                 )
             }),
             count: 0,
@@ -210,7 +224,10 @@ impl RdfQuadsRecordBatchBuilder {
         if let Some((_, builder)) = &mut self.graph {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").graph_name;
-                builder.append_value(value.as_ref())?;
+                match value {
+                    None => builder.append_null(),
+                    Some(value) => builder.append_value(value.as_ref())?,
+                }
             }
         }
 
@@ -241,17 +258,14 @@ impl RdfQuadsRecordBatchBuilder {
 
     fn finish(self) -> AResult<RecordBatch> {
         fn try_add_column(
+            encoding: &ObjectIdEncoding,
             fields: &mut Vec<Field>,
             arrays: &mut Vec<Arc<dyn Array>>,
             column: Option<(Column, FixedSizeBinaryBuilder)>,
             nullable: bool,
         ) {
             if let Some((var, mut builder)) = column {
-                fields.push(Field::new(
-                    var.name(),
-                    DataType::FixedSizeBinary(ObjectId::SIZE_I32), // TODO: Use encoding
-                    nullable,
-                ));
+                fields.push(Field::new(var.name(), encoding.data_type(), nullable));
                 arrays.push(Arc::new(builder.finish()));
             }
         }
@@ -259,10 +273,22 @@ impl RdfQuadsRecordBatchBuilder {
         let mut fields: Vec<Field> = Vec::new();
         let mut arrays: Vec<Arc<dyn Array>> = Vec::new();
 
-        try_add_column(&mut fields, &mut arrays, self.graph, true);
-        try_add_column(&mut fields, &mut arrays, self.subject, false);
-        try_add_column(&mut fields, &mut arrays, self.predicate, false);
-        try_add_column(&mut fields, &mut arrays, self.object, false);
+        try_add_column(&self.encoding, &mut fields, &mut arrays, self.graph, true);
+        try_add_column(
+            &self.encoding,
+            &mut fields,
+            &mut arrays,
+            self.subject,
+            false,
+        );
+        try_add_column(
+            &self.encoding,
+            &mut fields,
+            &mut arrays,
+            self.predicate,
+            false,
+        );
+        try_add_column(&self.encoding, &mut fields, &mut arrays, self.object, false);
 
         let schema = Arc::new(Schema::new(fields));
         let options = RecordBatchOptions::default().with_row_count(Some(self.count));
@@ -336,10 +362,10 @@ impl QuadEqualities {
                 for j in (i + 1)..4 {
                     if equality[i] == 1 && equality[j] == 1 {
                         let quad = [
-                            &quad.graph_name,
-                            &quad.subject,
-                            &quad.predicate,
-                            &quad.object,
+                            quad.graph_name.as_ref(),
+                            Some(&quad.subject),
+                            Some(&quad.predicate),
+                            Some(&quad.object),
                         ];
 
                         if quad[i] != quad[j] {

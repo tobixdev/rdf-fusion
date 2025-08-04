@@ -58,7 +58,7 @@ impl TermEncoding for ObjectIdEncoding {
     fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
         let term = DefaultPlainTermEncoder::encode_term(term);
         match term {
-            Ok(term) => Ok(self.mapping.encode_scalar(term)),
+            Ok(term) => self.mapping.encode_scalar(&term),
             Err(_) => self.try_new_scalar(ScalarValue::UInt64(None)),
         }
     }

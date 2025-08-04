@@ -26,6 +26,11 @@ impl ObjectIdArrayBuilder {
     }
 
     /// Appends an object id.
+    pub fn append_object_id_bytes(&mut self, term: &[u8]) -> AResult<()> {
+        self.builder.append_value(term)
+    }
+
+    /// Appends an object id.
     pub fn append_object_id(&mut self, term: ObjectId) -> AResult<()> {
         self.builder.append_value(term)
     }
