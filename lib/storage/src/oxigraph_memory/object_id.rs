@@ -62,7 +62,7 @@ impl TryFrom<u64> for EncodedObjectId {
 
         let bytes = value.to_be_bytes();
         let mut id_bytes = [0u8; SIZE as usize];
-        id_bytes.copy_from_slice(&bytes[..SIZE as usize]);
+        id_bytes.copy_from_slice(&bytes[(8 - SIZE as usize)..]);
 
         Ok(EncodedObjectId(id_bytes))
     }
@@ -74,4 +74,39 @@ pub struct ObjectIdQuad {
     pub subject: ObjectId,
     pub predicate: ObjectId,
     pub object: ObjectId,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_try_from_u64_success() {
+        // Test with 0
+        let id = EncodedObjectId::try_from(0).unwrap();
+        assert_eq!(id.0, [0, 0, 0, 0, 0, 0]);
+
+        // Test with 1
+        let id = EncodedObjectId::try_from(1).unwrap();
+        assert_eq!(id.0, [0, 0, 0, 0, 0, 1]);
+
+        // Test with a value that uses more bytes
+        let val = u64::from_be_bytes([0, 0, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC]);
+        let id = EncodedObjectId::try_from(val).unwrap();
+        assert_eq!(id.0, [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC]);
+
+        // Test with max value
+        let max_value = (1u64 << 48) - 1;
+        let id = EncodedObjectId::try_from(max_value).unwrap();
+        let expected_bytes = max_value.to_be_bytes();
+        assert_eq!(id.0, &expected_bytes[2..]);
+    }
+
+    #[test]
+    fn test_try_from_u64_failure_too_large() {
+        let too_large_value = 1u64 << 48;
+        let result = EncodedObjectId::try_from(too_large_value);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), InvalidObjectIdError));
+    }
 }
