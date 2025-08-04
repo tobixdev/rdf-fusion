@@ -4,11 +4,13 @@ use crate::logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use crate::minus::MinusNode;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::tree_node::{Transformed, TreeNode};
 use datafusion::common::{Column, DFSchemaRef};
 use datafusion::logical_expr::{
     Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
     UserDefinedLogicalNode, col,
 };
+use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingName;
 use rdf_fusion_model::Variable;
@@ -118,10 +120,11 @@ impl RdfFusionLogicalPlanBuilder {
                 .expr_builder(expression)?
                 .build_effective_boolean_value()?,
         };
+        let (new_plan, expression) = self.push_down_encodings(expression)?;
 
         Ok(Self {
-            context: self.context.clone(),
-            plan_builder: self.plan_builder.filter(expression)?,
+            context: new_plan.context.clone(),
+            plan_builder: new_plan.plan_builder.filter(expression)?,
         })
     }
 
@@ -131,10 +134,12 @@ impl RdfFusionLogicalPlanBuilder {
         variable: Variable,
         expr: Expr,
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        let inner = self.plan_builder.build()?;
-        let extend_node = ExtendNode::try_new(inner, variable, expr)?;
+        let context = self.context.clone();
+        let (new_plan, expr) = self.push_down_encodings(expr)?;
+
+        let extend_node = ExtendNode::try_new(new_plan.build()?, variable, expr)?;
         Ok(Self {
-            context: self.context.clone(),
+            context,
             plan_builder: create_extension_plan(extend_node),
         })
     }
@@ -238,14 +243,22 @@ impl RdfFusionLogicalPlanBuilder {
             .iter()
             .map(|v| self.create_group_expr(v))
             .collect::<DFResult<Vec<_>>>()?;
-        let aggr_expr = aggregates
+
+        let mut new_aggregates = Vec::new();
+        let mut new_plan = self;
+        for (var, expr) in aggregates.iter() {
+            let (next_plan, new_expr) = new_plan.push_down_encodings(expr.clone())?;
+            new_plan = next_plan;
+            new_aggregates.push((var.clone(), new_expr));
+        }
+        let aggr_expr = new_aggregates
             .iter()
             .map(|(v, e)| e.clone().alias(v.as_str()))
             .collect::<Vec<_>>();
 
         Ok(Self {
-            context: self.context,
-            plan_builder: self.plan_builder.aggregate(group_expr, aggr_expr)?,
+            context: new_plan.context,
+            plan_builder: new_plan.plan_builder.aggregate(group_expr, aggr_expr)?,
         })
     }
 
@@ -373,6 +386,84 @@ impl RdfFusionLogicalPlanBuilder {
 
         let context = self.context.clone();
         Ok((Self::new(context, Arc::new(lhs)), rhs))
+    }
+
+    /// Checks whether there are expressions of the type `WITH_XYZ_ENCODING(col(x))`. If there are,
+    /// we push them down into a separate projection. The goal is to reuse the results without
+    /// repeating the expensive decoding process. If such an encoding is already available, we
+    /// simply re-use that.
+    fn push_down_encodings(self, expr: Expr) -> DFResult<(Self, Expr)> {
+        let mut column_projections = HashMap::new();
+
+        let new_expression = expr.transform_up(|expr| {
+            match &expr {
+                Expr::ScalarFunction(function) => {
+                    let encoding_functions = HashMap::from([
+                        (BuiltinName::WithPlainTermEncoding.to_string(), "pt"),
+                        (BuiltinName::WithTypedValueEncoding.to_string(), "tv"),
+                        (BuiltinName::WithSortableEncoding.to_string(), "sort"),
+                    ]);
+
+                    let Some(encoding_nick_name) =
+                        encoding_functions.get(function.func.name())
+                    else {
+                        return Ok(Transformed::no(expr));
+                    };
+
+                    // We only handle encoding changes directly to columns.
+                    let arg = &function.args[0];
+                    match arg {
+                        Expr::Column(column) => {
+                            let encoding_column_name = Column::new_unqualified(format!(
+                                "_{column}_{encoding_nick_name}"
+                            ));
+
+                            // Prevent rewriting nested encoding changes, as this is not supported.
+                            if column.name.starts_with("_") {
+                                return Ok(Transformed::no(expr));
+                            }
+
+                            // If we already have such a column, we can re-use it.
+                            if self.schema().has_column(&encoding_column_name)
+                                || column_projections.contains_key(&encoding_column_name)
+                            {
+                                return Ok(Transformed::yes(col(encoding_column_name)));
+                            }
+
+                            // Otherwise, add new projection and rewrite
+                            column_projections.insert(
+                                encoding_column_name.clone(),
+                                Expr::ScalarFunction(function.clone()),
+                            );
+
+                            Ok(Transformed::yes(col(encoding_column_name)))
+                        }
+                        _ => Ok(Transformed::no(expr)),
+                    }
+                }
+                _ => Ok(Transformed::no(expr)),
+            }
+        })?;
+
+        if new_expression.transformed {
+            let mut projections = self
+                .schema()
+                .columns()
+                .into_iter()
+                .map(col)
+                .collect::<Vec<_>>();
+            for (column, expr) in column_projections.into_iter() {
+                projections.push(expr.alias(column.name()));
+            }
+
+            let new_plan = Self {
+                context: self.context,
+                plan_builder: self.plan_builder.project(projections)?,
+            };
+            Ok((new_plan, new_expression.data))
+        } else {
+            Ok((self, new_expression.data))
+        }
     }
 }
 
