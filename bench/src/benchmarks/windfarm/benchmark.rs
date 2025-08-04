@@ -29,7 +29,7 @@ struct WindfarmFilePaths {
     query_folder: PathBuf,
 }
 
-/// The "Wind Farm" benchmark is derived from the benchmarks used to evaluate Chrontext [1], an
+/// The "Wind Farm" benchmark is derived from the benchmarks used to evaluate Chrontext \[1\], an
 /// ontology-based data access framework for time series data.
 ///
 /// Based on the original benchmark, we have implemented a data generator in Rust that ...
@@ -40,7 +40,7 @@ struct WindfarmFilePaths {
 ///
 /// # References
 ///
-/// [1] M. Bakken and A. Soylu, “Chrontext: Portable SPARQL queries over contextualised time
+/// \[1\] M. Bakken and A. Soylu, “Chrontext: Portable SPARQL queries over contextualised time
 ///     series data in industrial settings,” Expert Systems with Applications, vol. 226, p. 120149,
 ///     Sept. 2023, doi: 10.1016/j.eswa.2023.120149.
 pub struct WindFarmBenchmark {
