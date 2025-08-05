@@ -653,6 +653,36 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self.apply_builtin(BuiltinName::Equal, vec![rhs])
     }
 
+    /// Builds an expression that checks for SPARQL `sameTerm` equality.
+    pub fn same_term(self, rhs: Expr) -> DFResult<Self> {
+        self.apply_builtin(BuiltinName::SameTerm, vec![rhs])
+    }
+
+    /// Builds an expression that checks for `sameTerm` equality with a scalar value.
+    pub fn same_term_scalar(self, scalar: TermRef<'_>) -> DFResult<Self> {
+        let encoding_name = self.encoding()?;
+        let literal = match encoding_name {
+            EncodingName::PlainTerm => PLAIN_TERM_ENCODING
+                .encode_term(Ok(scalar))?
+                .into_scalar_value(),
+            EncodingName::TypedValue => TYPED_VALUE_ENCODING
+                .encode_term(Ok(scalar))?
+                .into_scalar_value(),
+            EncodingName::Sortable => {
+                return plan_err!("Filtering not supported for Sortable encoding.");
+            }
+            EncodingName::ObjectId => match self.context.encodings().object_id() {
+                None => {
+                    return plan_err!("The context has not ObjectID encoding registered");
+                }
+                Some(object_id_encoding) => object_id_encoding
+                    .encode_term(Ok(scalar))?
+                    .into_scalar_value(),
+            },
+        };
+        self.same_term(lit(literal))
+    }
+
     /// Creates an expression for the greater than operator.
     ///
     /// # Relevant Resources
@@ -954,26 +984,6 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self.expr
     }
 
-    /// Builds an expression that checks for SPARQL `sameTerm` equality.
-    ///
-    /// This is a terminating builder function as it no longer produces an RDF term as output.
-    pub fn build_same_term(self, rhs: Expr) -> DFResult<Expr> {
-        let args = vec![self.expr.clone(), rhs]
-            .into_iter()
-            .map(|e| {
-                self.context
-                    .try_create_builder(e)?
-                    .with_encoding(EncodingName::PlainTerm)?
-                    .build()
-            })
-            .collect::<DFResult<Vec<_>>>()?;
-
-        let udf = self.context.create_builtin_udf(BuiltinName::SameTerm)?;
-        self.context
-            .try_create_builder(udf.call(args))?
-            .build_effective_boolean_value()
-    }
-
     /// Builds an expression that computes the effective boolean value of the inner expression.
     ///
     /// This is a terminating builder function as it no longer produces an RDF term as output.
@@ -1004,32 +1014,5 @@ impl<'root> RdfFusionExprBuilder<'root> {
             args,
             RdfFusionFunctionArgs::empty(),
         )
-    }
-
-    /// Builds an expression that checks for `sameTerm` equality with a scalar value.
-    ///
-    /// This is a terminating builder function as it no longer produces an RDF term as output.
-    pub fn build_same_term_scalar(self, scalar: TermRef<'_>) -> DFResult<Expr> {
-        let encoding_name = self.encoding()?;
-        let literal = match encoding_name {
-            EncodingName::PlainTerm => PLAIN_TERM_ENCODING
-                .encode_term(Ok(scalar))?
-                .into_scalar_value(),
-            EncodingName::TypedValue => TYPED_VALUE_ENCODING
-                .encode_term(Ok(scalar))?
-                .into_scalar_value(),
-            EncodingName::Sortable => {
-                return plan_err!("Filtering not supported for Sortable encoding.");
-            }
-            EncodingName::ObjectId => match self.context.encodings().object_id() {
-                None => {
-                    return plan_err!("The context has not ObjectID encoding registered");
-                }
-                Some(object_id_encoding) => object_id_encoding
-                    .encode_term(Ok(scalar))?
-                    .into_scalar_value(),
-            },
-        };
-        self.build_same_term(lit(literal))
     }
 }

@@ -134,7 +134,8 @@ fn filter_same_variable(
             .map(|(a, b)| {
                 expr_builder_root
                     .try_create_builder(a.clone())?
-                    .build_same_term(b.clone())
+                    .same_term(b.clone())?
+                    .build_effective_boolean_value()
             })
             .collect::<DFResult<Vec<_>>>()?;
 
@@ -183,14 +184,18 @@ fn create_filter_expression(
     pattern: Option<&TermPattern>,
 ) -> DFResult<Option<Expr>> {
     match pattern {
-        Some(TermPattern::NamedNode(nn)) => {
-            Some(expr_builder.build_same_term_scalar(Term::from(nn.clone()).as_ref()))
-                .transpose()
-        }
-        Some(TermPattern::Literal(lit)) => {
-            Some(expr_builder.build_same_term_scalar(Term::from(lit.clone()).as_ref()))
-                .transpose()
-        }
+        Some(TermPattern::NamedNode(nn)) => Some(
+            expr_builder
+                .same_term_scalar(Term::from(nn.clone()).as_ref())?
+                .build_effective_boolean_value(),
+        )
+        .transpose(),
+        Some(TermPattern::Literal(lit)) => Some(
+            expr_builder
+                .same_term_scalar(Term::from(lit.clone()).as_ref())?
+                .build_effective_boolean_value(),
+        )
+        .transpose(),
         _ => Ok(None),
     }
 }

@@ -127,7 +127,8 @@ impl PropertyPathLoweringRule {
             &self.context.storage_encoding().quad_schema(),
         )
         .try_create_builder(col(COL_PREDICATE))?
-        .build_same_term_scalar(TermRef::from(node.as_ref()))?;
+        .same_term_scalar(TermRef::from(node.as_ref()))?
+        .build_effective_boolean_value()?;
         self.scan_quads(&inf.active_graph, Some(filter))
     }
 
@@ -147,7 +148,8 @@ impl PropertyPathLoweringRule {
             .map(|nn| {
                 predicate_builder
                     .clone()
-                    .build_same_term_scalar(TermRef::from(nn.as_ref()))
+                    .same_term_scalar(TermRef::from(nn.as_ref()))?
+                    .build_effective_boolean_value()
             })
             .collect::<DFResult<Vec<Expr>>>()?;
         let test_expression =
@@ -351,7 +353,8 @@ fn create_path_sequence_join_filter(
     if inf.disallow_cross_graph_paths {
         let path_join_expr = expr_builder_root
             .try_create_builder(Expr::from(Column::new(Some("lhs"), COL_PATH_GRAPH)))?
-            .build_same_term(Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)))?;
+            .same_term(Expr::from(Column::new(Some("rhs"), COL_PATH_GRAPH)))?
+            .build_effective_boolean_value()?;
         on_exprs.push(path_join_expr)
     }
 

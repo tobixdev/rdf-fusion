@@ -58,7 +58,8 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             Expression::SameTerm(lhs, rhs) => {
                 let boolean = self
                     .rewrite_internal(lhs)?
-                    .build_same_term(self.rewrite(rhs)?)?;
+                    .same_term(self.rewrite(rhs)?)?
+                    .build_effective_boolean_value()?;
                 self.expr_builder_root.native_boolean_as_term(boolean)
             }
             Expression::Greater(lhs, rhs) => {

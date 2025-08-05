@@ -123,13 +123,12 @@ impl SimplifySparqlExpressionsRule {
             _ => EncodingName::PlainTerm,
         };
 
-        let lhs_expr_builder =
-            RdfFusionExprBuilderContext::new(&self.context, input_schema);
-        let lhs = lhs_expr_builder
+        let expr_builder = RdfFusionExprBuilderContext::new(&self.context, input_schema);
+        let lhs = expr_builder
             .try_create_builder(lhs)?
             .with_encoding(target_encoding)?
             .build()?;
-        let rhs = lhs_expr_builder
+        let rhs = expr_builder
             .try_create_builder(rhs)?
             .with_encoding(target_encoding)?
             .build()?;
@@ -144,11 +143,12 @@ impl SimplifySparqlExpressionsRule {
                 Ok(Transformed::yes(udf.call(vec![equality])))
             }
             EncodingName::TypedValue => {
-                let udf = self.context.functions().create_udf(
-                    FunctionName::Builtin(BuiltinName::SameTerm),
-                    RdfFusionFunctionArgs::empty(),
-                )?;
-                Ok(Transformed::yes(udf.call(vec![lhs, rhs])))
+                let expr = expr_builder
+                    .try_create_builder(lhs)?
+                    .same_term(rhs)?
+                    .with_encoding(EncodingName::TypedValue)?
+                    .build()?;
+                Ok(Transformed::yes(expr))
             }
             _ => unreachable!("These encodings are not supported."),
         }
