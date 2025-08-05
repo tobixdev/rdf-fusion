@@ -96,7 +96,7 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
                     |args| args.first().cloned().ok_or(ThinError::ExpectedError),
                     |args| {
                         args.iter()
-                            .find_map(|arg| arg.clone().ok())
+                            .find_map(|arg| (*arg).ok())
                             .ok_or(ThinError::ExpectedError)
                     },
                 )

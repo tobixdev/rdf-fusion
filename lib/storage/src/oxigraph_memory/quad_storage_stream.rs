@@ -1,8 +1,6 @@
-use crate::oxigraph_memory::object_id::{EncodedObjectId, EncodedObjectIdQuad};
+use crate::oxigraph_memory::object_id::EncodedObjectIdQuad;
 use crate::oxigraph_memory::store::QuadIterator;
-use datafusion::arrow::array::{
-    Array, FixedSizeBinaryBuilder, RecordBatch, RecordBatchOptions,
-};
+use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt32Builder};
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::common::{Column, DataFusionError, exec_err};
 use datafusion::execution::RecordBatchStream;
@@ -146,10 +144,10 @@ impl RecordBatchStream for QuadPatternBatchRecordStream {
 #[allow(clippy::struct_excessive_bools)]
 struct RdfQuadsRecordBatchBuilder {
     encoding: ObjectIdEncoding,
-    graph: Option<(Column, FixedSizeBinaryBuilder)>,
-    subject: Option<(Column, FixedSizeBinaryBuilder)>,
-    predicate: Option<(Column, FixedSizeBinaryBuilder)>,
-    object: Option<(Column, FixedSizeBinaryBuilder)>,
+    graph: Option<(Column, UInt32Builder)>,
+    subject: Option<(Column, UInt32Builder)>,
+    predicate: Option<(Column, UInt32Builder)>,
+    object: Option<(Column, UInt32Builder)>,
     count: usize,
 }
 
@@ -162,7 +160,7 @@ impl RdfQuadsRecordBatchBuilder {
         mut object: Option<Column>,
         capacity: usize,
     ) -> DFResult<Self> {
-        if encoding.data_type() != DataType::FixedSizeBinary(EncodedObjectId::SIZE_I32) {
+        if encoding.data_type() != DataType::UInt32 {
             return exec_err!("The registered ObjectID uses an unexpected data type.");
         }
 
@@ -174,42 +172,10 @@ impl RdfQuadsRecordBatchBuilder {
 
         Ok(Self {
             encoding,
-            graph: graph.map(|v| {
-                (
-                    v,
-                    FixedSizeBinaryBuilder::with_capacity(
-                        capacity,
-                        EncodedObjectId::SIZE_I32,
-                    ),
-                )
-            }),
-            subject: subject.map(|v| {
-                (
-                    v,
-                    FixedSizeBinaryBuilder::with_capacity(
-                        capacity,
-                        EncodedObjectId::SIZE_I32,
-                    ),
-                )
-            }),
-            predicate: predicate.map(|v| {
-                (
-                    v,
-                    FixedSizeBinaryBuilder::with_capacity(
-                        capacity,
-                        EncodedObjectId::SIZE_I32,
-                    ),
-                )
-            }),
-            object: object.map(|v| {
-                (
-                    v,
-                    FixedSizeBinaryBuilder::with_capacity(
-                        capacity,
-                        EncodedObjectId::SIZE_I32,
-                    ),
-                )
-            }),
+            graph: graph.map(|v| (v, UInt32Builder::with_capacity(capacity))),
+            subject: subject.map(|v| (v, UInt32Builder::with_capacity(capacity))),
+            predicate: predicate.map(|v| (v, UInt32Builder::with_capacity(capacity))),
+            object: object.map(|v| (v, UInt32Builder::with_capacity(capacity))),
             count: 0,
         })
     }
@@ -229,7 +195,7 @@ impl RdfQuadsRecordBatchBuilder {
                 let value = &quad.as_ref().expect("Checked via count").graph_name;
                 match &value.0 {
                     None => builder.append_null(),
-                    Some(value) => builder.append_value(value.as_ref())?,
+                    Some(value) => builder.append_value(value.as_object_id().0),
                 }
             }
         }
@@ -237,21 +203,21 @@ impl RdfQuadsRecordBatchBuilder {
         if let Some((_, builder)) = &mut self.subject {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").subject;
-                builder.append_value(value.as_ref())?;
+                builder.append_value(value.as_object_id().0)
             }
         }
 
         if let Some((_, builder)) = &mut self.predicate {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").predicate;
-                builder.append_value(value.as_ref())?;
+                builder.append_value(value.as_object_id().0)
             }
         }
 
         if let Some((_, builder)) = &mut self.object {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").object;
-                builder.append_value(value.as_ref())?;
+                builder.append_value(value.as_object_id().0)
             }
         }
 
@@ -264,7 +230,7 @@ impl RdfQuadsRecordBatchBuilder {
             encoding: &ObjectIdEncoding,
             fields: &mut Vec<Field>,
             arrays: &mut Vec<Arc<dyn Array>>,
-            column: Option<(Column, FixedSizeBinaryBuilder)>,
+            column: Option<(Column, UInt32Builder)>,
             nullable: bool,
         ) {
             if let Some((var, mut builder)) = column {

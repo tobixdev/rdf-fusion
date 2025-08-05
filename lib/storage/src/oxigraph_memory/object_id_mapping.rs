@@ -21,7 +21,7 @@ use rdf_fusion_model::{
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum EncodedTerm {
@@ -35,7 +35,7 @@ pub enum EncodedTerm {
 #[derive(Debug)]
 pub struct MemoryObjectIdMapping {
     plain_term_encoding: PlainTermEncoding,
-    next_id: AtomicU64,
+    next_id: AtomicU32,
     str_interning: DashSet<Arc<str>>,
     id2term: DashMap<EncodedObjectId, EncodedTerm, BuildHasherDefault<FxHasher>>,
     term2id: DashMap<EncodedTerm, EncodedObjectId, BuildHasherDefault<FxHasher>>,
@@ -45,7 +45,7 @@ impl MemoryObjectIdMapping {
     pub fn new(plain_term_encoding: PlainTermEncoding) -> Self {
         Self {
             plain_term_encoding,
-            next_id: AtomicU64::new(0),
+            next_id: AtomicU32::new(0),
             str_interning: DashSet::new(),
             id2term: DashMap::with_hasher(BuildHasherDefault::default()),
             term2id: DashMap::with_hasher(BuildHasherDefault::default()),
@@ -190,8 +190,7 @@ impl MemoryObjectIdMapping {
         match found {
             None => {
                 let next_id = self.next_id.fetch_add(1, Ordering::Relaxed);
-                let object_id =
-                    EncodedObjectId::try_from(next_id).expect("Invalid object ID");
+                let object_id = EncodedObjectId::from(next_id);
                 self.id2term.insert(object_id, encoded_term.clone());
                 self.term2id.insert(encoded_term.clone(), object_id);
                 object_id
@@ -228,7 +227,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
             .and_then(|term| self.try_get_encoded_term(term))
             .and_then(|term| self.try_get_encoded_object_id(&term))
             .map(|oid| {
-                ObjectIdScalar::from_object_id(self.encoding(), oid.as_object_id_ref())
+                ObjectIdScalar::from_object_id(self.encoding(), oid.as_object_id())
             });
         Ok(result)
     }
@@ -243,7 +242,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
                 Ok(term) => {
                     let encoded_term = self.obtain_encoded_term(term);
                     let object_id = self.obtain_object_id(&encoded_term);
-                    result.append_object_id(object_id.as_object_id_ref())?
+                    result.append_object_id(object_id.as_object_id())
                 }
                 Err(_) => result.append_null(),
             }
@@ -254,10 +253,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
 
     fn decode_array(&self, array: &ObjectIdArray) -> DFResult<PlainTermArray> {
         let terms = array.object_ids().iter().map(|oid| {
-            let oid = oid
-                .map(EncodedObjectId::try_from)
-                .transpose()
-                .expect("Invalid object ID");
+            let oid = oid.map(EncodedObjectId::from);
             oid.map(|oid| self.id2term.get(&oid).expect("Missing object id").clone())
         });
 
@@ -298,6 +294,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
 mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
+    use rdf_fusion_common::ObjectId;
     use rdf_fusion_encoding::object_id::ObjectIdArrayBuilder;
     use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
     use rdf_fusion_encoding::{EncodingArray, EncodingScalar};
@@ -407,12 +404,12 @@ mod tests {
 
         // Check if IDs match what's in the array
         assert_eq!(
-            object_id1.unwrap().as_object_ref().unwrap().as_ref(),
+            object_id1.unwrap().as_object().unwrap().0,
             object_id_array.object_ids().value(0)
         );
         assert_eq!(
-            object_id2.unwrap().as_object_ref().unwrap().as_ref(),
-            object_id_array.object_ids().value(1)
+            object_id2.unwrap().as_object().unwrap(),
+            ObjectId(object_id_array.object_ids().value(1))
         );
 
         // A term not in the mapping
@@ -441,11 +438,11 @@ mod tests {
         // To verify, we can decode the IDs.
         // Let's build an array with the IDs and decode it.
         let mut builder = ObjectIdArrayBuilder::new(mapping.encoding());
-        builder.append_object_id(object_id_quad.subject.as_object_id_ref())?;
-        builder.append_object_id(object_id_quad.predicate.as_object_id_ref())?;
-        builder.append_object_id(object_id_quad.object.as_object_id_ref())?;
+        builder.append_object_id(object_id_quad.subject.as_object_id());
+        builder.append_object_id(object_id_quad.predicate.as_object_id());
+        builder.append_object_id(object_id_quad.object.as_object_id());
         if let Some(graph_id) = object_id_quad.graph_name.0.as_ref() {
-            builder.append_object_id(graph_id.as_object_id_ref())?;
+            builder.append_object_id(graph_id.as_object_id());
         }
         let id_array = builder.finish();
 

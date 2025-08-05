@@ -1,7 +1,7 @@
 use crate::TermEncoding;
 use crate::encoding::EncodingArray;
 use crate::object_id::ObjectIdEncoding;
-use datafusion::arrow::array::{Array, ArrayRef, FixedSizeBinaryArray};
+use datafusion::arrow::array::{Array, ArrayRef, UInt32Array};
 use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 
@@ -29,12 +29,12 @@ impl ObjectIdArray {
         Self { encoding, inner }
     }
 
-    /// Returns a reference to the inner [FixedSizeBinaryArray].
+    /// Returns a reference to the inner [UInt32Array].
     #[allow(clippy::expect_used)]
-    pub fn object_ids(&self) -> &FixedSizeBinaryArray {
+    pub fn object_ids(&self) -> &UInt32Array {
         self.inner
             .as_any()
-            .downcast_ref::<FixedSizeBinaryArray>()
+            .downcast_ref::<UInt32Array>()
             .expect("Checked in constructor")
     }
 }

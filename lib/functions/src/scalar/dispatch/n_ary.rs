@@ -1,5 +1,5 @@
 use datafusion::logical_expr::ColumnarValue;
-use rdf_fusion_common::{DFResult, ObjectIdRef};
+use rdf_fusion_common::{DFResult, ObjectId};
 use rdf_fusion_encoding::object_id::{
     DefaultObjectIdDecoder, ObjectIdArrayBuilder, ObjectIdEncoding,
 };
@@ -115,13 +115,13 @@ pub fn dispatch_n_ary_object_id(
     encoding: &ObjectIdEncoding,
     args: &[EncodingDatum<ObjectIdEncoding>],
     number_of_rows: usize,
-    op: impl for<'a> Fn(&[ObjectIdRef<'a>]) -> ThinResult<ObjectIdRef<'a>>,
-    error_op: impl for<'a> Fn(&[ThinResult<ObjectIdRef<'a>>]) -> ThinResult<ObjectIdRef<'a>>,
+    op: impl Fn(&[ObjectId]) -> ThinResult<ObjectId>,
+    error_op: impl Fn(&[ThinResult<ObjectId>]) -> ThinResult<ObjectId>,
 ) -> DFResult<ColumnarValue> {
     if args.is_empty() {
         let mut builder = ObjectIdArrayBuilder::new(encoding.clone());
         for result in (0..number_of_rows).map(|_| op(&[]).ok()) {
-            builder.append_object_id_opt(result)?;
+            builder.append_object_id_opt(result);
         }
         return Ok(ColumnarValue::Array(builder.finish().into_array()));
     }
@@ -144,7 +144,7 @@ pub fn dispatch_n_ary_object_id(
 
     let mut builder = ObjectIdArrayBuilder::new(encoding.clone());
     for result in results {
-        builder.append_object_id_opt(result)?;
+        builder.append_object_id_opt(result);
     }
     Ok(ColumnarValue::Array(builder.finish().into_array()))
 }

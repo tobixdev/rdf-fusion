@@ -1,20 +1,15 @@
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
-pub struct ObjectIdRef<'a>(&'a [u8]);
+/// An object id uniquely identifies an RDF Term. As a result, two object ids with a = b imply that
+/// this is the same RDF term. No further checks are necessary.
+///
+/// # Future Plans
+///
+/// Currently, the object id machinery only supports `u32`. However, in the future we plan to
+/// support arbitrary length ids to enable experimentation (e.g., inlining small strings).
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
+pub struct ObjectId(pub u32);
 
-impl ObjectIdRef<'_> {
-    pub const fn as_bytes(&self) -> &[u8] {
-        self.0
-    }
-}
-
-impl<'a> From<&'a [u8]> for ObjectIdRef<'a> {
-    fn from(value: &'a [u8]) -> Self {
-        Self(value)
-    }
-}
-
-impl AsRef<[u8]> for ObjectIdRef<'_> {
-    fn as_ref(&self) -> &[u8] {
-        self.0
+impl From<u32> for ObjectId {
+    fn from(id: u32) -> Self {
+        ObjectId(id)
     }
 }

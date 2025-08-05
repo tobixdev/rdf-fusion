@@ -1,7 +1,7 @@
 use crate::TermEncoding;
 use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
-use datafusion::arrow::array::FixedSizeBinaryBuilder;
-use rdf_fusion_common::{AResult, ObjectIdRef};
+use datafusion::arrow::array::UInt32Builder;
+use rdf_fusion_common::ObjectId;
 use std::sync::Arc;
 
 /// Provides a convenient API for building arrays of RDF terms with the [ObjectIdEncoding]. The
@@ -9,14 +9,14 @@ use std::sync::Arc;
 pub struct ObjectIdArrayBuilder {
     /// The mapping that is used for obtaining object ids.
     encoding: ObjectIdEncoding,
-    /// The underlying [FixedSizeBinaryBuilder].
-    builder: FixedSizeBinaryBuilder,
+    /// The underlying [UInt32Builder].
+    builder: UInt32Builder,
 }
 
 impl ObjectIdArrayBuilder {
     /// Create a [ObjectIdArrayBuilder] with the given `capacity`.
     pub fn new(encoding: ObjectIdEncoding) -> Self {
-        let builder = FixedSizeBinaryBuilder::new(encoding.object_id_size() as i32);
+        let builder = UInt32Builder::new();
         Self { encoding, builder }
     }
 
@@ -26,19 +26,13 @@ impl ObjectIdArrayBuilder {
     }
 
     /// Appends an object id.
-    pub fn append_object_id(&mut self, term: ObjectIdRef<'_>) -> AResult<()> {
-        self.builder.append_value(term)
+    pub fn append_object_id(&mut self, term: ObjectId) {
+        self.builder.append_value(term.0)
     }
 
     /// Appends an object id.
-    pub fn append_object_id_opt(&mut self, term: Option<ObjectIdRef<'_>>) -> AResult<()> {
-        match term {
-            None => {
-                self.builder.append_null();
-                Ok(())
-            }
-            Some(term) => self.builder.append_value(term),
-        }
+    pub fn append_object_id_opt(&mut self, term: Option<ObjectId>) {
+        self.builder.append_option(term.map(|t| t.0))
     }
 
     #[allow(clippy::expect_used, reason = "Programming error")]

@@ -35,7 +35,7 @@ impl TermEncoding for ObjectIdEncoding {
     }
 
     fn data_type(&self) -> DataType {
-        DataType::FixedSizeBinary(self.object_id_size() as i32)
+        DataType::UInt32
     }
 
     fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
