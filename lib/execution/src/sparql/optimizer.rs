@@ -48,7 +48,7 @@ pub fn create_optimizer_rules(
             rules.extend(create_essential_datafusion_optimizers());
 
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
-                context.functions().clone(),
+                context.clone(),
             )));
             rules
         }
@@ -60,7 +60,7 @@ pub fn create_optimizer_rules(
             rules.extend(lowering_rules);
             rules.extend(Optimizer::default().rules);
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
-                context.functions().clone(),
+                context.clone(),
             )));
             rules
         }
