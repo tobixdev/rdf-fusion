@@ -11,6 +11,7 @@ use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::Quad;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
@@ -52,9 +53,15 @@ struct Content {
 }
 
 impl OxigraphMemoryStorage {
-    pub fn new(plain_term_encoding: PlainTermEncoding) -> Self {
+    pub fn new(
+        plain_term_encoding: PlainTermEncoding,
+        typed_value_encoding: TypedValueEncoding,
+    ) -> Self {
         Self {
-            object_ids: Arc::new(MemoryObjectIdMapping::new(plain_term_encoding)),
+            object_ids: Arc::new(MemoryObjectIdMapping::new(
+                plain_term_encoding,
+                typed_value_encoding,
+            )),
             content: Arc::new(Content {
                 quad_set: DashSet::default(),
                 last_quad: RwLock::new(None),
@@ -1078,6 +1085,7 @@ impl Debug for OxigraphMemoryStorage {
 mod tests {
     use super::*;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
     use rdf_fusion_model::NamedNodeRef;
 
     #[test]
@@ -1149,7 +1157,8 @@ mod tests {
     fn test_transaction() -> Result<(), StorageError> {
         let example = NamedNodeRef::new_unchecked("http://example.com/1");
         let example2 = NamedNodeRef::new_unchecked("http://example.com/2");
-        let storage = OxigraphMemoryStorage::new(PLAIN_TERM_ENCODING);
+        let storage =
+            OxigraphMemoryStorage::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
 
         let encoded_example = storage.object_ids().encode_term_intern(example);
         let encoded_example2 = storage.object_ids().encode_term_intern(example2);

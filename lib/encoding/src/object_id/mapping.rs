@@ -1,5 +1,6 @@
 use crate::object_id::{ObjectIdArray, ObjectIdEncoding, ObjectIdScalar};
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
+use crate::typed_value::{TypedValueArray, TypedValueScalar};
 use crate::{EncodingArray, EncodingScalar};
 use rdf_fusion_common::DFResult;
 use std::fmt::Debug;
@@ -29,9 +30,25 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     fn decode_array(&self, array: &ObjectIdArray) -> DFResult<PlainTermArray>;
 
     /// TODO
+    fn decode_array_to_typed_value(
+        &self,
+        array: &ObjectIdArray,
+    ) -> DFResult<TypedValueArray>;
+
+    /// TODO
     fn decode_scalar(&self, scalar: &ObjectIdScalar) -> DFResult<PlainTermScalar> {
         let array = scalar.to_array(1)?;
         let decoded = self.decode_array(&array)?;
+        decoded.try_as_scalar(0)
+    }
+
+    /// TODO
+    fn decode_scalar_to_typed_value(
+        &self,
+        scalar: &ObjectIdScalar,
+    ) -> DFResult<TypedValueScalar> {
+        let array = scalar.to_array(1)?;
+        let decoded = self.decode_array_to_typed_value(&array)?;
         decoded.try_as_scalar(0)
     }
 }
