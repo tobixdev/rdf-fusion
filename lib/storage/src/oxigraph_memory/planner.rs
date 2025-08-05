@@ -1,7 +1,7 @@
-use crate::MemoryQuadStorage;
-use crate::oxigraph_memory::object_id_mapping::EncodedTerm;
-use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
+use crate::oxigraph_memory::encoded::EncodedTerm;
+use crate::oxigraph_memory::quad_exec::MemoryQuadExec;
 use crate::oxigraph_memory::store::MemoryStorageReader;
+use crate::MemoryQuadStorage;
 use async_trait::async_trait;
 use datafusion::common::plan_err;
 use datafusion::error::{DataFusionError, Result as DFResult};
