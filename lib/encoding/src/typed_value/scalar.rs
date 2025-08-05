@@ -1,6 +1,9 @@
 use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
-use crate::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
+use crate::plain_term::PlainTermType;
+use crate::typed_value::{
+    TYPED_VALUE_ENCODING, TypedValueEncoding, TypedValueEncodingField,
+};
 use datafusion::common::{DataFusionError, ScalarValue, exec_err};
 use rdf_fusion_common::DFResult;
 
@@ -29,6 +32,24 @@ impl TypedValueScalar {
     /// Creates a new [TypedValueScalar] without checking invariants.
     pub fn new_unchecked(inner: ScalarValue) -> Self {
         Self { inner }
+    }
+
+    /// Returns the [PlainTermType] of this scalar.
+    ///
+    /// Returns [None] if this scalar is null.
+    pub fn term_type(&self) -> Option<PlainTermType> {
+        let ScalarValue::Union(Some((type_id, _)), _, _) = &self.inner else {
+            panic!("Expected Union scalar value");
+        };
+
+        let type_id =
+            TypedValueEncodingField::try_from(*type_id).expect("Expected valid type ID");
+        match type_id {
+            TypedValueEncodingField::Null => None,
+            TypedValueEncodingField::NamedNode => Some(PlainTermType::NamedNode),
+            TypedValueEncodingField::BlankNode => Some(PlainTermType::BlankNode),
+            _ => Some(PlainTermType::Literal),
+        }
     }
 }
 

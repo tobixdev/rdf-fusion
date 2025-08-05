@@ -1,5 +1,8 @@
 use crate::encoding::EncodingScalar;
-use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
+use crate::plain_term::{
+    PLAIN_TERM_ENCODING, PlainTermEncoding, PlainTermEncodingField, PlainTermType,
+};
+use datafusion::arrow::array::{Array, UInt8Array};
 use datafusion::common::{DataFusionError, ScalarValue, exec_err};
 use rdf_fusion_common::DFResult;
 
@@ -27,6 +30,27 @@ impl PlainTermScalar {
     /// Creates a new [PlainTermScalar] without checking invariants.
     pub fn new_unchecked(inner: ScalarValue) -> Self {
         Self { inner }
+    }
+
+    /// Returns the [PlainTermType] of this scalar.
+    ///
+    /// Returns [None] if this scalar is null.
+    pub fn term_type(&self) -> Option<PlainTermType> {
+        let ScalarValue::Struct(struct_array) = &self.inner else {
+            unreachable!("PlainTermScalar must be a struct");
+        };
+
+        if struct_array.is_null(0) {
+            return None;
+        }
+
+        let term_type = struct_array.column(PlainTermEncodingField::TermType.index());
+        let value = term_type
+            .as_any()
+            .downcast_ref::<UInt8Array>()
+            .expect("Expected StringArray")
+            .value(0);
+        Some(PlainTermType::try_from(value).expect("Expected valid term type"))
     }
 }
 
