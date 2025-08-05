@@ -842,10 +842,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
                 vec![BuiltinName::WithTypedValueEncoding]
             }
             (EncodingName::ObjectId, EncodingName::TypedValue) => {
-                vec![
-                    BuiltinName::WithPlainTermEncoding,
-                    BuiltinName::WithTypedValueEncoding,
-                ]
+                vec![BuiltinName::WithTypedValueEncoding]
             }
             (
                 EncodingName::PlainTerm | EncodingName::TypedValue,

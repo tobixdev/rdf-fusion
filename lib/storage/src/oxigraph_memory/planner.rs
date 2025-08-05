@@ -1,5 +1,5 @@
 use crate::MemoryQuadStorage;
-use crate::oxigraph_memory::object_id_mapping::EncodedTerm;
+use crate::oxigraph_memory::encoded::EncodedTerm;
 use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
 use crate::oxigraph_memory::store::MemoryStorageReader;
 use async_trait::async_trait;

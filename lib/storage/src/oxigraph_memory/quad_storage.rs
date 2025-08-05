@@ -1,4 +1,4 @@
-use crate::oxigraph_memory::object_id_mapping::EncodedTerm;
+use crate::oxigraph_memory::encoded::EncodedTerm;
 use crate::oxigraph_memory::planner::OxigraphMemoryQuadNodePlanner;
 use crate::oxigraph_memory::store::{MemoryStorageReader, OxigraphMemoryStorage};
 use async_trait::async_trait;
@@ -8,6 +8,7 @@ use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_model::{
     BlankNode, GraphNameRef, NamedNode, NamedOrBlankNode, NamedOrBlankNodeRef, Quad,
     QuadRef,
@@ -24,7 +25,10 @@ impl MemoryQuadStorage {
     ///
     /// It is intended to pass this storage into a RDF Fusion engine.
     pub fn new() -> Self {
-        let storage = Arc::new(OxigraphMemoryStorage::new(PLAIN_TERM_ENCODING));
+        let storage = Arc::new(OxigraphMemoryStorage::new(
+            PLAIN_TERM_ENCODING,
+            TYPED_VALUE_ENCODING,
+        ));
         Self { storage }
     }
 
