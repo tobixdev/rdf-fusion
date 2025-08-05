@@ -1,18 +1,23 @@
 use crate::RdfFusionExprBuilderContext;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{plan_datafusion_err, plan_err};
+use datafusion::common::{plan_datafusion_err, plan_err, ScalarValue};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
-use datafusion::logical_expr::{Expr, ExprSchemable, lit};
+use datafusion::logical_expr::{lit, Expr, ExprSchemable};
 use rdf_fusion_api::functions::{
     BuiltinName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs,
     RdfFusionFunctionArgsBuilder,
 };
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
+use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoding};
-use rdf_fusion_model::{Iri, TermRef};
+use rdf_fusion_encoding::{
+    EncodingName, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
+};
+use rdf_fusion_model::{Iri, Term, TermRef};
 
 /// A builder for expressions that make use of RDF Fusion built-ins.
 ///
@@ -650,6 +655,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     pub fn equal(self, rhs: Expr) -> DFResult<Self> {
+        if let Some(new_expr) = self.try_reduce_to_same_term_on_scalar(&rhs)? {
+            return self.context.try_create_builder(new_expr);
+        }
+
         self.apply_builtin(BuiltinName::Equal, vec![rhs])
     }
 
@@ -660,27 +669,19 @@ impl<'root> RdfFusionExprBuilder<'root> {
 
     /// Builds an expression that checks for `sameTerm` equality with a scalar value.
     pub fn same_term_scalar(self, scalar: TermRef<'_>) -> DFResult<Self> {
-        let encoding_name = self.encoding()?;
-        let literal = match encoding_name {
-            EncodingName::PlainTerm => PLAIN_TERM_ENCODING
-                .encode_term(Ok(scalar))?
-                .into_scalar_value(),
-            EncodingName::TypedValue => TYPED_VALUE_ENCODING
-                .encode_term(Ok(scalar))?
-                .into_scalar_value(),
-            EncodingName::Sortable => {
-                return plan_err!("Filtering not supported for Sortable encoding.");
-            }
-            EncodingName::ObjectId => match self.context.encodings().object_id() {
-                None => {
-                    return plan_err!("The context has not ObjectID encoding registered");
-                }
-                Some(object_id_encoding) => object_id_encoding
-                    .encode_term(Ok(scalar))?
-                    .into_scalar_value(),
-            },
-        };
-        self.same_term(lit(literal))
+        let encoding = self.encoding()?;
+        let literal = self.encode_scalar_with_encoding(encoding, scalar)?;
+
+        let is_resource = matches!(scalar, TermRef::NamedNode(_) | TermRef::BlankNode(_));
+        if is_resource {
+            let as_term = self
+                .context
+                .create_builtin_udf(BuiltinName::NativeBooleanAsTypedValue)?;
+            let expr = as_term.call(vec![self.expr.eq(lit(literal))]);
+            self.context.try_create_builder(expr)
+        } else {
+            self.same_term(lit(literal))
+        }
     }
 
     /// Creates an expression for the greater than operator.
@@ -827,15 +828,19 @@ impl<'root> RdfFusionExprBuilder<'root> {
     // Encodings
     //
 
-    /// Tries to obtain the encoding from a given expression.
+    /// Tries to obtain the encoding from the current expression.
     fn encoding(&self) -> DFResult<EncodingName> {
-        let (data_type, _) = self.expr.data_type_and_nullable(self.context.schema())?;
+        self.encoding_of_expr(&self.expr)?
+            .ok_or(plan_datafusion_err!(
+                "Expression does not have a valid RDF term encoding. Expression: {}.",
+                &self.expr
+            ))
+    }
 
-        self.context.encodings().try_get_encoding_name(&data_type).ok_or(plan_datafusion_err!(
-            "Expression does not have a valid RDF term encoding. Data Type: {}, Expression: {}.",
-            &data_type,
-            &self.expr
-        ))
+    /// Tries to obtain the encoding from a given expression.
+    fn encoding_of_expr(&self, expr: &Expr) -> DFResult<Option<EncodingName>> {
+        let (data_type, _) = expr.data_type_and_nullable(self.context.schema())?;
+        Ok(self.context.encodings().try_get_encoding_name(&data_type))
     }
 
     /// Equivalent to calling [Self::with_any_encoding] with a `&[target_encoding]`.
@@ -1014,5 +1019,100 @@ impl<'root> RdfFusionExprBuilder<'root> {
             args,
             RdfFusionFunctionArgs::empty(),
         )
+    }
+
+    fn encode_scalar_with_encoding(
+        &self,
+        encoding_name: EncodingName,
+        scalar: TermRef<'_>,
+    ) -> DFResult<ScalarValue> {
+        let literal = match encoding_name {
+            EncodingName::PlainTerm => PLAIN_TERM_ENCODING
+                .encode_term(Ok(scalar))?
+                .into_scalar_value(),
+            EncodingName::TypedValue => TYPED_VALUE_ENCODING
+                .encode_term(Ok(scalar))?
+                .into_scalar_value(),
+            EncodingName::Sortable => {
+                return plan_err!("Filtering not supported for Sortable encoding.");
+            }
+            EncodingName::ObjectId => match self.context.encodings().object_id() {
+                None => {
+                    return plan_err!("The context has not ObjectID encoding registered");
+                }
+                Some(object_id_encoding) => object_id_encoding
+                    .encode_term(Ok(scalar))?
+                    .into_scalar_value(),
+            },
+        };
+        Ok(literal)
+    }
+
+    fn try_reduce_to_same_term_on_scalar(&self, expr: &Expr) -> DFResult<Option<Expr>> {
+        let left_resource = self.try_extract_encoded_resource(&self.expr)?;
+        let right_resource = self.try_extract_encoded_resource(&expr)?;
+
+        let (new_expr, scalar) = match (left_resource, right_resource) {
+            (Some(scalar_lhs), Some(scalar_rhs)) => {
+                let scalar_lhs =
+                    DefaultPlainTermEncoder::encode_term(Ok(scalar_lhs.as_ref()))?;
+                (lit(scalar_lhs.into_scalar_value()), scalar_rhs)
+            }
+            (Some(scalar), None) => (expr.clone(), scalar),
+            (None, Some(scalar)) => (self.expr.clone(), scalar),
+            (None, None) => return Ok(None), // No scalar, we must refuse
+        };
+
+        let result = self
+            .context
+            .try_create_builder(new_expr)?
+            .same_term_scalar(scalar.as_ref())?
+            .build()?;
+        Ok(Some(result))
+    }
+
+    fn try_extract_encoded_resource(&self, expr: &Expr) -> DFResult<Option<Term>> {
+        let result = match expr {
+            Expr::Literal(value, _) => {
+                let encoding = self.encoding_of_expr(&lit(value.clone()))?;
+                match encoding {
+                    Some(EncodingName::PlainTerm) => {
+                        let scalar = self
+                            .context
+                            .encodings()
+                            .plain_term()
+                            .try_new_scalar(value.clone())?;
+                        match DefaultPlainTermDecoder::decode_term(&scalar) {
+                            Ok(term) => Some(term.into_owned()),
+                            Err(_) => None,
+                        }
+                    }
+                    Some(EncodingName::TypedValue) => {
+                        let scalar = self
+                            .context
+                            .encodings()
+                            .typed_value()
+                            .try_new_scalar(value.clone())?;
+                        match DefaultTypedValueDecoder::decode_term(&scalar) {
+                            Ok(term) => Some(Term::from(term)),
+                            Err(_) => None,
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            Expr::ScalarFunction(function) => {
+                let built_in = BuiltinName::try_from(function.func.name());
+                match built_in {
+                    Ok(
+                        BuiltinName::WithTypedValueEncoding
+                        | BuiltinName::WithPlainTermEncoding,
+                    ) => self.try_extract_encoded_resource(&function.args[0])?,
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        Ok(result)
     }
 }
