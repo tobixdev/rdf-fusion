@@ -764,13 +764,9 @@ impl Store {
         self.engine.storage().clear().await
     }
 
-    /// Validates that all the store invariants held in the data
-    #[allow(clippy::unused_self, reason = "Not implemented")]
-    #[allow(clippy::unnecessary_wraps, reason = "Not implemented")]
-    #[doc(hidden)]
-    pub fn validate(&self) -> Result<(), StorageError> {
-        // TODO: Is there anything we should do here?
-        Ok(())
+    /// Validates that all the store invariants hold in the data storage
+    pub async fn validate(&self) -> Result<(), StorageError> {
+        self.engine.storage().validate().await
     }
 }
 
@@ -784,6 +780,37 @@ mod tests {
     fn test_send_sync() {
         fn is_send_sync<T: Send + Sync>() {}
         is_send_sync::<Store>();
+    }
+
+    #[tokio::test]
+    async fn test_stream_default_graph_quads() -> Result<(), QueryEvaluationError> {
+        let store = Store::new();
+        let ex = NamedNodeRef::new("http://example.com")
+            .map_err(|e| QueryEvaluationError::InternalError(e.to_string()))?;
+        let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
+
+        store.insert(quad).await?;
+
+        let collected_quads = store.stream().await?.try_collect_to_vec().await?;
+        assert_eq!(collected_quads, vec![quad.into_owned()]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_stream_named_graph_quads() -> Result<(), QueryEvaluationError> {
+        let store = Store::new();
+        let ex = NamedNodeRef::new("http://example.com")
+            .map_err(|e| QueryEvaluationError::InternalError(e.to_string()))?;
+        let graph = GraphName::BlankNode(BlankNode::default());
+        let quad = QuadRef::new(ex, ex, ex, graph.as_ref());
+
+        store.insert(quad).await?;
+
+        let collected_quads = store.stream().await?.try_collect_to_vec().await?;
+        assert_eq!(collected_quads, vec![quad.into_owned()]);
+
+        Ok(())
     }
 
     #[tokio::test]
@@ -849,7 +876,7 @@ mod tests {
         assert!(!store.insert(&named_quad).await?);
         assert!(store.insert(&default_quad).await?);
         assert!(!store.insert(&default_quad).await?);
-        store.validate()?;
+        store.validate().await?;
 
         assert_eq!(store.len().await?, 4);
         assert_eq!(store.stream().await?.try_collect_to_vec().await?, all_quads);

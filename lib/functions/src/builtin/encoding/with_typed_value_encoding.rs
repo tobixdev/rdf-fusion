@@ -1,16 +1,16 @@
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::encoders::TermRefTypedValueEncoder;
+use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::typed_value::encoders::TermRefTypedValueEncoder;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
     TermEncoder, TermEncoding,
@@ -67,14 +67,13 @@ impl WithTypedValueEncoding {
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Array(array)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => match &self.encodings.object_id() {
+            EncodingName::ObjectId => match self.encodings.object_id_mapping() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
                 Some(object_id_encoding) => {
-                    let array = object_id_encoding.try_new_array(array)?;
-                    let decoded = object_id_encoding.mapping().decode_array(&array)?;
-                    let mut decoded = DefaultPlainTermDecoder::decode_terms(&decoded);
-                    let result = TermRefTypedValueEncoder::encode_terms(&mut decoded)?;
-                    Ok(ColumnarValue::Array(result.into_array()))
+                    let array = object_id_encoding.encoding().try_new_array(array)?;
+                    let decoded =
+                        object_id_encoding.decode_array_to_typed_value(&array)?;
+                    Ok(ColumnarValue::Array(decoded.into_array()))
                 }
             },
         }
@@ -94,14 +93,13 @@ impl WithTypedValueEncoding {
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Scalar(scalar)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => match &self.encodings.object_id() {
+            EncodingName::ObjectId => match self.encodings.object_id_mapping() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
                 Some(object_id_encoding) => {
-                    let scalar = object_id_encoding.try_new_scalar(scalar)?;
-                    let decoded = object_id_encoding.mapping().decode_scalar(&scalar)?;
-                    let decoded = DefaultPlainTermDecoder::decode_term(&decoded);
-                    let result = TermRefTypedValueEncoder::encode_term(decoded)?;
-                    Ok(ColumnarValue::Scalar(result.into_scalar_value()))
+                    let array = object_id_encoding.encoding().try_new_scalar(scalar)?;
+                    let decoded =
+                        object_id_encoding.decode_scalar_to_typed_value(&array)?;
+                    Ok(ColumnarValue::Scalar(decoded.into_scalar_value()))
                 }
             },
         }

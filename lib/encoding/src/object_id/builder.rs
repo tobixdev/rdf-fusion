@@ -1,7 +1,7 @@
 use crate::TermEncoding;
 use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
-use datafusion::arrow::array::UInt64Builder;
-use rdf_fusion_model::TermRef;
+use datafusion::arrow::array::UInt32Builder;
+use rdf_fusion_common::ObjectId;
 use std::sync::Arc;
 
 /// Provides a convenient API for building arrays of RDF terms with the [ObjectIdEncoding]. The
@@ -9,29 +9,30 @@ use std::sync::Arc;
 pub struct ObjectIdArrayBuilder {
     /// The mapping that is used for obtaining object ids.
     encoding: ObjectIdEncoding,
-    /// The underlying [UInt64Builder].
-    builder: UInt64Builder,
+    /// The underlying [UInt32Builder].
+    builder: UInt32Builder,
 }
 
 impl ObjectIdArrayBuilder {
     /// Create a [ObjectIdArrayBuilder] with the given `capacity`.
     pub fn new(encoding: ObjectIdEncoding) -> Self {
-        Self {
-            encoding,
-            builder: UInt64Builder::new(),
-        }
+        let builder = UInt32Builder::new();
+        Self { encoding, builder }
     }
 
     /// Appends a null value to the array.
     pub fn append_null(&mut self) {
-        self.builder.append_value(0);
+        self.builder.append_null()
     }
 
-    /// Appends an arbitrary RDF term to the array. The corresponding object id is obtained by
-    /// consulting the mapping.
-    pub fn append_term(&mut self, term: TermRef<'_>) {
-        let value = self.encoding.mapping().encode(term);
-        self.builder.append_value(value);
+    /// Appends an object id.
+    pub fn append_object_id(&mut self, term: ObjectId) {
+        self.builder.append_value(term.0)
+    }
+
+    /// Appends an object id.
+    pub fn append_object_id_opt(&mut self, term: Option<ObjectId>) {
+        self.builder.append_option(term.map(|t| t.0))
     }
 
     #[allow(clippy::expect_used, reason = "Programming error")]

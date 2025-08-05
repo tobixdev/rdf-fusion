@@ -1,13 +1,17 @@
 #![allow(dead_code)] // We want to keep this as close to the original as possible
 
-use crate::oxigraph_memory::object_id::{ObjectId, ObjectIdQuad};
+use crate::oxigraph_memory::object_id::{
+    EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId,
+};
 use crate::oxigraph_memory::object_id_mapping::MemoryObjectIdMapping;
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::Quad;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
@@ -35,20 +39,29 @@ struct Content {
     quad_set: DashSet<Arc<QuadListNode>, BuildHasherDefault<FxHasher>>,
     last_quad: RwLock<Option<Weak<QuadListNode>>>,
     last_quad_by_subject:
-        DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
+        DashMap<EncodedObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
     last_quad_by_predicate:
-        DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
+        DashMap<EncodedObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
     last_quad_by_object:
-        DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
-    last_quad_by_graph_name:
-        DashMap<ObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
-    graphs: DashMap<ObjectId, VersionRange>,
+        DashMap<EncodedObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
+    last_quad_by_graph_name: DashMap<
+        GraphEncodedObjectId,
+        (Weak<QuadListNode>, u64),
+        BuildHasherDefault<FxHasher>,
+    >,
+    named_graphs: DashMap<EncodedObjectId, VersionRange>,
 }
 
 impl OxigraphMemoryStorage {
-    pub fn new() -> Self {
+    pub fn new(
+        plain_term_encoding: PlainTermEncoding,
+        typed_value_encoding: TypedValueEncoding,
+    ) -> Self {
         Self {
-            object_ids: Arc::new(MemoryObjectIdMapping::new()),
+            object_ids: Arc::new(MemoryObjectIdMapping::new(
+                plain_term_encoding,
+                typed_value_encoding,
+            )),
             content: Arc::new(Content {
                 quad_set: DashSet::default(),
                 last_quad: RwLock::new(None),
@@ -56,7 +69,7 @@ impl OxigraphMemoryStorage {
                 last_quad_by_predicate: DashMap::default(),
                 last_quad_by_object: DashMap::default(),
                 last_quad_by_graph_name: DashMap::default(),
-                graphs: DashMap::default(),
+                named_graphs: DashMap::default(),
             }),
             version_counter: Arc::new(AtomicUsize::new(0)),
             #[allow(clippy::mutex_atomic)]
@@ -66,12 +79,12 @@ impl OxigraphMemoryStorage {
 
     #[allow(clippy::clone_on_ref_ptr)]
     pub fn storage_encoding(&self) -> QuadStorageEncoding {
-        let encoding = ObjectIdEncoding::new(self.object_ids.clone());
+        let encoding = self.object_ids.encoding();
         QuadStorageEncoding::ObjectId(encoding)
     }
 
-    pub fn object_ids(&self) -> &MemoryObjectIdMapping {
-        self.object_ids.as_ref()
+    pub fn object_ids(&self) -> &Arc<MemoryObjectIdMapping> {
+        &self.object_ids
     }
 
     pub fn snapshot(&self) -> MemoryStorageReader {
@@ -106,8 +119,9 @@ impl OxigraphMemoryStorage {
                             .unwrap()
                             .upgrade_transaction(transaction_id, new_version_id);
                     }
-                    LogEntry::Graph(graph_name) => {
-                        if let Some(mut entry) = self.content.graphs.get_mut(&graph_name)
+                    LogEntry::NamedGraph(graph_name) => {
+                        if let Some(mut entry) =
+                            self.content.named_graphs.get_mut(&graph_name)
                         {
                             entry
                                 .value_mut()
@@ -127,8 +141,9 @@ impl OxigraphMemoryStorage {
                             .unwrap()
                             .rollback_transaction(transaction_id);
                     }
-                    LogEntry::Graph(graph_name) => {
-                        if let Some(mut entry) = self.content.graphs.get_mut(&graph_name)
+                    LogEntry::NamedGraph(graph_name) => {
+                        if let Some(mut entry) =
+                            self.content.named_graphs.get_mut(&graph_name)
                         {
                             entry.value_mut().rollback_transaction(transaction_id)
                         }
@@ -145,12 +160,6 @@ impl OxigraphMemoryStorage {
             storage: self.clone(),
             hooks: Vec::new(),
         }
-    }
-}
-
-impl Default for OxigraphMemoryStorage {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -183,7 +192,7 @@ impl MemoryStorageReader {
             .any(|e| self.is_node_in_range(&e))
     }
 
-    pub fn contains(&self, quad: &ObjectIdQuad) -> bool {
+    pub fn contains(&self, quad: &EncodedObjectIdQuad) -> bool {
         self.storage
             .content
             .quad_set
@@ -194,18 +203,33 @@ impl MemoryStorageReader {
     #[allow(clippy::same_name_method)]
     pub fn quads_for_pattern(
         &self,
-        graph_name: Option<ObjectId>,
-        subject: Option<ObjectId>,
-        predicate: Option<ObjectId>,
-        object: Option<ObjectId>,
+        graph_name: Option<GraphEncodedObjectId>,
+        subject: Option<EncodedObjectId>,
+        predicate: Option<EncodedObjectId>,
+        object: Option<EncodedObjectId>,
     ) -> QuadIterator {
         fn get_start_and_count(
             map: &DashMap<
-                ObjectId,
+                EncodedObjectId,
                 (Weak<QuadListNode>, u64),
                 BuildHasherDefault<FxHasher>,
             >,
-            term: Option<ObjectId>,
+            term: Option<EncodedObjectId>,
+        ) -> (Option<Weak<QuadListNode>>, u64) {
+            let Some(term) = term else {
+                return (None, u64::MAX);
+            };
+            map.view(&term, |_, (node, count)| (Some(Weak::clone(node)), *count))
+                .unwrap_or_default()
+        }
+
+        fn get_start_and_count_graph(
+            map: &DashMap<
+                GraphEncodedObjectId,
+                (Weak<QuadListNode>, u64),
+                BuildHasherDefault<FxHasher>,
+            >,
+            term: Option<GraphEncodedObjectId>,
         ) -> (Option<Weak<QuadListNode>>, u64) {
             let Some(term) = term else {
                 return (None, u64::MAX);
@@ -220,7 +244,7 @@ impl MemoryStorageReader {
             get_start_and_count(&self.storage.content.last_quad_by_predicate, predicate);
         let (object_start, object_count) =
             get_start_and_count(&self.storage.content.last_quad_by_object, object);
-        let (graph_name_start, graph_name_count) = get_start_and_count(
+        let (graph_name_start, graph_name_count) = get_start_and_count_graph(
             &self.storage.content.last_quad_by_graph_name,
             graph_name,
         );
@@ -280,16 +304,16 @@ impl MemoryStorageReader {
             // SAFETY: this is fine, the owning struct also owns the iterated data structure
             iter: unsafe {
                 transmute::<Iter<'_, _, _>, Iter<'static, _, _>>(
-                    self.storage.content.graphs.iter(),
+                    self.storage.content.named_graphs.iter(),
                 )
             },
         }
     }
 
-    pub fn contains_named_graph(&self, graph_name: ObjectId) -> bool {
+    pub fn contains_named_graph(&self, graph_name: EncodedObjectId) -> bool {
         self.storage
             .content
-            .graphs
+            .named_graphs
             .get(&graph_name)
             .is_some_and(|range| self.is_in_range(&range))
     }
@@ -321,8 +345,8 @@ impl MemoryStorageReader {
                 && !self
                     .storage
                     .content
-                    .graphs
-                    .contains_key(&current.quad.graph_name)
+                    .named_graphs
+                    .contains_key(current.quad.graph_name.0.as_ref().unwrap())
             {
                 return Err(CorruptionError::new(
                     "Quad in named graph that does not exists",
@@ -499,7 +523,7 @@ impl MemoryStorageWriter<'_> {
     }
 
     pub fn insert(&mut self, quad: QuadRef<'_>) -> bool {
-        let encoded = self.storage.object_ids().encode_quad(quad);
+        let encoded = self.storage.object_ids().encode_quad(quad).unwrap();
         if let Some(node) = self
             .storage
             .content
@@ -514,12 +538,13 @@ impl MemoryStorageWriter<'_> {
                     && self
                         .storage
                         .content
-                        .graphs
-                        .get_mut(&encoded.graph_name)
+                        .named_graphs
+                        .get_mut(encoded.graph_name.0.as_ref().unwrap())
                         .unwrap()
                         .add(self.transaction_id)
                 {
-                    self.log.push(LogEntry::Graph(encoded.graph_name));
+                    self.log
+                        .push(LogEntry::NamedGraph(encoded.graph_name.0.unwrap()));
                 }
             }
             added
@@ -591,7 +616,7 @@ impl MemoryStorageWriter<'_> {
 
             match quad.graph_name {
                 GraphNameRef::NamedNode(_) | GraphNameRef::BlankNode(_) => {
-                    self.insert_encoded_named_graph(encoded.graph_name);
+                    self.insert_encoded_named_graph(encoded.graph_name.0.unwrap());
                 }
                 GraphNameRef::DefaultGraph => (),
             }
@@ -601,12 +626,12 @@ impl MemoryStorageWriter<'_> {
     }
 
     pub fn insert_named_graph(&mut self, graph_name: NamedOrBlankNodeRef<'_>) -> bool {
-        let graph_name = self.storage.object_ids.encode_term(graph_name);
+        let graph_name = self.storage.object_ids.encode_term_intern(graph_name);
         self.insert_encoded_named_graph(graph_name)
     }
 
-    fn insert_encoded_named_graph(&mut self, graph_name: ObjectId) -> bool {
-        let added = match self.storage.content.graphs.entry(graph_name) {
+    fn insert_encoded_named_graph(&mut self, graph_name: EncodedObjectId) -> bool {
+        let added = match self.storage.content.named_graphs.entry(graph_name) {
             Entry::Occupied(mut entry) => entry.get_mut().add(self.transaction_id),
             Entry::Vacant(entry) => {
                 entry.insert(VersionRange::Start(self.transaction_id));
@@ -614,17 +639,20 @@ impl MemoryStorageWriter<'_> {
             }
         };
         if added {
-            self.log.push(LogEntry::Graph(graph_name));
+            self.log.push(LogEntry::NamedGraph(graph_name));
         }
         added
     }
 
     pub fn remove(&mut self, quad: QuadRef<'_>) -> bool {
-        let quad = self.storage.object_ids().encode_quad(quad);
-        self.remove_encoded(&quad)
+        let quad = self.storage.object_ids().try_get_encoded_quad(quad);
+        match quad {
+            Some(quad) => self.remove_encoded(&quad),
+            _ => false, // If we don't have an object id, the quad is not in the store
+        }
     }
 
-    fn remove_encoded(&mut self, quad: &ObjectIdQuad) -> bool {
+    fn remove_encoded(&mut self, quad: &EncodedObjectIdQuad) -> bool {
         let Some(node) = self
             .storage
             .content
@@ -642,11 +670,14 @@ impl MemoryStorageWriter<'_> {
     }
 
     pub fn clear_graph(&mut self, graph_name: GraphNameRef<'_>) {
-        let graph_name = self.storage.object_ids().encode_graph_name(graph_name);
+        let graph_name = self
+            .storage
+            .object_ids()
+            .encode_graph_name_intern(graph_name);
         self.clear_encoded_graph(graph_name)
     }
 
-    fn clear_encoded_graph(&mut self, graph_name: ObjectId) {
+    fn clear_encoded_graph(&mut self, graph_name: GraphEncodedObjectId) {
         let mut next = self
             .storage
             .content
@@ -662,7 +693,7 @@ impl MemoryStorageWriter<'_> {
 
     pub fn clear_all_named_graphs(&mut self) {
         for graph_name in self.reader().named_graphs() {
-            self.clear_encoded_graph(graph_name)
+            self.clear_encoded_graph(Some(graph_name).into())
         }
     }
 
@@ -675,22 +706,24 @@ impl MemoryStorageWriter<'_> {
     }
 
     pub fn remove_named_graph(&mut self, graph_name: NamedOrBlankNodeRef<'_>) -> bool {
-        let graph_name = self.storage.object_ids.encode_term(graph_name);
+        let graph_name = self.storage.object_ids.encode_term_intern(graph_name);
         self.remove_encoded_named_graph(graph_name)
     }
 
-    fn remove_encoded_named_graph(&mut self, graph_name: ObjectId) -> bool {
-        self.clear_encoded_graph(graph_name);
-        let removed = self
+    fn remove_encoded_named_graph(&mut self, graph_name: EncodedObjectId) -> bool {
+        self.clear_encoded_graph(Some(graph_name).into());
+        let entry = self
             .storage
             .content
-            .graphs
-            .get_mut(&graph_name)
-            .is_some_and(|mut entry| entry.value_mut().remove(self.transaction_id));
-        if removed {
-            self.log.push(LogEntry::Graph(graph_name));
+            .named_graphs
+            .get_mut(&graph_name.clone());
+        if let Some(mut entry) = entry {
+            if entry.value_mut().remove(self.transaction_id) {
+                self.log.push(LogEntry::NamedGraph(graph_name));
+                return true;
+            }
         }
-        removed
+        false
     }
 
     pub fn remove_all_named_graphs(&mut self) {
@@ -701,11 +734,11 @@ impl MemoryStorageWriter<'_> {
     fn do_remove_graphs(&mut self) {
         self.storage
             .content
-            .graphs
+            .named_graphs
             .iter_mut()
             .for_each(|mut entry| {
                 if entry.value_mut().remove(self.transaction_id) {
-                    self.log.push(LogEntry::Graph(*entry.key()));
+                    self.log.push(LogEntry::NamedGraph(*entry.key()));
                 }
             });
     }
@@ -720,10 +753,10 @@ pub struct QuadIterator {
     reader: MemoryStorageReader,
     current: Option<Weak<QuadListNode>>,
     kind: QuadIteratorKind,
-    expect_subject: Option<ObjectId>,
-    expect_predicate: Option<ObjectId>,
-    expect_object: Option<ObjectId>,
-    expect_graph_name: Option<ObjectId>,
+    expect_subject: Option<EncodedObjectId>,
+    expect_predicate: Option<EncodedObjectId>,
+    expect_object: Option<EncodedObjectId>,
+    expect_graph_name: Option<GraphEncodedObjectId>,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -742,9 +775,9 @@ impl QuadIterator {
 }
 
 impl Iterator for QuadIterator {
-    type Item = ObjectIdQuad;
+    type Item = EncodedObjectIdQuad;
 
-    fn next(&mut self) -> Option<ObjectIdQuad> {
+    fn next(&mut self) -> Option<EncodedObjectIdQuad> {
         loop {
             let current = self.current.take()?.upgrade()?;
             self.current = match self.kind {
@@ -784,7 +817,7 @@ impl Iterator for QuadIterator {
 
 pub struct MemoryDecodingGraphIterator {
     reader: MemoryStorageReader, // Needed to make sure the underlying map is not GCed
-    iter: Iter<'static, ObjectId, VersionRange>,
+    iter: Iter<'static, EncodedObjectId, VersionRange>,
 }
 
 impl MemoryDecodingGraphIterator {
@@ -794,9 +827,9 @@ impl MemoryDecodingGraphIterator {
 }
 
 impl Iterator for MemoryDecodingGraphIterator {
-    type Item = ObjectId;
+    type Item = EncodedObjectId;
 
-    fn next(&mut self) -> Option<ObjectId> {
+    fn next(&mut self) -> Option<EncodedObjectId> {
         loop {
             let entry = self.iter.next()?;
             if self.reader.is_in_range(entry.value()) {
@@ -853,11 +886,11 @@ impl MemoryStorageBulkLoader {
 
 enum LogEntry {
     QuadNode(Arc<QuadListNode>),
-    Graph(ObjectId),
+    NamedGraph(EncodedObjectId),
 }
 
 struct QuadListNode {
-    quad: ObjectIdQuad,
+    quad: EncodedObjectIdQuad,
     range: Mutex<VersionRange>,
     previous: Option<Weak<Self>>,
     previous_subject: Option<Weak<Self>>,
@@ -882,8 +915,8 @@ impl Hash for QuadListNode {
     }
 }
 
-impl Borrow<ObjectIdQuad> for Arc<QuadListNode> {
-    fn borrow(&self) -> &ObjectIdQuad {
+impl Borrow<EncodedObjectIdQuad> for Arc<QuadListNode> {
+    fn borrow(&self) -> &EncodedObjectIdQuad {
         &self.quad
     }
 }
@@ -1051,6 +1084,8 @@ impl Debug for OxigraphMemoryStorage {
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
+    use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
     use rdf_fusion_model::NamedNodeRef;
 
     #[test]
@@ -1122,15 +1157,18 @@ mod tests {
     fn test_transaction() -> Result<(), StorageError> {
         let example = NamedNodeRef::new_unchecked("http://example.com/1");
         let example2 = NamedNodeRef::new_unchecked("http://example.com/2");
-        let storage = OxigraphMemoryStorage::new();
+        let storage =
+            OxigraphMemoryStorage::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
 
-        let encoded_example = storage.object_ids().encode_term(example);
-        let encoded_example2 = storage.object_ids().encode_term(example2);
+        let encoded_example = storage.object_ids().encode_term_intern(example);
+        let encoded_example2 = storage.object_ids().encode_term_intern(example2);
         let default_quad =
             QuadRef::new(example, example, example, GraphNameRef::DefaultGraph);
-        let encoded_default_quad = storage.object_ids().encode_quad(default_quad);
+        let encoded_default_quad =
+            storage.object_ids().encode_quad(default_quad).unwrap();
         let named_graph_quad = QuadRef::new(example, example, example, example);
-        let encoded_named_graph_quad = storage.object_ids().encode_quad(named_graph_quad);
+        let encoded_named_graph_quad =
+            storage.object_ids().encode_quad(named_graph_quad).unwrap();
 
         // We start with a graph
         let snapshot = storage.snapshot();
@@ -1138,8 +1176,12 @@ mod tests {
             writer.insert_named_graph(example.into());
             Ok::<_, StorageError>(())
         })?;
-        assert!(!snapshot.contains_named_graph(encoded_example));
-        assert!(storage.snapshot().contains_named_graph(encoded_example));
+        assert!(!snapshot.contains_named_graph(encoded_example.clone()));
+        assert!(
+            storage
+                .snapshot()
+                .contains_named_graph(encoded_example.clone())
+        );
         storage.snapshot().validate()?;
 
         // We add two quads
@@ -1164,10 +1206,14 @@ mod tests {
         })?;
         assert!(snapshot.contains(&encoded_default_quad));
         assert!(snapshot.contains(&encoded_named_graph_quad));
-        assert!(snapshot.contains_named_graph(encoded_example));
+        assert!(snapshot.contains_named_graph(encoded_example.clone()));
         assert!(!storage.snapshot().contains(&encoded_default_quad));
         assert!(!storage.snapshot().contains(&encoded_named_graph_quad));
-        assert!(!storage.snapshot().contains_named_graph(encoded_example));
+        assert!(
+            !storage
+                .snapshot()
+                .contains_named_graph(encoded_example.clone())
+        );
         storage.snapshot().validate()?;
 
         // We add the quads again but rollback
@@ -1184,12 +1230,20 @@ mod tests {
         );
         assert!(!snapshot.contains(&encoded_default_quad));
         assert!(!snapshot.contains(&encoded_named_graph_quad));
-        assert!(!snapshot.contains_named_graph(encoded_example));
-        assert!(!snapshot.contains_named_graph(encoded_example2));
+        assert!(!snapshot.contains_named_graph(encoded_example.clone()));
+        assert!(!snapshot.contains_named_graph(encoded_example2.clone()));
         assert!(!storage.snapshot().contains(&encoded_default_quad));
         assert!(!storage.snapshot().contains(&encoded_named_graph_quad));
-        assert!(!storage.snapshot().contains_named_graph(encoded_example));
-        assert!(!storage.snapshot().contains_named_graph(encoded_example2));
+        assert!(
+            !storage
+                .snapshot()
+                .contains_named_graph(encoded_example.clone())
+        );
+        assert!(
+            !storage
+                .snapshot()
+                .contains_named_graph(encoded_example2.clone())
+        );
         storage.snapshot().validate()?;
 
         // We add quads and graph, then clear

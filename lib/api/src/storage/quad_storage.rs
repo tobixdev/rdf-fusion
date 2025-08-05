@@ -5,6 +5,7 @@ use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_model::{
     GraphName, GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
     TriplePattern, Variable,
@@ -17,6 +18,9 @@ use std::sync::Arc;
 pub trait QuadStorage: Send + Sync {
     /// Returns the quad storage encoding.
     fn encoding(&self) -> QuadStorageEncoding;
+
+    /// Returns a reference to the used [ObjectIdMapping].
+    fn object_id_mapping(&self) -> Option<Arc<dyn ObjectIdMapping>>;
 
     /// Returns a list of planners that support planning logical nodes requiring access to the
     /// storage layer.
@@ -60,6 +64,9 @@ pub trait QuadStorage: Send + Sync {
 
     /// Returns the number of quads in the storage.
     async fn len(&self) -> Result<usize, StorageError>;
+
+    /// Validates invariants in the store
+    async fn validate(&self) -> Result<(), StorageError>;
 }
 
 /// The quad pattern evaluator is responsible for accessing the storage and returning a stream of

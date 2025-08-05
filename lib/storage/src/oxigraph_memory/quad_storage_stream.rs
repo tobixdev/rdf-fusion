@@ -1,6 +1,6 @@
-use crate::oxigraph_memory::object_id::ObjectIdQuad;
+use crate::oxigraph_memory::object_id::EncodedObjectIdQuad;
 use crate::oxigraph_memory::store::QuadIterator;
-use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt64Builder};
+use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt32Builder};
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::common::{Column, DataFusionError, exec_err};
 use datafusion::execution::RecordBatchStream;
@@ -101,7 +101,7 @@ impl Stream for QuadPatternBatchRecordStream {
         let mut rb_builder = self.create_builder()?;
 
         let mut remaining_items = self.batch_size;
-        let mut buffer: [Option<ObjectIdQuad>; 32] = [const { None }; 32];
+        let mut buffer: [Option<EncodedObjectIdQuad>; 32] = [const { None }; 32];
         while !exhausted && remaining_items > 0 {
             for element in &mut buffer {
                 let Some(quad) = self.iterator.next() else {
@@ -115,7 +115,7 @@ impl Stream for QuadPatternBatchRecordStream {
                 equalities.filter(&mut buffer);
             }
 
-            let encoded = rb_builder.encode_batch(&buffer);
+            let encoded = rb_builder.encode_batch(&buffer)?;
             remaining_items -= encoded;
 
             buffer.fill(None);
@@ -143,10 +143,11 @@ impl RecordBatchStream for QuadPatternBatchRecordStream {
 
 #[allow(clippy::struct_excessive_bools)]
 struct RdfQuadsRecordBatchBuilder {
-    graph: Option<(Column, UInt64Builder)>,
-    subject: Option<(Column, UInt64Builder)>,
-    predicate: Option<(Column, UInt64Builder)>,
-    object: Option<(Column, UInt64Builder)>,
+    encoding: ObjectIdEncoding,
+    graph: Option<(Column, UInt32Builder)>,
+    subject: Option<(Column, UInt32Builder)>,
+    predicate: Option<(Column, UInt32Builder)>,
+    object: Option<(Column, UInt32Builder)>,
     count: usize,
 }
 
@@ -159,8 +160,8 @@ impl RdfQuadsRecordBatchBuilder {
         mut object: Option<Column>,
         capacity: usize,
     ) -> DFResult<Self> {
-        if encoding.data_type() != DataType::UInt64 {
-            return exec_err!("The registered ObjectID encoding does not use 64 UInts.");
+        if encoding.data_type() != DataType::UInt32 {
+            return exec_err!("The registered ObjectID uses an unexpected data type.");
         }
 
         let mut seen = HashSet::new();
@@ -170,10 +171,11 @@ impl RdfQuadsRecordBatchBuilder {
         deduplicate(&mut seen, &mut object);
 
         Ok(Self {
-            graph: graph.map(|v| (v, UInt64Builder::with_capacity(capacity))),
-            subject: subject.map(|v| (v, UInt64Builder::with_capacity(capacity))),
-            predicate: predicate.map(|v| (v, UInt64Builder::with_capacity(capacity))),
-            object: object.map(|v| (v, UInt64Builder::with_capacity(capacity))),
+            encoding,
+            graph: graph.map(|v| (v, UInt32Builder::with_capacity(capacity))),
+            subject: subject.map(|v| (v, UInt32Builder::with_capacity(capacity))),
+            predicate: predicate.map(|v| (v, UInt32Builder::with_capacity(capacity))),
+            object: object.map(|v| (v, UInt32Builder::with_capacity(capacity))),
             count: 0,
         })
     }
@@ -182,54 +184,57 @@ impl RdfQuadsRecordBatchBuilder {
         clippy::expect_used,
         reason = "Checked via count, Maybe use unsafe if performance is an issue"
     )]
-    fn encode_batch(&mut self, quads: &[Option<ObjectIdQuad>; 32]) -> usize {
+    fn encode_batch(
+        &mut self,
+        quads: &[Option<EncodedObjectIdQuad>; 32],
+    ) -> AResult<usize> {
         let count = quads.iter().position(Option::is_none).unwrap_or(32);
 
         if let Some((_, builder)) = &mut self.graph {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").graph_name;
-                builder.append_value((*value).into())
+                match &value.0 {
+                    None => builder.append_null(),
+                    Some(value) => builder.append_value(value.as_object_id().0),
+                }
             }
         }
 
         if let Some((_, builder)) = &mut self.subject {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").subject;
-                builder.append_value((*value).into())
+                builder.append_value(value.as_object_id().0)
             }
         }
 
         if let Some((_, builder)) = &mut self.predicate {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").predicate;
-                builder.append_value((*value).into())
+                builder.append_value(value.as_object_id().0)
             }
         }
 
         if let Some((_, builder)) = &mut self.object {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").object;
-                builder.append_value((*value).into())
+                builder.append_value(value.as_object_id().0)
             }
         }
 
         self.count += count;
-        count
+        Ok(count)
     }
 
     fn finish(self) -> AResult<RecordBatch> {
         fn try_add_column(
+            encoding: &ObjectIdEncoding,
             fields: &mut Vec<Field>,
             arrays: &mut Vec<Arc<dyn Array>>,
-            column: Option<(Column, UInt64Builder)>,
+            column: Option<(Column, UInt32Builder)>,
             nullable: bool,
         ) {
             if let Some((var, mut builder)) = column {
-                fields.push(Field::new(
-                    var.name(),
-                    DataType::UInt64, // TODO: Use encoding
-                    nullable,
-                ));
+                fields.push(Field::new(var.name(), encoding.data_type(), nullable));
                 arrays.push(Arc::new(builder.finish()));
             }
         }
@@ -237,10 +242,22 @@ impl RdfQuadsRecordBatchBuilder {
         let mut fields: Vec<Field> = Vec::new();
         let mut arrays: Vec<Arc<dyn Array>> = Vec::new();
 
-        try_add_column(&mut fields, &mut arrays, self.graph, true);
-        try_add_column(&mut fields, &mut arrays, self.subject, false);
-        try_add_column(&mut fields, &mut arrays, self.predicate, false);
-        try_add_column(&mut fields, &mut arrays, self.object, false);
+        try_add_column(&self.encoding, &mut fields, &mut arrays, self.graph, true);
+        try_add_column(
+            &self.encoding,
+            &mut fields,
+            &mut arrays,
+            self.subject,
+            false,
+        );
+        try_add_column(
+            &self.encoding,
+            &mut fields,
+            &mut arrays,
+            self.predicate,
+            false,
+        );
+        try_add_column(&self.encoding, &mut fields, &mut arrays, self.object, false);
 
         let schema = Arc::new(Schema::new(fields));
         let options = RecordBatchOptions::default().with_row_count(Some(self.count));
@@ -286,7 +303,7 @@ impl QuadEqualities {
 
     /// Filters the buffer in-place and fills up holes by moving all non-None entries to the front.
     /// After this, all `None` slots (holes) will be at the end of the buffer.
-    fn filter(&self, quads: &mut [Option<ObjectIdQuad>; 32]) {
+    fn filter(&self, quads: &mut [Option<EncodedObjectIdQuad>; 32]) {
         let mut write_idx = 0;
 
         // Iterate over the buffer and write any matching quad to the write position.
@@ -308,16 +325,16 @@ impl QuadEqualities {
     }
 
     /// Evaluates whether the equalities hold for `quad`.
-    fn evaluate(&self, quad: &ObjectIdQuad) -> bool {
+    fn evaluate(&self, quad: &EncodedObjectIdQuad) -> bool {
         for equality in &self.0 {
             for i in 0..4 {
                 for j in (i + 1)..4 {
                     if equality[i] == 1 && equality[j] == 1 {
                         let quad = [
-                            &quad.graph_name,
-                            &quad.subject,
-                            &quad.predicate,
-                            &quad.object,
+                            quad.graph_name.0.as_ref(),
+                            Some(&quad.subject),
+                            Some(&quad.predicate),
+                            Some(&quad.object),
                         ];
 
                         if quad[i] != quad[j] {

@@ -1,12 +1,17 @@
+use crate::oxigraph_memory::encoded::EncodedTerm;
 use crate::oxigraph_memory::planner::OxigraphMemoryQuadNodePlanner;
 use crate::oxigraph_memory::store::{MemoryStorageReader, OxigraphMemoryStorage};
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_api::storage::QuadStorage;
-use rdf_fusion_common::error::StorageError;
+use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_model::{
-    GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
+    BlankNode, GraphNameRef, NamedNode, NamedOrBlankNode, NamedOrBlankNodeRef, Quad,
+    QuadRef,
 };
 use std::sync::Arc;
 
@@ -20,7 +25,10 @@ impl MemoryQuadStorage {
     ///
     /// It is intended to pass this storage into a RDF Fusion engine.
     pub fn new() -> Self {
-        let storage = Arc::new(OxigraphMemoryStorage::new());
+        let storage = Arc::new(OxigraphMemoryStorage::new(
+            PLAIN_TERM_ENCODING,
+            TYPED_VALUE_ENCODING,
+        ));
         Self { storage }
     }
 
@@ -72,13 +80,28 @@ impl QuadStorage for MemoryQuadStorage {
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
+        let object_id_mapping = self.storage.object_ids();
         let snapshot = self.storage.snapshot();
         snapshot
             .named_graphs()
             .map(|object_id| {
-                self.storage
-                    .object_ids()
-                    .try_decode::<NamedOrBlankNode>(object_id)
+                let result =
+                    object_id_mapping.try_get_encoded_term_from_object_id(object_id);
+                match result {
+                    Some(EncodedTerm::NamedNode(node)) => {
+                        Ok(NamedOrBlankNode::NamedNode(NamedNode::new_unchecked(
+                            node.as_ref(),
+                        )))
+                    }
+                    Some(EncodedTerm::BlankNode(node)) => {
+                        Ok(NamedOrBlankNode::BlankNode(BlankNode::new_unchecked(
+                            node.as_ref(),
+                        )))
+                    }
+                    _ => Err(StorageError::Corruption(CorruptionError::new(
+                        "Invalid named graph name",
+                    ))),
+                }
             })
             .collect::<Result<Vec<NamedOrBlankNode>, _>>()
     }
@@ -87,7 +110,10 @@ impl QuadStorage for MemoryQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        let object_id = self.storage.object_ids().try_get_object_id(graph_name);
+        let object_id = self
+            .storage
+            .object_ids()
+            .try_get_encoded_object_id_from_term(graph_name);
         match object_id {
             None => Ok(false),
             Some(object_id) => {
@@ -131,5 +157,13 @@ impl QuadStorage for MemoryQuadStorage {
 
     async fn len(&self) -> Result<usize, StorageError> {
         Ok(self.storage.snapshot().len())
+    }
+
+    fn object_id_mapping(&self) -> Option<Arc<dyn ObjectIdMapping>> {
+        Some(Arc::clone(self.storage.object_ids()) as Arc<dyn ObjectIdMapping>)
+    }
+
+    async fn validate(&self) -> Result<(), StorageError> {
+        self.storage.snapshot().validate()
     }
 }

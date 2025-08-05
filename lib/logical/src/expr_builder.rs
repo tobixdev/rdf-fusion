@@ -9,9 +9,9 @@ use rdf_fusion_api::functions::{
     RdfFusionFunctionArgsBuilder,
 };
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermScalar};
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoding};
+use rdf_fusion_encoding::{EncodingName, EncodingScalar};
 use rdf_fusion_model::{Iri, TermRef};
 
 /// A builder for expressions that make use of RDF Fusion built-ins.
@@ -842,9 +842,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
                 vec![BuiltinName::WithTypedValueEncoding]
             }
             (EncodingName::ObjectId, EncodingName::TypedValue) => {
-                vec![
-                    BuiltinName::WithTypedValueEncoding,
-                ]
+                vec![BuiltinName::WithTypedValueEncoding]
             }
             (
                 EncodingName::PlainTerm | EncodingName::TypedValue,
@@ -1020,14 +1018,21 @@ impl<'root> RdfFusionExprBuilder<'root> {
             EncodingName::Sortable => {
                 return plan_err!("Filtering not supported for Sortable encoding.");
             }
-            EncodingName::ObjectId => match self.context.encodings().object_id() {
-                None => {
-                    return plan_err!("The context has not ObjectID encoding registered");
+            EncodingName::ObjectId => {
+                match self.context.encodings().object_id_mapping() {
+                    None => {
+                        return plan_err!(
+                            "The context has not ObjectID encoding registered"
+                        );
+                    }
+                    Some(object_id_mapping) => {
+                        let scalar = PlainTermScalar::from(scalar);
+                        object_id_mapping
+                            .encode_scalar(&scalar)?
+                            .into_scalar_value()
+                    }
                 }
-                Some(object_id_encoding) => object_id_encoding
-                    .encode_term(Ok(scalar))?
-                    .into_scalar_value(),
-            },
+            }
         };
         self.build_same_term(lit(literal))
     }

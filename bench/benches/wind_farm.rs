@@ -98,10 +98,9 @@ fn wind_farm_production(c: &mut Criterion) {
 }
 
 criterion_group!(
-    wind_farm,
-    wind_farm_grouped_production,
-    // wind_farm_multi_grouped,
-    wind_farm_production,
+    name = wind_farm;
+    config = Criterion::default().sample_size(10);
+    targets = wind_farm_grouped_production, wind_farm_production
 );
 criterion_main!(wind_farm);
 

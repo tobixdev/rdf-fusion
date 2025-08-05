@@ -149,6 +149,14 @@ impl PlainTermEncoding {
     pub fn data_type() -> DataType {
         DataType::Struct(Self::fields().clone())
     }
+
+    /// Encodes the `term` as a [PlainTermScalar].
+    pub fn encode_term(
+        &self,
+        term: ThinResult<TermRef<'_>>,
+    ) -> DFResult<PlainTermScalar> {
+        DefaultPlainTermEncoder::encode_term(term)
+    }
 }
 
 impl TermEncoding for PlainTermEncoding {
@@ -169,10 +177,6 @@ impl TermEncoding for PlainTermEncoding {
 
     fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         scalar.try_into()
-    }
-
-    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
-        DefaultPlainTermEncoder::encode_term(term)
     }
 }
 

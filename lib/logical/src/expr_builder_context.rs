@@ -242,22 +242,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
 
         let compatible_filters = outer_keys
             .intersection(&exists_keys)
-            .map(|k| {
-                let data_type = outer_schema
-                    .field_with_name(None, k)
-                    .map_err(|_| {
-                        plan_datafusion_err!("Could not find column {} in schema.", k)
-                    })?
-                    .data_type();
-                exists_expr_builder_root
-                    .try_create_builder(Expr::OuterReferenceColumn(
-                        data_type.clone(),
-                        Column::new_unqualified(k),
-                    ))?
-                    .build_is_compatible(Expr::from(Column::new_unqualified(format!(
-                        "__inner__{k}"
-                    ))))
-            })
+            .map(|k| Self::build_exists_filter(exists_expr_builder_root, outer_schema, k))
             .collect::<DFResult<Vec<_>>>()?;
         let compatible_filter = compatible_filters
             .into_iter()
@@ -269,6 +254,36 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             self.native_boolean_as_term(not_exists(subquery))
         } else {
             self.native_boolean_as_term(exists(subquery))
+        }
+    }
+
+    fn build_exists_filter(
+        expr_builder_ctx: RdfFusionExprBuilderContext,
+        outer_schema: &DFSchema,
+        k: &String,
+    ) -> DFResult<Expr> {
+        let outer_field = outer_schema.field_with_name(None, k).map_err(|_| {
+            plan_datafusion_err!("Could not find column {} in schema.", k)
+        })?;
+        let inner_column = Column::new_unqualified(format!("__inner__{k}"));
+        let data_type = outer_field.data_type();
+
+        // If both fields are not nullable, we can use an equality.
+        let outer_nullability = outer_field.is_nullable();
+        let inner_nullability = expr_builder_ctx
+            .schema()
+            .field_with_name(None, inner_column.name())?
+            .is_nullable();
+
+        let outer_ref_column = expr_builder_ctx.try_create_builder(
+            Expr::OuterReferenceColumn(data_type.clone(), Column::new_unqualified(k)),
+        )?;
+        let inner_expr = Expr::from(inner_column);
+
+        if !outer_nullability && !inner_nullability {
+            Ok(outer_ref_column.build()?.eq(inner_expr))
+        } else {
+            outer_ref_column.build_is_compatible(inner_expr)
         }
     }
 
