@@ -63,21 +63,21 @@ impl OxigraphMemoryQuadNodePlanner {
         self.snapshot
             .named_graphs()
             .map(|et| {
-                object_id_mapping
+                let object_id = object_id_mapping
                     .try_get_encoded_term_from_object_id(et)
-                    .map(|pt_scalar| match pt_scalar {
+                    .ok_or_else(|| DataFusionError::External(Box::new(StorageError::Corruption(CorruptionError::new("Encountered unknown object id when enumerating named graphs")))))?;
+
+                 match object_id {
                         EncodedTerm::NamedNode(nn) => Ok(GraphName::NamedNode(
                             NamedNode::new_unchecked(nn.as_ref()),
                         )),
                         EncodedTerm::BlankNode(nn) => Ok(GraphName::BlankNode(
                             BlankNode::new_unchecked(nn.as_ref()),
                         )),
-                        _ => Err(StorageError::Corruption(CorruptionError::new(
+                        _ => Err(DataFusionError::External(Box::new(StorageError::Corruption(CorruptionError::new(
                             "Got literal for named graph.",
-                        ))),
-                    })
-                    .expect("TODO")
-                    .map_err(|err| DataFusionError::External(Box::new(err)))
+                        ))))),
+                    }
             })
             .collect::<DFResult<Vec<_>>>()
     }

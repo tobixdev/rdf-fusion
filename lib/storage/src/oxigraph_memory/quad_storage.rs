@@ -109,7 +109,7 @@ impl QuadStorage for MemoryQuadStorage {
         let object_id = self
             .storage
             .object_ids()
-            .try_get_encoded_object_id_from_term(graph_name.into());
+            .try_get_encoded_object_id_from_term(graph_name);
         match object_id {
             None => Ok(false),
             Some(object_id) => {

@@ -619,11 +619,7 @@ impl MemoryStorageWriter<'_> {
     }
 
     pub fn insert_named_graph(&mut self, graph_name: NamedOrBlankNodeRef<'_>) -> bool {
-        let graph_name = self
-            .storage
-            .object_ids
-            .try_get_encoded_object_id_from_term(graph_name.into())
-            .expect("TODO");
+        let graph_name = self.storage.object_ids.encode_term_intern(graph_name);
         self.insert_encoded_named_graph(graph_name)
     }
 
@@ -642,8 +638,11 @@ impl MemoryStorageWriter<'_> {
     }
 
     pub fn remove(&mut self, quad: QuadRef<'_>) -> bool {
-        let quad = self.storage.object_ids().encode_quad(quad).expect("TODO");
-        self.remove_encoded(&quad)
+        let quad = self.storage.object_ids().try_get_encoded_quad(quad);
+        match quad {
+            Some(quad) => self.remove_encoded(&quad),
+            _ => false, // If we don't have an object id, the quad is not in the store
+        }
     }
 
     fn remove_encoded(&mut self, quad: &EncodedObjectIdQuad) -> bool {

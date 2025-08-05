@@ -86,6 +86,17 @@ impl MemoryObjectIdMapping {
         })
     }
 
+    /// TODO
+    pub fn try_get_encoded_quad(&self, quad: QuadRef<'_>) -> Option<EncodedObjectIdQuad> {
+        Some(EncodedObjectIdQuad {
+            graph_name: self
+                .try_get_encoded_object_id_from_graph_name(quad.graph_name)?,
+            subject: self.try_get_encoded_object_id_from_term(quad.subject)?,
+            predicate: self.try_get_encoded_object_id_from_term(quad.predicate)?,
+            object: self.try_get_encoded_object_id_from_term(quad.object)?,
+        })
+    }
+
     pub fn try_get_encoded_term(&self, term: TermRef<'_>) -> Option<EncodedTerm> {
         match term {
             TermRef::NamedNode(nn) => self
@@ -146,10 +157,11 @@ impl MemoryObjectIdMapping {
         }
     }
 
-    pub fn try_get_encoded_object_id_from_term(
+    pub fn try_get_encoded_object_id_from_term<'term>(
         &self,
-        encoded_term: TermRef<'_>,
+        encoded_term: impl Into<TermRef<'term>>,
     ) -> Option<EncodedObjectId> {
+        let encoded_term = encoded_term.into();
         self.try_get_encoded_term(encoded_term)
             .and_then(|term| self.try_get_encoded_object_id(&term))
     }
