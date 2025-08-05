@@ -1,10 +1,10 @@
 #![allow(clippy::unreadable_literal)]
 
 use datafusion::parquet::data_type::AsBytes;
+use rdf_fusion_common::ObjectIdRef;
 use std::fmt::Debug;
 use std::hash::Hash;
 use thiserror::Error;
-use rdf_fusion_common::ObjectIdRef;
 
 const SIZE: u8 = 4;
 
@@ -58,7 +58,7 @@ impl TryFrom<u64> for EncodedObjectId {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
 pub struct GraphEncodedObjectId(pub Option<EncodedObjectId>);
 
 impl GraphEncodedObjectId {

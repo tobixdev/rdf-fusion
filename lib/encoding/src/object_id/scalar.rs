@@ -1,7 +1,7 @@
+use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
 use crate::object_id::ObjectIdEncoding;
-use crate::TermEncoding;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::parquet::data_type::AsBytes;
 use rdf_fusion_common::{DFResult, ObjectIdRef};
 

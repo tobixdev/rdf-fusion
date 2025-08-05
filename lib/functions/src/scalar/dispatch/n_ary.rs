@@ -3,12 +3,12 @@ use rdf_fusion_common::{DFResult, ObjectIdRef};
 use rdf_fusion_encoding::object_id::{
     DefaultObjectIdDecoder, ObjectIdArrayBuilder, ObjectIdEncoding,
 };
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
 use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
 

@@ -218,7 +218,10 @@ impl RdfQuadsRecordBatchBuilder {
         clippy::expect_used,
         reason = "Checked via count, Maybe use unsafe if performance is an issue"
     )]
-    fn encode_batch(&mut self, quads: &[Option<EncodedObjectIdQuad>; 32]) -> AResult<usize> {
+    fn encode_batch(
+        &mut self,
+        quads: &[Option<EncodedObjectIdQuad>; 32],
+    ) -> AResult<usize> {
         let count = quads.iter().position(Option::is_none).unwrap_or(32);
 
         if let Some((_, builder)) = &mut self.graph {

@@ -20,8 +20,8 @@ use rdf_fusion_model::{
 };
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum EncodedTerm {
@@ -52,47 +52,50 @@ impl MemoryObjectIdMapping {
         }
     }
 
-    pub fn encode_scalar_intern(
+    pub fn encode_graph_name_intern(
         &self,
-        scalar: &PlainTermScalar,
-    ) -> Option<EncodedObjectId> {
-        DefaultPlainTermDecoder::decode_term(scalar)
-            .map(|term| self.obtain_encoded_term(term))
-            .map(|term| self.obtain_object_id(&term))
-            .ok()
+        scalar: GraphNameRef<'_>,
+    ) -> GraphEncodedObjectId {
+        match scalar {
+            GraphNameRef::NamedNode(nn) => {
+                GraphEncodedObjectId(Some(self.encode_term_intern(nn)))
+            }
+            GraphNameRef::BlankNode(bnode) => {
+                GraphEncodedObjectId(Some(self.encode_term_intern(bnode)))
+            }
+            GraphNameRef::DefaultGraph => GraphEncodedObjectId(None),
+        }
+    }
+
+    pub fn encode_term_intern<'term>(
+        &self,
+        scalar: impl Into<TermRef<'term>>,
+    ) -> EncodedObjectId {
+        let scalar = scalar.into();
+        let term = self.obtain_encoded_term(scalar);
+        self.obtain_object_id(&term)
     }
 
     /// TODO
     pub fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedObjectIdQuad> {
         Ok(EncodedObjectIdQuad {
-            graph_name: self
-                .encode_scalar_intern(&PlainTermScalar::from_graph_name(quad.graph_name)?)
-                .into(),
-            subject: self
-                .encode_scalar_intern(&PlainTermScalar::from(quad.subject))
-                .expect("Input is never none")
-                .into(),
-            predicate: self
-                .encode_scalar_intern(&PlainTermScalar::from(quad.predicate))
-                .expect("Input is never none")
-                .into(),
-            object: self
-                .encode_scalar_intern(&PlainTermScalar::from(quad.object))
-                .expect("Input is never none")
-                .into(),
+            graph_name: self.encode_graph_name_intern(quad.graph_name),
+            subject: self.encode_term_intern(quad.subject),
+            predicate: self.encode_term_intern(quad.predicate),
+            object: self.encode_term_intern(quad.object),
         })
     }
 
     pub fn try_get_encoded_term(&self, term: TermRef<'_>) -> Option<EncodedTerm> {
         match term {
-            TermRef::NamedNode(nn) => match self.str_interning.get(nn.as_str()) {
-                None => None,
-                Some(value) => Some(EncodedTerm::NamedNode(value.clone())),
-            },
-            TermRef::BlankNode(bnode) => match self.str_interning.get(bnode.as_str()) {
-                None => None,
-                Some(value) => Some(EncodedTerm::BlankNode(value.clone())),
-            },
+            TermRef::NamedNode(nn) => self
+                .str_interning
+                .get(nn.as_str())
+                .map(|value| EncodedTerm::NamedNode(value.clone())),
+            TermRef::BlankNode(bnode) => self
+                .str_interning
+                .get(bnode.as_str())
+                .map(|value| EncodedTerm::BlankNode(value.clone())),
             TermRef::Literal(lit) => {
                 if let Some(language) = lit.language() {
                     match (
@@ -170,11 +173,7 @@ impl MemoryObjectIdMapping {
         &self,
         encoded_term: &EncodedTerm,
     ) -> Option<EncodedObjectId> {
-        let found = self.term2id.get(encoded_term);
-        match found {
-            None => None,
-            Some(entry) => Some(entry.clone()),
-        }
+        self.term2id.get(encoded_term).map(|entry| *entry)
     }
 
     pub fn try_get_encoded_term_from_object_id(
@@ -197,7 +196,7 @@ impl MemoryObjectIdMapping {
                 self.term2id.insert(encoded_term.clone(), object_id);
                 object_id
             }
-            Some(entry) => entry.clone(),
+            Some(entry) => *entry,
         }
     }
 
@@ -300,7 +299,7 @@ mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
     use rdf_fusion_encoding::object_id::ObjectIdArrayBuilder;
-    use rdf_fusion_encoding::plain_term::{PlainTermArrayBuilder, PLAIN_TERM_ENCODING};
+    use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
     use rdf_fusion_encoding::{EncodingArray, EncodingScalar};
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{

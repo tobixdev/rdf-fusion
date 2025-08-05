@@ -51,7 +51,7 @@ impl RdfFusionContext {
         let object_id_encoding = match storage.encoding() {
             QuadStorageEncoding::PlainTerm => None,
             QuadStorageEncoding::ObjectId(_) => {
-                assert_eq!(storage.object_id_mapping().is_some(), true);
+                assert!(storage.object_id_mapping().is_some());
                 storage.object_id_mapping()
             }
         };

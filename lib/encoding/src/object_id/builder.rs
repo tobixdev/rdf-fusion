@@ -1,5 +1,5 @@
-use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
 use crate::TermEncoding;
+use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
 use datafusion::arrow::array::FixedSizeBinaryBuilder;
 use rdf_fusion_common::{AResult, ObjectIdRef};
 use std::sync::Arc;

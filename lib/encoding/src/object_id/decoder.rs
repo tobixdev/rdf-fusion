@@ -14,10 +14,10 @@ impl TermDecoder<ObjectIdEncoding> for DefaultObjectIdDecoder {
     fn decode_terms(
         array: &<ObjectIdEncoding as TermEncoding>::Array,
     ) -> impl Iterator<Item = ThinResult<Self::Term<'_>>> {
-        array.object_ids().iter().map(|opt| {
-            opt.map(|oid| ObjectIdRef::from(oid))
-                .ok_or(ThinError::ExpectedError)
-        })
+        array
+            .object_ids()
+            .iter()
+            .map(|opt| opt.map(ObjectIdRef::from).ok_or(ThinError::ExpectedError))
     }
 
     fn decode_term(
