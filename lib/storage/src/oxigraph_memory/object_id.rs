@@ -25,6 +25,10 @@ impl EncodedObjectId {
     pub fn as_object_id(&self) -> ObjectId {
         ObjectId::from(u32::from_ne_bytes(self.0))
     }
+
+    pub fn as_u32(&self) -> u32 {
+        u32::from_ne_bytes(self.0)
+    }
 }
 
 impl From<u32> for EncodedObjectId {

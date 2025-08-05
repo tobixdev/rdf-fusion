@@ -1,8 +1,5 @@
 use crate::oxigraph_memory::store::MemoryStorageReader;
-use datafusion::common::stats::Precision;
-use datafusion::common::{
-    ColumnStatistics, Statistics, exec_err, internal_err, plan_err,
-};
+use datafusion::common::{Statistics, exec_err, internal_err, plan_err};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{
@@ -83,9 +80,9 @@ impl MemoryQuadExec {
         }
     }
 
-    fn estimate_num_rows(&self, graph: &GraphName) -> usize {
+    fn estimate_statistics(&self, graph: &GraphName) -> Statistics {
         self.memory_storage_reader
-            .estimate_num_rows(graph, &self.triple_pattern)
+            .estimate_statistics(graph, &self.triple_pattern)
     }
 }
 
@@ -150,13 +147,19 @@ impl ExecutionPlan for MemoryQuadExec {
     }
 
     fn partition_statistics(&self, partition: Option<usize>) -> DFResult<Statistics> {
-        let num_rows = match partition {
+        match partition {
             None => {
-                let mut total_rows = 0;
-                for i in 0..self.active_graph.0.len() {
-                    total_rows += self.estimate_num_rows(&self.active_graph.0[i]);
+                if self.active_graph.0.is_empty() {
+                    return Ok(Statistics::default());
                 }
-                total_rows
+
+                let mut total_statistics =
+                    self.estimate_statistics(&self.active_graph.0[0]);
+                for i in 1..self.active_graph.0.len() {
+                    total_statistics = total_statistics
+                        .try_merge(&self.estimate_statistics(&self.active_graph.0[i]))?;
+                }
+                Ok(total_statistics)
             }
             Some(partition) => {
                 if partition >= self.active_graph.0.len() {
@@ -167,15 +170,9 @@ impl ExecutionPlan for MemoryQuadExec {
                     );
                 }
 
-                self.estimate_num_rows(&self.active_graph.0[partition])
+                Ok(self.estimate_statistics(&self.active_graph.0[partition]))
             }
-        };
-
-        Ok(Statistics {
-            num_rows: Precision::Inexact(num_rows),
-            total_byte_size: Precision::Inexact(num_rows * size_of::<u32>() * 4),
-            column_statistics: vec![ColumnStatistics::new_unknown(); 4],
-        })
+        }
     }
 }
 

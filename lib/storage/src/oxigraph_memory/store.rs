@@ -8,6 +8,8 @@ use crate::oxigraph_memory::quad_storage_stream::MemoryQuadExecStream;
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
+use datafusion::common::stats::Precision;
+use datafusion::common::{ColumnStatistics, ScalarValue, Statistics};
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::EmptyRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
@@ -25,6 +27,7 @@ use rdf_fusion_model::{
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
 use std::borrow::Borrow;
+use std::cmp::{max, min};
 use std::error::Error;
 use std::fmt::{Debug, Formatter};
 use std::hash::{BuildHasherDefault, Hash, Hasher};
@@ -51,20 +54,64 @@ pub struct OxigraphMemoryStorage {
     transaction_counter: Arc<Mutex<usize>>,
 }
 
+/// Holds information on the quad list for a particular graph/subject/predicate/object.
+///
+/// This is used to compute statistics for the query optimizer.
+#[derive(Clone, Debug)]
+struct QuadListInfo {
+    node: Weak<QuadListNode>,
+    count: usize,
+    subject_max: Option<u32>,
+    subject_min: Option<u32>,
+    predicate_max: Option<u32>,
+    predicate_min: Option<u32>,
+    object_max: Option<u32>,
+    object_min: Option<u32>,
+    graph_max: Option<u32>,
+    graph_min: Option<u32>,
+}
+
+impl QuadListInfo {
+    fn new(node: &Arc<QuadListNode>) -> Self {
+        Self {
+            node: Arc::downgrade(node),
+            count: 1,
+            subject_max: Some(node.quad.subject.as_u32()),
+            subject_min: Some(node.quad.subject.as_u32()),
+            predicate_max: Some(node.quad.predicate.as_u32()),
+            predicate_min: Some(node.quad.predicate.as_u32()),
+            object_max: Some(node.quad.object.as_u32()),
+            object_min: Some(node.quad.object.as_u32()),
+            graph_max: node.quad.graph_name.0.map(|g| g.as_u32()),
+            graph_min: node.quad.graph_name.0.map(|g| g.as_u32()),
+        }
+    }
+
+    fn update_for_new(&mut self, node: &Arc<QuadListNode>) {
+        self.node = Arc::downgrade(node);
+        self.count += 1;
+        self.subject_max = max(self.subject_max, Some(node.quad.subject.as_u32()));
+        self.subject_min = min(self.subject_min, Some(node.quad.subject.as_u32()));
+        self.predicate_max = max(self.predicate_max, Some(node.quad.predicate.as_u32()));
+        self.predicate_min = min(self.predicate_min, Some(node.quad.predicate.as_u32()));
+        self.object_max = max(self.object_max, Some(node.quad.object.as_u32()));
+        self.object_min = min(self.object_min, Some(node.quad.object.as_u32()));
+        self.graph_max = max(self.graph_max, node.quad.graph_name.0.map(|g| g.as_u32()));
+        self.graph_min = min(self.graph_max, node.quad.graph_name.0.map(|g| g.as_u32()));
+    }
+}
+
 struct Content {
     quad_set: DashSet<Arc<QuadListNode>, BuildHasherDefault<FxHasher>>,
     last_quad: RwLock<Option<Weak<QuadListNode>>>,
     last_quad_by_subject:
-        DashMap<EncodedObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
+        DashMap<EncodedObjectId, QuadListInfo, BuildHasherDefault<FxHasher>>,
     last_quad_by_predicate:
-        DashMap<EncodedObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
+        DashMap<EncodedObjectId, QuadListInfo, BuildHasherDefault<FxHasher>>,
     last_quad_by_object:
-        DashMap<EncodedObjectId, (Weak<QuadListNode>, u64), BuildHasherDefault<FxHasher>>,
-    last_quad_by_graph_name: DashMap<
-        GraphEncodedObjectId,
-        (Weak<QuadListNode>, u64),
-        BuildHasherDefault<FxHasher>,
-    >,
+        DashMap<EncodedObjectId, QuadListInfo, BuildHasherDefault<FxHasher>>,
+    last_quad_by_graph_name:
+        DashMap<GraphEncodedObjectId, QuadListInfo, BuildHasherDefault<FxHasher>>,
     named_graphs: DashMap<EncodedObjectId, VersionRange>,
 }
 
@@ -225,32 +272,28 @@ impl MemoryStorageReader {
         object: Option<EncodedObjectId>,
     ) -> QuadIterator {
         fn get_start_and_count(
-            map: &DashMap<
-                EncodedObjectId,
-                (Weak<QuadListNode>, u64),
-                BuildHasherDefault<FxHasher>,
-            >,
+            map: &DashMap<EncodedObjectId, QuadListInfo, BuildHasherDefault<FxHasher>>,
             term: Option<EncodedObjectId>,
-        ) -> (Option<Weak<QuadListNode>>, u64) {
+        ) -> (Option<Weak<QuadListNode>>, usize) {
             let Some(term) = term else {
-                return (None, u64::MAX);
+                return (None, usize::MAX);
             };
-            map.view(&term, |_, (node, count)| (Some(Weak::clone(node)), *count))
+            map.view(&term, |_, info| (Some(Weak::clone(&info.node)), info.count))
                 .unwrap_or_default()
         }
 
         fn get_start_and_count_graph(
             map: &DashMap<
                 GraphEncodedObjectId,
-                (Weak<QuadListNode>, u64),
+                QuadListInfo,
                 BuildHasherDefault<FxHasher>,
             >,
             term: Option<GraphEncodedObjectId>,
-        ) -> (Option<Weak<QuadListNode>>, u64) {
+        ) -> (Option<Weak<QuadListNode>>, usize) {
             let Some(term) = term else {
-                return (None, u64::MAX);
+                return (None, usize::MAX);
             };
-            map.view(&term, |_, (node, count)| (Some(Weak::clone(node)), *count))
+            map.view(&term, |_, info| (Some(Weak::clone(&info.node)), info.count))
                 .unwrap_or_default()
         }
 
@@ -314,39 +357,29 @@ impl MemoryStorageReader {
     }
 
     #[allow(clippy::same_name_method)]
-    pub fn estimate_quad_count_for_pattern(
+    pub fn estimate_statistics_for_pattern(
         &self,
         graph_name: Option<GraphEncodedObjectId>,
         subject: Option<EncodedObjectId>,
         predicate: Option<EncodedObjectId>,
         object: Option<EncodedObjectId>,
-    ) -> usize {
+    ) -> Statistics {
         fn get_count(
-            map: &DashMap<
-                EncodedObjectId,
-                (Weak<QuadListNode>, u64),
-                BuildHasherDefault<FxHasher>,
-            >,
+            map: &DashMap<EncodedObjectId, QuadListInfo, BuildHasherDefault<FxHasher>>,
             term: Option<EncodedObjectId>,
-        ) -> u64 {
-            let Some(term) = term else {
-                return u64::MAX;
-            };
-            map.view(&term, |_, (_, count)| *count).unwrap_or_default()
+        ) -> Option<QuadListInfo> {
+            map.view(&term?, |_, info| info.clone())
         }
 
         fn get_count_graph(
             map: &DashMap<
                 GraphEncodedObjectId,
-                (Weak<QuadListNode>, u64),
+                QuadListInfo,
                 BuildHasherDefault<FxHasher>,
             >,
             term: Option<GraphEncodedObjectId>,
-        ) -> u64 {
-            let Some(term) = term else {
-                return u64::MAX;
-            };
-            map.view(&term, |_, (_, count)| *count).unwrap_or_default()
+        ) -> Option<QuadListInfo> {
+            map.view(&term?, |_, info| info.clone())
         }
 
         let subject_count =
@@ -357,15 +390,71 @@ impl MemoryStorageReader {
         let graph_name_count =
             get_count_graph(&self.storage.content.last_quad_by_graph_name, graph_name);
 
-        *[
+        let most_selective = [
             subject_count,
             predicate_count,
             object_count,
             graph_name_count,
         ]
-        .iter()
-        .min()
-        .expect("Iterator cannot be empty.") as usize
+        .into_iter()
+        .flatten()
+        .min_by(|a, b| a.count.cmp(&b.count));
+
+        match most_selective {
+            Some(info) => Statistics {
+                num_rows: Precision::Inexact(info.count),
+                total_byte_size: Precision::Inexact(info.count * size_of::<i32>() * 4),
+                column_statistics: vec![
+                    Self::build_column_statistics(
+                        &info,
+                        false,
+                        info.graph_max,
+                        info.graph_min,
+                    ),
+                    Self::build_column_statistics(
+                        &info,
+                        false,
+                        info.subject_max,
+                        info.subject_max,
+                    ),
+                    Self::build_column_statistics(
+                        &info,
+                        false,
+                        info.predicate_max,
+                        info.predicate_min,
+                    ),
+                    Self::build_column_statistics(
+                        &info,
+                        false,
+                        info.object_max,
+                        info.object_min,
+                    ),
+                ],
+            },
+            None => Statistics {
+                num_rows: Precision::Absent,
+                total_byte_size: Precision::Absent,
+                column_statistics: vec![ColumnStatistics::new_unknown(); 4],
+            },
+        }
+    }
+
+    fn build_column_statistics(
+        info: &QuadListInfo,
+        is_graph: bool,
+        min: Option<u32>,
+        max: Option<u32>,
+    ) -> ColumnStatistics {
+        ColumnStatistics {
+            null_count: match is_graph {
+                true => Precision::Absent,
+                false => Precision::Exact(0),
+            },
+            distinct_count: Precision::Inexact(info.count),
+            max_value: Precision::Inexact(ScalarValue::UInt32(max)),
+            min_value: Precision::Inexact(ScalarValue::UInt32(min)),
+            sum_value: Precision::Absent,
+        }
     }
 
     #[allow(unsafe_code)]
@@ -429,17 +518,36 @@ impl MemoryStorageReader {
         Ok(Box::pin(cooperative(stream)))
     }
 
-    pub fn estimate_num_rows(&self, graph: &GraphName, pattern: &TriplePattern) -> usize {
+    pub fn estimate_statistics(
+        &self,
+        graph: &GraphName,
+        pattern: &TriplePattern,
+    ) -> Statistics {
         let (graph, subject, predicate, object) = match self.get_object_ids_of_filters(
             graph,
             pattern,
             BlankNodeMatchingMode::Filter,
         ) {
-            None => return 0,
+            None => {
+                return Statistics {
+                    num_rows: Precision::Exact(0),
+                    total_byte_size: Precision::Exact(0),
+                    column_statistics: vec![
+                        ColumnStatistics {
+                            null_count: Precision::Exact(0),
+                            max_value: Precision::Absent,
+                            min_value: Precision::Absent,
+                            sum_value: Precision::Absent,
+                            distinct_count: Precision::Exact(0),
+                        };
+                        4
+                    ],
+                };
+            }
             Some(result) => result,
         };
 
-        self.estimate_quad_count_for_pattern(Some(graph), subject, predicate, object)
+        self.estimate_statistics_for_pattern(Some(graph), subject, predicate, object)
     }
 
     /// Gets all the object ids necessary for evaluating a quad pattern.
@@ -536,7 +644,7 @@ impl MemoryStorageReader {
     #[allow(clippy::unwrap_in_result)]
     pub fn validate(&self) -> Result<(), StorageError> {
         // All used named graphs are in graph set
-        let expected_quad_len = self.storage.content.quad_set.len() as u64;
+        let expected_quad_len = self.storage.content.quad_set.len();
 
         // last quad chain
         let mut next = self.storage.content.last_quad.read().unwrap().clone();
@@ -576,7 +684,7 @@ impl MemoryStorageReader {
         // By subject chain
         let mut count_last_by_subject = 0;
         for entry in &self.storage.content.last_quad_by_subject {
-            let mut next = Some(Weak::clone(&entry.value().0));
+            let mut next = Some(Weak::clone(&entry.value().node));
             let mut element_count = 0;
             while let Some(current) = next.take().and_then(|n| n.upgrade()) {
                 element_count += 1;
@@ -597,7 +705,7 @@ impl MemoryStorageReader {
                 }
                 next.clone_from(&current.previous_subject);
             }
-            if element_count != entry.value().1 {
+            if element_count != entry.value().count {
                 return Err(CorruptionError::new("Too many quads in a chain").into());
             }
             count_last_by_subject += element_count;
@@ -609,7 +717,7 @@ impl MemoryStorageReader {
         // By predicate chains
         let mut count_last_by_predicate = 0;
         for entry in &self.storage.content.last_quad_by_predicate {
-            let mut next = Some(Weak::clone(&entry.value().0));
+            let mut next = Some(Weak::clone(&entry.value().node));
             let mut element_count = 0;
             while let Some(current) = next.take().and_then(|n| n.upgrade()) {
                 element_count += 1;
@@ -630,7 +738,7 @@ impl MemoryStorageReader {
                 }
                 next.clone_from(&current.previous_predicate);
             }
-            if element_count != entry.value().1 {
+            if element_count != entry.value().count {
                 return Err(CorruptionError::new("Too many quads in a chain").into());
             }
             count_last_by_predicate += element_count;
@@ -642,7 +750,7 @@ impl MemoryStorageReader {
         // By object chains
         let mut count_last_by_object = 0;
         for entry in &self.storage.content.last_quad_by_object {
-            let mut next = Some(Weak::clone(&entry.value().0));
+            let mut next = Some(Weak::clone(&entry.value().node));
             let mut element_count = 0;
             while let Some(current) = next.take().and_then(|n| n.upgrade()) {
                 element_count += 1;
@@ -663,7 +771,7 @@ impl MemoryStorageReader {
                 }
                 next.clone_from(&current.previous_object);
             }
-            if element_count != entry.value().1 {
+            if element_count != entry.value().count {
                 return Err(CorruptionError::new("Too many quads in a chain").into());
             }
             count_last_by_object += element_count;
@@ -675,7 +783,7 @@ impl MemoryStorageReader {
         // By graph_name chains
         let mut count_last_by_graph_name = 0;
         for entry in &self.storage.content.last_quad_by_graph_name {
-            let mut next = Some(Weak::clone(&entry.value().0));
+            let mut next = Some(Weak::clone(&entry.value().node));
             let mut element_count = 0;
             while let Some(current) = next.take().and_then(|n| n.upgrade()) {
                 element_count += 1;
@@ -696,7 +804,7 @@ impl MemoryStorageReader {
                 }
                 next.clone_from(&current.previous_graph_name);
             }
-            if element_count != entry.value().1 {
+            if element_count != entry.value().count {
                 return Err(CorruptionError::new("Too many quads in a chain").into());
             }
             count_last_by_graph_name += element_count;
@@ -771,22 +879,22 @@ impl MemoryStorageWriter<'_> {
                     .storage
                     .content
                     .last_quad_by_subject
-                    .view(&encoded.subject, |_, (node, _)| Weak::clone(node)),
+                    .view(&encoded.subject, |_, info| Weak::clone(&info.node)),
                 previous_predicate: self
                     .storage
                     .content
                     .last_quad_by_predicate
-                    .view(&encoded.predicate, |_, (node, _)| Weak::clone(node)),
+                    .view(&encoded.predicate, |_, info| Weak::clone(&info.node)),
                 previous_object: self
                     .storage
                     .content
                     .last_quad_by_object
-                    .view(&encoded.object, |_, (node, _)| Weak::clone(node)),
+                    .view(&encoded.object, |_, info| Weak::clone(&info.node)),
                 previous_graph_name: self
                     .storage
                     .content
                     .last_quad_by_graph_name
-                    .view(&encoded.graph_name, |_, (node, _)| Weak::clone(node)),
+                    .view(&encoded.graph_name, |_, info| Weak::clone(&info.node)),
             });
             self.storage.content.quad_set.insert(Arc::clone(&node));
             *self.storage.content.last_quad.write().unwrap() =
@@ -795,38 +903,26 @@ impl MemoryStorageWriter<'_> {
                 .content
                 .last_quad_by_subject
                 .entry(encoded.subject)
-                .and_modify(|(e, count)| {
-                    *e = Arc::downgrade(&node);
-                    *count += 1;
-                })
-                .or_insert_with(|| (Arc::downgrade(&node), 1));
+                .and_modify(|info| info.update_for_new(&node))
+                .or_insert_with(|| QuadListInfo::new(&node));
             self.storage
                 .content
                 .last_quad_by_predicate
                 .entry(encoded.predicate)
-                .and_modify(|(e, count)| {
-                    *e = Arc::downgrade(&node);
-                    *count += 1;
-                })
-                .or_insert_with(|| (Arc::downgrade(&node), 1));
+                .and_modify(|info| info.update_for_new(&node))
+                .or_insert_with(|| QuadListInfo::new(&node));
             self.storage
                 .content
                 .last_quad_by_object
                 .entry(encoded.object)
-                .and_modify(|(e, count)| {
-                    *e = Arc::downgrade(&node);
-                    *count += 1;
-                })
-                .or_insert_with(|| (Arc::downgrade(&node), 1));
+                .and_modify(|info| info.update_for_new(&node))
+                .or_insert_with(|| QuadListInfo::new(&node));
             self.storage
                 .content
                 .last_quad_by_graph_name
                 .entry(encoded.graph_name)
-                .and_modify(|(e, count)| {
-                    *e = Arc::downgrade(&node);
-                    *count += 1;
-                })
-                .or_insert_with(|| (Arc::downgrade(&node), 1));
+                .and_modify(|info| info.update_for_new(&node))
+                .or_insert_with(|| QuadListInfo::new(&node));
 
             match quad.graph_name {
                 GraphNameRef::NamedNode(_) | GraphNameRef::BlankNode(_) => {
@@ -896,7 +992,7 @@ impl MemoryStorageWriter<'_> {
             .storage
             .content
             .last_quad_by_graph_name
-            .view(&graph_name, |_, (node, _)| Weak::clone(node));
+            .view(&graph_name, |_, info| Weak::clone(&info.node));
         while let Some(current) = next.take().and_then(|c| c.upgrade()) {
             if current.range.lock().unwrap().remove(self.transaction_id) {
                 self.log.push(LogEntry::QuadNode(Arc::clone(&current)));
