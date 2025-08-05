@@ -40,7 +40,13 @@ impl WithTypedValueEncoding {
         Self {
             name: BuiltinName::WithTypedValueEncoding.to_string(),
             signature: Signature::new(
-                TypeSignature::Uniform(1, vec![PLAIN_TERM_ENCODING.data_type()]),
+                TypeSignature::Uniform(
+                    1,
+                    encodings.get_data_types(&[
+                        EncodingName::PlainTerm,
+                        EncodingName::ObjectId,
+                    ]),
+                ),
                 Volatility::Immutable,
             ),
             encodings,
@@ -48,6 +54,7 @@ impl WithTypedValueEncoding {
     }
 
     fn convert_array(
+        &self,
         encoding_name: EncodingName,
         array: ArrayRef,
     ) -> DFResult<ColumnarValue> {
@@ -60,11 +67,20 @@ impl WithTypedValueEncoding {
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Array(array)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => exec_err!("Cannot from object id."),
+            EncodingName::ObjectId => match self.encodings.object_id_mapping() {
+                None => exec_err!("Cannot from object id as no encoding is provided."),
+                Some(object_id_encoding) => {
+                    let array = object_id_encoding.encoding().try_new_array(array)?;
+                    let decoded =
+                        object_id_encoding.decode_array_to_typed_value(&array)?;
+                    Ok(ColumnarValue::Array(decoded.into_array()))
+                }
+            },
         }
     }
 
     fn convert_scalar(
+        &self,
         encoding_name: EncodingName,
         scalar: ScalarValue,
     ) -> DFResult<ColumnarValue> {
@@ -77,7 +93,15 @@ impl WithTypedValueEncoding {
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Scalar(scalar)),
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => exec_err!("Cannot from object id."),
+            EncodingName::ObjectId => match self.encodings.object_id_mapping() {
+                None => exec_err!("Cannot from object id as no encoding is provided."),
+                Some(object_id_encoding) => {
+                    let array = object_id_encoding.encoding().try_new_scalar(scalar)?;
+                    let decoded =
+                        object_id_encoding.decode_scalar_to_typed_value(&array)?;
+                    Ok(ColumnarValue::Scalar(decoded.into_scalar_value()))
+                }
+            },
         }
     }
 }
@@ -110,10 +134,8 @@ impl ScalarUDFImpl for WithTypedValueEncoding {
             ))?;
 
         match args {
-            [ColumnarValue::Array(array)] => Self::convert_array(encoding_name, array),
-            [ColumnarValue::Scalar(scalar)] => {
-                Self::convert_scalar(encoding_name, scalar)
-            }
+            [ColumnarValue::Array(array)] => self.convert_array(encoding_name, array),
+            [ColumnarValue::Scalar(scalar)] => self.convert_scalar(encoding_name, scalar),
         }
     }
 

@@ -9,14 +9,15 @@ use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use datafusion::execution::SendableRecordBatchStream;
-use datafusion::physical_plan::EmptyRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
+use datafusion::physical_plan::EmptyRecordBatchStream;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{
     GraphName, NamedNodePattern, Quad, Term, TermPattern, TriplePattern, Variable,
@@ -61,9 +62,15 @@ struct Content {
 }
 
 impl OxigraphMemoryStorage {
-    pub fn new(plain_term_encoding: PlainTermEncoding) -> Self {
+    pub fn new(
+        plain_term_encoding: PlainTermEncoding,
+        typed_value_encoding: TypedValueEncoding,
+    ) -> Self {
         Self {
-            object_ids: Arc::new(MemoryObjectIdMapping::new(plain_term_encoding)),
+            object_ids: Arc::new(MemoryObjectIdMapping::new(
+                plain_term_encoding,
+                typed_value_encoding,
+            )),
             content: Arc::new(Content {
                 quad_set: DashSet::default(),
                 last_quad: RwLock::new(None),
@@ -1232,6 +1239,7 @@ fn empty_result(
 mod tests {
     use super::*;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
     use rdf_fusion_model::NamedNodeRef;
 
     #[test]
@@ -1303,7 +1311,8 @@ mod tests {
     fn test_transaction() -> Result<(), StorageError> {
         let example = NamedNodeRef::new_unchecked("http://example.com/1");
         let example2 = NamedNodeRef::new_unchecked("http://example.com/2");
-        let storage = OxigraphMemoryStorage::new(PLAIN_TERM_ENCODING);
+        let storage =
+            OxigraphMemoryStorage::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
 
         let encoded_example = storage.object_ids().encode_term_intern(example);
         let encoded_example2 = storage.object_ids().encode_term_intern(example2);
