@@ -4,18 +4,19 @@ use crate::oxigraph_memory::object_id::{
     EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId,
 };
 use crate::oxigraph_memory::object_id_mapping::MemoryObjectIdMapping;
-use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
+use crate::oxigraph_memory::quad_storage_stream::MemoryQuadExecStream;
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use datafusion::execution::SendableRecordBatchStream;
-use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_plan::EmptyRecordBatchStream;
+use datafusion::physical_plan::coop::cooperative;
+use datafusion::physical_plan::metrics::BaselineMetrics;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{
     GraphName, NamedNodePattern, Quad, Term, TermPattern, TriplePattern, Variable,
@@ -436,14 +437,15 @@ impl MemoryStorageReader {
         };
 
         let iterator = self.quads_for_pattern(Some(graph), subject, predicate, object);
-        Ok(Box::pin(QuadPatternBatchRecordStream::new(
+        let stream = MemoryQuadExecStream::new(
             iterator,
             graph_variable,
             pattern,
             blank_node_mode,
             metrics,
             batch_size,
-        )))
+        );
+        Ok(Box::pin(cooperative(stream)))
     }
 
     /// Validates that all the storage invariants held in the data

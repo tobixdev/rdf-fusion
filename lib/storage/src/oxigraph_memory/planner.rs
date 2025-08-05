@@ -1,7 +1,7 @@
+use crate::MemoryQuadStorage;
 use crate::oxigraph_memory::object_id_mapping::EncodedTerm;
 use crate::oxigraph_memory::quad_exec::MemoryQuadExec;
 use crate::oxigraph_memory::store::MemoryStorageReader;
-use crate::MemoryQuadStorage;
 use async_trait::async_trait;
 use datafusion::common::plan_err;
 use datafusion::error::{DataFusionError, Result as DFResult};
@@ -12,9 +12,7 @@ use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
 use rdf_fusion_logical::{ActiveGraph, EnumeratedActiveGraph};
-use rdf_fusion_model::{
-    BlankNode, GraphName, NamedNode, VariableRef,
-};
+use rdf_fusion_model::{BlankNode, GraphName, NamedNode, VariableRef};
 use std::sync::Arc;
 
 /// Planner for [QuadPatternNode].
