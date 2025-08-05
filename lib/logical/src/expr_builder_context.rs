@@ -298,7 +298,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
 
     /// Creates an expression that converts a native boolean value into an RDF term.
     ///
-    /// This is done by encoding the literal and calling [BuiltinName::NativeBooleanAsTerm].
+    /// This is done by encoding the literal and calling [BuiltinName::NativeBooleanAsTypedValue].
     pub fn native_boolean_as_term(
         &self,
         expr: Expr,
@@ -307,12 +307,12 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         if data_type != DataType::Boolean {
             return plan_err!(
                 "Expected boolean arguments for {}, got {}",
-                BuiltinName::NativeBooleanAsTerm,
+                BuiltinName::NativeBooleanAsTypedValue,
                 data_type
             );
         }
 
-        let udf = self.create_builtin_udf(BuiltinName::NativeBooleanAsTerm)?;
+        let udf = self.create_builtin_udf(BuiltinName::NativeBooleanAsTypedValue)?;
         self.try_create_builder(udf.call(vec![expr]))
     }
 

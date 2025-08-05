@@ -492,7 +492,7 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
             ),
         ),
         (
-            BuiltinName::NativeBooleanAsTerm,
+            BuiltinName::NativeBooleanAsTypedValue,
             (Box::new(|_| Ok(native_boolean_as_term())), vec![]),
         ),
         (

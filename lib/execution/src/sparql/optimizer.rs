@@ -47,7 +47,9 @@ pub fn create_optimizer_rules(
             // TODO: Replace with a good subset
             rules.extend(create_essential_datafusion_optimizers());
 
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.functions().clone(),
+            )));
             rules
         }
         OptimizationLevel::Full => {
@@ -57,7 +59,9 @@ pub fn create_optimizer_rules(
             )));
             rules.extend(lowering_rules);
             rules.extend(Optimizer::default().rules);
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.functions().clone(),
+            )));
             rules
         }
     }

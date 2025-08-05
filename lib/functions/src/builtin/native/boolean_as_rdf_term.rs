@@ -27,7 +27,7 @@ struct NativeBooleanAsTerm {
 impl NativeBooleanAsTerm {
     pub fn new() -> Self {
         Self {
-            name: BuiltinName::NativeBooleanAsTerm.to_string(),
+            name: BuiltinName::NativeBooleanAsTypedValue.to_string(),
             signature: Signature::new(
                 TypeSignature::Exact(vec![DataType::Boolean]),
                 Volatility::Immutable,

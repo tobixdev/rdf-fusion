@@ -879,13 +879,13 @@ impl<'root> RdfFusionExprBuilder<'root> {
         if data_type != DataType::Boolean {
             return plan_err!(
                 "Expression must be Boolean for {}.",
-                BuiltinName::NativeBooleanAsTerm
+                BuiltinName::NativeBooleanAsTypedValue
             );
         }
 
         let udf = self
             .context
-            .create_builtin_udf(BuiltinName::NativeBooleanAsTerm)?;
+            .create_builtin_udf(BuiltinName::NativeBooleanAsTypedValue)?;
         Ok(Self {
             expr: udf.call(vec![self.expr]),
             ..self

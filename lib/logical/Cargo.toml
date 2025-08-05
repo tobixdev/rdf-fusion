@@ -14,5 +14,8 @@ rdf-fusion-functions.workspace = true
 datafusion.workspace = true
 rdf-fusion-model.workspace = true
 
+[dev-dependencies]
+insta.workspace = true
+
 [lints]
 workspace = true
