@@ -1,7 +1,8 @@
-use datafusion::arrow::array::UInt64Array;
 use datafusion::logical_expr::ColumnarValue;
-use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::object_id::{DefaultObjectIdDecoder, ObjectIdEncoding};
+use rdf_fusion_common::{DFResult, ObjectId};
+use rdf_fusion_encoding::object_id::{
+    DefaultObjectIdDecoder, ObjectIdArrayBuilder, ObjectIdEncoding,
+};
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
@@ -10,7 +11,6 @@ use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
 use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
-use std::sync::Arc;
 
 pub fn dispatch_n_ary_plain_term(
     args: &[EncodingDatum<PlainTermEncoding>],
@@ -112,16 +112,18 @@ pub fn dispatch_n_ary_owned_typed_value(
 }
 
 pub fn dispatch_n_ary_object_id(
+    encoding: &ObjectIdEncoding,
     args: &[EncodingDatum<ObjectIdEncoding>],
     number_of_rows: usize,
-    op: impl for<'a> Fn(&[u64]) -> ThinResult<u64>,
-    error_op: impl for<'a> Fn(&[ThinResult<u64>]) -> ThinResult<u64>,
-) -> ColumnarValue {
+    op: impl Fn(&[ObjectId]) -> ThinResult<ObjectId>,
+    error_op: impl Fn(&[ThinResult<ObjectId>]) -> ThinResult<ObjectId>,
+) -> DFResult<ColumnarValue> {
     if args.is_empty() {
-        let result = (0..number_of_rows)
-            .map(|_| op(&[]).ok())
-            .collect::<UInt64Array>();
-        return ColumnarValue::Array(Arc::new(result));
+        let mut builder = ObjectIdArrayBuilder::new(encoding.clone());
+        for result in (0..number_of_rows).map(|_| op(&[]).ok()) {
+            builder.append_object_id_opt(result);
+        }
+        return Ok(ColumnarValue::Array(builder.finish().into_array()));
     }
 
     let mut iters = Vec::new();
@@ -138,9 +140,13 @@ pub fn dispatch_n_ary_object_id(
                 error_op(args.as_slice())
             }
         })
-        .map(Result::ok)
-        .collect::<UInt64Array>();
-    ColumnarValue::Array(Arc::new(results))
+        .map(Result::ok);
+
+    let mut builder = ObjectIdArrayBuilder::new(encoding.clone());
+    for result in results {
+        builder.append_object_id_opt(result);
+    }
+    Ok(ColumnarValue::Array(builder.finish().into_array()))
 }
 
 fn multi_zip<I, T>(mut iterators: Vec<I>) -> impl Iterator<Item = Vec<T>>

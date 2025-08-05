@@ -1,4 +1,5 @@
 use crate::MemoryQuadStorage;
+use crate::oxigraph_memory::object_id_mapping::EncodedTerm;
 use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
 use crate::oxigraph_memory::store::MemoryStorageReader;
 use async_trait::async_trait;
@@ -12,12 +13,14 @@ use datafusion::physical_plan::{EmptyRecordBatchStream, ExecutionPlan};
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 use rdf_fusion_api::storage::QuadPatternEvaluator;
 use rdf_fusion_common::BlankNodeMatchingMode;
+use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
 use rdf_fusion_logical::{ActiveGraph, EnumeratedActiveGraph};
 use rdf_fusion_model::{
-    GraphName, NamedNodePattern, Term, TermPattern, TriplePattern, Variable, VariableRef,
+    BlankNode, GraphName, NamedNode, NamedNodePattern, Term, TermPattern, TriplePattern,
+    Variable, VariableRef,
 };
 use rdf_fusion_physical::quad_pattern::QuadPatternExec;
 use std::sync::Arc;
@@ -56,13 +59,25 @@ impl OxigraphMemoryQuadNodePlanner {
 
     /// Enumerates all named graphs in the store.
     fn enumerate_named_graphs(&self) -> DFResult<Vec<GraphName>> {
+        let object_id_mapping = self.snapshot.object_ids();
         self.snapshot
             .named_graphs()
             .map(|et| {
-                self.snapshot
-                    .object_ids()
-                    .try_decode::<GraphName>(et)
-                    .map_err(|err| DataFusionError::External(Box::new(err)))
+                let object_id = object_id_mapping
+                    .try_get_encoded_term_from_object_id(et)
+                    .ok_or_else(|| DataFusionError::External(Box::new(StorageError::Corruption(CorruptionError::new("Encountered unknown object id when enumerating named graphs")))))?;
+
+                 match object_id {
+                        EncodedTerm::NamedNode(nn) => Ok(GraphName::NamedNode(
+                            NamedNode::new_unchecked(nn.as_ref()),
+                        )),
+                        EncodedTerm::BlankNode(nn) => Ok(GraphName::BlankNode(
+                            BlankNode::new_unchecked(nn.as_ref()),
+                        )),
+                        _ => Err(DataFusionError::External(Box::new(StorageError::Corruption(CorruptionError::new(
+                            "Got literal for named graph.",
+                        ))))),
+                    }
             })
             .collect::<DFResult<Vec<_>>>()
     }
@@ -157,7 +172,7 @@ impl QuadPatternEvaluator for MemoryStorageReader {
 
         let Some(graph) = self
             .object_ids()
-            .try_get_object_id_for_graph_name(graph.as_ref())
+            .try_get_encoded_object_id_from_graph_name(graph.as_ref())
         else {
             // If the there is no matching object id the result is empty.
             return Ok(empty_result(
@@ -167,10 +182,13 @@ impl QuadPatternEvaluator for MemoryStorageReader {
                 blank_node_mode,
             ));
         };
+
         let subject = match subject {
             None => None,
             Some(subject) => {
-                let Some(subject) = self.object_ids().try_get_object_id(subject.as_ref())
+                let Some(subject) = self
+                    .object_ids()
+                    .try_get_encoded_object_id_from_term(subject.as_ref())
                 else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
@@ -186,8 +204,9 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         let predicate = match predicate {
             None => None,
             Some(predicate) => {
-                let Some(predicate) =
-                    self.object_ids().try_get_object_id(predicate.as_ref())
+                let Some(predicate) = self
+                    .object_ids()
+                    .try_get_encoded_object_id_from_term(predicate.as_ref())
                 else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(
@@ -203,7 +222,9 @@ impl QuadPatternEvaluator for MemoryStorageReader {
         let object = match object {
             None => None,
             Some(object) => {
-                let Some(object) = self.object_ids().try_get_object_id(object.as_ref())
+                let Some(object) = self
+                    .object_ids()
+                    .try_get_encoded_object_id_from_term(object.as_ref())
                 else {
                     // If there is no matching object id the result is empty.
                     return Ok(empty_result(

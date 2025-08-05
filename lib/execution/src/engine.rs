@@ -50,7 +50,10 @@ impl RdfFusionContext {
         // TODO make a builder
         let object_id_encoding = match storage.encoding() {
             QuadStorageEncoding::PlainTerm => None,
-            QuadStorageEncoding::ObjectId(encoding) => Some(encoding.clone()),
+            QuadStorageEncoding::ObjectId(_) => {
+                assert!(storage.object_id_mapping().is_some());
+                storage.object_id_mapping()
+            }
         };
         let encodings = RdfFusionEncodings::new(
             PLAIN_TERM_ENCODING,

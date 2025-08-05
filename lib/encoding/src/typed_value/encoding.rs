@@ -183,6 +183,14 @@ impl TypedValueEncoding {
     pub fn typed_literal_fields() -> Fields {
         FIELDS_TYPED_LITERAL.clone()
     }
+
+    /// Encodes the `term` as a [TypedValueScalar].
+    pub fn encode_term(
+        &self,
+        term: ThinResult<TermRef<'_>>,
+    ) -> DFResult<TypedValueScalar> {
+        TermRefTypedValueEncoder::encode_terms([term])?.try_as_scalar(0)
+    }
 }
 
 impl TermEncoding for TypedValueEncoding {
@@ -203,10 +211,6 @@ impl TermEncoding for TypedValueEncoding {
 
     fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         scalar.try_into()
-    }
-
-    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
-        TermRefTypedValueEncoder::encode_terms([term])?.try_as_scalar(0)
     }
 }
 

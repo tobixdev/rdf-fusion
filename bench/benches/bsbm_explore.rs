@@ -383,18 +383,9 @@ fn bsbm_explore_q12(c: &mut Criterion) {
 }
 
 criterion_group!(
-    bsbm_explore,
-    bsbm_explore_q1,
-    bsbm_explore_q2,
-    bsbm_explore_q3,
-    bsbm_explore_q4,
-    bsbm_explore_q5,
-    bsbm_explore_q7,
-    bsbm_explore_q8,
-    bsbm_explore_q9,
-    bsbm_explore_q10,
-    bsbm_explore_q11,
-    bsbm_explore_q12
+    name = bsbm_explore;
+    config = Criterion::default().sample_size(10);
+    targets =  bsbm_explore_q1, bsbm_explore_q2, bsbm_explore_q3, bsbm_explore_q4, bsbm_explore_q5, bsbm_explore_q7, bsbm_explore_q8, bsbm_explore_q9, bsbm_explore_q10, bsbm_explore_q11, bsbm_explore_q12
 );
 criterion_main!(bsbm_explore);
 

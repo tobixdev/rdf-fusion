@@ -9,15 +9,14 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
 use std::any::Any;
 use std::cmp::Ordering;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
-pub fn is_compatible() -> Arc<ScalarUDF> {
-    let udf_impl = IsCompatible::new();
+pub fn is_compatible(encodings: &RdfFusionEncodings) -> Arc<ScalarUDF> {
+    let udf_impl = IsCompatible::new(encodings);
     Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
@@ -28,16 +27,16 @@ struct IsCompatible {
 }
 
 impl IsCompatible {
-    pub fn new() -> Self {
+    pub fn new(encodings: &RdfFusionEncodings) -> Self {
         Self {
             name: BuiltinName::IsCompatible.to_string(),
             signature: Signature::new(
                 TypeSignature::Uniform(
                     2,
-                    vec![
-                        PlainTermEncoding::data_type(),
-                        ObjectIdEncoding::data_type(),
-                    ],
+                    encodings.get_data_types(&[
+                        EncodingName::PlainTerm,
+                        EncodingName::ObjectId,
+                    ]),
                 ),
                 Volatility::Immutable,
             ),

@@ -96,6 +96,14 @@ impl SortableTermEncoding {
     pub fn fields() -> Fields {
         FIELDS.clone()
     }
+
+    /// Encodes the `term` as a [SortableTermScalar].
+    pub fn encode_term(
+        &self,
+        term: ThinResult<TermRef<'_>>,
+    ) -> DFResult<SortableTermScalar> {
+        TermRefSortableTermEncoder::encode_terms([term])?.try_as_scalar(0)
+    }
 }
 
 impl TermEncoding for SortableTermEncoding {
@@ -116,9 +124,5 @@ impl TermEncoding for SortableTermEncoding {
 
     fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         scalar.try_into()
-    }
-
-    fn encode_term(&self, term: ThinResult<TermRef<'_>>) -> DFResult<Self::Scalar> {
-        TermRefSortableTermEncoder::encode_terms([term])?.try_as_scalar(0)
     }
 }

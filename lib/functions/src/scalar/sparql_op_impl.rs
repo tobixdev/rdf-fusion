@@ -61,10 +61,11 @@ pub fn create_typed_value_sparql_op_impl<Args: 'static>(
 }
 
 pub fn create_object_id_sparql_op_impl<Args: 'static>(
+    object_id_encoding: &ObjectIdEncoding,
     closure: impl Fn(Args) -> DFResult<ColumnarValue> + 'static,
 ) -> Box<dyn SparqlOpImpl<Args>> {
     Box::new(ClosureSparqlOpImpl {
-        return_type: ObjectIdEncoding::data_type(),
+        return_type: object_id_encoding.data_type(),
         closure: Box::new(closure),
     })
 }

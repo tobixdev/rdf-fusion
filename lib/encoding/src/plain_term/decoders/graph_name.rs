@@ -31,7 +31,7 @@ fn map_term_ref_to_graph_name_ref(
     match term {
         Ok(TermRef::NamedNode(nn)) => Ok(GraphNameRef::NamedNode(nn)),
         Ok(TermRef::BlankNode(bnode)) => Ok(GraphNameRef::BlankNode(bnode)),
-        Ok(TermRef::Literal(_)) => panic!("Literal when extracting grpah name"),
+        Ok(TermRef::Literal(_)) => panic!("Literal when extracting graph name"),
         Err(_) => Ok(GraphNameRef::DefaultGraph),
     }
 }

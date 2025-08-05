@@ -105,7 +105,7 @@ async fn test_load_graph() -> Result<(), Box<dyn Error>> {
     for q in quads(GraphNameRef::DefaultGraph) {
         assert!(store.contains(q).await?);
     }
-    store.validate()?;
+    store.validate().await?;
     Ok(())
 }
 
@@ -120,7 +120,7 @@ async fn test_load_dataset() -> Result<(), Box<dyn Error>> {
     )) {
         assert!(store.contains(q).await?);
     }
-    store.validate()?;
+    store.validate().await?;
     Ok(())
 }
 
@@ -189,6 +189,6 @@ async fn test_snapshot_isolation_iterator() -> Result<(), Box<dyn Error>> {
     let iter = store.stream().await.unwrap();
     store.remove(quad).await?;
     assert_eq!(iter.try_collect_to_vec().await?, vec![quad.into_owned()]);
-    store.validate()?;
+    store.validate().await?;
     Ok(())
 }
