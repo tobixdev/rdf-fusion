@@ -1152,17 +1152,8 @@ mod tests {
         let example2 = NamedNodeRef::new_unchecked("http://example.com/2");
         let storage = OxigraphMemoryStorage::new(PLAIN_TERM_ENCODING);
 
-        let example_scalar = PlainTermScalar::from(example);
-        let example2_scalar = PlainTermScalar::from(example2);
-
-        let encoded_example = storage
-            .object_ids()
-            .encode_term_intern(&example_scalar)
-            .unwrap();
-        let encoded_example2 = storage
-            .object_ids()
-            .encode_term_intern(&example2_scalar)
-            .unwrap();
+        let encoded_example = storage.object_ids().encode_term_intern(example);
+        let encoded_example2 = storage.object_ids().encode_term_intern(example2);
         let default_quad =
             QuadRef::new(example, example, example, GraphNameRef::DefaultGraph);
         let encoded_default_quad =
