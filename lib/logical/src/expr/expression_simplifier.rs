@@ -1,15 +1,15 @@
-use crate::{RdfFusionExprBuilderContext, check_same_schema};
+use crate::{check_same_schema, RdfFusionExprBuilderContext};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{DFSchema, DFSchemaRef, plan_datafusion_err};
+use datafusion::common::{plan_datafusion_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::expr::ScalarFunction;
 use datafusion::logical_expr::utils::merge_schema;
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan};
 use datafusion::optimizer::utils::NamePreserver;
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
-use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_api::functions::{BuiltinName, FunctionName, RdfFusionFunctionArgs};
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermType};
+use rdf_fusion_encoding::plain_term::{PlainTermType, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingName, TermEncoding};
 use std::sync::Arc;
@@ -89,9 +89,9 @@ impl SimplifySparqlExpressionsRule {
         let left_resource = is_resource_or_encoded_resource(&scalar_function.args[0]);
         let right_resource = is_resource_or_encoded_resource(&scalar_function.args[1]);
 
-        let can_be_rewritten = left_is_column && right_resource.is_some()
-            || left_resource.is_some() && right_is_column
-            || left_resource.is_some() && right_resource.is_some();
+        let can_be_rewritten = left_is_column && right_resource
+            || left_resource && right_is_column
+            || left_resource && right_resource;
         if !can_be_rewritten {
             return Ok(Transformed::no(Expr::ScalarFunction(scalar_function)));
         }
@@ -115,13 +115,16 @@ impl SimplifySparqlExpressionsRule {
             .try_get_encoding_name(&rhs_data_type)
             .expect("Only works for RDF terms");
 
-        let target_encoding = match (lhs_encoding, rhs_encoding) {
-            (EncodingName::PlainTerm, EncodingName::PlainTerm) => EncodingName::PlainTerm,
-            (EncodingName::TypedValue, EncodingName::TypedValue) => {
-                EncodingName::TypedValue
-            }
-            _ => EncodingName::PlainTerm,
-        };
+        let target_encoding =
+            match (left_resource, lhs_encoding, right_resource, rhs_encoding) {
+                // If they share
+                (_, encoding_a, _, encoding_b) if encoding_a == encoding_b => encoding_a,
+                // If only one of the two columns is a literal, prefer to change the other one.
+                (true, lit_encoding, false, _) => lit_encoding,
+                (false, _, true, lit_encoding) => lit_encoding,
+                // Other choose Plain Term to hope for a "=" operator that hopefully triggers something
+                _ => EncodingName::PlainTerm,
+            };
 
         let expr_builder = RdfFusionExprBuilderContext::new(&self.context, input_schema);
         let lhs = expr_builder
@@ -133,7 +136,7 @@ impl SimplifySparqlExpressionsRule {
             .with_encoding(target_encoding)?
             .build()?;
 
-        match lhs_encoding {
+        match target_encoding {
             EncodingName::PlainTerm => {
                 let equality = lhs.eq(rhs);
                 let udf = self.context.functions().create_udf(
@@ -206,16 +209,16 @@ fn is_column_or_encoded_column(expr: &Expr) -> bool {
     }
 }
 
-fn is_resource_or_encoded_resource(expr: &Expr) -> Option<EncodingName> {
+fn is_resource_or_encoded_resource(expr: &Expr) -> bool {
     match expr {
         Expr::Literal(value, _) => {
             if let Ok(scalar) = PLAIN_TERM_ENCODING.try_new_scalar(value.clone()) {
                 let term_type = scalar.term_type();
                 return match term_type {
                     Some(PlainTermType::NamedNode) | Some(PlainTermType::BlankNode) => {
-                        Some(EncodingName::PlainTerm)
+                        true
                     }
-                    _ => None,
+                    _ => false,
                 };
             }
 
@@ -223,13 +226,13 @@ fn is_resource_or_encoded_resource(expr: &Expr) -> Option<EncodingName> {
                 let term_type = scalar.term_type();
                 return match term_type {
                     Some(PlainTermType::NamedNode) | Some(PlainTermType::BlankNode) => {
-                        Some(EncodingName::TypedValue)
+                        true
                     }
-                    _ => None,
+                    _ => false,
                 };
             }
 
-            None
+            false
         }
         Expr::ScalarFunction(function) => {
             let built_in = BuiltinName::try_from(function.func.name());
@@ -237,10 +240,10 @@ fn is_resource_or_encoded_resource(expr: &Expr) -> Option<EncodingName> {
                 Ok(BuiltinName::WithTypedValueEncoding) => {
                     is_resource_or_encoded_resource(&function.args[0])
                 }
-                _ => None,
+                _ => false,
             }
         }
-        _ => None,
+        _ => false,
     }
 }
 
@@ -271,15 +274,15 @@ mod tests {
     use datafusion::arrow::datatypes::{Field, Schema};
     use datafusion::common::{DFSchema, DFSchemaRef};
     use datafusion::logical_expr::{
-        EmptyRelation, LogicalPlan, LogicalPlanBuilder, col, lit,
+        col, lit, EmptyRelation, LogicalPlan, LogicalPlanBuilder,
     };
     use datafusion::optimizer::OptimizerContext;
     use insta::assert_snapshot;
     use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionArgs};
     use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
     use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
+    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
     use rdf_fusion_encoding::{
         EncodingName, EncodingScalar, QuadStorageEncoding, RdfFusionEncodings,
         TermEncoder,
