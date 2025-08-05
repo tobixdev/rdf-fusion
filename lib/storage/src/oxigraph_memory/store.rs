@@ -9,15 +9,15 @@ use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
 use datafusion::execution::SendableRecordBatchStream;
+use datafusion::physical_plan::EmptyRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use datafusion::physical_plan::EmptyRecordBatchStream;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{
     GraphName, NamedNodePattern, Quad, Term, TermPattern, TriplePattern, Variable,
@@ -31,6 +31,13 @@ use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::mem::transmute;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock, Weak};
+
+type FilterInfo = (
+    GraphEncodedObjectId,
+    Option<EncodedObjectId>,
+    Option<EncodedObjectId>,
+    Option<EncodedObjectId>,
+);
 
 /// In-memory storage working with MVCC
 ///
@@ -424,8 +431,8 @@ impl MemoryStorageReader {
 
     pub fn estimate_num_rows(&self, graph: &GraphName, pattern: &TriplePattern) -> usize {
         let (graph, subject, predicate, object) = match self.get_object_ids_of_filters(
-            &graph,
-            &pattern,
+            graph,
+            pattern,
             BlankNodeMatchingMode::Filter,
         ) {
             None => return 0,
@@ -441,14 +448,9 @@ impl MemoryStorageReader {
         graph: &GraphName,
         pattern: &TriplePattern,
         blank_node_mode: BlankNodeMatchingMode,
-    ) -> Option<(
-        GraphEncodedObjectId,
-        Option<EncodedObjectId>,
-        Option<EncodedObjectId>,
-        Option<EncodedObjectId>,
-    )> {
+    ) -> Option<FilterInfo> {
         let (subject, predicate, object) =
-            Self::get_filter_terms(&pattern, blank_node_mode)?;
+            Self::get_filter_terms(pattern, blank_node_mode)?;
         self.try_get_object_ids(graph, subject, predicate, object)
     }
 
@@ -500,12 +502,7 @@ impl MemoryStorageReader {
         subject: Option<Term>,
         predicate: Option<Term>,
         object: Option<Term>,
-    ) -> Option<(
-        GraphEncodedObjectId,
-        Option<EncodedObjectId>,
-        Option<EncodedObjectId>,
-        Option<EncodedObjectId>,
-    )> {
+    ) -> Option<FilterInfo> {
         // If there are no matching object ids, the result is empty and we can return early.
         let graph = self
             .object_ids()
