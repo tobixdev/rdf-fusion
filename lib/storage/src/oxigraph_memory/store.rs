@@ -306,6 +306,61 @@ impl MemoryStorageReader {
         }
     }
 
+    #[allow(clippy::same_name_method)]
+    pub fn estimate_quad_count_for_pattern(
+        &self,
+        graph_name: Option<GraphEncodedObjectId>,
+        subject: Option<EncodedObjectId>,
+        predicate: Option<EncodedObjectId>,
+        object: Option<EncodedObjectId>,
+    ) -> usize {
+        fn get_count(
+            map: &DashMap<
+                EncodedObjectId,
+                (Weak<QuadListNode>, u64),
+                BuildHasherDefault<FxHasher>,
+            >,
+            term: Option<EncodedObjectId>,
+        ) -> u64 {
+            let Some(term) = term else {
+                return u64::MAX;
+            };
+            map.view(&term, |_, (_, count)| *count).unwrap_or_default()
+        }
+
+        fn get_count_graph(
+            map: &DashMap<
+                GraphEncodedObjectId,
+                (Weak<QuadListNode>, u64),
+                BuildHasherDefault<FxHasher>,
+            >,
+            term: Option<GraphEncodedObjectId>,
+        ) -> u64 {
+            let Some(term) = term else {
+                return u64::MAX;
+            };
+            map.view(&term, |_, (_, count)| *count).unwrap_or_default()
+        }
+
+        let subject_count =
+            get_count(&self.storage.content.last_quad_by_subject, subject);
+        let predicate_count =
+            get_count(&self.storage.content.last_quad_by_predicate, predicate);
+        let object_count = get_count(&self.storage.content.last_quad_by_object, object);
+        let graph_name_count =
+            get_count_graph(&self.storage.content.last_quad_by_graph_name, graph_name);
+
+        *[
+            subject_count,
+            predicate_count,
+            object_count,
+            graph_name_count,
+        ]
+        .iter()
+        .min()
+        .expect("Iterator cannot be empty.") as usize
+    }
+
     #[allow(unsafe_code)]
     pub fn named_graphs(&self) -> MemoryDecodingGraphIterator {
         MemoryDecodingGraphIterator {
@@ -342,6 +397,70 @@ impl MemoryStorageReader {
     ) -> DFResult<SendableRecordBatchStream> {
         let storage_encoding = self.storage().storage_encoding();
 
+        let (graph, subject, predicate, object) =
+            match self.get_object_ids_of_filters(&graph, &pattern, blank_node_mode) {
+                None => {
+                    return Ok(empty_result(
+                        &storage_encoding,
+                        graph_variable.as_ref(),
+                        &pattern,
+                        blank_node_mode,
+                    ));
+                }
+                Some(result) => result,
+            };
+
+        let iterator = self.quads_for_pattern(Some(graph), subject, predicate, object);
+        let stream = MemoryQuadExecStream::new(
+            iterator,
+            graph_variable,
+            pattern,
+            blank_node_mode,
+            metrics,
+            batch_size,
+        );
+        Ok(Box::pin(cooperative(stream)))
+    }
+
+    pub fn estimate_num_rows(&self, graph: &GraphName, pattern: &TriplePattern) -> usize {
+        let (graph, subject, predicate, object) = match self.get_object_ids_of_filters(
+            &graph,
+            &pattern,
+            BlankNodeMatchingMode::Filter,
+        ) {
+            None => return 0,
+            Some(result) => result,
+        };
+
+        self.estimate_quad_count_for_pattern(Some(graph), subject, predicate, object)
+    }
+
+    /// Gets all the object ids necessary for evaluating a quad pattern.
+    fn get_object_ids_of_filters(
+        &self,
+        graph: &GraphName,
+        pattern: &TriplePattern,
+        blank_node_mode: BlankNodeMatchingMode,
+    ) -> Option<(
+        GraphEncodedObjectId,
+        Option<EncodedObjectId>,
+        Option<EncodedObjectId>,
+        Option<EncodedObjectId>,
+    )> {
+        let (subject, predicate, object) =
+            Self::get_filter_terms(&pattern, blank_node_mode)?;
+        self.try_get_object_ids(graph, subject, predicate, object)
+    }
+
+    /// Returns the filter terms for the given pattern, ignoring variables in the pattern.
+    /// The `blank_node_mode` is considered when checking whether a filter term should be emitted.
+    ///
+    /// If [None] is returned, the pattern cannot match any quad in the store, as the subject is a
+    /// literal.
+    fn get_filter_terms(
+        pattern: &TriplePattern,
+        blank_node_mode: BlankNodeMatchingMode,
+    ) -> Option<(Option<Term>, Option<Term>, Option<Term>)> {
         let subject = match &pattern.subject {
             TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
             TermPattern::BlankNode(bnode)
@@ -349,15 +468,8 @@ impl MemoryStorageReader {
             {
                 Some(Term::BlankNode(bnode.clone()))
             }
-            TermPattern::Literal(_) => {
-                // If the subject is a literal, then the result is always empty.
-                return Ok(empty_result(
-                    &storage_encoding,
-                    graph_variable.as_ref(),
-                    &pattern,
-                    blank_node_mode,
-                ));
-            }
+            // If the subject is a variable, there will be no matching quad.
+            TermPattern::Literal(_) => return None,
             _ => None,
         };
         let predicate = match &pattern.predicate {
@@ -375,84 +487,52 @@ impl MemoryStorageReader {
             _ => None,
         };
 
-        let Some(graph) = self
-            .object_ids()
-            .try_get_encoded_object_id_from_graph_name(graph.as_ref())
-        else {
-            // If the there is no matching object id the result is empty.
-            return Ok(empty_result(
-                &storage_encoding,
-                graph_variable.as_ref(),
-                &pattern,
-                blank_node_mode,
-            ));
-        };
+        Some((subject, predicate, object))
+    }
 
+    /// Returns the object ids from the filter.
+    ///
+    /// If [None] is returned, the pattern cannot match any quad in the store, as there is an
+    /// unknown object id in the pattern.
+    fn try_get_object_ids(
+        &self,
+        graph: &GraphName,
+        subject: Option<Term>,
+        predicate: Option<Term>,
+        object: Option<Term>,
+    ) -> Option<(
+        GraphEncodedObjectId,
+        Option<EncodedObjectId>,
+        Option<EncodedObjectId>,
+        Option<EncodedObjectId>,
+    )> {
+        // If there are no matching object ids, the result is empty and we can return early.
+        let graph = self
+            .object_ids()
+            .try_get_encoded_object_id_from_graph_name(graph.as_ref())?;
         let subject = match subject {
             None => None,
-            Some(subject) => {
-                let Some(subject) = self
-                    .object_ids()
-                    .try_get_encoded_object_id_from_term(subject.as_ref())
-                else {
-                    // If there is no matching object id the result is empty.
-                    return Ok(empty_result(
-                        &storage_encoding,
-                        graph_variable.as_ref(),
-                        &pattern,
-                        blank_node_mode,
-                    ));
-                };
-                Some(subject)
-            }
+            Some(subject) => Some(
+                self.object_ids()
+                    .try_get_encoded_object_id_from_term(&subject)?,
+            ),
         };
         let predicate = match predicate {
             None => None,
-            Some(predicate) => {
-                let Some(predicate) = self
-                    .object_ids()
-                    .try_get_encoded_object_id_from_term(predicate.as_ref())
-                else {
-                    // If there is no matching object id the result is empty.
-                    return Ok(empty_result(
-                        &storage_encoding,
-                        graph_variable.as_ref(),
-                        &pattern,
-                        blank_node_mode,
-                    ));
-                };
-                Some(predicate)
-            }
+            Some(predicate) => Some(
+                self.object_ids()
+                    .try_get_encoded_object_id_from_term(&predicate)?,
+            ),
         };
         let object = match object {
             None => None,
-            Some(object) => {
-                let Some(object) = self
-                    .object_ids()
-                    .try_get_encoded_object_id_from_term(object.as_ref())
-                else {
-                    // If there is no matching object id the result is empty.
-                    return Ok(empty_result(
-                        &storage_encoding,
-                        graph_variable.as_ref(),
-                        &pattern,
-                        blank_node_mode,
-                    ));
-                };
-                Some(object)
-            }
+            Some(object) => Some(
+                self.object_ids()
+                    .try_get_encoded_object_id_from_term(&object)?,
+            ),
         };
 
-        let iterator = self.quads_for_pattern(Some(graph), subject, predicate, object);
-        let stream = MemoryQuadExecStream::new(
-            iterator,
-            graph_variable,
-            pattern,
-            blank_node_mode,
-            metrics,
-            batch_size,
-        );
-        Ok(Box::pin(cooperative(stream)))
+        Some((graph, subject, predicate, object))
     }
 
     /// Validates that all the storage invariants held in the data

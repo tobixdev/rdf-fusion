@@ -1,5 +1,8 @@
 use crate::oxigraph_memory::store::MemoryStorageReader;
-use datafusion::common::{exec_err, internal_err, plan_err};
+use datafusion::common::stats::Precision;
+use datafusion::common::{
+    exec_err, internal_err, plan_err, ColumnStatistics, Statistics,
+};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{
@@ -12,9 +15,9 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_logical::EnumeratedActiveGraph;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
-use rdf_fusion_model::{TriplePattern, Variable};
+use rdf_fusion_logical::EnumeratedActiveGraph;
+use rdf_fusion_model::{GraphName, TriplePattern, Variable};
 use std::any::Any;
 use std::fmt::Formatter;
 use std::sync::Arc;
@@ -79,6 +82,11 @@ impl MemoryQuadExec {
             metrics: ExecutionPlanMetricsSet::default(),
         }
     }
+
+    fn estimate_num_rows(&self, graph: &GraphName) -> usize {
+        self.memory_storage_reader
+            .estimate_num_rows(graph, &self.triple_pattern)
+    }
 }
 
 impl ExecutionPlan for MemoryQuadExec {
@@ -139,6 +147,35 @@ impl ExecutionPlan for MemoryQuadExec {
 
     fn metrics(&self) -> Option<MetricsSet> {
         Some(self.metrics.clone_inner())
+    }
+
+    fn partition_statistics(&self, partition: Option<usize>) -> DFResult<Statistics> {
+        let num_rows = match partition {
+            None => {
+                let mut total_rows = 0;
+                for i in 0..self.active_graph.0.len() {
+                    total_rows += self.estimate_num_rows(&self.active_graph.0[i]);
+                }
+                total_rows
+            }
+            Some(partition) => {
+                if partition >= self.active_graph.0.len() {
+                    // This operator requires a single partition as input.
+                    return internal_err!(
+                        "Partition index {partition} is out of range. Number of partitions: {}",
+                        self.active_graph.0.len()
+                    );
+                }
+
+                self.estimate_num_rows(&self.active_graph.0[partition])
+            }
+        };
+
+        Ok(Statistics {
+            num_rows: Precision::Inexact(num_rows),
+            total_byte_size: Precision::Inexact(num_rows * size_of::<u32>() * 4),
+            column_statistics: vec![ColumnStatistics::new_unknown(); 4],
+        })
     }
 }
 
