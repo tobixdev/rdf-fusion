@@ -12,6 +12,7 @@ datafusion.workspace = true
 rdf-fusion-common.workspace = true
 rdf-fusion-encoding.workspace = true
 rdf-fusion-model.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true

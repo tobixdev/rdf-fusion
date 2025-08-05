@@ -1,4 +1,5 @@
 use std::fmt;
+use thiserror::Error;
 
 /// An RDF Fusion builtin name.
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
@@ -98,7 +99,7 @@ pub enum BuiltinName {
 
     // Other Necessary Functions
     EffectiveBooleanValue,
-    NativeBooleanAsTerm,
+    NativeBooleanAsTypedValue,
     NativeInt64AsTerm,
     IsCompatible,
 }
@@ -171,7 +172,7 @@ impl fmt::Display for BuiltinName {
             Self::CastDateTime => "xsd:dataTime",
             Self::CastBoolean => "xsd:boolean",
             Self::EffectiveBooleanValue => "EFFECTIVE_BOOLEAN_VALUE",
-            Self::NativeBooleanAsTerm => "BOOLEAN_AS_TERM",
+            Self::NativeBooleanAsTypedValue => "BOOLEAN_AS_TERM",
             Self::NativeInt64AsTerm => "INT64_AS_TERM",
             Self::Bound => "BOUND",
             Self::IsCompatible => "IS_COMPATIBLE",
@@ -191,5 +192,102 @@ impl fmt::Display for BuiltinName {
             Self::Not => "NOT",
         };
         f.write_str(name)
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("Function name is not a built-in function")]
+pub struct NotABuiltInError;
+
+impl TryFrom<&str> for BuiltinName {
+    type Error = NotABuiltInError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(match value {
+            "STR" => Self::Str,
+            "LANG" => Self::Lang,
+            "LANGMATCHES" => Self::LangMatches,
+            "DATATYPE" => Self::Datatype,
+            "IRI" => Self::Iri,
+            "BNODE" => Self::BNode,
+            "RAND" => Self::Rand,
+            "ABS" => Self::Abs,
+            "CEIL" => Self::Ceil,
+            "FLOOR" => Self::Floor,
+            "ROUND" => Self::Round,
+            "CONCAT" => Self::Concat,
+            "SUBSTR" => Self::SubStr,
+            "STRLEN" => Self::StrLen,
+            "REPLACE" => Self::Replace,
+            "UCASE" => Self::UCase,
+            "LCASE" => Self::LCase,
+            "ENCODE_FOR_URI" => Self::EncodeForUri,
+            "CONTAINS" => Self::Contains,
+            "STRSTARTS" => Self::StrStarts,
+            "STRENDS" => Self::StrEnds,
+            "STRBEFORE" => Self::StrBefore,
+            "STRAFTER" => Self::StrAfter,
+            "YEAR" => Self::Year,
+            "MONTH" => Self::Month,
+            "DAY" => Self::Day,
+            "HOURS" => Self::Hours,
+            "MINUTES" => Self::Minutes,
+            "SECONDS" => Self::Seconds,
+            "TIMEZONE" => Self::Timezone,
+            "TZ" => Self::Tz,
+            "UUID" => Self::Uuid,
+            "STRUUID" => Self::StrUuid,
+            "MD5" => Self::Md5,
+            "SHA1" => Self::Sha1,
+            "SHA256" => Self::Sha256,
+            "SHA384" => Self::Sha384,
+            "SHA512" => Self::Sha512,
+            "STRLANG" => Self::StrLang,
+            "STRDT" => Self::StrDt,
+            "isIRI" => Self::IsIri,
+            "isBLANK" => Self::IsBlank,
+            "isLITERAL" => Self::IsLiteral,
+            "isNUMERIC" => Self::IsNumeric,
+            "REGEX" => Self::Regex,
+            "IF" => Self::If,
+            "SAMETERM" => Self::SameTerm,
+            "EQ" => Self::Equal,
+            "GT" => Self::GreaterThan,
+            "GEQ" => Self::GreaterOrEqual,
+            "LT" => Self::LessThan,
+            "LEQ" => Self::LessOrEqual,
+            "ADD" => Self::Add,
+            "DIV" => Self::Div,
+            "MUL" => Self::Mul,
+            "SUB" => Self::Sub,
+            "xsd:string" => Self::CastString,
+            "xsd:integer" => Self::CastInteger,
+            "xsd:int" => Self::AsInt,
+            "xsd:float" => Self::CastFloat,
+            "xsd:double" => Self::CastDouble,
+            "xsd:decimal" => Self::CastDecimal,
+            "xsd:dataTime" => Self::CastDateTime,
+            "xsd:boolean" => Self::CastBoolean,
+            "EFFECTIVE_BOOLEAN_VALUE" => Self::EffectiveBooleanValue,
+            "BOOLEAN_AS_TERM" => Self::NativeBooleanAsTypedValue,
+            "INT64_AS_TERM" => Self::NativeInt64AsTerm,
+            "BOUND" => Self::Bound,
+            "IS_COMPATIBLE" => Self::IsCompatible,
+            "COALESCE" => Self::Coalesce,
+            "MINUS" => Self::UnaryMinus,
+            "PLUS" => Self::UnaryPlus,
+            "SUM" => Self::Sum,
+            "MIN" => Self::Min,
+            "MAX" => Self::Max,
+            "AVG" => Self::Avg,
+            "GROUP_CONCAT" => Self::GroupConcat,
+            "WITH_SORTABLE_ENCODING" => Self::WithSortableEncoding,
+            "WITH_TYPED_VALUE_ENCODING" => Self::WithTypedValueEncoding,
+            "WITH_PLAIN_TERM_ENCODING" => Self::WithPlainTermEncoding,
+            "AND" => Self::And,
+            "OR" => Self::Or,
+            "NOT" => Self::Not,
+            _ => return Err(NotABuiltInError {}),
+        })
     }
 }
