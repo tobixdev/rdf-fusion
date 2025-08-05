@@ -1,28 +1,20 @@
-use crate::MemoryQuadStorage;
 use crate::oxigraph_memory::object_id_mapping::EncodedTerm;
-use crate::oxigraph_memory::quad_storage_stream::QuadPatternBatchRecordStream;
+use crate::oxigraph_memory::quad_exec::MemoryQuadExec;
 use crate::oxigraph_memory::store::MemoryStorageReader;
+use crate::MemoryQuadStorage;
 use async_trait::async_trait;
 use datafusion::common::plan_err;
 use datafusion::error::{DataFusionError, Result as DFResult};
-use datafusion::execution::SendableRecordBatchStream;
 use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
-use datafusion::physical_plan::metrics::BaselineMetrics;
-use datafusion::physical_plan::{EmptyRecordBatchStream, ExecutionPlan};
+use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
-use rdf_fusion_api::storage::QuadPatternEvaluator;
-use rdf_fusion_common::BlankNodeMatchingMode;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
-use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
 use rdf_fusion_logical::{ActiveGraph, EnumeratedActiveGraph};
 use rdf_fusion_model::{
-    BlankNode, GraphName, NamedNode, NamedNodePattern, Term, TermPattern, TriplePattern,
-    Variable, VariableRef,
+    BlankNode, GraphName, NamedNode, VariableRef,
 };
-use rdf_fusion_physical::quad_pattern::QuadPatternExec;
 use std::sync::Arc;
 
 /// Planner for [QuadPatternNode].
@@ -97,8 +89,8 @@ impl ExtensionPlanner for OxigraphMemoryQuadNodePlanner {
         if let Some(quad_pattern_node) = node.as_any().downcast_ref::<QuadPatternNode>() {
             let active_graph =
                 self.enumerate_active_graph(quad_pattern_node.active_graph())?;
-            let quads = Arc::new(QuadPatternExec::new(
-                Arc::new(self.snapshot.clone()),
+            let quads = Arc::new(MemoryQuadExec::new(
+                self.snapshot.clone(),
                 active_graph,
                 quad_pattern_node
                     .graph_variable()
@@ -118,149 +110,4 @@ impl ExtensionPlanner for OxigraphMemoryQuadNodePlanner {
             Ok(None)
         }
     }
-}
-
-#[async_trait]
-impl QuadPatternEvaluator for MemoryStorageReader {
-    fn storage_encoding(&self) -> QuadStorageEncoding {
-        self.storage().storage_encoding()
-    }
-
-    fn evaluate_pattern(
-        &self,
-        graph: GraphName,
-        graph_variable: Option<Variable>,
-        pattern: TriplePattern,
-        blank_node_mode: BlankNodeMatchingMode,
-        metrics: BaselineMetrics,
-        batch_size: usize,
-    ) -> DFResult<SendableRecordBatchStream> {
-        let storage_encoding = self.storage().storage_encoding();
-
-        let subject = match &pattern.subject {
-            TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
-            TermPattern::BlankNode(bnode)
-                if blank_node_mode == BlankNodeMatchingMode::Filter =>
-            {
-                Some(Term::BlankNode(bnode.clone()))
-            }
-            TermPattern::Literal(_) => {
-                // If the subject is a literal, then the result is always empty.
-                return Ok(empty_result(
-                    &storage_encoding,
-                    graph_variable.as_ref(),
-                    &pattern,
-                    blank_node_mode,
-                ));
-            }
-            _ => None,
-        };
-        let predicate = match &pattern.predicate {
-            NamedNodePattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
-            NamedNodePattern::Variable(_) => None,
-        };
-        let object = match &pattern.object {
-            TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
-            TermPattern::BlankNode(bnode)
-                if blank_node_mode == BlankNodeMatchingMode::Filter =>
-            {
-                Some(Term::BlankNode(bnode.clone()))
-            }
-            TermPattern::Literal(lit) => Some(Term::Literal(lit.clone())),
-            _ => None,
-        };
-
-        let Some(graph) = self
-            .object_ids()
-            .try_get_encoded_object_id_from_graph_name(graph.as_ref())
-        else {
-            // If the there is no matching object id the result is empty.
-            return Ok(empty_result(
-                &storage_encoding,
-                graph_variable.as_ref(),
-                &pattern,
-                blank_node_mode,
-            ));
-        };
-
-        let subject = match subject {
-            None => None,
-            Some(subject) => {
-                let Some(subject) = self
-                    .object_ids()
-                    .try_get_encoded_object_id_from_term(subject.as_ref())
-                else {
-                    // If there is no matching object id the result is empty.
-                    return Ok(empty_result(
-                        &storage_encoding,
-                        graph_variable.as_ref(),
-                        &pattern,
-                        blank_node_mode,
-                    ));
-                };
-                Some(subject)
-            }
-        };
-        let predicate = match predicate {
-            None => None,
-            Some(predicate) => {
-                let Some(predicate) = self
-                    .object_ids()
-                    .try_get_encoded_object_id_from_term(predicate.as_ref())
-                else {
-                    // If there is no matching object id the result is empty.
-                    return Ok(empty_result(
-                        &storage_encoding,
-                        graph_variable.as_ref(),
-                        &pattern,
-                        blank_node_mode,
-                    ));
-                };
-                Some(predicate)
-            }
-        };
-        let object = match object {
-            None => None,
-            Some(object) => {
-                let Some(object) = self
-                    .object_ids()
-                    .try_get_encoded_object_id_from_term(object.as_ref())
-                else {
-                    // If there is no matching object id the result is empty.
-                    return Ok(empty_result(
-                        &storage_encoding,
-                        graph_variable.as_ref(),
-                        &pattern,
-                        blank_node_mode,
-                    ));
-                };
-                Some(object)
-            }
-        };
-
-        let iterator = self.quads_for_pattern(Some(graph), subject, predicate, object);
-        Ok(Box::pin(QuadPatternBatchRecordStream::new(
-            iterator,
-            graph_variable,
-            pattern,
-            blank_node_mode,
-            metrics,
-            batch_size,
-        )))
-    }
-}
-
-fn empty_result(
-    storage_encoding: &QuadStorageEncoding,
-    graph_variable: Option<&Variable>,
-    pattern: &TriplePattern,
-    blank_node_mode: BlankNodeMatchingMode,
-) -> SendableRecordBatchStream {
-    let schema = compute_schema_for_triple_pattern(
-        storage_encoding,
-        graph_variable.as_ref().map(|v| v.as_ref()),
-        pattern,
-        blank_node_mode,
-    );
-    Box::pin(EmptyRecordBatchStream::new(Arc::clone(schema.inner())))
 }

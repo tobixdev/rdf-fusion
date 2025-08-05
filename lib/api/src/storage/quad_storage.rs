@@ -1,16 +1,11 @@
 use async_trait::async_trait;
-use datafusion::execution::SendableRecordBatchStream;
-use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{
-    GraphName, GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
-    TriplePattern, Variable,
+    GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
 };
-use std::fmt::Debug;
 use std::sync::Arc;
 
 #[async_trait]
@@ -24,6 +19,12 @@ pub trait QuadStorage: Send + Sync {
 
     /// Returns a list of planners that support planning logical nodes requiring access to the
     /// storage layer.
+    ///
+    /// # Consistency
+    ///
+    /// A query plan must often evaluate multiple quad patterns that have access to the same
+    /// storage. It is the responsibility of the storage layer to ensure that the quad patterns use
+    /// the same snapshot of the storage layer.
     fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
 
     /// Loads the given quads into the storage.
@@ -67,32 +68,4 @@ pub trait QuadStorage: Send + Sync {
 
     /// Validates invariants in the store
     async fn validate(&self) -> Result<(), StorageError>;
-}
-
-/// The quad pattern evaluator is responsible for accessing the storage and returning a stream of
-/// results that adhere to the given pattern.
-///
-/// # Consistency
-///
-/// A query plan most often contains multiple quad patterns that have access to the same storage.
-/// It is the responsibility of the storage layer to ensure that the quad patterns use the same
-/// snapshot of the storage layer.
-#[async_trait]
-pub trait QuadPatternEvaluator: Debug + Send + Sync {
-    /// Returns the [QuadStorageEncoding] of the storage layer.
-    fn storage_encoding(&self) -> QuadStorageEncoding;
-
-    /// Returns a stream of quads that match the given pattern.
-    ///
-    /// The resulting stream must have a schema that projects to the variables provided in the
-    /// arguments. Each emitted batch should have `batch_size` elements.
-    fn evaluate_pattern(
-        &self,
-        graph: GraphName,
-        graph_variable: Option<Variable>,
-        pattern: TriplePattern,
-        blank_node_mode: BlankNodeMatchingMode,
-        metrics: BaselineMetrics,
-        batch_size: usize,
-    ) -> DFResult<SendableRecordBatchStream>;
 }
