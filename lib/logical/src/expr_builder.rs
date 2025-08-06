@@ -1,5 +1,4 @@
 use crate::RdfFusionExprBuilderContext;
-use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
@@ -13,6 +12,7 @@ use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermScalar};
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar};
 use rdf_fusion_model::{Iri, TermRef};
+use std::ops::Not;
 
 /// A builder for expressions that make use of RDF Fusion built-ins.
 ///
@@ -691,7 +691,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// - [SPARQL 1.1 - Operator Mappings](https://www.w3.org/TR/sparql11-query/#OperatorMapping)
     #[allow(clippy::should_implement_trait)]
     pub fn not(self) -> DFResult<Self> {
-        self.apply_builtin(BuiltinName::Not, vec![])
+        let context = self.context;
+        let expr = self.build_effective_boolean_value()?.not();
+        context.native_boolean_as_term(expr)
     }
 
     //
@@ -868,41 +870,6 @@ impl<'root> RdfFusionExprBuilder<'root> {
         }
 
         Ok(Self { expr, ..self })
-    }
-
-    /// Converts a native boolean expression to a term-encoded expression.
-    pub fn native_boolean_as_term(self) -> DFResult<Self> {
-        let (data_type, _) = self.expr.data_type_and_nullable(self.context.schema())?;
-        if data_type != DataType::Boolean {
-            return plan_err!(
-                "Expression must be Boolean for {}.",
-                BuiltinName::NativeBooleanAsTerm
-            );
-        }
-
-        let udf = self
-            .context
-            .create_builtin_udf(BuiltinName::NativeBooleanAsTerm)?;
-        Ok(Self {
-            expr: udf.call(vec![self.expr]),
-            ..self
-        })
-    }
-
-    /// Converts a native i64 expression to a term-encoded expression.
-    pub fn native_int64_as_term(self) -> DFResult<Expr> {
-        let (data_type, _) = self.expr.data_type_and_nullable(self.context.schema())?;
-        if data_type != DataType::Int64 {
-            return plan_err!(
-                "Expression must be an Int64 for {}.",
-                BuiltinName::NativeInt64AsTerm
-            );
-        }
-
-        let udf = self
-            .context
-            .create_builtin_udf(BuiltinName::NativeInt64AsTerm)?;
-        Ok(udf.call(vec![self.expr]))
     }
 
     //

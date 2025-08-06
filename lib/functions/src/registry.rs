@@ -29,7 +29,6 @@ use crate::scalar::dates_and_times::TimezoneSparqlOp;
 use crate::scalar::dates_and_times::YearSparqlOp;
 use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
 use crate::scalar::functional_form::{BoundSparqlOp, CoalesceSparqlOp, IfSparqlOp};
-use crate::scalar::logical::{NotSparqlOp, sparql_and, sparql_or};
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
 use crate::scalar::numeric::{
@@ -434,12 +433,6 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         (
             BuiltinName::UnaryPlus,
             registry.create_scalar_sparql_op::<UnaryPlusSparqlOp>(),
-        ),
-        (BuiltinName::And, (Box::new(|_| Ok(sparql_and())), vec![])),
-        (BuiltinName::Or, (Box::new(|_| Ok(sparql_or())), vec![])),
-        (
-            BuiltinName::Not,
-            registry.create_scalar_sparql_op::<NotSparqlOp>(),
         ),
         (
             BuiltinName::CastString,

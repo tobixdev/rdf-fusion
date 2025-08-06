@@ -42,6 +42,7 @@ pub fn create_optimizer_rules(
                 context.encodings().clone(),
             )));
             rules.extend(lowering_rules);
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
 
             // DataFusion Optimizers
             // TODO: Replace with a good subset
@@ -56,7 +57,10 @@ pub fn create_optimizer_rules(
                 context.encodings().clone(),
             )));
             rules.extend(lowering_rules);
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+
             rules.extend(Optimizer::default().rules);
+
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
             rules
         }

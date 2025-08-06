@@ -363,12 +363,11 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             .rewrite_internal(rhs)?
             .build_effective_boolean_value()?;
 
-        let result = match operator {
-            Operator::And => self.expr_builder_root.sparql_and(lhs, rhs)?,
-            Operator::Or => self.expr_builder_root.sparql_or(lhs, rhs)?,
-            _ => return plan_err!("Unsupported logical expression: {}", &operator),
-        };
-        self.expr_builder_root.native_boolean_as_term(result)
+        match operator {
+            Operator::And => self.expr_builder_root.and(lhs, rhs),
+            Operator::Or => self.expr_builder_root.sparql_or(lhs, rhs),
+            _ => plan_err!("Unsupported logical expression: {}", &operator),
+        }
     }
 
     /// Creates an expression builder from a DataFusion expression.
