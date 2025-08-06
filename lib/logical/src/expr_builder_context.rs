@@ -1,20 +1,20 @@
 use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{
-    Column, DFSchema, Spans, exec_datafusion_err, plan_datafusion_err, plan_err,
+    exec_datafusion_err, plan_datafusion_err, plan_err, Column, DFSchema, Spans,
 };
 use datafusion::functions::core::coalesce;
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::expr::{AggregateFunction, ScalarFunction};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{
-    Expr, ExprSchemable, LogicalPlan, LogicalPlanBuilder, ScalarUDF, Subquery, and,
-    exists, lit, not_exists,
+    and, exists, lit, not_exists, Expr, ExprSchemable, LogicalPlan,
+    LogicalPlanBuilder, ScalarUDF, Subquery,
 };
-use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
 };
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
@@ -279,7 +279,19 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         let outer_ref_column = expr_builder_ctx.try_create_builder(
             Expr::OuterReferenceColumn(data_type.clone(), Column::new_unqualified(k)),
         )?;
-        let inner_expr = Expr::from(inner_column);
+        let encoding = expr_builder_ctx
+            .rdf_fusion_context
+            .encodings()
+            .try_get_encoding_name(outer_field.data_type())
+            .ok_or_else(|| {
+                plan_datafusion_err!("Field '' in filter expression is not an RDF term.")
+            })?;
+        let inner_expr = expr_builder_ctx
+            .try_create_builder(Expr::Column(Column::new_unqualified(format!(
+                "__inner__{k}"
+            ))))?
+            .with_encoding(encoding)?
+            .build()?;
 
         if !outer_nullability && !inner_nullability {
             Ok(outer_ref_column.build()?.eq(inner_expr))
