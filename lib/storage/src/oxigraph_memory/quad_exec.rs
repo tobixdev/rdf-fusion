@@ -1,20 +1,25 @@
-use datafusion::common::{exec_err, internal_err, plan_err};
+use crate::oxigraph_memory::store::MemoryStorageReader;
+use datafusion::common::stats::Precision;
+use datafusion::common::{
+    ColumnStatistics, Statistics, exec_err, internal_err, plan_err,
+};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
-use datafusion::physical_plan::execution_plan::{Boundedness, EmissionType};
+use datafusion::physical_plan::execution_plan::{
+    Boundedness, EmissionType, SchedulingType,
+};
 use datafusion::physical_plan::metrics::{
     BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet,
 };
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
-use rdf_fusion_api::storage::QuadPatternEvaluator;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_logical::EnumeratedActiveGraph;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
-use rdf_fusion_model::{TriplePattern, Variable};
+use rdf_fusion_model::{GraphName, TriplePattern, Variable};
 use std::any::Any;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Formatter;
 use std::sync::Arc;
 
 /// Physical execution plan for matching quad patterns.
@@ -24,9 +29,9 @@ use std::sync::Arc;
 ///
 /// Storage layers are expected to provide a custom planner that provides a custom quads_evaluator.
 #[derive(Debug, Clone)]
-pub struct QuadPatternExec {
-    /// The actual implementation of the storage layer.
-    quads_evaluator: Arc<dyn QuadPatternEvaluator>,
+pub struct MemoryQuadExec {
+    /// Access to the storage
+    memory_storage_reader: MemoryStorageReader,
     /// Contains a list of graph names. Each [GraphName] corresponds to a partition.
     active_graph: EnumeratedActiveGraph,
     /// The graph variable.
@@ -41,10 +46,10 @@ pub struct QuadPatternExec {
     metrics: ExecutionPlanMetricsSet,
 }
 
-impl QuadPatternExec {
-    /// Creates a new [QuadPatternExec].
+impl MemoryQuadExec {
+    /// Creates a new [MemoryQuadExec].
     pub fn new(
-        quads_evaluator: Arc<dyn QuadPatternEvaluator>,
+        memory_storage_reader: MemoryStorageReader,
         active_graph: EnumeratedActiveGraph,
         graph_variable: Option<Variable>,
         triple_pattern: TriplePattern,
@@ -52,7 +57,7 @@ impl QuadPatternExec {
     ) -> Self {
         let schema = Arc::clone(
             compute_schema_for_triple_pattern(
-                &quads_evaluator.storage_encoding(),
+                &memory_storage_reader.storage().storage_encoding(),
                 graph_variable.as_ref().map(|v| v.as_ref()),
                 &triple_pattern,
                 blank_node_mode,
@@ -64,9 +69,11 @@ impl QuadPatternExec {
             Partitioning::UnknownPartitioning(active_graph.0.len()),
             EmissionType::Incremental,
             Boundedness::Bounded,
-        );
+        )
+        .with_scheduling_type(SchedulingType::Cooperative); // We wrap our stream in `cooperative`
+
         Self {
-            quads_evaluator,
+            memory_storage_reader,
             active_graph,
             graph_variable,
             triple_pattern,
@@ -75,9 +82,14 @@ impl QuadPatternExec {
             metrics: ExecutionPlanMetricsSet::default(),
         }
     }
+
+    fn estimate_num_rows(&self, graph: &GraphName) -> usize {
+        self.memory_storage_reader
+            .estimate_num_rows(graph, &self.triple_pattern)
+    }
 }
 
-impl ExecutionPlan for QuadPatternExec {
+impl ExecutionPlan for MemoryQuadExec {
     fn name(&self) -> &str {
         "QuadPatternExec"
     }
@@ -118,7 +130,7 @@ impl ExecutionPlan for QuadPatternExec {
         }
 
         let baseline_metrics = BaselineMetrics::new(&self.metrics, partition);
-        let result = self.quads_evaluator.evaluate_pattern(
+        let result = self.memory_storage_reader.evaluate_pattern(
             self.active_graph.0[partition].clone(),
             self.graph_variable.clone(),
             self.triple_pattern.clone(),
@@ -136,9 +148,38 @@ impl ExecutionPlan for QuadPatternExec {
     fn metrics(&self) -> Option<MetricsSet> {
         Some(self.metrics.clone_inner())
     }
+
+    fn partition_statistics(&self, partition: Option<usize>) -> DFResult<Statistics> {
+        let num_rows = match partition {
+            None => {
+                let mut total_rows = 0;
+                for i in 0..self.active_graph.0.len() {
+                    total_rows += self.estimate_num_rows(&self.active_graph.0[i]);
+                }
+                total_rows
+            }
+            Some(partition) => {
+                if partition >= self.active_graph.0.len() {
+                    // This operator requires a single partition as input.
+                    return internal_err!(
+                        "Partition index {partition} is out of range. Number of partitions: {}",
+                        self.active_graph.0.len()
+                    );
+                }
+
+                self.estimate_num_rows(&self.active_graph.0[partition])
+            }
+        };
+
+        Ok(Statistics {
+            num_rows: Precision::Inexact(num_rows),
+            total_byte_size: Precision::Inexact(num_rows * size_of::<u32>() * 4),
+            column_statistics: vec![ColumnStatistics::new_unknown(); 4],
+        })
+    }
 }
 
-impl DisplayAs for QuadPatternExec {
+impl DisplayAs for MemoryQuadExec {
     fn fmt_as(&self, _: DisplayFormatType, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

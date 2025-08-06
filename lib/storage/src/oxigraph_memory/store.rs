@@ -4,15 +4,24 @@ use crate::oxigraph_memory::object_id::{
     EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId,
 };
 use crate::oxigraph_memory::object_id_mapping::MemoryObjectIdMapping;
+use crate::oxigraph_memory::quad_storage_stream::MemoryQuadExecStream;
 use dashmap::iter::Iter;
 use dashmap::mapref::entry::Entry;
 use dashmap::{DashMap, DashSet};
+use datafusion::execution::SendableRecordBatchStream;
+use datafusion::physical_plan::EmptyRecordBatchStream;
+use datafusion::physical_plan::coop::cooperative;
+use datafusion::physical_plan::metrics::BaselineMetrics;
 use rdf_fusion_common::error::{CorruptionError, StorageError};
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_model::Quad;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_model::{
+    GraphName, NamedNodePattern, Quad, Term, TermPattern, TriplePattern, Variable,
+};
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, QuadRef};
 use rustc_hash::FxHasher;
 use std::borrow::Borrow;
@@ -22,6 +31,13 @@ use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::mem::transmute;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock, Weak};
+
+type FilterInfo = (
+    GraphEncodedObjectId,
+    Option<EncodedObjectId>,
+    Option<EncodedObjectId>,
+    Option<EncodedObjectId>,
+);
 
 /// In-memory storage working with MVCC
 ///
@@ -297,6 +313,61 @@ impl MemoryStorageReader {
         }
     }
 
+    #[allow(clippy::same_name_method)]
+    pub fn estimate_quad_count_for_pattern(
+        &self,
+        graph_name: Option<GraphEncodedObjectId>,
+        subject: Option<EncodedObjectId>,
+        predicate: Option<EncodedObjectId>,
+        object: Option<EncodedObjectId>,
+    ) -> usize {
+        fn get_count(
+            map: &DashMap<
+                EncodedObjectId,
+                (Weak<QuadListNode>, u64),
+                BuildHasherDefault<FxHasher>,
+            >,
+            term: Option<EncodedObjectId>,
+        ) -> u64 {
+            let Some(term) = term else {
+                return u64::MAX;
+            };
+            map.view(&term, |_, (_, count)| *count).unwrap_or_default()
+        }
+
+        fn get_count_graph(
+            map: &DashMap<
+                GraphEncodedObjectId,
+                (Weak<QuadListNode>, u64),
+                BuildHasherDefault<FxHasher>,
+            >,
+            term: Option<GraphEncodedObjectId>,
+        ) -> u64 {
+            let Some(term) = term else {
+                return u64::MAX;
+            };
+            map.view(&term, |_, (_, count)| *count).unwrap_or_default()
+        }
+
+        let subject_count =
+            get_count(&self.storage.content.last_quad_by_subject, subject);
+        let predicate_count =
+            get_count(&self.storage.content.last_quad_by_predicate, predicate);
+        let object_count = get_count(&self.storage.content.last_quad_by_object, object);
+        let graph_name_count =
+            get_count_graph(&self.storage.content.last_quad_by_graph_name, graph_name);
+
+        *[
+            subject_count,
+            predicate_count,
+            object_count,
+            graph_name_count,
+        ]
+        .iter()
+        .min()
+        .expect("Iterator cannot be empty.") as usize
+    }
+
     #[allow(unsafe_code)]
     pub fn named_graphs(&self) -> MemoryDecodingGraphIterator {
         MemoryDecodingGraphIterator {
@@ -316,6 +387,149 @@ impl MemoryStorageReader {
             .named_graphs
             .get(&graph_name)
             .is_some_and(|range| self.is_in_range(&range))
+    }
+
+    /// Returns a stream of quads that match the given pattern.
+    ///
+    /// The resulting stream must have a schema that projects to the variables provided in the
+    /// arguments. Each emitted batch should have `batch_size` elements.
+    pub fn evaluate_pattern(
+        &self,
+        graph: GraphName,
+        graph_variable: Option<Variable>,
+        pattern: TriplePattern,
+        blank_node_mode: BlankNodeMatchingMode,
+        metrics: BaselineMetrics,
+        batch_size: usize,
+    ) -> DFResult<SendableRecordBatchStream> {
+        let storage_encoding = self.storage().storage_encoding();
+
+        let (graph, subject, predicate, object) =
+            match self.get_object_ids_of_filters(&graph, &pattern, blank_node_mode) {
+                None => {
+                    return Ok(empty_result(
+                        &storage_encoding,
+                        graph_variable.as_ref(),
+                        &pattern,
+                        blank_node_mode,
+                    ));
+                }
+                Some(result) => result,
+            };
+
+        let iterator = self.quads_for_pattern(Some(graph), subject, predicate, object);
+        let stream = MemoryQuadExecStream::new(
+            iterator,
+            graph_variable,
+            pattern,
+            blank_node_mode,
+            metrics,
+            batch_size,
+        );
+        Ok(Box::pin(cooperative(stream)))
+    }
+
+    pub fn estimate_num_rows(&self, graph: &GraphName, pattern: &TriplePattern) -> usize {
+        let (graph, subject, predicate, object) = match self.get_object_ids_of_filters(
+            graph,
+            pattern,
+            BlankNodeMatchingMode::Filter,
+        ) {
+            None => return 0,
+            Some(result) => result,
+        };
+
+        self.estimate_quad_count_for_pattern(Some(graph), subject, predicate, object)
+    }
+
+    /// Gets all the object ids necessary for evaluating a quad pattern.
+    fn get_object_ids_of_filters(
+        &self,
+        graph: &GraphName,
+        pattern: &TriplePattern,
+        blank_node_mode: BlankNodeMatchingMode,
+    ) -> Option<FilterInfo> {
+        let (subject, predicate, object) =
+            Self::get_filter_terms(pattern, blank_node_mode)?;
+        self.try_get_object_ids(graph, subject, predicate, object)
+    }
+
+    /// Returns the filter terms for the given pattern, ignoring variables in the pattern.
+    /// The `blank_node_mode` is considered when checking whether a filter term should be emitted.
+    ///
+    /// If [None] is returned, the pattern cannot match any quad in the store, as the subject is a
+    /// literal.
+    fn get_filter_terms(
+        pattern: &TriplePattern,
+        blank_node_mode: BlankNodeMatchingMode,
+    ) -> Option<(Option<Term>, Option<Term>, Option<Term>)> {
+        let subject = match &pattern.subject {
+            TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
+            TermPattern::BlankNode(bnode)
+                if blank_node_mode == BlankNodeMatchingMode::Filter =>
+            {
+                Some(Term::BlankNode(bnode.clone()))
+            }
+            // If the subject is a variable, there will be no matching quad.
+            TermPattern::Literal(_) => return None,
+            _ => None,
+        };
+        let predicate = match &pattern.predicate {
+            NamedNodePattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
+            NamedNodePattern::Variable(_) => None,
+        };
+        let object = match &pattern.object {
+            TermPattern::NamedNode(nn) => Some(Term::NamedNode(nn.clone())),
+            TermPattern::BlankNode(bnode)
+                if blank_node_mode == BlankNodeMatchingMode::Filter =>
+            {
+                Some(Term::BlankNode(bnode.clone()))
+            }
+            TermPattern::Literal(lit) => Some(Term::Literal(lit.clone())),
+            _ => None,
+        };
+
+        Some((subject, predicate, object))
+    }
+
+    /// Returns the object ids from the filter.
+    ///
+    /// If [None] is returned, the pattern cannot match any quad in the store, as there is an
+    /// unknown object id in the pattern.
+    fn try_get_object_ids(
+        &self,
+        graph: &GraphName,
+        subject: Option<Term>,
+        predicate: Option<Term>,
+        object: Option<Term>,
+    ) -> Option<FilterInfo> {
+        // If there are no matching object ids, the result is empty and we can return early.
+        let graph = self
+            .object_ids()
+            .try_get_encoded_object_id_from_graph_name(graph.as_ref())?;
+        let subject = match subject {
+            None => None,
+            Some(subject) => Some(
+                self.object_ids()
+                    .try_get_encoded_object_id_from_term(&subject)?,
+            ),
+        };
+        let predicate = match predicate {
+            None => None,
+            Some(predicate) => Some(
+                self.object_ids()
+                    .try_get_encoded_object_id_from_term(&predicate)?,
+            ),
+        };
+        let object = match object {
+            None => None,
+            Some(object) => Some(
+                self.object_ids()
+                    .try_get_encoded_object_id_from_term(&object)?,
+            ),
+        };
+
+        Some((graph, subject, predicate, object))
     }
 
     /// Validates that all the storage invariants held in the data
@@ -1078,6 +1292,23 @@ impl Debug for OxigraphMemoryStorage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "OxigraphMemoryStorage")
     }
+}
+
+/// Creates a new empty result that can be returned when it is already apparent that the pattern
+/// has no matching quads (e.g., missing object id).
+fn empty_result(
+    storage_encoding: &QuadStorageEncoding,
+    graph_variable: Option<&Variable>,
+    pattern: &TriplePattern,
+    blank_node_mode: BlankNodeMatchingMode,
+) -> SendableRecordBatchStream {
+    let schema = compute_schema_for_triple_pattern(
+        storage_encoding,
+        graph_variable.as_ref().map(|v| v.as_ref()),
+        pattern,
+        blank_node_mode,
+    );
+    Box::pin(EmptyRecordBatchStream::new(Arc::clone(schema.inner())))
 }
 
 #[cfg(test)]

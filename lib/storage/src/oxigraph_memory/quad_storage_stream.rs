@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 /// Stream that generates record batches on demand
-pub struct QuadPatternBatchRecordStream {
+pub struct MemoryQuadExecStream {
     schema: Arc<Schema>,
     iterator: QuadIterator,
     graph_variable: Option<Variable>,
@@ -27,7 +27,7 @@ pub struct QuadPatternBatchRecordStream {
     equalities: Option<QuadEqualities>,
 }
 
-impl QuadPatternBatchRecordStream {
+impl MemoryQuadExecStream {
     /// Creates a new `QuadPatternBatchRecordStream`.
     ///
     /// # Arguments
@@ -90,13 +90,16 @@ impl QuadPatternBatchRecordStream {
     }
 }
 
-impl Stream for QuadPatternBatchRecordStream {
+impl Stream for MemoryQuadExecStream {
     type Item = DFResult<RecordBatch>;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
         _ctx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
+        let metrics = self.metrics.clone();
+        let elapsed_compute = metrics.elapsed_compute().timer();
+
         let mut exhausted = false;
         let mut rb_builder = self.create_builder()?;
 
@@ -124,6 +127,7 @@ impl Stream for QuadPatternBatchRecordStream {
         self.metrics.output_rows().add(rb_builder.count);
 
         if rb_builder.count == 0 {
+            elapsed_compute.done();
             return Poll::Ready(None);
         }
 
@@ -135,7 +139,7 @@ impl Stream for QuadPatternBatchRecordStream {
     }
 }
 
-impl RecordBatchStream for QuadPatternBatchRecordStream {
+impl RecordBatchStream for MemoryQuadExecStream {
     fn schema(&self) -> Arc<Schema> {
         Arc::clone(&self.schema)
     }
