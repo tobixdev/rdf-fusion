@@ -9,7 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 use tokio::runtime::{Builder, Runtime};
 
-fn wind_farm_grouped_production(c: &mut Criterion) {
+fn wind_farm_16(c: &mut Criterion) {
     let runtime = create_runtime();
     let store = runtime.block_on(load_wind_farm_16()).unwrap();
 
@@ -36,41 +36,31 @@ fn wind_farm_grouped_production(c: &mut Criterion) {
             benchmark_query(&store, "grouped_production_query4.sparql", 1185).await;
         });
     });
-}
 
-#[allow(unused, reason = "Currently memory problems")]
-fn wind_farm_multi_grouped(c: &mut Criterion) {
-    let runtime = create_runtime();
-    let store = runtime.block_on(load_wind_farm_16()).unwrap();
-
-    c.bench_function("Wind Farm 16 - Multi Grouped 1", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "multi_grouped_query1.sparql", 79).await;
-        });
-    });
-
-    c.bench_function("Wind Farm 16 - Multi Grouped 2", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "multi_grouped_query2.sparql", 237).await;
-        });
-    });
-
-    c.bench_function("Wind Farm 16 - Multi Grouped 3", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "multi_grouped_query3.sparql", 237).await;
-        });
-    });
-
-    c.bench_function("Wind Farm 16 - Multi Grouped 4", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "multi_grouped_query4.sparql", 1185).await;
-        });
-    });
-}
-
-fn wind_farm_production(c: &mut Criterion) {
-    let runtime = create_runtime();
-    let store = runtime.block_on(load_wind_farm_16()).unwrap();
+    // Memory Pressure too high
+    // c.bench_function("Wind Farm 16 - Multi Grouped 1", |b| {
+    //     b.to_async(&runtime).iter(|| async {
+    //         benchmark_query(&store, "multi_grouped_query1.sparql", 79).await;
+    //     });
+    // });
+    //
+    // c.bench_function("Wind Farm 16 - Multi Grouped 2", |b| {
+    //     b.to_async(&runtime).iter(|| async {
+    //         benchmark_query(&store, "multi_grouped_query2.sparql", 237).await;
+    //     });
+    // });
+    //
+    // c.bench_function("Wind Farm 16 - Multi Grouped 3", |b| {
+    //     b.to_async(&runtime).iter(|| async {
+    //         benchmark_query(&store, "multi_grouped_query3.sparql", 237).await;
+    //     });
+    // });
+    //
+    // c.bench_function("Wind Farm 16 - Multi Grouped 4", |b| {
+    //     b.to_async(&runtime).iter(|| async {
+    //         benchmark_query(&store, "multi_grouped_query4.sparql", 1185).await;
+    //     });
+    // });,
 
     c.bench_function("Wind Farm 16 - Production 1", |b| {
         b.to_async(&runtime).iter(|| async {
@@ -100,7 +90,7 @@ fn wind_farm_production(c: &mut Criterion) {
 criterion_group!(
     name = wind_farm;
     config = Criterion::default().sample_size(10);
-    targets = wind_farm_grouped_production, wind_farm_production
+    targets = wind_farm_16
 );
 criterion_main!(wind_farm);
 

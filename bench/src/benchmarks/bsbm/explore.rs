@@ -3,6 +3,7 @@ use clap::ValueEnum;
 use std::fmt::{Display, Formatter};
 
 /// The BSBM Explore Use Case.
+#[derive(Clone, Copy, Debug)]
 pub struct ExploreUseCase;
 
 impl BsbmUseCase for ExploreUseCase {
@@ -13,19 +14,7 @@ impl BsbmUseCase for ExploreUseCase {
     }
 
     fn list_queries() -> Vec<Self::QueryName> {
-        vec![
-            BsbmExploreQueryName::Q1,
-            BsbmExploreQueryName::Q2,
-            BsbmExploreQueryName::Q3,
-            BsbmExploreQueryName::Q4,
-            BsbmExploreQueryName::Q5,
-            BsbmExploreQueryName::Q7,
-            BsbmExploreQueryName::Q8,
-            BsbmExploreQueryName::Q9,
-            BsbmExploreQueryName::Q10,
-            BsbmExploreQueryName::Q11,
-            BsbmExploreQueryName::Q12,
-        ]
+        BsbmExploreQueryName::list_queries()
     }
 }
 
@@ -45,6 +34,24 @@ pub enum BsbmExploreQueryName {
     Q10,
     Q11,
     Q12,
+}
+
+impl BsbmExploreQueryName {
+    pub fn list_queries() -> Vec<Self> {
+        vec![
+            BsbmExploreQueryName::Q1,
+            BsbmExploreQueryName::Q2,
+            BsbmExploreQueryName::Q3,
+            BsbmExploreQueryName::Q4,
+            BsbmExploreQueryName::Q5,
+            BsbmExploreQueryName::Q7,
+            BsbmExploreQueryName::Q8,
+            BsbmExploreQueryName::Q9,
+            BsbmExploreQueryName::Q10,
+            BsbmExploreQueryName::Q11,
+            BsbmExploreQueryName::Q12,
+        ]
+    }
 }
 
 impl TryFrom<u8> for BsbmExploreQueryName {

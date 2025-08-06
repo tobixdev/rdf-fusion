@@ -11,11 +11,11 @@ use std::fs;
 use std::path::PathBuf;
 
 pub mod benchmarks;
-mod environment;
-pub(crate) mod operation;
-mod prepare;
-mod report;
-mod runs;
+pub mod environment;
+pub mod operation;
+pub mod prepare;
+pub mod report;
+pub mod runs;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
 pub enum Operation {

@@ -9,6 +9,18 @@ pub enum SparqlRawOperation<QueryName> {
 }
 
 impl<QueryName: Clone> SparqlRawOperation<QueryName> {
+    pub fn query_name(&self) -> QueryName {
+        match self {
+            SparqlRawOperation::Query(name, _) => name.clone(),
+        }
+    }
+
+    pub fn text(&self) -> &str {
+        match self {
+            SparqlRawOperation::Query(_, text) => text.as_ref(),
+        }
+    }
+
     pub fn parse(&self) -> anyhow::Result<SparqlOperation<QueryName>> {
         match self {
             SparqlRawOperation::Query(query_name, query) => {

@@ -12,8 +12,7 @@ pub struct RdfFusionBenchContext {
     options: BenchmarkingOptions,
     /// The path to the data dir.
     data_dir: Mutex<PathBuf>,
-    /// The path to the current directory. This might be different from the `data_dir` if a
-    /// benchmark is running.
+    /// The path to the results dir.
     results_dir: Mutex<PathBuf>,
 }
 
@@ -28,6 +27,17 @@ impl RdfFusionBenchContext {
             options,
             data_dir: Mutex::new(data_dir),
             results_dir: Mutex::new(results_dir),
+        }
+    }
+
+    /// Creates a new [RdfFusionBenchContext] used in the criterion benchmarks.
+    pub fn new_for_criterion(data_dir: PathBuf) -> Self {
+        Self {
+            options: BenchmarkingOptions {
+                verbose_results: false,
+            },
+            data_dir: Mutex::new(data_dir),
+            results_dir: Mutex::new(PathBuf::from("/temp")),
         }
     }
 

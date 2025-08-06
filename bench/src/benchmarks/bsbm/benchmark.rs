@@ -11,7 +11,6 @@ use crate::operation::{SparqlOperation, SparqlRawOperation};
 use crate::prepare::PrepRequirement;
 use crate::report::BenchmarkReport;
 use async_trait::async_trait;
-use rdf_fusion::Query;
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
 use std::fs;
@@ -19,6 +18,7 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 
 /// Holds file paths for the files required for executing a BSBM run.
+#[derive(Clone)]
 struct BsbmFilePaths {
     /// A path to the dataset NTriples file.
     dataset: PathBuf,
@@ -31,6 +31,7 @@ struct BsbmFilePaths {
 ///
 /// This struct implements the logic for preparing and executing a BSBM benchmark. For that, it
 /// requires a concrete [BsbmUseCase] implementation.
+#[derive(Clone)]
 pub struct BsbmBenchmark<TUseCase: BsbmUseCase> {
     /// The name of the benchmark.
     name: BenchmarkName,
@@ -68,31 +69,50 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
 
     /// The BSBM generator produces a list of queries that are tailored to the generated data. This
     /// method returns a list of these queries that should be executed during this run.
-    fn list_operations(
+    pub fn list_operations(
         &self,
         ctx: &BenchmarkContext,
     ) -> anyhow::Result<Vec<SparqlOperation<TUseCase::QueryName>>> {
         println!("Loading queries ...");
 
-        let queries_path = ctx.parent().join_data_dir(&self.paths.queries)?;
         let result = match self.max_query_count {
-            None => list_raw_operations::<TUseCase::QueryName>(&queries_path)?
-                .map(parse_query)
+            None => self
+                .list_raw_operations(ctx)?
+                .map(|q| q.parse().unwrap())
                 .collect(),
-            Some(max_query_count) => {
-                list_raw_operations::<TUseCase::QueryName>(&queries_path)?
-                    .map(parse_query)
-                    .take(usize::try_from(max_query_count)?)
-                    .collect()
-            }
+            Some(max_query_count) => self
+                .list_raw_operations(ctx)?
+                .map(|q| q.parse().unwrap())
+                .take(usize::try_from(max_query_count)?)
+                .collect(),
         };
 
         println!("Queries loaded.");
         Ok(result)
     }
 
+    /// The BSBM generator produces a list of queries that are tailored to the generated data. This
+    /// method returns a list of these queries that should be executed during this run.
+    pub fn list_raw_operations(
+        &self,
+        ctx: &BenchmarkContext,
+    ) -> anyhow::Result<impl Iterator<Item = SparqlRawOperation<TUseCase::QueryName>>>
+    {
+        let queries_path = ctx.parent().join_data_dir(&self.paths.queries)?;
+        let result = list_raw_operations::<TUseCase::QueryName>(queries_path.clone())?
+            .map(|q| match q {
+                SparqlRawOperation::Query(name, text) => {
+                    SparqlRawOperation::Query(name, text.replace(" #", ""))
+                }
+            });
+        Ok(result)
+    }
+
     /// Loads the dataset file into the resulting [Store].
-    async fn prepare_store(&self, ctx: &BenchmarkContext<'_>) -> anyhow::Result<Store> {
+    pub async fn prepare_store(
+        &self,
+        ctx: &BenchmarkContext<'_>,
+    ) -> anyhow::Result<Store> {
         println!("Creating in-memory store and loading data ...");
 
         let dataset_path = ctx.parent().join_data_dir(&self.paths.dataset)?;
@@ -135,18 +155,6 @@ impl<TUseCase: BsbmUseCase + 'static> Benchmark for BsbmBenchmark<TUseCase> {
             execute_benchmark::<TUseCase>(bench_context, operations, &memory_store)
                 .await?;
         Ok(Box::new(report))
-    }
-}
-
-/// Parses the SPARQL query by turning an [SparqlRawOperation] to an [SparqlOperation].
-fn parse_query<TQueryName>(
-    query: SparqlRawOperation<TQueryName>,
-) -> SparqlOperation<TQueryName> {
-    match query {
-        SparqlRawOperation::Query(name, query) => SparqlOperation::Query(
-            name,
-            Query::parse(&query.replace(" #", ""), None).unwrap(),
-        ),
     }
 }
 

@@ -28,13 +28,11 @@ test:
 rustdoc:
     RUSTDOCFLAGS="-D warnings" cargo doc
 
-# Runs micro benchmarks in the code base (criterion benchmarks).
-microbench:
-    cargo bench
-
-# Runs micro benchmarks in the code base (criterion benchmarks) and creates a flamegraph.
-microbench-flamegraph bench:
-    cargo flamegraph --bench {{bench}} -- --bench
+[working-directory: 'bench']
+prepare-benches:
+    cargo run --profile profiling-nonlto prepare bsbm-explore --num-products 25000
+    cargo run --profile profiling-nonlto prepare bsbm-business-intelligence --num-products 25000
+    cargo run --profile profiling-nonlto prepare wind-farm --num-turbines 16
 
 # Starts a webserver that can answer SPARQL queries (debug)
 serve-dbg:
