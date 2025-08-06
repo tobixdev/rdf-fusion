@@ -7,12 +7,15 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+datafusion.workspace = true
 rdf-fusion-api.workspace = true
 rdf-fusion-common.workspace = true
 rdf-fusion-encoding.workspace = true
 rdf-fusion-functions.workspace = true
-datafusion.workspace = true
 rdf-fusion-model.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
 
 [lints]
 workspace = true
