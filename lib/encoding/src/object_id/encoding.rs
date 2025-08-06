@@ -24,6 +24,11 @@ impl ObjectIdEncoding {
     pub fn object_id_size(&self) -> u8 {
         self.object_id_size
     }
+
+    /// Returns a null [ObjectIdScalar].
+    pub fn null_scalar(&self) -> ObjectIdScalar {
+        ObjectIdScalar::null(self.clone())
+    }
 }
 
 impl TermEncoding for ObjectIdEncoding {

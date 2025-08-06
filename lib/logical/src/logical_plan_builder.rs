@@ -5,15 +5,19 @@ use crate::minus::MinusNode;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, DFSchemaRef};
+use datafusion::common::{
+    Column, DFSchema, DFSchemaRef, ExprSchema, plan_datafusion_err, plan_err,
+};
 use datafusion::logical_expr::{
-    Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
-    UserDefinedLogicalNode, col,
+    Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Projection, Sort,
+    SortExpr, Union, UserDefinedLogicalNode, col,
 };
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::EncodingName;
-use rdf_fusion_model::Variable;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::{EncodingName, EncodingScalar};
+use rdf_fusion_model::{ThinError, Variable};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -156,7 +160,7 @@ impl RdfFusionLogicalPlanBuilder {
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let context = self.context.clone();
 
-        let (lhs, rhs) = self.align_encodings_of_common_columns(rhs)?;
+        let (lhs, rhs) = self.align_common_columns(rhs)?;
         let join_node = SparqlJoinNode::try_new(
             context.encodings().clone(),
             lhs.build()?,
@@ -216,12 +220,106 @@ impl RdfFusionLogicalPlanBuilder {
     /// Creates a union of the current plan and another plan.
     pub fn union(self, rhs: LogicalPlan) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let context = self.context.clone();
+        let (lhs, rhs) = self.align_common_columns(rhs)?;
 
-        let (lhs, rhs) = self.align_encodings_of_common_columns(rhs)?;
+        // Unfortunately, we cannot use the DataFusion union operator as it does insert
+        // `ScalarValue::Null` into the results instead of the encoding-specific value. Therefore,
+        // we first generate the expected union schema and based on that we construct the union.
+        let data_fusion_union_plan =
+            lhs.plan_builder.clone().union_by_name(rhs.clone())?;
+
+        let (lhs, rhs) = lhs.rewrite_inputs_from_schema(
+            data_fusion_union_plan.schema(),
+            Arc::new(lhs.clone().build()?),
+            Arc::new(rhs),
+        )?;
+
+        let union = Union {
+            inputs: vec![lhs, rhs],
+            schema: data_fusion_union_plan.schema().clone(),
+        };
+        let plan_builder = LogicalPlanBuilder::new(LogicalPlan::Union(union));
+
         Ok(Self {
             context,
-            plan_builder: lhs.plan_builder.union_by_name(rhs)?,
+            plan_builder,
         })
+    }
+
+    /// When constructing a union we may need to insert additional projections that fill up values
+    /// with nulls.
+    fn rewrite_inputs_from_schema(
+        &self,
+        schema: &Arc<DFSchema>,
+        lhs: Arc<LogicalPlan>,
+        rhs: Arc<LogicalPlan>,
+    ) -> DFResult<(Arc<LogicalPlan>, Arc<LogicalPlan>)> {
+        let lhs_projections = self.get_column_or_null_exprs(schema, lhs.schema())?;
+        let rhs_projections = self.get_column_or_null_exprs(schema, rhs.schema())?;
+
+        let lhs = Arc::new(LogicalPlan::Projection(Projection::try_new_with_schema(
+            lhs_projections,
+            lhs,
+            Arc::clone(schema),
+        )?));
+        let rhs = Arc::new(LogicalPlan::Projection(Projection::try_new_with_schema(
+            rhs_projections,
+            rhs,
+            Arc::clone(schema),
+        )?));
+
+        Ok((lhs, rhs))
+    }
+
+    fn get_column_or_null_exprs(
+        &self,
+        schema: &DFSchema,
+        input_schema: &DFSchema,
+    ) -> DFResult<Vec<Expr>> {
+        let mut result = Vec::new();
+        for column in schema.columns() {
+            if input_schema.has_column_with_unqualified_name(column.name()) {
+                result.push(Expr::Column(column))
+            } else {
+                let data_type = schema.data_type(&column)?;
+                let encoding_name = self
+                    .context
+                    .encodings()
+                    .try_get_encoding_name(data_type)
+                    .ok_or_else(|| {
+                        plan_datafusion_err!(
+                            "Unsupported encoding for union: {}",
+                            data_type
+                        )
+                    })?;
+                let scalar_value = match encoding_name {
+                    EncodingName::PlainTerm => PLAIN_TERM_ENCODING
+                        .encode_term(Err(ThinError::ExpectedError))?
+                        .into_scalar_value(),
+                    EncodingName::TypedValue => TYPED_VALUE_ENCODING
+                        .encode_term(Err(ThinError::ExpectedError))?
+                        .into_scalar_value(),
+                    EncodingName::ObjectId => {
+                        match self.context.encodings().object_id() {
+                            None => {
+                                return plan_err!(
+                                    "Cannot encode null object id in union."
+                                );
+                            }
+                            Some(encdoing) => encdoing.null_scalar().into_scalar_value(),
+                        }
+                    }
+                    _ => {
+                        return plan_err!(
+                            "Unsupported encoding for union: {}",
+                            encoding_name
+                        );
+                    }
+                };
+                result.push(Expr::Literal(scalar_value, None).alias(column.name()))
+            }
+        }
+        Ok(result)
     }
 
     /// Subtracts the results of another plan from the current plan.
@@ -348,11 +446,34 @@ impl RdfFusionLogicalPlanBuilder {
         self.expr_builder_root().try_create_builder(expr)
     }
 
-    /// TODO
-    fn align_encodings_of_common_columns(
+    /// Calls [Self::align_common_columns] with a default set of allowed encodings.
+    fn align_common_columns(self, rhs: LogicalPlan) -> DFResult<(Self, LogicalPlan)> {
+        self.align_common_columns_with_allowed_encodings(
+            rhs,
+            &[
+                EncodingName::ObjectId,
+                EncodingName::PlainTerm,
+                EncodingName::TypedValue, // Only used if both are already TypedValues
+            ],
+        )
+    }
+
+    /// Ensures that all common columns have the same encoding, considering `allowed_encodings`.
+    ///
+    /// Often, when combining two logical plans they must share the column columns must share the
+    /// same encoding. For example, when joining, the join columns must share the same encoding,
+    /// such that they can be compared.
+    fn align_common_columns_with_allowed_encodings(
         self,
         rhs: LogicalPlan,
+        allowed_encodings: &[EncodingName],
     ) -> DFResult<(Self, LogicalPlan)> {
+        if allowed_encodings.is_empty() {
+            return plan_err!(
+                "At least one encoding must be specified for encoding alignment."
+            );
+        }
+
         let join_columns = compute_sparql_join_columns(
             self.context.encodings(),
             self.schema().as_ref(),
@@ -368,15 +489,21 @@ impl RdfFusionLogicalPlanBuilder {
         let rhs_expr_builder =
             self.context.expr_builder_context_with_schema(rhs.schema());
 
-        let lhs_projections =
-            build_projections_for_encoding_alignment(lhs_expr_builder, &join_columns)?;
+        let lhs_projections = build_projections_for_encoding_alignment(
+            lhs_expr_builder,
+            &join_columns,
+            allowed_encodings,
+        )?;
         let lhs = match lhs_projections {
             None => self.plan_builder.build()?,
             Some(projections) => self.plan_builder.project(projections)?.build()?,
         };
 
-        let rhs_projections =
-            build_projections_for_encoding_alignment(rhs_expr_builder, &join_columns)?;
+        let rhs_projections = build_projections_for_encoding_alignment(
+            rhs_expr_builder,
+            &join_columns,
+            allowed_encodings,
+        )?;
         let rhs = match rhs_projections {
             None => rhs,
             Some(projections) => {
@@ -467,11 +594,17 @@ impl RdfFusionLogicalPlanBuilder {
     }
 }
 
-/// TODO
+/// Helper functions for [RdfFusionLogicalPlanBuilder::align_common_columns_with_allowed_encodings] that
+/// constructs the projections for a single query.
 fn build_projections_for_encoding_alignment(
     expr_builder_root: RdfFusionExprBuilderContext<'_>,
     join_columns: &HashMap<String, HashSet<EncodingName>>,
+    allowed_encodings: &[EncodingName],
 ) -> DFResult<Option<Vec<Expr>>> {
+    if !allowed_encodings.contains(&EncodingName::PlainTerm) {
+        return plan_err!("The PlainTerm encoding is required for encoding alignment.");
+    }
+
     let projections = expr_builder_root
         .schema()
         .fields()
@@ -479,8 +612,11 @@ fn build_projections_for_encoding_alignment(
         .map(|f| {
             if let Some(encodings) = join_columns.get(f.name()) {
                 let expr = col(Column::new_unqualified(f.name()));
+                let encoding = encodings.iter().next().ok_or_else(|| {
+                    plan_datafusion_err!("No encoding found for column {}", f.name())
+                })?;
 
-                if encodings.len() > 1 {
+                if encodings.len() > 1 && allowed_encodings.contains(encoding) {
                     let expr = expr_builder_root.try_create_builder(expr)?;
                     Ok(expr
                         .with_encoding(EncodingName::PlainTerm)?
