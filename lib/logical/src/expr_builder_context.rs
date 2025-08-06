@@ -3,8 +3,9 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{
     Column, DFSchema, Spans, exec_datafusion_err, plan_datafusion_err, plan_err,
 };
+use datafusion::functions::core::coalesce;
 use datafusion::functions_aggregate::count::count;
-use datafusion::logical_expr::expr::AggregateFunction;
+use datafusion::logical_expr::expr::{AggregateFunction, ScalarFunction};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{
     Expr, ExprSchemable, LogicalPlan, LogicalPlanBuilder, ScalarUDF, Subquery, and,
@@ -342,20 +343,20 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Logical-and](https://www.w3.org/TR/sparql11-query/#func-logical-and)
     /// - [SPARQL 1.1 - Filter Evaluation](https://www.w3.org/TR/sparql11-query/#evaluation)
-    pub fn sparql_and(&self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
-        let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
+    pub fn and(&self, lhs: Expr, rhs: Expr) -> DFResult<RdfFusionExprBuilder<'context>> {
+        let (lhs_data_type, lhs_nullable) = lhs.data_type_and_nullable(self.schema)?;
+        let (rhs_data_type, rhs_nullable) = rhs.data_type_and_nullable(self.schema)?;
         if lhs_data_type != DataType::Boolean || rhs_data_type != DataType::Boolean {
             return plan_err!(
-                "Expected boolean arguments for {}, got {} and {}",
-                BuiltinName::And,
+                "Expected boolean arguments for and, got {} and {}",
                 lhs_data_type,
                 rhs_data_type
             );
         }
 
-        let udf = self.create_builtin_udf(BuiltinName::And)?;
-        Ok(udf.call(vec![lhs, rhs]))
+        let lhs = fill_boolean_nulls_with_false(lhs, lhs_nullable);
+        let rhs = fill_boolean_nulls_with_false(rhs, rhs_nullable);
+        self.native_boolean_as_term(lhs.and(rhs))
     }
 
     /// Creates a SPARQL logical OR expression.
@@ -365,20 +366,24 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Logical-or](https://www.w3.org/TR/sparql11-query/#func-logical-or)
     /// - [SPARQL 1.1 - Filter Evaluation](https://www.w3.org/TR/sparql11-query/#evaluation)
-    pub fn sparql_or(self, lhs: Expr, rhs: Expr) -> DFResult<Expr> {
-        let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
-        let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
+    pub fn sparql_or(
+        self,
+        lhs: Expr,
+        rhs: Expr,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
+        let (lhs_data_type, lhs_nullable) = lhs.data_type_and_nullable(self.schema)?;
+        let (rhs_data_type, rhs_nullable) = rhs.data_type_and_nullable(self.schema)?;
         if lhs_data_type != DataType::Boolean || rhs_data_type != DataType::Boolean {
             return plan_err!(
-                "Expected boolean arguments for {}, got {} and {}",
-                BuiltinName::Or,
+                "Expected boolean arguments for and, got {} and {}",
                 lhs_data_type,
                 rhs_data_type
             );
         }
 
-        let udf = self.create_builtin_udf(BuiltinName::Or)?;
-        Ok(udf.call(vec![lhs, rhs]))
+        let lhs = fill_boolean_nulls_with_false(lhs, lhs_nullable);
+        let rhs = fill_boolean_nulls_with_false(rhs, rhs_nullable);
+        self.native_boolean_as_term(lhs.or(rhs))
     }
 
     //
@@ -526,4 +531,18 @@ fn decide_input_encoding(
 
     // Otherwise we currently return the first encoding.
     Ok(supported_encodings[0])
+}
+
+/// Constructs an expression that fills nulls in a Boolean array with `false`.
+///
+/// If `is_nullable` is `false`, this function does nothing.
+fn fill_boolean_nulls_with_false(expr: Expr, is_nullable: bool) -> Expr {
+    if !is_nullable {
+        return expr;
+    }
+
+    Expr::ScalarFunction(ScalarFunction {
+        func: coalesce(),
+        args: vec![expr, lit(false)],
+    })
 }

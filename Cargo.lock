@@ -3686,6 +3686,7 @@ dependencies = [
  "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-model",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -3794,6 +3795,7 @@ name = "rdf-fusion-logical"
 version = "0.1.0"
 dependencies = [
  "datafusion",
+ "insta",
  "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
