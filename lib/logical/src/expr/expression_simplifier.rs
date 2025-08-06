@@ -1,5 +1,5 @@
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_datafusion_err, DFSchema, DFSchemaRef};
+use datafusion::common::{DFSchema, DFSchemaRef, plan_datafusion_err};
 use datafusion::logical_expr::expr::ScalarFunction;
 use datafusion::logical_expr::utils::merge_schema;
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan};
@@ -163,11 +163,11 @@ mod tests {
     use crate::RdfFusionExprBuilderContext;
     use datafusion::arrow::datatypes::{Field, Schema};
     use datafusion::common::{DFSchema, DFSchemaRef};
-    use datafusion::logical_expr::{col, EmptyRelation, LogicalPlan, LogicalPlanBuilder};
+    use datafusion::logical_expr::{EmptyRelation, LogicalPlan, LogicalPlanBuilder, col};
     use datafusion::optimizer::OptimizerContext;
     use insta::assert_snapshot;
-    use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionArgs};
     use rdf_fusion_api::RdfFusionContextView;
+    use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionArgs};
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
     use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
