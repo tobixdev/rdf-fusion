@@ -1,4 +1,4 @@
-use datafusion::physical_plan::display::DisplayableExecutionPlan;
+use datafusion::physical_plan::displayable;
 use rdf_fusion::QueryOptions;
 use rdf_fusion::store::Store;
 
@@ -40,8 +40,7 @@ pub async fn print_query_details(
     println!("\n========= Execution Plan =========\n");
     println!(
         "{}",
-        DisplayableExecutionPlan::with_metrics(explanation.execution_plan.as_ref())
-            .indent(false)
+        displayable(explanation.execution_plan.as_ref()).indent(false)
     );
     println!("\n==================================\n\n");
 

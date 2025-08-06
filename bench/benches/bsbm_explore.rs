@@ -11,8 +11,7 @@ use crate::utils::consume_results;
 use crate::utils::verbose::{is_verbose, print_query_details};
 use anyhow::Context;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
-use futures::StreamExt;
-use rdf_fusion::{QueryOptions, QueryResults};
+use rdf_fusion::QueryOptions;
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
     BsbmBenchmark, BsbmExploreQueryName, ExploreUseCase, NumProducts,
@@ -52,12 +51,14 @@ fn bsbm_explore_25000(c: &mut Criterion) {
             get_query_to_execute(benchmark.clone(), &benchmark_context, query_name);
 
         if verbose {
-            runtime.block_on(print_query_details(
-                &store,
-                QueryOptions::default(),
-                &query_name.to_string(),
-                query.text(),
-            ))?;
+            runtime
+                .block_on(print_query_details(
+                    &store,
+                    QueryOptions::default(),
+                    &query_name.to_string(),
+                    query.text(),
+                ))
+                .unwrap();
         }
 
         c.bench_function(&benchmark_name, |b| {

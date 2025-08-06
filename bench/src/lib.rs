@@ -16,6 +16,7 @@ pub mod operation;
 pub mod prepare;
 pub mod report;
 pub mod runs;
+mod utils;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, ValueEnum)]
 pub enum Operation {

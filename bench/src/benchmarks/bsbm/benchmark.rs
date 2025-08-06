@@ -10,6 +10,7 @@ use crate::environment::BenchmarkContext;
 use crate::operation::{SparqlOperation, SparqlRawOperation};
 use crate::prepare::PrepRequirement;
 use crate::report::BenchmarkReport;
+use crate::utils::print_store_stats;
 use async_trait::async_trait;
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
@@ -113,6 +114,7 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
         &self,
         ctx: &BenchmarkContext<'_>,
     ) -> anyhow::Result<Store> {
+        let start = datafusion::common::instant::Instant::now();
         println!("Creating in-memory store and loading data ...");
 
         let dataset_path = ctx.parent().join_data_dir(&self.paths.dataset)?;
@@ -121,7 +123,12 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
         memory_store
             .load_from_reader(RdfFormat::NTriples, data.as_slice())
             .await?;
-        println!("Store created and data loaded.");
+        let duration = start.elapsed();
+        println!(
+            "Store created and data loaded. Took {} ms.",
+            duration.as_millis()
+        );
+        print_store_stats(&memory_store).await?;
         Ok(memory_store)
     }
 }

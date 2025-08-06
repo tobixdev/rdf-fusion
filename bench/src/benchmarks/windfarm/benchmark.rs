@@ -9,6 +9,7 @@ use crate::environment::BenchmarkContext;
 use crate::operation::SparqlRawOperation;
 use crate::prepare::{ArchiveType, FileDownloadAction, PrepRequirement};
 use crate::report::BenchmarkReport;
+use crate::utils::print_store_stats;
 use anyhow::Context;
 use async_trait::async_trait;
 use rdf_fusion::io::RdfFormat;
@@ -92,7 +93,11 @@ impl WindFarmBenchmark {
     }
 
     /// Loads the dataset file into the resulting [Store].
-    async fn prepare_store(&self, ctx: &BenchmarkContext<'_>) -> anyhow::Result<Store> {
+    pub async fn prepare_store(
+        &self,
+        ctx: &BenchmarkContext<'_>,
+    ) -> anyhow::Result<Store> {
+        let start = datafusion::common::instant::Instant::now();
         println!("Creating in-memory store and loading data ...");
         let dataset_path = create_files(ctx)?;
         let memory_store = Store::new();
@@ -108,6 +113,13 @@ impl WindFarmBenchmark {
         memory_store
             .load_from_reader(RdfFormat::N3, data.as_slice())
             .await?;
+
+        let duration = start.elapsed();
+        println!(
+            "Store created and data loaded. Took {} ms.",
+            duration.as_millis()
+        );
+        print_store_stats(&memory_store).await?;
 
         println!("Store created and data loaded.");
         Ok(memory_store)
@@ -143,24 +155,18 @@ async fn execute_benchmark(
     store: &Store,
 ) -> anyhow::Result<WindFarmReport> {
     println!("Evaluating queries ...");
-    let files = create_files(context)?;
 
     let mut report = WindFarmReportBuilder::new();
     for query_name in WindFarmQueryName::list_queries() {
         println!("Executing query: {query_name}");
 
-        let query_file = files.query_folder.join(query_name.file_name());
-        let query = fs::read_to_string(&query_file).context(format!(
-            "Could not read query file: {}",
-            query_file.display()
-        ))?;
-        let operation = SparqlRawOperation::Query(query_name, query.clone()).parse()?;
-
-        let (run, explanation) = operation.run(store).await?;
+        let operation = get_wind_farm_raw_sparql_operation(context, query_name)?;
+        let query_text = operation.text().to_owned();
+        let (run, explanation) = operation.parse().unwrap().run(store).await?;
         report.add_run(query_name, run.clone());
         if context.parent().options().verbose_results {
             let details = QueryDetails {
-                query,
+                query: query_text,
                 total_time: run.duration,
                 explanation,
             };
@@ -172,6 +178,19 @@ async fn execute_benchmark(
     println!("All queries evaluated.");
 
     Ok(report)
+}
+
+pub fn get_wind_farm_raw_sparql_operation(
+    context: &BenchmarkContext<'_>,
+    query_name: WindFarmQueryName,
+) -> anyhow::Result<SparqlRawOperation<WindFarmQueryName>> {
+    let files = create_files(context)?;
+    let query_file = files.query_folder.join(query_name.file_name());
+    let query = fs::read_to_string(&query_file).context(format!(
+        "Could not read query file: {}",
+        query_file.display()
+    ))?;
+    Ok(SparqlRawOperation::Query(query_name, query.clone()))
 }
 
 fn create_files(ctx: &BenchmarkContext) -> anyhow::Result<WindfarmFilePaths> {

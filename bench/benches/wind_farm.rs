@@ -1,90 +1,69 @@
 //! Runs the queries from the Wind Farm Benchmark.
 
+mod utils;
+
+use crate::utils::consume_results;
+use crate::utils::verbose::{is_verbose, print_query_details};
+use anyhow::Context;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
-use futures::StreamExt;
-use rdf_fusion::io::RdfFormat;
-use rdf_fusion::store::Store;
-use rdf_fusion::{QueryOptions, QueryResults};
-use std::fs;
+use rdf_fusion::QueryOptions;
+use rdf_fusion_bench::benchmarks::Benchmark;
+use rdf_fusion_bench::benchmarks::windfarm::{
+    NumberOfWindTurbines, WindFarmBenchmark, WindFarmQueryName,
+    get_wind_farm_raw_sparql_operation,
+};
+use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
 use tokio::runtime::{Builder, Runtime};
 
 fn wind_farm_16(c: &mut Criterion) {
+    let verbose = is_verbose();
+
     let runtime = create_runtime();
-    let store = runtime.block_on(load_wind_farm_16()).unwrap();
+    let benchmarking_context =
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
 
-    c.bench_function("Wind Farm 16 - Grouped Production 1", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "grouped_production_query1.sparql", 79).await;
+    let benchmark = WindFarmBenchmark::new(NumberOfWindTurbines::N16);
+    let benchmark_name = benchmark.name();
+    let benchmark_context = benchmarking_context
+        .create_benchmark_context(benchmark_name)
+        .unwrap();
+
+    let store = runtime
+        .block_on(benchmark.prepare_store(&benchmark_context))
+        .context("
+    Failed to prepare store. Have you downloaded the data?
+
+    Execute `just prepare-benches` for downloading the data. Then, run the benchmark from the `bench` directory.
+    ")
+        .unwrap();
+
+    for query_name in WindFarmQueryName::list_queries() {
+        let benchmark_name = format!("Wind Farm 16 - {query_name}");
+        let query =
+            get_wind_farm_raw_sparql_operation(&benchmark_context, query_name).unwrap();
+
+        if verbose {
+            runtime
+                .block_on(print_query_details(
+                    &store,
+                    QueryOptions::default(),
+                    &query_name.to_string(),
+                    query.text(),
+                ))
+                .unwrap();
+        }
+
+        c.bench_function(&benchmark_name, |b| {
+            b.to_async(&runtime).iter(|| async {
+                let result = store
+                    .query_opt(query.text(), QueryOptions::default())
+                    .await
+                    .unwrap();
+                consume_results(result).await.unwrap();
+            });
         });
-    });
-
-    c.bench_function("Wind Farm 16 - Grouped Production 2", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "grouped_production_query2.sparql", 237).await;
-        });
-    });
-
-    c.bench_function("Wind Farm 16 - Grouped Production 3", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "grouped_production_query3.sparql", 237).await;
-        });
-    });
-
-    c.bench_function("Wind Farm 16 - Grouped Production 4", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "grouped_production_query4.sparql", 1185).await;
-        });
-    });
-
-    // Memory Pressure too high
-    // c.bench_function("Wind Farm 16 - Multi Grouped 1", |b| {
-    //     b.to_async(&runtime).iter(|| async {
-    //         benchmark_query(&store, "multi_grouped_query1.sparql", 79).await;
-    //     });
-    // });
-    //
-    // c.bench_function("Wind Farm 16 - Multi Grouped 2", |b| {
-    //     b.to_async(&runtime).iter(|| async {
-    //         benchmark_query(&store, "multi_grouped_query2.sparql", 237).await;
-    //     });
-    // });
-    //
-    // c.bench_function("Wind Farm 16 - Multi Grouped 3", |b| {
-    //     b.to_async(&runtime).iter(|| async {
-    //         benchmark_query(&store, "multi_grouped_query3.sparql", 237).await;
-    //     });
-    // });
-    //
-    // c.bench_function("Wind Farm 16 - Multi Grouped 4", |b| {
-    //     b.to_async(&runtime).iter(|| async {
-    //         benchmark_query(&store, "multi_grouped_query4.sparql", 1185).await;
-    //     });
-    // });,
-
-    c.bench_function("Wind Farm 16 - Production 1", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "production_query1.sparql", 25920).await;
-        });
-    });
-
-    c.bench_function("Wind Farm 16 - Production 2", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "production_query2.sparql", 77760).await;
-        });
-    });
-
-    c.bench_function("Wind Farm 16 - Production 3", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "production_query3.sparql", 77760).await;
-        });
-    });
-
-    c.bench_function("Wind Farm 16 - Production 4", |b| {
-        b.to_async(&runtime).iter(|| async {
-            benchmark_query(&store, "production_query4.sparql", 388800).await;
-        });
-    });
+    }
 }
 
 criterion_group!(
@@ -96,56 +75,4 @@ criterion_main!(wind_farm);
 
 fn create_runtime() -> Runtime {
     Builder::new_current_thread().enable_all().build().unwrap()
-}
-
-async fn benchmark_query(store: &Store, query_path: &str, num_results: usize) {
-    let query_path =
-        PathBuf::from("./data/windfarm-16/source/benchmark-docker/queries_chrontext/")
-            .join(query_path);
-    let query = fs::read_to_string(query_path).unwrap();
-    let result = store
-        .query_opt(&query, QueryOptions::default())
-        .await
-        .unwrap();
-    assert_number_of_results(result, num_results).await;
-}
-
-async fn load_wind_farm_16() -> anyhow::Result<Store> {
-    let memory_store = Store::new();
-
-    let data_path = PathBuf::from("./data/windfarm-16/windfarm.nt");
-    let data = fs::read(data_path)?;
-    memory_store
-        .load_from_reader(RdfFormat::N3, data.as_slice())
-        .await?;
-
-    let data_path = PathBuf::from("./data/windfarm-16/timeseries.nt");
-    let data = fs::read(data_path)?;
-    memory_store
-        .load_from_reader(RdfFormat::N3, data.as_slice())
-        .await?;
-
-    Ok(memory_store)
-}
-
-async fn assert_number_of_results(result: QueryResults, n: usize) {
-    match result {
-        QueryResults::Solutions(mut solutions) => {
-            let mut count = 0;
-            while let Some(sol) = solutions.next().await {
-                sol.unwrap();
-                count += 1;
-            }
-            assert_eq!(count, n);
-        }
-        QueryResults::Graph(mut triples) => {
-            let mut count = 0;
-            while let Some(sol) = triples.next().await {
-                sol.unwrap();
-                count += 1;
-            }
-            assert_eq!(count, n);
-        }
-        _ => panic!("Unexpected QueryResults"),
-    }
 }
