@@ -61,12 +61,17 @@ impl RdfFusionBenchContext {
     /// This can be used to create folder hierarchies to separate the results of different
     /// benchmarks.
     #[allow(clippy::create_dir)]
-    pub fn push_dir(&self, dir: &str) -> anyhow::Result<()> {
+    #[allow(clippy::unwrap_used, reason = "Mutex poisoning")]
+    pub fn push_dir(
+        &self,
+        data_dir_name: &str,
+        results_dir_name: &str,
+    ) -> anyhow::Result<()> {
         let mut data_dir = self.data_dir.lock().unwrap();
         let mut results_dir = self.results_dir.lock().unwrap();
 
-        data_dir.push(dir);
-        results_dir.push(dir);
+        data_dir.push(data_dir_name);
+        results_dir.push(results_dir_name);
 
         Ok(())
     }
@@ -85,7 +90,10 @@ impl RdfFusionBenchContext {
         &self,
         benchmark_name: BenchmarkName,
     ) -> anyhow::Result<BenchmarkContext<'_>> {
-        self.push_dir(&benchmark_name.dir_name())?;
+        self.push_dir(
+            &benchmark_name.data_dir_name(),
+            &benchmark_name.results_dir_name(),
+        )?;
         Ok(BenchmarkContext {
             context: self,
             benchmark_name,

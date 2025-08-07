@@ -2,6 +2,7 @@ use crate::benchmarks::BenchmarkName;
 use crate::benchmarks::bsbm::NumProducts;
 use std::fmt::Display;
 use std::hash::Hash;
+use std::path::PathBuf;
 
 /// The name of the supported BSBM use cases.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -38,7 +39,7 @@ impl Display for BsbmUseCaseName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BsbmUseCaseName::Explore => write!(f, "explore"),
-            BsbmUseCaseName::BusinessIntelligence => write!(f, "businessIntelligence"),
+            BsbmUseCaseName::BusinessIntelligence => write!(f, "business-intelligence"),
         }
     }
 }
@@ -59,4 +60,7 @@ pub trait BsbmUseCase: Send + Sync {
 
     /// Lists all queries in the use case.
     fn list_queries() -> Vec<Self::QueryName>;
+
+    /// The file path to the queries.
+    fn queries_file_path() -> PathBuf;
 }

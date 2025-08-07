@@ -1,6 +1,7 @@
 use crate::benchmarks::bsbm::use_case::{BsbmUseCase, BsbmUseCaseName};
 use clap::ValueEnum;
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 
 /// The BSBM Business Intelligence Use Case.
 #[derive(Clone, Copy, Debug)]
@@ -15,6 +16,10 @@ impl BsbmUseCase for BusinessIntelligenceUseCase {
 
     fn list_queries() -> Vec<Self::QueryName> {
         BsbmBusinessIntelligenceQueryName::list_queries()
+    }
+
+    fn queries_file_path() -> PathBuf {
+        PathBuf::from("./queries-bi.csv")
     }
 }
 

@@ -1,10 +1,10 @@
-use crate::benchmarks::bsbm::NumProducts;
 use crate::benchmarks::bsbm::operation::list_raw_operations;
 use crate::benchmarks::bsbm::report::{BsbmReport, ExploreReportBuilder, QueryDetails};
 use crate::benchmarks::bsbm::requirements::{
     download_bsbm_tools, download_pre_generated_queries, generate_dataset_requirement,
 };
 use crate::benchmarks::bsbm::use_case::BsbmUseCase;
+use crate::benchmarks::bsbm::{BusinessIntelligenceUseCase, ExploreUseCase, NumProducts};
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::BenchmarkContext;
 use crate::operation::{SparqlOperation, SparqlRawOperation};
@@ -53,7 +53,7 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
         max_query_count: Option<u64>,
     ) -> anyhow::Result<Self> {
         let dataset_path = PathBuf::from("./dataset.nt".to_string());
-        let queries_path = PathBuf::from("./queries.csv".to_string());
+        let queries_path = TUseCase::queries_file_path();
         let paths = BsbmFilePaths {
             dataset: dataset_path,
             queries: queries_path,
@@ -145,8 +145,13 @@ impl<TUseCase: BsbmUseCase + 'static> Benchmark for BsbmBenchmark<TUseCase> {
             download_bsbm_tools(),
             generate_dataset_requirement(self.paths.dataset.clone(), self.num_products),
             download_pre_generated_queries(
-                &TUseCase::name().to_string(),
-                self.paths.queries.clone(),
+                "explore",
+                ExploreUseCase::queries_file_path(),
+                self.num_products,
+            ),
+            download_pre_generated_queries(
+                "businessIntelligence",
+                BusinessIntelligenceUseCase::queries_file_path(),
                 self.num_products,
             ),
         ]

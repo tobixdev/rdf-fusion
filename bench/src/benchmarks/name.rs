@@ -33,7 +33,20 @@ pub enum BenchmarkName {
 
 impl BenchmarkName {
     /// Returns a directory name for the benchmark.
-    pub fn dir_name(&self) -> String {
+    pub fn data_dir_name(&self) -> String {
+        match self {
+            BenchmarkName::BsbmExplore { num_products, .. }
+            | BenchmarkName::BsbmBusinessIntelligence { num_products, .. } => {
+                format!("bsbm-{num_products}")
+            }
+            BenchmarkName::WindFarm { num_turbines } => {
+                format!("windfarm-{num_turbines}")
+            }
+        }
+    }
+
+    /// Returns a directory name for the benchmark.
+    pub fn results_dir_name(&self) -> String {
         match self {
             BenchmarkName::BsbmExplore {
                 num_products: dataset_size,
