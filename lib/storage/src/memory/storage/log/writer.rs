@@ -35,18 +35,22 @@ impl<'log> MemLogWriter<'log> {
 
     /// Transactionally inserts quads into the log.
     pub fn insert_quads(&mut self, quads: &[Quad]) -> Result<usize, StorageError> {
+        let mut inserted = 0;
+        let mut seen_quads = self.content.compute_quads(self.version_number);
+
         for quad in quads {
             let encoded = self.object_id_mapping.encode_quad(quad.as_ref())?;
-            // TODO: duplicates
-            self.log_builder.append_insertion(
-                encoded.graph_name,
-                encoded.subject,
-                encoded.predicate,
-                encoded.object,
-            );
+
+            if seen_quads.contains(&encoded) {
+                continue;
+            }
+            seen_quads.insert(encoded.clone());
+            inserted += 1;
+
+            self.log_builder.append_insertion(&encoded);
         }
 
-        Ok(quads.len())
+        Ok(inserted)
     }
 
     /// Returns the log array.

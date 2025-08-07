@@ -1,6 +1,5 @@
 use crate::memory::storage::log::content::MemLogContent;
 use crate::memory::storage::log::VersionNumber;
-use datafusion::arrow::array::Array;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

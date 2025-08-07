@@ -1,10 +1,11 @@
-use crate::memory::object_id::{EncodedObjectId, GraphEncodedObjectId};
+use crate::memory::encoding::{EncodedQuad, EncodedQuadArray};
 use crate::memory::storage::log::VersionNumber;
 use datafusion::arrow::array::{
     Array, StructArray, StructBuilder, UInt32Builder, UnionArray,
 };
 use datafusion::arrow::datatypes::{Field, UnionFields};
 use rdf_fusion_common::error::StorageError;
+use std::collections::HashSet;
 use std::num::TryFromIntError;
 use std::sync::Arc;
 use thiserror::Error;
@@ -29,6 +30,27 @@ impl MemLogContent {
     pub fn append_log_array(&mut self, log_array: MemLogArray) {
         self.logs.push(log_array);
     }
+
+    /// Computes the contained quads based on the log entries.
+    pub fn compute_quads(&self, until: VersionNumber) -> HashSet<EncodedQuad> {
+        let mut quads = HashSet::new();
+
+        for log_array in self.logs.iter() {
+            if log_array.version_number > until {
+                break;
+            }
+
+            for quad in &log_array.insertions() {
+                quads.insert(quad.clone());
+            }
+
+            for quad in &log_array.deletions() {
+                quads.remove(&quad);
+            }
+        }
+
+        quads
+    }
 }
 
 /// A [MemLogArray] contains the logs of a single transaction.
@@ -52,23 +74,27 @@ impl MemLogArray {
     /// Get a reference to the list of insertions.
     ///
     /// The list of insertions is disjunct from the list of deletions.
-    pub fn insertions(&self) -> &StructArray {
-        self.array
+    pub fn insertions(&self) -> EncodedQuadArray<'_> {
+        let array = self
+            .array
             .child(0)
             .as_any()
             .downcast_ref::<StructArray>()
-            .expect("Arrays are fixed")
+            .expect("Arrays are fixed");
+        EncodedQuadArray::new(array)
     }
 
     /// Get a reference to the list of deletions.
     ///
     /// The list of deletions is disjunct from the list of insertions.
-    pub fn deletions(&self) -> &StructArray {
-        self.array
+    pub fn deletions(&self) -> EncodedQuadArray<'_> {
+        let array = self
+            .array
             .child(1)
             .as_any()
             .downcast_ref::<StructArray>()
-            .expect("Arrays are fixed")
+            .expect("Arrays are fixed");
+        EncodedQuadArray::new(array)
     }
 }
 
@@ -93,17 +119,11 @@ impl MemLogArrayBuilder {
     }
 
     /// Appends a single quad to the insertion list.
-    pub fn append_insertion(
-        &mut self,
-        graph: GraphEncodedObjectId,
-        subject: EncodedObjectId,
-        predicate: EncodedObjectId,
-        object: EncodedObjectId,
-    ) {
-        let graph = graph.0.map(|oid| oid.as_object_id().0);
-        let subject = subject.as_object_id().0;
-        let predicate = predicate.as_object_id().0;
-        let object = object.as_object_id().0;
+    pub fn append_insertion(&mut self, quad: &EncodedQuad) {
+        let graph = quad.graph_name.0.map(|oid| oid.as_object_id().0);
+        let subject = quad.subject.as_object_id().0;
+        let predicate = quad.predicate.as_object_id().0;
+        let object = quad.object.as_object_id().0;
 
         self.insertions
             .field_builder::<UInt32Builder>(0)

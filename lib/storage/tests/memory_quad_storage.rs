@@ -1,6 +1,4 @@
 use rdf_fusion_api::storage::QuadStorage;
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_model::{
     GraphName, GraphNameRef, Literal, NamedNode, NamedOrBlankNode, Quad, Subject, Term,
 };
@@ -17,6 +15,15 @@ async fn insert_quad() {
 
     let len = storage.len().await.unwrap();
     assert_eq!(len, 1);
+}
+
+#[tokio::test]
+async fn insert_quad_returns_correct_quad() {
+    let storage = create_storage();
+
+    storage.insert_quads(vec![example_quad()]).await.unwrap();
+
+    todo!()
 }
 
 #[tokio::test]
@@ -155,8 +162,7 @@ async fn validate_storage() {
 }
 
 fn create_storage() -> MemQuadStorage {
-    let object_id_encoding =
-        MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+    let object_id_encoding = MemObjectIdMapping::new();
     MemQuadStorage::new(Arc::new(object_id_encoding))
 }
 

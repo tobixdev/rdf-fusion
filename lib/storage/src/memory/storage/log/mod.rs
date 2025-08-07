@@ -77,3 +77,59 @@ impl MemLog {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::memory::object_id::EncodedObjectId;
+    use crate::memory::storage::log::MemLog;
+    use crate::memory::MemObjectIdMapping;
+    use rdf_fusion_model::{GraphName, NamedNode, Quad};
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn insert_and_then_load() {
+        let mapping = MemObjectIdMapping::new();
+        let log = MemLog::new();
+
+        log.transaction(&mapping, |w| {
+            w.insert_quads(&[Quad::new(
+                NamedNode::new_unchecked("www.example.com/s"),
+                NamedNode::new_unchecked("www.example.com/p"),
+                NamedNode::new_unchecked("www.example.com/o"),
+                GraphName::default(),
+            )])
+        })
+        .await
+        .unwrap();
+
+        assert_eq!(log.snapshot().count_changes().await.insertions, 1);
+
+        let content = log.content.read().await;
+        let log = &content.log_arrays()[0];
+        let encoded_quad = log.insertions().into_iter().next().unwrap();
+
+        assert_eq!(
+            lookup_object_id(&mapping, encoded_quad.subject).as_ref(),
+            "www.example.com/s"
+        );
+        assert_eq!(
+            lookup_object_id(&mapping, encoded_quad.predicate).as_ref(),
+            "www.example.com/p"
+        );
+        assert_eq!(
+            lookup_object_id(&mapping, encoded_quad.object).as_ref(),
+            "www.example.com/o"
+        );
+    }
+
+    fn lookup_object_id(
+        mapping: &MemObjectIdMapping,
+        object_id: EncodedObjectId,
+    ) -> Arc<str> {
+        mapping
+            .try_get_encoded_term_from_object_id(object_id)
+            .unwrap()
+            .first_str()
+            .clone()
+    }
+}

@@ -74,14 +74,6 @@ impl From<GraphEncodedObjectId> for Option<EncodedObjectId> {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
-pub struct EncodedObjectIdQuad {
-    pub graph_name: GraphEncodedObjectId,
-    pub subject: EncodedObjectId,
-    pub predicate: EncodedObjectId,
-    pub object: EncodedObjectId,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

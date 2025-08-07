@@ -1,9 +1,7 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::memory::encoded::{EncodedTerm, EncodedTypedValue};
-use crate::memory::object_id::{
-    EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId,
-};
+use crate::memory::encoding::{EncodedQuad, EncodedTerm, EncodedTypedValue};
+use crate::memory::object_id::{EncodedObjectId, GraphEncodedObjectId};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
 use rdf_fusion_common::DFResult;
@@ -96,8 +94,8 @@ impl MemObjectIdMapping {
     }
 
     /// TODO
-    pub fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedObjectIdQuad> {
-        Ok(EncodedObjectIdQuad {
+    pub fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedQuad> {
+        Ok(EncodedQuad {
             graph_name: self.encode_graph_name_intern(quad.graph_name),
             subject: self.encode_term_intern(quad.subject),
             predicate: self.encode_term_intern(quad.predicate),
@@ -106,8 +104,8 @@ impl MemObjectIdMapping {
     }
 
     /// TODO
-    pub fn try_get_encoded_quad(&self, quad: QuadRef<'_>) -> Option<EncodedObjectIdQuad> {
-        Some(EncodedObjectIdQuad {
+    pub fn try_get_encoded_quad(&self, quad: QuadRef<'_>) -> Option<EncodedQuad> {
+        Some(EncodedQuad {
             graph_name: self
                 .try_get_encoded_object_id_from_graph_name(quad.graph_name)?,
             subject: self.try_get_encoded_object_id_from_term(quad.subject)?,
