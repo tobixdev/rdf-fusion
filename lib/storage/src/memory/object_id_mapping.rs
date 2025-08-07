@@ -1,9 +1,5 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::oxigraph_memory::encoded::{EncodedTerm, EncodedTypedValue};
-use crate::oxigraph_memory::object_id::{
-    EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId,
-};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
 use rdf_fusion_common::DFResult;
@@ -26,23 +22,50 @@ use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+use crate::memory::encoded::{EncodedTerm, EncodedTypedValue};
+use crate::memory::object_id::{EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId};
 
-/// TODO
+/// Maintains a mapping between RDF terms and object IDs in memory.
+///
+/// The mapping happens on two levels: first all strings are interned, second the [EncodedTerm]
+/// that refers to the interned strings is mapped to an [EncodedObjectId].
+///
+/// # Object IDs
+///
+/// The [EncodedObjectId] is a 32-bit unsigned integer that is used to uniquely identify RDF terms.
+/// Currently, we simply use a counter to allocate new object IDs.
+///
+/// # Typed Values
+///
+/// In addition to mapping object ids to terms, we also maintain a mapping to the typed value to
+/// speed-up queries working on typed values.
 #[derive(Debug)]
-pub struct MemoryObjectIdMapping {
+pub struct MemObjectIdMapping {
+    /// Holds the [PlainTermEncoding] for creating results in the plain term encoding.
     plain_term_encoding: PlainTermEncoding,
+    /// Holds the [TypedValueEncoding] for creating results in the typed value encoding.
     typed_value_encoding: TypedValueEncoding,
+    /// Contains the next free object id.
     next_id: AtomicU32,
+    /// A set for interning strings.
     str_interning: DashSet<Arc<str>>,
+    /// Maps object ids to the encoded terms & typed values.
     id2term: DashMap<
         EncodedObjectId,
         (EncodedTerm, EncodedTypedValue),
         BuildHasherDefault<FxHasher>,
     >,
+    /// Maps terms to their object id.
+    ///
+    /// A lookup from typed values to the object id of the "canonical" term is only possible by
+    /// first converting the typed value to term.
     term2id: DashMap<EncodedTerm, EncodedObjectId, BuildHasherDefault<FxHasher>>,
 }
 
-impl MemoryObjectIdMapping {
+impl MemObjectIdMapping {
+    /// Creates a new empty [MemObjectIdMapping].
+    ///
+    /// The given encodings are used for creating the outputs of the mapping.
     pub fn new(
         plain_term_encoding: PlainTermEncoding,
         typed_value_encoding: TypedValueEncoding,
@@ -242,7 +265,7 @@ impl MemoryObjectIdMapping {
     }
 }
 
-impl ObjectIdMapping for MemoryObjectIdMapping {
+impl ObjectIdMapping for MemObjectIdMapping {
     fn encoding(&self) -> ObjectIdEncoding {
         ObjectIdEncoding::new(EncodedObjectId::SIZE)
     }
@@ -368,7 +391,7 @@ mod tests {
     #[test]
     fn test_encode_decode_roundtrip() -> DFResult<()> {
         let mapping =
-            MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+            MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
         let mut builder = PlainTermArrayBuilder::new(5);
         builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
         builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
@@ -399,7 +422,7 @@ mod tests {
     #[test]
     fn test_id_uniqueness_and_consistency() -> DFResult<()> {
         let mapping =
-            MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+            MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
         let mut builder = PlainTermArrayBuilder::new(5);
         let nn1 = NamedNodeRef::new_unchecked("http://example.com/a");
         let nn2 = NamedNodeRef::new_unchecked("http://example.com/b");
@@ -442,7 +465,7 @@ mod tests {
     #[test]
     fn test_try_get_object_id() -> DFResult<()> {
         let mapping =
-            MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+            MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
 
         let term1 = PlainTermScalar::from(TermRef::NamedNode(
             NamedNodeRef::new_unchecked("http://example.com/a"),
@@ -489,7 +512,7 @@ mod tests {
     #[test]
     fn test_encode_quad() -> DFResult<()> {
         let mapping =
-            MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+            MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
         let quad = QuadRef {
             subject: NamedNodeRef::new_unchecked("http://example.com/s").into(),
             predicate: NamedNodeRef::new_unchecked("http://example.com/p").into(),
