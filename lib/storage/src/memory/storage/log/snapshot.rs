@@ -1,5 +1,7 @@
-use crate::memory::storage::log::content::MemLogContent;
+use crate::memory::object_id::EncodedObjectId;
+use crate::memory::storage::log::content::{MemLogContent, MemLogEntryAction};
 use crate::memory::storage::log::VersionNumber;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -24,6 +26,12 @@ pub struct ChangeCount {
     pub deletions: usize,
 }
 
+/// Counts the number of insertions and deletions for each graph in a log snapshot.
+pub struct ChangeCounts {
+    /// Mapping from graph to the change.
+    pub graph: HashMap<EncodedObjectId, ChangeCount>,
+}
+
 impl MemLogSnapshot {
     /// Create a new [MemLogSnapshot].
     pub fn new(
@@ -43,10 +51,17 @@ impl MemLogSnapshot {
         let mut insertions = 0;
         let mut deletions = 0;
 
-        for array in content.log_arrays() {
-            if array.version_number <= self.version_number {
-                insertions += array.insertions().len();
-                deletions += array.deletions().len();
+        for entry in content
+            .log_entries()
+            .iter()
+            .take_while(|e| e.version_number <= self.version_number)
+        {
+            match &entry.action {
+                MemLogEntryAction::Update(update) => {
+                    insertions += update.insertions().len();
+                    deletions += update.deletions().len();
+                }
+                _ => todo!(),
             }
         }
 
@@ -54,5 +69,13 @@ impl MemLogSnapshot {
             insertions,
             deletions,
         }
+    }
+
+    /// Checks whether the named graph `graph` exists in the current snapshot.
+    pub async fn contains_named_graph(&self, graph: EncodedObjectId) -> bool {
+        self.content
+            .read()
+            .await
+            .contains_named_graph(graph, self.version_number)
     }
 }

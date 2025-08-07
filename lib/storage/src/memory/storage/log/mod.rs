@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+mod builder;
 mod content;
 mod snapshot;
 mod writer;
@@ -68,9 +69,14 @@ impl MemLog {
 
         match result {
             Ok(result) => {
-                let log_array = writer.into_log_array()?;
-                content.deref_mut().append_log_array(log_array);
-                self.version_number.fetch_add(1, Ordering::Release);
+                let log_entry = writer.into_log_entry()?;
+
+                // Some action may not even create a log entry (e.g., only inserting duplicates).
+                if let Some(log_entry) = log_entry {
+                    content.deref_mut().append_log_entry(log_entry);
+                    self.version_number.fetch_add(1, Ordering::Release);
+                }
+
                 Ok(result)
             }
             Err(err) => Err(err),

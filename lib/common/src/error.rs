@@ -12,7 +12,6 @@ pub enum StorageError {
     /// Error related to data corruption.
     #[error(transparent)]
     Corruption(#[from] CorruptionError),
-    #[doc(hidden)]
     #[error("{0}")]
     Other(#[source] Box<dyn Error + Send + Sync + 'static>),
 }

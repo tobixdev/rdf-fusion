@@ -32,7 +32,7 @@ impl MemQuadStorage {
     /// Creates a snapshot of this storage.
     pub fn snapshot(&self) -> MemQuadStorageSnapshot {
         let log_snapshot = self.log.snapshot();
-        MemQuadStorageSnapshot::new(log_snapshot)
+        MemQuadStorageSnapshot::new(self.object_id_mapping.clone(), log_snapshot)
     }
 }
 
@@ -63,7 +63,11 @@ impl QuadStorage for MemQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        todo!()
+        self.log
+            .transaction(self.object_id_mapping.as_ref(), |writer| {
+                writer.insert_named_graph(graph_name)
+            })
+            .await
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
@@ -74,7 +78,7 @@ impl QuadStorage for MemQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        todo!()
+        Ok(self.snapshot().contains_named_graph(graph_name).await)
     }
 
     async fn clear(&self) -> Result<(), StorageError> {

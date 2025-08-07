@@ -102,6 +102,16 @@ async fn clear_graph() {
 }
 
 #[tokio::test]
+async fn insert_named_graph() {
+    let storage = create_storage();
+    let graph =
+        NamedOrBlankNode::NamedNode(NamedNode::new("http://example.com/graph").unwrap());
+    storage.insert_named_graph(graph.as_ref()).await.unwrap();
+    let exists = storage.contains_named_graph(graph.as_ref()).await.unwrap();
+    assert!(exists);
+}
+
+#[tokio::test]
 async fn remove_named_graph() {
     let storage = create_storage();
     let graph =

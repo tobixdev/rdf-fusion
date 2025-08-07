@@ -1,18 +1,49 @@
 use crate::memory::encoding::{EncodedQuad, EncodedQuadArray};
+use crate::memory::object_id::{EncodedObjectId, GraphEncodedObjectId};
+use crate::memory::storage::log::builder::MemLogEntryBuilderError;
 use crate::memory::storage::log::VersionNumber;
-use datafusion::arrow::array::{
-    Array, StructArray, StructBuilder, UInt32Builder, UnionArray,
-};
-use datafusion::arrow::datatypes::{Field, UnionFields};
+use datafusion::arrow::array::{Array, StructArray, UnionArray};
 use rdf_fusion_common::error::StorageError;
 use std::collections::HashSet;
-use std::num::TryFromIntError;
 use std::sync::Arc;
-use thiserror::Error;
 
 /// Holds the actual log entries.
 pub struct MemLogContent {
-    logs: Vec<MemLogArray>,
+    logs: Vec<MemLogEntry>,
+}
+
+/// A single entry in the log.
+///
+/// Each log entry represents one action that can happen to the store and represents a single
+/// transaction. It is currently not possible to, for example, clear a graph and insert a quad in
+/// the same transaction.
+pub struct MemLogEntry {
+    /// The version number of this transaction.
+    pub version_number: VersionNumber,
+    /// The action that should be performed.
+    pub action: MemLogEntryAction,
+}
+
+/// The target of a clear operation.
+pub enum ClearTarget {
+    /// Creates a named graph or the default graph.
+    Graph(GraphEncodedObjectId),
+    /// Clears all named graphs.
+    AllNamedGraphs,
+    /// Clears all graphs.
+    AllGraphs,
+}
+
+/// Represents the action that should be performed by a transaction.
+pub enum MemLogEntryAction {
+    /// Updates the store. The quads are inserted and deleted.
+    Update(MemLogUpdateArray),
+    /// Clears the store.
+    Clear(ClearTarget),
+    /// Creates a named graph.
+    CreateEmptyNamedGraph(EncodedObjectId),
+    /// Completely drops a named graph.
+    DropGraph(EncodedObjectId),
 }
 
 impl MemLogContent {
@@ -21,39 +52,117 @@ impl MemLogContent {
         Self { logs: vec![] }
     }
 
-    /// Returns the list of contained [MemLogArray]s.
-    pub fn log_arrays(&self) -> &[MemLogArray] {
+    /// Returns the list of contained [MemLogEntry]s.
+    pub fn log_entries(&self) -> &[MemLogEntry] {
         &self.logs
     }
 
-    /// Appends a [MemLogArray].
-    pub fn append_log_array(&mut self, log_array: MemLogArray) {
+    /// Appends a [MemLogEntry].
+    pub fn append_log_entry(&mut self, log_array: MemLogEntry) {
         self.logs.push(log_array);
     }
 
     /// Computes the contained quads based on the log entries.
-    pub fn compute_quads(&self, until: VersionNumber) -> HashSet<EncodedQuad> {
+    pub fn compute_quads(&self, version_number: VersionNumber) -> HashSet<EncodedQuad> {
         let mut quads = HashSet::new();
 
-        for log_array in self.logs.iter() {
-            if log_array.version_number > until {
-                break;
-            }
+        for entry in self.relevant_log_entries(version_number) {
+            match &entry.action {
+                MemLogEntryAction::Update(log_array) => {
+                    for quad in &log_array.insertions() {
+                        quads.insert(quad.clone());
+                    }
 
-            for quad in &log_array.insertions() {
-                quads.insert(quad.clone());
-            }
-
-            for quad in &log_array.deletions() {
-                quads.remove(&quad);
+                    for quad in &log_array.deletions() {
+                        quads.remove(&quad);
+                    }
+                }
+                MemLogEntryAction::Clear(ClearTarget::Graph(graph)) => {
+                    // Remove all quads from the given graph.
+                    quads.retain(|quad| quad.graph_name.0 != (*graph).into());
+                }
+                MemLogEntryAction::Clear(ClearTarget::AllNamedGraphs) => {
+                    // Remove all quads from the given graph.
+                    quads.retain(|quad| quad.graph_name.0.is_none());
+                }
+                MemLogEntryAction::Clear(ClearTarget::AllGraphs) => {
+                    quads.clear();
+                }
+                MemLogEntryAction::DropGraph(graph) => {
+                    // Remove all quads from the given graph.
+                    quads.retain(|quad| quad.graph_name.0 != Some(*graph));
+                }
+                MemLogEntryAction::CreateEmptyNamedGraph(_) => {
+                    // Do nothing.
+                }
             }
         }
 
         quads
     }
+
+    pub fn contains_named_graph(
+        &self,
+        graph: EncodedObjectId,
+        version_number: VersionNumber,
+    ) -> bool {
+        let relevant_log_entries = self
+            .relevant_log_entries(version_number)
+            .collect::<Vec<_>>();
+
+        // Iterate backwards through the log entries to find the last relevant update
+        for entry in relevant_log_entries.iter().rev() {
+            match &entry.action {
+                // If we see an update or a deletion of a quad in the given graph, we know that
+                // the graph exists. Also, if the graph becomes empty after the update, it exists.
+                MemLogEntryAction::Update(update) => {
+                    let inserted = update
+                        .insertions()
+                        .into_iter()
+                        .any(|quad| quad.graph_name.0 == graph.into());
+                    let deleted = update
+                        .deletions()
+                        .into_iter()
+                        .any(|quad| quad.graph_name.0 == Some(graph));
+                    if inserted || deleted {
+                        return true;
+                    }
+                }
+                // Clear does not drop the graph, therefore it must exist.
+                MemLogEntryAction::Clear(ClearTarget::Graph(cleared))
+                    if (*cleared).0 == Some(graph) =>
+                {
+                    return true;
+                }
+                // Creating an empty graph creates the graph.
+                MemLogEntryAction::CreateEmptyNamedGraph(created)
+                    if *created == graph =>
+                {
+                    return true;
+                }
+                // Dropping the graph deletes it.
+                MemLogEntryAction::DropGraph(dropped) if *dropped == graph => {
+                    return false;
+                }
+                _ => {}
+            }
+        }
+
+        // If we reach this point, the graph was never created or inserted into.
+        false
+    }
+
+    fn relevant_log_entries(
+        &self,
+        version_number: VersionNumber,
+    ) -> impl Iterator<Item = &MemLogEntry> {
+        self.logs
+            .iter()
+            .take_while(move |entry| entry.version_number <= version_number)
+    }
 }
 
-/// A [MemLogArray] contains the logs of a single transaction.
+/// A [MemLogUpdateArray] contains the logs of a single transaction.
 ///
 /// There are multiple types of log entries.
 ///
@@ -63,14 +172,12 @@ impl MemLogContent {
 ///
 /// Each entry has four fields that correspond to the parts of the quad: graph, subject, predicate,
 /// object.
-pub struct MemLogArray {
-    /// The version number of this transaction.
-    pub version_number: VersionNumber,
+pub struct MemLogUpdateArray {
     /// The union array that holds the actual log entries.
     pub array: Arc<UnionArray>,
 }
 
-impl MemLogArray {
+impl MemLogUpdateArray {
     /// Get a reference to the list of insertions.
     ///
     /// The list of insertions is disjunct from the list of deletions.
@@ -96,144 +203,4 @@ impl MemLogArray {
             .expect("Arrays are fixed");
         EncodedQuadArray::new(array)
     }
-}
-
-/// Builder for [MemLogArray].
-///
-/// This struct only appends logs and does not check for their correctness. For example, when
-/// inserting the caller must ensure that there are no duplicates.
-pub struct MemLogArrayBuilder {
-    /// The insertions.
-    insertions: StructBuilder,
-    /// The deletions.
-    deletions: StructBuilder,
-}
-
-impl MemLogArrayBuilder {
-    /// Creates a new [MemLogArrayBuilder].
-    pub fn new() -> Self {
-        Self {
-            insertions: StructBuilder::from_fields(quad_fields(), 0),
-            deletions: StructBuilder::from_fields(quad_fields(), 0),
-        }
-    }
-
-    /// Appends a single quad to the insertion list.
-    pub fn append_insertion(&mut self, quad: &EncodedQuad) {
-        let graph = quad.graph_name.0.map(|oid| oid.as_object_id().0);
-        let subject = quad.subject.as_object_id().0;
-        let predicate = quad.predicate.as_object_id().0;
-        let object = quad.object.as_object_id().0;
-
-        self.insertions
-            .field_builder::<UInt32Builder>(0)
-            .expect("Schema fixed")
-            .append_option(graph);
-
-        self.insertions
-            .field_builder::<UInt32Builder>(1)
-            .expect("Schema fixed")
-            .append_value(subject);
-
-        self.insertions
-            .field_builder::<UInt32Builder>(2)
-            .expect("Schema fixed")
-            .append_value(predicate);
-
-        self.insertions
-            .field_builder::<UInt32Builder>(3)
-            .expect("Schema fixed")
-            .append_value(object);
-
-        self.insertions.append(true)
-    }
-
-    /// Builds the final array.
-    pub fn build(
-        mut self,
-        version_number: VersionNumber,
-    ) -> Result<MemLogArray, MemLogEntryBuildError> {
-        let insertions = self.insertions.finish();
-        let deletions = self.deletions.finish();
-
-        let insertion_len = i32::try_from(insertions.len())?;
-        let deletion_len = i32::try_from(deletions.len())?;
-        let total_len = insertion_len as usize + deletion_len as usize;
-
-        let mut type_ids: Vec<i8> = Vec::with_capacity(total_len);
-        type_ids.extend(vec![0; insertion_len as usize]);
-        type_ids.extend(vec![1; deletion_len as usize]);
-
-        let mut offsets: Vec<i32> = Vec::with_capacity(total_len);
-        offsets.extend(0..insertion_len);
-        offsets.extend(0..deletion_len);
-
-        let array = Arc::new(
-            UnionArray::try_new(
-                log_fields(),
-                type_ids.into(),
-                Some(offsets.into()),
-                vec![Arc::new(insertions), Arc::new(deletions)],
-            )
-            .expect("Schema fixed"),
-        );
-
-        Ok(MemLogArray {
-            version_number,
-            array,
-        })
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum MemLogEntryBuildError {
-    #[error("Too many log entries to fit into the arrow array.")]
-    TooManyLogEntries,
-}
-
-impl From<TryFromIntError> for MemLogEntryBuildError {
-    fn from(_: TryFromIntError) -> Self {
-        Self::TooManyLogEntries
-    }
-}
-
-impl From<MemLogEntryBuildError> for StorageError {
-    fn from(value: MemLogEntryBuildError) -> Self {
-        value.into()
-    }
-}
-
-fn log_fields() -> UnionFields {
-    UnionFields::new(
-        [0i8, 1i8],
-        [
-            Field::new_struct("insertions", quad_fields(), false),
-            Field::new_struct("deletions", quad_fields(), false),
-        ],
-    )
-}
-
-fn quad_fields() -> Vec<Field> {
-    vec![
-        Field::new(
-            "graph_name",
-            datafusion::arrow::datatypes::DataType::UInt32,
-            true,
-        ),
-        Field::new(
-            "subject",
-            datafusion::arrow::datatypes::DataType::UInt32,
-            false,
-        ),
-        Field::new(
-            "predicate",
-            datafusion::arrow::datatypes::DataType::UInt32,
-            false,
-        ),
-        Field::new(
-            "object",
-            datafusion::arrow::datatypes::DataType::UInt32,
-            false,
-        ),
-    ]
 }

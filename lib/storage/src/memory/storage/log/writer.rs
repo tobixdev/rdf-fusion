@@ -1,10 +1,11 @@
+use crate::memory::storage::log::builder::MemLogEntryBuilder;
 use crate::memory::storage::log::content::{
-    MemLogArray, MemLogArrayBuilder, MemLogContent,
+    MemLogContent, MemLogEntry, MemLogEntryAction,
 };
 use crate::memory::storage::log::VersionNumber;
 use crate::memory::MemObjectIdMapping;
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_model::Quad;
+use rdf_fusion_model::{NamedOrBlankNodeRef, Quad};
 
 /// Allows writing entries into the log.
 pub struct MemLogWriter<'log> {
@@ -15,7 +16,7 @@ pub struct MemLogWriter<'log> {
     /// The version number of the log when the writer was created.
     version_number: VersionNumber,
     /// The logs created by the writer.
-    log_builder: MemLogArrayBuilder,
+    log_builder: MemLogEntryBuilder,
 }
 
 impl<'log> MemLogWriter<'log> {
@@ -29,7 +30,7 @@ impl<'log> MemLogWriter<'log> {
             content: log,
             object_id_mapping,
             version_number,
-            log_builder: MemLogArrayBuilder::new(),
+            log_builder: MemLogEntryBuilder::new(),
         }
     }
 
@@ -47,14 +48,33 @@ impl<'log> MemLogWriter<'log> {
             seen_quads.insert(encoded.clone());
             inserted += 1;
 
-            self.log_builder.append_insertion(&encoded);
+            self.log_builder.append_insertion(&encoded)?;
         }
 
         Ok(inserted)
     }
 
+    /// Inserts an empty named graph into the log.
+    pub fn insert_named_graph(
+        &mut self,
+        graph_name: NamedOrBlankNodeRef<'_>,
+    ) -> Result<bool, StorageError> {
+        let object_id = self.object_id_mapping.encode_term_intern(graph_name);
+
+        let existing = self
+            .content
+            .contains_named_graph(object_id, self.version_number);
+        if existing {
+            return Ok(false);
+        }
+
+        self.log_builder
+            .action(MemLogEntryAction::CreateEmptyNamedGraph(object_id))?;
+        Ok(true)
+    }
+
     /// Returns the log array.
-    pub fn into_log_array(self) -> Result<MemLogArray, StorageError> {
+    pub fn into_log_entry(self) -> Result<Option<MemLogEntry>, StorageError> {
         let version_number = self.version_number.increment();
         Ok(self.log_builder.build(version_number)?)
     }
