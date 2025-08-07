@@ -58,7 +58,15 @@ impl QuadStorage for MemoryQuadStorage {
         self.storage.storage_encoding()
     }
 
-    async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
+    fn object_id_mapping(&self) -> Option<Arc<dyn ObjectIdMapping>> {
+        Some(Arc::clone(self.storage.object_ids()) as Arc<dyn ObjectIdMapping>)
+    }
+
+    fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
+        vec![Arc::new(OxigraphMemoryQuadNodePlanner::new(self))]
+    }
+
+    async fn insert_quads(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
         self.storage.transaction(|mut t| {
             let mut count = 0;
             for quad in &quads {
@@ -151,16 +159,8 @@ impl QuadStorage for MemoryQuadStorage {
         self.storage.transaction(|mut t| Ok(t.remove(quad)))
     }
 
-    fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
-        vec![Arc::new(OxigraphMemoryQuadNodePlanner::new(self))]
-    }
-
     async fn len(&self) -> Result<usize, StorageError> {
         Ok(self.storage.snapshot().len())
-    }
-
-    fn object_id_mapping(&self) -> Option<Arc<dyn ObjectIdMapping>> {
-        Some(Arc::clone(self.storage.object_ids()) as Arc<dyn ObjectIdMapping>)
     }
 
     async fn validate(&self) -> Result<(), StorageError> {

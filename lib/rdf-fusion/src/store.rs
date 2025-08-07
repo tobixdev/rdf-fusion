@@ -450,7 +450,7 @@ impl Store {
             .collect::<Result<Vec<_>, _>>()?;
         self.engine
             .storage()
-            .extend(quads)
+            .insert_quads(quads)
             .await
             .map(|_| ())
             .map_err(LoaderError::from)
@@ -484,7 +484,7 @@ impl Store {
         let quad = vec![quad.into().into_owned()];
         self.engine
             .storage()
-            .extend(quad)
+            .insert_quads(quad)
             .await
             .map(|inserted| inserted > 0)
     }
@@ -495,7 +495,7 @@ impl Store {
         quads: impl IntoIterator<Item = impl Into<Quad>>,
     ) -> Result<(), StorageError> {
         let quads = quads.into_iter().map(Into::into).collect::<Vec<_>>();
-        self.engine.storage().extend(quads).await?;
+        self.engine.storage().insert_quads(quads).await?;
         Ok(())
     }
 

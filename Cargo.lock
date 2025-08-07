@@ -3844,9 +3844,9 @@ dependencies = [
  "rdf-fusion-encoding",
  "rdf-fusion-logical",
  "rdf-fusion-model",
- "rdf-fusion-physical",
  "rustc-hash",
  "thiserror 2.0.12",
+ "tokio",
 ]
 
 [[package]]

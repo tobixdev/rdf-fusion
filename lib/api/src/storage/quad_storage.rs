@@ -28,7 +28,7 @@ pub trait QuadStorage: Send + Sync {
     fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
 
     /// Loads the given quads into the storage.
-    async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError>;
+    async fn insert_quads(&self, quads: Vec<Quad>) -> Result<usize, StorageError>;
 
     /// Creates an empty named graph in the storage.
     async fn insert_named_graph<'a>(
