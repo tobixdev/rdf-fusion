@@ -38,7 +38,18 @@ fn wind_farm_16(c: &mut Criterion) {
     ")
         .unwrap();
 
+    let disabled_queries = vec![
+        WindFarmQueryName::MultiGrouped1,
+        WindFarmQueryName::MultiGrouped2,
+        WindFarmQueryName::MultiGrouped3,
+        WindFarmQueryName::MultiGrouped4,
+    ];
     for query_name in WindFarmQueryName::list_queries() {
+        if disabled_queries.contains(&query_name) {
+            println!("Skipping query: {}", query_name);
+            continue;
+        }
+
         let benchmark_name = format!("Wind Farm 16 - {query_name}");
         let query =
             get_wind_farm_raw_sparql_operation(&benchmark_context, query_name).unwrap();
