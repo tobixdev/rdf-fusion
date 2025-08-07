@@ -9,7 +9,7 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArray, TypedValueArrayBuilder, TypedValueEncoding,
+    TypedValueArray, TypedValueArrayBuilder, TypedValueEncoding, TYPED_VALUE_ENCODING,
 };
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermEncoding};
 
@@ -134,5 +134,5 @@ fn impl_bound_array(array: &dyn Array) -> DFResult<TypedValueArray> {
         builder.append_boolean(value.into())?;
     }
 
-    TYPED_VALUE_ENCODING.try_new_array(builder.finish())
+    Ok(builder.finish())
 }

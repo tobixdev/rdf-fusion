@@ -10,7 +10,12 @@ pub struct PlainTermArray {
     inner: ArrayRef,
 }
 
-impl PlainTermArray {}
+impl PlainTermArray {
+    /// Creates a new [PlainTermArray] without validating the schema.
+    pub(super) fn new_unchecked(inner: ArrayRef) -> Self {
+        Self { inner }
+    }
+}
 
 impl EncodingArray for PlainTermArray {
     type Encoding = PlainTermEncoding;

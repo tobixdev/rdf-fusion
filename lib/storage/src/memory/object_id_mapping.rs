@@ -1,29 +1,29 @@
 #![allow(clippy::unreadable_literal)]
 
+use crate::memory::encoded::{EncodedTerm, EncodedTypedValue};
+use crate::memory::object_id::{
+    EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId,
+};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::{
     ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncoding, ObjectIdMapping,
-    ObjectIdScalar,
+    ObjectIdMappingError, ObjectIdScalar,
 };
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{
-    PlainTermArray, PlainTermArrayBuilder, PlainTermEncoding, PlainTermScalar,
+    PlainTermArray, PlainTermArrayBuilder, PlainTermScalar,
 };
-use rdf_fusion_encoding::typed_value::{
-    TypedValueArray, TypedValueArrayBuilder, TypedValueEncoding,
-};
-use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoding};
+use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueArrayBuilder};
+use rdf_fusion_encoding::{EncodingArray, TermDecoder};
 use rdf_fusion_model::{
     BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, QuadRef, TermRef, TypedValueRef,
 };
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
-use crate::memory::encoded::{EncodedTerm, EncodedTypedValue};
-use crate::memory::object_id::{EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId};
+use std::sync::Arc;
 
 /// Maintains a mapping between RDF terms and object IDs in memory.
 ///
@@ -41,10 +41,6 @@ use crate::memory::object_id::{EncodedObjectId, EncodedObjectIdQuad, GraphEncode
 /// speed-up queries working on typed values.
 #[derive(Debug)]
 pub struct MemObjectIdMapping {
-    /// Holds the [PlainTermEncoding] for creating results in the plain term encoding.
-    plain_term_encoding: PlainTermEncoding,
-    /// Holds the [TypedValueEncoding] for creating results in the typed value encoding.
-    typed_value_encoding: TypedValueEncoding,
     /// Contains the next free object id.
     next_id: AtomicU32,
     /// A set for interning strings.
@@ -66,13 +62,8 @@ impl MemObjectIdMapping {
     /// Creates a new empty [MemObjectIdMapping].
     ///
     /// The given encodings are used for creating the outputs of the mapping.
-    pub fn new(
-        plain_term_encoding: PlainTermEncoding,
-        typed_value_encoding: TypedValueEncoding,
-    ) -> Self {
+    pub fn new() -> Self {
         Self {
-            plain_term_encoding,
-            typed_value_encoding,
             next_id: AtomicU32::new(0),
             str_interning: DashSet::new(),
             id2term: DashMap::with_hasher(BuildHasherDefault::default()),
@@ -273,7 +264,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
     fn try_get_object_id(
         &self,
         scalar: &PlainTermScalar,
-    ) -> DFResult<Option<ObjectIdScalar>> {
+    ) -> Result<Option<ObjectIdScalar>, ObjectIdMappingError> {
         let term = DefaultPlainTermDecoder::decode_term(scalar);
         let result = term
             .ok()
@@ -285,7 +276,10 @@ impl ObjectIdMapping for MemObjectIdMapping {
         Ok(result)
     }
 
-    fn encode_array(&self, array: &PlainTermArray) -> DFResult<ObjectIdArray> {
+    fn encode_array(
+        &self,
+        array: &PlainTermArray,
+    ) -> Result<ObjectIdArray, ObjectIdMappingError> {
         let terms = DefaultPlainTermDecoder::decode_terms(array);
 
         // TODO: without alloc/Arc copy
@@ -304,7 +298,10 @@ impl ObjectIdMapping for MemObjectIdMapping {
         Ok(result.finish())
     }
 
-    fn decode_array(&self, array: &ObjectIdArray) -> DFResult<PlainTermArray> {
+    fn decode_array(
+        &self,
+        array: &ObjectIdArray,
+    ) -> Result<PlainTermArray, ObjectIdMappingError> {
         let terms = array.object_ids().iter().map(|oid| {
             let oid = oid.map(EncodedObjectId::from);
             oid.map(|oid| {
@@ -343,13 +340,13 @@ impl ObjectIdMapping for MemObjectIdMapping {
             }
         }
 
-        self.plain_term_encoding.try_new_array(builder.finish())
+        Ok(builder.finish())
     }
 
     fn decode_array_to_typed_value(
         &self,
         array: &ObjectIdArray,
-    ) -> DFResult<TypedValueArray> {
+    ) -> Result<TypedValueArray, ObjectIdMappingError> {
         let typed_values = array.object_ids().iter().map(|oid| {
             let oid = oid.map(EncodedObjectId::from);
             oid.map(|oid| {
@@ -370,7 +367,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
             }
         }
 
-        self.typed_value_encoding.try_new_array(builder.finish())
+        Ok(builder.finish())
     }
 }
 
@@ -380,8 +377,7 @@ mod tests {
     use datafusion::arrow::array::AsArray;
     use rdf_fusion_common::ObjectId;
     use rdf_fusion_encoding::object_id::ObjectIdArrayBuilder;
-    use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
-    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+    use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
     use rdf_fusion_encoding::{EncodingArray, EncodingScalar};
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{
@@ -390,8 +386,7 @@ mod tests {
 
     #[test]
     fn test_encode_decode_roundtrip() -> DFResult<()> {
-        let mapping =
-            MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+        let mapping = MemObjectIdMapping::new();
         let mut builder = PlainTermArrayBuilder::new(5);
         builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
         builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
@@ -400,9 +395,7 @@ mod tests {
             "world", "en",
         ));
         builder.append_null();
-        let plain_term_array = mapping
-            .plain_term_encoding
-            .try_new_array(builder.finish())?;
+        let plain_term_array = builder.finish();
 
         let object_id_array = mapping.encode_array(&plain_term_array)?;
         let decoded_plain_term_array = mapping.decode_array(&object_id_array)?;
@@ -421,8 +414,7 @@ mod tests {
 
     #[test]
     fn test_id_uniqueness_and_consistency() -> DFResult<()> {
-        let mapping =
-            MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+        let mapping = MemObjectIdMapping::new();
         let mut builder = PlainTermArrayBuilder::new(5);
         let nn1 = NamedNodeRef::new_unchecked("http://example.com/a");
         let nn2 = NamedNodeRef::new_unchecked("http://example.com/b");
@@ -431,9 +423,7 @@ mod tests {
         builder.append_named_node(nn1);
         builder.append_named_node(nn2);
         builder.append_named_node(nn1);
-        let plain_term_array = mapping
-            .plain_term_encoding
-            .try_new_array(builder.finish())?;
+        let plain_term_array = builder.finish();
 
         let object_id_array = mapping.encode_array(&plain_term_array)?;
 
@@ -448,9 +438,7 @@ mod tests {
         let mut builder2 = PlainTermArrayBuilder::new(2);
         builder2.append_named_node(nn2);
         builder2.append_named_node(nn1);
-        let plain_term_array2 = mapping
-            .plain_term_encoding
-            .try_new_array(builder2.finish())?;
+        let plain_term_array2 = builder2.finish();
         let object_id_array2 = mapping.encode_array(&plain_term_array2)?;
 
         let id4 = object_id_array2.object_ids().value(0);
@@ -464,8 +452,7 @@ mod tests {
 
     #[test]
     fn test_try_get_object_id() -> DFResult<()> {
-        let mapping =
-            MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+        let mapping = MemObjectIdMapping::new();
 
         let term1 = PlainTermScalar::from(TermRef::NamedNode(
             NamedNodeRef::new_unchecked("http://example.com/a"),
@@ -481,7 +468,7 @@ mod tests {
         let mut builder = PlainTermArrayBuilder::new(2);
         builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
         builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
-        let plain_term_array = PLAIN_TERM_ENCODING.try_new_array(builder.finish())?;
+        let plain_term_array = builder.finish();
         let object_id_array = mapping.encode_array(&plain_term_array)?;
 
         // After encoding, should be Some
@@ -511,8 +498,7 @@ mod tests {
 
     #[test]
     fn test_encode_quad() -> DFResult<()> {
-        let mapping =
-            MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+        let mapping = MemObjectIdMapping::new();
         let quad = QuadRef {
             subject: NamedNodeRef::new_unchecked("http://example.com/s").into(),
             predicate: NamedNodeRef::new_unchecked("http://example.com/p").into(),

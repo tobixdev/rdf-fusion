@@ -1,0 +1,79 @@
+use rdf_fusion_common::error::StorageError;
+use std::ops::DerefMut;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+mod content;
+mod snapshot;
+mod writer;
+
+use crate::memory::storage::log::content::MemLogContent;
+pub use crate::memory::storage::log::writer::MemLogWriter;
+use crate::memory::MemObjectIdMapping;
+pub use snapshot::MemLogSnapshot;
+
+/// The version number of the [MemLog].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VersionNumber(usize);
+
+impl VersionNumber {
+    /// Creates the next version number.
+    pub fn increment(&self) -> Self {
+        Self(self.0 + 1)
+    }
+}
+
+/// The [MemLog] keeps track of all the operations that have been performed on the store. As a
+/// result, the store state can be completely reconstructed from the log.
+pub struct MemLog {
+    /// Holds the log entries for each transaction.
+    content: Arc<RwLock<MemLogContent>>,
+    /// The current version number.
+    version_number: AtomicUsize,
+}
+
+impl MemLog {
+    /// Creates a new [MemLog].
+    pub fn new() -> Self {
+        Self {
+            content: Arc::new(RwLock::new(MemLogContent::new())),
+            version_number: AtomicUsize::new(0),
+        }
+    }
+
+    /// Creates a [MemLogSnapshot] of the [MemLog] for reading.
+    pub fn snapshot(&self) -> MemLogSnapshot {
+        let version_number = self.version_number.load(Ordering::Relaxed);
+        MemLogSnapshot::new(self.content.clone(), VersionNumber(version_number))
+    }
+
+    /// Creates a new [MemLogWriter].
+    ///
+    /// Currently, we take a mutable reference to the log to ensure that only one writer is active
+    /// at a time.
+    pub async fn transaction<T>(
+        &self,
+        object_id_mapping: &MemObjectIdMapping,
+        action: impl for<'a> Fn(&mut MemLogWriter<'a>) -> Result<T, StorageError>,
+    ) -> Result<T, StorageError> {
+        let mut content = self.content.write().await;
+        let version_number = self.version_number.load(Ordering::Relaxed);
+        let mut writer = MemLogWriter::new(
+            content.deref_mut(),
+            object_id_mapping,
+            VersionNumber(version_number),
+        );
+        let result = action(&mut writer);
+
+        match result {
+            Ok(result) => {
+                let log_array = writer.into_log_array()?;
+                content.deref_mut().append_log_array(log_array);
+                self.version_number.fetch_add(1, Ordering::Release);
+                Ok(result)
+            }
+            Err(err) => Err(err),
+        }
+    }
+}

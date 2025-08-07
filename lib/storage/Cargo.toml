@@ -15,11 +15,8 @@ datafusion.workspace = true
 rdf-fusion-encoding.workspace = true
 rdf-fusion-logical.workspace = true
 dashmap.workspace = true
-futures.workspace = true
 rustc-hash.workspace = true
 thiserror.workspace = true
-
-[dev-dependencies]
 tokio.workspace = true
 
 [lints]

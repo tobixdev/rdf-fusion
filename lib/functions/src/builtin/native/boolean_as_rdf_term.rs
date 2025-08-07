@@ -7,7 +7,7 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use std::any::Any;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -75,7 +75,7 @@ impl ScalarUDFImpl for NativeBooleanAsTerm {
             }
         }
 
-        Ok(ColumnarValue::Array(builder.finish()))
+        Ok(ColumnarValue::Array(builder.finish().into_array()))
     }
 
     fn hash_value(&self) -> u64 {

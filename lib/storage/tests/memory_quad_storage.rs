@@ -1,36 +1,39 @@
 use rdf_fusion_api::storage::QuadStorage;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_model::{
     GraphName, GraphNameRef, Literal, NamedNode, NamedOrBlankNode, Quad, Subject, Term,
 };
-use rdf_fusion_storage::MemoryQuadStorage;
+use rdf_fusion_storage::memory::{MemObjectIdMapping, MemQuadStorage};
+use std::sync::Arc;
 use tokio;
 
 #[tokio::test]
-async fn test_insert_quad() {
-    let store = MemoryQuadStorage::new();
+async fn insert_quad() {
+    let storage = create_storage();
 
-    let inserted = store.insert_quads(vec![example_quad()]).await.unwrap();
+    let inserted = storage.insert_quads(vec![example_quad()]).await.unwrap();
     assert_eq!(inserted, 1);
 
-    let len = store.len().await.unwrap();
+    let len = storage.len().await.unwrap();
     assert_eq!(len, 1);
 }
 
 #[tokio::test]
-async fn test_insert_duplicate_quads_no_effect() {
-    let store = MemoryQuadStorage::new();
+async fn insert_duplicate_quads_no_effect() {
+    let storage = create_storage();
 
-    store.insert_quads(vec![example_quad()]).await.unwrap();
+    storage.insert_quads(vec![example_quad()]).await.unwrap();
 
-    let inserted = store.insert_quads(vec![example_quad()]).await.unwrap();
+    let inserted = storage.insert_quads(vec![example_quad()]).await.unwrap();
     assert_eq!(inserted, 0); // duplicate
 }
 
 #[tokio::test]
-async fn test_insert_duplicate_quads_in_same_operation_quads() {
-    let store = MemoryQuadStorage::new();
+async fn insert_duplicate_quads_in_same_operation_quads() {
+    let storage = create_storage();
 
-    let inserted = store
+    let inserted = storage
         .insert_quads(vec![example_quad(), example_quad()])
         .await
         .unwrap();
@@ -39,76 +42,76 @@ async fn test_insert_duplicate_quads_in_same_operation_quads() {
 }
 
 #[tokio::test]
-async fn test_named_graph_insertion_and_query() {
-    let store = MemoryQuadStorage::new();
+async fn named_graph_insertion_and_query() {
+    let storage = create_storage();
     let graph =
         NamedOrBlankNode::NamedNode(NamedNode::new("http://example.com/graph").unwrap());
 
-    let inserted = store.insert_named_graph(graph.as_ref()).await.unwrap();
+    let inserted = storage.insert_named_graph(graph.as_ref()).await.unwrap();
     assert!(inserted);
 
-    let exists = store.contains_named_graph(graph.as_ref()).await.unwrap();
+    let exists = storage.contains_named_graph(graph.as_ref()).await.unwrap();
     assert!(exists);
 
-    let graphs = store.named_graphs().await.unwrap();
+    let graphs = storage.named_graphs().await.unwrap();
     assert_eq!(graphs.len(), 1);
     assert_eq!(graphs[0], graph);
 }
 
 #[tokio::test]
-async fn test_remove_quad() {
-    let store = MemoryQuadStorage::new();
+async fn remove_quad() {
+    let storage = create_storage();
     let quad = example_quad_in_graph("http://example.com/g");
 
-    store.insert_quads(vec![quad.clone()]).await.unwrap();
-    let removed = store.remove(quad.as_ref()).await.unwrap();
+    storage.insert_quads(vec![quad.clone()]).await.unwrap();
+    let removed = storage.remove(quad.as_ref()).await.unwrap();
     assert!(removed);
 
-    let len = store.len().await.unwrap();
+    let len = storage.len().await.unwrap();
     assert_eq!(len, 0);
 }
 
 #[tokio::test]
-async fn test_clear_graph() {
-    let store = MemoryQuadStorage::new();
+async fn clear_graph() {
+    let storage = create_storage();
 
     let g1 = "http://example.com/g1";
     let g2 = "http://example.com/g2";
 
-    store
+    storage
         .insert_quads(vec![example_quad_in_graph(g1), example_quad_in_graph(g2)])
         .await
         .unwrap();
 
-    store
+    storage
         .clear_graph(GraphNameRef::NamedNode(
             NamedNode::new(g1).unwrap().as_ref(),
         ))
         .await
         .unwrap();
 
-    let len = store.len().await.unwrap();
+    let len = storage.len().await.unwrap();
     assert_eq!(len, 1);
 }
 
 #[tokio::test]
-async fn test_remove_named_graph() {
-    let store = MemoryQuadStorage::new();
+async fn remove_named_graph() {
+    let storage = create_storage();
     let graph =
         NamedOrBlankNode::NamedNode(NamedNode::new("http://example.com/graph").unwrap());
 
-    store.insert_named_graph(graph.as_ref()).await.unwrap();
-    let removed = store.remove_named_graph(graph.as_ref()).await.unwrap();
+    storage.insert_named_graph(graph.as_ref()).await.unwrap();
+    let removed = storage.remove_named_graph(graph.as_ref()).await.unwrap();
     assert!(removed);
 
-    let exists = store.contains_named_graph(graph.as_ref()).await.unwrap();
+    let exists = storage.contains_named_graph(graph.as_ref()).await.unwrap();
     assert!(!exists);
 }
 
 #[tokio::test]
-async fn test_clear_all() {
-    let store = MemoryQuadStorage::new();
-    store
+async fn clear_all() {
+    let storage = create_storage();
+    storage
         .insert_quads(vec![
             example_quad_in_graph("http://example.com/g1"),
             example_quad_in_graph("http://example.com/g2"),
@@ -116,38 +119,45 @@ async fn test_clear_all() {
         .await
         .unwrap();
 
-    store.clear().await.unwrap();
-    let len = store.len().await.unwrap();
+    storage.clear().await.unwrap();
+    let len = storage.len().await.unwrap();
     assert_eq!(len, 0);
 }
 
 #[tokio::test]
-async fn test_snapshot_consistency() {
-    let store = MemoryQuadStorage::new();
-    store
+async fn snapshot_consistency() {
+    let storage = create_storage();
+    storage
         .insert_quads(vec![example_quad_in_graph("http://g")])
         .await
         .unwrap();
 
-    let snapshot = store.snapshot();
+    let snapshot = storage.snapshot();
 
     // Update storage after snapshot
-    store.clear().await.unwrap();
+    storage.clear().await.unwrap();
 
     // Snapshot should still see the original quad
-    assert_eq!(snapshot.len(), 1);
+    assert_eq!(snapshot.len().await, 1);
 }
 
 #[tokio::test]
-async fn test_validate_storage() {
-    let store = MemoryQuadStorage::new();
-    store
+async fn validate_storage() {
+    let storage = create_storage();
+
+    storage
         .insert_quads(vec![example_quad_in_graph("http://g")])
         .await
         .unwrap();
 
-    let result = store.validate().await;
+    let result = storage.validate().await;
     assert!(result.is_ok());
+}
+
+fn create_storage() -> MemQuadStorage {
+    let object_id_encoding =
+        MemObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+    MemQuadStorage::new(Arc::new(object_id_encoding))
 }
 
 fn example_quad() -> Quad {

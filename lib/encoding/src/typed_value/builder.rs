@@ -1,9 +1,9 @@
+use crate::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueEncodingField};
 use crate::AResult;
-use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
 use datafusion::arrow::array::{
-    ArrayBuilder, ArrayRef, BooleanBuilder, Decimal128Builder, Float32Builder,
-    Float64Builder, Int16Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder,
-    StructBuilder, UnionArray,
+    ArrayBuilder, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
+    Int16Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder,
+    UnionArray,
 };
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
@@ -331,8 +331,8 @@ impl TypedValueArrayBuilder {
     }
 
     #[allow(clippy::expect_used, reason = "Fields must match type.")]
-    pub fn finish(mut self) -> ArrayRef {
-        Arc::new(
+    pub fn finish(mut self) -> TypedValueArray {
+        TypedValueArray::new_unchecked(Arc::new(
             UnionArray::try_new(
                 TypedValueEncoding::fields(),
                 ScalarBuffer::from(self.type_ids),
@@ -356,7 +356,7 @@ impl TypedValueArrayBuilder {
                 ],
             )
             .expect("Fields and type match"),
-        )
+        ))
     }
 
     fn append_type_id_and_offset(

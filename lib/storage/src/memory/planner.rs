@@ -1,22 +1,18 @@
 use async_trait::async_trait;
-use datafusion::error::{DataFusionError, Result as DFResult};
+use datafusion::error::Result as DFResult;
 use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
 use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
-use rdf_fusion_common::error::{CorruptionError, StorageError};
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
 use rdf_fusion_logical::{ActiveGraph, EnumeratedActiveGraph};
-use rdf_fusion_model::{BlankNode, GraphName, NamedNode};
+use rdf_fusion_model::GraphName;
 use std::sync::Arc;
-use crate::memory::encoded::EncodedTerm;
 
 /// Planner for [QuadPatternNode].
-pub struct OxigraphMemoryQuadNodePlanner {
-}
+pub struct MemQuadStorePlanner {}
 
-impl OxigraphMemoryQuadNodePlanner {
-
+impl MemQuadStorePlanner {
     /// Enumerates the graphs in the active graph, expanding wildcards.
     fn enumerate_active_graph(
         &self,
@@ -42,7 +38,7 @@ impl OxigraphMemoryQuadNodePlanner {
 }
 
 #[async_trait]
-impl ExtensionPlanner for OxigraphMemoryQuadNodePlanner {
+impl ExtensionPlanner for MemQuadStorePlanner {
     /// Converts a logical [QuadPatternNode] into its physical execution plan
     async fn plan_extension(
         &self,

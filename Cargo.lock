@@ -3838,7 +3838,6 @@ dependencies = [
  "async-trait",
  "dashmap",
  "datafusion",
- "futures",
  "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
