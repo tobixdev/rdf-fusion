@@ -1,17 +1,17 @@
-use crate::benchmarks::bsbm::NumProducts;
 use crate::benchmarks::bsbm::operation::list_raw_operations;
 use crate::benchmarks::bsbm::report::{BsbmReport, ExploreReportBuilder, QueryDetails};
 use crate::benchmarks::bsbm::requirements::{
     download_bsbm_tools, download_pre_generated_queries, generate_dataset_requirement,
 };
 use crate::benchmarks::bsbm::use_case::BsbmUseCase;
+use crate::benchmarks::bsbm::{BusinessIntelligenceUseCase, ExploreUseCase, NumProducts};
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::BenchmarkContext;
 use crate::operation::{SparqlOperation, SparqlRawOperation};
 use crate::prepare::PrepRequirement;
 use crate::report::BenchmarkReport;
+use crate::utils::print_store_stats;
 use async_trait::async_trait;
-use rdf_fusion::Query;
 use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
 use std::fs;
@@ -19,6 +19,7 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 
 /// Holds file paths for the files required for executing a BSBM run.
+#[derive(Clone)]
 struct BsbmFilePaths {
     /// A path to the dataset NTriples file.
     dataset: PathBuf,
@@ -31,6 +32,7 @@ struct BsbmFilePaths {
 ///
 /// This struct implements the logic for preparing and executing a BSBM benchmark. For that, it
 /// requires a concrete [BsbmUseCase] implementation.
+#[derive(Clone)]
 pub struct BsbmBenchmark<TUseCase: BsbmUseCase> {
     /// The name of the benchmark.
     name: BenchmarkName,
@@ -51,7 +53,7 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
         max_query_count: Option<u64>,
     ) -> anyhow::Result<Self> {
         let dataset_path = PathBuf::from("./dataset.nt".to_string());
-        let queries_path = PathBuf::from("./queries.csv".to_string());
+        let queries_path = TUseCase::queries_file_path();
         let paths = BsbmFilePaths {
             dataset: dataset_path,
             queries: queries_path,
@@ -68,31 +70,51 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
 
     /// The BSBM generator produces a list of queries that are tailored to the generated data. This
     /// method returns a list of these queries that should be executed during this run.
-    fn list_operations(
+    pub fn list_operations(
         &self,
         ctx: &BenchmarkContext,
     ) -> anyhow::Result<Vec<SparqlOperation<TUseCase::QueryName>>> {
         println!("Loading queries ...");
 
-        let queries_path = ctx.parent().join_data_dir(&self.paths.queries)?;
         let result = match self.max_query_count {
-            None => list_raw_operations::<TUseCase::QueryName>(&queries_path)?
-                .map(parse_query)
+            None => self
+                .list_raw_operations(ctx)?
+                .map(|q| q.parse().unwrap())
                 .collect(),
-            Some(max_query_count) => {
-                list_raw_operations::<TUseCase::QueryName>(&queries_path)?
-                    .map(parse_query)
-                    .take(usize::try_from(max_query_count)?)
-                    .collect()
-            }
+            Some(max_query_count) => self
+                .list_raw_operations(ctx)?
+                .map(|q| q.parse().unwrap())
+                .take(usize::try_from(max_query_count)?)
+                .collect(),
         };
 
         println!("Queries loaded.");
         Ok(result)
     }
 
+    /// The BSBM generator produces a list of queries that are tailored to the generated data. This
+    /// method returns a list of these queries that should be executed during this run.
+    pub fn list_raw_operations(
+        &self,
+        ctx: &BenchmarkContext,
+    ) -> anyhow::Result<impl Iterator<Item = SparqlRawOperation<TUseCase::QueryName>>>
+    {
+        let queries_path = ctx.parent().join_data_dir(&self.paths.queries)?;
+        let result = list_raw_operations::<TUseCase::QueryName>(queries_path.clone())?
+            .map(|q| match q {
+                SparqlRawOperation::Query(name, text) => {
+                    SparqlRawOperation::Query(name, text.replace(" #", ""))
+                }
+            });
+        Ok(result)
+    }
+
     /// Loads the dataset file into the resulting [Store].
-    async fn prepare_store(&self, ctx: &BenchmarkContext<'_>) -> anyhow::Result<Store> {
+    pub async fn prepare_store(
+        &self,
+        ctx: &BenchmarkContext<'_>,
+    ) -> anyhow::Result<Store> {
+        let start = datafusion::common::instant::Instant::now();
         println!("Creating in-memory store and loading data ...");
 
         let dataset_path = ctx.parent().join_data_dir(&self.paths.dataset)?;
@@ -101,7 +123,12 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
         memory_store
             .load_from_reader(RdfFormat::NTriples, data.as_slice())
             .await?;
-        println!("Store created and data loaded.");
+        let duration = start.elapsed();
+        println!(
+            "Store created and data loaded. Took {} ms.",
+            duration.as_millis()
+        );
+        print_store_stats(&memory_store).await?;
         Ok(memory_store)
     }
 }
@@ -118,8 +145,13 @@ impl<TUseCase: BsbmUseCase + 'static> Benchmark for BsbmBenchmark<TUseCase> {
             download_bsbm_tools(),
             generate_dataset_requirement(self.paths.dataset.clone(), self.num_products),
             download_pre_generated_queries(
-                &TUseCase::name().to_string(),
-                self.paths.queries.clone(),
+                "explore",
+                ExploreUseCase::queries_file_path(),
+                self.num_products,
+            ),
+            download_pre_generated_queries(
+                "businessIntelligence",
+                BusinessIntelligenceUseCase::queries_file_path(),
                 self.num_products,
             ),
         ]
@@ -135,18 +167,6 @@ impl<TUseCase: BsbmUseCase + 'static> Benchmark for BsbmBenchmark<TUseCase> {
             execute_benchmark::<TUseCase>(bench_context, operations, &memory_store)
                 .await?;
         Ok(Box::new(report))
-    }
-}
-
-/// Parses the SPARQL query by turning an [SparqlRawOperation] to an [SparqlOperation].
-fn parse_query<TQueryName>(
-    query: SparqlRawOperation<TQueryName>,
-) -> SparqlOperation<TQueryName> {
-    match query {
-        SparqlRawOperation::Query(name, query) => SparqlOperation::Query(
-            name,
-            Query::parse(&query.replace(" #", ""), None).unwrap(),
-        ),
     }
 }
 

@@ -10,8 +10,8 @@ mod requirements;
 mod use_case;
 
 pub use benchmark::BsbmBenchmark;
-pub use business_intelligence::BusinessIntelligenceUseCase;
-pub use explore::ExploreUseCase;
+pub use business_intelligence::*;
+pub use explore::*;
 pub use use_case::BsbmUseCase;
 
 /// Indicates the size of the dataset.

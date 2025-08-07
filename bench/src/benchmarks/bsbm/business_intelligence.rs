@@ -1,8 +1,10 @@
 use crate::benchmarks::bsbm::use_case::{BsbmUseCase, BsbmUseCaseName};
 use clap::ValueEnum;
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
 
 /// The BSBM Business Intelligence Use Case.
+#[derive(Clone, Copy, Debug)]
 pub struct BusinessIntelligenceUseCase;
 
 impl BsbmUseCase for BusinessIntelligenceUseCase {
@@ -13,16 +15,11 @@ impl BsbmUseCase for BusinessIntelligenceUseCase {
     }
 
     fn list_queries() -> Vec<Self::QueryName> {
-        vec![
-            BsbmBusinessIntelligenceQueryName::Q1,
-            BsbmBusinessIntelligenceQueryName::Q2,
-            BsbmBusinessIntelligenceQueryName::Q3,
-            BsbmBusinessIntelligenceQueryName::Q4,
-            BsbmBusinessIntelligenceQueryName::Q5,
-            BsbmBusinessIntelligenceQueryName::Q6,
-            BsbmBusinessIntelligenceQueryName::Q7,
-            BsbmBusinessIntelligenceQueryName::Q8,
-        ]
+        BsbmBusinessIntelligenceQueryName::list_queries()
+    }
+
+    fn queries_file_path() -> PathBuf {
+        PathBuf::from("./queries-bi.csv")
     }
 }
 
@@ -37,6 +34,21 @@ pub enum BsbmBusinessIntelligenceQueryName {
     Q6,
     Q7,
     Q8,
+}
+
+impl BsbmBusinessIntelligenceQueryName {
+    pub fn list_queries() -> Vec<Self> {
+        vec![
+            BsbmBusinessIntelligenceQueryName::Q1,
+            BsbmBusinessIntelligenceQueryName::Q2,
+            BsbmBusinessIntelligenceQueryName::Q3,
+            BsbmBusinessIntelligenceQueryName::Q4,
+            BsbmBusinessIntelligenceQueryName::Q5,
+            BsbmBusinessIntelligenceQueryName::Q6,
+            BsbmBusinessIntelligenceQueryName::Q7,
+            BsbmBusinessIntelligenceQueryName::Q8,
+        ]
+    }
 }
 
 impl TryFrom<u8> for BsbmBusinessIntelligenceQueryName {

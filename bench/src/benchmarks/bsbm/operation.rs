@@ -1,12 +1,12 @@
 use crate::operation::SparqlRawOperation;
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
 
 #[allow(clippy::panic)]
 #[allow(clippy::panic_in_result_fn)]
 #[allow(clippy::expect_used)]
 pub fn list_raw_operations<TQueryName: TryFrom<u8>>(
-    path: &Path,
+    path: PathBuf,
 ) -> anyhow::Result<impl Iterator<Item = SparqlRawOperation<TQueryName>>> {
     let reader = fs::read(path)?;
     let result = csv::Reader::from_reader(reader.as_slice())

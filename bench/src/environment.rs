@@ -12,8 +12,7 @@ pub struct RdfFusionBenchContext {
     options: BenchmarkingOptions,
     /// The path to the data dir.
     data_dir: Mutex<PathBuf>,
-    /// The path to the current directory. This might be different from the `data_dir` if a
-    /// benchmark is running.
+    /// The path to the results dir.
     results_dir: Mutex<PathBuf>,
 }
 
@@ -28,6 +27,17 @@ impl RdfFusionBenchContext {
             options,
             data_dir: Mutex::new(data_dir),
             results_dir: Mutex::new(results_dir),
+        }
+    }
+
+    /// Creates a new [RdfFusionBenchContext] used in the criterion benchmarks.
+    pub fn new_for_criterion(data_dir: PathBuf) -> Self {
+        Self {
+            options: BenchmarkingOptions {
+                verbose_results: false,
+            },
+            data_dir: Mutex::new(data_dir),
+            results_dir: Mutex::new(PathBuf::from("/temp")),
         }
     }
 
@@ -51,12 +61,17 @@ impl RdfFusionBenchContext {
     /// This can be used to create folder hierarchies to separate the results of different
     /// benchmarks.
     #[allow(clippy::create_dir)]
-    pub fn push_dir(&self, dir: &str) -> anyhow::Result<()> {
+    #[allow(clippy::unwrap_used, reason = "Mutex poisoning")]
+    pub fn push_dir(
+        &self,
+        data_dir_name: &str,
+        results_dir_name: &str,
+    ) -> anyhow::Result<()> {
         let mut data_dir = self.data_dir.lock().unwrap();
         let mut results_dir = self.results_dir.lock().unwrap();
 
-        data_dir.push(dir);
-        results_dir.push(dir);
+        data_dir.push(data_dir_name);
+        results_dir.push(results_dir_name);
 
         Ok(())
     }
@@ -75,7 +90,10 @@ impl RdfFusionBenchContext {
         &self,
         benchmark_name: BenchmarkName,
     ) -> anyhow::Result<BenchmarkContext<'_>> {
-        self.push_dir(&benchmark_name.dir_name())?;
+        self.push_dir(
+            &benchmark_name.data_dir_name(),
+            &benchmark_name.results_dir_name(),
+        )?;
         Ok(BenchmarkContext {
             context: self,
             benchmark_name,
