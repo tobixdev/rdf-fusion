@@ -5,6 +5,7 @@ use crate::sparql::{
 };
 use datafusion::dataframe::DataFrame;
 use datafusion::error::DataFusionError;
+use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
@@ -65,11 +66,19 @@ impl RdfFusionContext {
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
+        let size = 17179869184;
+        let runtime = RuntimeEnvBuilder::new()
+            .with_memory_limit(size, 1.0)
+            .build_arc()
+            .unwrap();
+        let config = SessionConfig::new().with_target_partitions(1);
+
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
             // TODO: For now we use only a single partition. This should be configurable.
-            .with_config(SessionConfig::new().with_target_partitions(1))
+            .with_config(config)
+            .with_runtime_env(runtime)
             .build();
 
         let session_context = SessionContext::from(state);

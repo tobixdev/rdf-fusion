@@ -44,8 +44,8 @@ jobs:
       - name: Prepare Benchmarks
         working-directory: bench
         run: |
-          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-explore --num-products 25000
-          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-business-intelligence --num-products 25000
+          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-explore --num-products 10000
+          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-business-intelligence --num-products 10000
           ../target/profiling-nonlto/rdf-fusion-bench prepare wind-farm --num-turbines 16
 
       - name: Run benchmarks

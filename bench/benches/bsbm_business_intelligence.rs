@@ -22,7 +22,7 @@ use rdf_fusion_bench::operation::SparqlRawOperation;
 use std::path::PathBuf;
 use tokio::runtime::{Builder, Runtime};
 
-fn bsbm_business_intelligence_25000(c: &mut Criterion) {
+fn bsbm_business_intelligence_10000(c: &mut Criterion) {
     let verbose = is_verbose();
     let runtime = create_runtime();
     let benchmarking_context =
@@ -30,7 +30,7 @@ fn bsbm_business_intelligence_25000(c: &mut Criterion) {
 
     // Load the benchmark data and set max query count to one.
     let benchmark =
-        BsbmBenchmark::<BusinessIntelligenceUseCase>::try_new(NumProducts::N25_000, None)
+        BsbmBenchmark::<BusinessIntelligenceUseCase>::try_new(NumProducts::N10_000, None)
             .unwrap();
     let benchmark_name = benchmark.name();
     let benchmark_context = benchmarking_context
@@ -47,7 +47,7 @@ fn bsbm_business_intelligence_25000(c: &mut Criterion) {
         .unwrap();
 
     for query_name in BsbmBusinessIntelligenceQueryName::list_queries() {
-        let benchmark_name = format!("BSBM Business Intelligence 25000 - {query_name}");
+        let benchmark_name = format!("BSBM Business Intelligence 10000 - {query_name}");
         let query =
             get_query_to_execute(benchmark.clone(), &benchmark_context, query_name);
 
@@ -77,7 +77,7 @@ fn bsbm_business_intelligence_25000(c: &mut Criterion) {
 criterion_group!(
     name = bsbm_business_intelligence;
     config = Criterion::default().sample_size(10);
-    targets =  bsbm_business_intelligence_25000
+    targets =  bsbm_business_intelligence_10000
 );
 criterion_main!(bsbm_business_intelligence);
 
