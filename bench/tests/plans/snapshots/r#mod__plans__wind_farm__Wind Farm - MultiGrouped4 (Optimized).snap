@@ -1,0 +1,159 @@
+---
+source: bench/tests/plans/wind_farm.rs
+expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+---
+Projection: ENV_PT(site_label) AS site_label, ENV_PT(wtur_label) AS wtur_label, year AS year, month AS month, day AS day, hour AS hour, minute_10 AS minute_10, ENV_PT(00000000000000000000000000000001) AS val_prod_avg, ENV_PT(00000000000000000000000000000002) AS val_dir_avg, ENV_PT(00000000000000000000000000000003) AS val_speed_avg
+  Aggregate: groupBy=[[site_label AS site_label, wtur_label AS wtur_label, ENV_PT(year) AS year, ENV_PT(month) AS month, ENV_PT(day) AS day, ENV_PT(hour) AS hour, ENV_PT(minute_10) AS minute_10]], aggr=[[AVG(ENC_TV(val_prod)) AS 00000000000000000000000000000001, AVG(ENC_TV(val_dir)) AS 00000000000000000000000000000002, AVG(ENC_TV(val_speed)) AS 00000000000000000000000000000003]]
+    Projection: val_prod, val_speed, val_dir, site_label, wtur_label, minute_10, hour, day, MONTH(__common_expr_1) AS month, YEAR(__common_expr_1) AS year
+      Projection: ENC_TV(t) AS __common_expr_1, val_prod, val_speed, val_dir, site_label, wtur_label, minute_10, HOURS(__common_expr_2) AS hour, DAY(__common_expr_2) AS day
+        Projection: __common_expr_3 AS __common_expr_2, val_prod, t, val_speed, val_dir, site_label, wtur_label, MUL(Union 9:10, FLOOR(DIV(MINUTES(__common_expr_3), Union 7:Some(00000000000000000000000000000004),36,16))) AS minute_10
+          Projection: ENC_TV(t) AS __common_expr_3, val_prod, t, val_speed, val_dir, site_label, wtur_label
+            Projection: rhs.val_prod AS val_prod, rhs.t AS t, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.site_label AS site_label, rhs.wtur_label AS wtur_label
+              Inner Join: lhs.ts_prod = rhs.ts_prod
+                SubqueryAlias: lhs
+                  QuadPattern (?ts_prod <http://www.w3.org/2000/01/rdf-schema#label> "Production"), active_graph: Union of [DefaultGraph] 
+                SubqueryAlias: rhs
+                  Projection: rhs.val_prod AS val_prod, rhs.t AS t, rhs.ts_prod AS ts_prod, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.site_label AS site_label, rhs.wtur_label AS wtur_label
+                    Inner Join: lhs.site = rhs.site
+                      SubqueryAlias: lhs
+                        QuadPattern (?site <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#Site>), active_graph: Union of [DefaultGraph] 
+                      SubqueryAlias: rhs
+                        Projection: rhs.val_prod AS val_prod, rhs.t AS t, rhs.ts_prod AS ts_prod, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.site AS site, rhs.site_label AS site_label, rhs.wtur_label AS wtur_label
+                          Inner Join: lhs.ts_dir = rhs.ts_dir
+                            SubqueryAlias: lhs
+                              QuadPattern (?ts_dir <http://www.w3.org/2000/01/rdf-schema#label> "WindDirection"), active_graph: Union of [DefaultGraph] 
+                            SubqueryAlias: rhs
+                              Projection: rhs.val_prod AS val_prod, rhs.t AS t, rhs.ts_prod AS ts_prod, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.site AS site, rhs.site_label AS site_label, rhs.wtur_label AS wtur_label, rhs.ts_dir AS ts_dir
+                                Inner Join: lhs.wtur = rhs.wtur
+                                  SubqueryAlias: lhs
+                                    QuadPattern (?wtur <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#A>), active_graph: Union of [DefaultGraph] 
+                                  SubqueryAlias: rhs
+                                    Projection: rhs.val_prod AS val_prod, rhs.t AS t, rhs.ts_prod AS ts_prod, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.site AS site, rhs.site_label AS site_label, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir
+                                      Inner Join: lhs.ts_speed = rhs.ts_speed
+                                        SubqueryAlias: lhs
+                                          QuadPattern (?ts_speed <http://www.w3.org/2000/01/rdf-schema#label> "Windspeed"), active_graph: Union of [DefaultGraph] 
+                                        SubqueryAlias: rhs
+                                          Projection: rhs.val_prod AS val_prod, rhs.t AS t, rhs.ts_prod AS ts_prod, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.ts_speed AS ts_speed, rhs.site AS site, rhs.site_label AS site_label, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir
+                                            Inner Join: lhs.gensys = rhs.gensys
+                                              SubqueryAlias: lhs
+                                                QuadPattern (?gensys <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#RA>), active_graph: Union of [DefaultGraph] 
+                                              SubqueryAlias: rhs
+                                                Projection: rhs.val_prod AS val_prod, rhs.t AS t, rhs.ts_prod AS ts_prod, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.ts_speed AS ts_speed, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir
+                                                  Inner Join: lhs.weather = rhs.weather
+                                                    SubqueryAlias: lhs
+                                                      QuadPattern (?weather <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#LE>), active_graph: Union of [DefaultGraph] 
+                                                    SubqueryAlias: rhs
+                                                      Projection: rhs.val_prod AS val_prod, rhs.t AS t, rhs.ts_prod AS ts_prod, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.ts_speed AS ts_speed, rhs.weather AS weather, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir
+                                                        Inner Join: lhs.generator = rhs.generator
+                                                          SubqueryAlias: lhs
+                                                            QuadPattern (?generator <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#GAA>), active_graph: Union of [DefaultGraph] 
+                                                          SubqueryAlias: rhs
+                                                            Projection: lhs.val_prod AS val_prod, rhs.t AS t, rhs.ts_prod AS ts_prod, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.ts_speed AS ts_speed, rhs.generator AS generator, rhs.weather AS weather, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir
+                                                              Inner Join: lhs.dp_prod = rhs.dp_prod
+                                                                SubqueryAlias: lhs
+                                                                  QuadPattern (?dp_prod <https://github.com/magbak/chrontext#hasValue> ?val_prod), active_graph: Union of [DefaultGraph] 
+                                                                SubqueryAlias: rhs
+                                                                  Projection: lhs.t AS t, rhs.ts_prod AS ts_prod, rhs.dp_prod AS dp_prod, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.ts_speed AS ts_speed, rhs.generator AS generator, rhs.weather AS weather, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir
+                                                                    Inner Join: lhs.dp_speed = rhs.dp_speed, lhs.t = rhs.t
+                                                                      SubqueryAlias: lhs
+                                                                        Filter: coalesce(EBV(GEQ(ENC_TV(t), Union 10:{value:6379744601300.0000000000000000,offset:})), Boolean(false)) AND coalesce(EBV(LEQ(ENC_TV(t), Union 10:{value:6379749281300.0000000000000000,offset:})), Boolean(false))
+                                                                          QuadPattern (?dp_speed <https://github.com/magbak/chrontext#hasTimestamp> ?t), active_graph: Union of [DefaultGraph] 
+                                                                      SubqueryAlias: rhs
+                                                                        Projection: lhs.ts_prod AS ts_prod, lhs.dp_prod AS dp_prod, rhs.dp_speed AS dp_speed, rhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.ts_speed AS ts_speed, rhs.generator AS generator, rhs.weather AS weather, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir, rhs.t AS t
+                                                                          Inner Join: lhs.dp_prod = rhs.dp_prod, lhs.ts_prod = rhs.ts_prod
+                                                                            SubqueryAlias: lhs
+                                                                              QuadPattern (?ts_prod <https://github.com/magbak/chrontext#hasDataPoint> ?dp_prod), active_graph: Union of [DefaultGraph] 
+                                                                            SubqueryAlias: rhs
+                                                                              Projection: lhs.dp_speed AS dp_speed, lhs.val_speed AS val_speed, rhs.val_dir AS val_dir, rhs.ts_speed AS ts_speed, rhs.generator AS generator, rhs.ts_prod AS ts_prod, rhs.weather AS weather, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                Inner Join: lhs.dp_speed = rhs.dp_speed
+                                                                                  SubqueryAlias: lhs
+                                                                                    QuadPattern (?dp_speed <https://github.com/magbak/chrontext#hasValue> ?val_speed), active_graph: Union of [DefaultGraph] 
+                                                                                  SubqueryAlias: rhs
+                                                                                    Projection: lhs.val_dir AS val_dir, rhs.ts_speed AS ts_speed, rhs.dp_speed AS dp_speed, rhs.generator AS generator, rhs.ts_prod AS ts_prod, rhs.weather AS weather, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                      Inner Join: lhs.dp_dir = rhs.dp_dir
+                                                                                        SubqueryAlias: lhs
+                                                                                          QuadPattern (?dp_dir <https://github.com/magbak/chrontext#hasValue> ?val_dir), active_graph: Union of [DefaultGraph] 
+                                                                                        SubqueryAlias: rhs
+                                                                                          Projection: lhs.ts_speed AS ts_speed, lhs.dp_speed AS dp_speed, rhs.generator AS generator, rhs.ts_prod AS ts_prod, rhs.weather AS weather, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                            Inner Join: lhs.ts_speed = rhs.ts_speed
+                                                                                              SubqueryAlias: lhs
+                                                                                                QuadPattern (?ts_speed <https://github.com/magbak/chrontext#hasDataPoint> ?dp_speed), active_graph: Union of [DefaultGraph] 
+                                                                                              SubqueryAlias: rhs
+                                                                                                Projection: lhs.generator AS generator, lhs.ts_prod AS ts_prod, rhs.weather AS weather, rhs.ts_speed AS ts_speed, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                  Inner Join: lhs.generator = rhs.generator
+                                                                                                    SubqueryAlias: lhs
+                                                                                                      QuadPattern (?generator <https://github.com/magbak/chrontext#hasTimeseries> ?ts_prod), active_graph: Union of [DefaultGraph] 
+                                                                                                    SubqueryAlias: rhs
+                                                                                                      Projection: lhs.weather AS weather, lhs.ts_speed AS ts_speed, rhs.generator AS generator, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                        Inner Join: lhs.weather = rhs.weather
+                                                                                                          SubqueryAlias: lhs
+                                                                                                            QuadPattern (?weather <https://github.com/magbak/chrontext#hasTimeseries> ?ts_speed), active_graph: Union of [DefaultGraph] 
+                                                                                                          SubqueryAlias: rhs
+                                                                                                            Projection: lhs.generator AS generator, rhs.site AS site, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.weather AS weather, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                              Inner Join: lhs.generator_asp = rhs.generator_asp
+                                                                                                                SubqueryAlias: lhs
+                                                                                                                  QuadPattern (?generator <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?generator_asp), active_graph: Union of [DefaultGraph] 
+                                                                                                                SubqueryAlias: rhs
+                                                                                                                  Projection: lhs.site AS site, lhs.site_label AS site_label, rhs.gensys AS gensys, rhs.generator_asp AS generator_asp, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.weather AS weather, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                    Inner Join: lhs.site = rhs.site
+                                                                                                                      SubqueryAlias: lhs
+                                                                                                                        QuadPattern (?site <http://www.w3.org/2000/01/rdf-schema#label> ?site_label), active_graph: Union of [DefaultGraph] 
+                                                                                                                      SubqueryAlias: rhs
+                                                                                                                        Projection: lhs.gensys AS gensys, lhs.generator_asp AS generator_asp, rhs.site AS site, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.weather AS weather, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                          Inner Join: lhs.gensys = rhs.gensys
+                                                                                                                            SubqueryAlias: lhs
+                                                                                                                              QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?generator_asp), active_graph: Union of [DefaultGraph] 
+                                                                                                                            SubqueryAlias: rhs
+                                                                                                                              Projection: lhs.site AS site, rhs.gensys AS gensys, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.weather AS weather, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                Inner Join: lhs.wtur_asp = rhs.wtur_asp
+                                                                                                                                  SubqueryAlias: lhs
+                                                                                                                                    QuadPattern (?site <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?wtur_asp), active_graph: Union of [DefaultGraph] 
+                                                                                                                                  SubqueryAlias: rhs
+                                                                                                                                    Projection: lhs.gensys AS gensys, rhs.wtur_asp AS wtur_asp, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.weather AS weather, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                      Inner Join: lhs.gensys_asp = rhs.gensys_asp
+                                                                                                                                        SubqueryAlias: lhs
+                                                                                                                                          QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?gensys_asp), active_graph: Union of [DefaultGraph] 
+                                                                                                                                        SubqueryAlias: rhs
+                                                                                                                                          Projection: lhs.wtur_asp AS wtur_asp, lhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.gensys_asp AS gensys_asp, rhs.weather AS weather, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                            Inner Join: lhs.wtur_asp = rhs.wtur_asp
+                                                                                                                                              SubqueryAlias: lhs
+                                                                                                                                                QuadPattern (?wtur_asp <http://www.w3.org/2000/01/rdf-schema#label> ?wtur_label), active_graph: Union of [DefaultGraph] 
+                                                                                                                                              SubqueryAlias: rhs
+                                                                                                                                                Projection: lhs.wtur AS wtur, lhs.gensys_asp AS gensys_asp, rhs.wtur_asp AS wtur_asp, rhs.weather AS weather, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                                  Inner Join: lhs.wtur = rhs.wtur
+                                                                                                                                                    SubqueryAlias: lhs
+                                                                                                                                                      QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?gensys_asp), active_graph: Union of [DefaultGraph] 
+                                                                                                                                                    SubqueryAlias: rhs
+                                                                                                                                                      Projection: lhs.wtur AS wtur, lhs.wtur_asp AS wtur_asp, rhs.weather AS weather, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                                        Inner Join: lhs.wtur = rhs.wtur
+                                                                                                                                                          SubqueryAlias: lhs
+                                                                                                                                                            QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?wtur_asp), active_graph: Union of [DefaultGraph] 
+                                                                                                                                                          SubqueryAlias: rhs
+                                                                                                                                                            Projection: lhs.wtur AS wtur, rhs.weather AS weather, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                                              Inner Join: lhs.weather_asp = rhs.weather_asp
+                                                                                                                                                                SubqueryAlias: lhs
+                                                                                                                                                                  QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?weather_asp), active_graph: Union of [DefaultGraph] 
+                                                                                                                                                                SubqueryAlias: rhs
+                                                                                                                                                                  Projection: lhs.weather AS weather, lhs.weather_asp AS weather_asp, rhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                                                    Inner Join: lhs.weather = rhs.weather
+                                                                                                                                                                      SubqueryAlias: lhs
+                                                                                                                                                                        QuadPattern (?weather <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?weather_asp), active_graph: Union of [DefaultGraph] 
+                                                                                                                                                                      SubqueryAlias: rhs
+                                                                                                                                                                        Projection: lhs.weather AS weather, lhs.ts_dir AS ts_dir, rhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                                                          Inner Join: lhs.ts_dir = rhs.ts_dir
+                                                                                                                                                                            SubqueryAlias: lhs
+                                                                                                                                                                              QuadPattern (?weather <https://github.com/magbak/chrontext#hasTimeseries> ?ts_dir), active_graph: Union of [DefaultGraph] 
+                                                                                                                                                                            SubqueryAlias: rhs
+                                                                                                                                                                              Projection: lhs.ts_dir AS ts_dir, lhs.dp_dir AS dp_dir, rhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                                                                Inner Join: lhs.dp_dir = rhs.dp_dir
+                                                                                                                                                                                  SubqueryAlias: lhs
+                                                                                                                                                                                    QuadPattern (?ts_dir <https://github.com/magbak/chrontext#hasDataPoint> ?dp_dir), active_graph: Union of [DefaultGraph] 
+                                                                                                                                                                                  SubqueryAlias: rhs
+                                                                                                                                                                                    Projection: lhs.dp_dir AS dp_dir, lhs.t AS t, rhs.dp_prod AS dp_prod
+                                                                                                                                                                                      Inner Join: lhs.t = rhs.t
+                                                                                                                                                                                        SubqueryAlias: lhs
+                                                                                                                                                                                          Filter: coalesce(EBV(GEQ(ENC_TV(t), Union 10:{value:6379744601300.0000000000000000,offset:})), Boolean(false)) AND coalesce(EBV(LEQ(ENC_TV(t), Union 10:{value:6379749281300.0000000000000000,offset:})), Boolean(false))
+                                                                                                                                                                                            QuadPattern (?dp_dir <https://github.com/magbak/chrontext#hasTimestamp> ?t), active_graph: Union of [DefaultGraph] 
+                                                                                                                                                                                        SubqueryAlias: rhs
+                                                                                                                                                                                          Filter: coalesce(EBV(GEQ(ENC_TV(t), Union 10:{value:6379744601300.0000000000000000,offset:})), Boolean(false)) AND coalesce(EBV(LEQ(ENC_TV(t), Union 10:{value:6379749281300.0000000000000000,offset:})), Boolean(false))
+                                                                                                                                                                                            QuadPattern (?dp_prod <https://github.com/magbak/chrontext#hasTimestamp> ?t), active_graph: Union of [DefaultGraph]

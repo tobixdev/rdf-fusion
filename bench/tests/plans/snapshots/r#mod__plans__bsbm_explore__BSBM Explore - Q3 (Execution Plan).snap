@@ -1,0 +1,27 @@
+---
+source: bench/tests/plans/bsbm_explore.rs
+expression: canonicalize_uuids(&string)
+---
+ProjectionExec: expr=[ENV_PT(product@0) as product, ENV_PT(label@1) as label]
+  SortExec: TopK(fetch=10), expr=[ENV_SORT(ENV_PT(label@1)) ASC], preserve_partitioning=[false]
+    CoalesceBatchesExec: target_batch_size=8192
+      FilterExec: NOT EBV(ENC_TV(BOUND(testVar@2))), projection=[product@0, label@1]
+        CoalesceBatchesExec: target_batch_size=8192
+          HashJoinExec: mode=CollectLeft, join_type=Left, on=[(product@0, product@0)], projection=[product@0, label@1, testVar@3]
+            CoalesceBatchesExec: target_batch_size=8192
+              HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, label@2]
+                QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature541>
+                CoalesceBatchesExec: target_batch_size=8192
+                  HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, label@2]
+                    QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType87>
+                    CoalesceBatchesExec: target_batch_size=8192
+                      HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], filter=coalesce(coalesce(EBV(GT(ENC_TV(p1@0), 9:156)), false) AND coalesce(EBV(LT(ENC_TV(p3@1), 9:152)), false), false), projection=[product@0, label@3]
+                        QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?p1
+                        CoalesceBatchesExec: target_batch_size=8192
+                          HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, label@1, p3@3]
+                            QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?label
+                            QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric3>, object=?p3
+            CoalesceBatchesExec: target_batch_size=8192
+              HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, testVar@2]
+                QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature553>
+                QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?testVar

@@ -1,0 +1,27 @@
+---
+source: bench/tests/plans/bsbm_business_intelligence.rs
+expression: canonicalize_uuids(&string)
+---
+ProjectionExec: expr=[ENV_PT(productType@0) as productType, ENV_PT(reviewCount@1) as reviewCount]
+  SortExec: TopK(fetch=10), expr=[ENV_SORT(reviewCount@1) DESC, ENV_SORT(ENV_PT(productType@0)) ASC], preserve_partitioning=[false]
+    ProjectionExec: expr=[productType@0 as productType, enc_int64_as_rdf_term(00000000000000000000000000000001@1) as reviewCount]
+      AggregateExec: mode=Single, gby=[productType@0 as productType], aggr=[00000000000000000000000000000001]
+        CoalesceBatchesExec: target_batch_size=8192
+          HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(reviewer@0, reviewer@2)], projection=[productType@1, review@2]
+            QuadPatternExec: n_graphs=1, subject=?reviewer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=<http://downlode.org/rdf/iso-3166/countries#US>
+            CoalesceBatchesExec: target_batch_size=8192
+              HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(productType@0, productType@0)], projection=[productType@0, review@2, reviewer@3]
+                QuadPatternExec: n_graphs=1, subject=?productType, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/ProductType>
+                CoalesceBatchesExec: target_batch_size=8192
+                  HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(producer@0, producer@1)], projection=[productType@1, review@3, reviewer@4]
+                    QuadPatternExec: n_graphs=1, subject=?producer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=<http://downlode.org/rdf/iso-3166/countries#AT>
+                    CoalesceBatchesExec: target_batch_size=8192
+                      HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[productType@1, producer@3, review@4, reviewer@5]
+                        QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=?productType
+                        CoalesceBatchesExec: target_batch_size=8192
+                          HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, producer@1, review@2, reviewer@4]
+                            QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=?producer
+                            CoalesceBatchesExec: target_batch_size=8192
+                              HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[review@0, product@1, reviewer@3]
+                                QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product
+                                QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer

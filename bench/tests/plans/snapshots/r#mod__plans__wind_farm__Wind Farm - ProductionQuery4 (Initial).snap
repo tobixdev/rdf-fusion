@@ -1,0 +1,39 @@
+---
+source: bench/tests/plans/wind_farm.rs
+expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
+---
+Projection: ENV_PT(site_label) AS site_label, ENV_PT(wtur_label) AS wtur_label, ENV_PT(t) AS t, ENV_PT(val) AS val
+  Projection: site_label, wtur_label, t, val
+    SparqlJoin: Inner 
+      SparqlJoin: Inner 
+        SparqlJoin: Inner 
+          SparqlJoin: Inner 
+            SparqlJoin: Inner 
+              SparqlJoin: Inner 
+                SparqlJoin: Inner 
+                  SparqlJoin: Inner 
+                    SparqlJoin: Inner 
+                      SparqlJoin: Inner 
+                        SparqlJoin: Inner 
+                          SparqlJoin: Inner 
+                            SparqlJoin: Inner 
+                              SparqlJoin: Inner 
+                                SparqlJoin: Inner 
+                                  SparqlJoin: Inner 
+                                    QuadPattern (?site <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#Site>), active_graph: Union of [DefaultGraph] 
+                                    QuadPattern (?site <http://www.w3.org/2000/01/rdf-schema#label> ?site_label), active_graph: Union of [DefaultGraph] 
+                                  QuadPattern (?site <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?wtur_asp), active_graph: Union of [DefaultGraph] 
+                                QuadPattern (?wtur_asp <http://www.w3.org/2000/01/rdf-schema#label> ?wtur_label), active_graph: Union of [DefaultGraph] 
+                              QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?wtur_asp), active_graph: Union of [DefaultGraph] 
+                            QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?gensys_asp), active_graph: Union of [DefaultGraph] 
+                          QuadPattern (?wtur <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#A>), active_graph: Union of [DefaultGraph] 
+                        QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?gensys_asp), active_graph: Union of [DefaultGraph] 
+                      QuadPattern (?gensys <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#RA>), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?generator_asp), active_graph: Union of [DefaultGraph] 
+                  QuadPattern (?generator <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?generator_asp), active_graph: Union of [DefaultGraph] 
+                QuadPattern (?generator <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#GAA>), active_graph: Union of [DefaultGraph] 
+              QuadPattern (?generator <https://github.com/magbak/chrontext#hasTimeseries> ?ts), active_graph: Union of [DefaultGraph] 
+            QuadPattern (?ts <http://www.w3.org/2000/01/rdf-schema#label> "Production"), active_graph: Union of [DefaultGraph] 
+          QuadPattern (?ts <https://github.com/magbak/chrontext#hasDataPoint> ?dp), active_graph: Union of [DefaultGraph] 
+        QuadPattern (?dp <https://github.com/magbak/chrontext#hasValue> ?val), active_graph: Union of [DefaultGraph] 
+      QuadPattern (?dp <https://github.com/magbak/chrontext#hasTimestamp> ?t), active_graph: Union of [DefaultGraph]

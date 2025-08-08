@@ -1,0 +1,12 @@
+---
+source: bench/tests/plans/bsbm_explore.rs
+expression: canonicalize_uuids(&string)
+---
+ProjectionExec: expr=[ENV_PT(x@0) as x, ENV_PT(00000000000000000000000000000001@2) as 00000000000000000000000000000001, ENV_PT(00000000000000000000000000000002@1) as 00000000000000000000000000000002]
+  CoalesceBatchesExec: target_batch_size=8192
+    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(x@0, x@0)], projection=[x@0, 00000000000000000000000000000002@1, 00000000000000000000000000000001@3]
+      QuadPatternExec: n_graphs=1, subject=?x, predicate=<http://www.w3.org/2000/01/rdf-schema#comment>, object=_:00000000000000000000000000000002
+      CoalesceBatchesExec: target_batch_size=8192
+        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(x@0, x@0)], projection=[x@0, 00000000000000000000000000000001@1]
+          QuadPatternExec: n_graphs=1, subject=?x, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=_:00000000000000000000000000000001
+          QuadPatternExec: n_graphs=1, subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromRatingSite1/Review4194>, predicate=<http://purl.org/stuff/rev#reviewer>, object=?x

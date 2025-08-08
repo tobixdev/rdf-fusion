@@ -12,7 +12,7 @@ configure-toolchain-ci: configure-toolchain
     cargo install cargo-codspeed
 
 # Run all recipies executed by the CI
-ci: lint test rustdoc
+ci: prepare-bench-tests lint test rustdoc
 
 # Run all lints (e.g., formatting, clippy)
 lint:
@@ -27,6 +27,11 @@ test:
 # Build and check documentation
 rustdoc:
     RUSTDOCFLAGS="-D warnings" cargo doc
+
+[working-directory: 'bench']
+prepare-bench-tests:
+    cargo run --profile test prepare bsbm-explore --num-products 1000 # BSBM use cases share the data
+    cargo run --profile test prepare wind-farm --num-turbines 4
 
 [working-directory: 'bench']
 prepare-benches:

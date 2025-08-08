@@ -1,8 +1,8 @@
+use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
-use crate::RdfFusionExprBuilderContext;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_err, Column, ExprSchema, JoinType, NullEquality};
+use datafusion::common::{Column, ExprSchema, JoinType, NullEquality, plan_err};
 use datafusion::logical_expr::{Expr, ExprSchemable, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};

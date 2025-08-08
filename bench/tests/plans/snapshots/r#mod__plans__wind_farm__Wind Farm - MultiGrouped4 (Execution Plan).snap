@@ -1,0 +1,103 @@
+---
+source: bench/tests/plans/wind_farm.rs
+expression: canonicalize_uuids(&string)
+---
+ProjectionExec: expr=[ENV_PT(site_label@0) as site_label, ENV_PT(wtur_label@1) as wtur_label, year@2 as year, month@3 as month, day@4 as day, hour@5 as hour, minute_10@6 as minute_10, ENV_PT(00000000000000000000000000000001@7) as val_prod_avg, ENV_PT(00000000000000000000000000000002@8) as val_dir_avg, ENV_PT(00000000000000000000000000000003@9) as val_speed_avg]
+  AggregateExec: mode=Single, gby=[site_label@3 as site_label, wtur_label@4 as wtur_label, ENV_PT(year@9) as year, ENV_PT(month@8) as month, ENV_PT(day@7) as day, ENV_PT(hour@6) as hour, ENV_PT(minute_10@5) as minute_10], aggr=[00000000000000000000000000000001, 00000000000000000000000000000002, 00000000000000000000000000000003]
+    ProjectionExec: expr=[val_prod@1 as val_prod, val_speed@2 as val_speed, val_dir@3 as val_dir, site_label@4 as site_label, wtur_label@5 as wtur_label, minute_10@6 as minute_10, hour@7 as hour, day@8 as day, MONTH(__common_expr_1@0) as month, YEAR(__common_expr_1@0) as year]
+      ProjectionExec: expr=[ENC_TV(t@2) as __common_expr_1, val_prod@1 as val_prod, val_speed@3 as val_speed, val_dir@4 as val_dir, site_label@5 as site_label, wtur_label@6 as wtur_label, MUL(9:10, FLOOR(DIV(MINUTES(__common_expr_3@0), 7:Some(00000000000000000000000000000004),36,16))) as minute_10, HOURS(__common_expr_3@0) as hour, DAY(__common_expr_3@0) as day]
+        ProjectionExec: expr=[ENC_TV(t@1) as __common_expr_3, val_prod@0 as val_prod, t@1 as t, val_speed@2 as val_speed, val_dir@3 as val_dir, site_label@4 as site_label, wtur_label@5 as wtur_label]
+          CoalesceBatchesExec: target_batch_size=8192
+            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_prod@0, ts_prod@2)], projection=[val_prod@1, t@2, val_speed@4, val_dir@5, site_label@6, wtur_label@7]
+              QuadPatternExec: n_graphs=1, subject=?ts_prod, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="Production"
+              CoalesceBatchesExec: target_batch_size=8192
+                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(site@0, site@5)], projection=[val_prod@1, t@2, ts_prod@3, val_speed@4, val_dir@5, site_label@7, wtur_label@8]
+                  QuadPatternExec: n_graphs=1, subject=?site, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#Site>
+                  CoalesceBatchesExec: target_batch_size=8192
+                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_dir@0, ts_dir@8)], projection=[val_prod@1, t@2, ts_prod@3, val_speed@4, val_dir@5, site@6, site_label@7, wtur_label@8]
+                      QuadPatternExec: n_graphs=1, subject=?ts_dir, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="WindDirection"
+                      CoalesceBatchesExec: target_batch_size=8192
+                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@0, wtur@8)], projection=[val_prod@1, t@2, ts_prod@3, val_speed@4, val_dir@5, site@6, site_label@7, wtur_label@8, ts_dir@10]
+                          QuadPatternExec: n_graphs=1, subject=?wtur, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#A>
+                          CoalesceBatchesExec: target_batch_size=8192
+                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_speed@0, ts_speed@5)], projection=[val_prod@1, t@2, ts_prod@3, val_speed@4, val_dir@5, site@7, site_label@8, wtur_label@9, wtur@10, ts_dir@11]
+                              QuadPatternExec: n_graphs=1, subject=?ts_speed, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="Windspeed"
+                              CoalesceBatchesExec: target_batch_size=8192
+                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(gensys@0, gensys@8)], projection=[val_prod@1, t@2, ts_prod@3, val_speed@4, val_dir@5, ts_speed@6, site@7, site_label@8, wtur_label@10, wtur@11, ts_dir@12]
+                                  QuadPatternExec: n_graphs=1, subject=?gensys, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#RA>
+                                  CoalesceBatchesExec: target_batch_size=8192
+                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(weather@0, weather@6)], projection=[val_prod@1, t@2, ts_prod@3, val_speed@4, val_dir@5, ts_speed@6, site@8, site_label@9, gensys@10, wtur_label@11, wtur@12, ts_dir@13]
+                                      QuadPatternExec: n_graphs=1, subject=?weather, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#LE>
+                                      CoalesceBatchesExec: target_batch_size=8192
+                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(generator@0, generator@6)], projection=[val_prod@1, t@2, ts_prod@3, val_speed@4, val_dir@5, ts_speed@6, weather@8, site@9, site_label@10, gensys@11, wtur_label@12, wtur@13, ts_dir@14]
+                                          QuadPatternExec: n_graphs=1, subject=?generator, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#GAA>
+                                          CoalesceBatchesExec: target_batch_size=8192
+                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_prod@0, dp_prod@2)], projection=[val_prod@1, t@2, ts_prod@3, val_speed@5, val_dir@6, ts_speed@7, generator@8, weather@9, site@10, site_label@11, gensys@12, wtur_label@13, wtur@14, ts_dir@15]
+                                              QuadPatternExec: n_graphs=1, subject=?dp_prod, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val_prod
+                                              CoalesceBatchesExec: target_batch_size=8192
+                                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_speed@0, dp_speed@2), (t@1, t@14)], projection=[t@1, ts_prod@2, dp_prod@3, val_speed@5, val_dir@6, ts_speed@7, generator@8, weather@9, site@10, site_label@11, gensys@12, wtur_label@13, wtur@14, ts_dir@15]
+                                                  CoalesceBatchesExec: target_batch_size=8192
+                                                    FilterExec: coalesce(EBV(GEQ(ENC_TV(t@1), 10:{value:6379744601300.0000000000000000,offset:})), false) AND coalesce(EBV(LEQ(ENC_TV(t@1), 10:{value:6379749281300.0000000000000000,offset:})), false)
+                                                      QuadPatternExec: n_graphs=1, subject=?dp_speed, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t
+                                                  CoalesceBatchesExec: target_batch_size=8192
+                                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_prod@1, dp_prod@14), (ts_prod@0, ts_prod@5)], projection=[ts_prod@0, dp_prod@1, dp_speed@2, val_speed@3, val_dir@4, ts_speed@5, generator@6, weather@8, site@9, site_label@10, gensys@11, wtur_label@12, wtur@13, ts_dir@14, t@15]
+                                                      QuadPatternExec: n_graphs=1, subject=?ts_prod, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp_prod
+                                                      CoalesceBatchesExec: target_batch_size=8192
+                                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_speed@0, dp_speed@2)], projection=[dp_speed@0, val_speed@1, val_dir@2, ts_speed@3, generator@5, ts_prod@6, weather@7, site@8, site_label@9, gensys@10, wtur_label@11, wtur@12, ts_dir@13, t@14, dp_prod@15]
+                                                          QuadPatternExec: n_graphs=1, subject=?dp_speed, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val_speed
+                                                          CoalesceBatchesExec: target_batch_size=8192
+                                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_dir@0, dp_dir@11)], projection=[val_dir@1, ts_speed@2, dp_speed@3, generator@4, ts_prod@5, weather@6, site@7, site_label@8, gensys@9, wtur_label@10, wtur@11, ts_dir@12, t@14, dp_prod@15]
+                                                              QuadPatternExec: n_graphs=1, subject=?dp_dir, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val_dir
+                                                              CoalesceBatchesExec: target_batch_size=8192
+                                                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_speed@0, ts_speed@3)], projection=[ts_speed@0, dp_speed@1, generator@2, ts_prod@3, weather@4, site@6, site_label@7, gensys@8, wtur_label@9, wtur@10, ts_dir@11, dp_dir@12, t@13, dp_prod@14]
+                                                                  QuadPatternExec: n_graphs=1, subject=?ts_speed, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp_speed
+                                                                  CoalesceBatchesExec: target_batch_size=8192
+                                                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(generator@0, generator@2)], projection=[generator@0, ts_prod@1, weather@2, ts_speed@3, site@5, site_label@6, gensys@7, wtur_label@8, wtur@9, ts_dir@10, dp_dir@11, t@12, dp_prod@13]
+                                                                      QuadPatternExec: n_graphs=1, subject=?generator, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts_prod
+                                                                      CoalesceBatchesExec: target_batch_size=8192
+                                                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(weather@0, weather@6)], projection=[weather@0, ts_speed@1, generator@2, site@3, site_label@4, gensys@5, wtur_label@6, wtur@7, ts_dir@9, dp_dir@10, t@11, dp_prod@12]
+                                                                          QuadPatternExec: n_graphs=1, subject=?weather, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts_speed
+                                                                          CoalesceBatchesExec: target_batch_size=8192
+                                                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(generator_asp@1, generator_asp@3)], projection=[generator@0, site@2, site_label@3, gensys@4, wtur_label@6, wtur@7, weather@8, ts_dir@9, dp_dir@10, t@11, dp_prod@12]
+                                                                              QuadPatternExec: n_graphs=1, subject=?generator, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?generator_asp
+                                                                              CoalesceBatchesExec: target_batch_size=8192
+                                                                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(site@0, site@2)], projection=[site@0, site_label@1, gensys@2, generator_asp@3, wtur_label@5, wtur@6, weather@7, ts_dir@8, dp_dir@9, t@10, dp_prod@11]
+                                                                                  QuadPatternExec: n_graphs=1, subject=?site, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?site_label
+                                                                                  CoalesceBatchesExec: target_batch_size=8192
+                                                                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(gensys@0, gensys@1)], projection=[gensys@0, generator_asp@1, site@2, wtur_label@4, wtur@5, weather@6, ts_dir@7, dp_dir@8, t@9, dp_prod@10]
+                                                                                      QuadPatternExec: n_graphs=1, subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?generator_asp
+                                                                                      CoalesceBatchesExec: target_batch_size=8192
+                                                                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur_asp@1, wtur_asp@1)], projection=[site@0, gensys@2, wtur_label@4, wtur@5, weather@6, ts_dir@7, dp_dir@8, t@9, dp_prod@10]
+                                                                                          QuadPatternExec: n_graphs=1, subject=?site, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?wtur_asp
+                                                                                          CoalesceBatchesExec: target_batch_size=8192
+                                                                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(gensys_asp@1, gensys_asp@3)], projection=[gensys@0, wtur_asp@2, wtur_label@3, wtur@4, weather@6, ts_dir@7, dp_dir@8, t@9, dp_prod@10]
+                                                                                              QuadPatternExec: n_graphs=1, subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?gensys_asp
+                                                                                              CoalesceBatchesExec: target_batch_size=8192
+                                                                                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur_asp@0, wtur_asp@2)], projection=[wtur_asp@0, wtur_label@1, wtur@2, gensys_asp@3, weather@5, ts_dir@6, dp_dir@7, t@8, dp_prod@9]
+                                                                                                  QuadPatternExec: n_graphs=1, subject=?wtur_asp, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?wtur_label
+                                                                                                  CoalesceBatchesExec: target_batch_size=8192
+                                                                                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@0, wtur@0)], projection=[wtur@0, gensys_asp@1, wtur_asp@3, weather@4, ts_dir@5, dp_dir@6, t@7, dp_prod@8]
+                                                                                                      QuadPatternExec: n_graphs=1, subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?gensys_asp
+                                                                                                      CoalesceBatchesExec: target_batch_size=8192
+                                                                                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@0, wtur@0)], projection=[wtur@0, wtur_asp@1, weather@3, ts_dir@4, dp_dir@5, t@6, dp_prod@7]
+                                                                                                          QuadPatternExec: n_graphs=1, subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?wtur_asp
+                                                                                                          CoalesceBatchesExec: target_batch_size=8192
+                                                                                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(weather_asp@1, weather_asp@1)], projection=[wtur@0, weather@2, ts_dir@4, dp_dir@5, t@6, dp_prod@7]
+                                                                                                              QuadPatternExec: n_graphs=1, subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?weather_asp
+                                                                                                              CoalesceBatchesExec: target_batch_size=8192
+                                                                                                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(weather@0, weather@0)], projection=[weather@0, weather_asp@1, ts_dir@3, dp_dir@4, t@5, dp_prod@6]
+                                                                                                                  QuadPatternExec: n_graphs=1, subject=?weather, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?weather_asp
+                                                                                                                  CoalesceBatchesExec: target_batch_size=8192
+                                                                                                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_dir@1, ts_dir@0)], projection=[weather@0, ts_dir@1, dp_dir@3, t@4, dp_prod@5]
+                                                                                                                      QuadPatternExec: n_graphs=1, subject=?weather, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts_dir
+                                                                                                                      CoalesceBatchesExec: target_batch_size=8192
+                                                                                                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_dir@1, dp_dir@0)], projection=[ts_dir@0, dp_dir@1, t@3, dp_prod@4]
+                                                                                                                          QuadPatternExec: n_graphs=1, subject=?ts_dir, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp_dir
+                                                                                                                          CoalesceBatchesExec: target_batch_size=8192
+                                                                                                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(t@1, t@1)], projection=[dp_dir@0, t@1, dp_prod@2]
+                                                                                                                              CoalesceBatchesExec: target_batch_size=8192
+                                                                                                                                FilterExec: coalesce(EBV(GEQ(ENC_TV(t@1), 10:{value:6379744601300.0000000000000000,offset:})), false) AND coalesce(EBV(LEQ(ENC_TV(t@1), 10:{value:6379749281300.0000000000000000,offset:})), false)
+                                                                                                                                  QuadPatternExec: n_graphs=1, subject=?dp_dir, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t
+                                                                                                                              CoalesceBatchesExec: target_batch_size=8192
+                                                                                                                                FilterExec: coalesce(EBV(GEQ(ENC_TV(t@1), 10:{value:6379744601300.0000000000000000,offset:})), false) AND coalesce(EBV(LEQ(ENC_TV(t@1), 10:{value:6379749281300.0000000000000000,offset:})), false)
+                                                                                                                                  QuadPatternExec: n_graphs=1, subject=?dp_prod, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t

@@ -9,8 +9,7 @@ use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use rdf_fusion::QueryOptions;
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::windfarm::{
-    NumberOfWindTurbines, WindFarmBenchmark, WindFarmQueryName,
-    get_wind_farm_raw_sparql_operation,
+    NumTurbines, WindFarmBenchmark, WindFarmQueryName, get_wind_farm_raw_sparql_operation,
 };
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
@@ -23,7 +22,7 @@ fn wind_farm_16(c: &mut Criterion) {
     let benchmarking_context =
         RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
 
-    let benchmark = WindFarmBenchmark::new(NumberOfWindTurbines::N16);
+    let benchmark = WindFarmBenchmark::new(NumTurbines::N16);
     let benchmark_name = benchmark.name();
     let benchmark_context = benchmarking_context
         .create_benchmark_context(benchmark_name)

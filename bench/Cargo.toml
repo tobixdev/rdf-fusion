@@ -36,6 +36,8 @@ zip-extract.workspace = true
 
 [dev-dependencies]
 codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
+insta.workspace = true
+regex.workspace = true
 
 [lints]
 workspace = true
