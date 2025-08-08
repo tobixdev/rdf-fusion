@@ -1,0 +1,44 @@
+---
+source: bench/tests/plans/bsbm_explore.rs
+expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+---
+Projection: ENV_PT(first_value(offer) ORDER BY [ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST]) AS offer, ENV_PT(first_value(price) ORDER BY [ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST]) AS price
+  Sort: ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST, fetch=10
+    Aggregate: groupBy=[[__common_expr_1 AS ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))), offer, price]], aggr=[[first_value(offer) ORDER BY [__common_expr_1 AS ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST] AS first_value(offer) ORDER BY [ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST], first_value(price) ORDER BY [__common_expr_1 AS ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST] AS first_value(price) ORDER BY [ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST]]]
+      Projection: ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) AS __common_expr_1, offer, price
+        Sort: ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST
+          Projection: lhs.offer AS offer, lhs.price AS price
+            Inner Join: lhs.offer = rhs.offer
+              SubqueryAlias: lhs
+                Projection: lhs.offer AS offer, rhs.price AS price
+                  Inner Join: lhs.offer = rhs.offer
+                    SubqueryAlias: lhs
+                      Projection: lhs.offer AS offer
+                        Inner Join: lhs.offer = rhs.offer
+                          SubqueryAlias: lhs
+                            Projection: lhs.offer AS offer
+                              Inner Join: lhs.offer = rhs.offer, lhs.vendor = rhs.vendor
+                                SubqueryAlias: lhs
+                                  Projection: lhs.offer AS offer, lhs.vendor AS vendor
+                                    Inner Join: lhs.vendor = rhs.vendor
+                                      SubqueryAlias: lhs
+                                        Projection: lhs.offer AS offer, rhs.vendor AS vendor
+                                          Inner Join: lhs.offer = rhs.offer
+                                            SubqueryAlias: lhs
+                                              QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer7/Product296>), active_graph: Union of [DefaultGraph] 
+                                            SubqueryAlias: rhs
+                                              QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
+                                      SubqueryAlias: rhs
+                                        QuadPattern (?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#US>), active_graph: Union of [DefaultGraph] 
+                                SubqueryAlias: rhs
+                                  QuadPattern (?offer <http://purl.org/dc/elements/1.1/publisher> ?vendor), active_graph: Union of [DefaultGraph] 
+                          SubqueryAlias: rhs
+                            Projection: offer
+                              Filter: EBV(LEQ(ENC_TV(deliveryDays), Union 9:3))
+                                QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays> ?deliveryDays), active_graph: Union of [DefaultGraph] 
+                    SubqueryAlias: rhs
+                      QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price), active_graph: Union of [DefaultGraph] 
+              SubqueryAlias: rhs
+                Projection: offer
+                  Filter: EBV(GT(ENC_TV(date), Union 10:{value:6334951680000.0000000000000000,offset:}))
+                    QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo> ?date), active_graph: Union of [DefaultGraph]

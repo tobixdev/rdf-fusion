@@ -1,0 +1,26 @@
+---
+source: bench/tests/plans/bsbm_business_intelligence.rs
+expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
+---
+Projection: ENV_PT(product) AS product
+  Projection: product
+    Filter: EBV(BOOLEAN_AS_TERM(NOT EXISTS (<subquery>)))
+      Subquery:
+        Filter: outer_ref(product) = __inner__product
+          Projection: offer AS __inner__offer, product AS __inner__product, vendor AS __inner__vendor, country AS __inner__country
+            Filter: EBV(EQ(ENC_TV(country), ENC_TV(Struct({term_type:0,value:http://downlode.org/rdf/iso-3166/countries#US,data_type:,language_tag:}))))
+              SparqlJoin: Inner 
+                SparqlJoin: Inner 
+                  QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product), active_graph: Union of [DefaultGraph] 
+                  QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
+                QuadPattern (?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country), active_graph: Union of [DefaultGraph] 
+      Limit: skip=0, fetch=1000
+        Projection: product
+          Sort: ENV_SORT(offerCount) DESC NULLS FIRST
+            Projection: product, offerCount
+              Extend: ?offerCount 00000000000000000000000000000001
+                Projection: product, enc_int64_as_rdf_term(00000000000000000000000000000001) AS 00000000000000000000000000000001
+                  Aggregate: groupBy=[[product AS product]], aggr=[[count(offer) AS 00000000000000000000000000000001]]
+                    SparqlJoin: Inner 
+                      QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType1>), active_graph: Union of [DefaultGraph] 
+                      QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product), active_graph: Union of [DefaultGraph]

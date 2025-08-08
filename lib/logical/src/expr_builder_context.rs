@@ -241,8 +241,11 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             exists_pattern.schema(),
         );
 
-        let compatible_filters = outer_keys
-            .intersection(&exists_keys)
+        let mut join_columns = outer_keys.intersection(&exists_keys).collect::<Vec<_>>();
+        join_columns.sort(); // Stable output
+
+        let compatible_filters = join_columns
+            .into_iter()
             .map(|k| Self::build_exists_filter(exists_expr_builder_root, outer_schema, k))
             .collect::<DFResult<Vec<_>>>()?;
         let compatible_filter = compatible_filters

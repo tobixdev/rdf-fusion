@@ -1,5 +1,5 @@
 use crate::benchmarks::bsbm::NumProducts;
-use crate::benchmarks::windfarm::NumberOfWindTurbines;
+use crate::benchmarks::windfarm::NumTurbines;
 use clap::Subcommand;
 use std::fmt::{Display, Formatter};
 
@@ -27,7 +27,7 @@ pub enum BenchmarkName {
     WindFarm {
         /// Indicates the scaling of the dataset.
         #[arg(short, long, default_value = "400")]
-        num_turbines: NumberOfWindTurbines,
+        num_turbines: NumTurbines,
     },
 }
 

@@ -1,4 +1,4 @@
-use crate::benchmarks::windfarm::NumberOfWindTurbines;
+use crate::benchmarks::windfarm::NumTurbines;
 use crate::benchmarks::windfarm::generate::{generate_static, generate_time_series};
 use crate::benchmarks::windfarm::queries::WindFarmQueryName;
 use crate::benchmarks::windfarm::report::{
@@ -46,12 +46,12 @@ struct WindfarmFilePaths {
 ///     Sept. 2023, doi: 10.1016/j.eswa.2023.120149.
 pub struct WindFarmBenchmark {
     name: BenchmarkName,
-    num_turbines: NumberOfWindTurbines,
+    num_turbines: NumTurbines,
 }
 
 impl WindFarmBenchmark {
     /// Creates a new [WindFarmBenchmark] with the given sizes.
-    pub fn new(num_turbines: NumberOfWindTurbines) -> Self {
+    pub fn new(num_turbines: NumTurbines) -> Self {
         let name = BenchmarkName::WindFarm { num_turbines };
         Self { name, num_turbines }
     }

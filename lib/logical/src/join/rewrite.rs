@@ -76,10 +76,11 @@ impl SparqlJoinLoweringRule {
                 .build();
         }
 
-        let join_on = lhs_keys
+        let mut join_on = lhs_keys
             .intersection(&rhs_keys)
             .map(Column::new_unqualified)
             .collect::<Vec<_>>();
+        join_on.sort(); // Ensure stable output
 
         // Try to reduce the SPARQL join to a regular join.
         if let Some(result) = self.try_build_regular_join(node, &join_on)? {
