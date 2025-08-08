@@ -40,20 +40,7 @@ impl OptimizerRule for SparqlJoinReorderingRule {
         plan: LogicalPlan,
         config: &dyn OptimizerConfig,
     ) -> DFResult<Transformed<LogicalPlan>> {
-        plan.transform_down(|plan| {
-            let new_plan = match plan {
-                LogicalPlan::Extension(Extension { node }) => {
-                    if let Some(node) = node.as_any().downcast_ref::<SparqlJoinNode>() {
-                        let new_plan = self.reorder_sparql_join(node, config)?;
-                        Transformed::yes(new_plan)
-                    } else {
-                        Transformed::no(LogicalPlan::Extension(Extension { node }))
-                    }
-                }
-                _ => Transformed::no(plan),
-            };
-            Ok(new_plan)
-        })
+        self.reorder_logical_plan(plan, config)
     }
 }
 
@@ -61,6 +48,29 @@ impl SparqlJoinReorderingRule {
     /// Creates a [SparqlJoinReorderingRule].
     pub fn new(encodings: RdfFusionEncodings) -> Self {
         Self { encodings }
+    }
+
+    /// Handlers the traversal logic. We cannot simply use `transform_up` because we need to look
+    /// at the children, and we cannot use `transform_down` as we would revisit already rewritten
+    /// nodes.
+    fn reorder_logical_plan(
+        &self,
+        plan: LogicalPlan,
+        config: &dyn OptimizerConfig,
+    ) -> DFResult<Transformed<LogicalPlan>> {
+        match plan {
+            LogicalPlan::Extension(Extension { node }) => {
+                if let Some(node) = node.as_any().downcast_ref::<SparqlJoinNode>() {
+                    self.reorder_sparql_join(node, config)
+                } else {
+                    let original_plan = LogicalPlan::Extension(Extension { node });
+                    original_plan
+                        .map_children(|child| self.reorder_logical_plan(child, config))
+                }
+            }
+            // If this is a different node, we recurse
+            _ => plan.map_children(|child| self.reorder_logical_plan(child, config)),
+        }
     }
 
     /// Reorders a SPARQL join to optimize query execution.
@@ -74,16 +84,19 @@ impl SparqlJoinReorderingRule {
         &self,
         node: &SparqlJoinNode,
         config: &dyn OptimizerConfig,
-    ) -> DFResult<LogicalPlan> {
+    ) -> DFResult<Transformed<LogicalPlan>> {
         // See restrictions in JoinComponents.
         if node.filter().is_some() || node.join_type() != SparqlJoinType::Inner {
-            return Ok(LogicalPlan::Extension(Extension {
+            let original_plan = LogicalPlan::Extension(Extension {
                 node: Arc::new(node.clone()),
-            }));
+            });
+            return original_plan
+                .map_children(|child| self.reorder_logical_plan(child, config));
         }
 
         let (lhs, rhs, _, _) = node.clone().destruct();
-        let components = identify_join_components(lhs, rhs)
+        let components = self
+            .identify_join_components(lhs, rhs, config)
             .0
             .into_iter()
             .map(|connected_component| {
@@ -98,7 +111,61 @@ impl SparqlJoinReorderingRule {
             })
             .collect::<DFResult<Vec<_>>>()?;
 
-        self.reorder_components(JoinComponents(components))
+        Ok(Transformed::yes(
+            self.reorder_components(JoinComponents(components))?,
+        ))
+    }
+    /// Identifies a maximally large [JoinComponents] set.
+    ///
+    /// The scope of the reordering will restrict itself to this set.
+    fn identify_join_components(
+        &self,
+        lhs: LogicalPlan,
+        rhs: LogicalPlan,
+        optimizer_config: &dyn OptimizerConfig,
+    ) -> JoinComponents {
+        let lhs = self.identify_join_components_from_logical_plan(lhs, optimizer_config);
+        let rhs = self.identify_join_components_from_logical_plan(rhs, optimizer_config);
+        lhs.merge(rhs)
+    }
+
+    /// Either return the logical plan itself or, if the plan is a [SparqlJoinNode], recurses the
+    /// join component detection.
+    fn identify_join_components_from_logical_plan(
+        &self,
+        plan: LogicalPlan,
+        config: &dyn OptimizerConfig,
+    ) -> JoinComponents {
+        let vars = extract_columns(&plan);
+        match plan {
+            LogicalPlan::Extension(extension) => {
+                let node = extension.node.as_any();
+                if let Some(node) = node.downcast_ref::<SparqlJoinNode>() {
+                    let (lhs, rhs, _, _) = node.clone().destruct();
+
+                    // Currently, we only support inner joins without filters.
+                    if node.filter().is_some()
+                        || node.join_type() != SparqlJoinType::Inner
+                    {
+                        let original_plan = LogicalPlan::Extension(extension);
+                        return JoinComponents(vec![ConnectedJoinComponent(
+                            vec![original_plan],
+                            vars,
+                        )]);
+                    }
+
+                    self.identify_join_components(lhs, rhs, config)
+                } else {
+                    // We recurse here to also apply the optimization to subtrees
+                    let original_plan = LogicalPlan::Extension(extension);
+                    JoinComponents(vec![ConnectedJoinComponent(
+                        vec![original_plan],
+                        vars,
+                    )])
+                }
+            }
+            other => JoinComponents(vec![ConnectedJoinComponent(vec![other], vars)]),
+        }
     }
 
     /// Tries to improve the join order by joining "cheap" nodes from the left side and pushing
@@ -219,45 +286,6 @@ impl JoinComponents {
 /// the other part.
 #[derive(Clone, Debug)]
 struct ConnectedJoinComponent(Vec<LogicalPlan>, HashSet<Column>);
-
-/// Identifies a maximally large [JoinComponents] set.
-///
-/// The scope of the reordering will restrict itself to this set.
-fn identify_join_components(lhs: LogicalPlan, rhs: LogicalPlan) -> JoinComponents {
-    let lhs = identify_join_components_from_logical_plan(lhs);
-    let rhs = identify_join_components_from_logical_plan(rhs);
-    lhs.merge(rhs)
-}
-
-/// Either return the logical plan itself or, if the plan is a [SparqlJoinNode], recurses the
-/// join component detection.
-fn identify_join_components_from_logical_plan(plan: LogicalPlan) -> JoinComponents {
-    let vars = extract_columns(&plan);
-    match plan {
-        LogicalPlan::Extension(extension) => {
-            let node = extension.node.as_any();
-            if let Some(node) = node.downcast_ref::<SparqlJoinNode>() {
-                let (lhs, rhs, _, _) = node.clone().destruct();
-
-                // Currently, we only support inner joins without filters.
-                if node.filter().is_some() || node.join_type() != SparqlJoinType::Inner {
-                    return JoinComponents(vec![ConnectedJoinComponent(
-                        vec![LogicalPlan::Extension(extension)],
-                        vars,
-                    )]);
-                }
-
-                identify_join_components(lhs, rhs)
-            } else {
-                JoinComponents(vec![ConnectedJoinComponent(
-                    vec![LogicalPlan::Extension(extension)],
-                    vars,
-                )])
-            }
-        }
-        other => JoinComponents(vec![ConnectedJoinComponent(vec![other], vars)]),
-    }
-}
 
 /// Estimates the cost of the join.
 ///
