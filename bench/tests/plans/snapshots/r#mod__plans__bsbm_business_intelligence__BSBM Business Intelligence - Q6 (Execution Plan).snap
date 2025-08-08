@@ -14,27 +14,27 @@ ProjectionExec: expr=[ENV_PT(reviewer@0) as reviewer, ENV_PT(0000000000000000000
                   CoalescePartitionsExec
                     AggregateExec: mode=Partial, gby=[], aggr=[00000000000000000000000000000003]
                       CoalesceBatchesExec: target_batch_size=8192
-                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[score@2]
+                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[score@2]
+                          QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>
                           CoalesceBatchesExec: target_batch_size=8192
-                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[review@1]
-                              QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>
+                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[product@1, score@3]
                               QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product
+                              UnionExec
+                                QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score
+                                QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score
+                                QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score
+                                QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score
+              CoalesceBatchesExec: target_batch_size=8192
+                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[reviewer@1, score@3]
+                  QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>
+                  CoalesceBatchesExec: target_batch_size=8192
+                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[reviewer@1, product@3, score@4]
+                      QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer
+                      CoalesceBatchesExec: target_batch_size=8192
+                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[review@0, product@1, score@3]
+                          QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product
                           UnionExec
                             QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score
                             QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score
                             QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score
                             QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score
-              CoalesceBatchesExec: target_batch_size=8192
-                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[reviewer@1, score@3]
-                  CoalesceBatchesExec: target_batch_size=8192
-                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[review@0, reviewer@2]
-                      CoalesceBatchesExec: target_batch_size=8192
-                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[review@1]
-                          QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>
-                          QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product
-                      QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer
-                  UnionExec
-                    QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score
-                    QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score
-                    QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score
-                    QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score
