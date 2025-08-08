@@ -11,25 +11,25 @@ Projection: ENV_PT(productType) AS productType, ENV_PT(reviewCount) AS reviewCou
             SubqueryAlias: lhs
               QuadPattern (?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#US>), active_graph: Union of [DefaultGraph] 
             SubqueryAlias: rhs
-              Projection: lhs.productType AS productType, rhs.review AS review, rhs.reviewer AS reviewer
-                Inner Join: lhs.productType = rhs.productType
+              Projection: rhs.productType AS productType, rhs.review AS review, rhs.reviewer AS reviewer
+                Inner Join: lhs.producer = rhs.producer
                   SubqueryAlias: lhs
-                    QuadPattern (?productType <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/ProductType>), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?producer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#AT>), active_graph: Union of [DefaultGraph] 
                   SubqueryAlias: rhs
-                    Projection: rhs.productType AS productType, rhs.review AS review, rhs.reviewer AS reviewer
-                      Inner Join: lhs.producer = rhs.producer
+                    Projection: lhs.productType AS productType, rhs.producer AS producer, rhs.review AS review, rhs.reviewer AS reviewer
+                      Inner Join: lhs.productType = rhs.productType
                         SubqueryAlias: lhs
-                          QuadPattern (?producer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#AT>), active_graph: Union of [DefaultGraph] 
+                          QuadPattern (?productType <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/ProductType>), active_graph: Union of [DefaultGraph] 
                         SubqueryAlias: rhs
-                          Projection: lhs.productType AS productType, rhs.producer AS producer, rhs.review AS review, rhs.reviewer AS reviewer
+                          Projection: lhs.producer AS producer, rhs.productType AS productType, rhs.review AS review, rhs.reviewer AS reviewer
                             Inner Join: lhs.product = rhs.product
                               SubqueryAlias: lhs
-                                QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?productType), active_graph: Union of [DefaultGraph] 
+                                QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> ?producer), active_graph: Union of [DefaultGraph] 
                               SubqueryAlias: rhs
-                                Projection: lhs.product AS product, lhs.producer AS producer, rhs.review AS review, rhs.reviewer AS reviewer
+                                Projection: lhs.product AS product, lhs.productType AS productType, rhs.review AS review, rhs.reviewer AS reviewer
                                   Inner Join: lhs.product = rhs.product
                                     SubqueryAlias: lhs
-                                      QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> ?producer), active_graph: Union of [DefaultGraph] 
+                                      QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?productType), active_graph: Union of [DefaultGraph] 
                                     SubqueryAlias: rhs
                                       Projection: lhs.review AS review, lhs.product AS product, rhs.reviewer AS reviewer
                                         Inner Join: lhs.review = rhs.review

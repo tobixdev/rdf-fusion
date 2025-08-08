@@ -15,12 +15,12 @@ Projection: ENV_PT(first_value(product) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NU
                 Projection: lhs.product AS product, rhs.label AS label
                   Inner Join: lhs.product = rhs.product
                     SubqueryAlias: lhs
-                      QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType66>), active_graph: Union of [DefaultGraph] 
+                      QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature3>), active_graph: Union of [DefaultGraph] 
                     SubqueryAlias: rhs
                       Projection: lhs.product AS product, rhs.label AS label
                         Inner Join: lhs.product = rhs.product
                           SubqueryAlias: lhs
-                            QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature3>), active_graph: Union of [DefaultGraph] 
+                            QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType66>), active_graph: Union of [DefaultGraph] 
                           SubqueryAlias: rhs
                             Projection: lhs.product AS product, lhs.label AS label
                               Inner Join: lhs.product = rhs.product

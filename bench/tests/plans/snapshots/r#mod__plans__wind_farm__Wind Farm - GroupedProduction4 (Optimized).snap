@@ -4,54 +4,54 @@ expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
 ---
 Projection: ENV_PT(site_label) AS site_label, ENV_PT(wtur_label) AS wtur_label, year AS year, month AS month, day AS day, hour AS hour, minute_10 AS minute_10, ENV_PT(00000000000000000000000000000001) AS avg_val
   Aggregate: groupBy=[[site_label AS site_label, wtur_label AS wtur_label, ENV_PT(year) AS year, ENV_PT(month) AS month, ENV_PT(day) AS day, ENV_PT(hour) AS hour, ENV_PT(minute_10) AS minute_10]], aggr=[[AVG(ENC_TV(val)) AS 00000000000000000000000000000001]]
-    Projection: site_label, val, wtur_label, minute_10, hour, day, MONTH(__common_expr_1) AS month, YEAR(__common_expr_1) AS year
-      Projection: ENC_TV(t) AS __common_expr_1, site_label, val, wtur_label, minute_10, HOURS(__common_expr_2) AS hour, DAY(__common_expr_2) AS day
-        Projection: __common_expr_3 AS __common_expr_2, site_label, val, wtur_label, t, MUL(Union 9:10, FLOOR(DIV(MINUTES(__common_expr_3), Union 7:Some(00000000000000000000000000000002),36,16))) AS minute_10
-          Projection: ENC_TV(t) AS __common_expr_3, site_label, val, wtur_label, t
-            Projection: rhs.site_label AS site_label, rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.t AS t
+    Projection: val, wtur_label, site_label, minute_10, hour, day, MONTH(__common_expr_1) AS month, YEAR(__common_expr_1) AS year
+      Projection: ENC_TV(t) AS __common_expr_1, val, wtur_label, site_label, minute_10, HOURS(__common_expr_2) AS hour, DAY(__common_expr_2) AS day
+        Projection: __common_expr_3 AS __common_expr_2, val, wtur_label, site_label, t, MUL(Union 9:10, FLOOR(DIV(MINUTES(__common_expr_3), Union 7:Some(00000000000000000000000000000002),36,16))) AS minute_10
+          Projection: ENC_TV(t) AS __common_expr_3, val, wtur_label, site_label, t
+            Projection: rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.site_label AS site_label, rhs.t AS t
               Inner Join: lhs.ts = rhs.ts
                 SubqueryAlias: lhs
                   QuadPattern (?ts <http://www.w3.org/2000/01/rdf-schema#label> "Production"), active_graph: Union of [DefaultGraph] 
                 SubqueryAlias: rhs
-                  Projection: rhs.site_label AS site_label, rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.ts AS ts, rhs.t AS t
-                    Inner Join: lhs.site = rhs.site
+                  Projection: rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.site_label AS site_label, rhs.ts AS ts, rhs.t AS t
+                    Inner Join: lhs.generator = rhs.generator
                       SubqueryAlias: lhs
-                        QuadPattern (?site <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#Site>), active_graph: Union of [DefaultGraph] 
+                        QuadPattern (?generator <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#GAA>), active_graph: Union of [DefaultGraph] 
                       SubqueryAlias: rhs
-                        Projection: rhs.site AS site, rhs.site_label AS site_label, rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.ts AS ts, rhs.t AS t
-                          Inner Join: lhs.generator = rhs.generator
+                        Projection: rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.site_label AS site_label, rhs.generator AS generator, rhs.ts AS ts, rhs.t AS t
+                          Inner Join: lhs.gensys = rhs.gensys
                             SubqueryAlias: lhs
-                              QuadPattern (?generator <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#GAA>), active_graph: Union of [DefaultGraph] 
+                              QuadPattern (?gensys <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#RA>), active_graph: Union of [DefaultGraph] 
                             SubqueryAlias: rhs
-                              Projection: rhs.site AS site, rhs.site_label AS site_label, rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.generator AS generator, rhs.ts AS ts, rhs.t AS t
+                              Projection: rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.site_label AS site_label, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.t AS t
                                 Inner Join: lhs.wtur = rhs.wtur
                                   SubqueryAlias: lhs
                                     QuadPattern (?wtur <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#A>), active_graph: Union of [DefaultGraph] 
                                   SubqueryAlias: rhs
-                                    Projection: rhs.site AS site, rhs.site_label AS site_label, rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.generator AS generator, rhs.ts AS ts, rhs.t AS t
-                                      Inner Join: lhs.gensys = rhs.gensys
+                                    Projection: rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.site_label AS site_label, rhs.wtur AS wtur, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.t AS t
+                                      Inner Join: lhs.site = rhs.site
                                         SubqueryAlias: lhs
-                                          QuadPattern (?gensys <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#RA>), active_graph: Union of [DefaultGraph] 
+                                          QuadPattern (?site <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#Site>), active_graph: Union of [DefaultGraph] 
                                         SubqueryAlias: rhs
-                                          Projection: lhs.site AS site, lhs.site_label AS site_label, rhs.val AS val, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.t AS t
-                                            Inner Join: lhs.site = rhs.site
+                                          Projection: lhs.val AS val, rhs.wtur_label AS wtur_label, rhs.site AS site, rhs.site_label AS site_label, rhs.wtur AS wtur, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.t AS t
+                                            Inner Join: lhs.dp = rhs.dp
                                               SubqueryAlias: lhs
-                                                QuadPattern (?site <http://www.w3.org/2000/01/rdf-schema#label> ?site_label), active_graph: Union of [DefaultGraph] 
+                                                QuadPattern (?dp <https://github.com/magbak/chrontext#hasValue> ?val), active_graph: Union of [DefaultGraph] 
                                               SubqueryAlias: rhs
-                                                Projection: lhs.val AS val, rhs.site AS site, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.t AS t
-                                                  Inner Join: lhs.dp = rhs.dp
+                                                Projection: lhs.wtur_label AS wtur_label, rhs.site AS site, rhs.site_label AS site_label, rhs.wtur AS wtur, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.dp AS dp, rhs.t AS t
+                                                  Inner Join: lhs.wtur_asp = rhs.wtur_asp
                                                     SubqueryAlias: lhs
-                                                      QuadPattern (?dp <https://github.com/magbak/chrontext#hasValue> ?val), active_graph: Union of [DefaultGraph] 
+                                                      QuadPattern (?wtur_asp <http://www.w3.org/2000/01/rdf-schema#label> ?wtur_label), active_graph: Union of [DefaultGraph] 
                                                     SubqueryAlias: rhs
-                                                      Projection: lhs.site AS site, rhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.dp AS dp, rhs.t AS t
-                                                        Inner Join: lhs.wtur_asp = rhs.wtur_asp
+                                                      Projection: lhs.site AS site, lhs.site_label AS site_label, rhs.wtur_asp AS wtur_asp, rhs.wtur AS wtur, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.dp AS dp, rhs.t AS t
+                                                        Inner Join: lhs.site = rhs.site
                                                           SubqueryAlias: lhs
-                                                            QuadPattern (?site <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?wtur_asp), active_graph: Union of [DefaultGraph] 
+                                                            QuadPattern (?site <http://www.w3.org/2000/01/rdf-schema#label> ?site_label), active_graph: Union of [DefaultGraph] 
                                                           SubqueryAlias: rhs
-                                                            Projection: lhs.wtur_asp AS wtur_asp, lhs.wtur_label AS wtur_label, rhs.wtur AS wtur, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.dp AS dp, rhs.t AS t
+                                                            Projection: lhs.site AS site, lhs.wtur_asp AS wtur_asp, rhs.wtur AS wtur, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.dp AS dp, rhs.t AS t
                                                               Inner Join: lhs.wtur_asp = rhs.wtur_asp
                                                                 SubqueryAlias: lhs
-                                                                  QuadPattern (?wtur_asp <http://www.w3.org/2000/01/rdf-schema#label> ?wtur_label), active_graph: Union of [DefaultGraph] 
+                                                                  QuadPattern (?site <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?wtur_asp), active_graph: Union of [DefaultGraph] 
                                                                 SubqueryAlias: rhs
                                                                   Projection: lhs.wtur AS wtur, lhs.wtur_asp AS wtur_asp, rhs.gensys AS gensys, rhs.generator AS generator, rhs.ts AS ts, rhs.dp AS dp, rhs.t AS t
                                                                     Inner Join: lhs.wtur = rhs.wtur

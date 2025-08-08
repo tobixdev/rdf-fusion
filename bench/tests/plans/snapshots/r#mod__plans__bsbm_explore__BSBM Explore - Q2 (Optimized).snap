@@ -19,12 +19,12 @@ Projection: ENV_PT(label) AS label, ENV_PT(comment) AS comment, ENV_PT(producer)
                       Projection: rhs.producer AS producer
                         Inner Join: lhs.p = rhs.p
                           SubqueryAlias: lhs
-                            QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> ?p), active_graph: Union of [DefaultGraph] 
+                            QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://purl.org/dc/elements/1.1/publisher> ?p), active_graph: Union of [DefaultGraph] 
                           SubqueryAlias: rhs
                             Projection: lhs.p AS p, rhs.producer AS producer
                               Inner Join: lhs.p = rhs.p
                                 SubqueryAlias: lhs
-                                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://purl.org/dc/elements/1.1/publisher> ?p), active_graph: Union of [DefaultGraph] 
+                                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> ?p), active_graph: Union of [DefaultGraph] 
                                 SubqueryAlias: rhs
                                   QuadPattern (?p <http://www.w3.org/2000/01/rdf-schema#label> ?producer), active_graph: Union of [DefaultGraph] 
                     Projection: rhs.productFeature AS productFeature

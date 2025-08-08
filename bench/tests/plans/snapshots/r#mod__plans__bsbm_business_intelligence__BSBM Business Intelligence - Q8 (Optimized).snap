@@ -15,15 +15,15 @@ Projection: ENV_PT(vendor) AS vendor, ENV_PT(cheapExpensiveRatio) AS cheapExpens
                     SubqueryAlias: lhs
                       QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>), active_graph: Union of [DefaultGraph] 
                     SubqueryAlias: rhs
-                      Projection: lhs.offer AS offer, lhs.vendor AS vendor, rhs.product AS product
-                        Inner Join: lhs.offer = rhs.offer
+                      Projection: lhs.offer AS offer, rhs.vendor AS vendor, rhs.product AS product
+                        Inner Join: lhs.offer = rhs.offer Filter: EBV(LT(xsd:float(xsd:boolean(ENC_TV(lhs.price))), rhs.avgPrice))
                           SubqueryAlias: lhs
-                            QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
+                            QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price), active_graph: Union of [DefaultGraph] 
                           SubqueryAlias: rhs
-                            Projection: lhs.offer AS offer, rhs.product AS product
-                              Inner Join: lhs.offer = rhs.offer Filter: EBV(LT(xsd:float(xsd:boolean(ENC_TV(lhs.price))), rhs.avgPrice))
+                            Projection: lhs.offer AS offer, lhs.vendor AS vendor, rhs.product AS product, rhs.avgPrice AS avgPrice
+                              Inner Join: lhs.offer = rhs.offer
                                 SubqueryAlias: lhs
-                                  QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price), active_graph: Union of [DefaultGraph] 
+                                  QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
                                 SubqueryAlias: rhs
                                   Projection: lhs.offer AS offer, lhs.product AS product, rhs.avgPrice AS avgPrice
                                     Inner Join: lhs.product = rhs.product
@@ -37,16 +37,16 @@ Projection: ENV_PT(vendor) AS vendor, ENV_PT(cheapExpensiveRatio) AS cheapExpens
                                                 SubqueryAlias: lhs
                                                   QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>), active_graph: Union of [DefaultGraph] 
                                                 SubqueryAlias: rhs
-                                                  Projection: lhs.product AS product, rhs.price AS price
+                                                  Projection: rhs.product AS product, rhs.price AS price
                                                     Inner Join: lhs.offer = rhs.offer
                                                       SubqueryAlias: lhs
-                                                        QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product), active_graph: Union of [DefaultGraph] 
+                                                        Projection: offer
+                                                          QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
                                                       SubqueryAlias: rhs
-                                                        Projection: lhs.offer AS offer, rhs.price AS price
+                                                        Projection: lhs.offer AS offer, lhs.product AS product, rhs.price AS price
                                                           Inner Join: lhs.offer = rhs.offer
                                                             SubqueryAlias: lhs
-                                                              Projection: offer
-                                                                QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
+                                                              QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product), active_graph: Union of [DefaultGraph] 
                                                             SubqueryAlias: rhs
                                                               QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price), active_graph: Union of [DefaultGraph] 
           SubqueryAlias: rhs

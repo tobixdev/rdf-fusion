@@ -22,22 +22,22 @@ Projection: ENV_PT(first_value(offer) ORDER BY [ENV_SORT(xsd:double(ENC_TV(STR(E
                           SubqueryAlias: lhs
                             QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price), active_graph: Union of [DefaultGraph] 
                           SubqueryAlias: rhs
-                            Projection: lhs.offer AS offer, lhs.vendor AS vendor
-                              Inner Join: lhs.offer = rhs.offer, lhs.vendor = rhs.vendor
+                            Projection: lhs.offer AS offer, rhs.vendor AS vendor
+                              Inner Join: lhs.offer = rhs.offer
                                 SubqueryAlias: lhs
-                                  QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
+                                  Projection: offer
+                                    Filter: EBV(LEQ(ENC_TV(deliveryDays), Union 9:3))
+                                      QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays> ?deliveryDays), active_graph: Union of [DefaultGraph] 
                                 SubqueryAlias: rhs
-                                  Projection: lhs.offer AS offer, rhs.vendor AS vendor
-                                    Inner Join: lhs.offer = rhs.offer
+                                  Projection: lhs.offer AS offer, lhs.vendor AS vendor
+                                    Inner Join: lhs.offer = rhs.offer, lhs.vendor = rhs.vendor
                                       SubqueryAlias: lhs
-                                        Projection: offer
-                                          Filter: EBV(LEQ(ENC_TV(deliveryDays), Union 9:3))
-                                            QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays> ?deliveryDays), active_graph: Union of [DefaultGraph] 
+                                        QuadPattern (?offer <http://purl.org/dc/elements/1.1/publisher> ?vendor), active_graph: Union of [DefaultGraph] 
                                       SubqueryAlias: rhs
                                         Projection: lhs.offer AS offer, lhs.vendor AS vendor
                                           Inner Join: lhs.offer = rhs.offer
                                             SubqueryAlias: lhs
-                                              QuadPattern (?offer <http://purl.org/dc/elements/1.1/publisher> ?vendor), active_graph: Union of [DefaultGraph] 
+                                              QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
                                             SubqueryAlias: rhs
                                               Projection: offer
                                                 Filter: EBV(GT(ENC_TV(date), Union 10:{value:6334951680000.0000000000000000,offset:}))
