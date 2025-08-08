@@ -1,8 +1,8 @@
 use crate::memory::encoding::EncodedQuad;
+use crate::memory::storage::log::VersionNumber;
 use crate::memory::storage::log::content::{
     MemLogEntry, MemLogEntryAction, MemLogUpdateArray,
 };
-use crate::memory::storage::log::VersionNumber;
 use datafusion::arrow::array::{Array, StructBuilder, UInt32Builder, UnionArray};
 use datafusion::arrow::datatypes::{Field, UnionFields};
 use rdf_fusion_common::error::StorageError;
@@ -49,6 +49,10 @@ impl MemLogEntryBuilder {
             return Err(MemLogEntryBuilderError::InvalidState);
         }
 
+        if let Some(MemLogArrayBuilderState::Update(_)) = &self.state {
+            return Ok(());
+        }
+
         let state = MemLogUpdateBuilderState {
             insertions: StructBuilder::from_fields(quad_fields(), 0),
             deletions: StructBuilder::from_fields(quad_fields(), 0),
@@ -86,39 +90,17 @@ impl MemLogEntryBuilder {
     ) -> Result<(), MemLogEntryBuilderError> {
         self.ensure_update()?;
         let state = self.update_state_mut().expect("State set");
+        append_quad(&mut state.insertions, quad)
+    }
 
-        let graph = quad.graph_name.0.map(|oid| oid.as_object_id().0);
-        let subject = quad.subject.as_object_id().0;
-        let predicate = quad.predicate.as_object_id().0;
-        let object = quad.object.as_object_id().0;
-
-        state
-            .insertions
-            .field_builder::<UInt32Builder>(0)
-            .expect("Schema fixed")
-            .append_option(graph);
-
-        state
-            .insertions
-            .field_builder::<UInt32Builder>(1)
-            .expect("Schema fixed")
-            .append_value(subject);
-
-        state
-            .insertions
-            .field_builder::<UInt32Builder>(2)
-            .expect("Schema fixed")
-            .append_value(predicate);
-
-        state
-            .insertions
-            .field_builder::<UInt32Builder>(3)
-            .expect("Schema fixed")
-            .append_value(object);
-
-        state.insertions.append(true);
-
-        Ok(())
+    /// Appends a single quad to the insertion list.
+    pub fn append_deletion(
+        &mut self,
+        quad: &EncodedQuad,
+    ) -> Result<(), MemLogEntryBuilderError> {
+        self.ensure_update()?;
+        let state = self.update_state_mut().expect("State set");
+        append_quad(&mut state.deletions, quad)
     }
 
     /// Declares that this transaction will execute the given action.
@@ -181,6 +163,41 @@ impl MemLogEntryBuilder {
 
         Ok(MemLogEntryAction::Update(MemLogUpdateArray { array }))
     }
+}
+
+/// Appends a single quad to the insertion list.
+pub fn append_quad(
+    builder: &mut StructBuilder,
+    quad: &EncodedQuad,
+) -> Result<(), MemLogEntryBuilderError> {
+    let graph = quad.graph_name.0.map(|oid| oid.as_object_id().0);
+    let subject = quad.subject.as_object_id().0;
+    let predicate = quad.predicate.as_object_id().0;
+    let object = quad.object.as_object_id().0;
+
+    builder
+        .field_builder::<UInt32Builder>(0)
+        .expect("Schema fixed")
+        .append_option(graph);
+
+    builder
+        .field_builder::<UInt32Builder>(1)
+        .expect("Schema fixed")
+        .append_value(subject);
+
+    builder
+        .field_builder::<UInt32Builder>(2)
+        .expect("Schema fixed")
+        .append_value(predicate);
+
+    builder
+        .field_builder::<UInt32Builder>(3)
+        .expect("Schema fixed")
+        .append_value(object);
+
+    builder.append(true);
+
+    Ok(())
 }
 
 #[derive(Debug, Error)]

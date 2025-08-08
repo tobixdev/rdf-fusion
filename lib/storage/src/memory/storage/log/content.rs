@@ -1,16 +1,9 @@
 use crate::memory::encoding::{EncodedQuad, EncodedQuadArray};
 use crate::memory::object_id::{EncodedObjectId, GraphEncodedObjectId};
-use crate::memory::storage::log::builder::MemLogEntryBuilderError;
 use crate::memory::storage::log::VersionNumber;
 use datafusion::arrow::array::{Array, StructArray, UnionArray};
-use rdf_fusion_common::error::StorageError;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-
-/// Holds the actual log entries.
-pub struct MemLogContent {
-    logs: Vec<MemLogEntry>,
-}
 
 /// A single entry in the log.
 ///
@@ -25,6 +18,7 @@ pub struct MemLogEntry {
 }
 
 /// The target of a clear operation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClearTarget {
     /// Creates a named graph or the default graph.
     Graph(GraphEncodedObjectId),
@@ -41,9 +35,29 @@ pub enum MemLogEntryAction {
     /// Clears the store.
     Clear(ClearTarget),
     /// Creates a named graph.
-    CreateEmptyNamedGraph(EncodedObjectId),
+    CreateNamedGraph(EncodedObjectId),
     /// Completely drops a named graph.
     DropGraph(EncodedObjectId),
+}
+
+/// Holds the number of triples for each graph.
+pub struct GraphLen {
+    /// Mapping from graph to the change.
+    pub graph: HashMap<GraphEncodedObjectId, usize>,
+}
+
+impl GraphLen {
+    /// Create a new [GraphLen].
+    fn new() -> Self {
+        Self {
+            graph: HashMap::new(),
+        }
+    }
+}
+
+/// Holds the actual log entries.
+pub struct MemLogContent {
+    logs: Vec<MemLogEntry>,
 }
 
 impl MemLogContent {
@@ -92,7 +106,7 @@ impl MemLogContent {
                     // Remove all quads from the given graph.
                     quads.retain(|quad| quad.graph_name.0 != Some(*graph));
                 }
-                MemLogEntryAction::CreateEmptyNamedGraph(_) => {
+                MemLogEntryAction::CreateNamedGraph(_) => {
                     // Do nothing.
                 }
             }
@@ -101,55 +115,59 @@ impl MemLogContent {
         quads
     }
 
+    /// Counts the changes in the log up until the version number of the snapshot.
+    pub fn len(&self, version_number: VersionNumber) -> GraphLen {
+        let mut mapping = GraphLen::new();
+
+        for entry in self
+            .log_entries()
+            .iter()
+            .take_while(|e| e.version_number <= version_number)
+        {
+            match &entry.action {
+                MemLogEntryAction::Update(update) => {
+                    for insert in &update.insertions() {
+                        let count = mapping.graph.entry(insert.graph_name).or_insert(0);
+                        *count += 1;
+                    }
+
+                    for deletion in &update.deletions() {
+                        let count = mapping.graph.entry(deletion.graph_name).or_insert(0);
+                        *count -= 1;
+                    }
+                }
+                MemLogEntryAction::Clear(target) => match target {
+                    ClearTarget::Graph(g) => {
+                        mapping.graph.remove(g);
+                    }
+                    ClearTarget::AllNamedGraphs => {
+                        mapping.graph.retain(|k, _| k.0.is_none());
+                    }
+                    ClearTarget::AllGraphs => {
+                        mapping.graph.clear();
+                    }
+                },
+                MemLogEntryAction::CreateNamedGraph(g) => {
+                    mapping.graph.entry(Some(*g).into()).or_insert(0);
+                }
+                MemLogEntryAction::DropGraph(g) => {
+                    mapping.graph.remove(&(Some(*g).into()));
+                }
+            }
+        }
+
+        mapping
+    }
+
+    /// Checks if the given graph in the log.
     pub fn contains_named_graph(
         &self,
         graph: EncodedObjectId,
         version_number: VersionNumber,
     ) -> bool {
-        let relevant_log_entries = self
-            .relevant_log_entries(version_number)
-            .collect::<Vec<_>>();
-
-        // Iterate backwards through the log entries to find the last relevant update
-        for entry in relevant_log_entries.iter().rev() {
-            match &entry.action {
-                // If we see an update or a deletion of a quad in the given graph, we know that
-                // the graph exists. Also, if the graph becomes empty after the update, it exists.
-                MemLogEntryAction::Update(update) => {
-                    let inserted = update
-                        .insertions()
-                        .into_iter()
-                        .any(|quad| quad.graph_name.0 == graph.into());
-                    let deleted = update
-                        .deletions()
-                        .into_iter()
-                        .any(|quad| quad.graph_name.0 == Some(graph));
-                    if inserted || deleted {
-                        return true;
-                    }
-                }
-                // Clear does not drop the graph, therefore it must exist.
-                MemLogEntryAction::Clear(ClearTarget::Graph(cleared))
-                    if (*cleared).0 == Some(graph) =>
-                {
-                    return true;
-                }
-                // Creating an empty graph creates the graph.
-                MemLogEntryAction::CreateEmptyNamedGraph(created)
-                    if *created == graph =>
-                {
-                    return true;
-                }
-                // Dropping the graph deletes it.
-                MemLogEntryAction::DropGraph(dropped) if *dropped == graph => {
-                    return false;
-                }
-                _ => {}
-            }
-        }
-
-        // If we reach this point, the graph was never created or inserted into.
-        false
+        self.len(version_number)
+            .graph
+            .contains_key(&(Some(graph).into()))
     }
 
     fn relevant_log_entries(
@@ -159,6 +177,12 @@ impl MemLogContent {
         self.logs
             .iter()
             .take_while(move |entry| entry.version_number <= version_number)
+    }
+}
+
+impl Default for MemLogContent {
+    fn default() -> Self {
+        MemLogContent::new()
     }
 }
 

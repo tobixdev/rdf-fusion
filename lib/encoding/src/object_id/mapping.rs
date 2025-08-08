@@ -4,6 +4,7 @@ use crate::typed_value::{TypedValueArray, TypedValueScalar};
 use crate::{EncodingArray, EncodingScalar};
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
+use rdf_fusion_common::error::{CorruptionError, StorageError};
 use std::fmt::Debug;
 use thiserror::Error;
 
@@ -11,6 +12,10 @@ use thiserror::Error;
 pub enum ObjectIdMappingError {
     #[error("An error occurred while encoding the result. {0}")]
     ArrowError(ArrowError),
+    #[error("A literal was encountered at a position where a graph name is expected.")]
+    LiteralAsGraphName,
+    #[error("An unknown object ID was encountered in an unexpected place.")]
+    UnknownObjectId,
 }
 
 impl From<ArrowError> for ObjectIdMappingError {
@@ -22,6 +27,12 @@ impl From<ArrowError> for ObjectIdMappingError {
 impl From<ObjectIdMappingError> for DataFusionError {
     fn from(value: ObjectIdMappingError) -> Self {
         DataFusionError::External(Box::new(value))
+    }
+}
+
+impl From<ObjectIdMappingError> for StorageError {
+    fn from(value: ObjectIdMappingError) -> Self {
+        StorageError::Corruption(CorruptionError::new(value))
     }
 }
 

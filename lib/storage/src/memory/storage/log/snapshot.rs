@@ -1,7 +1,6 @@
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::log::content::{MemLogContent, MemLogEntryAction};
 use crate::memory::storage::log::VersionNumber;
-use std::collections::HashMap;
+use crate::memory::storage::log::content::{GraphLen, MemLogContent};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -18,20 +17,6 @@ pub struct MemLogSnapshot {
     version_number: VersionNumber,
 }
 
-/// Counts the number of insertions and deletions in a log snapshot between two version numbers.
-pub struct ChangeCount {
-    /// The number of insertions.
-    pub insertions: usize,
-    /// The number of deletions.
-    pub deletions: usize,
-}
-
-/// Counts the number of insertions and deletions for each graph in a log snapshot.
-pub struct ChangeCounts {
-    /// Mapping from graph to the change.
-    pub graph: HashMap<EncodedObjectId, ChangeCount>,
-}
-
 impl MemLogSnapshot {
     /// Create a new [MemLogSnapshot].
     pub fn new(
@@ -44,38 +29,14 @@ impl MemLogSnapshot {
         }
     }
 
-    /// Counts the changes in the log up until the version number of the snapshot.
-    pub async fn count_changes(&self) -> ChangeCount {
-        let content = self.content.read().await;
-
-        let mut insertions = 0;
-        let mut deletions = 0;
-
-        for entry in content
-            .log_entries()
-            .iter()
-            .take_while(|e| e.version_number <= self.version_number)
-        {
-            match &entry.action {
-                MemLogEntryAction::Update(update) => {
-                    insertions += update.insertions().len();
-                    deletions += update.deletions().len();
-                }
-                _ => todo!(),
-            }
-        }
-
-        ChangeCount {
-            insertions,
-            deletions,
-        }
+    /// Returns the size of all graphs at the current snapshot.
+    pub async fn len(&self) -> GraphLen {
+        self.content.read().await.len(self.version_number)
     }
 
     /// Checks whether the named graph `graph` exists in the current snapshot.
     pub async fn contains_named_graph(&self, graph: EncodedObjectId) -> bool {
-        self.content
-            .read()
-            .await
-            .contains_named_graph(graph, self.version_number)
+        let len = self.len().await;
+        len.graph.contains_key(&(Some(graph).into()))
     }
 }

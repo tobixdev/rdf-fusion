@@ -1,12 +1,12 @@
+use crate::memory::MemObjectIdMapping;
 use crate::memory::storage::log::MemLog;
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
-use crate::memory::MemObjectIdMapping;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_model::{
     GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
 };
@@ -24,8 +24,8 @@ impl MemQuadStorage {
     /// Creates a new [MemQuadStorage] with the given `object_id_mapping`.
     pub fn new(object_id_mapping: Arc<MemObjectIdMapping>) -> Self {
         Self {
+            log: MemLog::new(object_id_mapping.clone()),
             object_id_mapping,
-            log: MemLog::new(),
         }
     }
 
@@ -53,9 +53,7 @@ impl QuadStorage for MemQuadStorage {
 
     async fn insert_quads(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
         self.log
-            .transaction(self.object_id_mapping.as_ref(), |writer| {
-                writer.insert_quads(quads.as_ref())
-            })
+            .transaction(|writer| writer.insert_quads(quads.as_ref()))
             .await
     }
 
@@ -64,14 +62,12 @@ impl QuadStorage for MemQuadStorage {
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
         self.log
-            .transaction(self.object_id_mapping.as_ref(), |writer| {
-                writer.insert_named_graph(graph_name)
-            })
+            .transaction(|writer| writer.insert_named_graph(graph_name))
             .await
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        todo!()
+        self.snapshot().named_graphs().await
     }
 
     async fn contains_named_graph<'a>(
@@ -82,25 +78,31 @@ impl QuadStorage for MemQuadStorage {
     }
 
     async fn clear(&self) -> Result<(), StorageError> {
-        todo!()
+        self.log.transaction(|writer| writer.clear()).await
     }
 
     async fn clear_graph<'a>(
         &self,
         graph_name: GraphNameRef<'a>,
     ) -> Result<(), StorageError> {
-        todo!()
+        self.log
+            .transaction(|writer| writer.clear_graph(graph_name))
+            .await
     }
 
     async fn remove_named_graph(
         &self,
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError> {
-        todo!()
+        self.log
+            .transaction(|writer| writer.drop_named_graph(graph_name))
+            .await
     }
 
     async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
-        todo!()
+        self.log
+            .transaction(|writer| Ok(writer.delete(&[quad])? == 1))
+            .await
     }
 
     async fn len(&self) -> Result<usize, StorageError> {
@@ -108,6 +110,6 @@ impl QuadStorage for MemQuadStorage {
     }
 
     async fn validate(&self) -> Result<(), StorageError> {
-        todo!()
+        self.log.validate().await
     }
 }

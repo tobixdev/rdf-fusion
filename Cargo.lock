@@ -3838,6 +3838,7 @@ dependencies = [
  "async-trait",
  "dashmap",
  "datafusion",
+ "insta",
  "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",

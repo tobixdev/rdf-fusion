@@ -4,8 +4,8 @@ use crate::scalar::{NullaryArgs, NullaryOrUnaryArgs, ScalarSparqlOp, UnaryArgs};
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_api::functions::FunctionName;
-use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
+use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use rdf_fusion_model::{BlankNode, BlankNodeRef, ThinError, TypedValueRef};
 
 #[derive(Debug)]

@@ -1,10 +1,10 @@
+use crate::memory::encoding::EncodedTerm;
 use rdf_fusion_model::{
     BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, Duration, LanguageStringRef,
     LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, TermRef, Time, TypedValueRef,
     YearMonthDuration,
 };
 use std::sync::Arc;
-use crate::memory::encoding::EncodedTerm;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum EncodedTypedValue {

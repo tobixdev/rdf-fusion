@@ -18,15 +18,6 @@ async fn insert_quad() {
 }
 
 #[tokio::test]
-async fn insert_quad_returns_correct_quad() {
-    let storage = create_storage();
-
-    storage.insert_quads(vec![example_quad()]).await.unwrap();
-
-    todo!()
-}
-
-#[tokio::test]
 async fn insert_duplicate_quads_no_effect() {
     let storage = create_storage();
 
@@ -130,6 +121,7 @@ async fn clear_all() {
     let storage = create_storage();
     storage
         .insert_quads(vec![
+            example_quad(), // default graph
             example_quad_in_graph("http://example.com/g1"),
             example_quad_in_graph("http://example.com/g2"),
         ])

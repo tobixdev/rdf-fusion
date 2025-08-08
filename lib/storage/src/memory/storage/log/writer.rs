@@ -1,11 +1,11 @@
+use crate::memory::MemObjectIdMapping;
+use crate::memory::storage::log::VersionNumber;
 use crate::memory::storage::log::builder::MemLogEntryBuilder;
 use crate::memory::storage::log::content::{
-    MemLogContent, MemLogEntry, MemLogEntryAction,
+    ClearTarget, MemLogContent, MemLogEntry, MemLogEntryAction,
 };
-use crate::memory::storage::log::VersionNumber;
-use crate::memory::MemObjectIdMapping;
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_model::{NamedOrBlankNodeRef, Quad};
+use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, Quad, QuadRef};
 
 /// Allows writing entries into the log.
 pub struct MemLogWriter<'log> {
@@ -54,6 +54,25 @@ impl<'log> MemLogWriter<'log> {
         Ok(inserted)
     }
 
+    /// Transactionally removes quads from the log.
+    pub fn delete(&mut self, quads: &[QuadRef<'_>]) -> Result<usize, StorageError> {
+        let mut deleted = 0;
+        let mut seen_quads = self.content.compute_quads(self.version_number);
+
+        for quad in quads {
+            let encoded = self.object_id_mapping.encode_quad(*quad)?;
+
+            if seen_quads.contains(&encoded) {
+                deleted += 1;
+            }
+            seen_quads.remove(&encoded);
+
+            self.log_builder.append_deletion(&encoded)?;
+        }
+
+        Ok(deleted)
+    }
+
     /// Inserts an empty named graph into the log.
     pub fn insert_named_graph(
         &mut self,
@@ -69,7 +88,44 @@ impl<'log> MemLogWriter<'log> {
         }
 
         self.log_builder
-            .action(MemLogEntryAction::CreateEmptyNamedGraph(object_id))?;
+            .action(MemLogEntryAction::CreateNamedGraph(object_id))?;
+        Ok(true)
+    }
+
+    /// Clears all graphs in the store.
+    pub fn clear(&mut self) -> Result<(), StorageError> {
+        self.log_builder
+            .action(MemLogEntryAction::Clear(ClearTarget::AllGraphs))?;
+        Ok(())
+    }
+
+    /// Clears a single graph in the store.
+    pub fn clear_graph(
+        &mut self,
+        graph_name: GraphNameRef<'_>,
+    ) -> Result<(), StorageError> {
+        let object_id = self.object_id_mapping.encode_graph_name_intern(graph_name);
+        self.log_builder
+            .action(MemLogEntryAction::Clear(ClearTarget::Graph(object_id)))?;
+        Ok(())
+    }
+
+    /// Drops a single named graph in the store.
+    pub fn drop_named_graph(
+        &mut self,
+        graph_name: NamedOrBlankNodeRef<'_>,
+    ) -> Result<bool, StorageError> {
+        let object_id = self.object_id_mapping.encode_term_intern(graph_name);
+        let existing = self
+            .content
+            .contains_named_graph(object_id, self.version_number);
+        if !existing {
+            return Ok(false);
+        }
+
+        self.log_builder
+            .action(MemLogEntryAction::DropGraph(object_id))?;
+
         Ok(true)
     }
 

@@ -1,5 +1,5 @@
 mod log;
+mod mem_storage;
 mod snapshot;
-mod storage;
 
-pub use storage::MemQuadStorage;
+pub use mem_storage::MemQuadStorage;

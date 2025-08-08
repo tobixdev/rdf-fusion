@@ -10,7 +10,7 @@ use rdf_fusion_model::GraphName;
 use std::sync::Arc;
 
 /// Planner for [QuadPatternNode].
-pub struct MemQuadStorePlanner {}
+pub struct MemQuadStorePlanner;
 
 impl MemQuadStorePlanner {
     /// Enumerates the graphs in the active graph, expanding wildcards.

@@ -16,12 +16,13 @@ use rdf_fusion_encoding::plain_term::{
 use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{EncodingArray, TermDecoder};
 use rdf_fusion_model::{
-    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, QuadRef, TermRef, TypedValueRef,
+    BlankNodeRef, GraphName, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNode,
+    QuadRef, Term, TermRef, TypedValueRef,
 };
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Maintains a mapping between RDF terms and object IDs in memory.
 ///
@@ -54,6 +55,12 @@ pub struct MemObjectIdMapping {
     /// A lookup from typed values to the object id of the "canonical" term is only possible by
     /// first converting the typed value to term.
     term2id: DashMap<EncodedTerm, EncodedObjectId, BuildHasherDefault<FxHasher>>,
+}
+
+impl Default for MemObjectIdMapping {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MemObjectIdMapping {
@@ -101,6 +108,44 @@ impl MemObjectIdMapping {
             predicate: self.encode_term_intern(quad.predicate),
             object: self.encode_term_intern(quad.object),
         })
+    }
+
+    /// TODO
+    pub fn decode_term(
+        &self,
+        term: EncodedObjectId,
+    ) -> Result<Term, ObjectIdMappingError> {
+        let term = self
+            .try_get_encoded_term_from_object_id(term)
+            .ok_or(ObjectIdMappingError::UnknownObjectId)?;
+        Ok(TermRef::from(&term).into_owned())
+    }
+
+    /// TODO
+    pub fn decode_named_graph(
+        &self,
+        term: EncodedObjectId,
+    ) -> Result<NamedOrBlankNode, ObjectIdMappingError> {
+        match self.decode_term(term)? {
+            Term::NamedNode(nn) => Ok(NamedOrBlankNode::NamedNode(nn)),
+            Term::BlankNode(bnode) => Ok(NamedOrBlankNode::BlankNode(bnode)),
+            Term::Literal(_) => Err(ObjectIdMappingError::LiteralAsGraphName),
+        }
+    }
+
+    /// TODO
+    pub fn decode_graph_name(
+        &self,
+        term: GraphEncodedObjectId,
+    ) -> Result<GraphName, ObjectIdMappingError> {
+        match term.0 {
+            None => Ok(GraphName::DefaultGraph),
+            Some(term) => match self.decode_term(term)? {
+                Term::NamedNode(nn) => Ok(GraphName::NamedNode(nn)),
+                Term::BlankNode(bnode) => Ok(GraphName::BlankNode(bnode)),
+                Term::Literal(_) => Err(ObjectIdMappingError::LiteralAsGraphName),
+            },
+        }
     }
 
     /// TODO
