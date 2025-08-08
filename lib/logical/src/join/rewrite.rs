@@ -1,8 +1,8 @@
-use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
+use crate::RdfFusionExprBuilderContext;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, ExprSchema, JoinType, NullEquality, plan_err};
+use datafusion::common::{plan_err, Column, ExprSchema, JoinType, NullEquality};
 use datafusion::logical_expr::{Expr, ExprSchemable, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
@@ -76,10 +76,11 @@ impl SparqlJoinLoweringRule {
                 .build();
         }
 
-        let join_on = lhs_keys
+        let mut join_on = lhs_keys
             .intersection(&rhs_keys)
             .map(Column::new_unqualified)
             .collect::<Vec<_>>();
+        join_on.sort(); // Ensure stable output
 
         // Try to reduce the SPARQL join to a regular join.
         if let Some(result) = self.try_build_regular_join(node, &join_on)? {

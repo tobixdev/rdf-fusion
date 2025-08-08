@@ -1,20 +1,20 @@
 use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{
-    Column, DFSchema, Spans, exec_datafusion_err, plan_datafusion_err, plan_err,
+    exec_datafusion_err, plan_datafusion_err, plan_err, Column, DFSchema, Spans,
 };
 use datafusion::functions::core::coalesce;
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::expr::{AggregateFunction, ScalarFunction};
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{
-    Expr, ExprSchemable, LogicalPlan, LogicalPlanBuilder, ScalarUDF, Subquery, and,
-    exists, lit, not_exists,
+    and, exists, lit, not_exists, Expr, ExprSchemable, LogicalPlan,
+    LogicalPlanBuilder, ScalarUDF, Subquery,
 };
-use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
 };
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
@@ -241,8 +241,13 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             exists_pattern.schema(),
         );
 
-        let compatible_filters = outer_keys
+        let mut join_columns = outer_keys
             .intersection(&exists_keys)
+            .collect::<Vec<_>>();
+        join_columns.sort(); // Stable output
+
+        let compatible_filters = join_columns
+            .into_iter()
             .map(|k| Self::build_exists_filter(exists_expr_builder_root, outer_schema, k))
             .collect::<DFResult<Vec<_>>>()?;
         let compatible_filter = compatible_filters
