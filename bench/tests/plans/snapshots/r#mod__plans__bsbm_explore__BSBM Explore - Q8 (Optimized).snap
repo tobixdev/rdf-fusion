@@ -4,45 +4,45 @@ expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
 ---
 Projection: ENV_PT(title) AS title, ENV_PT(text) AS text, ENV_PT(reviewDate) AS reviewDate, ENV_PT(reviewer) AS reviewer, ENV_PT(reviewerName) AS reviewerName, ENV_PT(rating1) AS rating1, ENV_PT(rating2) AS rating2, ENV_PT(rating3) AS rating3, ENV_PT(rating4) AS rating4
   Sort: ENV_SORT(ENV_PT(reviewDate)) DESC NULLS FIRST, fetch=20
-    Projection: lhs.title AS title, lhs.reviewDate AS reviewDate, lhs.text AS text, lhs.reviewer AS reviewer, lhs.reviewerName AS reviewerName, lhs.rating1 AS rating1, lhs.rating2 AS rating2, lhs.rating3 AS rating3, rhs.rating4 AS rating4
+    Projection: lhs.title AS title, lhs.text AS text, lhs.reviewDate AS reviewDate, lhs.reviewer AS reviewer, lhs.reviewerName AS reviewerName, lhs.rating1 AS rating1, lhs.rating2 AS rating2, lhs.rating3 AS rating3, rhs.rating4 AS rating4
       Left Join: lhs.review = rhs.review
         SubqueryAlias: lhs
-          Projection: lhs.review AS review, lhs.title AS title, lhs.reviewDate AS reviewDate, lhs.text AS text, lhs.reviewer AS reviewer, lhs.reviewerName AS reviewerName, lhs.rating1 AS rating1, lhs.rating2 AS rating2, rhs.rating3 AS rating3
+          Projection: lhs.review AS review, lhs.title AS title, lhs.text AS text, lhs.reviewDate AS reviewDate, lhs.reviewer AS reviewer, lhs.reviewerName AS reviewerName, lhs.rating1 AS rating1, lhs.rating2 AS rating2, rhs.rating3 AS rating3
             Left Join: lhs.review = rhs.review
               SubqueryAlias: lhs
-                Projection: lhs.review AS review, lhs.title AS title, lhs.reviewDate AS reviewDate, lhs.text AS text, lhs.reviewer AS reviewer, lhs.reviewerName AS reviewerName, lhs.rating1 AS rating1, rhs.rating2 AS rating2
+                Projection: lhs.review AS review, lhs.title AS title, lhs.text AS text, lhs.reviewDate AS reviewDate, lhs.reviewer AS reviewer, lhs.reviewerName AS reviewerName, lhs.rating1 AS rating1, rhs.rating2 AS rating2
                   Left Join: lhs.review = rhs.review
                     SubqueryAlias: lhs
-                      Projection: lhs.review AS review, lhs.title AS title, lhs.reviewDate AS reviewDate, lhs.text AS text, lhs.reviewer AS reviewer, lhs.reviewerName AS reviewerName, rhs.rating1 AS rating1
+                      Projection: lhs.review AS review, lhs.title AS title, lhs.text AS text, lhs.reviewDate AS reviewDate, lhs.reviewer AS reviewer, lhs.reviewerName AS reviewerName, rhs.rating1 AS rating1
                         Left Join: lhs.review = rhs.review
                           SubqueryAlias: lhs
-                            Projection: lhs.review AS review, rhs.title AS title, rhs.reviewDate AS reviewDate, rhs.text AS text, rhs.reviewer AS reviewer, rhs.reviewerName AS reviewerName
-                              Inner Join: lhs.review = rhs.review
+                            Projection: lhs.review AS review, lhs.title AS title, lhs.text AS text, lhs.reviewDate AS reviewDate, lhs.reviewer AS reviewer, rhs.reviewerName AS reviewerName
+                              Inner Join: lhs.reviewer = rhs.reviewer
                                 SubqueryAlias: lhs
-                                  QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer12/Product578>), active_graph: Union of [DefaultGraph] 
-                                SubqueryAlias: rhs
-                                  Projection: lhs.review AS review, lhs.title AS title, rhs.reviewDate AS reviewDate, rhs.text AS text, rhs.reviewer AS reviewer, rhs.reviewerName AS reviewerName
+                                  Projection: lhs.review AS review, lhs.title AS title, lhs.text AS text, lhs.reviewDate AS reviewDate, rhs.reviewer AS reviewer
                                     Inner Join: lhs.review = rhs.review
                                       SubqueryAlias: lhs
-                                        QuadPattern (?review <http://purl.org/dc/elements/1.1/title> ?title), active_graph: Union of [DefaultGraph] 
-                                      SubqueryAlias: rhs
-                                        Projection: lhs.review AS review, lhs.reviewDate AS reviewDate, rhs.text AS text, rhs.reviewer AS reviewer, rhs.reviewerName AS reviewerName
+                                        Projection: lhs.review AS review, lhs.title AS title, lhs.text AS text, rhs.reviewDate AS reviewDate
                                           Inner Join: lhs.review = rhs.review
                                             SubqueryAlias: lhs
-                                              QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewDate> ?reviewDate), active_graph: Union of [DefaultGraph] 
-                                            SubqueryAlias: rhs
-                                              Projection: lhs.review AS review, lhs.text AS text, rhs.reviewer AS reviewer, rhs.reviewerName AS reviewerName
+                                              Projection: lhs.review AS review, lhs.title AS title, rhs.text AS text
                                                 Inner Join: lhs.review = rhs.review
                                                   SubqueryAlias: lhs
+                                                    Projection: lhs.review AS review, rhs.title AS title
+                                                      Inner Join: lhs.review = rhs.review
+                                                        SubqueryAlias: lhs
+                                                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer12/Product578>), active_graph: Union of [DefaultGraph] 
+                                                        SubqueryAlias: rhs
+                                                          QuadPattern (?review <http://purl.org/dc/elements/1.1/title> ?title), active_graph: Union of [DefaultGraph] 
+                                                  SubqueryAlias: rhs
                                                     Filter: EBV(LANGMATCHES(LANG(ENC_TV(text)), Union 3:{value:EN,language:}))
                                                       QuadPattern (?review <http://purl.org/stuff/rev#text> ?text), active_graph: Union of [DefaultGraph] 
-                                                  SubqueryAlias: rhs
-                                                    Projection: lhs.review AS review, lhs.reviewer AS reviewer, rhs.reviewerName AS reviewerName
-                                                      Inner Join: lhs.reviewer = rhs.reviewer
-                                                        SubqueryAlias: lhs
-                                                          QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer), active_graph: Union of [DefaultGraph] 
-                                                        SubqueryAlias: rhs
-                                                          QuadPattern (?reviewer <http://xmlns.com/foaf/0.1/name> ?reviewerName), active_graph: Union of [DefaultGraph] 
+                                            SubqueryAlias: rhs
+                                              QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewDate> ?reviewDate), active_graph: Union of [DefaultGraph] 
+                                      SubqueryAlias: rhs
+                                        QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer), active_graph: Union of [DefaultGraph] 
+                                SubqueryAlias: rhs
+                                  QuadPattern (?reviewer <http://xmlns.com/foaf/0.1/name> ?reviewerName), active_graph: Union of [DefaultGraph] 
                           SubqueryAlias: rhs
                             QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?rating1), active_graph: Union of [DefaultGraph] 
                     SubqueryAlias: rhs

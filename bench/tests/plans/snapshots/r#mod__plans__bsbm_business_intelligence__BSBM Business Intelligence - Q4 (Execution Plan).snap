@@ -10,15 +10,15 @@ ProjectionExec: expr=[ENV_PT(feature@0) as feature, ENV_PT(priceRatio@3) as pric
           ProjectionExec: expr=[feature@0 as feature, 00000000000000000000000000000001@1 as withFeaturePrice]
             AggregateExec: mode=Single, gby=[feature@0 as feature], aggr=[00000000000000000000000000000001]
               CoalesceBatchesExec: target_batch_size=8192
-                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[feature@2, price@3]
-                  QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
+                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@1, offer@0)], projection=[feature@0, price@3]
                   CoalesceBatchesExec: target_batch_size=8192
-                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, feature@1, price@3]
-                      QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
+                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[feature@1, offer@2]
                       CoalesceBatchesExec: target_batch_size=8192
-                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[product@1, price@3]
-                          QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
-                          QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, feature@2]
+                          QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
+                          QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
+                      QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
+                  QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
           ProjectionExec: expr=[feature@0 as feature, 00000000000000000000000000000002@1 as withoutFeaturePrice]
             AggregateExec: mode=Single, gby=[feature@0 as feature], aggr=[00000000000000000000000000000002]
               CoalesceBatchesExec: target_batch_size=8192
@@ -31,11 +31,11 @@ ProjectionExec: expr=[ENV_PT(feature@0) as feature, ENV_PT(priceRatio@3) as pric
                             QuadPatternExec: n_graphs=1, subject=?p, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
                             QuadPatternExec: n_graphs=1, subject=?p, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
                     CoalesceBatchesExec: target_batch_size=8192
-                      HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, price@2]
-                        QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
+                      HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@1, offer@0)], projection=[product@0, price@3]
                         CoalesceBatchesExec: target_batch_size=8192
-                          HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[product@1, price@3]
+                          HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, offer@1]
+                            QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
                             QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
-                            QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+                        QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
                   ProjectionExec: expr=[product@0 as __inner__product, feature@1 as __inner__feature]
                     QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature

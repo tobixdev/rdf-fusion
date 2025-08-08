@@ -8,25 +8,25 @@ ProjectionExec: expr=[ENV_PT(first_value(offer) ORDER BY [ENV_SORT(xsd:double(EN
       ProjectionExec: expr=[ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price@1))))) as __common_expr_1, offer@0 as offer, price@1 as price]
         SortExec: expr=[ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price@1))))) ASC], preserve_partitioning=[false]
           CoalesceBatchesExec: target_batch_size=8192
-            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(vendor@0, vendor@2)], projection=[offer@1, price@2]
-              QuadPatternExec: n_graphs=1, subject=?vendor, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=<http://downlode.org/rdf/iso-3166/countries#US>
+            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, price@1]
               CoalesceBatchesExec: target_batch_size=8192
-                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, price@2, vendor@3]
-                  QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer7/Product296>
+                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, price@2]
                   CoalesceBatchesExec: target_batch_size=8192
-                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, price@1, vendor@3]
-                      QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0]
                       CoalesceBatchesExec: target_batch_size=8192
-                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0), (vendor@1, vendor@1)], projection=[offer@0, vendor@1]
-                          QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
+                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0), (vendor@1, vendor@1)], projection=[offer@0]
                           CoalesceBatchesExec: target_batch_size=8192
-                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, vendor@2]
+                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(vendor@1, vendor@0)], projection=[offer@0, vendor@1]
                               CoalesceBatchesExec: target_batch_size=8192
-                                FilterExec: EBV(LEQ(ENC_TV(deliveryDays@1), 9:3)), projection=[offer@0]
-                                  QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays>, object=?deliveryDays
-                              CoalesceBatchesExec: target_batch_size=8192
-                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, vendor@1]
-                                  QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?vendor
-                                  CoalesceBatchesExec: target_batch_size=8192
-                                    FilterExec: EBV(GT(ENC_TV(date@1), 10:{value:6334951680000.0000000000000000,offset:})), projection=[offer@0]
-                                      QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo>, object=?date
+                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, vendor@2]
+                                  QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer7/Product296>
+                                  QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
+                              QuadPatternExec: n_graphs=1, subject=?vendor, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=<http://downlode.org/rdf/iso-3166/countries#US>
+                          QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?vendor
+                      CoalesceBatchesExec: target_batch_size=8192
+                        FilterExec: EBV(LEQ(ENC_TV(deliveryDays@1), 9:3)), projection=[offer@0]
+                          QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays>, object=?deliveryDays
+                  QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+              CoalesceBatchesExec: target_batch_size=8192
+                FilterExec: EBV(GT(ENC_TV(date@1), 10:{value:6334951680000.0000000000000000,offset:})), projection=[offer@0]
+                  QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo>, object=?date

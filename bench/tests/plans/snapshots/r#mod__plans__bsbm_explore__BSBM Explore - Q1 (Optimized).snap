@@ -7,26 +7,26 @@ Projection: ENV_PT(first_value(product) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NU
     Aggregate: groupBy=[[__common_expr_1 AS ENV_SORT(ENV_PT(label)), product]], aggr=[[first_value(product) ORDER BY [__common_expr_1 AS ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST] AS first_value(product) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST], first_value(label) ORDER BY [__common_expr_1 AS ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST] AS first_value(label) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST]]]
       Projection: ENV_SORT(ENV_PT(label)) AS __common_expr_1, product, label
         Sort: ENV_SORT(ENV_PT(label)) ASC NULLS FIRST
-          Projection: lhs.product AS product, rhs.label AS label
+          Projection: lhs.product AS product, lhs.label AS label
             Inner Join: lhs.product = rhs.product
               SubqueryAlias: lhs
-                QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature1967>), active_graph: Union of [DefaultGraph] 
-              SubqueryAlias: rhs
                 Projection: lhs.product AS product, rhs.label AS label
                   Inner Join: lhs.product = rhs.product
                     SubqueryAlias: lhs
-                      QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType66>), active_graph: Union of [DefaultGraph] 
-                    SubqueryAlias: rhs
-                      Projection: lhs.product AS product, rhs.label AS label
+                      Projection: lhs.product AS product
                         Inner Join: lhs.product = rhs.product
                           SubqueryAlias: lhs
-                            QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature3>), active_graph: Union of [DefaultGraph] 
-                          SubqueryAlias: rhs
-                            Projection: lhs.product AS product, lhs.label AS label
+                            Projection: lhs.product AS product
                               Inner Join: lhs.product = rhs.product
                                 SubqueryAlias: lhs
-                                  QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?label), active_graph: Union of [DefaultGraph] 
+                                  QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType66>), active_graph: Union of [DefaultGraph] 
                                 SubqueryAlias: rhs
-                                  Projection: product
-                                    Filter: EBV(GT(ENC_TV(value1), Union 9:136))
-                                      QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?value1), active_graph: Union of [DefaultGraph]
+                                  QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature3>), active_graph: Union of [DefaultGraph] 
+                          SubqueryAlias: rhs
+                            QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature1967>), active_graph: Union of [DefaultGraph] 
+                    SubqueryAlias: rhs
+                      QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?label), active_graph: Union of [DefaultGraph] 
+              SubqueryAlias: rhs
+                Projection: product
+                  Filter: EBV(GT(ENC_TV(value1), Union 9:136))
+                    QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?value1), active_graph: Union of [DefaultGraph]

@@ -18,11 +18,11 @@ ProjectionExec: expr=[ENV_PT(label@0) as label, ENV_PT(comment@1) as comment, EN
                         QuadPatternExec: n_graphs=1, subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www.w3.org/2000/01/rdf-schema#comment>, object=?comment
                       CoalesceBatchesExec: target_batch_size=8192
                         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@0, p@0)], projection=[producer@2]
-                          QuadPatternExec: n_graphs=1, subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=?p
                           CoalesceBatchesExec: target_batch_size=8192
-                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@0, p@0)], projection=[p@0, producer@2]
+                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@0, p@0)], projection=[p@0]
+                              QuadPatternExec: n_graphs=1, subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=?p
                               QuadPatternExec: n_graphs=1, subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?p
-                              QuadPatternExec: n_graphs=1, subject=?p, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?producer
+                          QuadPatternExec: n_graphs=1, subject=?p, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?producer
                     CoalesceBatchesExec: target_batch_size=8192
                       HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(f@0, f@0)], projection=[productFeature@2]
                         QuadPatternExec: n_graphs=1, subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?f

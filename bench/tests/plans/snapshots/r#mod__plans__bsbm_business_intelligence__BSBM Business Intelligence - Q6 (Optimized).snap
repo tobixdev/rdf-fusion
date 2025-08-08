@@ -9,37 +9,37 @@ Projection: ENV_PT(reviewer) AS reviewer, ENV_PT(0000000000000000000000000000000
         Projection: 00000000000000000000000000000003 AS avgScore
           Aggregate: groupBy=[[]], aggr=[[AVG(xsd:float(ENC_TV(score))) AS 00000000000000000000000000000003]]
             Projection: rhs.score AS score
-              Inner Join: lhs.product = rhs.product
+              Inner Join: lhs.review = rhs.review
                 SubqueryAlias: lhs
-                  QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>), active_graph: Union of [DefaultGraph] 
-                SubqueryAlias: rhs
-                  Projection: lhs.product AS product, rhs.score AS score
-                    Inner Join: lhs.review = rhs.review
+                  Projection: rhs.review AS review
+                    Inner Join: lhs.product = rhs.product
                       SubqueryAlias: lhs
-                        QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product), active_graph: Union of [DefaultGraph] 
+                        QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>), active_graph: Union of [DefaultGraph] 
                       SubqueryAlias: rhs
-                        Union
-                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?score), active_graph: Union of [DefaultGraph] 
-                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?score), active_graph: Union of [DefaultGraph] 
-                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3> ?score), active_graph: Union of [DefaultGraph] 
-                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4> ?score), active_graph: Union of [DefaultGraph] 
-        Projection: rhs.reviewer AS reviewer, rhs.score AS score
-          Inner Join: lhs.product = rhs.product
+                        QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product), active_graph: Union of [DefaultGraph] 
+                SubqueryAlias: rhs
+                  Union
+                    QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?score), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?score), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3> ?score), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4> ?score), active_graph: Union of [DefaultGraph] 
+        Projection: lhs.reviewer AS reviewer, rhs.score AS score
+          Inner Join: lhs.review = rhs.review
             SubqueryAlias: lhs
-              QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>), active_graph: Union of [DefaultGraph] 
-            SubqueryAlias: rhs
-              Projection: lhs.reviewer AS reviewer, rhs.product AS product, rhs.score AS score
+              Projection: lhs.review AS review, rhs.reviewer AS reviewer
                 Inner Join: lhs.review = rhs.review
                   SubqueryAlias: lhs
-                    QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer), active_graph: Union of [DefaultGraph] 
-                  SubqueryAlias: rhs
-                    Projection: lhs.review AS review, lhs.product AS product, rhs.score AS score
-                      Inner Join: lhs.review = rhs.review
+                    Projection: rhs.review AS review
+                      Inner Join: lhs.product = rhs.product
                         SubqueryAlias: lhs
-                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product), active_graph: Union of [DefaultGraph] 
+                          QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>), active_graph: Union of [DefaultGraph] 
                         SubqueryAlias: rhs
-                          Union
-                            QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?score), active_graph: Union of [DefaultGraph] 
-                            QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?score), active_graph: Union of [DefaultGraph] 
-                            QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3> ?score), active_graph: Union of [DefaultGraph] 
-                            QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4> ?score), active_graph: Union of [DefaultGraph]
+                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product), active_graph: Union of [DefaultGraph] 
+                  SubqueryAlias: rhs
+                    QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer), active_graph: Union of [DefaultGraph] 
+            SubqueryAlias: rhs
+              Union
+                QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?score), active_graph: Union of [DefaultGraph] 
+                QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?score), active_graph: Union of [DefaultGraph] 
+                QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3> ?score), active_graph: Union of [DefaultGraph] 
+                QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4> ?score), active_graph: Union of [DefaultGraph]
