@@ -16,15 +16,15 @@ Projection: ENV_PT(product) AS product
                   QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product), active_graph: Union of [DefaultGraph] 
     SubqueryAlias: __correlated_sq_1
       Projection: lhs.product AS __inner__product
-        Inner Join: lhs.offer = rhs.offer
+        Inner Join: lhs.vendor = rhs.vendor
           SubqueryAlias: lhs
-            QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product), active_graph: Union of [DefaultGraph] 
-          SubqueryAlias: rhs
-            Projection: lhs.offer AS offer
-              Inner Join: lhs.vendor = rhs.vendor
+            Projection: lhs.product AS product, rhs.vendor AS vendor
+              Inner Join: lhs.offer = rhs.offer
                 SubqueryAlias: lhs
-                  QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
+                  QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product), active_graph: Union of [DefaultGraph] 
                 SubqueryAlias: rhs
-                  Projection: vendor
-                    Filter: EBV(EQ(ENC_TV(country), Union 1:http://downlode.org/rdf/iso-3166/countries#US))
-                      QuadPattern (?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country), active_graph: Union of [DefaultGraph]
+                  QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
+          SubqueryAlias: rhs
+            Projection: vendor
+              Filter: EBV(EQ(ENC_TV(country), Union 1:http://downlode.org/rdf/iso-3166/countries#US))
+                QuadPattern (?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country), active_graph: Union of [DefaultGraph]
