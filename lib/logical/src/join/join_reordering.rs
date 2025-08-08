@@ -75,7 +75,7 @@ impl SparqlJoinReorderingRule {
         node: &SparqlJoinNode,
         config: &dyn OptimizerConfig,
     ) -> DFResult<LogicalPlan> {
-        // See restrictions in [JoinComponents].
+        // See restrictions in JoinComponents.
         if node.filter().is_some() || node.join_type() != SparqlJoinType::Inner {
             return Ok(LogicalPlan::Extension(Extension {
                 node: Arc::new(node.clone()),
@@ -119,24 +119,25 @@ impl SparqlJoinReorderingRule {
         &self,
         component: ConnectedJoinComponent,
     ) -> DFResult<LogicalPlan> {
-        /// Finds the next logical plan with the least cost (regarding the current `used_vars`).
+        /// Finds the next logical plan with the maximum cost that is connected to the current
+        /// `used_vars`.
         fn pop_next_greedy(
             patterns: &mut Vec<LogicalPlan>,
             used_vars: &mut HashSet<Column>,
         ) -> LogicalPlan {
             // Find the next pattern that overlaps variables with 'used_vars'
-            let mut best: Option<(usize, usize)> = None;
+            let mut worst: Option<(usize, usize)> = None;
             for (i, plan) in patterns.iter().enumerate() {
                 let plan_vars = extract_columns(plan);
                 if !used_vars.is_disjoint(&plan_vars) {
                     let cost = estimate_cardinality(plan);
-                    if best.is_none() || cost < best.unwrap().1 {
-                        best = Some((i, cost));
+                    if worst.is_none() || cost > worst.unwrap().1 {
+                        worst = Some((i, cost));
                     }
                 }
             }
 
-            let (idx, _) = best.expect(
+            let (idx, _) = worst.expect(
                 "There is always a join with overlapping variables in a non-empty component.",
             );
             patterns.remove(idx)
@@ -145,20 +146,20 @@ impl SparqlJoinReorderingRule {
         let mut to_order = component.0;
         let mut used_vars = HashSet::new();
 
-        let (first_idx, _) = to_order
+        let (most_expensive_idx, _) = to_order
             .iter()
             .enumerate()
             .map(|(i, p)| (i, estimate_cardinality(p)))
-            .min_by_key(|&(_, cost)| cost)
+            .max_by_key(|&(_, cost)| cost)
             .expect("There is at least one component");
 
-        let mut current_plan = to_order.remove(first_idx);
+        let mut current_plan = to_order.remove(most_expensive_idx);
         used_vars.extend(extract_columns(&current_plan));
 
         while !to_order.is_empty() {
             let next = pop_next_greedy(&mut to_order, &mut used_vars);
             used_vars.extend(extract_columns(&next));
-            current_plan = create_join(self.encodings.clone(), current_plan, next)?;
+            current_plan = create_join(self.encodings.clone(), next, current_plan)?;
         }
 
         Ok(current_plan)
@@ -350,4 +351,209 @@ fn extract_columns(plan: &LogicalPlan) -> HashSet<Column> {
         .iter()
         .map(|f| Column::new_unqualified(f.name()))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::create_test_context;
+    use crate::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
+    use datafusion::logical_expr::col;
+    use datafusion::optimizer::OptimizerContext;
+    use datafusion::prelude::Expr;
+    use insta::assert_snapshot;
+    use rdf_fusion_model::{
+        NamedNode, NamedNodePattern, TermPattern, TriplePattern, Variable,
+    };
+
+    #[test]
+    fn basic_reordering_disconnected() {
+        // cheap: all bound
+        let a = quad(
+            pat_named("http://s.org").into(),
+            pat_named("http://p.org"),
+            pat_named("http://o.org").into(),
+        );
+
+        // expensive: unbound subject/object
+        let b = quad(pat_var("s"), pat_named("http://p.org".into()), pat_var("o"));
+
+        // medium: only object bound
+        let c = quad(
+            pat_var("x"),
+            pat_var_named("p"),
+            pat_named("http://o.org".into()).into(),
+        );
+
+        let plan = join(join(a, b.clone()), c.clone());
+        let result = reorder(plan);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn basic_reordering_connected() {
+        let a = quad(
+            pat_var("a").into(),
+            pat_named("urn:p"),
+            pat_named("urn:o").into(),
+        );
+        let b = quad(
+            pat_var("b"),
+            pat_named("urn:p".into()),
+            pat_named("urn:o").into(),
+        );
+        let c = quad(
+            pat_var("a"),
+            pat_var_named("b"),
+            pat_named("urn:o".into()).into(),
+        );
+
+        // Should be reordered such that no cross-join happens.
+
+        let plan = join(join(a, b.clone()), c.clone());
+        let result = reorder(plan);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn reorder_two_disconnected_components() {
+        let a = quad(pat_var("x"), pat_named("urn:p1"), pat_var("y"));
+        let b = quad(pat_var("a"), pat_named("urn:p2"), pat_var("b"));
+        let c = quad(pat_var("x"), pat_named("urn:p3"), pat_var("z"));
+        let d = quad(pat_var("b"), pat_named("urn:p4"), pat_var("c"));
+
+        // Two join groups: (a, c) and (b, d)
+        let join1 = join(join(a, b), join(c, d));
+
+        let result = reorder(join1);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn reorder_large_connected_component() {
+        let a = quad(pat_var("x"), pat_named("urn:p1"), pat_var("y"));
+        let b = quad(pat_var("a"), pat_named("urn:p2"), pat_var("b"));
+        let c = quad(pat_var("x"), pat_named("urn:p3"), pat_var("z"));
+        let d = quad(pat_var("b"), pat_named("urn:p4"), pat_var("c"));
+        let e = quad(pat_var("b"), pat_var_named("x"), pat_named("urn:p4").into());
+
+        let result = reorder(join(join(join(a, b), join(c, d)), e));
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn test_nested_joins_with_filter_skipped() {
+        let a = quad(
+            pat_var("a").into(),
+            pat_named("urn:p"),
+            pat_named("urn:o").into(),
+        );
+        let b = quad(
+            pat_var("b"),
+            pat_named("urn:p".into()),
+            pat_named("urn:o").into(),
+        );
+        let c = quad(
+            pat_var("a"),
+            pat_var_named("b"),
+            pat_named("urn:o".into()).into(),
+        );
+
+        let filtered_join =
+            join_detailed(a, b, SparqlJoinType::Inner, Some(col("a").gt(col("b"))));
+        let join = join(filtered_join, c);
+
+        // Reordering shouldn't happen. Without the filter "c" would be the deep-right plan.
+        let result = reorder(join);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn test_left_join_skipped() {
+        let a = quad(
+            pat_var("a").into(),
+            pat_named("urn:p"),
+            pat_named("urn:o").into(),
+        );
+        let b = quad(
+            pat_var("b"),
+            pat_named("urn:p".into()),
+            pat_named("urn:o").into(),
+        );
+        let c = quad(
+            pat_var("a"),
+            pat_var_named("b"),
+            pat_named("urn:o".into()).into(),
+        );
+
+        let filtered_join = join_detailed(a, b, SparqlJoinType::Left, None);
+        let join = join(filtered_join, c);
+
+        // Reordering shouldn't happen. Without the filter "c" would be the deep-right plan.
+        let result = reorder(join);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    fn pat_var(name: &str) -> TermPattern {
+        TermPattern::Variable(Variable::new(name.to_string()).unwrap())
+    }
+
+    fn pat_var_named(name: &str) -> NamedNodePattern {
+        NamedNodePattern::Variable(Variable::new(name.to_string()).unwrap())
+    }
+
+    fn pat_named(name: &str) -> NamedNodePattern {
+        NamedNodePattern::NamedNode(NamedNode::new(name.to_string()).unwrap())
+    }
+
+    fn quad(
+        subject: TermPattern,
+        predicate: NamedNodePattern,
+        object: TermPattern,
+    ) -> LogicalPlan {
+        let context = create_test_context();
+        RdfFusionLogicalPlanBuilderContext::new(context)
+            .create_pattern(
+                ActiveGraph::DefaultGraph,
+                None,
+                TriplePattern {
+                    subject,
+                    predicate,
+                    object,
+                },
+            )
+            .build()
+            .unwrap()
+    }
+
+    fn join(lhs: LogicalPlan, rhs: LogicalPlan) -> LogicalPlan {
+        join_detailed(lhs, rhs, SparqlJoinType::Inner, None)
+    }
+
+    fn join_detailed(
+        lhs: LogicalPlan,
+        rhs: LogicalPlan,
+        join_type: SparqlJoinType,
+        filter: Option<Expr>,
+    ) -> LogicalPlan {
+        let context = create_test_context();
+        RdfFusionLogicalPlanBuilderContext::new(context)
+            .create(Arc::new(lhs))
+            .join(rhs, join_type, filter)
+            .unwrap()
+            .build()
+            .unwrap()
+    }
+
+    fn reorder(plan: LogicalPlan) -> LogicalPlan {
+        let rule =
+            SparqlJoinReorderingRule::new(create_test_context().encodings().clone());
+        rule.rewrite(plan, &OptimizerContext::new()).unwrap().data
+    }
 }
