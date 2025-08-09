@@ -36,8 +36,9 @@ impl<'log> MemLogWriter<'log> {
 
     /// Transactionally inserts quads into the log.
     pub fn insert_quads(&mut self, quads: &[Quad]) -> Result<usize, StorageError> {
+        let changes = self.content.compute_changes(self.version_number);
         let mut inserted = 0;
-        let mut seen_quads = self.content.compute_quads(self.version_number);
+        let mut seen_quads = changes.map(|c| c.inserted).unwrap_or_default();
 
         for quad in quads {
             let encoded = self.object_id_mapping.encode_quad(quad.as_ref())?;
@@ -45,9 +46,9 @@ impl<'log> MemLogWriter<'log> {
             if seen_quads.contains(&encoded) {
                 continue;
             }
+
             seen_quads.insert(encoded.clone());
             inserted += 1;
-
             self.log_builder.append_insertion(&encoded)?;
         }
 
@@ -57,16 +58,21 @@ impl<'log> MemLogWriter<'log> {
     /// Transactionally removes quads from the log.
     pub fn delete(&mut self, quads: &[QuadRef<'_>]) -> Result<usize, StorageError> {
         let mut deleted = 0;
-        let mut seen_quads = self.content.compute_quads(self.version_number);
+        let mut seen_quads = self
+            .content
+            .compute_changes(self.version_number)
+            .map(|c| c.inserted)
+            .unwrap_or_default();
 
         for quad in quads {
             let encoded = self.object_id_mapping.encode_quad(*quad)?;
 
-            if seen_quads.contains(&encoded) {
-                deleted += 1;
+            if !seen_quads.contains(&encoded) {
+                continue;
             }
-            seen_quads.remove(&encoded);
 
+            seen_quads.remove(&encoded);
+            deleted += 1;
             self.log_builder.append_deletion(&encoded)?;
         }
 
@@ -80,11 +86,15 @@ impl<'log> MemLogWriter<'log> {
     ) -> Result<bool, StorageError> {
         let object_id = self.object_id_mapping.encode_term_intern(graph_name);
 
-        let existing = self
-            .content
-            .contains_named_graph(object_id, self.version_number);
-        if existing {
-            return Ok(false);
+        if let Some(changes) = self.content.compute_changes(self.version_number) {
+            let existing = changes.created_named_graphs.contains(&object_id)
+                || changes
+                    .inserted
+                    .iter()
+                    .any(|q| q.graph_name.0 == Some(object_id));
+            if existing {
+                return Ok(false);
+            }
         }
 
         self.log_builder
@@ -116,11 +126,16 @@ impl<'log> MemLogWriter<'log> {
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError> {
         let object_id = self.object_id_mapping.encode_term_intern(graph_name);
-        let existing = self
-            .content
-            .contains_named_graph(object_id, self.version_number);
-        if !existing {
-            return Ok(false);
+
+        if let Some(changes) = self.content.compute_changes(self.version_number) {
+            let existing = changes.created_named_graphs.contains(&object_id)
+                || changes
+                    .inserted
+                    .iter()
+                    .any(|q| q.graph_name.0 == Some(object_id));
+            if !existing {
+                return Ok(false);
+            }
         }
 
         self.log_builder

@@ -1,3 +1,4 @@
+use crate::memory::storage::{MemQuadPatternExec, MemQuadStorageSnapshot};
 use async_trait::async_trait;
 use datafusion::error::Result as DFResult;
 use datafusion::execution::context::SessionState;
@@ -5,35 +6,18 @@ use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
 use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
-use rdf_fusion_logical::{ActiveGraph, EnumeratedActiveGraph};
-use rdf_fusion_model::GraphName;
 use std::sync::Arc;
 
-/// Planner for [QuadPatternNode].
-pub struct MemQuadStorePlanner;
+/// Plans [QuadPatternNode]s with a [MemQuadStore].
+pub struct MemQuadStorePlanner {
+    /// The snapshot to use for planning.
+    snapshot: MemQuadStorageSnapshot,
+}
 
 impl MemQuadStorePlanner {
-    /// Enumerates the graphs in the active graph, expanding wildcards.
-    fn enumerate_active_graph(
-        &self,
-        active_graph: &ActiveGraph,
-    ) -> DFResult<EnumeratedActiveGraph> {
-        let graph_names = match active_graph {
-            ActiveGraph::DefaultGraph => vec![GraphName::DefaultGraph],
-            ActiveGraph::AllGraphs => {
-                let mut all_named_graphs = self.enumerate_named_graphs()?;
-                all_named_graphs.push(GraphName::DefaultGraph);
-                all_named_graphs
-            }
-            ActiveGraph::Union(vec) => vec.clone(),
-            ActiveGraph::AnyNamedGraph => self.enumerate_named_graphs()?,
-        };
-        Ok(EnumeratedActiveGraph::new(graph_names))
-    }
-
-    /// Enumerates all named graphs in the store.
-    fn enumerate_named_graphs(&self) -> DFResult<Vec<GraphName>> {
-        todo!("Implement named graph enumeration");
+    /// Creates a new [MemQuadStorePlanner] for the given snapshot.
+    pub fn new(snapshot: MemQuadStorageSnapshot) -> Self {
+        Self { snapshot }
     }
 }
 
@@ -48,8 +32,14 @@ impl ExtensionPlanner for MemQuadStorePlanner {
         _physical_inputs: &[Arc<dyn ExecutionPlan>],
         _session_state: &SessionState,
     ) -> DFResult<Option<Arc<dyn ExecutionPlan>>> {
-        if let Some(_) = node.as_any().downcast_ref::<QuadPatternNode>() {
-            todo!("Implement quad pattern planning");
+        if let Some(node) = node.as_any().downcast_ref::<QuadPatternNode>() {
+            Ok(Some(Arc::new(MemQuadPatternExec::new(
+                self.snapshot.clone(),
+                node.active_graph().clone(),
+                node.graph_variable().map(|g| g.into_owned()),
+                node.pattern().clone(),
+                node.blank_node_mode(),
+            ))))
         } else {
             Ok(None)
         }

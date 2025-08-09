@@ -1,4 +1,5 @@
 use crate::memory::MemObjectIdMapping;
+use crate::memory::planner::MemQuadStorePlanner;
 use crate::memory::storage::log::MemLog;
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
 use async_trait::async_trait;
@@ -30,9 +31,13 @@ impl MemQuadStorage {
     }
 
     /// Creates a snapshot of this storage.
-    pub fn snapshot(&self) -> MemQuadStorageSnapshot {
-        let log_snapshot = self.log.snapshot();
-        MemQuadStorageSnapshot::new(self.object_id_mapping.clone(), log_snapshot)
+    pub async fn snapshot(&self) -> MemQuadStorageSnapshot {
+        MemQuadStorageSnapshot::new_with_computed_changes(
+            self.encoding(),
+            self.object_id_mapping.clone(),
+            self.log.snapshot(),
+        )
+        .await
     }
 }
 
@@ -47,8 +52,9 @@ impl QuadStorage for MemQuadStorage {
         Some(self.object_id_mapping.clone())
     }
 
-    fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
-        todo!()
+    async fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
+        let snapshot = self.snapshot().await;
+        vec![Arc::new(MemQuadStorePlanner::new(snapshot))]
     }
 
     async fn insert_quads(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
@@ -67,14 +73,14 @@ impl QuadStorage for MemQuadStorage {
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        self.snapshot().named_graphs().await
+        self.snapshot().await.named_graphs().await
     }
 
     async fn contains_named_graph<'a>(
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        Ok(self.snapshot().contains_named_graph(graph_name).await)
+        Ok(self.snapshot().await.contains_named_graph(graph_name).await)
     }
 
     async fn clear(&self) -> Result<(), StorageError> {
@@ -106,7 +112,7 @@ impl QuadStorage for MemQuadStorage {
     }
 
     async fn len(&self) -> Result<usize, StorageError> {
-        Ok(self.snapshot().len().await)
+        Ok(self.snapshot().await.len().await)
     }
 
     async fn validate(&self) -> Result<(), StorageError> {

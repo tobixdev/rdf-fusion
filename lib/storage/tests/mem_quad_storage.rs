@@ -1,6 +1,13 @@
+use datafusion::execution::TaskContext;
+use datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet};
+use futures::StreamExt;
+use insta::assert_debug_snapshot;
 use rdf_fusion_api::storage::QuadStorage;
+use rdf_fusion_common::BlankNodeMatchingMode;
+use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::{
-    GraphName, GraphNameRef, Literal, NamedNode, NamedOrBlankNode, Quad, Subject, Term,
+    GraphName, GraphNameRef, Literal, NamedNode, NamedNodePattern, NamedOrBlankNode,
+    Quad, Subject, Term, TermPattern, TriplePattern, Variable,
 };
 use rdf_fusion_storage::memory::{MemObjectIdMapping, MemQuadStorage};
 use std::sync::Arc;
@@ -15,6 +22,101 @@ async fn insert_quad() {
 
     let len = storage.len().await.unwrap();
     assert_eq!(len, 1);
+}
+
+#[tokio::test]
+async fn insert_quad_then_read() {
+    let storage = create_storage();
+
+    let inserted = storage.insert_quads(vec![example_quad()]).await.unwrap();
+    assert_eq!(inserted, 1);
+
+    let ep_metrics = ExecutionPlanMetricsSet::default();
+    let metrics = BaselineMetrics::new(&ep_metrics, 0);
+
+    let batch = storage
+        .snapshot()
+        .await
+        .evaluate_pattern(
+            ActiveGraph::DefaultGraph,
+            Some(Variable::new_unchecked("g")),
+            TriplePattern {
+                subject: TermPattern::Variable(Variable::new_unchecked("s")),
+                predicate: NamedNodePattern::Variable(Variable::new_unchecked("p")),
+                object: TermPattern::Variable(Variable::new_unchecked("o")),
+            },
+            BlankNodeMatchingMode::Filter,
+            metrics,
+            Arc::new(TaskContext::default()),
+            0,
+        )
+        .unwrap()
+        .next()
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(batch.num_rows(), 1);
+    assert_debug_snapshot!(batch, @r#"
+    RecordBatch {
+        schema: Schema {
+            fields: [
+                Field {
+                    name: "g",
+                    data_type: UInt32,
+                    nullable: true,
+                    dict_id: 0,
+                    dict_is_ordered: false,
+                    metadata: {},
+                },
+                Field {
+                    name: "s",
+                    data_type: UInt32,
+                    nullable: false,
+                    dict_id: 0,
+                    dict_is_ordered: false,
+                    metadata: {},
+                },
+                Field {
+                    name: "p",
+                    data_type: UInt32,
+                    nullable: false,
+                    dict_id: 0,
+                    dict_is_ordered: false,
+                    metadata: {},
+                },
+                Field {
+                    name: "o",
+                    data_type: UInt32,
+                    nullable: false,
+                    dict_id: 0,
+                    dict_is_ordered: false,
+                    metadata: {},
+                },
+            ],
+            metadata: {},
+        },
+        columns: [
+            PrimitiveArray<UInt32>
+            [
+              null,
+            ],
+            PrimitiveArray<UInt32>
+            [
+              0,
+            ],
+            PrimitiveArray<UInt32>
+            [
+              1,
+            ],
+            PrimitiveArray<UInt32>
+            [
+              2,
+            ],
+        ],
+        row_count: 1,
+    }
+    "#);
 }
 
 #[tokio::test]
@@ -141,7 +243,7 @@ async fn snapshot_consistency() {
         .await
         .unwrap();
 
-    let snapshot = storage.snapshot();
+    let snapshot = storage.snapshot().await;
 
     // Update storage after snapshot
     storage.clear().await.unwrap();

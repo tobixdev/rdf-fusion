@@ -1,12 +1,12 @@
-use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::log::VersionNumber;
-use crate::memory::storage::log::content::{GraphLen, MemLogContent};
+use crate::memory::storage::log::content::{LogChanges, MemLogContent};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Holds a snapshot of the log that can be read from.
 ///
 /// The snapshot will only consider log entries with a smaller or equal version number.
+#[derive(Debug, Clone)]
 pub struct MemLogSnapshot {
     /// A lock-able version of the log content.
     ///
@@ -29,14 +29,12 @@ impl MemLogSnapshot {
         }
     }
 
-    /// Returns the size of all graphs at the current snapshot.
-    pub async fn len(&self) -> GraphLen {
-        self.content.read().await.len(self.version_number)
-    }
-
-    /// Checks whether the named graph `graph` exists in the current snapshot.
-    pub async fn contains_named_graph(&self, graph: EncodedObjectId) -> bool {
-        let len = self.len().await;
-        len.graph.contains_key(&(Some(graph).into()))
+    /// Computes the changes up to the current version number. These changes should be used by the
+    /// quad pattern stream to incorporate the changes in the log.
+    pub async fn compute_changes(&self) -> Option<LogChanges> {
+        self.content
+            .read()
+            .await
+            .compute_changes(self.version_number)
     }
 }

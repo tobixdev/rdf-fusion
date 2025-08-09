@@ -1,46 +1,129 @@
 use crate::memory::MemObjectIdMapping;
-use crate::memory::storage::log::MemLogSnapshot;
+use crate::memory::storage::log::{LogChanges, MemLogSnapshot};
+use crate::memory::storage::stream::{MemLogInsertionsStream, MemQuadPatternStream};
+use datafusion::common::exec_err;
+use datafusion::execution::{SendableRecordBatchStream, TaskContext};
+use datafusion::physical_plan::coop::cooperative;
+use datafusion::physical_plan::metrics::BaselineMetrics;
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_model::{NamedOrBlankNode, NamedOrBlankNodeRef};
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_logical::ActiveGraph;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_model::{NamedOrBlankNode, NamedOrBlankNodeRef, TriplePattern, Variable};
 use std::sync::Arc;
 
 /// Provides a snapshot view on the storage. Other transactions can read and write to the storage
 /// without changing the view of the snapshot.
+#[derive(Debug, Clone)]
 pub struct MemQuadStorageSnapshot {
+    /// The encoding of the storage.
+    encoding: QuadStorageEncoding,
     /// Object id mapping
     object_id_mapping: Arc<MemObjectIdMapping>,
-    /// A snapshot of the log. This has a sequence of all changes to the system.
-    log_snapshot: MemLogSnapshot,
+    /// Changes in the log.
+    changes: Option<Arc<LogChanges>>,
 }
 
 impl MemQuadStorageSnapshot {
     /// Create a new [MemQuadStorageSnapshot].
-    pub fn new(
+    ///
+    /// This function computes the changes in the `log_snapshot` and is thus not trivial. However,
+    /// caching the changes computation can be beneficial in scenarios where the log is accessed
+    /// multiple times (e.g., multiple quad patterns in the same query).
+    pub async fn new_with_computed_changes(
+        encoding: QuadStorageEncoding,
         object_id_mapping: Arc<MemObjectIdMapping>,
         log_snapshot: MemLogSnapshot,
     ) -> Self {
+        let changes = log_snapshot.compute_changes().await;
         Self {
+            encoding,
             object_id_mapping,
-            log_snapshot,
+            changes: changes.map(Arc::new),
         }
+    }
+
+    /// Returns the encoding of the underlying storage.
+    pub fn storage_encoding(&self) -> &QuadStorageEncoding {
+        &self.encoding
+    }
+
+    /// Returns a stream that evaluates the given pattern.
+    #[allow(clippy::too_many_arguments)]
+    pub fn evaluate_pattern(
+        &self,
+        active_graph: ActiveGraph,
+        graph_variable: Option<Variable>,
+        triple_pattern: TriplePattern,
+        blank_node_mode: BlankNodeMatchingMode,
+        metrics: BaselineMetrics,
+        task_context: Arc<TaskContext>,
+        partition: usize,
+    ) -> DFResult<SendableRecordBatchStream> {
+        if partition != 0 {
+            return exec_err!("Only partition 0 is supported for now.");
+        }
+
+        let schema = Arc::clone(
+            compute_schema_for_triple_pattern(
+                self.storage_encoding(),
+                graph_variable.as_ref().map(|v| v.as_ref()),
+                &triple_pattern,
+                blank_node_mode,
+            )
+            .inner(),
+        );
+        let log_insertion_stream = self
+            .changes
+            .clone()
+            .map(|c| {
+                MemLogInsertionsStream::try_new(
+                    &self.object_id_mapping,
+                    self.encoding.clone(),
+                    &active_graph,
+                    graph_variable.as_ref(),
+                    &triple_pattern,
+                    blank_node_mode,
+                    c.inserted.iter().cloned().collect(),
+                    task_context.session_config().batch_size(),
+                )
+            })
+            .transpose()?
+            .map(Box::new);
+
+        Ok(Box::pin(cooperative(MemQuadPatternStream::new(
+            schema,
+            metrics,
+            log_insertion_stream,
+        ))))
     }
 
     /// Returns the number of quads in the storage.
     pub async fn len(&self) -> usize {
-        let changes = self.log_snapshot.len().await;
-        changes.graph.values().sum()
+        let Some(changes) = self.changes.as_ref() else {
+            return 0;
+        };
+
+        changes.inserted.len()
     }
 
     /// Returns the number of quads in the storage.
     pub async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        let changes = self.log_snapshot.len().await;
-        let result = changes
-            .graph
-            .into_keys()
-            .filter_map(|oid| oid.0)
-            .map(|id| self.object_id_mapping.decode_named_graph(id))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(result)
+        let Some(changes) = self.changes.as_ref() else {
+            return Ok(vec![]);
+        };
+
+        Iterator::chain(
+            changes.created_named_graphs.iter().copied(),
+            changes.inserted.iter().filter_map(|q| q.graph_name.0),
+        )
+        .map(|g| {
+            self.object_id_mapping
+                .decode_named_graph(g)
+                .map_err(StorageError::from)
+        })
+        .collect()
     }
 
     /// Returns whether the storage contains the named graph `graph_name`.
@@ -57,6 +140,17 @@ impl MemQuadStorageSnapshot {
             return false;
         };
 
-        self.log_snapshot.contains_named_graph(object_id).await
+        let Some(changes) = self.changes.as_ref() else {
+            return false;
+        };
+
+        if changes.created_named_graphs.contains(&object_id) {
+            return true;
+        }
+
+        changes
+            .inserted
+            .iter()
+            .any(|q| q.graph_name == Some(object_id).into())
     }
 }

@@ -778,6 +778,7 @@ impl Store {
 mod tests {
     use super::*;
     use rdf_fusion_model::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
+    use std::collections::HashSet;
 
     #[test]
     fn test_send_sync() {
@@ -882,14 +883,18 @@ mod tests {
         store.validate().await?;
 
         assert_eq!(store.len().await?, 4);
-        assert_eq!(store.stream().await?.try_collect_to_vec().await?, all_quads);
+
+        assert_eq!(
+            store.stream().await?.try_collect_to_set().await?,
+            HashSet::from_iter(all_quads.iter().cloned())
+        );
         assert_eq!(
             store
                 .quads_for_pattern(Some(main_s.as_ref()), None, None, None)
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            all_quads
+            HashSet::from_iter(all_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -900,9 +905,9 @@ mod tests {
                     None
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            all_quads
+            HashSet::from_iter(all_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -913,9 +918,9 @@ mod tests {
                     None
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone(), default_quad.clone()]
+            HashSet::from([named_quad.clone(), default_quad.clone()])
         );
         assert_eq!(
             store
@@ -926,9 +931,9 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![default_quad.clone()]
+            HashSet::from([default_quad.clone()])
         );
         assert_eq!(
             store
@@ -939,11 +944,13 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone()]
+            HashSet::from([named_quad.clone()])
         );
+
         default_quads.reverse();
+
         assert_eq!(
             store
                 .quads_for_pattern(
@@ -953,9 +960,9 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            default_quads
+            HashSet::from_iter(default_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -966,9 +973,9 @@ mod tests {
                     None
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone(), default_quad.clone()]
+            HashSet::from([named_quad.clone(), default_quad.clone()])
         );
         assert_eq!(
             store
@@ -979,9 +986,9 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![default_quad.clone()]
+            HashSet::from([default_quad.clone()])
         );
         assert_eq!(
             store
@@ -992,9 +999,9 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone()]
+            HashSet::from([named_quad.clone()])
         );
         assert_eq!(
             store
@@ -1005,17 +1012,17 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            default_quads
+            HashSet::from_iter(default_quads.iter().cloned())
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, Some(main_p.as_ref()), None, None)
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            all_quads
+            HashSet::from_iter(all_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -1026,25 +1033,25 @@ mod tests {
                     None
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone(), default_quad.clone()]
+            HashSet::from([named_quad.clone(), default_quad.clone()])
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, None, Some(main_o.as_ref()), None)
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone(), default_quad.clone()]
+            HashSet::from([named_quad.clone(), default_quad.clone()])
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, None, None, Some(GraphNameRef::DefaultGraph))
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            default_quads
+            HashSet::from_iter(default_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -1055,9 +1062,9 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![default_quad]
+            HashSet::from([default_quad.clone()])
         );
         assert_eq!(
             store
@@ -1068,9 +1075,9 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad]
+            HashSet::from([named_quad.clone()])
         );
 
         Ok(())

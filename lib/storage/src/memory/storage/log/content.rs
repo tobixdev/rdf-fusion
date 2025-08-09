@@ -2,7 +2,8 @@ use crate::memory::encoding::{EncodedQuad, EncodedQuadArray};
 use crate::memory::object_id::{EncodedObjectId, GraphEncodedObjectId};
 use crate::memory::storage::log::VersionNumber;
 use datafusion::arrow::array::{Array, StructArray, UnionArray};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
 /// A single entry in the log.
@@ -10,6 +11,7 @@ use std::sync::Arc;
 /// Each log entry represents one action that can happen to the store and represents a single
 /// transaction. It is currently not possible to, for example, clear a graph and insert a quad in
 /// the same transaction.
+#[derive(Debug)]
 pub struct MemLogEntry {
     /// The version number of this transaction.
     pub version_number: VersionNumber,
@@ -18,7 +20,7 @@ pub struct MemLogEntry {
 }
 
 /// The target of a clear operation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ClearTarget {
     /// Creates a named graph or the default graph.
     Graph(GraphEncodedObjectId),
@@ -29,6 +31,7 @@ pub enum ClearTarget {
 }
 
 /// Represents the action that should be performed by a transaction.
+#[derive(Debug)]
 pub enum MemLogEntryAction {
     /// Updates the store. The quads are inserted and deleted.
     Update(MemLogUpdateArray),
@@ -40,24 +43,34 @@ pub enum MemLogEntryAction {
     DropGraph(EncodedObjectId),
 }
 
-/// Holds the number of triples for each graph.
-pub struct GraphLen {
-    /// Mapping from graph to the change.
-    pub graph: HashMap<GraphEncodedObjectId, usize>,
-}
-
-impl GraphLen {
-    /// Create a new [GraphLen].
-    fn new() -> Self {
-        Self {
-            graph: HashMap::new(),
-        }
-    }
-}
-
 /// Holds the actual log entries.
 pub struct MemLogContent {
     logs: Vec<MemLogEntry>,
+}
+
+/// Reflects the changes that have been made to the store.
+///
+/// The changes are constructed in such a way that they are directly usable by a query engine. For
+/// example, a quad that is inserted and then deleted again will not be contained in
+/// [Self::inserted].
+#[derive(Debug)]
+pub struct LogChanges {
+    /// The quads that have been inserted.
+    pub inserted: HashSet<EncodedQuad>,
+    /// The quads that have been deleted.
+    ///
+    /// Note that if there are elements in [Self::cleared] that already imply the deletion of a
+    /// quad, this quad will not be part of this set. This is done because query evaluation must
+    /// consider the cleared and dropped graphs anyway.
+    pub deleted: HashSet<EncodedQuad>,
+    /// Contains the set of clear statements. Note that [Self::inserted] may contain quads from
+    /// these graphs as they could have been inserted later.
+    pub cleared: HashSet<ClearTarget>,
+    /// Contains the set of dropped named graphs. This is different from [Self::cleared] when
+    /// returning the list of named graphs.
+    pub dropped_named_graphs: HashSet<EncodedObjectId>,
+    /// Contains the set of created named graphs.
+    pub created_named_graphs: HashSet<EncodedObjectId>,
 }
 
 impl MemLogContent {
@@ -77,97 +90,69 @@ impl MemLogContent {
     }
 
     /// Computes the contained quads based on the log entries.
-    pub fn compute_quads(&self, version_number: VersionNumber) -> HashSet<EncodedQuad> {
-        let mut quads = HashSet::new();
+    pub fn compute_changes(&self, version_number: VersionNumber) -> Option<LogChanges> {
+        if self.logs.is_empty() {
+            return None;
+        }
+
+        let mut inserted = HashSet::new();
+        let mut deleted = HashSet::new();
+        let mut cleared = HashSet::new();
+        let mut dropped_named_graphs = HashSet::new();
+        let mut created_named_graphs = HashSet::new();
 
         for entry in self.relevant_log_entries(version_number) {
             match &entry.action {
                 MemLogEntryAction::Update(log_array) => {
-                    for quad in &log_array.insertions() {
-                        quads.insert(quad.clone());
-                    }
+                    let new_inserted =
+                        log_array.insertions().into_iter().collect::<HashSet<_>>();
+                    let new_deleted =
+                        log_array.deletions().into_iter().collect::<HashSet<_>>();
 
-                    for quad in &log_array.deletions() {
-                        quads.remove(&quad);
-                    }
+                    // Remove all quads that have been inserted and deleted again.
+                    inserted.retain(|quad| !new_deleted.contains(quad));
+                    deleted.retain(|quad| !new_inserted.contains(quad));
+
+                    // Add all quads that have been inserted and deleted.
+                    inserted.extend(new_inserted);
+                    deleted.extend(new_deleted);
                 }
                 MemLogEntryAction::Clear(ClearTarget::Graph(graph)) => {
-                    // Remove all quads from the given graph.
-                    quads.retain(|quad| quad.graph_name.0 != (*graph).into());
+                    inserted.retain(|quad| quad.graph_name.0 != (*graph).into());
+                    deleted.retain(|quad| quad.graph_name.0 != (*graph).into());
+                    cleared.insert(ClearTarget::Graph(*graph));
                 }
                 MemLogEntryAction::Clear(ClearTarget::AllNamedGraphs) => {
-                    // Remove all quads from the given graph.
-                    quads.retain(|quad| quad.graph_name.0.is_none());
+                    inserted.retain(|quad| quad.graph_name.0.is_none());
+                    deleted.retain(|quad| quad.graph_name.0.is_none());
+                    cleared.insert(ClearTarget::AllNamedGraphs);
                 }
                 MemLogEntryAction::Clear(ClearTarget::AllGraphs) => {
-                    quads.clear();
+                    inserted.clear();
+                    deleted.clear();
+                    cleared.insert(ClearTarget::AllGraphs);
                 }
                 MemLogEntryAction::DropGraph(graph) => {
-                    // Remove all quads from the given graph.
-                    quads.retain(|quad| quad.graph_name.0 != Some(*graph));
-                }
-                MemLogEntryAction::CreateNamedGraph(_) => {
-                    // Do nothing.
-                }
-            }
-        }
+                    inserted.retain(|quad| quad.graph_name.0 != (*graph).into());
+                    deleted.retain(|quad| quad.graph_name.0 != (*graph).into());
 
-        quads
-    }
-
-    /// Counts the changes in the log up until the version number of the snapshot.
-    pub fn len(&self, version_number: VersionNumber) -> GraphLen {
-        let mut mapping = GraphLen::new();
-
-        for entry in self
-            .log_entries()
-            .iter()
-            .take_while(|e| e.version_number <= version_number)
-        {
-            match &entry.action {
-                MemLogEntryAction::Update(update) => {
-                    for insert in &update.insertions() {
-                        let count = mapping.graph.entry(insert.graph_name).or_insert(0);
-                        *count += 1;
-                    }
-
-                    for deletion in &update.deletions() {
-                        let count = mapping.graph.entry(deletion.graph_name).or_insert(0);
-                        *count -= 1;
-                    }
+                    dropped_named_graphs.insert(*graph);
+                    created_named_graphs.remove(graph);
                 }
-                MemLogEntryAction::Clear(target) => match target {
-                    ClearTarget::Graph(g) => {
-                        mapping.graph.remove(g);
-                    }
-                    ClearTarget::AllNamedGraphs => {
-                        mapping.graph.retain(|k, _| k.0.is_none());
-                    }
-                    ClearTarget::AllGraphs => {
-                        mapping.graph.clear();
-                    }
-                },
-                MemLogEntryAction::CreateNamedGraph(g) => {
-                    mapping.graph.entry(Some(*g).into()).or_insert(0);
-                }
-                MemLogEntryAction::DropGraph(g) => {
-                    mapping.graph.remove(&(Some(*g).into()));
+                MemLogEntryAction::CreateNamedGraph(graph) => {
+                    created_named_graphs.insert(*graph);
+                    dropped_named_graphs.remove(graph);
                 }
             }
         }
 
-        mapping
-    }
-
-    /// Checks if the given graph in the log.
-    pub fn contains_named_graph(
-        &self,
-        graph: EncodedObjectId,
-        version_number: VersionNumber,
-    ) -> bool {
-        self.len(version_number)
-            .graph
-            .contains_key(&(Some(graph).into()))
+        Some(LogChanges {
+            inserted,
+            deleted,
+            cleared,
+            created_named_graphs,
+            dropped_named_graphs,
+        })
     }
 
     fn relevant_log_entries(
@@ -177,6 +162,12 @@ impl MemLogContent {
         self.logs
             .iter()
             .take_while(move |entry| entry.version_number <= version_number)
+    }
+}
+
+impl Debug for MemLogContent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MemLogContent").finish()
     }
 }
 
@@ -196,6 +187,7 @@ impl Default for MemLogContent {
 ///
 /// Each entry has four fields that correspond to the parts of the quad: graph, subject, predicate,
 /// object.
+#[derive(Debug)]
 pub struct MemLogUpdateArray {
     /// The union array that holds the actual log entries.
     pub array: Arc<UnionArray>,

@@ -25,7 +25,7 @@ pub trait QuadStorage: Send + Sync {
     /// A query plan must often evaluate multiple quad patterns that have access to the same
     /// storage. It is the responsibility of the storage layer to ensure that the quad patterns use
     /// the same snapshot of the storage layer.
-    fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
+    async fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
 
     /// Loads the given quads into the storage.
     async fn insert_quads(&self, quads: Vec<Quad>) -> Result<usize, StorageError>;

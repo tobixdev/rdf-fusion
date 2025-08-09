@@ -97,7 +97,7 @@ impl<TUseCase: BsbmUseCase> BsbmBenchmark<TUseCase> {
 
         let dataset_path = ctx.parent().join_data_dir(&self.paths.dataset)?;
         let data = fs::read(&dataset_path)?;
-        let memory_store = Store::new();
+        let memory_store = Store::default();
         memory_store
             .load_from_reader(RdfFormat::NTriples, data.as_slice())
             .await?;

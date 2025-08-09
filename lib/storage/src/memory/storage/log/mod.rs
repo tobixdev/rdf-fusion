@@ -14,7 +14,8 @@ mod writer;
 use crate::memory::MemObjectIdMapping;
 use crate::memory::storage::log::content::MemLogContent;
 use crate::memory::storage::log::validation::validate_mem_log;
-pub use crate::memory::storage::log::writer::MemLogWriter;
+use crate::memory::storage::log::writer::MemLogWriter;
+pub use content::LogChanges;
 pub use snapshot::MemLogSnapshot;
 
 /// The version number of the [MemLog].
@@ -115,7 +116,7 @@ impl MemLog {
 #[cfg(test)]
 mod test {
     use crate::memory::MemObjectIdMapping;
-    use crate::memory::object_id::{EncodedObjectId, GraphEncodedObjectId};
+    use crate::memory::object_id::EncodedObjectId;
     use crate::memory::storage::log::MemLog;
     use crate::memory::storage::log::content::MemLogEntryAction;
     use rdf_fusion_model::{GraphName, NamedNode, Quad};
@@ -138,12 +139,14 @@ mod test {
         .unwrap();
 
         assert_eq!(
-            *log.snapshot()
-                .len()
+            log.snapshot()
+                .compute_changes()
                 .await
-                .graph
-                .get(&GraphEncodedObjectId(None))
-                .unwrap(),
+                .unwrap()
+                .inserted
+                .iter()
+                .filter(|q| q.graph_name.0.is_none())
+                .count(),
             1
         );
 
@@ -165,6 +168,34 @@ mod test {
             lookup_object_id(mapping.as_ref(), encoded_quad.object).as_ref(),
             "www.example.com/o"
         );
+    }
+
+    #[tokio::test]
+    async fn insert_remove_insert() {
+        let mapping = Arc::new(MemObjectIdMapping::new());
+        let log = MemLog::new(mapping.clone());
+        let quad = Quad::new(
+            NamedNode::new_unchecked("www.example.com/s"),
+            NamedNode::new_unchecked("www.example.com/p"),
+            NamedNode::new_unchecked("www.example.com/o"),
+            GraphName::default(),
+        );
+
+        log.transaction(|w| w.insert_quads(&[quad.clone()]))
+            .await
+            .unwrap();
+
+        log.transaction(|w| w.delete(&[quad.as_ref()]))
+            .await
+            .unwrap();
+
+        log.transaction(|w| w.insert_quads(&[quad.clone()]))
+            .await
+            .unwrap();
+
+        let changes = log.snapshot().compute_changes().await.unwrap();
+        assert_eq!(changes.inserted.len(), 1);
+        assert_eq!(changes.deleted.len(), 0);
     }
 
     fn lookup_object_id(

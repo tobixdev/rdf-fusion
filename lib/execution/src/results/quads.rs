@@ -4,6 +4,7 @@ use futures::{Stream, StreamExt, ready};
 use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject, Term, Variable};
 use sparesults::QuerySolution;
+use std::collections::HashSet;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -17,6 +18,16 @@ impl QuadStream {
         let mut result = Vec::new();
         while let Some(element) = self.next().await {
             result.push(element?);
+        }
+        Ok(result)
+    }
+
+    pub async fn try_collect_to_set(
+        mut self,
+    ) -> Result<HashSet<Quad>, QueryEvaluationError> {
+        let mut result = HashSet::new();
+        while let Some(element) = self.next().await {
+            result.insert(element?);
         }
         Ok(result)
     }

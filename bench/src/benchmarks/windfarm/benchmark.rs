@@ -95,7 +95,7 @@ impl WindFarmBenchmark {
     async fn prepare_store(&self, ctx: &BenchmarkContext<'_>) -> anyhow::Result<Store> {
         println!("Creating in-memory store and loading data ...");
         let dataset_path = create_files(ctx)?;
-        let memory_store = Store::new();
+        let memory_store = Store::default();
 
         println!("Loading static data ...");
         let data = fs::read(&dataset_path.wind_farm_data)?;
