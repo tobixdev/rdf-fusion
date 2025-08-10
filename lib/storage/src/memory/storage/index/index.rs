@@ -2,18 +2,17 @@ use crate::memory::encoding::EncodedObjectIdPattern;
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::error::{IndexDeletionError, IndexUpdateError};
 use crate::memory::storage::index::level::{
-    create_state_for_level, IndexIterationContext, IndexLevel, IndexLevelActionResult,
-    IndexLevelImpl, IndexLevelScanState,
+    create_state_for_level, IndexLevel, IndexLevelActionResult, IndexLevelImpl,
+    IndexLevelScanState,
 };
+use crate::memory::storage::index::IndexConfiguration;
 use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{Array, UInt32Array};
 use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::object_id::{ObjectIdArray, ObjectIdEncoding};
+use rdf_fusion_encoding::object_id::{ObjectIdArray};
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
-use std::collections::HashSet;
 use std::sync::Arc;
-use thiserror::Error;
 use tokio::sync::{OwnedRwLockReadGuard, RwLock};
 
 /// Represents the index.
@@ -28,40 +27,6 @@ struct IndexData {
     arrays: Vec<ObjectIdArray>,
     /// The currently building object ids.
     building: Vec<EncodedObjectId>,
-}
-
-/// Represents what part of an RDF triple is index at the given position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum IndexedComponent {
-    /// The subject
-    Subject,
-    /// The predicate
-    Predicate,
-    /// The object
-    Object,
-}
-
-/// Represents a list of *disjunct* index components.
-pub struct IndexConfiguration([IndexedComponent; 3]);
-
-#[derive(Debug, Error)]
-#[error("Duplicate indexed component given.")]
-struct IndexedComponentsCreationError;
-
-impl IndexConfiguration {
-    /// Tries to create a new [IndexConfiguration].
-    ///
-    /// Returns an error if an [IndexComponent] appears more than once.
-    pub fn try_new(
-        components: [IndexedComponent; 3],
-    ) -> Result<Self, IndexedComponentsCreationError> {
-        let distinct = components.iter().collect::<HashSet<_>>();
-        if distinct.len() != 3 {
-            return Err(IndexedComponentsCreationError);
-        }
-
-        Ok(IndexConfiguration(components))
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -80,10 +45,8 @@ struct IndexContent {
 pub struct MemHashTripleIndex {
     /// The index content.
     content: Arc<RwLock<IndexContent>>,
-    /// Differentiates between multiple configurations (e.g., SPO, PSO).
-    configuration: IndexedComponent,
-    /// The encoding used for object ids.
-    object_id_encoding: ObjectIdEncoding,
+    /// The configuration of the index.
+    configuration: Arc<IndexConfiguration>,
 }
 
 impl MemHashTripleIndex {
@@ -94,7 +57,6 @@ impl MemHashTripleIndex {
         &self,
         lookup: IndexLookup,
         version_number: VersionNumber,
-        batch_size: usize,
     ) -> DFResult<MemHashTripleIndexIterator> {
         let lock = self.content.clone().read_owned().await;
         if lock.version > version_number {
@@ -102,9 +64,8 @@ impl MemHashTripleIndex {
         }
         Ok(MemHashTripleIndexIterator::new(
             lock,
-            self.object_id_encoding.clone(),
+            self.configuration.clone(),
             lookup,
-            batch_size,
         ))
     }
 
@@ -117,7 +78,7 @@ impl MemHashTripleIndex {
         let mut index = self.content.write().await;
 
         for triple in to_insert {
-            index.index.insert_triple(triple, 0, 0);
+            index.index.insert_triple(&self.configuration, triple, 0);
         }
 
         for triple in to_delete {
@@ -155,27 +116,22 @@ pub struct MemHashTripleIndexIterator {
     /// delete data from the index during iteration.
     index: OwnedRwLockReadGuard<IndexContent>,
     /// Additional context necessary for the iteration.
-    context: IndexIterationContext,
+    configuration: Arc<IndexConfiguration>,
     /// The states of the individual levels.
     state: Option<IndexScanState>,
 }
 
 impl MemHashTripleIndexIterator {
     /// Creates a new [MemHashTripleIndexIterator].
-    pub fn new(
+    fn new(
         index: OwnedRwLockReadGuard<IndexContent>,
-        object_id_encoding: ObjectIdEncoding,
+        configuration: Arc<IndexConfiguration>,
         lookup: IndexLookup,
-        batch_size: usize,
     ) -> Self {
         let state = build_state(lookup.0);
-        let context = IndexIterationContext {
-            object_id_encoding,
-            batch_size,
-        };
         Self {
             index,
-            context,
+            configuration,
             state: Some(state),
         }
     }
@@ -204,7 +160,7 @@ impl Iterator for MemHashTripleIndexIterator {
             return None;
         };
 
-        let result = self.index.index.scan(&self.context, state);
+        let result = self.index.index.scan(&self.configuration, state);
         self.state = result.new_state;
         result.result
     }
@@ -250,7 +206,7 @@ impl IndexData {
 
     fn scan_impl(
         &self,
-        context: &IndexIterationContext,
+        configuration: &IndexConfiguration,
         consumed: usize,
     ) -> IndexLevelActionResult<IndexDataScanState> {
         if consumed < self.arrays.len() {
@@ -267,7 +223,7 @@ impl IndexData {
             let iterator = self.building.iter().map(|id| id.as_u32());
             let uint_array = UInt32Array::from_iter_values(iterator);
 
-            let array = context
+            let array = configuration
                 .object_id_encoding
                 .try_new_array(Arc::new(uint_array))
                 .expect("Failed to create array.");
@@ -294,22 +250,29 @@ impl IndexLevelImpl for IndexData {
 
     fn insert_triple(
         &mut self,
+        configuration: &IndexConfiguration,
         triple: &IndexedTriple,
         cur_depth: usize,
-        batch_size: usize,
     ) {
         let part = triple.0[cur_depth];
         self.building.push(part);
 
-        if self.building.len() == batch_size {
-            todo!("append")
+        if self.building.len() == configuration.batch_size {
+            let object_ids = self.building.iter().map(|id| id.as_u32());
+            let u32_array = UInt32Array::from_iter_values(object_ids);
+            let object_id_array = configuration
+                .object_id_encoding
+                .try_new_array(Arc::new(u32_array))
+                .expect("Failed to create array.");
+            self.arrays.push(object_id_array);
+            self.building.clear();
         }
     }
 
     fn delete_triple(
         &mut self,
-        triple: &IndexedTriple,
-        cur_depth: usize,
+        _triple: &IndexedTriple,
+        _cur_depth: usize,
     ) -> Result<(), IndexDeletionError> {
         todo!()
     }
@@ -320,12 +283,14 @@ impl IndexLevelImpl for IndexData {
 
     fn scan(
         &self,
-        context: &IndexIterationContext,
+        configuration: &IndexConfiguration,
         state: Self::ScanState,
     ) -> IndexLevelActionResult<Self::ScanState> {
         match state {
             IndexDataScanState::Lookup { object_id } => self.lookup_impl(object_id),
-            IndexDataScanState::Scan { consumed } => self.scan_impl(context, consumed),
+            IndexDataScanState::Scan { consumed } => {
+                self.scan_impl(configuration, consumed)
+            }
         }
     }
 }
@@ -333,31 +298,12 @@ impl IndexLevelImpl for IndexData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::memory::storage::index::{IndexComponent, IndexComponents};
     use datafusion::arrow::array::UInt32Array;
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
     use rdf_fusion_encoding::TermEncoding;
     use std::sync::Arc;
     use tokio::sync::RwLock;
-
-    #[test]
-    fn index_configuration_accepts_unique_components() {
-        let ok = IndexConfiguration::try_new([
-            IndexedComponent::Subject,
-            IndexedComponent::Predicate,
-            IndexedComponent::Object,
-        ]);
-        assert!(ok.is_ok());
-    }
-
-    #[test]
-    fn index_configuration_rejects_duplicate_components() {
-        let err = IndexConfiguration::try_new([
-            IndexedComponent::Subject,
-            IndexedComponent::Subject,
-            IndexedComponent::Object,
-        ]);
-        assert!(err.is_err());
-    }
 
     #[tokio::test]
     async fn insert_and_lookup_triple() {
@@ -370,7 +316,7 @@ mod tests {
             EncodedObjectIdPattern::ObjectId(eid(2)),
             EncodedObjectIdPattern::ObjectId(eid(3)),
         ]);
-        let mut iter = index.lookup(lookup, VersionNumber(1), 10).await.unwrap();
+        let mut iter = index.lookup(lookup, VersionNumber(1)).await.unwrap();
         let result = iter.next();
 
         assert!(result.is_some());
@@ -469,6 +415,45 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn scan_batches_for_batch_size() {
+        let index = create_index_with_batch_size(10);
+        let mut triples = Vec::new();
+        for i in 0..25 {
+            triples.push(IndexedTriple([eid(1), eid(2), eid(i)]))
+        }
+        index.update(&triples, &[], VersionNumber(1)).await.unwrap();
+
+        // The lookup matches a single IndexData that will be scanned.
+        let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(1)),
+            EncodedObjectIdPattern::ObjectId(eid(2)),
+            EncodedObjectIdPattern::Variable,
+        ]);
+
+        run_batch_size_test(index, lookup, 10, &[10, 10, 5], true).await;
+    }
+
+    #[tokio::test]
+    async fn scan_multi_level_batches_coalesce_results() {
+        let index = create_index_with_batch_size(10);
+        let mut triples = Vec::new();
+        for i in 0..25 {
+            triples.push(IndexedTriple([eid(1), eid(i), eid(2)]))
+        }
+        index.update(&triples, &[], VersionNumber(1)).await.unwrap();
+
+        // The lookup matches 25 different IndexLevels, each having exactly one data entry. The
+        // batches should be combined into a single batch.
+        let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(1)),
+            EncodedObjectIdPattern::Variable,
+            EncodedObjectIdPattern::ObjectId(eid(2)),
+        ]);
+
+        run_batch_size_test(index, lookup, 10, &[10, 10, 5], true).await;
+    }
+
+    #[tokio::test]
     async fn delete_triple_removes_it() {
         let index = create_index();
 
@@ -486,7 +471,7 @@ mod tests {
         ]);
         assert!(
             index
-                .lookup(lookup, VersionNumber(1), 10)
+                .lookup(lookup, VersionNumber(1))
                 .await
                 .unwrap()
                 .next()
@@ -507,7 +492,7 @@ mod tests {
         ]);
         assert!(
             index
-                .lookup(lookup, VersionNumber(2), 10)
+                .lookup(lookup, VersionNumber(2))
                 .await
                 .unwrap()
                 .next()
@@ -520,15 +505,27 @@ mod tests {
     }
 
     fn create_index() -> MemHashTripleIndex {
+        create_index_with_batch_size(16)
+    }
+
+    fn create_index_with_batch_size(batch_size: usize) -> MemHashTripleIndex {
         let object_id_encoding = ObjectIdEncoding::new(4);
         let content = IndexContent {
             version: VersionNumber(0),
             index: Index::default(),
         };
         let index = MemHashTripleIndex {
-            object_id_encoding,
+            configuration: Arc::new(IndexConfiguration {
+                batch_size,
+                object_id_encoding,
+                components: IndexComponents::try_new([
+                    IndexComponent::Subject,
+                    IndexComponent::Predicate,
+                    IndexComponent::Object,
+                ])
+                .unwrap(),
+            }),
             content: Arc::new(RwLock::new(content)),
-            configuration: IndexedComponent::Subject,
         };
         index
     }
@@ -549,7 +546,7 @@ mod tests {
         expected_rows: usize,
     ) {
         let results: Vec<_> = index
-            .lookup(lookup, VersionNumber(1), 10)
+            .lookup(lookup, VersionNumber(1))
             .await
             .unwrap()
             .next()
@@ -558,6 +555,31 @@ mod tests {
         assert_eq!(results.len(), expected_columns);
         for result in results {
             assert_eq!(result.array().len(), expected_rows);
+        }
+    }
+
+    async fn run_batch_size_test(
+        index: MemHashTripleIndex,
+        lookup: IndexLookup,
+        batch_size: usize,
+        expected_batch_sizes: &[usize],
+        ordered: bool,
+    ) {
+        let mut batch_sizes: Vec<_> = index
+            .lookup(lookup, VersionNumber(1))
+            .await
+            .unwrap()
+            .map(|arr| arr[0].array().len())
+            .collect();
+
+        if ordered {
+            assert_eq!(batch_sizes, expected_batch_sizes);
+        } else {
+            let mut expected_batch_sizes = expected_batch_sizes.to_vec();
+            batch_sizes.sort();
+            expected_batch_sizes.sort();
+
+            assert_eq!(batch_sizes, expected_batch_sizes);
         }
     }
 }
