@@ -2,8 +2,8 @@ use crate::memory::encoding::EncodedObjectIdPattern;
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::error::{IndexDeletionError, IndexUpdateError};
 use crate::memory::storage::index::level::{
-    IndexIterationContext, IndexLevel, IndexLevelActionResult, IndexLevelImpl,
-    IndexLevelScanState,
+    create_state_for_level, IndexIterationContext, IndexLevel, IndexLevelActionResult,
+    IndexLevelImpl, IndexLevelScanState,
 };
 use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{Array, UInt32Array};
@@ -182,28 +182,12 @@ impl MemHashTripleIndexIterator {
 }
 
 fn build_state(patterns: [EncodedObjectIdPattern; 3]) -> IndexScanState {
-    let data = state_data(patterns[2]);
-    let first_level = state_level(patterns[1], data);
-    state_level(patterns[0], first_level)
+    let data = create_state_for_data(patterns[2]);
+    let first_level = create_state_for_level(patterns[1], data);
+    create_state_for_level(patterns[0], first_level)
 }
 
-fn state_level<TInner: Clone>(
-    pattern: EncodedObjectIdPattern,
-    inner: TInner,
-) -> IndexLevelScanState<TInner> {
-    match pattern {
-        EncodedObjectIdPattern::ObjectId(object_id) => {
-            IndexLevelScanState::Lookup { object_id, inner }
-        }
-        EncodedObjectIdPattern::Variable => IndexLevelScanState::Scan {
-            default_state: inner.clone(),
-            consumed: 0,
-            inner,
-        },
-    }
-}
-
-fn state_data(pattern: EncodedObjectIdPattern) -> IndexDataScanState {
+fn create_state_for_data(pattern: EncodedObjectIdPattern) -> IndexDataScanState {
     match pattern {
         EncodedObjectIdPattern::ObjectId(object_id) => {
             IndexDataScanState::Lookup { object_id }
@@ -394,7 +378,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn insert_and_lookup_subject_var() {
+    async fn lookup_subject_var() {
         let index = create_index();
         let triples = vec![
             IndexedTriple([eid(1), eid(2), eid(3)]),
@@ -408,15 +392,80 @@ mod tests {
             EncodedObjectIdPattern::ObjectId(eid(2)),
             EncodedObjectIdPattern::ObjectId(eid(3)),
         ]);
-        let results: Vec<_> = index
-            .lookup(lookup, VersionNumber(1), 10)
-            .await
-            .unwrap()
-            .collect();
 
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].len(), 2);
-        assert_eq!(results[1].len(), 2);
+        run_matching_test(index, lookup, 1, 2).await;
+    }
+
+    #[tokio::test]
+    async fn lookup_predicate_var() {
+        let index = create_index();
+        let triples = vec![
+            IndexedTriple([eid(1), eid(2), eid(3)]),
+            IndexedTriple([eid(1), eid(4), eid(5)]),
+            IndexedTriple([eid(6), eid(2), eid(3)]),
+        ];
+        index.update(&triples, &[], VersionNumber(1)).await.unwrap();
+
+        let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(1)),
+            EncodedObjectIdPattern::Variable,
+            EncodedObjectIdPattern::ObjectId(eid(3)),
+        ]);
+
+        run_matching_test(index, lookup, 1, 1).await;
+    }
+
+    #[tokio::test]
+    async fn lookup_object_var() {
+        let index = create_index();
+        let triples = vec![
+            IndexedTriple([eid(1), eid(2), eid(3)]),
+            IndexedTriple([eid(1), eid(4), eid(5)]),
+            IndexedTriple([eid(6), eid(2), eid(3)]),
+        ];
+        index.update(&triples, &[], VersionNumber(1)).await.unwrap();
+
+        let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(1)),
+            EncodedObjectIdPattern::ObjectId(eid(2)),
+            EncodedObjectIdPattern::Variable,
+        ]);
+
+        run_matching_test(index, lookup, 1, 1).await;
+    }
+
+    #[tokio::test]
+    async fn lookup_multi_var() {
+        let index = create_index();
+        let triples = vec![
+            IndexedTriple([eid(1), eid(2), eid(3)]),
+            IndexedTriple([eid(1), eid(4), eid(5)]),
+            IndexedTriple([eid(6), eid(2), eid(3)]),
+        ];
+        index.update(&triples, &[], VersionNumber(1)).await.unwrap();
+
+        let lookup = IndexLookup([
+            EncodedObjectIdPattern::Variable,
+            EncodedObjectIdPattern::ObjectId(eid(2)),
+            EncodedObjectIdPattern::Variable,
+        ]);
+
+        run_matching_test(index, lookup, 2, 2).await;
+    }
+
+    #[tokio::test]
+    async fn lookup_all_var() {
+        let index = create_index();
+        let triples = vec![
+            IndexedTriple([eid(1), eid(2), eid(3)]),
+            IndexedTriple([eid(1), eid(4), eid(5)]),
+            IndexedTriple([eid(6), eid(2), eid(3)]),
+        ];
+        index.update(&triples, &[], VersionNumber(1)).await.unwrap();
+
+        let lookup = IndexLookup([EncodedObjectIdPattern::Variable; 3]);
+
+        run_matching_test(index, lookup, 3, 3).await;
     }
 
     #[tokio::test]
@@ -491,5 +540,24 @@ mod tests {
     fn oid_array(ids: &[u32]) -> ObjectIdArray {
         let array = ids.iter().copied().collect::<UInt32Array>();
         create_encoding().try_new_array(Arc::new(array)).unwrap()
+    }
+
+    async fn run_matching_test(
+        index: MemHashTripleIndex,
+        lookup: IndexLookup,
+        expected_columns: usize,
+        expected_rows: usize,
+    ) {
+        let results: Vec<_> = index
+            .lookup(lookup, VersionNumber(1), 10)
+            .await
+            .unwrap()
+            .next()
+            .unwrap();
+
+        assert_eq!(results.len(), expected_columns);
+        for result in results {
+            assert_eq!(result.array().len(), expected_rows);
+        }
     }
 }
