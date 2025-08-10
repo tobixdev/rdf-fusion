@@ -2,8 +2,8 @@ use crate::memory::encoding::EncodedObjectIdPattern;
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::error::{IndexDeletionError, IndexUpdateError};
 use crate::memory::storage::index::level::{
-    IndexIterationContext, IndexLevel, IndexLevelActionResult, IndexLevelActionState,
-    IndexLevelImpl,
+    IndexIterationContext, IndexLevel, IndexLevelActionResult, IndexLevelImpl,
+    IndexLevelScanState,
 };
 use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{Array, UInt32Array};
@@ -18,6 +18,9 @@ use tokio::sync::{OwnedRwLockReadGuard, RwLock};
 
 /// Represents the index.
 type Index = IndexLevel<IndexLevel<IndexData>>;
+
+/// The full type of the index scan iterator.
+type IndexScanState = IndexLevelScanState<IndexLevelScanState<IndexDataScanState>>;
 
 /// Holds the data for the last index level.
 struct IndexData {
@@ -154,7 +157,7 @@ pub struct MemHashTripleIndexIterator {
     /// Additional context necessary for the iteration.
     context: IndexIterationContext,
     /// The states of the individual levels.
-    state: Option<Box<IndexLevelActionState>>,
+    state: Option<IndexScanState>,
 }
 
 impl MemHashTripleIndexIterator {
@@ -165,7 +168,7 @@ impl MemHashTripleIndexIterator {
         lookup: IndexLookup,
         batch_size: usize,
     ) -> Self {
-        let state = build_state(lookup.0.as_slice());
+        let state = build_state(lookup.0);
         let context = IndexIterationContext {
             object_id_encoding,
             batch_size,
@@ -173,27 +176,39 @@ impl MemHashTripleIndexIterator {
         Self {
             index,
             context,
-            state: Some(Box::new(state)),
+            state: Some(state),
         }
     }
 }
 
-fn build_state(patterns: &[EncodedObjectIdPattern]) -> IndexLevelActionState {
-    let inner = match patterns.len() {
-        1 => None,
-        _ => Some(Box::new(build_state(&patterns[1..]))),
-    };
+fn build_state(patterns: [EncodedObjectIdPattern; 3]) -> IndexScanState {
+    let data = state_data(patterns[2]);
+    let first_level = state_level(patterns[1], data);
+    state_level(patterns[0], first_level)
+}
 
-    match patterns.first().expect("Recursion ends at len=1") {
-        EncodedObjectIdPattern::ObjectId(object_id) => IndexLevelActionState::Lookup {
-            object_id: *object_id,
-            inner,
-        },
-        EncodedObjectIdPattern::Variable => IndexLevelActionState::Scan {
+fn state_level<TInner: Clone>(
+    pattern: EncodedObjectIdPattern,
+    inner: TInner,
+) -> IndexLevelScanState<TInner> {
+    match pattern {
+        EncodedObjectIdPattern::ObjectId(object_id) => {
+            IndexLevelScanState::Lookup { object_id, inner }
+        }
+        EncodedObjectIdPattern::Variable => IndexLevelScanState::Scan {
             default_state: inner.clone(),
             consumed: 0,
             inner,
         },
+    }
+}
+
+fn state_data(pattern: EncodedObjectIdPattern) -> IndexDataScanState {
+    match pattern {
+        EncodedObjectIdPattern::ObjectId(object_id) => {
+            IndexDataScanState::Lookup { object_id }
+        }
+        EncodedObjectIdPattern::Variable => IndexDataScanState::Scan { consumed: 0 },
     }
 }
 
@@ -205,13 +220,87 @@ impl Iterator for MemHashTripleIndexIterator {
             return None;
         };
 
-        let result = self.index.index.execute_scan_action(&self.context, state);
+        let result = self.index.index.scan(&self.context, state);
         self.state = result.new_state;
         result.result
     }
 }
 
+/// Represents the state of scanning an [IndexData] instance.
+#[derive(Debug, Clone)]
+pub enum IndexDataScanState {
+    Lookup {
+        /// The object id to look up.
+        object_id: EncodedObjectId,
+    },
+    Scan {
+        /// Tracks how many arrays have been consumed and should be skipped the next time.
+        consumed: usize,
+    },
+}
+
+impl IndexData {
+    /// Implements the lookup action by scanning all arrays for the object id.
+    fn lookup_impl(
+        &self,
+        object_id: EncodedObjectId,
+    ) -> IndexLevelActionResult<IndexDataScanState> {
+        for array in &self.arrays {
+            let contains = array
+                .object_ids()
+                .values()
+                .iter()
+                .any(|arr_id| EncodedObjectId::from(*arr_id) == object_id);
+            if contains {
+                return IndexLevelActionResult::finished(1, Some(vec![]));
+            }
+        }
+
+        let contains = self.building.iter().any(|arr_id| *arr_id == object_id);
+        if contains {
+            IndexLevelActionResult::finished(1, Some(vec![]))
+        } else {
+            IndexLevelActionResult::empty_finished()
+        }
+    }
+
+    fn scan_impl(
+        &self,
+        context: &IndexIterationContext,
+        consumed: usize,
+    ) -> IndexLevelActionResult<IndexDataScanState> {
+        if consumed < self.arrays.len() {
+            return IndexLevelActionResult {
+                num_results: self.arrays[consumed].object_ids().len(),
+                result: Some(vec![self.arrays[consumed].clone()]),
+                new_state: Some(IndexDataScanState::Scan {
+                    consumed: consumed + 1,
+                }),
+            };
+        }
+
+        if consumed == self.arrays.len() {
+            let iterator = self.building.iter().map(|id| id.as_u32());
+            let uint_array = UInt32Array::from_iter_values(iterator);
+
+            let array = context
+                .object_id_encoding
+                .try_new_array(Arc::new(uint_array))
+                .expect("Failed to create array.");
+
+            return IndexLevelActionResult::finished(
+                self.building.len(),
+                Some(vec![array]),
+            );
+        }
+
+        unreachable!("Should have returned an empty state earlier.")
+    }
+}
+
 impl IndexLevelImpl for IndexData {
+    type ScanState = IndexDataScanState;
+
     fn create_empty() -> Self {
         Self {
             arrays: Vec::new(),
@@ -245,66 +334,15 @@ impl IndexLevelImpl for IndexData {
         self.arrays.iter().map(|a| a.array().len()).sum()
     }
 
-    fn lookup(
-        &self,
-        _context: &IndexIterationContext,
-        _inner: Option<Box<IndexLevelActionState>>,
-        oid: EncodedObjectId,
-    ) -> IndexLevelActionResult {
-        for array in &self.arrays {
-            let contains = array
-                .object_ids()
-                .values()
-                .iter()
-                .any(|arr_id| EncodedObjectId::from(*arr_id) == oid);
-            if contains {
-                return IndexLevelActionResult::finished(1, Some(vec![]));
-            }
-        }
-
-        let contains = self.building.iter().any(|arr_id| *arr_id == oid);
-        if contains {
-            IndexLevelActionResult::finished(1, Some(vec![]))
-        } else {
-            IndexLevelActionResult::empty_finished()
-        }
-    }
-
     fn scan(
         &self,
         context: &IndexIterationContext,
-        _inner: Option<Box<IndexLevelActionState>>,
-        _default_state: Option<Box<IndexLevelActionState>>,
-        consumed: usize,
-    ) -> IndexLevelActionResult {
-        if consumed < self.arrays.len() {
-            return IndexLevelActionResult {
-                num_results: self.arrays[consumed].object_ids().len(),
-                result: Some(vec![self.arrays[consumed].clone()]),
-                new_state: Some(Box::new(IndexLevelActionState::Scan {
-                    consumed: consumed + 1,
-                    default_state: None,
-                    inner: None,
-                })),
-            };
+        state: Self::ScanState,
+    ) -> IndexLevelActionResult<Self::ScanState> {
+        match state {
+            IndexDataScanState::Lookup { object_id } => self.lookup_impl(object_id),
+            IndexDataScanState::Scan { consumed } => self.scan_impl(context, consumed),
         }
-
-        if consumed == self.arrays.len() {
-            let iterator = self.building.iter().map(|id| id.as_u32());
-            let uint_array = UInt32Array::from_iter_values(iterator);
-
-            let array = context
-                .object_id_encoding
-                .try_new_array(Arc::new(uint_array))
-                .expect("Failed to create array.");
-
-            return IndexLevelActionResult::finished(
-                self.building.len(),
-                Some(vec![array]),
-            );
-        }
-
-        unreachable!("Should have returned an empty state earlier.")
     }
 }
 
