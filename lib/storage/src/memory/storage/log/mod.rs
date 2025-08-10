@@ -1,8 +1,7 @@
 use rdf_fusion_common::error::{CorruptionError, StorageError};
-use std::fmt::{Display, Formatter};
 use std::ops::DerefMut;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::RwLock;
 
 mod builder;
@@ -11,29 +10,13 @@ mod snapshot;
 mod validation;
 mod writer;
 
-use crate::memory::MemObjectIdMapping;
 use crate::memory::storage::log::content::MemLogContent;
 use crate::memory::storage::log::validation::validate_mem_log;
 use crate::memory::storage::log::writer::MemLogWriter;
+use crate::memory::storage::VersionNumber;
+use crate::memory::MemObjectIdMapping;
 pub use content::LogChanges;
 pub use snapshot::MemLogSnapshot;
-
-/// The version number of the [MemLog].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VersionNumber(usize);
-
-impl Display for VersionNumber {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl VersionNumber {
-    /// Creates the next version number.
-    pub fn increment(&self) -> Self {
-        Self(self.0 + 1)
-    }
-}
 
 /// The [MemLog] keeps track of all the operations that have been performed on the store. As a
 /// result, the store state can be completely reconstructed from the log.
@@ -43,7 +26,7 @@ pub struct MemLog {
     /// Holds the log entries for each transaction.
     content: Arc<RwLock<MemLogContent>>,
     /// The current version number.
-    version_number: AtomicUsize,
+    version_number: AtomicU64,
 }
 
 impl MemLog {
@@ -52,7 +35,7 @@ impl MemLog {
         Self {
             object_id_mapping,
             content: Arc::new(RwLock::new(MemLogContent::new())),
-            version_number: AtomicUsize::new(0),
+            version_number: AtomicU64::new(0),
         }
     }
 
@@ -115,10 +98,10 @@ impl MemLog {
 
 #[cfg(test)]
 mod test {
-    use crate::memory::MemObjectIdMapping;
     use crate::memory::object_id::EncodedObjectId;
-    use crate::memory::storage::log::MemLog;
     use crate::memory::storage::log::content::MemLogEntryAction;
+    use crate::memory::storage::log::MemLog;
+    use crate::memory::MemObjectIdMapping;
     use rdf_fusion_model::{GraphName, NamedNode, Quad};
     use std::sync::Arc;
 

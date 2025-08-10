@@ -1,7 +1,7 @@
-use crate::memory::storage::log::VersionNumber;
 use crate::memory::storage::log::content::{LogChanges, MemLogContent};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use crate::memory::storage::VersionNumber;
 
 /// Holds a snapshot of the log that can be read from.
 ///

@@ -1,11 +1,11 @@
 use crate::memory::MemObjectIdMapping;
-use crate::memory::storage::log::VersionNumber;
 use crate::memory::storage::log::builder::MemLogEntryBuilder;
 use crate::memory::storage::log::content::{
     ClearTarget, MemLogContent, MemLogEntry, MemLogEntryAction,
 };
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, Quad, QuadRef};
+use crate::memory::storage::VersionNumber;
 
 /// Allows writing entries into the log.
 pub struct MemLogWriter<'log> {

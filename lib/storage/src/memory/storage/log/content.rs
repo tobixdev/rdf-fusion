@@ -1,10 +1,10 @@
 use crate::memory::encoding::{EncodedQuad, EncodedQuadArray};
 use crate::memory::object_id::{EncodedObjectId, GraphEncodedObjectId};
-use crate::memory::storage::log::VersionNumber;
 use datafusion::arrow::array::{Array, StructArray, UnionArray};
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
+use crate::memory::storage::VersionNumber;
 
 /// A single entry in the log.
 ///

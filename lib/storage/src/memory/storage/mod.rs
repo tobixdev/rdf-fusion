@@ -1,3 +1,4 @@
+mod index;
 mod log;
 mod mem_storage;
 mod pattern_exec;
@@ -7,3 +8,21 @@ mod stream;
 pub use mem_storage::MemQuadStorage;
 pub use pattern_exec::MemQuadPatternExec;
 pub use snapshot::MemQuadStorageSnapshot;
+use std::fmt::{Display, Formatter};
+
+/// The version number of the storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VersionNumber(u64);
+
+impl Display for VersionNumber {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl VersionNumber {
+    /// Creates the next version number.
+    pub fn increment(&self) -> Self {
+        Self(self.0 + 1)
+    }
+}

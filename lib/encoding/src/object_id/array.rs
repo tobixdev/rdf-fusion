@@ -1,11 +1,12 @@
-use crate::TermEncoding;
 use crate::encoding::EncodingArray;
 use crate::object_id::ObjectIdEncoding;
+use crate::TermEncoding;
 use datafusion::arrow::array::{Array, ArrayRef, UInt32Array};
 use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 
 /// Represents an Arrow array with an [ObjectIdEncoding].
+#[derive(Debug, Clone)]
 pub struct ObjectIdArray {
     encoding: ObjectIdEncoding,
     inner: ArrayRef,

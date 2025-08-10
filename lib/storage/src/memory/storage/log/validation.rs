@@ -1,12 +1,12 @@
 use crate::memory::encoding::EncodedQuad;
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::log::VersionNumber;
 use crate::memory::storage::log::content::{
     ClearTarget, MemLogContent, MemLogEntryAction, MemLogUpdateArray,
 };
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
+use crate::memory::storage::VersionNumber;
 
 /// Validates the [MemLogContent].
 ///

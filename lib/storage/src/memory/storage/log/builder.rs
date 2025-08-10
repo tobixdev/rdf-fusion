@@ -1,5 +1,4 @@
 use crate::memory::encoding::EncodedQuad;
-use crate::memory::storage::log::VersionNumber;
 use crate::memory::storage::log::content::{
     MemLogEntry, MemLogEntryAction, MemLogUpdateArray,
 };
@@ -9,6 +8,7 @@ use rdf_fusion_common::error::StorageError;
 use std::num::TryFromIntError;
 use std::sync::Arc;
 use thiserror::Error;
+use crate::memory::storage::VersionNumber;
 
 /// Builder for [MemLogUpdateArray].
 ///
