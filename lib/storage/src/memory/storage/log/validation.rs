@@ -261,7 +261,7 @@ impl Display for LogCorruption {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::object_id::{EncodedGraphObjectId, DEFAULT_GRAPH_ID};
+    use crate::memory::object_id::DEFAULT_GRAPH_ID;
     use crate::memory::storage::log::builder::MemLogEntryBuilder;
     use crate::memory::storage::log::content::MemLogEntry;
     use insta::assert_snapshot;

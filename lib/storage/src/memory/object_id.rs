@@ -2,7 +2,6 @@
 
 use datafusion::parquet::data_type::AsBytes;
 use rdf_fusion_common::ObjectId;
-use std::convert::Into;
 use std::fmt::Debug;
 use std::hash::Hash;
 use thiserror::Error;

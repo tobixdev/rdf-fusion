@@ -1,8 +1,8 @@
-use crate::memory::MemObjectIdMapping;
 use crate::memory::encoding::EncodedQuad;
 use crate::memory::storage::stream::extract_term;
-use datafusion::common::exec_datafusion_err;
-use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use crate::memory::MemObjectIdMapping;
+use rdf_fusion_common::BlankNodeMatchingMode;
+use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::TriplePattern;
 use std::collections::HashSet;
@@ -17,7 +17,7 @@ impl QuadFilter {
         active_graph: ActiveGraph,
         pattern: &TriplePattern,
         blank_node_matching_mode: BlankNodeMatchingMode,
-    ) -> DFResult<Self> {
+    ) -> Result<Self, UnknownObjectIdError> {
         let subject = extract_term(
             object_id_mapping,
             &pattern.subject,
@@ -37,10 +37,7 @@ impl QuadFilter {
                 for graph in graphs {
                     let object_id = object_id_mapping
                         .try_get_encoded_object_id_from_graph_name(graph.as_ref())
-                        .ok_or(exec_datafusion_err!(
-                            "Found un-mapped graph name: {}",
-                            graph
-                        ))?;
+                        .ok_or(UnknownObjectIdError)?;
                     result.insert(object_id);
                 }
                 result

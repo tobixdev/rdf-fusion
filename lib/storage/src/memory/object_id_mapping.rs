@@ -419,13 +419,10 @@ mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
     use rdf_fusion_common::ObjectId;
-    use rdf_fusion_encoding::object_id::ObjectIdArrayBuilder;
     use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
-    use rdf_fusion_encoding::{EncodingArray, EncodingScalar};
+    use rdf_fusion_encoding::EncodingArray;
     use rdf_fusion_model::vocab::xsd;
-    use rdf_fusion_model::{
-        BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, QuadRef, TermRef,
-    };
+    use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 
     #[test]
     fn test_encode_decode_roundtrip() -> DFResult<()> {

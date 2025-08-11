@@ -5,6 +5,7 @@ use datafusion::common::exec_err;
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
+use datafusion::physical_plan::EmptyRecordBatchStream;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::QuadStorageEncoding;
@@ -74,7 +75,7 @@ impl MemQuadStorageSnapshot {
             )
             .inner(),
         );
-        let log_insertion_stream = self
+        let Ok(log_insertion_stream) = self
             .changes
             .clone()
             .map(|c| {
@@ -89,13 +90,16 @@ impl MemQuadStorageSnapshot {
                     task_context.session_config().batch_size(),
                 )
             })
-            .transpose()?
-            .map(Box::new);
+            .transpose()
+        else {
+            // If we cannot find an object id, we know that the pattern does not match any quads.
+            return Ok(Box::pin(EmptyRecordBatchStream::new(schema.clone())));
+        };
 
         Ok(Box::pin(cooperative(MemQuadPatternStream::new(
             schema,
             metrics,
-            log_insertion_stream,
+            log_insertion_stream.map(Box::new),
         ))))
     }
 

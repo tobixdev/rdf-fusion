@@ -3,12 +3,13 @@ mod pattern_stream;
 mod quad_equalities;
 mod quad_filter;
 
-use crate::memory::MemObjectIdMapping;
 use crate::memory::object_id::EncodedObjectId;
-use datafusion::common::{Column, exec_datafusion_err};
+use crate::memory::MemObjectIdMapping;
+use datafusion::common::Column;
 pub use log_insertion_stream::*;
 pub use pattern_stream::*;
-use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use rdf_fusion_common::BlankNodeMatchingMode;
+use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_model::{TermPattern, TriplePattern, Variable};
 
 /// Returns a buffer of optional variables from `graph_variable` and `pattern`.
@@ -46,14 +47,12 @@ fn extract_term(
     object_id_mapping: &MemObjectIdMapping,
     pattern: &TermPattern,
     blank_node_mode: BlankNodeMatchingMode,
-) -> DFResult<Option<EncodedObjectId>> {
+) -> Result<Option<EncodedObjectId>, UnknownObjectIdError> {
     match pattern {
         TermPattern::NamedNode(nn) => {
             let object_id = object_id_mapping
                 .try_get_encoded_object_id_from_term(nn.as_ref())
-                .ok_or(exec_datafusion_err!(
-                    "Could not find object id. This check should happen during planning."
-                ))?;
+                .ok_or(UnknownObjectIdError)?;
             Ok(Some(object_id))
         }
         TermPattern::BlankNode(bnode)
@@ -61,17 +60,13 @@ fn extract_term(
         {
             let object_id = object_id_mapping
                 .try_get_encoded_object_id_from_term(bnode.as_ref())
-                .ok_or(exec_datafusion_err!(
-                    "Could not find object id. This check should happen during planning."
-                ))?;
+                .ok_or(UnknownObjectIdError)?;
             Ok(Some(object_id))
         }
         TermPattern::Literal(lit) => {
             let object_id = object_id_mapping
                 .try_get_encoded_object_id_from_term(lit.as_ref())
-                .ok_or(exec_datafusion_err!(
-                    "Could not find object id. This check should happen during planning."
-                ))?;
+                .ok_or(UnknownObjectIdError)?;
             Ok(Some(object_id))
         }
         _ => Ok(None),

@@ -18,6 +18,10 @@ pub enum ObjectIdMappingError {
     UnknownObjectId,
 }
 
+#[derive(Error, Debug)]
+#[error("An unknown object ID was encountered in an unexpected place.")]
+pub struct UnknownObjectIdError;
+
 impl From<ArrowError> for ObjectIdMappingError {
     fn from(value: ArrowError) -> Self {
         ObjectIdMappingError::ArrowError(value)

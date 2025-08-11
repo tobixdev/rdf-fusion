@@ -9,7 +9,7 @@ use datafusion::common::{Column, DataFusionError, exec_err};
 use datafusion::execution::RecordBatchStream;
 use futures::Stream;
 use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::object_id::{ObjectIdEncoding, UnknownObjectIdError};
 use rdf_fusion_encoding::{QuadStorageEncoding, TermEncoding};
 use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
@@ -52,7 +52,7 @@ impl MemLogInsertionsStream {
         blank_node_mode: BlankNodeMatchingMode,
         insertions: Vec<EncodedQuad>,
         batch_size: usize,
-    ) -> DFResult<Self> {
+    ) -> Result<Self, UnknownObjectIdError> {
         let schema = Arc::clone(
             compute_schema_for_triple_pattern(
                 &storage_encoding,
