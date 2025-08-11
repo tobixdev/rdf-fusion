@@ -1,9 +1,9 @@
-use crate::memory::object_id::{EncodedObjectId, GraphEncodedObjectId};
+use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId, DEFAULT_GRAPH_ID};
 use datafusion::arrow::array::{Array, StructArray, UInt32Array};
 
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub struct EncodedQuad {
-    pub graph_name: GraphEncodedObjectId,
+    pub graph_name: EncodedGraphObjectId,
     pub subject: EncodedObjectId,
     pub predicate: EncodedObjectId,
     pub object: EncodedObjectId,
@@ -99,8 +99,10 @@ impl Iterator for EncodedQuadIterator<'_> {
                 .array
                 .graph_name
                 .is_valid(self.next_index)
-                .then(|| self.array.graph_name.value(self.next_index).into())
-                .into(),
+                .then(|| self.array.graph_name.value(self.next_index))
+                .map(EncodedObjectId::from)
+                .map(EncodedGraphObjectId::from)
+                .unwrap_or(DEFAULT_GRAPH_ID),
             subject: self.array.subject.values()[self.next_index].into(),
             predicate: self.array.predicate.values()[self.next_index].into(),
             object: self.array.object.values()[self.next_index].into(),

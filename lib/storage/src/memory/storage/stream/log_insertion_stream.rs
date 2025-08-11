@@ -219,7 +219,7 @@ impl RdfQuadsRecordBatchBuilder {
         if let Some((_, builder)) = &mut self.graph {
             for quad in quads.iter().take(count) {
                 let value = &quad.as_ref().expect("Checked via count").graph_name;
-                match &value.0 {
+                match value.try_as_encoded_object_id() {
                     None => builder.append_null(),
                     Some(value) => builder.append_value(value.as_object_id().0),
                 }

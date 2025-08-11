@@ -3,10 +3,10 @@ use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::log::content::{
     ClearTarget, MemLogContent, MemLogEntryAction, MemLogUpdateArray,
 };
+use crate::memory::storage::VersionNumber;
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
-use crate::memory::storage::VersionNumber;
 
 /// Validates the [MemLogContent].
 ///
@@ -101,8 +101,11 @@ impl ValidationState {
             self.push_corruption(LogCorruption::QuadDeletedBeforeInserted)
         }
 
-        self.existing_named_graphs
-            .extend(insertions.iter().filter_map(|q| q.graph_name.0));
+        self.existing_named_graphs.extend(
+            insertions
+                .iter()
+                .filter_map(|q| q.graph_name.try_as_encoded_object_id()),
+        );
         self.existing_quads.retain(|q| !deletions.contains(q));
         self.existing_quads.extend(insertions);
     }
@@ -112,7 +115,7 @@ impl ValidationState {
 
         match target {
             ClearTarget::Graph(to_clear) => {
-                if let Some(to_clear) = to_clear.0 {
+                if let Some(to_clear) = to_clear.try_as_encoded_object_id() {
                     if !self.existing_named_graphs.contains(&to_clear) {
                         self.push_corruption(LogCorruption::GraphClearedBeforeCreated)
                     }
@@ -121,7 +124,8 @@ impl ValidationState {
                 self.existing_quads.retain(|g| g.graph_name != to_clear);
             }
             ClearTarget::AllNamedGraphs => {
-                self.existing_quads.retain(|g| g.graph_name.0.is_none());
+                self.existing_quads
+                    .retain(|g| g.graph_name.is_default_graph());
             }
             ClearTarget::AllGraphs => {
                 self.existing_quads.clear();
@@ -154,8 +158,7 @@ impl ValidationState {
             self.push_corruption(LogCorruption::GraphDroppedBeforeCreated)
         }
 
-        self.existing_quads
-            .retain(|q| q.graph_name.0 != Some(to_clear));
+        self.existing_quads.retain(|q| q.graph_name.0 != to_clear);
         self.existing_named_graphs.remove(&to_clear);
     }
 
@@ -258,7 +261,7 @@ impl Display for LogCorruption {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::object_id::GraphEncodedObjectId;
+    use crate::memory::object_id::{EncodedGraphObjectId, DEFAULT_GRAPH_ID};
     use crate::memory::storage::log::builder::MemLogEntryBuilder;
     use crate::memory::storage::log::content::MemLogEntry;
     use insta::assert_snapshot;
@@ -357,7 +360,7 @@ mod tests {
 
         log.append_log_entry(MemLogEntry {
             version_number: VersionNumber(1),
-            action: MemLogEntryAction::Clear(ClearTarget::Graph(Some(graph).into())),
+            action: MemLogEntryAction::Clear(ClearTarget::Graph(graph.into())),
         });
 
         let result = validate_mem_log(&log);
@@ -430,7 +433,7 @@ mod tests {
     fn valid_insertion_then_clear_then_insertion_default_graph() {
         let mut log = MemLogContent::new();
         let quad = EncodedQuad {
-            graph_name: GraphEncodedObjectId(None),
+            graph_name: DEFAULT_GRAPH_ID,
             subject: 1.into(),
             predicate: 2.into(),
             object: 3.into(),
@@ -439,9 +442,7 @@ mod tests {
         log.append_log_entry(make_update(VersionNumber(1), vec![quad.clone()], vec![]));
         log.append_log_entry(MemLogEntry {
             version_number: VersionNumber(2),
-            action: MemLogEntryAction::Clear(ClearTarget::Graph(
-                GraphEncodedObjectId(None).into(),
-            )),
+            action: MemLogEntryAction::Clear(ClearTarget::Graph(DEFAULT_GRAPH_ID)),
         });
         log.append_log_entry(make_update(VersionNumber(3), vec![quad.clone()], vec![]));
 
@@ -467,7 +468,7 @@ mod tests {
 
     fn make_quad(g: u32, s: u32, p: u32, o: u32) -> EncodedQuad {
         EncodedQuad {
-            graph_name: Some(g.into()).into(),
+            graph_name: EncodedObjectId::from(g).into(),
             subject: s.into(),
             predicate: p.into(),
             object: o.into(),

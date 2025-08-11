@@ -53,7 +53,7 @@ impl QuadFilter {
                 ActiveGraph::DefaultGraph => quad.graph_name.is_default_graph(),
                 ActiveGraph::AllGraphs => true,
                 ActiveGraph::Union(_) => allowed_graphs.contains(&quad.graph_name),
-                ActiveGraph::AnyNamedGraph => quad.graph_name.0.is_some(),
+                ActiveGraph::AnyNamedGraph => quad.graph_name.is_named_graph(),
             };
 
             graph_ok

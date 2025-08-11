@@ -1,6 +1,6 @@
-use crate::memory::MemObjectIdMapping;
 use crate::memory::storage::log::{LogChanges, MemLogSnapshot};
 use crate::memory::storage::stream::{MemLogInsertionsStream, MemQuadPatternStream};
+use crate::memory::MemObjectIdMapping;
 use datafusion::common::exec_err;
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_plan::coop::cooperative;
@@ -8,8 +8,8 @@ use datafusion::physical_plan::metrics::BaselineMetrics;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::{NamedOrBlankNode, NamedOrBlankNodeRef, TriplePattern, Variable};
 use std::sync::Arc;
 
@@ -116,7 +116,11 @@ impl MemQuadStorageSnapshot {
 
         Iterator::chain(
             changes.created_named_graphs.iter().copied(),
-            changes.inserted.iter().filter_map(|q| q.graph_name.0),
+            changes
+                .inserted
+                .iter()
+                .filter(|q| !q.graph_name.is_default_graph())
+                .map(|q| q.graph_name.as_encoded_object_id()),
         )
         .map(|g| {
             self.object_id_mapping
@@ -148,9 +152,9 @@ impl MemQuadStorageSnapshot {
             return true;
         }
 
-        changes
-            .inserted
-            .iter()
-            .any(|q| q.graph_name == Some(object_id).into())
+        changes.inserted.iter().any(|q| {
+            !q.graph_name.is_default_graph()
+                && q.graph_name.as_encoded_object_id() == object_id
+        })
     }
 }

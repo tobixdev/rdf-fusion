@@ -70,10 +70,10 @@ impl QuadEqualities {
                 for j in (i + 1)..4 {
                     if equality[i] == 1 && equality[j] == 1 {
                         let quad = [
-                            quad.graph_name.0.as_ref(),
-                            Some(&quad.subject),
-                            Some(&quad.predicate),
-                            Some(&quad.object),
+                            quad.graph_name.0,
+                            quad.subject,
+                            quad.predicate,
+                            quad.object,
                         ];
 
                         if quad[i] != quad[j] {

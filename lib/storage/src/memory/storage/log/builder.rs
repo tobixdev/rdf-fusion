@@ -2,13 +2,13 @@ use crate::memory::encoding::EncodedQuad;
 use crate::memory::storage::log::content::{
     MemLogEntry, MemLogEntryAction, MemLogUpdateArray,
 };
+use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{Array, StructBuilder, UInt32Builder, UnionArray};
 use datafusion::arrow::datatypes::{Field, UnionFields};
 use rdf_fusion_common::error::StorageError;
 use std::num::TryFromIntError;
 use std::sync::Arc;
 use thiserror::Error;
-use crate::memory::storage::VersionNumber;
 
 /// Builder for [MemLogUpdateArray].
 ///
@@ -170,7 +170,10 @@ pub fn append_quad(
     builder: &mut StructBuilder,
     quad: &EncodedQuad,
 ) -> Result<(), MemLogEntryBuilderError> {
-    let graph = quad.graph_name.0.map(|oid| oid.as_object_id().0);
+    let graph = quad
+        .graph_name
+        .try_as_encoded_object_id()
+        .map(|oid| oid.as_object_id().0);
     let subject = quad.subject.as_object_id().0;
     let predicate = quad.predicate.as_object_id().0;
     let object = quad.object.as_object_id().0;

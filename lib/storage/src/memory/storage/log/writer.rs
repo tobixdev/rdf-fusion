@@ -91,7 +91,7 @@ impl<'log> MemLogWriter<'log> {
                 || changes
                     .inserted
                     .iter()
-                    .any(|q| q.graph_name.0 == Some(object_id));
+                    .any(|q| q.graph_name.0 == object_id);
             if existing {
                 return Ok(false);
             }
@@ -132,7 +132,7 @@ impl<'log> MemLogWriter<'log> {
                 || changes
                     .inserted
                     .iter()
-                    .any(|q| q.graph_name.0 == Some(object_id));
+                    .any(|q| q.graph_name.0 == object_id);
             if !existing {
                 return Ok(false);
             }

@@ -128,7 +128,7 @@ mod test {
                 .unwrap()
                 .inserted
                 .iter()
-                .filter(|q| q.graph_name.0.is_none())
+                .filter(|q| q.graph_name.is_default_graph())
                 .count(),
             1
         );

@@ -1,5 +1,5 @@
 use crate::memory::encoding::{EncodedQuad, EncodedQuadArray};
-use crate::memory::object_id::{EncodedObjectId, GraphEncodedObjectId};
+use crate::memory::object_id::{EncodedObjectId, EncodedGraphObjectId};
 use datafusion::arrow::array::{Array, StructArray, UnionArray};
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
@@ -23,7 +23,7 @@ pub struct MemLogEntry {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ClearTarget {
     /// Creates a named graph or the default graph.
-    Graph(GraphEncodedObjectId),
+    Graph(EncodedGraphObjectId),
     /// Clears all named graphs.
     AllNamedGraphs,
     /// Clears all graphs.
@@ -118,13 +118,13 @@ impl MemLogContent {
                     deleted.extend(new_deleted);
                 }
                 MemLogEntryAction::Clear(ClearTarget::Graph(graph)) => {
-                    inserted.retain(|quad| quad.graph_name.0 != (*graph).into());
-                    deleted.retain(|quad| quad.graph_name.0 != (*graph).into());
+                    inserted.retain(|quad| quad.graph_name != *graph);
+                    deleted.retain(|quad| quad.graph_name != *graph);
                     cleared.insert(ClearTarget::Graph(*graph));
                 }
                 MemLogEntryAction::Clear(ClearTarget::AllNamedGraphs) => {
-                    inserted.retain(|quad| quad.graph_name.0.is_none());
-                    deleted.retain(|quad| quad.graph_name.0.is_none());
+                    inserted.retain(|quad| quad.graph_name.is_default_graph());
+                    deleted.retain(|quad| quad.graph_name.is_default_graph());
                     cleared.insert(ClearTarget::AllNamedGraphs);
                 }
                 MemLogEntryAction::Clear(ClearTarget::AllGraphs) => {
