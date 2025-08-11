@@ -1,7 +1,7 @@
 use crate::memory::encoding::EncodedObjectIdPattern;
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::error::IndexDeletionError;
-use crate::memory::storage::index::index::IndexedTriple;
+use crate::memory::storage::index::index::IndexedQuad;
 use crate::memory::storage::index::IndexConfiguration;
 use datafusion::arrow::array::UInt32Array;
 use rdf_fusion_encoding::object_id::ObjectIdArray;
@@ -284,7 +284,7 @@ pub trait IndexLevelImpl {
     fn insert_triple(
         &mut self,
         configuration: &IndexConfiguration,
-        triple: &IndexedTriple,
+        triple: &IndexedQuad,
         cur_depth: usize,
     );
 
@@ -292,7 +292,7 @@ pub trait IndexLevelImpl {
     fn delete_triple(
         &mut self,
         configuration: &IndexConfiguration,
-        triple: &IndexedTriple,
+        triple: &IndexedQuad,
         cur_depth: usize,
     ) -> Result<(), IndexDeletionError>;
 
@@ -317,7 +317,7 @@ impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
     fn insert_triple(
         &mut self,
         configuration: &IndexConfiguration,
-        triple: &IndexedTriple,
+        triple: &IndexedQuad,
         cur_depth: usize,
     ) {
         let part = triple.0[cur_depth];
@@ -331,7 +331,7 @@ impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
     fn delete_triple(
         &mut self,
         configuration: &IndexConfiguration,
-        triple: &IndexedTriple,
+        triple: &IndexedQuad,
         cur_depth: usize,
     ) -> Result<(), IndexDeletionError> {
         let part = triple.0[cur_depth];

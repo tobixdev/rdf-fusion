@@ -16,10 +16,11 @@ use std::sync::Arc;
 use tokio::sync::{OwnedRwLockReadGuard, RwLock};
 
 /// Represents the index.
-type Index = IndexLevel<IndexLevel<IndexData>>;
+type Index = IndexLevel<IndexLevel<IndexLevel<IndexData>>>;
 
 /// The full type of the index scan iterator.
-type IndexScanState = IndexLevelScanState<IndexLevelScanState<IndexDataScanState>>;
+type IndexScanState =
+    IndexLevelScanState<IndexLevelScanState<IndexLevelScanState<IndexDataScanState>>>;
 
 /// Holds the data for the last index level.
 struct IndexData {
@@ -30,10 +31,10 @@ struct IndexData {
 }
 
 #[derive(Debug, Clone)]
-pub struct IndexLookup(pub [EncodedObjectIdPattern; 3]);
+pub struct IndexLookup(pub [EncodedObjectIdPattern; 4]);
 
 #[derive(Debug, Clone)]
-pub struct IndexedTriple(pub [EncodedObjectId; 3]);
+pub struct IndexedQuad(pub [EncodedObjectId; 4]);
 
 struct IndexContent {
     /// The version that this index reflects.
@@ -46,10 +47,28 @@ pub struct MemHashTripleIndex {
     /// The index content.
     content: Arc<RwLock<IndexContent>>,
     /// The configuration of the index.
-    configuration: Arc<IndexConfiguration>,
+    configuration: IndexConfiguration,
 }
 
 impl MemHashTripleIndex {
+    /// Creates a new [MemHashTripleIndex].
+    pub fn new(configuration: IndexConfiguration) -> Self {
+        let index = Index::create_empty();
+        let content = Arc::new(RwLock::new(IndexContent {
+            version: VersionNumber(0),
+            index,
+        }));
+        Self {
+            content,
+            configuration,
+        }
+    }
+
+    /// Returns a reference to the index configuration.
+    pub fn configuration(&self) -> &IndexConfiguration {
+        &self.configuration
+    }
+
     /// Performs a lookup in the index and returns a list of object arrays.
     ///
     /// See [MemHashTripleIndexIterator] for more information.
@@ -71,8 +90,8 @@ impl MemHashTripleIndex {
 
     pub async fn update(
         &self,
-        to_insert: &[IndexedTriple],
-        to_delete: &[IndexedTriple],
+        to_insert: &[IndexedQuad],
+        to_delete: &[IndexedQuad],
         version_number: VersionNumber,
     ) -> Result<(), IndexUpdateError> {
         let mut index = self.content.write().await;
@@ -116,7 +135,7 @@ pub struct MemHashTripleIndexIterator {
     /// delete data from the index during iteration.
     index: OwnedRwLockReadGuard<IndexContent>,
     /// Additional context necessary for the iteration.
-    configuration: Arc<IndexConfiguration>,
+    configuration: IndexConfiguration,
     /// The states of the individual levels.
     state: Option<IndexScanState>,
 }
@@ -125,7 +144,7 @@ impl MemHashTripleIndexIterator {
     /// Creates a new [MemHashTripleIndexIterator].
     fn new(
         index: OwnedRwLockReadGuard<IndexContent>,
-        configuration: Arc<IndexConfiguration>,
+        configuration: IndexConfiguration,
         lookup: IndexLookup,
     ) -> Self {
         let state = build_state(lookup.0);
@@ -137,10 +156,11 @@ impl MemHashTripleIndexIterator {
     }
 }
 
-fn build_state(patterns: [EncodedObjectIdPattern; 3]) -> IndexScanState {
-    let data = create_state_for_data(patterns[2]);
-    let first_level = create_state_for_level(patterns[1], data);
-    create_state_for_level(patterns[0], first_level)
+fn build_state(patterns: [EncodedObjectIdPattern; 4]) -> IndexScanState {
+    let data = create_state_for_data(patterns[3]);
+    let first_level = create_state_for_level(patterns[2], data);
+    let second_level = create_state_for_level(patterns[1], first_level);
+    create_state_for_level(patterns[0], second_level)
 }
 
 fn create_state_for_data(pattern: EncodedObjectIdPattern) -> IndexDataScanState {
@@ -251,7 +271,7 @@ impl IndexLevelImpl for IndexData {
     fn insert_triple(
         &mut self,
         configuration: &IndexConfiguration,
-        triple: &IndexedTriple,
+        triple: &IndexedQuad,
         cur_depth: usize,
     ) {
         let part = triple.0[cur_depth];
@@ -272,7 +292,7 @@ impl IndexLevelImpl for IndexData {
     fn delete_triple(
         &mut self,
         configuration: &IndexConfiguration,
-        triple: &IndexedTriple,
+        triple: &IndexedQuad,
         cur_depth: usize,
     ) -> Result<(), IndexDeletionError> {
         let part = triple.0[cur_depth];
@@ -333,10 +353,11 @@ mod tests {
     #[tokio::test]
     async fn insert_and_scan_triple() {
         let index = create_index();
-        let triples = vec![IndexedTriple([eid(1), eid(2), eid(3)])];
+        let triples = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(0)),
             EncodedObjectIdPattern::ObjectId(eid(1)),
             EncodedObjectIdPattern::ObjectId(eid(2)),
             EncodedObjectIdPattern::ObjectId(eid(3)),
@@ -351,13 +372,13 @@ mod tests {
     #[tokio::test]
     async fn scan_newer_index_version_err() {
         let index = create_index();
-        let triples = vec![IndexedTriple([eid(1), eid(2), eid(3)])];
+        let triples = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
         index.update(&[], &triples, VersionNumber(2)).await.unwrap();
 
         let result = index
             .scan(
-                IndexLookup([EncodedObjectIdPattern::Variable; 3]),
+                IndexLookup([EncodedObjectIdPattern::Variable; 4]),
                 VersionNumber(1),
             )
             .await;
@@ -372,13 +393,14 @@ mod tests {
     async fn scan_subject_var() {
         let index = create_index();
         let triples = vec![
-            IndexedTriple([eid(1), eid(2), eid(3)]),
-            IndexedTriple([eid(1), eid(4), eid(5)]),
-            IndexedTriple([eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(0)),
             EncodedObjectIdPattern::Variable,
             EncodedObjectIdPattern::ObjectId(eid(2)),
             EncodedObjectIdPattern::ObjectId(eid(3)),
@@ -391,13 +413,14 @@ mod tests {
     async fn scan_predicate_var() {
         let index = create_index();
         let triples = vec![
-            IndexedTriple([eid(1), eid(2), eid(3)]),
-            IndexedTriple([eid(1), eid(4), eid(5)]),
-            IndexedTriple([eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(0)),
             EncodedObjectIdPattern::ObjectId(eid(1)),
             EncodedObjectIdPattern::Variable,
             EncodedObjectIdPattern::ObjectId(eid(3)),
@@ -410,13 +433,14 @@ mod tests {
     async fn scan_object_var() {
         let index = create_index();
         let triples = vec![
-            IndexedTriple([eid(1), eid(2), eid(3)]),
-            IndexedTriple([eid(1), eid(4), eid(5)]),
-            IndexedTriple([eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(0)),
             EncodedObjectIdPattern::ObjectId(eid(1)),
             EncodedObjectIdPattern::ObjectId(eid(2)),
             EncodedObjectIdPattern::Variable,
@@ -429,13 +453,14 @@ mod tests {
     async fn scan_multi_vars() {
         let index = create_index();
         let triples = vec![
-            IndexedTriple([eid(1), eid(2), eid(3)]),
-            IndexedTriple([eid(1), eid(4), eid(5)]),
-            IndexedTriple([eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(0)),
             EncodedObjectIdPattern::Variable,
             EncodedObjectIdPattern::ObjectId(eid(2)),
             EncodedObjectIdPattern::Variable,
@@ -448,15 +473,15 @@ mod tests {
     async fn scan_all_vars() {
         let index = create_index();
         let triples = vec![
-            IndexedTriple([eid(1), eid(2), eid(3)]),
-            IndexedTriple([eid(1), eid(4), eid(5)]),
-            IndexedTriple([eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
-        let lookup = IndexLookup([EncodedObjectIdPattern::Variable; 3]);
+        let lookup = IndexLookup([EncodedObjectIdPattern::Variable; 4]);
 
-        run_matching_test(index, lookup, 3, 3).await;
+        run_matching_test(index, lookup, 4, 3).await;
     }
 
     #[tokio::test]
@@ -464,12 +489,13 @@ mod tests {
         let index = create_index_with_batch_size(10);
         let mut triples = Vec::new();
         for i in 0..25 {
-            triples.push(IndexedTriple([eid(1), eid(2), eid(i)]))
+            triples.push(IndexedQuad([eid(0), eid(1), eid(2), eid(i)]))
         }
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         // The lookup matches a single IndexData that will be scanned.
         let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(0)),
             EncodedObjectIdPattern::ObjectId(eid(1)),
             EncodedObjectIdPattern::ObjectId(eid(2)),
             EncodedObjectIdPattern::Variable,
@@ -483,13 +509,14 @@ mod tests {
         let index = create_index_with_batch_size(10);
         let mut triples = Vec::new();
         for i in 0..25 {
-            triples.push(IndexedTriple([eid(1), eid(i), eid(2)]))
+            triples.push(IndexedQuad([eid(0), eid(1), eid(i), eid(2)]))
         }
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         // The lookup matches 25 different IndexLevels, each having exactly one data entry. The
         // batches should be combined into a single batch.
         let lookup = IndexLookup([
+            EncodedObjectIdPattern::ObjectId(eid(0)),
             EncodedObjectIdPattern::ObjectId(eid(1)),
             EncodedObjectIdPattern::Variable,
             EncodedObjectIdPattern::ObjectId(eid(2)),
@@ -502,21 +529,21 @@ mod tests {
     async fn delete_triple_removes_it() {
         let index = create_index();
         let triples = vec![
-            IndexedTriple([eid(1), eid(2), eid(3)]),
-            IndexedTriple([eid(1), eid(4), eid(5)]),
-            IndexedTriple([eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
         index.update(&[], &triples, VersionNumber(2)).await.unwrap();
 
-        run_non_matching_test(index, IndexLookup([EncodedObjectIdPattern::Variable; 3]))
+        run_non_matching_test(index, IndexLookup([EncodedObjectIdPattern::Variable; 4]))
             .await;
     }
 
     #[tokio::test]
     async fn delete_triple_non_existing_err() {
         let index = create_index();
-        let triples = vec![IndexedTriple([eid(1), eid(2), eid(3)])];
+        let triples = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
         let result = index.update(&[], &triples, VersionNumber(1)).await;
         assert_eq!(
             result.err(),
@@ -537,16 +564,17 @@ mod tests {
             index: Index::default(),
         };
         let index = MemHashTripleIndex {
-            configuration: Arc::new(IndexConfiguration {
+            configuration: IndexConfiguration {
                 batch_size,
                 object_id_encoding,
                 components: IndexComponents::try_new([
+                    IndexComponent::GraphName,
                     IndexComponent::Subject,
                     IndexComponent::Predicate,
                     IndexComponent::Object,
                 ])
                 .unwrap(),
-            }),
+            },
             content: Arc::new(RwLock::new(content)),
         };
         index

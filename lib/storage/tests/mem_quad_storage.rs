@@ -267,7 +267,7 @@ async fn validate_storage() {
 
 fn create_storage() -> MemQuadStorage {
     let object_id_encoding = MemObjectIdMapping::new();
-    MemQuadStorage::new(Arc::new(object_id_encoding))
+    MemQuadStorage::new(Arc::new(object_id_encoding), 10)
 }
 
 fn example_quad() -> Quad {
