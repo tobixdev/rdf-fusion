@@ -33,7 +33,7 @@ pub struct IndexComponents([IndexComponent; 3]);
 
 #[derive(Debug, Error)]
 #[error("Duplicate indexed component given.")]
-struct IndexedComponentsCreationError;
+pub struct IndexComponentsCreationError;
 
 impl IndexComponents {
     /// Tries to create a new [IndexConfiguration].
@@ -41,10 +41,10 @@ impl IndexComponents {
     /// Returns an error if an [IndexComponent] appears more than once.
     pub fn try_new(
         components: [IndexComponent; 3],
-    ) -> Result<Self, IndexedComponentsCreationError> {
+    ) -> Result<Self, IndexComponentsCreationError> {
         let distinct = components.iter().collect::<HashSet<_>>();
         if distinct.len() != 3 {
-            return Err(IndexedComponentsCreationError);
+            return Err(IndexComponentsCreationError);
         }
 
         Ok(IndexComponents(components))

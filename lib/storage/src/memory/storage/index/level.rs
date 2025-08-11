@@ -3,9 +3,9 @@ use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::error::IndexDeletionError;
 use crate::memory::storage::index::index::IndexedTriple;
 use crate::memory::storage::index::IndexConfiguration;
-use datafusion::arrow::array::{Array, UInt32Array};
+use datafusion::arrow::array::UInt32Array;
 use rdf_fusion_encoding::object_id::ObjectIdArray;
-use rdf_fusion_encoding::{EncodingArray, TermEncoding};
+use rdf_fusion_encoding::TermEncoding;
 use std::collections::HashMap;
 use std::iter::repeat_n;
 use std::sync::Arc;
@@ -16,7 +16,7 @@ use std::sync::Arc;
 pub struct IndexLevel<TInner: IndexLevelImpl>(HashMap<EncodedObjectId, TInner>);
 
 #[derive(Debug, Clone)]
-struct BufferedResult {
+pub struct BufferedResult {
     num_results: usize,
     object_id: EncodedObjectId,
     inner: Vec<ObjectIdArray>,
@@ -60,7 +60,7 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
 
         // If no inner results can be found, the iterator is exhausted.
         if inner_results.results.is_empty() {
-            return return IndexLevelActionResult::empty_finished();
+            return IndexLevelActionResult::empty_finished();
         }
 
         // If the buffered results are bigger than the batch size, buffer the last result for the
@@ -76,21 +76,19 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
 
         // If the end is reached, return the result and finish this subtree. Note that buffered
         // results are not consumed. Therefore, this check is enough.
+        let num_results = inner_results.num_results();
         if inner_results.new_consumed == self.0.len() {
-            return IndexLevelActionResult::finished(
-                inner_results.num_results(),
-                Some(result_array),
-            );
+            return IndexLevelActionResult::finished(num_results, Some(result_array));
         }
 
         let new_state = Some(IndexLevelScanState::Scan {
             buffered: new_buffered,
             consumed: inner_results.new_consumed,
-            inner: default_state.clone(),
+            inner: inner_results.new_state,
             default_state,
         });
         IndexLevelActionResult {
-            num_results: inner_results.num_results(),
+            num_results,
             result: Some(result_array),
             new_state,
         }
@@ -118,7 +116,6 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         }
 
         let mut new_consumed = 0;
-        let mut total_length = 0;
         let mut current_state = inner;
 
         for (oid, next_level) in self.0.iter().skip(consumed) {
@@ -126,7 +123,6 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
 
             // An inner result was found.
             if let Some(inner) = inner_result.result {
-                total_length += inner_result.num_results;
                 results.push(BufferedResult {
                     object_id: *oid,
                     inner,
@@ -295,6 +291,7 @@ pub trait IndexLevelImpl {
     /// Deletes the triple from the index.
     fn delete_triple(
         &mut self,
+        configuration: &IndexConfiguration,
         triple: &IndexedTriple,
         cur_depth: usize,
     ) -> Result<(), IndexDeletionError>;
@@ -333,6 +330,7 @@ impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
 
     fn delete_triple(
         &mut self,
+        configuration: &IndexConfiguration,
         triple: &IndexedTriple,
         cur_depth: usize,
     ) -> Result<(), IndexDeletionError> {
@@ -342,7 +340,7 @@ impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
             .0
             .get_mut(&part)
             .ok_or(IndexDeletionError::NonExistingTriple)?;
-        content.delete_triple(triple, cur_depth + 1)?;
+        content.delete_triple(configuration, triple, cur_depth + 1)?;
 
         if content.num_triples() == 0 {
             self.0.remove(&part);
