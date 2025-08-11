@@ -2,7 +2,7 @@ use crate::memory::encoding::EncodedObjectIdPattern;
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::IndexConfiguration;
 use crate::memory::storage::index::error::IndexDeletionError;
-use crate::memory::storage::index::index_data::IndexedQuad;
+use crate::memory::storage::index::data::IndexedQuad;
 use datafusion::arrow::array::UInt32Array;
 use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdArray;

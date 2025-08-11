@@ -1,18 +1,20 @@
-use crate::memory::MemObjectIdMapping;
 use crate::memory::planner::MemQuadStorePlanner;
 use crate::memory::storage::index::IndexSet;
-use crate::memory::storage::log::MemLog;
+use crate::memory::storage::log::{LogRetentionPolicy, MemLog};
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
+use crate::memory::MemObjectIdMapping;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
+use log::{debug, info};
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{
     GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
 };
 use std::sync::Arc;
+use crate::memory::storage::VersionNumber;
 
 /// A memory-based quad storage.
 pub struct MemQuadStorage {
@@ -22,6 +24,8 @@ pub struct MemQuadStorage {
     log: MemLog,
     /// The index set
     indices: IndexSet,
+    /// Log retention policy.
+    log_retention_policy: LogRetentionPolicy,
 }
 
 impl MemQuadStorage {
@@ -31,6 +35,7 @@ impl MemQuadStorage {
             log: MemLog::new(object_id_mapping.clone()),
             indices: IndexSet::new(object_id_mapping.encoding(), batch_size),
             object_id_mapping,
+            log_retention_policy: LogRetentionPolicy::DeleteAfterIndexUpdate,
         }
     }
 
@@ -42,6 +47,17 @@ impl MemQuadStorage {
             self.log.snapshot(),
         )
         .await
+    }
+
+    /// Updates the indices.
+    async fn update_indices(&self) -> VersionNumber {
+        let snapshot = self.log.snapshot().await;
+        if let Some(changes) = snapshot.compute_changes().await {
+            self.indices.update(changes).await;
+        } else {
+            debug!("Skipping index update because no changes were detected.");
+        }
+        snapshot.version_number
     }
 }
 
@@ -117,6 +133,18 @@ impl QuadStorage for MemQuadStorage {
 
     async fn len(&self) -> Result<usize, StorageError> {
         Ok(self.snapshot().await.len().await)
+    }
+
+    async fn optimize(&self) -> Result<(), StorageError> {
+        let version_number = self.update_indices().await;
+
+        match self.log_retention_policy {
+            LogRetentionPolicy::DeleteAfterIndexUpdate => {
+                self.log.clear_log_until(version_number).await
+            }
+        }
+
+        Ok(())
     }
 
     async fn validate(&self) -> Result<(), StorageError> {

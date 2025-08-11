@@ -3,11 +3,12 @@ use std::collections::HashSet;
 use thiserror::Error;
 
 mod error;
-mod index_data;
-mod index_level;
-mod index_set;
+mod data;
+mod level;
+mod set;
+mod state_root;
 
-pub use index_set::IndexSet;
+pub use set::IndexSet;
 
 /// Holds the configuration for the index.
 #[derive(Debug, Clone)]

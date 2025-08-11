@@ -55,6 +55,10 @@ pub struct MemLogContent {
 /// [Self::inserted].
 #[derive(Debug)]
 pub struct LogChanges {
+    /// The version number of the first transaction that has been applied.
+    pub from_version: VersionNumber,
+    /// The version number of the last transaction that has been applied.
+    pub to_version: VersionNumber,
     /// The quads that have been inserted.
     pub inserted: HashSet<EncodedQuad>,
     /// The quads that have been deleted.
@@ -87,6 +91,16 @@ impl MemLogContent {
     /// Appends a [MemLogEntry].
     pub fn append_log_entry(&mut self, log_array: MemLogEntry) {
         self.logs.push(log_array);
+    }
+
+    /// Appends a [MemLogEntry].
+    pub fn clear_log_until(&mut self, version_number: VersionNumber) {
+        let truncate_index = self
+            .logs
+            .iter()
+            .position(|entry| entry.version_number > version_number)
+            .unwrap_or(self.logs.len());
+        self.logs.truncate(truncate_index);
     }
 
     /// Computes the contained quads based on the log entries.
@@ -146,7 +160,11 @@ impl MemLogContent {
             }
         }
 
+        let first_version_number = self.logs[0].version_number;
+        let last_version_number = self.logs.last().unwrap().version_number;
         Some(LogChanges {
+            from_version: first_version_number,
+            to_version: last_version_number,
             inserted,
             deleted,
             cleared,

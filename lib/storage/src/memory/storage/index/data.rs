@@ -1,14 +1,14 @@
 use crate::memory::encoding::EncodedObjectIdPattern;
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::VersionNumber;
-use crate::memory::storage::index::IndexConfiguration;
 use crate::memory::storage::index::error::{
     IndexDeletionError, IndexScanError, IndexUpdateError,
 };
-use crate::memory::storage::index::index_level::{
-    IndexLevel, IndexLevelActionResult, IndexLevelImpl, IndexLevelScanState,
-    create_state_for_level,
+use crate::memory::storage::index::level::{
+    create_state_for_level, IndexLevel, IndexLevelActionResult, IndexLevelImpl,
+    IndexLevelScanState,
 };
+use crate::memory::storage::index::IndexConfiguration;
+use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{Array, UInt32Array};
 use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
@@ -36,7 +36,7 @@ pub struct IndexLookup(pub [EncodedObjectIdPattern; 4]);
 #[derive(Debug, Clone)]
 pub struct IndexedQuad(pub [EncodedObjectId; 4]);
 
-struct IndexContent {
+pub(super) struct IndexContent {
     /// The version that this index reflects.
     version: VersionNumber,
     /// The index.

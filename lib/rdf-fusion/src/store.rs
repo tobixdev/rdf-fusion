@@ -767,6 +767,13 @@ impl Store {
         self.engine.storage().clear().await
     }
 
+    /// Optimizes the database for future workload.
+    ///
+    /// Useful to call after a batch upload or another similar operation. Usually
+    pub fn optimize(&self) -> Result<(), StorageError> {
+        self.engine.storage().optimize()
+    }
+
     /// Validates that all the store invariants hold in the data storage
     pub async fn validate(&self) -> Result<(), StorageError> {
         self.engine.storage().validate().await

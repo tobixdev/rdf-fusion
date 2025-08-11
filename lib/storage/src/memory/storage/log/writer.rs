@@ -1,14 +1,15 @@
-use crate::memory::MemObjectIdMapping;
-use crate::memory::storage::VersionNumber;
 use crate::memory::storage::log::builder::MemLogEntryBuilder;
 use crate::memory::storage::log::content::{
     ClearTarget, MemLogContent, MemLogEntry, MemLogEntryAction,
 };
+use crate::memory::storage::VersionNumber;
+use crate::memory::MemObjectIdMapping;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, Quad, QuadRef};
+use crate::memory::storage::log::state_root::LogStateRoot;
 
 /// Allows writing entries into the log.
-pub struct MemLogWriter<'log> {
+pub struct MemLogWriter<'log, TRoot: LogStateRoot> {
     /// A mutable reference to the log content. The writer has exclusive access to the log.
     content: &'log mut MemLogContent,
     /// A mapping between terms and object ids.
@@ -17,25 +18,31 @@ pub struct MemLogWriter<'log> {
     version_number: VersionNumber,
     /// The logs created by the writer.
     log_builder: MemLogEntryBuilder,
+    /// The log state root.
+    log_state_root: TRoot,
 }
 
-impl<'log> MemLogWriter<'log> {
+impl<'log, TRoot: LogStateRoot> MemLogWriter<'log, TRoot> {
     /// Creates a new [MemLogWriter].
     pub fn new(
         log: &'log mut MemLogContent,
         object_id_mapping: &'log MemObjectIdMapping,
         version_number: VersionNumber,
+        log_state_root: impl LogStateRoot,
     ) -> Self {
         MemLogWriter {
             content: log,
             object_id_mapping,
             version_number,
             log_builder: MemLogEntryBuilder::new(),
+            log_state_root,
         }
     }
 
     /// Transactionally inserts quads into the log.
     pub fn insert_quads(&mut self, quads: &[Quad]) -> Result<usize, StorageError> {
+        todo!("Filter quads before deletign them, then replay the changes");
+
         let changes = self.content.compute_changes(self.version_number);
         let mut inserted = 0;
         let mut seen_quads = changes.map(|c| c.inserted).unwrap_or_default();
@@ -57,6 +64,8 @@ impl<'log> MemLogWriter<'log> {
 
     /// Transactionally removes quads from the log.
     pub fn delete(&mut self, quads: &[QuadRef<'_>]) -> Result<usize, StorageError> {
+        todo!("Filter quads before deletign them, then replay the changes");
+
         let mut deleted = 0;
         let mut seen_quads = self
             .content
@@ -84,6 +93,8 @@ impl<'log> MemLogWriter<'log> {
         &mut self,
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError> {
+        todo!("Check if the graph already exists, then replay the changes");
+
         let object_id = self.object_id_mapping.encode_term_intern(graph_name);
 
         if let Some(changes) = self.content.compute_changes(self.version_number) {
@@ -122,6 +133,8 @@ impl<'log> MemLogWriter<'log> {
         &mut self,
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError> {
+        todo!("Check if the graph exists, then replay the changes");
+
         let object_id = self.object_id_mapping.encode_term_intern(graph_name);
 
         if let Some(changes) = self.content.compute_changes(self.version_number) {

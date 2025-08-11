@@ -66,6 +66,9 @@ pub trait QuadStorage: Send + Sync {
     /// Returns the number of quads in the storage.
     async fn len(&self) -> Result<usize, StorageError>;
 
+    /// Optimizes the storage (e.g., building indices).
+    async fn optimize(&self) -> Result<(), StorageError>;
+
     /// Validates invariants in the store
     async fn validate(&self) -> Result<(), StorageError>;
 }

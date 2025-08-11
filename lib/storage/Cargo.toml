@@ -19,6 +19,7 @@ dashmap.workspace = true
 rustc-hash.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+log = "0.4.27"
 
 [dev-dependencies]
 insta.workspace = true

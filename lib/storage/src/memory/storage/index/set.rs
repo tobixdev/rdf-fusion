@@ -1,11 +1,12 @@
 use crate::memory::encoding::EncodedObjectIdPattern;
 use crate::memory::storage::VersionNumber;
 use crate::memory::storage::index::error::IndexScanError;
-use crate::memory::storage::index::index_data::{
+use crate::memory::storage::index::data::{
     IndexLookup, MemHashTripleIndex, MemHashTripleIndexIterator,
 };
 use crate::memory::storage::index::{IndexComponents, IndexConfiguration};
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use crate::memory::storage::log::LogChanges;
 
 /// Represents a set of multiple indexes, each of which indexes a different ordering of the
 /// triple component (e.g., SPO, POS). This is necessary as different triple patterns require
@@ -100,6 +101,24 @@ impl IndexSet {
         }
 
         score as usize
+    }
+
+    /// Updates the index with the given log_changes.
+    ///
+    /// # Update Sequence
+    ///
+    /// The index update happens index per index. The process starts by validating the version
+    /// number of the first index, locking the index, applying all updates from `log_changes`, and
+    /// lastly, setting the new version and unlocking the index. During this process queries cannot
+    /// use the index. Then, the update proceeds to the next index. As a result, multiple indices
+    /// updates can be actively working on updating different indices. However, as they lock the
+    /// indices in the same order, they are "serialized".
+    ///
+    /// # Errors
+    ///
+    /// - If the version of the index is not [LogChanges::from_version] - 1.
+    pub async fn update(&self, log_changes: LogChanges) {
+
     }
 }
 

@@ -3840,6 +3840,7 @@ dependencies = [
  "datafusion",
  "futures",
  "insta",
+ "log",
  "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
