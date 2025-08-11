@@ -1,7 +1,7 @@
 #![allow(clippy::unreadable_literal)]
 
 use crate::memory::encoding::{EncodedQuad, EncodedTerm, EncodedTypedValue};
-use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
 use rdf_fusion_common::DFResult;
@@ -21,8 +21,8 @@ use rdf_fusion_model::{
 };
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Maintains a mapping between RDF terms and object IDs in memory.
 ///
@@ -235,10 +235,10 @@ impl MemObjectIdMapping {
         match encoded_term {
             GraphNameRef::NamedNode(nn) => self
                 .try_get_encoded_object_id_from_term(TermRef::from(nn))
-                .map(|inner| EncodedGraphObjectId(inner)),
+                .map(EncodedGraphObjectId),
             GraphNameRef::BlankNode(bnode) => self
                 .try_get_encoded_object_id_from_term(TermRef::from(bnode))
-                .map(|inner| EncodedGraphObjectId(inner)),
+                .map(EncodedGraphObjectId),
             GraphNameRef::DefaultGraph => Some(DEFAULT_GRAPH_ID),
         }
     }
@@ -419,8 +419,8 @@ mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
     use rdf_fusion_common::ObjectId;
-    use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
     use rdf_fusion_encoding::EncodingArray;
+    use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 

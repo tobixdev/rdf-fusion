@@ -1,7 +1,7 @@
 use rdf_fusion_common::error::{CorruptionError, StorageError};
 use std::ops::DerefMut;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
 
 mod builder;
@@ -10,11 +10,11 @@ mod snapshot;
 mod validation;
 mod writer;
 
+use crate::memory::MemObjectIdMapping;
+use crate::memory::storage::VersionNumber;
 use crate::memory::storage::log::content::MemLogContent;
 use crate::memory::storage::log::validation::validate_mem_log;
 use crate::memory::storage::log::writer::MemLogWriter;
-use crate::memory::storage::VersionNumber;
-use crate::memory::MemObjectIdMapping;
 pub use content::LogChanges;
 pub use snapshot::MemLogSnapshot;
 
@@ -98,10 +98,10 @@ impl MemLog {
 
 #[cfg(test)]
 mod test {
-    use crate::memory::object_id::EncodedObjectId;
-    use crate::memory::storage::log::content::MemLogEntryAction;
-    use crate::memory::storage::log::MemLog;
     use crate::memory::MemObjectIdMapping;
+    use crate::memory::object_id::EncodedObjectId;
+    use crate::memory::storage::log::MemLog;
+    use crate::memory::storage::log::content::MemLogEntryAction;
     use rdf_fusion_model::{GraphName, NamedNode, Quad};
     use std::sync::Arc;
 

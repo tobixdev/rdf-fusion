@@ -1,8 +1,8 @@
 use crate::memory::encoding::EncodedQuad;
+use crate::memory::storage::VersionNumber;
 use crate::memory::storage::log::content::{
     MemLogEntry, MemLogEntryAction, MemLogUpdateArray,
 };
-use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{Array, StructBuilder, UInt32Builder, UnionArray};
 use datafusion::arrow::datatypes::{Field, UnionFields};
 use rdf_fusion_common::error::StorageError;

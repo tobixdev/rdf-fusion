@@ -2,7 +2,7 @@ use crate::files::*;
 use crate::manifest::*;
 use crate::report::{dataset_diff, format_diff};
 use crate::vocab::*;
-use anyhow::{bail, ensure, Context, Error, Result};
+use anyhow::{Context, Error, Result, bail, ensure};
 use futures::StreamExt;
 use rdf_fusion::io::RdfParser;
 use rdf_fusion::model::dataset::CanonicalizationAlgorithm;

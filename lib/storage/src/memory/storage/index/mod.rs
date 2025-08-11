@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use thiserror::Error;
 
 mod error;
-mod index;
+mod index_data;
+mod index_level;
 mod index_set;
-mod level;
 
 pub use index_set::IndexSet;
 

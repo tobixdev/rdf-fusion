@@ -1,11 +1,11 @@
 use crate::memory::MemObjectIdMapping;
+use crate::memory::storage::VersionNumber;
 use crate::memory::storage::log::builder::MemLogEntryBuilder;
 use crate::memory::storage::log::content::{
     ClearTarget, MemLogContent, MemLogEntry, MemLogEntryAction,
 };
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, Quad, QuadRef};
-use crate::memory::storage::VersionNumber;
 
 /// Allows writing entries into the log.
 pub struct MemLogWriter<'log> {
@@ -88,10 +88,7 @@ impl<'log> MemLogWriter<'log> {
 
         if let Some(changes) = self.content.compute_changes(self.version_number) {
             let existing = changes.created_named_graphs.contains(&object_id)
-                || changes
-                    .inserted
-                    .iter()
-                    .any(|q| q.graph_name.0 == object_id);
+                || changes.inserted.iter().any(|q| q.graph_name.0 == object_id);
             if existing {
                 return Ok(false);
             }
@@ -129,10 +126,7 @@ impl<'log> MemLogWriter<'log> {
 
         if let Some(changes) = self.content.compute_changes(self.version_number) {
             let existing = changes.created_named_graphs.contains(&object_id)
-                || changes
-                    .inserted
-                    .iter()
-                    .any(|q| q.graph_name.0 == object_id);
+                || changes.inserted.iter().any(|q| q.graph_name.0 == object_id);
             if !existing {
                 return Ok(false);
             }

@@ -3,8 +3,8 @@ mod pattern_stream;
 mod quad_equalities;
 mod quad_filter;
 
-use crate::memory::object_id::EncodedObjectId;
 use crate::memory::MemObjectIdMapping;
+use crate::memory::object_id::EncodedObjectId;
 use datafusion::common::Column;
 pub use log_insertion_stream::*;
 pub use pattern_stream::*;

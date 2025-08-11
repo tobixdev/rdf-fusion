@@ -1,14 +1,14 @@
 use crate::memory::encoding::EncodedObjectIdPattern;
 use crate::memory::object_id::EncodedObjectId;
+use crate::memory::storage::VersionNumber;
+use crate::memory::storage::index::IndexConfiguration;
 use crate::memory::storage::index::error::{
     IndexDeletionError, IndexScanError, IndexUpdateError,
 };
-use crate::memory::storage::index::level::{
-    create_state_for_level, IndexLevel, IndexLevelActionResult, IndexLevelImpl,
-    IndexLevelScanState,
+use crate::memory::storage::index::index_level::{
+    IndexLevel, IndexLevelActionResult, IndexLevelImpl, IndexLevelScanState,
+    create_state_for_level,
 };
-use crate::memory::storage::index::IndexConfiguration;
-use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{Array, UInt32Array};
 use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
@@ -176,10 +176,7 @@ impl Iterator for MemHashTripleIndexIterator {
     type Item = Vec<ObjectIdArray>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(state) = self.state.take() else {
-            return None;
-        };
-
+        let state = self.state.take()?;
         let result = self.index.index.scan(&self.configuration, state);
         self.state = result.new_state;
         result.result
@@ -216,7 +213,7 @@ impl IndexData {
             }
         }
 
-        let contains = self.building.iter().any(|arr_id| *arr_id == object_id);
+        let contains = self.building.contains(&object_id);
         if contains {
             IndexLevelActionResult::finished(1, Some(vec![]))
         } else {

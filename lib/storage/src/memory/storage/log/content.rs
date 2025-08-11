@@ -1,10 +1,10 @@
 use crate::memory::encoding::{EncodedQuad, EncodedQuadArray};
-use crate::memory::object_id::{EncodedObjectId, EncodedGraphObjectId};
+use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId};
+use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{Array, StructArray, UnionArray};
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
-use crate::memory::storage::VersionNumber;
 
 /// A single entry in the log.
 ///
@@ -133,8 +133,8 @@ impl MemLogContent {
                     cleared.insert(ClearTarget::AllGraphs);
                 }
                 MemLogEntryAction::DropGraph(graph) => {
-                    inserted.retain(|quad| quad.graph_name.0 != (*graph).into());
-                    deleted.retain(|quad| quad.graph_name.0 != (*graph).into());
+                    inserted.retain(|quad| quad.graph_name.0 != *graph);
+                    deleted.retain(|quad| quad.graph_name.0 != *graph);
 
                     dropped_named_graphs.insert(*graph);
                     created_named_graphs.remove(graph);

@@ -1,4 +1,4 @@
-use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
 use datafusion::arrow::array::{Array, StructArray, UInt32Array};
 
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]

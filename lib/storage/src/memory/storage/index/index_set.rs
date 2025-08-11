@@ -1,12 +1,10 @@
 use crate::memory::encoding::EncodedObjectIdPattern;
+use crate::memory::storage::VersionNumber;
 use crate::memory::storage::index::error::IndexScanError;
-use crate::memory::storage::index::index::{
+use crate::memory::storage::index::index_data::{
     IndexLookup, MemHashTripleIndex, MemHashTripleIndexIterator,
 };
-use crate::memory::storage::index::{
-    IndexComponents, IndexConfiguration,
-};
-use crate::memory::storage::VersionNumber;
+use crate::memory::storage::index::{IndexComponents, IndexConfiguration};
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 
 /// Represents a set of multiple indexes, each of which indexes a different ordering of the
@@ -109,9 +107,9 @@ impl IndexSet {
 fn reorder_pattern(pattern: &IndexLookup, components: &IndexComponents) -> IndexLookup {
     let mut new_lookup = [EncodedObjectIdPattern::Variable; 4];
 
-    for i in 0..3 {
+    for (i, lookup) in new_lookup.iter_mut().enumerate() {
         let gspo_index = components.0[i].gspo_index();
-        new_lookup[i] = pattern.0[gspo_index];
+        *lookup = pattern.0[gspo_index];
     }
 
     IndexLookup(new_lookup)

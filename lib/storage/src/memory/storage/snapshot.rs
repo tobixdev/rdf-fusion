@@ -1,16 +1,16 @@
+use crate::memory::MemObjectIdMapping;
 use crate::memory::storage::log::{LogChanges, MemLogSnapshot};
 use crate::memory::storage::stream::{MemLogInsertionsStream, MemQuadPatternStream};
-use crate::memory::MemObjectIdMapping;
 use datafusion::common::exec_err;
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
+use datafusion::physical_plan::EmptyRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use datafusion::physical_plan::EmptyRecordBatchStream;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::ActiveGraph;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{NamedOrBlankNode, NamedOrBlankNodeRef, TriplePattern, Variable};
 use std::sync::Arc;
 

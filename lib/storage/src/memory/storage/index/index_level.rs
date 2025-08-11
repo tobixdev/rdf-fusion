@@ -1,11 +1,11 @@
 use crate::memory::encoding::EncodedObjectIdPattern;
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::index::error::IndexDeletionError;
-use crate::memory::storage::index::index::IndexedQuad;
 use crate::memory::storage::index::IndexConfiguration;
+use crate::memory::storage::index::error::IndexDeletionError;
+use crate::memory::storage::index::index_data::IndexedQuad;
 use datafusion::arrow::array::UInt32Array;
-use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::TermEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdArray;
 use std::collections::HashMap;
 use std::iter::repeat_n;
 use std::sync::Arc;
@@ -175,11 +175,10 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
             .iter()
             .flat_map(|r| repeat_n(r.object_id.as_u32(), r.num_results));
         let u32_array = UInt32Array::from_iter_values(values);
-        let array = configuration
+        configuration
             .object_id_encoding
             .try_new_array(Arc::new(u32_array))
-            .expect("TODO");
-        array
+            .expect("TODO")
     }
 
     fn coalesce_arrays(

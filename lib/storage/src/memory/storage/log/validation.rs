@@ -1,9 +1,9 @@
 use crate::memory::encoding::EncodedQuad;
 use crate::memory::object_id::EncodedObjectId;
+use crate::memory::storage::VersionNumber;
 use crate::memory::storage::log::content::{
     ClearTarget, MemLogContent, MemLogEntryAction, MemLogUpdateArray,
 };
-use crate::memory::storage::VersionNumber;
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;

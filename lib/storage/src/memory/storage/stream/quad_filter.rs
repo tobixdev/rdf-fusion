@@ -1,6 +1,6 @@
+use crate::memory::MemObjectIdMapping;
 use crate::memory::encoding::EncodedQuad;
 use crate::memory::storage::stream::extract_term;
-use crate::memory::MemObjectIdMapping;
 use rdf_fusion_common::BlankNodeMatchingMode;
 use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_logical::ActiveGraph;
