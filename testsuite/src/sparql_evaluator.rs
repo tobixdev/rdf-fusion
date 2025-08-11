@@ -2,7 +2,7 @@ use crate::files::*;
 use crate::manifest::*;
 use crate::report::{dataset_diff, format_diff};
 use crate::vocab::*;
-use anyhow::{Context, Error, Result, bail, ensure};
+use anyhow::{bail, ensure, Context, Error, Result};
 use futures::StreamExt;
 use rdf_fusion::io::RdfParser;
 use rdf_fusion::model::dataset::CanonicalizationAlgorithm;
@@ -386,9 +386,11 @@ impl StaticQueryResults {
     async fn from_graph(graph: &Graph) -> Result<Self> {
         // Hack to normalize literals
         let store = Store::default();
-        for t in graph {
-            store.insert(t.in_graph(GraphNameRef::DefaultGraph)).await?;
-        }
+        let quads = graph
+            .into_iter()
+            .map(|t| t.in_graph(GraphNameRef::DefaultGraph));
+        store.extend(quads).await?;
+
         let mut graph = store
             .stream()
             .await?
