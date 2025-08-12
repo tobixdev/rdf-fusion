@@ -40,20 +40,7 @@ impl OptimizerRule for SparqlJoinReorderingRule {
         plan: LogicalPlan,
         config: &dyn OptimizerConfig,
     ) -> DFResult<Transformed<LogicalPlan>> {
-        plan.transform_down(|plan| {
-            let new_plan = match plan {
-                LogicalPlan::Extension(Extension { node }) => {
-                    if let Some(node) = node.as_any().downcast_ref::<SparqlJoinNode>() {
-                        let new_plan = self.reorder_sparql_join(node, config)?;
-                        Transformed::yes(new_plan)
-                    } else {
-                        Transformed::no(LogicalPlan::Extension(Extension { node }))
-                    }
-                }
-                _ => Transformed::no(plan),
-            };
-            Ok(new_plan)
-        })
+        self.reorder_logical_plan(plan, config)
     }
 }
 
@@ -61,6 +48,29 @@ impl SparqlJoinReorderingRule {
     /// Creates a [SparqlJoinReorderingRule].
     pub fn new(encodings: RdfFusionEncodings) -> Self {
         Self { encodings }
+    }
+
+    /// Handlers the traversal logic. We cannot simply use `transform_up` because we need to look
+    /// at the children, and we cannot use `transform_down` as we would revisit already rewritten
+    /// nodes.
+    fn reorder_logical_plan(
+        &self,
+        plan: LogicalPlan,
+        config: &dyn OptimizerConfig,
+    ) -> DFResult<Transformed<LogicalPlan>> {
+        match plan {
+            LogicalPlan::Extension(Extension { node }) => {
+                if let Some(node) = node.as_any().downcast_ref::<SparqlJoinNode>() {
+                    self.reorder_sparql_join(node, config)
+                } else {
+                    let original_plan = LogicalPlan::Extension(Extension { node });
+                    original_plan
+                        .map_children(|child| self.reorder_logical_plan(child, config))
+                }
+            }
+            // If this is a different node, we recurse
+            _ => plan.map_children(|child| self.reorder_logical_plan(child, config)),
+        }
     }
 
     /// Reorders a SPARQL join to optimize query execution.
@@ -74,16 +84,19 @@ impl SparqlJoinReorderingRule {
         &self,
         node: &SparqlJoinNode,
         config: &dyn OptimizerConfig,
-    ) -> DFResult<LogicalPlan> {
-        // See restrictions in [JoinComponents].
+    ) -> DFResult<Transformed<LogicalPlan>> {
+        // See restrictions in JoinComponents.
         if node.filter().is_some() || node.join_type() != SparqlJoinType::Inner {
-            return Ok(LogicalPlan::Extension(Extension {
+            let original_plan = LogicalPlan::Extension(Extension {
                 node: Arc::new(node.clone()),
-            }));
+            });
+            return original_plan
+                .map_children(|child| self.reorder_logical_plan(child, config));
         }
 
         let (lhs, rhs, _, _) = node.clone().destruct();
-        let components = identify_join_components(lhs, rhs)
+        let components = self
+            .identify_join_components(lhs, rhs, config)
             .0
             .into_iter()
             .map(|connected_component| {
@@ -98,7 +111,61 @@ impl SparqlJoinReorderingRule {
             })
             .collect::<DFResult<Vec<_>>>()?;
 
-        self.reorder_components(JoinComponents(components))
+        Ok(Transformed::yes(
+            self.reorder_components(JoinComponents(components))?,
+        ))
+    }
+    /// Identifies a maximally large [JoinComponents] set.
+    ///
+    /// The scope of the reordering will restrict itself to this set.
+    fn identify_join_components(
+        &self,
+        lhs: LogicalPlan,
+        rhs: LogicalPlan,
+        optimizer_config: &dyn OptimizerConfig,
+    ) -> JoinComponents {
+        let lhs = self.identify_join_components_from_logical_plan(lhs, optimizer_config);
+        let rhs = self.identify_join_components_from_logical_plan(rhs, optimizer_config);
+        lhs.merge(rhs)
+    }
+
+    /// Either return the logical plan itself or, if the plan is a [SparqlJoinNode], recurses the
+    /// join component detection.
+    fn identify_join_components_from_logical_plan(
+        &self,
+        plan: LogicalPlan,
+        config: &dyn OptimizerConfig,
+    ) -> JoinComponents {
+        let vars = extract_columns(&plan);
+        match plan {
+            LogicalPlan::Extension(extension) => {
+                let node = extension.node.as_any();
+                if let Some(node) = node.downcast_ref::<SparqlJoinNode>() {
+                    let (lhs, rhs, _, _) = node.clone().destruct();
+
+                    // Currently, we only support inner joins without filters.
+                    if node.filter().is_some()
+                        || node.join_type() != SparqlJoinType::Inner
+                    {
+                        let original_plan = LogicalPlan::Extension(extension);
+                        return JoinComponents(vec![ConnectedJoinComponent(
+                            vec![original_plan],
+                            vars,
+                        )]);
+                    }
+
+                    self.identify_join_components(lhs, rhs, config)
+                } else {
+                    // We recurse here to also apply the optimization to subtrees
+                    let original_plan = LogicalPlan::Extension(extension);
+                    JoinComponents(vec![ConnectedJoinComponent(
+                        vec![original_plan],
+                        vars,
+                    )])
+                }
+            }
+            other => JoinComponents(vec![ConnectedJoinComponent(vec![other], vars)]),
+        }
     }
 
     /// Tries to improve the join order by joining "cheap" nodes from the left side and pushing
@@ -119,24 +186,25 @@ impl SparqlJoinReorderingRule {
         &self,
         component: ConnectedJoinComponent,
     ) -> DFResult<LogicalPlan> {
-        /// Finds the next logical plan with the least cost (regarding the current `used_vars`).
+        /// Finds the next logical plan with the maximum cost that is connected to the current
+        /// `used_vars`.
         fn pop_next_greedy(
             patterns: &mut Vec<LogicalPlan>,
             used_vars: &mut HashSet<Column>,
         ) -> LogicalPlan {
             // Find the next pattern that overlaps variables with 'used_vars'
-            let mut best: Option<(usize, usize)> = None;
+            let mut worst: Option<(usize, usize)> = None;
             for (i, plan) in patterns.iter().enumerate() {
                 let plan_vars = extract_columns(plan);
                 if !used_vars.is_disjoint(&plan_vars) {
                     let cost = estimate_cardinality(plan);
-                    if best.is_none() || cost < best.unwrap().1 {
-                        best = Some((i, cost));
+                    if worst.is_none() || cost > worst.unwrap().1 {
+                        worst = Some((i, cost));
                     }
                 }
             }
 
-            let (idx, _) = best.expect(
+            let (idx, _) = worst.expect(
                 "There is always a join with overlapping variables in a non-empty component.",
             );
             patterns.remove(idx)
@@ -145,20 +213,20 @@ impl SparqlJoinReorderingRule {
         let mut to_order = component.0;
         let mut used_vars = HashSet::new();
 
-        let (first_idx, _) = to_order
+        let (most_expensive_idx, _) = to_order
             .iter()
             .enumerate()
             .map(|(i, p)| (i, estimate_cardinality(p)))
-            .min_by_key(|&(_, cost)| cost)
+            .max_by_key(|&(_, cost)| cost)
             .expect("There is at least one component");
 
-        let mut current_plan = to_order.remove(first_idx);
+        let mut current_plan = to_order.remove(most_expensive_idx);
         used_vars.extend(extract_columns(&current_plan));
 
         while !to_order.is_empty() {
             let next = pop_next_greedy(&mut to_order, &mut used_vars);
             used_vars.extend(extract_columns(&next));
-            current_plan = create_join(self.encodings.clone(), current_plan, next)?;
+            current_plan = create_join(self.encodings.clone(), next, current_plan)?;
         }
 
         Ok(current_plan)
@@ -218,45 +286,6 @@ impl JoinComponents {
 /// the other part.
 #[derive(Clone, Debug)]
 struct ConnectedJoinComponent(Vec<LogicalPlan>, HashSet<Column>);
-
-/// Identifies a maximally large [JoinComponents] set.
-///
-/// The scope of the reordering will restrict itself to this set.
-fn identify_join_components(lhs: LogicalPlan, rhs: LogicalPlan) -> JoinComponents {
-    let lhs = identify_join_components_from_logical_plan(lhs);
-    let rhs = identify_join_components_from_logical_plan(rhs);
-    lhs.merge(rhs)
-}
-
-/// Either return the logical plan itself or, if the plan is a [SparqlJoinNode], recurses the
-/// join component detection.
-fn identify_join_components_from_logical_plan(plan: LogicalPlan) -> JoinComponents {
-    let vars = extract_columns(&plan);
-    match plan {
-        LogicalPlan::Extension(extension) => {
-            let node = extension.node.as_any();
-            if let Some(node) = node.downcast_ref::<SparqlJoinNode>() {
-                let (lhs, rhs, _, _) = node.clone().destruct();
-
-                // Currently, we only support inner joins without filters.
-                if node.filter().is_some() || node.join_type() != SparqlJoinType::Inner {
-                    return JoinComponents(vec![ConnectedJoinComponent(
-                        vec![LogicalPlan::Extension(extension)],
-                        vars,
-                    )]);
-                }
-
-                identify_join_components(lhs, rhs)
-            } else {
-                JoinComponents(vec![ConnectedJoinComponent(
-                    vec![LogicalPlan::Extension(extension)],
-                    vars,
-                )])
-            }
-        }
-        other => JoinComponents(vec![ConnectedJoinComponent(vec![other], vars)]),
-    }
-}
 
 /// Estimates the cost of the join.
 ///
@@ -350,4 +379,209 @@ fn extract_columns(plan: &LogicalPlan) -> HashSet<Column> {
         .iter()
         .map(|f| Column::new_unqualified(f.name()))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::create_test_context;
+    use crate::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
+    use datafusion::logical_expr::col;
+    use datafusion::optimizer::OptimizerContext;
+    use datafusion::prelude::Expr;
+    use insta::assert_snapshot;
+    use rdf_fusion_model::{
+        NamedNode, NamedNodePattern, TermPattern, TriplePattern, Variable,
+    };
+
+    #[test]
+    fn basic_reordering_disconnected() {
+        // cheap: all bound
+        let a = quad(
+            pat_named("http://s.org").into(),
+            pat_named("http://p.org"),
+            pat_named("http://o.org").into(),
+        );
+
+        // expensive: unbound subject/object
+        let b = quad(pat_var("s"), pat_named("http://p.org".into()), pat_var("o"));
+
+        // medium: only object bound
+        let c = quad(
+            pat_var("x"),
+            pat_var_named("p"),
+            pat_named("http://o.org".into()).into(),
+        );
+
+        let plan = join(join(a, b.clone()), c.clone());
+        let result = reorder(plan);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn basic_reordering_connected() {
+        let a = quad(
+            pat_var("a").into(),
+            pat_named("urn:p"),
+            pat_named("urn:o").into(),
+        );
+        let b = quad(
+            pat_var("b"),
+            pat_named("urn:p".into()),
+            pat_named("urn:o").into(),
+        );
+        let c = quad(
+            pat_var("a"),
+            pat_var_named("b"),
+            pat_named("urn:o".into()).into(),
+        );
+
+        // Should be reordered such that no cross-join happens.
+
+        let plan = join(join(a, b.clone()), c.clone());
+        let result = reorder(plan);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn reorder_two_disconnected_components() {
+        let a = quad(pat_var("x"), pat_named("urn:p1"), pat_var("y"));
+        let b = quad(pat_var("a"), pat_named("urn:p2"), pat_var("b"));
+        let c = quad(pat_var("x"), pat_named("urn:p3"), pat_var("z"));
+        let d = quad(pat_var("b"), pat_named("urn:p4"), pat_var("c"));
+
+        // Two join groups: (a, c) and (b, d)
+        let join1 = join(join(a, b), join(c, d));
+
+        let result = reorder(join1);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn reorder_large_connected_component() {
+        let a = quad(pat_var("x"), pat_named("urn:p1"), pat_var("y"));
+        let b = quad(pat_var("a"), pat_named("urn:p2"), pat_var("b"));
+        let c = quad(pat_var("x"), pat_named("urn:p3"), pat_var("z"));
+        let d = quad(pat_var("b"), pat_named("urn:p4"), pat_var("c"));
+        let e = quad(pat_var("b"), pat_var_named("x"), pat_named("urn:p4").into());
+
+        let result = reorder(join(join(join(a, b), join(c, d)), e));
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn test_nested_joins_with_filter_skipped() {
+        let a = quad(
+            pat_var("a").into(),
+            pat_named("urn:p"),
+            pat_named("urn:o").into(),
+        );
+        let b = quad(
+            pat_var("b"),
+            pat_named("urn:p".into()),
+            pat_named("urn:o").into(),
+        );
+        let c = quad(
+            pat_var("a"),
+            pat_var_named("b"),
+            pat_named("urn:o".into()).into(),
+        );
+
+        let filtered_join =
+            join_detailed(a, b, SparqlJoinType::Inner, Some(col("a").gt(col("b"))));
+        let join = join(filtered_join, c);
+
+        // Reordering shouldn't happen. Without the filter "c" would be the deep-right plan.
+        let result = reorder(join);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    #[test]
+    fn test_left_join_skipped() {
+        let a = quad(
+            pat_var("a").into(),
+            pat_named("urn:p"),
+            pat_named("urn:o").into(),
+        );
+        let b = quad(
+            pat_var("b"),
+            pat_named("urn:p".into()),
+            pat_named("urn:o").into(),
+        );
+        let c = quad(
+            pat_var("a"),
+            pat_var_named("b"),
+            pat_named("urn:o".into()).into(),
+        );
+
+        let filtered_join = join_detailed(a, b, SparqlJoinType::Left, None);
+        let join = join(filtered_join, c);
+
+        // Reordering shouldn't happen. Without the filter "c" would be the deep-right plan.
+        let result = reorder(join);
+
+        assert_snapshot!(result, @r"");
+    }
+
+    fn pat_var(name: &str) -> TermPattern {
+        TermPattern::Variable(Variable::new(name.to_string()).unwrap())
+    }
+
+    fn pat_var_named(name: &str) -> NamedNodePattern {
+        NamedNodePattern::Variable(Variable::new(name.to_string()).unwrap())
+    }
+
+    fn pat_named(name: &str) -> NamedNodePattern {
+        NamedNodePattern::NamedNode(NamedNode::new(name.to_string()).unwrap())
+    }
+
+    fn quad(
+        subject: TermPattern,
+        predicate: NamedNodePattern,
+        object: TermPattern,
+    ) -> LogicalPlan {
+        let context = create_test_context();
+        RdfFusionLogicalPlanBuilderContext::new(context)
+            .create_pattern(
+                ActiveGraph::DefaultGraph,
+                None,
+                TriplePattern {
+                    subject,
+                    predicate,
+                    object,
+                },
+            )
+            .build()
+            .unwrap()
+    }
+
+    fn join(lhs: LogicalPlan, rhs: LogicalPlan) -> LogicalPlan {
+        join_detailed(lhs, rhs, SparqlJoinType::Inner, None)
+    }
+
+    fn join_detailed(
+        lhs: LogicalPlan,
+        rhs: LogicalPlan,
+        join_type: SparqlJoinType,
+        filter: Option<Expr>,
+    ) -> LogicalPlan {
+        let context = create_test_context();
+        RdfFusionLogicalPlanBuilderContext::new(context)
+            .create(Arc::new(lhs))
+            .join(rhs, join_type, filter)
+            .unwrap()
+            .build()
+            .unwrap()
+    }
+
+    fn reorder(plan: LogicalPlan) -> LogicalPlan {
+        let rule =
+            SparqlJoinReorderingRule::new(create_test_context().encodings().clone());
+        rule.rewrite(plan, &OptimizerContext::new()).unwrap().data
+    }
 }
