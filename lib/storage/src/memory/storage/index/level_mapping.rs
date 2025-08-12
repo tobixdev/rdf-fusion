@@ -1,5 +1,7 @@
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::index::{IndexConfiguration, IndexedQuad};
+use crate::memory::storage::index::{
+    IndexConfiguration, IndexedQuad, ObjectIdScanPredicate,
+};
 use datafusion::arrow::array::UInt32Array;
 use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::TermEncoding;
@@ -20,13 +22,11 @@ pub struct BufferedResult {
 }
 
 #[derive(Debug, Clone)]
-struct BufferedResults<TInnerState> {
-    new_consumed: usize,
+struct BufferedResults {
     results: Vec<BufferedResult>,
-    new_state: TInnerState,
 }
 
-impl<TInnerState> BufferedResults<TInnerState> {
+impl BufferedResults {
     pub fn num_results(&self) -> usize {
         self.results.iter().map(|r| r.num_results).sum()
     }
@@ -39,21 +39,13 @@ impl<TInner: IndexLevelImpl> Default for IndexLevel<TInner> {
 }
 
 impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
-    fn scan_impl(
+    fn traverse_impl(
         &self,
         configuration: &IndexConfiguration,
-        buffered: Option<BufferedResult>,
-        default_state: TInner::ScanState,
-        inner: TInner::ScanState,
-        consumed: usize,
+        mut traversal: IndexTraversal<TInner::ScanState>,
     ) -> IndexLevelActionResult<IndexLevelScanState<TInner::ScanState>> {
-        let inner_results = self.try_collect_enough_results_for_batch(
-            configuration,
-            buffered,
-            &default_state,
-            inner,
-            consumed,
-        );
+        let inner_results =
+            traversal.try_collect_enough_results_for_batch(&self, configuration);
 
         // If no inner results can be found, the iterator is exhausted.
         if inner_results.results.is_empty() {
@@ -64,6 +56,43 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         // next call.
         let (inner_results, new_buffered) =
             Self::pop_last_if_bigger_than_batch_size(configuration, inner_results);
+        traversal.buffered = new_buffered;
+
+        // Build the result.
+        let results = Self::coalesce_arrays(configuration, &inner_results);
+
+        // If the end is reached, return the result and finish this subtree. Note that buffered
+        // results are not consumed. Therefore, this check is enough.
+        let num_results = inner_results.num_results();
+        if traversal.consumed == self.0.len() {
+            return IndexLevelActionResult::finished(num_results, Some(results));
+        }
+
+        IndexLevelActionResult {
+            num_results,
+            result: Some(results),
+            new_state: Some(IndexLevelScanState::Traverse(traversal)),
+        }
+    }
+
+    fn scan_impl(
+        &self,
+        configuration: &IndexConfiguration,
+        mut traversal: IndexTraversal<TInner::ScanState>,
+    ) -> IndexLevelActionResult<IndexLevelScanState<TInner::ScanState>> {
+        let inner_results =
+            traversal.try_collect_enough_results_for_batch(&self, configuration);
+
+        // If no inner results can be found, the iterator is exhausted.
+        if inner_results.results.is_empty() {
+            return IndexLevelActionResult::empty_finished();
+        }
+
+        // If the buffered results are bigger than the batch size, buffer the last result for the
+        // next call.
+        let (inner_results, new_buffered) =
+            Self::pop_last_if_bigger_than_batch_size(configuration, inner_results);
+        traversal.buffered = new_buffered;
 
         // Build the result.
         let array = Self::build_object_ids_for_level(configuration, &inner_results);
@@ -74,87 +103,21 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         // If the end is reached, return the result and finish this subtree. Note that buffered
         // results are not consumed. Therefore, this check is enough.
         let num_results = inner_results.num_results();
-        if inner_results.new_consumed == self.0.len() {
+        if traversal.consumed == self.0.len() {
             return IndexLevelActionResult::finished(num_results, Some(result_array));
         }
 
-        let new_state = Some(IndexLevelScanState::Scan {
-            buffered: new_buffered,
-            consumed: inner_results.new_consumed,
-            inner: inner_results.new_state,
-            default_state,
-        });
         IndexLevelActionResult {
             num_results,
             result: Some(result_array),
-            new_state,
-        }
-    }
-
-    fn try_collect_enough_results_for_batch(
-        &self,
-        configuration: &IndexConfiguration,
-        buffered: Option<BufferedResult>,
-        default_state: &<TInner as IndexLevelImpl>::ScanState,
-        inner: <TInner as IndexLevelImpl>::ScanState,
-        consumed: usize,
-    ) -> BufferedResults<<TInner as IndexLevelImpl>::ScanState> {
-        let mut results = Vec::new();
-        if let Some(buffered) = buffered {
-            if buffered.num_results == configuration.batch_size {
-                return BufferedResults {
-                    new_consumed: consumed,
-                    new_state: inner,
-                    results: vec![buffered],
-                };
-            } else {
-                results.push(buffered);
-            }
-        }
-
-        let mut new_consumed = 0;
-        let mut current_state = inner;
-
-        for (oid, next_level) in self.0.iter().skip(consumed) {
-            let inner_result = next_level.scan(configuration, current_state);
-
-            // An inner result was found.
-            if let Some(inner) = inner_result.result {
-                results.push(BufferedResult {
-                    object_id: *oid,
-                    inner,
-                    num_results: inner_result.num_results,
-                });
-            }
-
-            // If the inner result was not consumed, the next iteration must start from here.
-            if let Some(new_state) = inner_result.new_state {
-                current_state = new_state;
-                break;
-            }
-            new_consumed += 1;
-
-            // If the batch size is reached, return the result.
-            current_state = default_state.clone();
-            if new_consumed >= configuration.batch_size {
-                break;
-            }
-        }
-
-        BufferedResults {
-            new_consumed: consumed + new_consumed,
-            new_state: current_state,
-            results,
+            new_state: Some(IndexLevelScanState::Scan(traversal)),
         }
     }
 
     fn pop_last_if_bigger_than_batch_size(
         configuration: &IndexConfiguration,
-        mut buffered: BufferedResults<<TInner as IndexLevelImpl>::ScanState>,
-    ) -> (
-        BufferedResults<<TInner as IndexLevelImpl>::ScanState>,
-        Option<BufferedResult>,
-    ) {
+        mut buffered: BufferedResults,
+    ) -> (BufferedResults, Option<BufferedResult>) {
         if buffered.num_results() > configuration.batch_size {
             let last_result = buffered.results.pop();
             (buffered, last_result)
@@ -165,7 +128,7 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
 
     fn build_object_ids_for_level(
         configuration: &IndexConfiguration,
-        inner_results: &BufferedResults<<TInner as IndexLevelImpl>::ScanState>,
+        inner_results: &BufferedResults,
     ) -> ObjectIdArray {
         let values = inner_results
             .results
@@ -180,7 +143,7 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
 
     fn coalesce_arrays(
         configuration: &IndexConfiguration,
-        inner_results: &BufferedResults<<TInner as IndexLevelImpl>::ScanState>,
+        inner_results: &BufferedResults,
     ) -> Vec<ObjectIdArray> {
         let mut result = Vec::new();
         for i in 0..inner_results.results[0].inner.len() {
@@ -200,26 +163,119 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
     }
 }
 
+/// The state of the iterator traversal. As the traversal is the same for both scan-types, they
+/// share the same struct.
+#[derive(Debug, Clone)]
+struct IndexTraversal<TInnerState: Clone> {
+    /// The predicate to scan for.
+    predicate: Option<ObjectIdScanPredicate>,
+    /// The inner states to set when moving to the next entry.
+    default_state: TInnerState,
+    /// Tracks how many entries have been consumed and should be skipped the next time.
+    consumed: usize,
+    /// The inner state.
+    inner: TInnerState,
+    /// The buffered result from the last iteration.
+    buffered: Option<BufferedResult>,
+}
+
+impl<TInnerState: Clone> IndexTraversal<TInnerState> {
+    pub fn try_collect_enough_results_for_batch<TLevel>(
+        &mut self,
+        index: &IndexLevel<TLevel>,
+        configuration: &IndexConfiguration,
+    ) -> BufferedResults
+    where
+        TLevel: IndexLevelImpl<ScanState = TInnerState>,
+    {
+        let mut results = Vec::new();
+
+        // Collect the buffered result. If the result is already large enough, return it.
+        if let Some(buffered) = self.buffered.take() {
+            if buffered.num_results == configuration.batch_size {
+                self.consumed += 1;
+                let results = BufferedResults {
+                    results: vec![buffered],
+                };
+                return results;
+            } else {
+                results.push(buffered);
+            }
+        }
+
+        let mut new_consumed = 0;
+        let mut current_state = self.inner.clone();
+
+        for (oid, next_level) in index.0.iter().skip(self.consumed) {
+            let inner_result = next_level.scan(configuration, current_state);
+
+            // An inner result was found.
+            if let Some(inner) = inner_result.result {
+                results.push(BufferedResult {
+                    object_id: *oid,
+                    inner,
+                    num_results: inner_result.num_results,
+                });
+            }
+
+            // If the inner result was not consumed, the next iteration must start from here.
+            if let Some(new_state) = inner_result.new_state {
+                current_state = new_state;
+                break;
+            }
+            new_consumed += 1;
+
+            // If the batch size is reached, return the result.
+            current_state = self.default_state.clone();
+            if new_consumed >= configuration.batch_size {
+                break;
+            }
+        }
+
+        self.consumed += new_consumed;
+        self.inner = current_state;
+        BufferedResults { results }
+    }
+}
+
 /// Represents the state of an action to execute.
 #[derive(Debug, Clone)]
-pub enum IndexLevelScanState<TInnerState> {
-    /// For this level, the iterator should only look up the next level.
-    Lookup {
-        /// The object id to look up.
-        object_id: EncodedObjectId,
-        /// The inner state
-        inner: TInnerState,
-    },
-    /// For this level, the iterator should scan the entries and bind it to the given variable.
-    Scan {
-        buffered: Option<BufferedResult>,
-        /// The inner states to set when moving to the next entry.
+pub enum IndexLevelScanState<TInnerState: Clone> {
+    /// For this level, the iterator should traverse the entries and collect the results from the
+    /// inner levels.
+    Traverse(IndexTraversal<TInnerState>),
+    /// Same as [Self::Traverse] but also collects the elements from this level and returns them.
+    Scan(IndexTraversal<TInnerState>),
+}
+
+impl<TInnerState: Clone> IndexLevelScanState<TInnerState> {
+    pub fn traverse(
+        predicate: Option<ObjectIdScanPredicate>,
         default_state: TInnerState,
-        /// Tracks how many entries have been consumed and should be skipped the next time.
-        consumed: usize,
-        /// The inner state.
-        inner: TInnerState,
-    },
+    ) -> Self {
+        let traversal = IndexTraversal {
+            predicate,
+            inner: default_state.clone(),
+            default_state,
+            consumed: 0,
+            buffered: None,
+        };
+        Self::Traverse(traversal)
+    }
+
+    pub fn scan(
+        predicate: Option<ObjectIdScanPredicate>,
+        default_state: TInnerState,
+    ) -> Self {
+        let traversal = IndexTraversal {
+            predicate,
+            inner: default_state.clone(),
+            default_state,
+            consumed: 0,
+            buffered: None,
+        };
+        Self::Scan(traversal)
+    }
 }
 
 /// The result of an action on an index level.
@@ -324,30 +380,12 @@ impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
         state: Self::ScanState,
     ) -> IndexLevelActionResult<Self::ScanState> {
         match state {
-            IndexLevelScanState::Lookup { object_id, inner } => {
-                match self.0.get(&object_id) {
-                    None => IndexLevelActionResult::empty_finished(),
-                    Some(content) => {
-                        let inner = content.scan(configuration, inner);
-                        IndexLevelActionResult {
-                            num_results: inner.num_results,
-                            result: inner.result,
-                            new_state: inner.new_state.map(|state| {
-                                IndexLevelScanState::Lookup {
-                                    object_id,
-                                    inner: state,
-                                }
-                            }),
-                        }
-                    }
-                }
+            IndexLevelScanState::Traverse(traversal) => {
+                self.traverse_impl(configuration, traversal)
             }
-            IndexLevelScanState::Scan {
-                buffered,
-                default_state,
-                consumed,
-                inner,
-            } => self.scan_impl(configuration, buffered, default_state, inner, consumed),
+            IndexLevelScanState::Scan(traversal) => {
+                self.scan_impl(configuration, traversal)
+            }
         }
     }
 }

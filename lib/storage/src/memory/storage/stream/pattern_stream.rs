@@ -1,14 +1,18 @@
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTriplePattern};
-use crate::memory::storage::index::{IndexScanError, IndexScanInstruction, IndexScanInstructions, IndexSet, MemHashIndexIterator};
+use crate::memory::storage::index::{
+    IndexScanError, IndexScanInstruction, IndexScanInstructions, IndexSet,
+    MemHashIndexIterator,
+};
 use crate::memory::storage::stream::QuadEqualities;
 use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::SchemaRef;
+use datafusion::common::exec_datafusion_err;
 use datafusion::error::DataFusionError;
 use datafusion::execution::RecordBatchStream;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use futures::{ready, Stream};
-use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use futures::{ready, FutureExt, Stream};
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingArray;
 use rdf_fusion_model::Variable;
 use std::pin::Pin;
@@ -37,7 +41,15 @@ pub enum MemQuadPatternStreamState {
         EncodedTriplePattern,
     ),
     /// Waiting for the index scan iterator to be ready.
-    WaitingForIndexScanIterator(Box<dyn Future<Output = Result<MemHashIndexIterator, IndexScanError>>>),
+    WaitingForIndexScanIterator(
+        Pin<
+            Box<
+                dyn Future<Output = Result<MemHashIndexIterator, IndexScanError>>
+                    + Send
+                    + Sync,
+            >,
+        >,
+    ),
     /// The stream is emitting the results from the index scan.
     Scan(MemHashIndexIterator),
     /// The stream is finished.
@@ -53,11 +65,9 @@ impl MemQuadPatternStream {
         active_graph: EncodedActiveGraph,
         graph_variable: Option<Variable>,
         pattern: EncodedTriplePattern,
-        blank_node_mode: BlankNodeMatchingMode,
         metrics: BaselineMetrics,
     ) -> Self {
-        let equality =
-            QuadEqualities::try_new(graph_variable.as_ref(), &pattern, blank_node_mode);
+        let equality = QuadEqualities::try_new(graph_variable.as_ref(), &pattern);
         Self {
             schema,
             metrics,
@@ -101,13 +111,17 @@ impl Stream for MemQuadPatternStream {
                         IndexScanInstruction::from(pattern.object.clone()),
                     ]);
 
-                    let index_scan = index_set.scan(scan_instructions, *version_number);
+                    let index = index_set.choose_index(&scan_instructions);
+                    let version_number = *version_number;
                     self.state = MemQuadPatternStreamState::WaitingForIndexScanIterator(
-                        Box::new(index_scan),
+                        Box::pin(async move {
+                            index.scan(scan_instructions, version_number).await
+                        }),
                     )
                 }
                 MemQuadPatternStreamState::WaitingForIndexScanIterator(future) => {
-                    let index_scan = ready!(future.poll(cx))?;
+                    let index_scan = ready!(future.poll_unpin(cx))
+                        .map_err(|e| exec_datafusion_err!("Could not scan index: {e}"))?;
                     self.state = MemQuadPatternStreamState::Scan(index_scan);
                 }
                 MemQuadPatternStreamState::Scan(inner) => match inner.next() {

@@ -1,7 +1,6 @@
 use crate::memory::encoding::{EncodedQuad, EncodedTriplePattern};
 use crate::memory::storage::stream::extract_columns;
 use datafusion::common::Column;
-use rdf_fusion_common::BlankNodeMatchingMode;
 use rdf_fusion_model::Variable;
 use std::collections::HashMap;
 
@@ -12,7 +11,6 @@ impl QuadEqualities {
     pub fn try_new(
         graph_variable: Option<&Variable>,
         pattern: &EncodedTriplePattern,
-        blank_node_matching_mode: BlankNodeMatchingMode,
     ) -> Option<Self> {
         let vars = extract_columns(graph_variable, pattern);
 

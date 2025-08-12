@@ -75,23 +75,23 @@ impl MemQuadStorageSnapshot {
             .inner(),
         );
 
-        let Ok(active_graph) = (self.encode_active_graph(active_graph)) else {
+        let Ok(active_graph) = self.encode_active_graph(active_graph) else {
             // The error is only triggered if no graph can be decoded.
             return Ok(Box::pin(EmptyRecordBatchStream::new(schema.clone())));
         };
 
-        let Ok(pattern) = (self.encode_triple_pattern(&pattern, blank_node_mode)) else {
+        let Ok(pattern) = self.encode_triple_pattern(&pattern, blank_node_mode) else {
             // For the pattern, a single unknown term causes the result to be empty.
             return Ok(Box::pin(EmptyRecordBatchStream::new(schema.clone())));
         };
 
         Ok(Box::pin(cooperative(MemQuadPatternStream::new(
             schema,
-            self.index_set,
+            self.index_set.clone(),
+            self.version_number,
             active_graph,
             graph_variable,
             pattern,
-            blank_node_mode,
             metrics,
         ))))
     }
@@ -158,8 +158,8 @@ impl MemQuadStorageSnapshot {
     }
 
     /// Returns the number of quads in the storage.
-    pub async fn len(&self) -> usize {
-        self.index_set.as_ref().len()
+    pub async fn len(&self) -> Result<usize, StorageError> {
+        self.index_set.as_ref().len().await
     }
 
     /// Returns the number of quads in the storage.

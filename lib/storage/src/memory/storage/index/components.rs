@@ -1,4 +1,4 @@
-use crate::memory::storage::index::{IndexComponentsCreationError, IndexConfiguration};
+use crate::memory::storage::index::IndexComponentsCreationError;
 use std::collections::HashSet;
 
 /// Represents a list of *disjunct* index components.
@@ -79,7 +79,8 @@ impl IndexComponents {
 
 #[cfg(test)]
 mod tests {
-    use crate::memory::storage::index::{IndexComponent, IndexComponents};
+    use crate::memory::storage::index::components::IndexComponent;
+    use crate::memory::storage::index::IndexComponents;
 
     #[test]
     fn index_configuration_accepts_unique_components() {

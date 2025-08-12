@@ -2,9 +2,10 @@ use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::level_mapping::{
     IndexLevelActionResult, IndexLevelImpl,
 };
-use crate::memory::storage::index::{IndexConfiguration, IndexedQuad};
+use crate::memory::storage::index::{
+    IndexConfiguration, IndexedQuad, ObjectIdScanPredicate,
+};
 use datafusion::arrow::array::{Array, UInt32Array};
-use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -21,114 +22,49 @@ pub struct IndexData {
 pub enum IndexDataScanState {
     /// Look up the object id in the index. If a single item is that is contained in `filter` is
     /// found, the lookup is successful.
-    LookupOnly { filter: HashSet<EncodedObjectId> },
-    /// Look up the object id in the index. If a single item is that is not contained in `filter` is
-    /// found, the lookup is successful.
-    LookupExcept { filter: HashSet<EncodedObjectId> },
-    /// Scan the object ids in this level, only yielding the ids in `filter`.
-    ScanOnly {
-        filter: HashSet<EncodedObjectId>,
-        consumed: usize,
+    Traverse {
+        predicate: Option<ObjectIdScanPredicate>,
     },
-    /// Scan the object ids in this level, only yielding the ids not in `filter`.
-    ScanExcept {
+    /// Scan the object ids in this level, only yielding the ids in `filter`.
+    Scan {
+        predicate: Option<ObjectIdScanPredicate>,
         consumed: usize,
-        filter: HashSet<EncodedObjectId>,
     },
 }
 
 impl IndexData {
     /// Implements the lookup only action by checking whether any of the object ids is contained
     /// in the index.
-    fn lookup_only_impl(
+    fn traverse_impl(
         &self,
-        object_ids: HashSet<EncodedObjectId>,
+        predicate: Option<ObjectIdScanPredicate>,
     ) -> IndexLevelActionResult<IndexDataScanState> {
-        let contained = object_ids.iter().any(|id| self.terms.contains(id));
+        let contained = match predicate {
+            None => self.terms.len() > 0,
+            Some(predicate) => self.terms.iter().any(|id| predicate.evaluate(*id)),
+        };
         if contained {
             IndexLevelActionResult::finished(1, Some(vec![]))
         } else {
             IndexLevelActionResult::empty_finished()
-        }
-    }
-
-    /// Implements the lookup action by checking whether any object id is contained in the index
-    /// that is not contained in `filter`.
-    fn lookup_except_impl(
-        &self,
-        object_ids: HashSet<EncodedObjectId>,
-    ) -> IndexLevelActionResult<IndexDataScanState> {
-        // Fast path if more distinct items exist in this level.
-        if self.terms.len() > object_ids.len() {
-            return IndexLevelActionResult::finished(1, Some(vec![]));
-        }
-
-        let contained = self.terms.iter().any(|id| !object_ids.contains(id));
-        if contained {
-            IndexLevelActionResult::finished(1, Some(vec![]))
-        } else {
-            IndexLevelActionResult::empty_finished()
-        }
-    }
-
-    fn scan_only_impl(
-        &self,
-        configuration: &IndexConfiguration,
-        filter: HashSet<EncodedObjectId>,
-        consumed: usize,
-    ) -> IndexLevelActionResult<IndexDataScanState> {
-        let (result, new_consumed) =
-            self.scan_impl(configuration, consumed, |oid| filter.contains(oid));
-
-        if new_consumed == self.terms.len() {
-            IndexLevelActionResult::finished(new_consumed, Some(vec![result]))
-        } else {
-            IndexLevelActionResult {
-                num_results: result.object_ids().len(),
-                result: Some(vec![result]),
-                new_state: Some(IndexDataScanState::ScanOnly {
-                    consumed: new_consumed,
-                    filter,
-                }),
-            }
-        }
-    }
-
-    fn scan_except_impl(
-        &self,
-        configuration: &IndexConfiguration,
-        filter: HashSet<EncodedObjectId>,
-        consumed: usize,
-    ) -> IndexLevelActionResult<IndexDataScanState> {
-        let (result, new_consumed) =
-            self.scan_impl(configuration, consumed, |oid| !filter.contains(oid));
-
-        if new_consumed == self.terms.len() {
-            IndexLevelActionResult::finished(new_consumed, Some(vec![result]))
-        } else {
-            IndexLevelActionResult {
-                num_results: result.object_ids().len(),
-                result: Some(vec![result]),
-                new_state: Some(IndexDataScanState::ScanExcept {
-                    consumed: new_consumed,
-                    filter,
-                }),
-            }
         }
     }
 
     fn scan_impl(
         &self,
         configuration: &IndexConfiguration,
+        predicate: Option<ObjectIdScanPredicate>,
         consumed: usize,
-        filter: impl Fn(&EncodedObjectId) -> bool,
-    ) -> (ObjectIdArray, usize) {
+    ) -> IndexLevelActionResult<IndexDataScanState> {
         let iterator = self
             .terms
             .iter()
             .skip(consumed)
             .take(configuration.batch_size)
-            .filter(|id| filter(*id))
+            .filter(|id| match &predicate {
+                None => true,
+                Some(predicate) => predicate.evaluate(**id),
+            })
             .map(|id| id.as_u32());
         let array = UInt32Array::from_iter_values(iterator);
         let result = configuration
@@ -136,7 +72,19 @@ impl IndexData {
             .try_new_array(Arc::new(array))
             .expect("TODO");
         let new_consumed = consumed + result.object_ids().len();
-        (result, new_consumed)
+
+        if new_consumed == self.terms.len() {
+            IndexLevelActionResult::finished(new_consumed, Some(vec![result]))
+        } else {
+            IndexLevelActionResult {
+                num_results: result.object_ids().len(),
+                result: Some(vec![result]),
+                new_state: Some(IndexDataScanState::Scan {
+                    consumed: new_consumed,
+                    predicate,
+                }),
+            }
+        }
     }
 }
 
@@ -173,16 +121,11 @@ impl IndexLevelImpl for IndexData {
         state: Self::ScanState,
     ) -> IndexLevelActionResult<Self::ScanState> {
         match state {
-            IndexDataScanState::LookupOnly { filter } => self.lookup_only_impl(filter),
-            IndexDataScanState::LookupExcept { filter } => {
-                self.lookup_except_impl(filter)
-            }
-            IndexDataScanState::ScanOnly { filter, consumed } => {
-                self.scan_only_impl(configuration, filter, consumed)
-            }
-            IndexDataScanState::ScanExcept { filter, consumed } => {
-                self.scan_except_filter(configuration, filter, consumed)
-            }
+            IndexDataScanState::Traverse { predicate } => self.traverse_impl(predicate),
+            IndexDataScanState::Scan {
+                predicate,
+                consumed,
+            } => self.scan_impl(configuration, predicate, consumed),
         }
     }
 }
@@ -190,27 +133,32 @@ impl IndexLevelImpl for IndexData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::memory::storage::index::components::IndexComponent;
     use crate::memory::storage::index::hash_index::MemHashTripleIndex;
-    use crate::memory::storage::index::{IndexComponent, IndexComponents, IndexScanError, IndexScanInstruction, IndexScanInstructions};
-    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
-    use crate::memory::encoding::EncodedTermPattern;
+    use crate::memory::storage::index::{
+        IndexComponents, IndexScanError, IndexScanInstruction, IndexScanInstructions,
+    };
     use crate::memory::storage::VersionNumber;
+    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 
     #[tokio::test]
     async fn insert_and_scan_triple() {
         let index = create_index();
-        let triples = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
-        index.insert(&triples, &[], VersionNumber(1)).await.unwrap();
+        let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
 
-        let lookup = IndexScanInstructions([
-            IndexScanInstruction::ObjectId(eid(0)),
-            EncodedTermPattern::ObjectId(eid(1)),
-            EncodedTermPattern::ObjectId(eid(2)),
-            EncodedTermPattern::ObjectId(eid(3)),
-        ]);
-        let mut iter = index.scan(lookup, VersionNumber(1)).await.unwrap();
+        let mut iter = index
+            .scan(
+                IndexScanInstructions([
+                    traverse(0),
+                    traverse(1),
+                    traverse(2),
+                    traverse(3),
+                ]),
+                VersionNumber(1),
+            )
+            .await
+            .unwrap();
         let result = iter.next();
 
         assert!(result.is_some());
@@ -220,25 +168,18 @@ mod tests {
     #[tokio::test]
     async fn scan_newer_index_version_err() {
         let index = create_index();
-        let triples = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
-        index
-            .insert(&triples, VersionNumber(1))
-            .await
-            .unwrap();
-        index
-            .delete(&triples, VersionNumber(2))
-            .await
-            .unwrap();
-
-        let result = index
-            .scan(
-                IndexScanInstructions([EncodedTermPattern::Variable; 4]),
-                VersionNumber(1),
-            )
-            .await;
+        let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.remove(&quads, VersionNumber(2)).await.unwrap();
 
         assert_eq!(
-            result.err(),
+            index
+                .scan(
+                    IndexScanInstructions([scan(), scan(), scan(), scan()]),
+                    VersionNumber(1)
+                )
+                .await
+                .err(),
             Some(IndexScanError::UnexpectedIndexVersionNumber)
         );
     }
@@ -246,197 +187,161 @@ mod tests {
     #[tokio::test]
     async fn scan_subject_var() {
         let index = create_index();
-        let triples = vec![
+        let quads = vec![
             IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
             IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
             IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
-        index
-            .apply_change_set(&triples, &[], VersionNumber(1))
-            .await
-            .unwrap();
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
 
-        let lookup = IndexScanInstructions([
-            EncodedTermPattern::ObjectId(eid(0)),
-            EncodedTermPattern::Variable,
-            EncodedTermPattern::ObjectId(eid(2)),
-            EncodedTermPattern::ObjectId(eid(3)),
-        ]);
-
-        run_matching_test(index, lookup, 1, 2).await;
-    }
-
-    #[tokio::test]
-    async fn scan_predicate_var() {
-        let index = create_index();
-        let triples = vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
-        ];
-        index
-            .apply_change_set(&triples, &[], VersionNumber(1))
-            .await
-            .unwrap();
-
-        let lookup = IndexScanInstructions([
-            EncodedTermPattern::ObjectId(eid(0)),
-            EncodedTermPattern::ObjectId(eid(1)),
-            EncodedTermPattern::Variable,
-            EncodedTermPattern::ObjectId(eid(3)),
-        ]);
-
-        run_matching_test(index, lookup, 1, 1).await;
-    }
-
-    #[tokio::test]
-    async fn scan_object_var() {
-        let index = create_index();
-        let triples = vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
-        ];
-        index
-            .apply_change_set(&triples, &[], VersionNumber(1))
-            .await
-            .unwrap();
-
-        let lookup = IndexScanInstructions([
-            EncodedTermPattern::ObjectId(eid(0)),
-            EncodedTermPattern::ObjectId(eid(1)),
-            EncodedTermPattern::ObjectId(eid(2)),
-            EncodedTermPattern::Variable,
-        ]);
-
-        run_matching_test(index, lookup, 1, 1).await;
-    }
-
-    #[tokio::test]
-    async fn scan_multi_vars() {
-        let index = create_index();
-        let triples = vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
-        ];
-        index
-            .apply_change_set(&triples, &[], VersionNumber(1))
-            .await
-            .unwrap();
-
-        let lookup = IndexScanInstructions([
-            EncodedTermPattern::ObjectId(eid(0)),
-            EncodedTermPattern::Variable,
-            EncodedTermPattern::ObjectId(eid(2)),
-            EncodedTermPattern::Variable,
-        ]);
-
-        run_matching_test(index, lookup, 2, 2).await;
-    }
-
-    #[tokio::test]
-    async fn scan_all_vars() {
-        let index = create_index();
-        let triples = vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
-        ];
-        index
-            .apply_change_set(&triples, &[], VersionNumber(1))
-            .await
-            .unwrap();
-
-        let lookup = IndexScanInstructions([EncodedTermPattern::Variable; 4]);
-
-        run_matching_test(index, lookup, 4, 3).await;
-    }
-
-    #[tokio::test]
-    async fn scan_batches_for_batch_size() {
-        let index = create_index_with_batch_size(10);
-        let mut triples = Vec::new();
-        for i in 0..25 {
-            triples.push(IndexedQuad([eid(0), eid(1), eid(2), eid(i)]))
-        }
-        index
-            .apply_change_set(&triples, &[], VersionNumber(1))
-            .await
-            .unwrap();
-
-        // The lookup matches a single IndexData that will be scanned.
-        let lookup = IndexScanInstructions([
-            EncodedTermPattern::ObjectId(eid(0)),
-            EncodedTermPattern::ObjectId(eid(1)),
-            EncodedTermPattern::ObjectId(eid(2)),
-            EncodedTermPattern::Variable,
-        ]);
-
-        run_batch_size_test(index, lookup, &[10, 10, 5], true).await;
-    }
-
-    #[tokio::test]
-    async fn scan_multi_level_batches_coalesce_results() {
-        let index = create_index_with_batch_size(10);
-        let mut triples = Vec::new();
-        for i in 0..25 {
-            triples.push(IndexedQuad([eid(0), eid(1), eid(i), eid(2)]))
-        }
-        index
-            .apply_change_set(&triples, &[], VersionNumber(1))
-            .await
-            .unwrap();
-
-        // The lookup matches 25 different IndexLevels, each having exactly one data entry. The
-        // batches should be combined into a single batch.
-        let lookup = IndexScanInstructions([
-            EncodedTermPattern::ObjectId(eid(0)),
-            EncodedTermPattern::ObjectId(eid(1)),
-            EncodedTermPattern::Variable,
-            EncodedTermPattern::ObjectId(eid(2)),
-        ]);
-
-        run_batch_size_test(index, lookup, &[10, 10, 5], true).await;
-    }
-
-    #[tokio::test]
-    async fn delete_triple_removes_it() {
-        let index = create_index();
-        let triples = vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
-        ];
-        index
-            .apply_change_set(&triples, &[], VersionNumber(1))
-            .await
-            .unwrap();
-        index
-            .apply_change_set(&[], &triples, VersionNumber(2))
-            .await
-            .unwrap();
-
-        run_non_matching_test(
+        run_matching_test(
             index,
-            IndexScanInstructions([EncodedTermPattern::Variable; 4]),
+            IndexScanInstructions([traverse(0), scan(), traverse(2), traverse(3)]),
+            1,
+            2,
         )
         .await;
     }
 
     #[tokio::test]
-    async fn delete_triple_non_existing_err() {
+    async fn scan_predicate_var() {
         let index = create_index();
-        let triples = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
-        let result = index
-            .apply_change_set(&[], &triples, VersionNumber(1))
-            .await;
-        assert_eq!(
-            result.err(),
-            Some(IndexUpdateError::IndexDeletionError(
-                IndexDeletionError::NonExistingTriple
-            ))
-        );
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), scan(), traverse(3)]),
+            1,
+            1,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_object_var() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), traverse(2), scan()]),
+            1,
+            1,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_multi_vars() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([traverse(0), scan(), traverse(2), scan()]),
+            2,
+            2,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_all_vars() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([scan(), scan(), scan(), scan()]),
+            4,
+            3,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_batches_for_batch_size() {
+        let index = create_index_with_batch_size(10);
+        let mut quads = Vec::new();
+        for i in 0..25 {
+            quads.push(IndexedQuad([eid(0), eid(1), eid(2), eid(i)]))
+        }
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
+
+        // The lookup matches a single IndexData that will be scanned.
+        run_batch_size_test(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), traverse(2), scan()]),
+            &[10, 10, 5],
+            true,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_multi_level_batches_coalesce_results() {
+        let index = create_index_with_batch_size(10);
+        let mut quads = Vec::new();
+        for i in 0..25 {
+            quads.push(IndexedQuad([eid(0), eid(1), eid(i), eid(2)]))
+        }
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
+
+        // The lookup matches 25 different IndexLevels, each having exactly one data entry. The
+        // batches should be combined into a single batch.
+        run_batch_size_test(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), scan(), traverse(2)]),
+            &[10, 10, 5],
+            true,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn delete_triple_removes_it() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.remove(&quads, VersionNumber(2)).await.unwrap();
+
+        run_non_matching_test(
+            index,
+            IndexScanInstructions([scan(), scan(), scan(), scan()]),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn delete_triple_non_existing_ok() {
+        let index = create_index();
+        let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
+        let result = index.remove(&quads, VersionNumber(1)).await;
+        assert!(result.ok().is_some());
     }
 
     fn create_index() -> MemHashTripleIndex {
@@ -444,23 +349,28 @@ mod tests {
     }
 
     fn create_index_with_batch_size(batch_size: usize) -> MemHashTripleIndex {
-        let object_id_encoding = ObjectIdEncoding::new(4);
-        let content = IndexContent::default();
-        let index = MemHashTripleIndex {
-            configuration: IndexConfiguration {
-                batch_size,
-                object_id_encoding,
-                components: IndexComponents::try_new([
-                    IndexComponent::GraphName,
-                    IndexComponent::Subject,
-                    IndexComponent::Predicate,
-                    IndexComponent::Object,
-                ])
-                .unwrap(),
-            },
-            content: Arc::new(RwLock::new(content)),
+        let configuration = IndexConfiguration {
+            batch_size,
+            object_id_encoding: ObjectIdEncoding::new(4),
+            components: IndexComponents::try_new([
+                IndexComponent::GraphName,
+                IndexComponent::Subject,
+                IndexComponent::Predicate,
+                IndexComponent::Object,
+            ])
+            .unwrap(),
         };
-        index
+        MemHashTripleIndex::new(configuration)
+    }
+
+    fn traverse(id: u32) -> IndexScanInstruction {
+        IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(HashSet::from([
+            EncodedObjectId::from(id),
+        ]))))
+    }
+
+    fn scan() -> IndexScanInstruction {
+        IndexScanInstruction::Scan(None)
     }
 
     fn eid(id: u32) -> EncodedObjectId {

@@ -1,4 +1,3 @@
-use rdf_fusion_model::GraphName;
 use crate::memory::object_id::EncodedGraphObjectId;
 
 /// An encoded version of the active graph.

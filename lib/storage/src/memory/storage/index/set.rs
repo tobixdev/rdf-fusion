@@ -59,22 +59,10 @@ impl IndexSet {
         self.version_number
     }
 
-    /// Scans the best matching index for the given triple pattern. The patterns should *always* be
-    /// given as subject, predicate, object. The function will re-order the patterns for the chosen
-    /// index to scan.
-    pub async fn scan(
-        &self,
-        pattern: IndexScanInstructions,
-        version_number: VersionNumber,
-    ) -> Result<MemHashIndexIterator, IndexScanError> {
-        let chosen_index = self.choose_index(&pattern);
-        chosen_index.scan(pattern, version_number).await
-    }
-
     /// Choses the index with the highest scan score (see [Self::compute_scan_score]).
-    fn choose_index(&self, pattern: &IndexScanInstructions) -> &MemHashTripleIndex {
-        [&self.spo, &self.pos, &self.ops]
-            .iter()
+    pub fn choose_index(&self, pattern: &IndexScanInstructions) -> Arc<MemHashTripleIndex> {
+        let index = [&self.spo, &self.pos, &self.ops]
+            .into_iter()
             .max_by(|lhs, rhs| {
                 let lhs_score =
                     Self::compute_scan_score(&lhs.configuration().components, pattern);
@@ -82,7 +70,8 @@ impl IndexSet {
                     Self::compute_scan_score(&rhs.configuration().components, pattern);
                 lhs_score.cmp(&rhs_score)
             })
-            .expect("At least one index must be available")
+            .expect("At least one index must be available");
+        Arc::clone(index)
     }
 
     /// Computes the "scan score" for the given `index_components` and `pattern`.
@@ -105,7 +94,12 @@ impl IndexSet {
         for (i, index_component) in index_components.inner().iter().enumerate() {
             let idx = index_component.gspo_index();
             let reward = 10u32.pow((index_components.inner().len() - i) as u32);
-            if pattern.0[idx].has_predefined_filter() {
+            let is_filtered = pattern.0[idx]
+                .predicate()
+                .map(|p| p.restricts_to_known_size())
+                .unwrap_or(false);
+
+            if is_filtered {
                 score += reward
             } else {
                 break;
@@ -169,12 +163,16 @@ fn reorder_pattern(
     pattern: &IndexScanInstructions,
     components: &IndexComponents,
 ) -> IndexScanInstructions {
-    let mut new_lookup = [IndexScanInstruction; 4];
+    let mut new_lookup = Vec::new();
 
-    for (i, lookup) in new_lookup.iter_mut().enumerate() {
-        let gspo_index = components.inner()[i].gspo_index();
-        *lookup = pattern.0[gspo_index].clone();
+    for i in 0..4 {
+        let gspo_index = components
+            .inner()
+            .iter()
+            .position(|c| c.gspo_index() == i)
+            .expect("There must be a component with each index.");
+        new_lookup.push(pattern.0[gspo_index].clone());
     }
 
-    IndexScanInstructions(new_lookup)
+    IndexScanInstructions(new_lookup.try_into().unwrap())
 }

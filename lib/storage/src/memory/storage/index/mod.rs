@@ -10,7 +10,6 @@ mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
 use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
-pub use components::IndexComponent;
 pub use components::IndexComponents;
 pub use error::*;
 pub use hash_index::MemHashIndexIterator;
@@ -35,28 +34,50 @@ pub struct IndexConfiguration {
 #[derive(Debug, Clone)]
 pub struct IndexScanInstructions(pub [IndexScanInstruction; 4]);
 
+/// A predicate for filtering object ids.
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub enum ObjectIdScanPredicate {
+    /// Checks whether the object id is in the given set.
+    In(HashSet<EncodedObjectId>),
+    /// Checks whether the object id is *not* in the given set.
+    Except(HashSet<EncodedObjectId>),
+}
+
+impl ObjectIdScanPredicate {
+    /// Indicates whether the predicate restricts to a set of known size.
+    ///
+    /// For example, [ObjectIdScanPredicate::In] restricts to a known size, while
+    /// [ObjectIdScanPredicate::Except] does not, as the universe of object ids is not known.
+    pub fn restricts_to_known_size(&self) -> bool {
+        match self {
+            ObjectIdScanPredicate::In(_) => true,
+            ObjectIdScanPredicate::Except(_) => false,
+        }
+    }
+
+    /// Evaluates the predicate for the given object id.
+    pub fn evaluate(&self, object_id: EncodedObjectId) -> bool {
+        match self {
+            ObjectIdScanPredicate::In(ids) => ids.contains(&object_id),
+            ObjectIdScanPredicate::Except(ids) => !ids.contains(&object_id),
+        }
+    }
+}
+
 /// An encoded version of a triple pattern.
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum IndexScanInstruction {
-    /// Scans
-    ScanOnly {
-        bind: bool,
-        filter: HashSet<EncodedObjectId>,
-    },
-    /// Scans all elements in the current level except the given ones.
-    ///
-    /// [ScanExcept] with an empty filter is used for scanning an entire index level.
-    ScanExcept {
-        bind: bool,
-        filter: HashSet<EncodedObjectId>,
-    },
+    /// Traverses the index level, not binding the elements at this level.
+    Traverse(Option<ObjectIdScanPredicate>),
+    /// Scans the index level, binding the elements at this level.
+    Scan(Option<ObjectIdScanPredicate>),
 }
 
 impl IndexScanInstruction {
-    pub fn has_predefined_filter(&self) -> bool {
+    pub fn predicate(&self) -> Option<&ObjectIdScanPredicate> {
         match self {
-            IndexScanInstruction::ScanOnly { .. } => true,
-            IndexScanInstruction::ScanExcept { .. } => false,
+            IndexScanInstruction::Traverse(predicate) => predicate.as_ref(),
+            IndexScanInstruction::Scan(predicate) => predicate.as_ref(),
         }
     }
 }
@@ -68,24 +89,30 @@ impl IndexScanInstruction {
         active_graph: &EncodedActiveGraph,
         variable: Option<&Variable>,
     ) -> IndexScanInstruction {
-        let bind = variable.is_some();
+        let instruction_with_predicate = |predicate: Option<ObjectIdScanPredicate>| {
+            if variable.is_some() {
+                IndexScanInstruction::Scan(predicate)
+            } else {
+                IndexScanInstruction::Traverse(predicate)
+            }
+        };
+
         match active_graph {
-            EncodedActiveGraph::DefaultGraph => IndexScanInstruction::ScanOnly {
-                bind,
-                filter: HashSet::from([DEFAULT_GRAPH_ID.0]),
-            },
-            EncodedActiveGraph::AllGraphs => IndexScanInstruction::ScanExcept {
-                bind,
-                filter: HashSet::new(),
-            },
-            EncodedActiveGraph::Union(graphs) => IndexScanInstruction::ScanOnly {
-                bind,
-                filter: HashSet::from_iter(graphs.iter().map(|g| g.0)),
-            },
-            EncodedActiveGraph::AnyNamedGraph => IndexScanInstruction::ScanExcept {
-                bind,
-                filter: HashSet::from([DEFAULT_GRAPH_ID.0]),
-            },
+            EncodedActiveGraph::DefaultGraph => {
+                let object_ids = HashSet::from([DEFAULT_GRAPH_ID.0]);
+                instruction_with_predicate(Some(ObjectIdScanPredicate::In(object_ids)))
+            }
+            EncodedActiveGraph::AllGraphs => instruction_with_predicate(None),
+            EncodedActiveGraph::Union(graphs) => {
+                let object_ids = HashSet::from_iter(graphs.iter().map(|g| g.0));
+                instruction_with_predicate(Some(ObjectIdScanPredicate::In(object_ids)))
+            }
+            EncodedActiveGraph::AnyNamedGraph => {
+                let object_ids = HashSet::from([DEFAULT_GRAPH_ID.0]);
+                instruction_with_predicate(Some(ObjectIdScanPredicate::Except(
+                    object_ids,
+                )))
+            }
         }
     }
 }
@@ -93,14 +120,10 @@ impl IndexScanInstruction {
 impl From<EncodedTermPattern> for IndexScanInstruction {
     fn from(value: EncodedTermPattern) -> Self {
         match value {
-            EncodedTermPattern::ObjectId(object_id) => IndexScanInstruction::ScanOnly {
-                bind: false,
-                filter: HashSet::from([object_id]),
-            },
-            EncodedTermPattern::Variable(_) => IndexScanInstruction::ScanExcept {
-                bind: true,
-                filter: HashSet::new(),
-            },
+            EncodedTermPattern::ObjectId(object_id) => IndexScanInstruction::Traverse(
+                Some(ObjectIdScanPredicate::In(HashSet::from([object_id]))),
+            ),
+            EncodedTermPattern::Variable(_) => IndexScanInstruction::Scan(None),
         }
     }
 }

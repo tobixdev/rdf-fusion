@@ -1,4 +1,3 @@
-use crate::memory::encoding::EncodedTermPattern;
 use crate::memory::storage::index::level_data::{IndexData, IndexDataScanState};
 use crate::memory::storage::index::level_mapping::{
     IndexLevel, IndexLevelImpl, IndexLevelScanState,
@@ -77,7 +76,7 @@ impl MemHashTripleIndex {
     /// Quads that already exist in the index are ignored.
     pub async fn insert(
         &self,
-        quads: impl Iterator<Item = &IndexedQuad>,
+        quads: impl IntoIterator<Item = &IndexedQuad>,
         version_number: VersionNumber,
     ) -> Result<usize, IndexUpdateError> {
         let mut content = self.content.write().await;
@@ -93,15 +92,16 @@ impl MemHashTripleIndex {
             }
         }
 
+        content.version = content.version.next();
         Ok(count)
     }
 
-    /// Deletes a list of quads.
+    /// Removes a list of quads.
     ///
     /// Quads that do not exist in the index are ignored.
-    pub async fn delete(
+    pub async fn remove(
         &self,
-        quads: impl Iterator<Item = &IndexedQuad>,
+        quads: impl IntoIterator<Item = &IndexedQuad>,
         version_number: VersionNumber,
     ) -> Result<(), IndexUpdateError> {
         let mut content = self.content.write().await;
@@ -113,6 +113,7 @@ impl MemHashTripleIndex {
             content.index.remove(&self.configuration, quad, 0);
         }
 
+        content.version = content.version.next();
         Ok(())
     }
 
@@ -190,44 +191,28 @@ fn build_state(patterns: [IndexScanInstruction; 4]) -> IndexScanState {
     create_state_for_level(patterns[0].clone(), second_level)
 }
 
-fn create_state_for_data(pattern: IndexScanInstruction) -> IndexDataScanState {
-    match pattern {
-        IndexScanInstruction::ScanOnly { bind, filter } => {
-            if bind {
-                IndexDataScanState::ScanOnly {
-                    filter,
-                    consumed: 0,
-                }
-            } else {
-                IndexDataScanState::LookupOnly { filter }
-            }
+fn create_state_for_data(scan_instruction: IndexScanInstruction) -> IndexDataScanState {
+    match scan_instruction {
+        IndexScanInstruction::Traverse(predicate) => {
+            IndexDataScanState::Traverse { predicate }
         }
-        IndexScanInstruction::ScanExcept { bind, filter } => {
-            if bind {
-                IndexDataScanState::ScanExcept {
-                    filter,
-                    consumed: 0,
-                }
-            } else {
-                IndexDataScanState::LookupExcept { filter }
-            }
-        }
+        IndexScanInstruction::Scan(predicate) => IndexDataScanState::Scan {
+            predicate,
+            consumed: 0,
+        },
     }
 }
 
 pub fn create_state_for_level<TInner: Clone>(
-    pattern: EncodedTermPattern,
+    scan_instruction: IndexScanInstruction,
     inner: TInner,
 ) -> IndexLevelScanState<TInner> {
-    match pattern {
-        EncodedTermPattern::ObjectId(object_id) => {
-            IndexLevelScanState::Lookup { object_id, inner }
+    match scan_instruction {
+        IndexScanInstruction::Traverse(predicate) => {
+            IndexLevelScanState::traverse(predicate, inner)
         }
-        EncodedTermPattern::Variable(_) => IndexLevelScanState::Scan {
-            buffered: None,
-            default_state: inner.clone(),
-            consumed: 0,
-            inner,
-        },
+        IndexScanInstruction::Scan(predicate) => {
+            IndexLevelScanState::scan(predicate, inner)
+        }
     }
 }

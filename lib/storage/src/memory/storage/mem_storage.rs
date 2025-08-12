@@ -61,18 +61,22 @@ impl QuadStorage for MemQuadStorage {
     }
 
     async fn insert(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
-        self.indices.write().await.insert(quads)
+        self.indices.write().await.insert(quads).await
     }
 
     async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
-        self.indices.write().await.remove(quad)
+        self.indices.write().await.remove(quad).await
     }
 
     async fn insert_named_graph<'a>(
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        todo!()
+        self.indices
+            .write()
+            .await
+            .insert_named_graph(graph_name)
+            .await
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
@@ -83,29 +87,33 @@ impl QuadStorage for MemQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        Ok(self.snapshot().await.contains_named_graph(graph_name).await)
+        self.snapshot().await.contains_named_graph(graph_name).await
     }
 
     async fn clear(&self) -> Result<(), StorageError> {
-        self.indices.write().await.clear()
+        self.indices.write().await.clear().await
     }
 
     async fn clear_graph<'a>(
         &self,
         graph_name: GraphNameRef<'a>,
     ) -> Result<(), StorageError> {
-        self.indices.write().await.clear_graph()
+        self.indices.write().await.clear_graph(graph_name).await
     }
 
     async fn drop_named_graph(
         &self,
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError> {
-        self.indices.write().await.drop_named_graph()
+        self.indices
+            .write()
+            .await
+            .drop_named_graph(graph_name)
+            .await
     }
 
     async fn len(&self) -> Result<usize, StorageError> {
-        Ok(self.snapshot().await.len().await)
+        self.snapshot().await.len().await
     }
 
     async fn optimize(&self) -> Result<(), StorageError> {
