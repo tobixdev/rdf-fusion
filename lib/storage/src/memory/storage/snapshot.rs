@@ -1,14 +1,11 @@
 use crate::memory::encoding::{
     EncodedActiveGraph, EncodedTermPattern, EncodedTriplePattern,
 };
-use crate::memory::object_id::DEFAULT_GRAPH_ID;
-use crate::memory::storage::index::{IndexLookup, IndexSet, MemHashIndexIterator};
-use crate::memory::storage::log::{LogChanges, MemLogSnapshot};
-use crate::memory::storage::stream::{MemLogInsertionsStream, MemQuadPatternStream};
+use crate::memory::storage::index::IndexSet;
+use crate::memory::storage::stream::MemQuadPatternStream;
 use crate::memory::storage::VersionNumber;
 use crate::memory::MemObjectIdMapping;
-use datafusion::common::exec_err;
-use datafusion::execution::{SendableRecordBatchStream, TaskContext};
+use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_plan::EmptyRecordBatchStream;
@@ -22,6 +19,7 @@ use rdf_fusion_model::{
     NamedOrBlankNode, NamedOrBlankNodeRef, TermPattern, TriplePattern, Variable,
 };
 use std::sync::Arc;
+use tokio::sync::OwnedRwLockReadGuard;
 
 /// Provides a snapshot view on the storage. Other transactions can read and write to the storage
 /// without changing the view of the snapshot.
@@ -31,30 +29,24 @@ pub struct MemQuadStorageSnapshot {
     encoding: QuadStorageEncoding,
     /// Object id mapping
     object_id_mapping: Arc<MemObjectIdMapping>,
-    /// Changes in the log.
-    changes: Option<Arc<LogChanges>>,
     /// Index set
-    index_set: Arc<IndexSet>,
+    index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
     /// The version number of the snapshot.
     version_number: VersionNumber,
 }
 
 impl MemQuadStorageSnapshot {
     /// Create a new [MemQuadStorageSnapshot].
-    ///
-    /// This function computes the changes in the `log_snapshot` and is thus not trivial. However,
-    /// caching the changes computation can be beneficial in scenarios where the log is accessed
-    /// multiple times (e.g., multiple quad patterns in the same query).
-    pub async fn new_with_computed_changes(
+    pub fn new(
         encoding: QuadStorageEncoding,
         object_id_mapping: Arc<MemObjectIdMapping>,
-        log_snapshot: MemLogSnapshot,
+        index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
     ) -> Self {
-        let changes = log_snapshot.compute_changes().await;
         Self {
             encoding,
             object_id_mapping,
-            changes: changes.map(Arc::new),
+            version_number: index_set.version_number(),
+            index_set,
         }
     }
 
@@ -65,20 +57,14 @@ impl MemQuadStorageSnapshot {
 
     /// Returns a stream that evaluates the given pattern.
     #[allow(clippy::too_many_arguments)]
-    pub async fn evaluate_pattern(
+    pub fn evaluate_pattern(
         &self,
         active_graph: ActiveGraph,
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
         blank_node_mode: BlankNodeMatchingMode,
         metrics: BaselineMetrics,
-        task_context: Arc<TaskContext>,
-        partition: usize,
     ) -> DFResult<SendableRecordBatchStream> {
-        if partition != 0 {
-            return exec_err!("Only partition 0 is supported for now.");
-        }
-
         let schema = Arc::clone(
             compute_schema_for_triple_pattern(
                 self.storage_encoding(),
@@ -88,7 +74,6 @@ impl MemQuadStorageSnapshot {
             )
             .inner(),
         );
-        let changes = self.changes.clone();
 
         let Ok(active_graph) = (self.encode_active_graph(active_graph)) else {
             // The error is only triggered if no graph can be decoded.
@@ -100,101 +85,15 @@ impl MemQuadStorageSnapshot {
             return Ok(Box::pin(EmptyRecordBatchStream::new(schema.clone())));
         };
 
-        let index_scans = self
-            .create_index_scans(
-                &active_graph,
-                graph_variable.as_ref(),
-                &pattern,
-                changes.as_deref(),
-            )
-            .await?;
-
-        let log_insertion_stream = changes.map(|c| {
-            Box::new(MemLogInsertionsStream::new(
-                schema.clone(),
-                self.storage_encoding().clone(),
-                &active_graph,
-                graph_variable.as_ref(),
-                &pattern,
-                blank_node_mode,
-                c.inserted.iter().cloned().collect(),
-                task_context.session_config().batch_size(),
-            ))
-        });
-
         Ok(Box::pin(cooperative(MemQuadPatternStream::new(
             schema,
+            self.index_set,
+            active_graph,
+            graph_variable,
+            pattern,
+            blank_node_mode,
             metrics,
-            index_scans,
-            log_insertion_stream,
         ))))
-    }
-
-    async fn create_index_scans(
-        &self,
-        active_graph: &EncodedActiveGraph,
-        graph_name_variable: Option<&Variable>,
-        pattern: &EncodedTriplePattern,
-        changes: Option<&LogChanges>,
-    ) -> DFResult<Vec<MemHashIndexIterator>> {
-        if changes.is_some() {
-            return exec_err!(
-                "Index scans with pending log changes are not supported yet."
-            );
-        }
-
-        let scan_pattern = |graph| {
-            IndexLookup([
-                graph,
-                pattern.subject.clone(),
-                pattern.predicate.clone(),
-                pattern.object.clone(),
-            ])
-        };
-
-        Ok(match active_graph {
-            EncodedActiveGraph::DefaultGraph => {
-                vec![
-                    self.index_set
-                        .scan(
-                            scan_pattern(EncodedTermPattern::ObjectId(
-                                DEFAULT_GRAPH_ID.0,
-                            )),
-                            self.version_number,
-                        )
-                        .await?,
-                ]
-            }
-            EncodedActiveGraph::AllGraphs => {
-                vec![
-                    self.index_set
-                        .scan(
-                            scan_pattern(EncodedTermPattern::Wildcard),
-                            self.version_number,
-                        )
-                        .await?,
-                ]
-            }
-            EncodedActiveGraph::Union(graphs) => graphs
-                .iter()
-                .map(|g| {
-                    self.index_set.scan(
-                        scan_pattern(EncodedTermPattern::ObjectId(g.0)),
-                        self.version_number,
-                    )
-                })
-                .collect::<DFResult<Vec<_>>>()?,
-            EncodedActiveGraph::AnyNamedGraph => {
-                vec![
-                    self.index_set
-                        .scan(
-                            scan_pattern(EncodedTermPattern::Wildcard),
-                            self.version_number,
-                        )
-                        .await?,
-                ]
-            }
-        })
     }
 
     /// Encodes the triple pattern.
@@ -260,61 +159,23 @@ impl MemQuadStorageSnapshot {
 
     /// Returns the number of quads in the storage.
     pub async fn len(&self) -> usize {
-        let Some(changes) = self.changes.as_ref() else {
-            return 0;
-        };
-
-        changes.inserted.len()
+        self.index_set.as_ref().len()
     }
 
     /// Returns the number of quads in the storage.
     pub async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        let Some(changes) = self.changes.as_ref() else {
-            return Ok(vec![]);
-        };
-
-        Iterator::chain(
-            changes.created_named_graphs.iter().copied(),
-            changes
-                .inserted
-                .iter()
-                .filter(|q| !q.graph_name.is_default_graph())
-                .map(|q| q.graph_name.as_encoded_object_id()),
-        )
-        .map(|g| {
-            self.object_id_mapping
-                .decode_named_graph(g)
-                .map_err(StorageError::from)
-        })
-        .collect()
+        self.index_set.as_ref().named_graphs().await
     }
 
     /// Returns whether the storage contains the named graph `graph_name`.
     pub async fn contains_named_graph(
         &self,
         graph_name: NamedOrBlankNodeRef<'_>,
-    ) -> bool {
-        let Some(object_id) = self
-            .object_id_mapping
-            .try_get_encoded_object_id_from_term(graph_name)
-        else {
-            // Object IDs are not garbage collected. If the object ID is not found, the name has
-            // never been stored in the system.
-            return false;
-        };
-
-        let Some(changes) = self.changes.as_ref() else {
-            return false;
-        };
-
-        if changes.created_named_graphs.contains(&object_id) {
-            return true;
-        }
-
-        changes.inserted.iter().any(|q| {
-            !q.graph_name.is_default_graph()
-                && q.graph_name.as_encoded_object_id() == object_id
-        })
+    ) -> Result<bool, StorageError> {
+        self.index_set
+            .as_ref()
+            .contains_named_graph(graph_name)
+            .await
     }
 }
 
@@ -331,7 +192,9 @@ fn encode_term_pattern(
             EncodedTermPattern::ObjectId(object_id)
         }
         TermPattern::BlankNode(bnode) => match blank_node_mode {
-            BlankNodeMatchingMode::Variable => EncodedTermPattern::Variable,
+            BlankNodeMatchingMode::Variable => {
+                EncodedTermPattern::Variable(bnode.as_str().to_owned())
+            }
             BlankNodeMatchingMode::Filter => {
                 let object_id = object_id_mapping
                     .try_get_encoded_object_id_from_term(bnode.as_ref())
@@ -345,6 +208,8 @@ fn encode_term_pattern(
                 .ok_or(UnknownObjectIdError)?;
             EncodedTermPattern::ObjectId(object_id)
         }
-        TermPattern::Variable(_) => EncodedTermPattern::Variable,
+        TermPattern::Variable(var) => {
+            EncodedTermPattern::Variable(var.as_str().to_owned())
+        }
     })
 }

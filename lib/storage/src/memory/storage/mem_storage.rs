@@ -1,11 +1,9 @@
 use crate::memory::planner::MemQuadStorePlanner;
 use crate::memory::storage::index::IndexSet;
-use crate::memory::storage::log::{LogRetentionPolicy, MemLog};
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
 use crate::memory::MemObjectIdMapping;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
-use log::{debug, info};
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
@@ -14,51 +12,35 @@ use rdf_fusion_model::{
     GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
 };
 use std::sync::Arc;
-use crate::memory::storage::VersionNumber;
+use tokio::sync::RwLock;
 
 /// A memory-based quad storage.
 pub struct MemQuadStorage {
     /// Holds the mapping between terms and object ids.
     object_id_mapping: Arc<MemObjectIdMapping>,
-    /// The log that is used for writing new quads.
-    log: MemLog,
     /// The index set
-    indices: IndexSet,
-    /// Log retention policy.
-    log_retention_policy: LogRetentionPolicy,
+    indices: Arc<RwLock<IndexSet>>,
 }
 
 impl MemQuadStorage {
     /// Creates a new [MemQuadStorage] with the given `object_id_mapping`.
     pub fn new(object_id_mapping: Arc<MemObjectIdMapping>, batch_size: usize) -> Self {
-        // TODO index state source
         Self {
-            log: MemLog::new(object_id_mapping.clone()),
-            indices: IndexSet::new(object_id_mapping.encoding(), batch_size),
+            indices: Arc::new(RwLock::new(IndexSet::new(
+                object_id_mapping.encoding(),
+                batch_size,
+            ))),
             object_id_mapping,
-            log_retention_policy: LogRetentionPolicy::DeleteAfterIndexUpdate,
         }
     }
 
     /// Creates a snapshot of this storage.
     pub async fn snapshot(&self) -> MemQuadStorageSnapshot {
-        MemQuadStorageSnapshot::new_with_computed_changes(
+        MemQuadStorageSnapshot::new(
             self.encoding(),
             self.object_id_mapping.clone(),
-            self.log.snapshot(),
+            Arc::new(self.indices.clone().read_owned().await),
         )
-        .await
-    }
-
-    /// Updates the indices.
-    async fn update_indices(&self) -> VersionNumber {
-        let snapshot = self.log.snapshot().await;
-        if let Some(changes) = snapshot.compute_changes().await {
-            self.indices.update(changes).await;
-        } else {
-            debug!("Skipping index update because no changes were detected.");
-        }
-        snapshot.version_number()
     }
 }
 
@@ -78,19 +60,19 @@ impl QuadStorage for MemQuadStorage {
         vec![Arc::new(MemQuadStorePlanner::new(snapshot))]
     }
 
-    async fn insert_quads(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
-        self.log
-            .transaction(|writer| writer.insert_quads(quads.as_ref()))
-            .await
+    async fn insert(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
+        self.indices.write().await.insert(quads)
+    }
+
+    async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
+        self.indices.write().await.remove(quad)
     }
 
     async fn insert_named_graph<'a>(
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        self.log
-            .transaction(|writer| writer.insert_named_graph(graph_name))
-            .await
+        todo!()
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
@@ -105,31 +87,21 @@ impl QuadStorage for MemQuadStorage {
     }
 
     async fn clear(&self) -> Result<(), StorageError> {
-        self.log.transaction(|writer| writer.clear()).await
+        self.indices.write().await.clear()
     }
 
     async fn clear_graph<'a>(
         &self,
         graph_name: GraphNameRef<'a>,
     ) -> Result<(), StorageError> {
-        self.log
-            .transaction(|writer| writer.clear_graph(graph_name))
-            .await
+        self.indices.write().await.clear_graph()
     }
 
-    async fn remove_named_graph(
+    async fn drop_named_graph(
         &self,
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError> {
-        self.log
-            .transaction(|writer| writer.drop_named_graph(graph_name))
-            .await
-    }
-
-    async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
-        self.log
-            .transaction(|writer| Ok(writer.delete(&[quad])? == 1))
-            .await
+        self.indices.write().await.drop_named_graph()
     }
 
     async fn len(&self) -> Result<usize, StorageError> {
@@ -137,18 +109,10 @@ impl QuadStorage for MemQuadStorage {
     }
 
     async fn optimize(&self) -> Result<(), StorageError> {
-        let version_number = self.update_indices().await;
-
-        match self.log_retention_policy {
-            LogRetentionPolicy::DeleteAfterIndexUpdate => {
-                self.log.clear_log_until(version_number).await
-            }
-        }
-
         Ok(())
     }
 
     async fn validate(&self) -> Result<(), StorageError> {
-        self.log.validate().await
+        Ok(())
     }
 }

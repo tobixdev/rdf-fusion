@@ -1,12 +1,17 @@
-use crate::memory::encoding::EncodedTermPattern;
-use crate::memory::storage::index::data::{
-    MemHashTripleIndex, MemHashIndexIterator,
-};
 use crate::memory::storage::index::error::IndexScanError;
-use crate::memory::storage::index::{IndexComponents, IndexConfiguration, IndexLookup};
-use crate::memory::storage::log::LogChanges;
+use crate::memory::storage::index::hash_index::{
+    MemHashIndexIterator, MemHashTripleIndex,
+};
+use crate::memory::storage::index::{
+    IndexComponents, IndexConfiguration, IndexScanInstructions,
+};
 use crate::memory::storage::VersionNumber;
+use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_model::{
+    GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
+};
+use std::sync::Arc;
 
 /// Represents a set of multiple indexes, each of which indexes a different ordering of the
 /// triple component (e.g., SPO, POS). This is necessary as different triple patterns require
@@ -18,33 +23,40 @@ use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 /// evaluated with an SPO index. For this pattern, the query engine should use an POS or OPS index.
 ///
 /// The [IndexSet] allows managing multiple such indices.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IndexSet {
-    spo: MemHashTripleIndex,
-    pos: MemHashTripleIndex,
-    ops: MemHashTripleIndex,
+    version_number: VersionNumber,
+    spo: Arc<MemHashTripleIndex>,
+    pos: Arc<MemHashTripleIndex>,
+    ops: Arc<MemHashTripleIndex>,
 }
 
 impl IndexSet {
     /// Creates a new [IndexSet] with the given `object_id_encoding` and `batch_size`.
     pub fn new(object_id_encoding: ObjectIdEncoding, batch_size: usize) -> Self {
         Self {
-            spo: MemHashTripleIndex::new(IndexConfiguration {
+            version_number: VersionNumber(0),
+            spo: Arc::new(MemHashTripleIndex::new(IndexConfiguration {
                 object_id_encoding: object_id_encoding.clone(),
                 batch_size,
                 components: IndexComponents::GSPO,
-            }),
-            pos: MemHashTripleIndex::new(IndexConfiguration {
+            })),
+            pos: Arc::new(MemHashTripleIndex::new(IndexConfiguration {
                 object_id_encoding: object_id_encoding.clone(),
                 batch_size,
                 components: IndexComponents::GPOS,
-            }),
-            ops: MemHashTripleIndex::new(IndexConfiguration {
+            })),
+            ops: Arc::new(MemHashTripleIndex::new(IndexConfiguration {
                 object_id_encoding: object_id_encoding.clone(),
                 batch_size,
                 components: IndexComponents::GOSP,
-            }),
+            })),
         }
+    }
+
+    /// Returns the current version number of the index set.
+    pub fn version_number(&self) -> VersionNumber {
+        self.version_number
     }
 
     /// Scans the best matching index for the given triple pattern. The patterns should *always* be
@@ -52,7 +64,7 @@ impl IndexSet {
     /// index to scan.
     pub async fn scan(
         &self,
-        pattern: IndexLookup,
+        pattern: IndexScanInstructions,
         version_number: VersionNumber,
     ) -> Result<MemHashIndexIterator, IndexScanError> {
         let chosen_index = self.choose_index(&pattern);
@@ -60,7 +72,7 @@ impl IndexSet {
     }
 
     /// Choses the index with the highest scan score (see [Self::compute_scan_score]).
-    fn choose_index(&self, pattern: &IndexLookup) -> &MemHashTripleIndex {
+    fn choose_index(&self, pattern: &IndexScanInstructions) -> &MemHashTripleIndex {
         [&self.spo, &self.pos, &self.ops]
             .iter()
             .max_by(|lhs, rhs| {
@@ -86,15 +98,14 @@ impl IndexSet {
     /// - 1: The index hits on the fourth level
     fn compute_scan_score(
         index_components: &IndexComponents,
-        pattern: &IndexLookup,
+        pattern: &IndexScanInstructions,
     ) -> usize {
         let mut score = 0;
 
-        for (i, index_component) in index_components.0.iter().enumerate() {
+        for (i, index_component) in index_components.inner().iter().enumerate() {
             let idx = index_component.gspo_index();
-            let is_bound = pattern.0[idx].is_bound();
-            let reward = 10u32.pow((index_components.0.len() - i) as u32);
-            if is_bound {
+            let reward = 10u32.pow((index_components.inner().len() - i) as u32);
+            if pattern.0[idx].has_predefined_filter() {
                 score += reward
             } else {
                 break;
@@ -104,31 +115,66 @@ impl IndexSet {
         score as usize
     }
 
-    /// Updates the index with the given log_changes.
-    ///
-    /// # Update Sequence
-    ///
-    /// The index update happens index per index. The process starts by validating the version
-    /// number of the first index, locking the index, applying all updates from `log_changes`, and
-    /// lastly, setting the new version and unlocking the index. During this process queries cannot
-    /// use the index. Then, the update proceeds to the next index. As a result, multiple indices
-    /// updates can be actively working on updating different indices. However, as they lock the
-    /// indices in the same order, they are "serialized".
-    ///
-    /// # Errors
-    ///
-    /// - If the version of the index is not [LogChanges::from_version] - 1.
-    pub async fn update(&self, log_changes: LogChanges) {}
+    pub async fn len(&self) -> Result<usize, StorageError> {
+        todo!()
+    }
+
+    pub async fn insert(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
+        todo!()
+    }
+
+    pub async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
+        todo!()
+    }
+
+    pub async fn insert_named_graph<'a>(
+        &self,
+        graph_name: NamedOrBlankNodeRef<'a>,
+    ) -> Result<bool, StorageError> {
+        todo!()
+    }
+
+    pub async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
+        todo!()
+    }
+
+    pub async fn contains_named_graph<'a>(
+        &self,
+        graph_name: NamedOrBlankNodeRef<'a>,
+    ) -> Result<bool, StorageError> {
+        todo!()
+    }
+
+    pub async fn clear(&self) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    pub async fn clear_graph<'a>(
+        &self,
+        graph_name: GraphNameRef<'a>,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    pub async fn drop_named_graph(
+        &self,
+        graph_name: NamedOrBlankNodeRef<'_>,
+    ) -> Result<bool, StorageError> {
+        todo!()
+    }
 }
 
 /// Re-orders the given `pattern` for the given `components`.
-fn reorder_pattern(pattern: &IndexLookup, components: &IndexComponents) -> IndexLookup {
-    let mut new_lookup = [EncodedTermPattern::Variable; 4];
+fn reorder_pattern(
+    pattern: &IndexScanInstructions,
+    components: &IndexComponents,
+) -> IndexScanInstructions {
+    let mut new_lookup = [IndexScanInstruction; 4];
 
     for (i, lookup) in new_lookup.iter_mut().enumerate() {
-        let gspo_index = components.0[i].gspo_index();
-        *lookup = pattern.0[gspo_index];
+        let gspo_index = components.inner()[i].gspo_index();
+        *lookup = pattern.0[gspo_index].clone();
     }
 
-    IndexLookup(new_lookup)
+    IndexScanInstructions(new_lookup)
 }

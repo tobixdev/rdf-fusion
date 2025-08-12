@@ -1,21 +1,24 @@
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use std::collections::HashSet;
-use thiserror::Error;
 
-mod data;
+mod components;
 mod error;
-mod level;
+mod hash_index;
+mod level_data;
+mod level_mapping;
 mod set;
-mod state_root;
 
-use crate::memory::encoding::EncodedTermPattern;
-pub use data::MemHashIndexIterator;
+use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
+use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
+pub use components::IndexComponent;
+pub use components::IndexComponents;
 pub use error::*;
+pub use hash_index::MemHashIndexIterator;
+use rdf_fusion_model::Variable;
 pub use set::IndexSet;
-pub use state_root::IndexStateRoot;
 
 #[derive(Debug, Clone)]
-pub struct IndexLookup(pub [EncodedTermPattern; 4]);
+pub struct IndexedQuad(pub [EncodedObjectId; 4]);
 
 /// Holds the configuration for the index.
 #[derive(Debug, Clone)]
@@ -29,102 +32,75 @@ pub struct IndexConfiguration {
     pub components: IndexComponents,
 }
 
-/// Represents what part of an RDF triple is index at the given position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum IndexComponent {
-    /// The graph name
-    GraphName,
-    /// The subject
-    Subject,
-    /// The predicate
-    Predicate,
-    /// The object
-    Object,
-}
+#[derive(Debug, Clone)]
+pub struct IndexScanInstructions(pub [IndexScanInstruction; 4]);
 
-impl IndexComponent {
-    /// Returns the index of the component in an GSPO quad pattern.
-    pub fn gspo_index(&self) -> usize {
-        match self {
-            IndexComponent::GraphName => 0,
-            IndexComponent::Subject => 1,
-            IndexComponent::Predicate => 2,
-            IndexComponent::Object => 3,
-        }
-    }
-}
-
-/// Represents a list of *disjunct* index components.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct IndexComponents([IndexComponent; 4]);
-
-#[derive(Debug, Error)]
-#[error("Duplicate indexed component given.")]
-pub struct IndexComponentsCreationError;
-
-impl IndexComponents {
-    /// A GSPO index.
-    pub const GSPO: IndexComponents = IndexComponents([
-        IndexComponent::GraphName,
-        IndexComponent::Subject,
-        IndexComponent::Predicate,
-        IndexComponent::Object,
-    ]);
-
-    /// A GPOS index.
-    pub const GPOS: IndexComponents = IndexComponents([
-        IndexComponent::GraphName,
-        IndexComponent::Predicate,
-        IndexComponent::Object,
-        IndexComponent::Subject,
-    ]);
-
-    /// A GPSO index.
-    pub const GOSP: IndexComponents = IndexComponents([
-        IndexComponent::GraphName,
-        IndexComponent::Object,
-        IndexComponent::Subject,
-        IndexComponent::Predicate,
-    ]);
-
-    /// Tries to create a new [IndexConfiguration].
+/// An encoded version of a triple pattern.
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub enum IndexScanInstruction {
+    /// Scans
+    ScanOnly {
+        bind: bool,
+        filter: HashSet<EncodedObjectId>,
+    },
+    /// Scans all elements in the current level except the given ones.
     ///
-    /// Returns an error if an [IndexComponent] appears more than once.
-    pub fn try_new(
-        components: [IndexComponent; 4],
-    ) -> Result<Self, IndexComponentsCreationError> {
-        let distinct = components.iter().collect::<HashSet<_>>();
-        if distinct.len() != components.len() {
-            return Err(IndexComponentsCreationError);
-        }
+    /// [ScanExcept] with an empty filter is used for scanning an entire index level.
+    ScanExcept {
+        bind: bool,
+        filter: HashSet<EncodedObjectId>,
+    },
+}
 
-        Ok(IndexComponents(components))
+impl IndexScanInstruction {
+    pub fn has_predefined_filter(&self) -> bool {
+        match self {
+            IndexScanInstruction::ScanOnly { .. } => true,
+            IndexScanInstruction::ScanExcept { .. } => false,
+        }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::memory::storage::index::{IndexComponent, IndexComponents};
-
-    #[test]
-    fn index_configuration_accepts_unique_components() {
-        let ok = IndexComponents::try_new([
-            IndexComponent::GraphName,
-            IndexComponent::Subject,
-            IndexComponent::Predicate,
-            IndexComponent::Object,
-        ]);
-        assert!(ok.is_ok());
+impl IndexScanInstruction {
+    /// Returns the [IndexScanInstruction] for reading the given [EncodedActiveGraph], also
+    /// considering whether the graph name is bound to a `variable`.
+    pub fn from_active_graph(
+        active_graph: &EncodedActiveGraph,
+        variable: Option<&Variable>,
+    ) -> IndexScanInstruction {
+        let bind = variable.is_some();
+        match active_graph {
+            EncodedActiveGraph::DefaultGraph => IndexScanInstruction::ScanOnly {
+                bind,
+                filter: HashSet::from([DEFAULT_GRAPH_ID.0]),
+            },
+            EncodedActiveGraph::AllGraphs => IndexScanInstruction::ScanExcept {
+                bind,
+                filter: HashSet::new(),
+            },
+            EncodedActiveGraph::Union(graphs) => IndexScanInstruction::ScanOnly {
+                bind,
+                filter: HashSet::from_iter(graphs.iter().map(|g| g.0)),
+            },
+            EncodedActiveGraph::AnyNamedGraph => IndexScanInstruction::ScanExcept {
+                bind,
+                filter: HashSet::from([DEFAULT_GRAPH_ID.0]),
+            },
+        }
     }
+}
 
-    #[test]
-    fn index_configuration_rejects_duplicate_components() {
-        let err = IndexComponents::try_new([
-            IndexComponent::GraphName,
-            IndexComponent::Subject,
-            IndexComponent::Subject,
-            IndexComponent::Object,
-        ]);
-        assert!(err.is_err());
+impl From<EncodedTermPattern> for IndexScanInstruction {
+    fn from(value: EncodedTermPattern) -> Self {
+        match value {
+            EncodedTermPattern::ObjectId(object_id) => IndexScanInstruction::ScanOnly {
+                bind: false,
+                filter: HashSet::from([object_id]),
+            },
+            EncodedTermPattern::Variable(_) => IndexScanInstruction::ScanExcept {
+                bind: true,
+                filter: HashSet::new(),
+            },
+        }
     }
 }

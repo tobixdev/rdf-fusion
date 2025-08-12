@@ -453,7 +453,7 @@ impl Store {
             .collect::<Result<Vec<_>, _>>()?;
         self.engine
             .storage()
-            .insert_quads(quads)
+            .insert(quads)
             .await
             .map(|_| ())
             .map_err(LoaderError::from)
@@ -487,7 +487,7 @@ impl Store {
         let quad = vec![quad.into().into_owned()];
         self.engine
             .storage()
-            .insert_quads(quad)
+            .insert(quad)
             .await
             .map(|inserted| inserted > 0)
     }
@@ -498,7 +498,7 @@ impl Store {
         quads: impl IntoIterator<Item = impl Into<Quad>>,
     ) -> Result<(), StorageError> {
         let quads = quads.into_iter().map(Into::into).collect::<Vec<_>>();
-        self.engine.storage().insert_quads(quads).await?;
+        self.engine.storage().insert(quads).await?;
         Ok(())
     }
 
@@ -740,7 +740,7 @@ impl Store {
     ) -> Result<bool, StorageError> {
         self.engine
             .storage()
-            .remove_named_graph(graph_name.into())
+            .drop_named_graph(graph_name.into())
             .await
     }
 

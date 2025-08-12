@@ -12,8 +12,8 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::{TriplePattern, Variable};
 use std::any::Any;
 use std::fmt::Formatter;
@@ -106,8 +106,12 @@ impl ExecutionPlan for MemQuadPatternExec {
     fn execute(
         &self,
         partition: usize,
-        context: Arc<TaskContext>,
+        _context: Arc<TaskContext>,
     ) -> DFResult<SendableRecordBatchStream> {
+        if partition != 0 {
+            return exec_err!("Only partition 0 is supported for now.");
+        }
+
         let baseline_metrics = BaselineMetrics::new(&self.metrics, partition);
         let result = self.snapshot.evaluate_pattern(
             self.active_graph.clone(),
@@ -115,8 +119,6 @@ impl ExecutionPlan for MemQuadPatternExec {
             self.triple_pattern.clone(),
             self.blank_node_mode,
             baseline_metrics,
-            context,
-            partition,
         )?;
         if result.schema() != self.schema() {
             return exec_err!("Unexpected schema for quad pattern stream.");

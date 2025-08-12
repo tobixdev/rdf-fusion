@@ -1,11 +1,8 @@
-use crate::memory::encoding::EncodedTermPattern;
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::index::IndexConfiguration;
-use crate::memory::storage::index::error::IndexDeletionError;
-use crate::memory::storage::index::data::IndexedQuad;
+use crate::memory::storage::index::{IndexConfiguration, IndexedQuad};
 use datafusion::arrow::array::UInt32Array;
-use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdArray;
+use rdf_fusion_encoding::TermEncoding;
 use std::collections::HashMap;
 use std::iter::repeat_n;
 use std::sync::Arc;
@@ -203,23 +200,6 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
     }
 }
 
-pub fn create_state_for_level<TInner: Clone>(
-    pattern: EncodedTermPattern,
-    inner: TInner,
-) -> IndexLevelScanState<TInner> {
-    match pattern {
-        EncodedTermPattern::ObjectId(object_id) => {
-            IndexLevelScanState::Lookup { object_id, inner }
-        }
-        EncodedTermPattern::Variable(_) => IndexLevelScanState::Scan {
-            buffered: None,
-            default_state: inner.clone(),
-            consumed: 0,
-            inner,
-        },
-    }
-}
-
 /// Represents the state of an action to execute.
 #[derive(Debug, Clone)]
 pub enum IndexLevelScanState<TInnerState> {
@@ -272,28 +252,25 @@ impl<TState> IndexLevelActionResult<TState> {
 }
 
 /// Contains the logic for a single index level.
-pub trait IndexLevelImpl {
+pub trait IndexLevelImpl: Default {
     /// The type of the traversal state.
     type ScanState: Clone;
 
-    /// Creates a new empty index level.
-    fn create_empty() -> Self;
-
     /// Inserts the triple into the index.
-    fn insert_triple(
+    fn insert(
+        &mut self,
+        configuration: &IndexConfiguration,
+        triple: &IndexedQuad,
+        cur_depth: usize,
+    ) -> bool;
+
+    /// Deletes the triple from the index.
+    fn remove(
         &mut self,
         configuration: &IndexConfiguration,
         triple: &IndexedQuad,
         cur_depth: usize,
     );
-
-    /// Deletes the triple from the index.
-    fn delete_triple(
-        &mut self,
-        configuration: &IndexConfiguration,
-        triple: &IndexedQuad,
-        cur_depth: usize,
-    ) -> Result<(), IndexDeletionError>;
 
     /// The number of entries in the index part.
     fn num_triples(&self) -> usize;
@@ -309,43 +286,32 @@ pub trait IndexLevelImpl {
 impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
     type ScanState = IndexLevelScanState<TContent::ScanState>;
 
-    fn create_empty() -> Self {
-        Self::default()
-    }
-
-    fn insert_triple(
+    fn insert(
         &mut self,
         configuration: &IndexConfiguration,
         triple: &IndexedQuad,
+        cur_depth: usize,
+    ) -> bool {
+        let part = triple.0[cur_depth];
+        let content = self.0.entry(part).or_insert_with(|| TContent::default());
+        content.insert(configuration, triple, cur_depth + 1)
+    }
+
+    fn remove(
+        &mut self,
+        configuration: &IndexConfiguration,
+        quad: &IndexedQuad,
         cur_depth: usize,
     ) {
-        let part = triple.0[cur_depth];
-        let content = self
-            .0
-            .entry(part)
-            .or_insert_with(|| TContent::create_empty());
-        content.insert_triple(configuration, triple, cur_depth + 1);
-    }
+        let part = quad.0[cur_depth];
 
-    fn delete_triple(
-        &mut self,
-        configuration: &IndexConfiguration,
-        triple: &IndexedQuad,
-        cur_depth: usize,
-    ) -> Result<(), IndexDeletionError> {
-        let part = triple.0[cur_depth];
-
-        let content = self
-            .0
-            .get_mut(&part)
-            .ok_or(IndexDeletionError::NonExistingTriple)?;
-        content.delete_triple(configuration, triple, cur_depth + 1)?;
-
-        if content.num_triples() == 0 {
-            self.0.remove(&part);
+        let content = self.0.get_mut(&part);
+        if let Some(content) = content {
+            content.remove(configuration, quad, cur_depth + 1);
+            if content.num_triples() == 0 {
+                self.0.remove(&part);
+            }
         }
-
-        Ok(())
     }
 
     fn num_triples(&self) -> usize {

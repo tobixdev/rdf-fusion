@@ -14,7 +14,7 @@ impl QuadEqualities {
         pattern: &EncodedTriplePattern,
         blank_node_matching_mode: BlankNodeMatchingMode,
     ) -> Option<Self> {
-        let vars = extract_columns(graph_variable, pattern, blank_node_matching_mode);
+        let vars = extract_columns(graph_variable, pattern);
 
         let mut mapping: HashMap<&Column, [u8; 4]> = HashMap::new();
 

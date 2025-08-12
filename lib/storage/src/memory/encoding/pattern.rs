@@ -1,8 +1,7 @@
-use std::collections::HashSet;
 use crate::memory::object_id::EncodedObjectId;
 
 /// An encoded version of a triple pattern.
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct EncodedTriplePattern {
     pub subject: EncodedTermPattern,
     pub predicate: EncodedTermPattern,
@@ -10,15 +9,12 @@ pub struct EncodedTriplePattern {
 }
 
 /// Represents an encoded version of a term pattern.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EncodedTermPattern {
     /// Filter for the given object id.
     ObjectId(EncodedObjectId),
     /// Represents variables and blank node "variables".
     Variable(String),
-    /// Represents wildcards in the pattern. Optionally, a set of object ids can be provided that
-    /// should be excluded from the wildcard.
-    WildcardExcept(HashSet<EncodedObjectId>),
 }
 
 impl EncodedTermPattern {
@@ -27,6 +23,14 @@ impl EncodedTermPattern {
         match self {
             EncodedTermPattern::ObjectId(oid) => Some(*oid),
             EncodedTermPattern::Variable(_) => None,
+        }
+    }
+
+    /// Returns true if the pattern is a variable.
+    pub fn try_as_variable(&self) -> Option<&str> {
+        match self {
+            EncodedTermPattern::ObjectId(_) => None,
+            EncodedTermPattern::Variable(var) => Some(var.as_str()),
         }
     }
 }
