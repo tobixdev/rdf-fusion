@@ -1,4 +1,4 @@
-use crate::memory::encoding::EncodedObjectIdPattern;
+use crate::memory::encoding::EncodedTermPattern;
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::IndexConfiguration;
 use crate::memory::storage::index::error::IndexDeletionError;
@@ -204,14 +204,14 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
 }
 
 pub fn create_state_for_level<TInner: Clone>(
-    pattern: EncodedObjectIdPattern,
+    pattern: EncodedTermPattern,
     inner: TInner,
 ) -> IndexLevelScanState<TInner> {
     match pattern {
-        EncodedObjectIdPattern::ObjectId(object_id) => {
+        EncodedTermPattern::ObjectId(object_id) => {
             IndexLevelScanState::Lookup { object_id, inner }
         }
-        EncodedObjectIdPattern::Variable => IndexLevelScanState::Scan {
+        EncodedTermPattern::Variable(_) => IndexLevelScanState::Scan {
             buffered: None,
             default_state: inner.clone(),
             consumed: 0,

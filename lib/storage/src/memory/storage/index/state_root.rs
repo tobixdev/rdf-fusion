@@ -1,6 +1,4 @@
 use crate::memory::storage::index::data::IndexContent;
-use crate::memory::storage::log::LogStateRoot;
-use rdf_fusion_model::QuadRef;
 use tokio::sync::OwnedRwLockReadGuard;
 
 /// Provides the state root of the log via an index.
@@ -10,18 +8,9 @@ pub struct IndexStateRoot {
     index: OwnedRwLockReadGuard<IndexContent>,
 }
 
-impl LogStateRoot for IndexStateRoot {
-    fn filter_existing_quads(
-        &self,
-        quads: impl IntoIterator<Item = QuadRef<'_>>,
-    ) -> impl Iterator<Item = QuadRef<'_>> {
-        todo!()
-    }
-
-    fn filter_non_existing_quads(
-        &self,
-        quads: impl IntoIterator<Item = QuadRef<'_>>,
-    ) -> impl Iterator<Item = QuadRef<'_>> {
-        todo!()
+impl IndexStateRoot {
+    /// Creates a new [IndexStateRoot] with the given index.
+    pub fn new(index: OwnedRwLockReadGuard<IndexContent>) -> Self {
+        Self { index }
     }
 }

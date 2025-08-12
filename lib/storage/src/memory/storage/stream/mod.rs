@@ -3,19 +3,18 @@ mod pattern_stream;
 mod quad_equalities;
 mod quad_filter;
 
-use crate::memory::MemObjectIdMapping;
-use crate::memory::object_id::EncodedObjectId;
+use crate::memory::encoding::{EncodedTermPattern, EncodedTriplePattern};
 use datafusion::common::Column;
 pub use log_insertion_stream::*;
 pub use pattern_stream::*;
+pub use quad_equalities::*;
 use rdf_fusion_common::BlankNodeMatchingMode;
-use rdf_fusion_encoding::object_id::UnknownObjectIdError;
-use rdf_fusion_model::{TermPattern, TriplePattern, Variable};
+use rdf_fusion_model::{TermPattern, Variable};
 
 /// Returns a buffer of optional variables from `graph_variable` and `pattern`.
 fn extract_columns(
     graph_variable: Option<&Variable>,
-    pattern: &TriplePattern,
+    pattern: &EncodedTriplePattern,
     blank_node_mode: BlankNodeMatchingMode,
 ) -> [Option<Column>; 4] {
     [
@@ -29,7 +28,7 @@ fn extract_columns(
 }
 
 fn extract_variable(
-    pattern: &TermPattern,
+    pattern: &EncodedTermPattern,
     blank_node_mode: BlankNodeMatchingMode,
 ) -> Option<Column> {
     match pattern {
@@ -40,35 +39,5 @@ fn extract_variable(
             Some(Column::new_unqualified(bnode.as_str()))
         }
         _ => None,
-    }
-}
-
-fn extract_term(
-    object_id_mapping: &MemObjectIdMapping,
-    pattern: &TermPattern,
-    blank_node_mode: BlankNodeMatchingMode,
-) -> Result<Option<EncodedObjectId>, UnknownObjectIdError> {
-    match pattern {
-        TermPattern::NamedNode(nn) => {
-            let object_id = object_id_mapping
-                .try_get_encoded_object_id_from_term(nn.as_ref())
-                .ok_or(UnknownObjectIdError)?;
-            Ok(Some(object_id))
-        }
-        TermPattern::BlankNode(bnode)
-            if blank_node_mode == BlankNodeMatchingMode::Filter =>
-        {
-            let object_id = object_id_mapping
-                .try_get_encoded_object_id_from_term(bnode.as_ref())
-                .ok_or(UnknownObjectIdError)?;
-            Ok(Some(object_id))
-        }
-        TermPattern::Literal(lit) => {
-            let object_id = object_id_mapping
-                .try_get_encoded_object_id_from_term(lit.as_ref())
-                .ok_or(UnknownObjectIdError)?;
-            Ok(Some(object_id))
-        }
-        _ => Ok(None),
     }
 }

@@ -31,6 +31,7 @@ pub struct MemQuadStorage {
 impl MemQuadStorage {
     /// Creates a new [MemQuadStorage] with the given `object_id_mapping`.
     pub fn new(object_id_mapping: Arc<MemObjectIdMapping>, batch_size: usize) -> Self {
+        // TODO index state source
         Self {
             log: MemLog::new(object_id_mapping.clone()),
             indices: IndexSet::new(object_id_mapping.encoding(), batch_size),
@@ -57,7 +58,7 @@ impl MemQuadStorage {
         } else {
             debug!("Skipping index update because no changes were detected.");
         }
-        snapshot.version_number
+        snapshot.version_number()
     }
 }
 

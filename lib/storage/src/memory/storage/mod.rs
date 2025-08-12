@@ -5,8 +5,13 @@ mod pattern_exec;
 mod snapshot;
 mod stream;
 
+use crate::memory::encoding::EncodedTermPattern;
+use crate::memory::MemObjectIdMapping;
 pub use mem_storage::MemQuadStorage;
 pub use pattern_exec::MemQuadPatternExec;
+use rdf_fusion_common::BlankNodeMatchingMode;
+use rdf_fusion_encoding::object_id::UnknownObjectIdError;
+use rdf_fusion_model::TermPattern;
 pub use snapshot::MemQuadStorageSnapshot;
 use std::fmt::{Display, Formatter};
 
@@ -22,7 +27,7 @@ impl Display for VersionNumber {
 
 impl VersionNumber {
     /// Creates the next version number.
-    pub fn increment(&self) -> Self {
+    pub fn next(&self) -> Self {
         Self(self.0 + 1)
     }
 }

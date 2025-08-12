@@ -1,19 +1,15 @@
-use crate::memory::MemObjectIdMapping;
-use crate::memory::encoding::EncodedQuad;
-use crate::memory::storage::stream::extract_columns;
-use crate::memory::storage::stream::quad_equalities::QuadEqualities;
+use crate::memory::encoding::{EncodedActiveGraph, EncodedQuad, EncodedTriplePattern};
 use crate::memory::storage::stream::quad_filter::QuadFilter;
+use crate::memory::storage::stream::{extract_columns, QuadEqualities};
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions, UInt32Builder};
 use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
-use datafusion::common::{Column, DataFusionError, exec_err};
+use datafusion::common::{exec_err, Column, DataFusionError};
 use datafusion::execution::RecordBatchStream;
 use futures::Stream;
 use rdf_fusion_common::{AResult, BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::object_id::{ObjectIdEncoding, UnknownObjectIdError};
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::{QuadStorageEncoding, TermEncoding};
-use rdf_fusion_logical::ActiveGraph;
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
-use rdf_fusion_model::{TriplePattern, Variable};
+use rdf_fusion_model::Variable;
 use std::cmp::min;
 use std::collections::HashSet;
 use std::pin::Pin;
@@ -43,46 +39,30 @@ pub struct MemLogInsertionsStream {
 impl MemLogInsertionsStream {
     /// Creates a new log insertion stream.
     #[allow(clippy::too_many_arguments)]
-    pub fn try_new(
-        object_id_mapping: &MemObjectIdMapping,
+    pub fn new(
+        schema: SchemaRef,
         storage_encoding: QuadStorageEncoding,
-        active_graph: &ActiveGraph,
+        active_graph: &EncodedActiveGraph,
         graph_variable: Option<&Variable>,
-        pattern: &TriplePattern,
+        pattern: &EncodedTriplePattern,
         blank_node_mode: BlankNodeMatchingMode,
         insertions: Vec<EncodedQuad>,
         batch_size: usize,
-    ) -> Result<Self, UnknownObjectIdError> {
-        let schema = Arc::clone(
-            compute_schema_for_triple_pattern(
-                &storage_encoding,
-                graph_variable.as_ref().map(|v| v.as_ref()),
-                pattern,
-                blank_node_mode,
-            )
-            .inner(),
-        );
+    ) -> Self {
         let columns = extract_columns(graph_variable, pattern, blank_node_mode);
-
-        let filter = QuadFilter::try_new(
-            object_id_mapping,
-            active_graph.clone(),
-            pattern,
-            blank_node_mode,
-        )?;
+        let filter = QuadFilter::new(&active_graph, pattern);
         let equalities =
-            QuadEqualities::try_new(graph_variable, pattern, blank_node_mode);
-
-        Ok(Self {
+            QuadEqualities::try_new(graph_variable, &pattern, blank_node_mode);
+        Self {
             storage_encoding,
             schema,
             columns,
             filter,
-            equalities,
             insertions,
+            equalities,
             batch_size,
             consumed: 0,
-        })
+        }
     }
 
     /// Creates a builder for the record batches.

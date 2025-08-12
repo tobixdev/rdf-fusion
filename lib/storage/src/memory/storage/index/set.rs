@@ -1,12 +1,12 @@
-use crate::memory::encoding::EncodedObjectIdPattern;
-use crate::memory::storage::VersionNumber;
-use crate::memory::storage::index::error::IndexScanError;
+use crate::memory::encoding::EncodedTermPattern;
 use crate::memory::storage::index::data::{
-    IndexLookup, MemHashTripleIndex, MemHashTripleIndexIterator,
+    MemHashTripleIndex, MemHashIndexIterator,
 };
-use crate::memory::storage::index::{IndexComponents, IndexConfiguration};
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use crate::memory::storage::index::error::IndexScanError;
+use crate::memory::storage::index::{IndexComponents, IndexConfiguration, IndexLookup};
 use crate::memory::storage::log::LogChanges;
+use crate::memory::storage::VersionNumber;
+use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 
 /// Represents a set of multiple indexes, each of which indexes a different ordering of the
 /// triple component (e.g., SPO, POS). This is necessary as different triple patterns require
@@ -18,6 +18,7 @@ use crate::memory::storage::log::LogChanges;
 /// evaluated with an SPO index. For this pattern, the query engine should use an POS or OPS index.
 ///
 /// The [IndexSet] allows managing multiple such indices.
+#[derive(Debug)]
 pub struct IndexSet {
     spo: MemHashTripleIndex,
     pos: MemHashTripleIndex,
@@ -53,7 +54,7 @@ impl IndexSet {
         &self,
         pattern: IndexLookup,
         version_number: VersionNumber,
-    ) -> Result<MemHashTripleIndexIterator, IndexScanError> {
+    ) -> Result<MemHashIndexIterator, IndexScanError> {
         let chosen_index = self.choose_index(&pattern);
         chosen_index.scan(pattern, version_number).await
     }
@@ -117,14 +118,12 @@ impl IndexSet {
     /// # Errors
     ///
     /// - If the version of the index is not [LogChanges::from_version] - 1.
-    pub async fn update(&self, log_changes: LogChanges) {
-
-    }
+    pub async fn update(&self, log_changes: LogChanges) {}
 }
 
 /// Re-orders the given `pattern` for the given `components`.
 fn reorder_pattern(pattern: &IndexLookup, components: &IndexComponents) -> IndexLookup {
-    let mut new_lookup = [EncodedObjectIdPattern::Variable; 4];
+    let mut new_lookup = [EncodedTermPattern::Variable; 4];
 
     for (i, lookup) in new_lookup.iter_mut().enumerate() {
         let gspo_index = components.0[i].gspo_index();

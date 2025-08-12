@@ -29,6 +29,11 @@ impl MemLogSnapshot {
         }
     }
 
+    /// Returns the version number of the snapshot.
+    pub fn version_number(&self) -> VersionNumber {
+        self.version_number
+    }
+
     /// Computes the changes up to the current version number. These changes should be used by the
     /// quad pattern stream to incorporate the changes in the log.
     pub async fn compute_changes(&self) -> Option<LogChanges> {

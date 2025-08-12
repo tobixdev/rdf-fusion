@@ -2,14 +2,14 @@ use crate::memory::storage::log::builder::MemLogEntryBuilder;
 use crate::memory::storage::log::content::{
     ClearTarget, MemLogContent, MemLogEntry, MemLogEntryAction,
 };
+use crate::memory::storage::log::state_root::HistoricLogState;
 use crate::memory::storage::VersionNumber;
 use crate::memory::MemObjectIdMapping;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_model::{GraphNameRef, NamedOrBlankNodeRef, Quad, QuadRef};
-use crate::memory::storage::log::state_root::LogStateRoot;
 
 /// Allows writing entries into the log.
-pub struct MemLogWriter<'log, TRoot: LogStateRoot> {
+pub struct MemLogWriter<'log> {
     /// A mutable reference to the log content. The writer has exclusive access to the log.
     content: &'log mut MemLogContent,
     /// A mapping between terms and object ids.
@@ -19,16 +19,16 @@ pub struct MemLogWriter<'log, TRoot: LogStateRoot> {
     /// The logs created by the writer.
     log_builder: MemLogEntryBuilder,
     /// The log state root.
-    log_state_root: TRoot,
+    log_state_root: Box<dyn HistoricLogState>,
 }
 
-impl<'log, TRoot: LogStateRoot> MemLogWriter<'log, TRoot> {
+impl<'log> MemLogWriter<'log> {
     /// Creates a new [MemLogWriter].
     pub fn new(
         log: &'log mut MemLogContent,
         object_id_mapping: &'log MemObjectIdMapping,
         version_number: VersionNumber,
-        log_state_root: impl LogStateRoot,
+        log_state_root: Box<dyn HistoricLogState>,
     ) -> Self {
         MemLogWriter {
             content: log,
@@ -153,7 +153,7 @@ impl<'log, TRoot: LogStateRoot> MemLogWriter<'log, TRoot> {
 
     /// Returns the log array.
     pub fn into_log_entry(self) -> Result<Option<MemLogEntry>, StorageError> {
-        let version_number = self.version_number.increment();
+        let version_number = self.version_number.next();
         Ok(self.log_builder.build(version_number)?)
     }
 }

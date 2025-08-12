@@ -1,4 +1,4 @@
-use crate::memory::encoding::EncodedObjectIdPattern;
+use crate::memory::encoding::EncodedTermPattern;
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::error::{
     IndexDeletionError, IndexScanError, IndexUpdateError,
@@ -7,7 +7,7 @@ use crate::memory::storage::index::level::{
     create_state_for_level, IndexLevel, IndexLevelActionResult, IndexLevelImpl,
     IndexLevelScanState,
 };
-use crate::memory::storage::index::IndexConfiguration;
+use crate::memory::storage::index::{IndexConfiguration, IndexLookup};
 use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{Array, UInt32Array};
 use rdf_fusion_encoding::object_id::ObjectIdArray;
@@ -23,6 +23,7 @@ type IndexScanState =
     IndexLevelScanState<IndexLevelScanState<IndexLevelScanState<IndexDataScanState>>>;
 
 /// Holds the data for the last index level.
+#[derive(Debug)]
 struct IndexData {
     /// The object ids. The index tries to keep the object ids in batches of `batch_size`.
     arrays: Vec<ObjectIdArray>,
@@ -31,11 +32,9 @@ struct IndexData {
 }
 
 #[derive(Debug, Clone)]
-pub struct IndexLookup(pub [EncodedObjectIdPattern; 4]);
-
-#[derive(Debug, Clone)]
 pub struct IndexedQuad(pub [EncodedObjectId; 4]);
 
+#[derive(Debug)]
 pub(super) struct IndexContent {
     /// The version that this index reflects.
     version: VersionNumber,
@@ -43,6 +42,7 @@ pub(super) struct IndexContent {
     index: Index,
 }
 
+#[derive(Debug)]
 pub struct MemHashTripleIndex {
     /// The index content.
     content: Arc<RwLock<IndexContent>>,
@@ -71,17 +71,17 @@ impl MemHashTripleIndex {
 
     /// Performs a lookup in the index and returns a list of object arrays.
     ///
-    /// See [MemHashTripleIndexIterator] for more information.
+    /// See [MemHashIndexIterator] for more information.
     pub async fn scan(
         &self,
         lookup: IndexLookup,
         version_number: VersionNumber,
-    ) -> Result<MemHashTripleIndexIterator, IndexScanError> {
+    ) -> Result<MemHashIndexIterator, IndexScanError> {
         let lock = self.content.clone().read_owned().await;
         if lock.version > version_number {
             return Err(IndexScanError::UnexpectedIndexVersionNumber);
         }
-        Ok(MemHashTripleIndexIterator::new(
+        Ok(MemHashIndexIterator::new(
             lock,
             self.configuration.clone(),
             lookup,
@@ -130,7 +130,7 @@ impl MemHashTripleIndex {
 ///
 /// If no variable is given (and only term patterns) the iterator will return a single item with an
 /// empty vector. If no triple matches the pattern, then `None` will be returned.
-pub struct MemHashTripleIndexIterator {
+pub struct MemHashIndexIterator {
     /// The iterator holds a read lock on the entire index such that another transaction cannot
     /// delete data from the index during iteration.
     index: OwnedRwLockReadGuard<IndexContent>,
@@ -140,8 +140,8 @@ pub struct MemHashTripleIndexIterator {
     state: Option<IndexScanState>,
 }
 
-impl MemHashTripleIndexIterator {
-    /// Creates a new [MemHashTripleIndexIterator].
+impl MemHashIndexIterator {
+    /// Creates a new [MemHashIndexIterator].
     fn new(
         index: OwnedRwLockReadGuard<IndexContent>,
         configuration: IndexConfiguration,
@@ -156,23 +156,23 @@ impl MemHashTripleIndexIterator {
     }
 }
 
-fn build_state(patterns: [EncodedObjectIdPattern; 4]) -> IndexScanState {
+fn build_state(patterns: [EncodedTermPattern; 4]) -> IndexScanState {
     let data = create_state_for_data(patterns[3]);
     let first_level = create_state_for_level(patterns[2], data);
     let second_level = create_state_for_level(patterns[1], first_level);
     create_state_for_level(patterns[0], second_level)
 }
 
-fn create_state_for_data(pattern: EncodedObjectIdPattern) -> IndexDataScanState {
+fn create_state_for_data(pattern: EncodedTermPattern) -> IndexDataScanState {
     match pattern {
-        EncodedObjectIdPattern::ObjectId(object_id) => {
+        EncodedTermPattern::ObjectId(object_id) => {
             IndexDataScanState::Lookup { object_id }
         }
-        EncodedObjectIdPattern::Variable => IndexDataScanState::Scan { consumed: 0 },
+        EncodedTermPattern::Variable(_) => IndexDataScanState::Scan { consumed: 0 },
     }
 }
 
-impl Iterator for MemHashTripleIndexIterator {
+impl Iterator for MemHashIndexIterator {
     type Item = Vec<ObjectIdArray>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -354,10 +354,10 @@ mod tests {
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
-            EncodedObjectIdPattern::ObjectId(eid(0)),
-            EncodedObjectIdPattern::ObjectId(eid(1)),
-            EncodedObjectIdPattern::ObjectId(eid(2)),
-            EncodedObjectIdPattern::ObjectId(eid(3)),
+            EncodedTermPattern::ObjectId(eid(0)),
+            EncodedTermPattern::ObjectId(eid(1)),
+            EncodedTermPattern::ObjectId(eid(2)),
+            EncodedTermPattern::ObjectId(eid(3)),
         ]);
         let mut iter = index.scan(lookup, VersionNumber(1)).await.unwrap();
         let result = iter.next();
@@ -375,7 +375,7 @@ mod tests {
 
         let result = index
             .scan(
-                IndexLookup([EncodedObjectIdPattern::Variable; 4]),
+                IndexLookup([EncodedTermPattern::Variable; 4]),
                 VersionNumber(1),
             )
             .await;
@@ -397,10 +397,10 @@ mod tests {
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
-            EncodedObjectIdPattern::ObjectId(eid(0)),
-            EncodedObjectIdPattern::Variable,
-            EncodedObjectIdPattern::ObjectId(eid(2)),
-            EncodedObjectIdPattern::ObjectId(eid(3)),
+            EncodedTermPattern::ObjectId(eid(0)),
+            EncodedTermPattern::Variable,
+            EncodedTermPattern::ObjectId(eid(2)),
+            EncodedTermPattern::ObjectId(eid(3)),
         ]);
 
         run_matching_test(index, lookup, 1, 2).await;
@@ -417,10 +417,10 @@ mod tests {
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
-            EncodedObjectIdPattern::ObjectId(eid(0)),
-            EncodedObjectIdPattern::ObjectId(eid(1)),
-            EncodedObjectIdPattern::Variable,
-            EncodedObjectIdPattern::ObjectId(eid(3)),
+            EncodedTermPattern::ObjectId(eid(0)),
+            EncodedTermPattern::ObjectId(eid(1)),
+            EncodedTermPattern::Variable,
+            EncodedTermPattern::ObjectId(eid(3)),
         ]);
 
         run_matching_test(index, lookup, 1, 1).await;
@@ -437,10 +437,10 @@ mod tests {
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
-            EncodedObjectIdPattern::ObjectId(eid(0)),
-            EncodedObjectIdPattern::ObjectId(eid(1)),
-            EncodedObjectIdPattern::ObjectId(eid(2)),
-            EncodedObjectIdPattern::Variable,
+            EncodedTermPattern::ObjectId(eid(0)),
+            EncodedTermPattern::ObjectId(eid(1)),
+            EncodedTermPattern::ObjectId(eid(2)),
+            EncodedTermPattern::Variable,
         ]);
 
         run_matching_test(index, lookup, 1, 1).await;
@@ -457,10 +457,10 @@ mod tests {
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
         let lookup = IndexLookup([
-            EncodedObjectIdPattern::ObjectId(eid(0)),
-            EncodedObjectIdPattern::Variable,
-            EncodedObjectIdPattern::ObjectId(eid(2)),
-            EncodedObjectIdPattern::Variable,
+            EncodedTermPattern::ObjectId(eid(0)),
+            EncodedTermPattern::Variable,
+            EncodedTermPattern::ObjectId(eid(2)),
+            EncodedTermPattern::Variable,
         ]);
 
         run_matching_test(index, lookup, 2, 2).await;
@@ -476,7 +476,7 @@ mod tests {
         ];
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
 
-        let lookup = IndexLookup([EncodedObjectIdPattern::Variable; 4]);
+        let lookup = IndexLookup([EncodedTermPattern::Variable; 4]);
 
         run_matching_test(index, lookup, 4, 3).await;
     }
@@ -492,10 +492,10 @@ mod tests {
 
         // The lookup matches a single IndexData that will be scanned.
         let lookup = IndexLookup([
-            EncodedObjectIdPattern::ObjectId(eid(0)),
-            EncodedObjectIdPattern::ObjectId(eid(1)),
-            EncodedObjectIdPattern::ObjectId(eid(2)),
-            EncodedObjectIdPattern::Variable,
+            EncodedTermPattern::ObjectId(eid(0)),
+            EncodedTermPattern::ObjectId(eid(1)),
+            EncodedTermPattern::ObjectId(eid(2)),
+            EncodedTermPattern::Variable,
         ]);
 
         run_batch_size_test(index, lookup, &[10, 10, 5], true).await;
@@ -513,10 +513,10 @@ mod tests {
         // The lookup matches 25 different IndexLevels, each having exactly one data entry. The
         // batches should be combined into a single batch.
         let lookup = IndexLookup([
-            EncodedObjectIdPattern::ObjectId(eid(0)),
-            EncodedObjectIdPattern::ObjectId(eid(1)),
-            EncodedObjectIdPattern::Variable,
-            EncodedObjectIdPattern::ObjectId(eid(2)),
+            EncodedTermPattern::ObjectId(eid(0)),
+            EncodedTermPattern::ObjectId(eid(1)),
+            EncodedTermPattern::Variable,
+            EncodedTermPattern::ObjectId(eid(2)),
         ]);
 
         run_batch_size_test(index, lookup, &[10, 10, 5], true).await;
@@ -533,7 +533,7 @@ mod tests {
         index.update(&triples, &[], VersionNumber(1)).await.unwrap();
         index.update(&[], &triples, VersionNumber(2)).await.unwrap();
 
-        run_non_matching_test(index, IndexLookup([EncodedObjectIdPattern::Variable; 4]))
+        run_non_matching_test(index, IndexLookup([EncodedTermPattern::Variable; 4]))
             .await;
     }
 

@@ -2,13 +2,20 @@ use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use std::collections::HashSet;
 use thiserror::Error;
 
-mod error;
 mod data;
+mod error;
 mod level;
 mod set;
 mod state_root;
 
+use crate::memory::encoding::EncodedTermPattern;
+pub use data::MemHashIndexIterator;
+pub use error::*;
 pub use set::IndexSet;
+pub use state_root::IndexStateRoot;
+
+#[derive(Debug, Clone)]
+pub struct IndexLookup(pub [EncodedTermPattern; 4]);
 
 /// Holds the configuration for the index.
 #[derive(Debug, Clone)]

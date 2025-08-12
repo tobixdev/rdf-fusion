@@ -1,11 +1,17 @@
+use crate::memory::encoding::{EncodedActiveGraph, EncodedTriplePattern};
+use crate::memory::storage::log::LogChanges;
+use crate::memory::storage::stream::quad_equalities::QuadEqualities;
 use crate::memory::storage::stream::MemLogInsertionsStream;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::execution::RecordBatchStream;
+use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream, TaskContext};
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use futures::{Stream, StreamExt, ready};
-use rdf_fusion_common::DFResult;
+use futures::{ready, Stream, StreamExt};
+use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_model::Variable;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 pub struct MemQuadPatternStream {

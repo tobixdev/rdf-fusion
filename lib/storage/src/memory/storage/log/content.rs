@@ -43,11 +43,6 @@ pub enum MemLogEntryAction {
     DropGraph(EncodedObjectId),
 }
 
-/// Holds the actual log entries.
-pub struct MemLogContent {
-    logs: Vec<MemLogEntry>,
-}
-
 /// Reflects the changes that have been made to the store.
 ///
 /// The changes are constructed in such a way that they are directly usable by a query engine. For
@@ -77,10 +72,26 @@ pub struct LogChanges {
     pub created_named_graphs: HashSet<EncodedObjectId>,
 }
 
+/// Holds the actual log entries.
+pub struct MemLogContent {
+    /// The current version number of the log.
+    version_number: VersionNumber,
+    /// The list of log entries.
+    logs: Vec<MemLogEntry>,
+}
+
 impl MemLogContent {
     /// Creates a new [MemLogContent].
     pub fn new() -> Self {
-        Self { logs: vec![] }
+        Self {
+            logs: vec![],
+            version_number: VersionNumber(0),
+        }
+    }
+
+    /// Returns the current version number.
+    pub fn version_number(&self) -> VersionNumber {
+        self.version_number
     }
 
     /// Returns the list of contained [MemLogEntry]s.
@@ -90,6 +101,7 @@ impl MemLogContent {
 
     /// Appends a [MemLogEntry].
     pub fn append_log_entry(&mut self, log_array: MemLogEntry) {
+        self.version_number = log_array.version_number;
         self.logs.push(log_array);
     }
 
