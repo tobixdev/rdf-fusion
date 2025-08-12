@@ -189,6 +189,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn scan_with_no_match() {
+        let index = create_index();
+        let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        let version_number = index.version_number().await;
+        let result = index
+            .scan(
+                IndexScanInstructions([traverse(1), scan("b"), traverse(2), traverse(3)]),
+                version_number,
+            )
+            .await
+            .unwrap()
+            .next();
+
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
     async fn scan_subject_var() {
         let index = create_index();
         let quads = vec![

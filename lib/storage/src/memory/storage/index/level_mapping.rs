@@ -127,7 +127,7 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         }
         IndexLevelActionResult {
             batch,
-            new_state: Some(IndexLevelScanState::Traverse(traversal)),
+            new_state: Some(IndexLevelScanState::Scan(name, traversal)),
         }
     }
 
