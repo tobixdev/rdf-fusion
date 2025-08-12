@@ -770,8 +770,8 @@ impl Store {
     /// Optimizes the database for future workload.
     ///
     /// Useful to call after a batch upload or another similar operation. Usually
-    pub fn optimize(&self) -> Result<(), StorageError> {
-        self.engine.storage().optimize()
+    pub async fn optimize(&self) -> Result<(), StorageError> {
+        self.engine.storage().optimize().await
     }
 
     /// Validates that all the store invariants hold in the data storage

@@ -1,15 +1,16 @@
+use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::level_data::{IndexData, IndexDataScanState};
 use crate::memory::storage::index::level_mapping::{
     IndexLevel, IndexLevelImpl, IndexLevelScanState,
 };
 use crate::memory::storage::index::{
     IndexConfiguration, IndexScanError, IndexScanInstruction, IndexScanInstructions,
-    IndexUpdateError, IndexedQuad,
+    IndexUpdateError, IndexedQuad, UnexpectedVersionNumberError,
 };
 use crate::memory::storage::VersionNumber;
 use rdf_fusion_encoding::object_id::ObjectIdArray;
 use std::sync::Arc;
-use tokio::sync::{OwnedRwLockReadGuard, RwLock};
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 
 /// Represents the index.
 type IndexDataStructure = IndexLevel<IndexLevel<IndexLevel<IndexData>>>;
@@ -52,6 +53,20 @@ impl MemHashTripleIndex {
         &self.configuration
     }
 
+    /// TODO
+    pub async fn version_number(&self) -> VersionNumber {
+        self.content.read().await.version
+    }
+
+    /// Returns the total number of quads.
+    pub async fn len(
+        &self,
+        version_number: VersionNumber,
+    ) -> Result<usize, IndexScanError> {
+        let content = self.obtain_read_lock(version_number).await?;
+        Ok(content.index.num_triples())
+    }
+
     /// Performs a lookup in the index and returns a list of object arrays.
     ///
     /// See [MemHashIndexIterator] for more information.
@@ -60,15 +75,23 @@ impl MemHashTripleIndex {
         lookup: IndexScanInstructions,
         version_number: VersionNumber,
     ) -> Result<MemHashIndexIterator, IndexScanError> {
-        let lock = self.content.clone().read_owned().await;
-        if lock.version > version_number {
-            return Err(IndexScanError::UnexpectedIndexVersionNumber);
-        }
+        let content = self.obtain_read_lock(version_number).await?;
         Ok(MemHashIndexIterator::new(
-            lock,
+            content,
             self.configuration.clone(),
             lookup,
         ))
+    }
+
+    /// Inserts a single entry at the top level, using the default levels for the inner. Can be used
+    /// to insert named graphs without any triples.
+    pub async fn scan_top_level(
+        &self,
+        version_number: VersionNumber,
+    ) -> Result<Vec<EncodedObjectId>, IndexScanError> {
+        let mut content = self.obtain_read_lock(version_number).await?;
+        let result = content.index.scan_this_level();
+        Ok(result)
     }
 
     /// Inserts a list of quads.
@@ -76,17 +99,14 @@ impl MemHashTripleIndex {
     /// Quads that already exist in the index are ignored.
     pub async fn insert(
         &self,
-        quads: impl IntoIterator<Item = &IndexedQuad>,
+        quads: impl IntoIterator<Item = IndexedQuad>,
         version_number: VersionNumber,
     ) -> Result<usize, IndexUpdateError> {
-        let mut content = self.content.write().await;
-        if content.version.next() != version_number {
-            return Err(IndexUpdateError::UnexpectedVersionNumber);
-        }
+        let mut content = self.obtain_write_lock(version_number).await?;
 
         let mut count = 0;
         for quad in quads {
-            let was_inserted = content.index.insert(&self.configuration, quad, 0);
+            let was_inserted = content.index.insert(&self.configuration, &quad, 0);
             if was_inserted {
                 count += 1;
             }
@@ -96,25 +116,91 @@ impl MemHashTripleIndex {
         Ok(count)
     }
 
+    /// Inserts a single entry at the top level, using the default levels for the inner. Can be used
+    /// to insert named graphs without any triples.
+    pub async fn insert_top_level(
+        &self,
+        object_id: EncodedObjectId,
+        version_number: VersionNumber,
+    ) -> Result<bool, IndexUpdateError> {
+        let mut content = self.obtain_write_lock(version_number).await?;
+
+        let result = content.index.insert_this_level(object_id);
+
+        content.version = content.version.next();
+        Ok(result)
+    }
+
+    /// TODO
+    pub async fn clear_top_level(
+        &self,
+        object_id: EncodedObjectId,
+        version_number: VersionNumber,
+    ) -> Result<bool, IndexUpdateError> {
+        let mut content = self.obtain_write_lock(version_number).await?;
+
+        let result = content.index.clear_entry(object_id);
+
+        content.version = content.version.next();
+        Ok(result)
+    }
+
+    /// TODO
+    pub async fn clear(
+        &self,
+        version_number: VersionNumber,
+    ) -> Result<(), IndexUpdateError> {
+        let mut content = self.obtain_write_lock(version_number).await?;
+        content.index.clear_level();
+        content.version = content.version.next();
+        Ok(())
+    }
+
+    /// TODO
+    pub async fn drop_top_level(
+        &self,
+        object_id: EncodedObjectId,
+        version_number: VersionNumber,
+    ) -> Result<bool, IndexUpdateError> {
+        let mut content = self.obtain_write_lock(version_number).await?;
+        let result = content.index.remove_this_level(object_id);
+        content.version = content.version.next();
+        Ok(result)
+    }
+
+    /// TODO
+    pub async fn contains_top_level(
+        &self,
+        object_id: EncodedObjectId,
+        version_number: VersionNumber,
+    ) -> Result<bool, IndexUpdateError> {
+        let mut content = self.obtain_read_lock(version_number).await.expect("TODO");
+
+        let result = content.index.contains_this_level(object_id);
+
+        Ok(result)
+    }
+
     /// Removes a list of quads.
     ///
     /// Quads that do not exist in the index are ignored.
     pub async fn remove(
         &self,
-        quads: impl IntoIterator<Item = &IndexedQuad>,
+        quads: impl IntoIterator<Item = IndexedQuad>,
         version_number: VersionNumber,
-    ) -> Result<(), IndexUpdateError> {
-        let mut content = self.content.write().await;
-        if content.version.next() != version_number {
-            return Err(IndexUpdateError::UnexpectedVersionNumber);
-        }
+    ) -> Result<usize, IndexUpdateError> {
+        let mut content = self.obtain_write_lock(version_number).await?;
 
+        let mut count = 0;
         for quad in quads {
-            content.index.remove(&self.configuration, quad, 0);
+            let was_removed = content.index.remove(&self.configuration, &quad, 0);
+            if was_removed {
+                count += 1;
+            }
         }
 
         content.version = content.version.next();
-        Ok(())
+        Ok(count)
     }
 
     /// Deletes a list of quads.
@@ -123,6 +209,32 @@ impl MemHashTripleIndex {
         for quad in quads {
             content.index.remove(&self.configuration, quad, 0);
         }
+    }
+
+    async fn obtain_read_lock(
+        &self,
+        version_number: VersionNumber,
+    ) -> Result<OwnedRwLockReadGuard<IndexContent>, IndexScanError> {
+        let mut content = self.content.clone().read_owned().await;
+        if content.version != version_number {
+            return Err(IndexScanError::UnexpectedVersionNumber(
+                UnexpectedVersionNumberError(content.version, version_number),
+            ));
+        }
+        Ok(content)
+    }
+
+    async fn obtain_write_lock(
+        &self,
+        version_number: VersionNumber,
+    ) -> Result<OwnedRwLockWriteGuard<IndexContent>, IndexUpdateError> {
+        let mut content = self.content.clone().write_owned().await;
+        if content.version.next() != version_number {
+            return Err(IndexUpdateError::UnexpectedVersionNumber(
+                UnexpectedVersionNumberError(content.version.next(), version_number),
+            ));
+        }
+        Ok(content)
     }
 }
 

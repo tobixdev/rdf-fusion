@@ -1,16 +1,12 @@
-use crate::memory::storage::index::error::IndexScanError;
-use crate::memory::storage::index::hash_index::{
-    MemHashIndexIterator, MemHashTripleIndex,
-};
+use crate::memory::encoding::EncodedQuad;
+use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::storage::index::hash_index::MemHashTripleIndex;
 use crate::memory::storage::index::{
-    IndexComponents, IndexConfiguration, IndexScanInstructions,
+    IndexComponents, IndexConfiguration, IndexScanInstructions, IndexedQuad,
 };
 use crate::memory::storage::VersionNumber;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use rdf_fusion_model::{
-    GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
-};
 use std::sync::Arc;
 
 /// Represents a set of multiple indexes, each of which indexes a different ordering of the
@@ -26,9 +22,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct IndexSet {
     version_number: VersionNumber,
-    spo: Arc<MemHashTripleIndex>,
-    pos: Arc<MemHashTripleIndex>,
-    ops: Arc<MemHashTripleIndex>,
+    gspo: Arc<MemHashTripleIndex>,
 }
 
 impl IndexSet {
@@ -36,20 +30,10 @@ impl IndexSet {
     pub fn new(object_id_encoding: ObjectIdEncoding, batch_size: usize) -> Self {
         Self {
             version_number: VersionNumber(0),
-            spo: Arc::new(MemHashTripleIndex::new(IndexConfiguration {
+            gspo: Arc::new(MemHashTripleIndex::new(IndexConfiguration {
                 object_id_encoding: object_id_encoding.clone(),
                 batch_size,
                 components: IndexComponents::GSPO,
-            })),
-            pos: Arc::new(MemHashTripleIndex::new(IndexConfiguration {
-                object_id_encoding: object_id_encoding.clone(),
-                batch_size,
-                components: IndexComponents::GPOS,
-            })),
-            ops: Arc::new(MemHashTripleIndex::new(IndexConfiguration {
-                object_id_encoding: object_id_encoding.clone(),
-                batch_size,
-                components: IndexComponents::GOSP,
             })),
         }
     }
@@ -60,8 +44,11 @@ impl IndexSet {
     }
 
     /// Choses the index with the highest scan score (see [Self::compute_scan_score]).
-    pub fn choose_index(&self, pattern: &IndexScanInstructions) -> Arc<MemHashTripleIndex> {
-        let index = [&self.spo, &self.pos, &self.ops]
+    pub fn choose_index(
+        &self,
+        pattern: &IndexScanInstructions,
+    ) -> Arc<MemHashTripleIndex> {
+        let index = [&self.gspo]
             .into_iter()
             .max_by(|lhs, rhs| {
                 let lhs_score =
@@ -110,51 +97,116 @@ impl IndexSet {
     }
 
     pub async fn len(&self) -> Result<usize, StorageError> {
-        todo!()
+        Ok(self.gspo.len(self.version_number).await.expect("TODO"))
     }
 
-    pub async fn insert(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
-        todo!()
+    pub async fn insert(&mut self, quads: &[EncodedQuad]) -> Result<usize, StorageError> {
+        let version_number = self.version_number.next();
+
+        let mut count = 0;
+        for index in [&self.gspo] {
+            let quads = quads
+                .iter()
+                .map(|q| IndexedQuad([q.graph_name.0, q.subject, q.predicate, q.object]));
+            count = index.insert(quads, version_number).await.expect("TODO");
+        }
+
+        self.version_number = version_number;
+        Ok(count)
     }
 
-    pub async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
-        todo!()
+    pub async fn remove(&mut self, quads: &[EncodedQuad]) -> Result<usize, StorageError> {
+        let version_number = self.version_number.next();
+
+        let mut count = 0;
+        for index in [&self.gspo] {
+            let quads = quads
+                .iter()
+                .map(|q| IndexedQuad([q.graph_name.0, q.subject, q.predicate, q.object]));
+            count = index.remove(quads, version_number).await.expect("TODO")
+        }
+
+        self.version_number = version_number;
+        Ok(count)
     }
 
     pub async fn insert_named_graph<'a>(
-        &self,
-        graph_name: NamedOrBlankNodeRef<'a>,
+        &mut self,
+        graph_name: EncodedObjectId,
     ) -> Result<bool, StorageError> {
-        todo!()
+        let mut result = false;
+
+        let version_number = self.version_number.next();
+        for index in [&self.gspo] {
+            result = index
+                .insert_top_level(graph_name, version_number)
+                .await
+                .expect("TODO");
+        }
+
+        self.version_number = version_number;
+        Ok(result)
     }
 
-    pub async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        todo!()
+    pub async fn named_graphs(&self) -> Result<Vec<EncodedObjectId>, StorageError> {
+        let mut inner_result = self
+            .gspo
+            .scan_top_level(self.version_number)
+            .await
+            .expect("TODO");
+        inner_result.retain(|oid| *oid != DEFAULT_GRAPH_ID.0);
+        Ok(inner_result)
     }
 
     pub async fn contains_named_graph<'a>(
         &self,
-        graph_name: NamedOrBlankNodeRef<'a>,
+        graph_name: EncodedObjectId,
     ) -> Result<bool, StorageError> {
-        todo!()
+        Ok(self
+            .gspo
+            .contains_top_level(graph_name, self.version_number)
+            .await
+            .expect("TODO"))
     }
 
-    pub async fn clear(&self) -> Result<(), StorageError> {
-        todo!()
+    pub async fn clear(&mut self) -> Result<(), StorageError> {
+        let version_number = self.version_number.next();
+
+        self.gspo.clear(version_number).await.expect("TODO");
+
+        self.version_number = version_number;
+        Ok(())
     }
 
     pub async fn clear_graph<'a>(
-        &self,
-        graph_name: GraphNameRef<'a>,
+        &mut self,
+        graph_name: EncodedGraphObjectId,
     ) -> Result<(), StorageError> {
-        todo!()
+        let version_number = self.version_number.next();
+
+        self.gspo
+            .clear_top_level(graph_name.0, version_number)
+            .await
+            .expect("TODO");
+
+        self.version_number = version_number;
+        Ok(())
     }
 
     pub async fn drop_named_graph(
-        &self,
-        graph_name: NamedOrBlankNodeRef<'_>,
+        &mut self,
+        graph_name: EncodedObjectId,
     ) -> Result<bool, StorageError> {
-        todo!()
+        let version_number = self.version_number.next();
+
+        let result = self
+            .gspo
+            .drop_top_level(graph_name, version_number)
+            .await
+            .expect("TODO");
+
+        self.version_number = version_number;
+        Ok(result)
     }
 }
 

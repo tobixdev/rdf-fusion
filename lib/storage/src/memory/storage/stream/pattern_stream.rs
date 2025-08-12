@@ -5,7 +5,7 @@ use crate::memory::storage::index::{
 };
 use crate::memory::storage::stream::QuadEqualities;
 use crate::memory::storage::VersionNumber;
-use datafusion::arrow::array::RecordBatch;
+use datafusion::arrow::array::{Array, RecordBatch};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::exec_datafusion_err;
 use datafusion::error::DataFusionError;
@@ -129,6 +129,7 @@ impl Stream for MemQuadPatternStream {
                         self.state = MemQuadPatternStreamState::Finished;
                     }
                     Some(batch) => {
+                        let lens = batch.iter().map(|a| a.object_ids().len()).collect::<Vec<_>>();
                         let arrow_arrays =
                             batch.into_iter().map(|a| a.into_array()).collect();
                         let batch =

@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_api::storage::QuadStorage;
 use rdf_fusion_common::error::StorageError;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{
@@ -61,22 +62,30 @@ impl QuadStorage for MemQuadStorage {
     }
 
     async fn insert(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
-        self.indices.write().await.insert(quads).await
+        let encoded = quads
+            .iter()
+            .map(|q| self.object_id_mapping.encode_quad(q.as_ref()))
+            .collect::<DFResult<Vec<_>>>()
+            .expect("TODO");
+        self.indices.write().await.insert(encoded.as_ref()).await
     }
 
     async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
-        self.indices.write().await.remove(quad).await
+        let encoded = self.object_id_mapping.encode_quad(quad).expect("TODO");
+        self.indices
+            .write()
+            .await
+            .remove(&[encoded])
+            .await
+            .map(|c| c == 1)
     }
 
     async fn insert_named_graph<'a>(
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        self.indices
-            .write()
-            .await
-            .insert_named_graph(graph_name)
-            .await
+        let encoded = self.object_id_mapping.encode_term_intern(graph_name);
+        self.indices.write().await.insert_named_graph(encoded).await
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
@@ -98,18 +107,27 @@ impl QuadStorage for MemQuadStorage {
         &self,
         graph_name: GraphNameRef<'a>,
     ) -> Result<(), StorageError> {
-        self.indices.write().await.clear_graph(graph_name).await
+        let Some(encoded) = self
+            .object_id_mapping
+            .try_get_encoded_object_id_from_graph_name(graph_name)
+        else {
+            return Ok(());
+        };
+        self.indices.write().await.clear_graph(encoded).await
     }
 
     async fn drop_named_graph(
         &self,
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError> {
-        self.indices
-            .write()
-            .await
-            .drop_named_graph(graph_name)
-            .await
+        let Some(encoded) = self
+            .object_id_mapping
+            .try_get_encoded_object_id_from_term(graph_name)
+        else {
+            return Ok(false);
+        };
+
+        self.indices.write().await.drop_named_graph(encoded).await
     }
 
     async fn len(&self) -> Result<usize, StorageError> {

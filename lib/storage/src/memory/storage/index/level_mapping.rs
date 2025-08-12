@@ -1,12 +1,11 @@
-use crate::memory::object_id::EncodedObjectId;
+use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
 use crate::memory::storage::index::{
     IndexConfiguration, IndexedQuad, ObjectIdScanPredicate,
 };
-use datafusion::arrow::array::UInt32Array;
+use datafusion::arrow::array::{UInt32Array, UInt32Builder};
 use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::TermEncoding;
 use std::collections::HashMap;
-use std::iter::repeat_n;
 use std::sync::Arc;
 
 /// An index level is a mapping from [EncodedObjectId]. By traversing multiple index levels, users
@@ -39,6 +38,43 @@ impl<TInner: IndexLevelImpl> Default for IndexLevel<TInner> {
 }
 
 impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
+    pub fn scan_this_level(&self) -> Vec<EncodedObjectId> {
+        self.0.keys().copied().collect()
+    }
+
+    pub fn contains_this_level(&self, object_id: EncodedObjectId) -> bool {
+        self.0.contains_key(&object_id)
+    }
+
+    pub fn insert_this_level(&mut self, object_id: EncodedObjectId) -> bool {
+        if self.0.contains_key(&object_id) {
+            return false;
+        }
+
+        self.0.insert(object_id, TInner::default());
+        true
+    }
+
+    pub fn remove_this_level(&mut self, object_id: EncodedObjectId) -> bool {
+        self.0.remove(&object_id).is_some()
+    }
+
+    pub fn clear_entry(&mut self, object_id: EncodedObjectId) -> bool {
+        if !self.0.contains_key(&object_id) {
+            return false;
+        }
+
+        self.0.insert(object_id, TInner::default());
+        true
+    }
+
+    pub fn clear_level(&mut self) {
+        let keys = self.0.keys().copied().collect::<Vec<_>>();
+        for value in keys {
+            self.0.insert(value, TInner::default());
+        }
+    }
+
     fn traverse_impl(
         &self,
         configuration: &IndexConfiguration,
@@ -130,14 +166,18 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         configuration: &IndexConfiguration,
         inner_results: &BufferedResults,
     ) -> ObjectIdArray {
-        let values = inner_results
-            .results
-            .iter()
-            .flat_map(|r| repeat_n(r.object_id.as_u32(), r.num_results));
-        let u32_array = UInt32Array::from_iter_values(values);
+        let mut array_builder = UInt32Builder::new();
+        for result in &inner_results.results {
+            if result.object_id == DEFAULT_GRAPH_ID.0 {
+                array_builder.append_nulls(result.num_results);
+            } else {
+                array_builder
+                    .append_value_n(result.object_id.as_u32(), result.num_results);
+            }
+        }
         configuration
             .object_id_encoding
-            .try_new_array(Arc::new(u32_array))
+            .try_new_array(Arc::new(array_builder.finish()))
             .expect("TODO")
     }
 
@@ -145,6 +185,10 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         configuration: &IndexConfiguration,
         inner_results: &BufferedResults,
     ) -> Vec<ObjectIdArray> {
+        if inner_results.results.is_empty() {
+            return Vec::new();
+        }
+
         let mut result = Vec::new();
         for i in 0..inner_results.results[0].inner.len() {
             let iterator = inner_results
@@ -192,12 +236,11 @@ impl<TInnerState: Clone> IndexTraversal<TInnerState> {
 
         // Collect the buffered result. If the result is already large enough, return it.
         if let Some(buffered) = self.buffered.take() {
+            self.consumed += 1;
             if buffered.num_results == configuration.batch_size {
-                self.consumed += 1;
-                let results = BufferedResults {
+                return BufferedResults {
                     results: vec![buffered],
                 };
-                return results;
             } else {
                 results.push(buffered);
             }
@@ -207,6 +250,13 @@ impl<TInnerState: Clone> IndexTraversal<TInnerState> {
         let mut current_state = self.inner.clone();
 
         for (oid, next_level) in index.0.iter().skip(self.consumed) {
+            if let Some(predicate) = &self.predicate
+                && !predicate.evaluate(*oid)
+            {
+                new_consumed += 1;
+                continue;
+            }
+
             let inner_result = next_level.scan(configuration, current_state);
 
             // An inner result was found.
@@ -326,7 +376,7 @@ pub trait IndexLevelImpl: Default {
         configuration: &IndexConfiguration,
         triple: &IndexedQuad,
         cur_depth: usize,
-    );
+    ) -> bool;
 
     /// The number of entries in the index part.
     fn num_triples(&self) -> usize;
@@ -358,15 +408,18 @@ impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
         configuration: &IndexConfiguration,
         quad: &IndexedQuad,
         cur_depth: usize,
-    ) {
+    ) -> bool {
         let part = quad.0[cur_depth];
 
         let content = self.0.get_mut(&part);
         if let Some(content) = content {
-            content.remove(configuration, quad, cur_depth + 1);
+            let inner_result = content.remove(configuration, quad, cur_depth + 1);
             if content.num_triples() == 0 {
                 self.0.remove(&part);
             }
+            inner_result
+        } else {
+            false
         }
     }
 

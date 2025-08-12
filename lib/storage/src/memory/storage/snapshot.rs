@@ -164,7 +164,14 @@ impl MemQuadStorageSnapshot {
 
     /// Returns the number of quads in the storage.
     pub async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        self.index_set.as_ref().named_graphs().await
+        let result = self.index_set
+            .as_ref()
+            .named_graphs()
+            .await?
+            .into_iter()
+            .map(|g| self.object_id_mapping.decode_named_graph(g))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(result)
     }
 
     /// Returns whether the storage contains the named graph `graph_name`.
@@ -172,9 +179,16 @@ impl MemQuadStorageSnapshot {
         &self,
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError> {
+        let Some(object_id) = self
+            .object_id_mapping
+            .try_get_encoded_object_id_from_term(graph_name)
+        else {
+            return Ok(false);
+        };
+
         self.index_set
             .as_ref()
-            .contains_named_graph(graph_name)
+            .contains_named_graph(object_id)
             .await
     }
 }

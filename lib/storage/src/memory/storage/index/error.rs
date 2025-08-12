@@ -1,18 +1,21 @@
 use thiserror::Error;
+use crate::memory::storage::VersionNumber;
 
 #[derive(Debug, Error, PartialEq, Eq, Hash)]
 #[error("Error while updating index.")]
 pub enum IndexUpdateError {
-    #[error("The updated index version number is not the expected one.")]
-    UnexpectedVersionNumber,
+    UnexpectedVersionNumber(UnexpectedVersionNumberError),
 }
 
 #[derive(Debug, Error, PartialEq, Eq, Hash)]
 #[error("Error while scanning the index.")]
 pub enum IndexScanError {
-    #[error("The version number of the index is already past the expected one.")]
-    UnexpectedIndexVersionNumber,
+    UnexpectedVersionNumber(UnexpectedVersionNumberError),
 }
+
+#[derive(Debug, Error, PartialEq, Eq, Hash)]
+#[error("The version number of the index {0} is not the expected one {1}.")]
+pub struct UnexpectedVersionNumberError(pub VersionNumber, pub VersionNumber);
 
 #[derive(Debug, Error)]
 #[error("Duplicate indexed component given.")]

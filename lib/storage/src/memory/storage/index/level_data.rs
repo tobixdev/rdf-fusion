@@ -71,10 +71,13 @@ impl IndexData {
             .object_id_encoding
             .try_new_array(Arc::new(array))
             .expect("TODO");
-        let new_consumed = consumed + result.object_ids().len();
 
+        let new_consumed = consumed + result.object_ids().len();
         if new_consumed == self.terms.len() {
-            IndexLevelActionResult::finished(new_consumed, Some(vec![result]))
+            IndexLevelActionResult::finished(
+                result.object_ids().len(),
+                Some(vec![result]),
+            )
         } else {
             IndexLevelActionResult {
                 num_results: result.object_ids().len(),
@@ -106,9 +109,9 @@ impl IndexLevelImpl for IndexData {
         _configuration: &IndexConfiguration,
         quad: &IndexedQuad,
         cur_depth: usize,
-    ) {
+    ) -> bool {
         let part = quad.0[cur_depth];
-        self.terms.remove(&part);
+        self.terms.remove(&part)
     }
 
     fn num_triples(&self) -> usize {
@@ -135,9 +138,7 @@ mod tests {
     use super::*;
     use crate::memory::storage::index::components::IndexComponent;
     use crate::memory::storage::index::hash_index::MemHashTripleIndex;
-    use crate::memory::storage::index::{
-        IndexComponents, IndexScanError, IndexScanInstruction, IndexScanInstructions,
-    };
+    use crate::memory::storage::index::{IndexComponents, IndexScanError, IndexScanInstruction, IndexScanInstructions, UnexpectedVersionNumberError};
     use crate::memory::storage::VersionNumber;
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 
@@ -145,7 +146,7 @@ mod tests {
     async fn insert_and_scan_triple() {
         let index = create_index();
         let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.insert(quads, VersionNumber(1)).await.unwrap();
 
         let mut iter = index
             .scan(
@@ -169,8 +170,8 @@ mod tests {
     async fn scan_newer_index_version_err() {
         let index = create_index();
         let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
-        index.remove(&quads, VersionNumber(2)).await.unwrap();
+        index.insert(quads.clone(), VersionNumber(1)).await.unwrap();
+        index.remove(quads, VersionNumber(2)).await.unwrap();
 
         assert_eq!(
             index
@@ -180,7 +181,9 @@ mod tests {
                 )
                 .await
                 .err(),
-            Some(IndexScanError::UnexpectedIndexVersionNumber)
+            Some(IndexScanError::UnexpectedVersionNumber(
+                UnexpectedVersionNumberError(VersionNumber(2), VersionNumber(1))
+            ))
         );
     }
 
@@ -192,7 +195,7 @@ mod tests {
             IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
             IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.insert(quads, VersionNumber(1)).await.unwrap();
 
         run_matching_test(
             index,
@@ -211,7 +214,7 @@ mod tests {
             IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
             IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.insert(quads, VersionNumber(1)).await.unwrap();
 
         run_matching_test(
             index,
@@ -230,7 +233,7 @@ mod tests {
             IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
             IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.insert(quads, VersionNumber(1)).await.unwrap();
 
         run_matching_test(
             index,
@@ -249,7 +252,7 @@ mod tests {
             IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
             IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.insert(quads, VersionNumber(1)).await.unwrap();
 
         run_matching_test(
             index,
@@ -268,7 +271,7 @@ mod tests {
             IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
             IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.insert(quads, VersionNumber(1)).await.unwrap();
 
         run_matching_test(
             index,
@@ -286,7 +289,7 @@ mod tests {
         for i in 0..25 {
             quads.push(IndexedQuad([eid(0), eid(1), eid(2), eid(i)]))
         }
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.insert(quads, VersionNumber(1)).await.unwrap();
 
         // The lookup matches a single IndexData that will be scanned.
         run_batch_size_test(
@@ -305,7 +308,7 @@ mod tests {
         for i in 0..25 {
             quads.push(IndexedQuad([eid(0), eid(1), eid(i), eid(2)]))
         }
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
+        index.insert(quads, VersionNumber(1)).await.unwrap();
 
         // The lookup matches 25 different IndexLevels, each having exactly one data entry. The
         // batches should be combined into a single batch.
@@ -326,8 +329,8 @@ mod tests {
             IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
             IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
         ];
-        index.insert(&quads, VersionNumber(1)).await.unwrap();
-        index.remove(&quads, VersionNumber(2)).await.unwrap();
+        index.insert(quads.clone(), VersionNumber(1)).await.unwrap();
+        index.remove(quads, VersionNumber(2)).await.unwrap();
 
         run_non_matching_test(
             index,
@@ -340,7 +343,7 @@ mod tests {
     async fn delete_triple_non_existing_ok() {
         let index = create_index();
         let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
-        let result = index.remove(&quads, VersionNumber(1)).await;
+        let result = index.remove(quads, VersionNumber(1)).await;
         assert!(result.ok().is_some());
     }
 
@@ -381,8 +384,9 @@ mod tests {
         index: MemHashTripleIndex,
         lookup: IndexScanInstructions,
     ) {
+        let version_number = index.version_number().await;
         let results = index
-            .scan(lookup, VersionNumber(100)) // Use 100 for never violating the version check.
+            .scan(lookup, version_number)
             .await
             .unwrap()
             .next();
@@ -398,8 +402,9 @@ mod tests {
         expected_columns: usize,
         expected_rows: usize,
     ) {
+        let version_number = index.version_number().await;
         let results: Vec<_> = index
-            .scan(lookup, VersionNumber(100)) // Use 100 for never violating the version check.
+            .scan(lookup, version_number)
             .await
             .unwrap()
             .next()
