@@ -1,5 +1,5 @@
 use crate::benchmarks::bsbm::NumProducts;
-use crate::benchmarks::windfarm::NumberOfWindTurbines;
+use crate::benchmarks::windfarm::NumTurbines;
 use clap::Subcommand;
 use std::fmt::{Display, Formatter};
 
@@ -27,13 +27,26 @@ pub enum BenchmarkName {
     WindFarm {
         /// Indicates the scaling of the dataset.
         #[arg(short, long, default_value = "400")]
-        num_turbines: NumberOfWindTurbines,
+        num_turbines: NumTurbines,
     },
 }
 
 impl BenchmarkName {
     /// Returns a directory name for the benchmark.
-    pub fn dir_name(&self) -> String {
+    pub fn data_dir_name(&self) -> String {
+        match self {
+            BenchmarkName::BsbmExplore { num_products, .. }
+            | BenchmarkName::BsbmBusinessIntelligence { num_products, .. } => {
+                format!("bsbm-{num_products}")
+            }
+            BenchmarkName::WindFarm { num_turbines } => {
+                format!("windfarm-{num_turbines}")
+            }
+        }
+    }
+
+    /// Returns a directory name for the benchmark.
+    pub fn results_dir_name(&self) -> String {
         match self {
             BenchmarkName::BsbmExplore {
                 num_products: dataset_size,

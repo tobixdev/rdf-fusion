@@ -241,8 +241,11 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             exists_pattern.schema(),
         );
 
-        let compatible_filters = outer_keys
-            .intersection(&exists_keys)
+        let mut join_columns = outer_keys.intersection(&exists_keys).collect::<Vec<_>>();
+        join_columns.sort(); // Stable output
+
+        let compatible_filters = join_columns
+            .into_iter()
             .map(|k| Self::build_exists_filter(exists_expr_builder_root, outer_schema, k))
             .collect::<DFResult<Vec<_>>>()?;
         let compatible_filter = compatible_filters
@@ -279,7 +282,19 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         let outer_ref_column = expr_builder_ctx.try_create_builder(
             Expr::OuterReferenceColumn(data_type.clone(), Column::new_unqualified(k)),
         )?;
-        let inner_expr = Expr::from(inner_column);
+        let encoding = expr_builder_ctx
+            .rdf_fusion_context
+            .encodings()
+            .try_get_encoding_name(outer_field.data_type())
+            .ok_or_else(|| {
+                plan_datafusion_err!("Field '' in filter expression is not an RDF term.")
+            })?;
+        let inner_expr = expr_builder_ctx
+            .try_create_builder(Expr::Column(Column::new_unqualified(format!(
+                "__inner__{k}"
+            ))))?
+            .with_encoding(encoding)?
+            .build()?;
 
         if !outer_nullability && !inner_nullability {
             Ok(outer_ref_column.build()?.eq(inner_expr))

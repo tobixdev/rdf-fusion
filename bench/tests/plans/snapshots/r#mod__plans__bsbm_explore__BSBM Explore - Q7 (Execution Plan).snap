@@ -1,0 +1,45 @@
+---
+source: bench/tests/plans/bsbm_explore.rs
+expression: canonicalize_uuids(&string)
+---
+ProjectionExec: expr=[ENV_PT(productLabel@0) as productLabel, ENV_PT(offer@1) as offer, ENV_PT(price@2) as price, ENV_PT(vendor@3) as vendor, ENV_PT(vendorTitle@4) as vendorTitle, ENV_PT(review@5) as review, ENV_PT(revTitle@8) as revTitle, ENV_PT(reviewer@6) as reviewer, ENV_PT(revName@7) as revName, ENV_PT(rating1@9) as rating1, ENV_PT(rating2@10) as rating2]
+  CrossJoinExec
+    NestedLoopJoinExec: join_type=Left
+      QuadPatternExec: n_graphs=1, subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer17/Product801>, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?productLabel
+      CoalesceBatchesExec: target_batch_size=8192
+        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, price@1, vendor@2, vendorTitle@3]
+          CoalesceBatchesExec: target_batch_size=8192
+            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0), (vendor@2, vendor@1)], projection=[offer@0, price@1, vendor@2, vendorTitle@3]
+              CoalesceBatchesExec: target_batch_size=8192
+                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(vendor@2, vendor@0)], projection=[offer@0, price@1, vendor@2, vendorTitle@4]
+                  CoalesceBatchesExec: target_batch_size=8192
+                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(vendor@2, vendor@0)], projection=[offer@0, price@1, vendor@2]
+                      CoalesceBatchesExec: target_batch_size=8192
+                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, price@1, vendor@3]
+                          CoalesceBatchesExec: target_batch_size=8192
+                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, price@2]
+                              QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer17/Product801>
+                              QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+                          QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
+                      QuadPatternExec: n_graphs=1, subject=?vendor, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=<http://downlode.org/rdf/iso-3166/countries#DE>
+                  QuadPatternExec: n_graphs=1, subject=?vendor, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?vendorTitle
+              QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?vendor
+          CoalesceBatchesExec: target_batch_size=8192
+            FilterExec: EBV(GT(ENC_TV(date@1), 10:{value:6334951680000.0000000000000000,offset:})), projection=[offer@0]
+              QuadPatternExec: n_graphs=1, subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo>, object=?date
+    CoalesceBatchesExec: target_batch_size=8192
+      HashJoinExec: mode=CollectLeft, join_type=Left, on=[(review@0, review@0)], projection=[review@0, reviewer@1, revName@2, revTitle@3, rating1@4, rating2@6]
+        CoalesceBatchesExec: target_batch_size=8192
+          HashJoinExec: mode=CollectLeft, join_type=Left, on=[(review@0, review@0)], projection=[review@0, reviewer@1, revName@2, revTitle@3, rating1@5]
+            CoalesceBatchesExec: target_batch_size=8192
+              HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[review@0, reviewer@1, revName@2, revTitle@4]
+                CoalesceBatchesExec: target_batch_size=8192
+                  HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(reviewer@1, reviewer@0)], projection=[review@0, reviewer@1, revName@3]
+                    CoalesceBatchesExec: target_batch_size=8192
+                      HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[review@0, reviewer@2]
+                        QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer17/Product801>
+                        QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer
+                    QuadPatternExec: n_graphs=1, subject=?reviewer, predicate=<http://xmlns.com/foaf/0.1/name>, object=?revName
+                QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://purl.org/dc/elements/1.1/title>, object=?revTitle
+            QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?rating1
+        QuadPatternExec: n_graphs=1, subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?rating2

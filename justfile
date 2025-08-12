@@ -12,7 +12,7 @@ configure-toolchain-ci: configure-toolchain
     cargo install cargo-codspeed
 
 # Run all recipies executed by the CI
-ci: lint test rustdoc
+ci: prepare-bench-tests lint test rustdoc
 
 # Run all lints (e.g., formatting, clippy)
 lint:
@@ -28,13 +28,15 @@ test:
 rustdoc:
     RUSTDOCFLAGS="-D warnings" cargo doc
 
-# Runs micro benchmarks in the code base (criterion benchmarks).
-microbench:
-    cargo bench
+[working-directory: 'bench']
+prepare-bench-tests:
+    cargo run --profile test prepare bsbm-explore --num-products 1000 # BSBM use cases share the data
+    cargo run --profile test prepare wind-farm --num-turbines 4
 
-# Runs micro benchmarks in the code base (criterion benchmarks) and creates a flamegraph.
-microbench-flamegraph bench:
-    cargo flamegraph --bench {{bench}} -- --bench
+[working-directory: 'bench']
+prepare-benches:
+    cargo run --profile profiling-nonlto prepare bsbm-explore --num-products 10000 # BSBM use cases share the data
+    cargo run --profile profiling-nonlto prepare wind-farm --num-turbines 16
 
 # Starts a webserver that can answer SPARQL queries (debug)
 serve-dbg:

@@ -19,14 +19,14 @@ jobs:
       - name: Setup rust toolchain
         uses: moonrepo/setup-rust@v1
         with:
-          channel: 1.88
+          channel: 1.89
           cache-target: release
 
       - name: Install just
         uses: extractions/setup-just@v3
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -44,8 +44,7 @@ jobs:
       - name: Prepare Benchmarks
         working-directory: bench
         run: |
-          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-explore --num-products 1000
-          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-business-intelligence --num-products 1000
+          ../target/profiling-nonlto/rdf-fusion-bench prepare bsbm-explore --num-products 10000
           ../target/profiling-nonlto/rdf-fusion-bench prepare wind-farm --num-turbines 16
 
       - name: Run benchmarks

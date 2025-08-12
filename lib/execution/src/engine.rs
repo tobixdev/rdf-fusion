@@ -65,11 +65,12 @@ impl RdfFusionContext {
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
+        let config = SessionConfig::new().with_target_partitions(1);
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
             // TODO: For now we use only a single partition. This should be configurable.
-            .with_config(SessionConfig::new().with_target_partitions(1))
+            .with_config(config)
             .build();
 
         let session_context = SessionContext::from(state);

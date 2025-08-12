@@ -1,0 +1,22 @@
+---
+source: bench/tests/plans/bsbm_explore.rs
+expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
+---
+Projection: ENV_PT(productURI) AS productURI, ENV_PT(productlabel) AS productlabel, ENV_PT(vendorURI) AS vendorURI, ENV_PT(vendorname) AS vendorname, ENV_PT(vendorhomepage) AS vendorhomepage, ENV_PT(offerURL) AS offerURL, ENV_PT(price) AS price, ENV_PT(deliveryDays) AS deliveryDays, ENV_PT(validTo) AS validTo
+  SparqlJoin: Inner 
+    SparqlJoin: Inner 
+      SparqlJoin: Inner 
+        SparqlJoin: Inner 
+          SparqlJoin: Inner 
+            SparqlJoin: Inner 
+              SparqlJoin: Inner 
+                SparqlJoin: Inner 
+                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?productURI), active_graph: Union of [DefaultGraph] 
+                  QuadPattern (?productURI <http://www.w3.org/2000/01/rdf-schema#label> ?productlabel), active_graph: Union of [DefaultGraph] 
+                QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendorURI), active_graph: Union of [DefaultGraph] 
+              QuadPattern (?vendorURI <http://www.w3.org/2000/01/rdf-schema#label> ?vendorname), active_graph: Union of [DefaultGraph] 
+            QuadPattern (?vendorURI <http://xmlns.com/foaf/0.1/homepage> ?vendorhomepage), active_graph: Union of [DefaultGraph] 
+          QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/offerWebpage> ?offerURL), active_graph: Union of [DefaultGraph] 
+        QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price), active_graph: Union of [DefaultGraph] 
+      QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays> ?deliveryDays), active_graph: Union of [DefaultGraph] 
+    QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo> ?validTo), active_graph: Union of [DefaultGraph]

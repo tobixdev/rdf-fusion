@@ -1,7 +1,7 @@
 mod run;
 mod summary;
 
-use crate::runs::summary::BenchmarkRunsSummary;
+pub use crate::runs::summary::BenchmarkRunsSummary;
 use anyhow::Context;
 pub use run::*;
 use std::time::Duration;

@@ -1,0 +1,36 @@
+---
+source: bench/tests/plans/bsbm_explore.rs
+expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
+---
+Projection: ENV_PT(product) AS product, ENV_PT(label) AS label, ENV_PT(propertyTextual) AS propertyTextual
+  Limit: skip=5, fetch=10
+    DistinctOn: on_expr=[[ENV_SORT(ENV_PT(label)), product, propertyTextual]], select_expr=[[product, label, propertyTextual]], sort_expr=[[ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]]
+      Projection: product, label, propertyTextual
+        Sort: ENV_SORT(ENV_PT(label)) ASC NULLS FIRST
+          Union
+            Projection: product, label, propertyTextual, p1, NULL AS p2
+              Filter: EBV(GT(ENC_TV(p1), ENC_TV(Struct({term_type:2,value:457,data_type:http://www.w3.org/2001/XMLSchema#integer,language_tag:}))))
+                SparqlJoin: Inner 
+                  SparqlJoin: Inner 
+                    SparqlJoin: Inner 
+                      SparqlJoin: Inner 
+                        SparqlJoin: Inner 
+                          QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?label), active_graph: Union of [DefaultGraph] 
+                          QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType138>), active_graph: Union of [DefaultGraph] 
+                        QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature4305>), active_graph: Union of [DefaultGraph] 
+                      QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature1427>), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual1> ?propertyTextual), active_graph: Union of [DefaultGraph] 
+                  QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?p1), active_graph: Union of [DefaultGraph] 
+            Projection: product, label, propertyTextual, NULL AS p1, p2
+              Filter: EBV(GT(ENC_TV(p2), ENC_TV(Struct({term_type:2,value:488,data_type:http://www.w3.org/2001/XMLSchema#integer,language_tag:}))))
+                SparqlJoin: Inner 
+                  SparqlJoin: Inner 
+                    SparqlJoin: Inner 
+                      SparqlJoin: Inner 
+                        SparqlJoin: Inner 
+                          QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?label), active_graph: Union of [DefaultGraph] 
+                          QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType138>), active_graph: Union of [DefaultGraph] 
+                        QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature4305>), active_graph: Union of [DefaultGraph] 
+                      QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature1444>), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual1> ?propertyTextual), active_graph: Union of [DefaultGraph] 
+                  QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?p2), active_graph: Union of [DefaultGraph]

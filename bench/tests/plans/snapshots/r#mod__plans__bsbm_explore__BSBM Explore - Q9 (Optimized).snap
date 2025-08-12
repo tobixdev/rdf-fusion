@@ -1,0 +1,15 @@
+---
+source: bench/tests/plans/bsbm_explore.rs
+expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+---
+Projection: ENV_PT(lhs.x) AS x, ENV_PT(lhs.00000000000000000000000000000001) AS 00000000000000000000000000000001, ENV_PT(lhs.00000000000000000000000000000002) AS 00000000000000000000000000000002
+  Inner Join: lhs.x = rhs.x
+    SubqueryAlias: lhs
+      Projection: lhs.x AS x, lhs.00000000000000000000000000000001 AS 00000000000000000000000000000001, rhs.00000000000000000000000000000002 AS 00000000000000000000000000000002
+        Inner Join: lhs.x = rhs.x
+          SubqueryAlias: lhs
+            QuadPattern (?x <http://www.w3.org/2000/01/rdf-schema#label> _:00000000000000000000000000000001), active_graph: Union of [DefaultGraph] 
+          SubqueryAlias: rhs
+            QuadPattern (?x <http://www.w3.org/2000/01/rdf-schema#comment> _:00000000000000000000000000000002), active_graph: Union of [DefaultGraph] 
+    SubqueryAlias: rhs
+      QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromRatingSite1/Review4194> <http://purl.org/stuff/rev#reviewer> ?x), active_graph: Union of [DefaultGraph]

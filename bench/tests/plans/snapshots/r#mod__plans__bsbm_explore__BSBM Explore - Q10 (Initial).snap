@@ -1,0 +1,23 @@
+---
+source: bench/tests/plans/bsbm_explore.rs
+expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
+---
+Projection: ENV_PT(offer) AS offer, ENV_PT(price) AS price
+  Limit: skip=0, fetch=10
+    DistinctOn: on_expr=[[ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))), offer, price]], select_expr=[[offer, price]], sort_expr=[[ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST]]
+      Projection: offer, price
+        Sort: ENV_SORT(xsd:double(ENC_TV(STR(ENV_PT(price))))) ASC NULLS FIRST
+          Filter: EBV(BOOLEAN_AS_TERM(coalesce(EBV(LEQ(ENC_TV(deliveryDays), ENC_TV(Struct({term_type:2,value:3,data_type:http://www.w3.org/2001/XMLSchema#integer,language_tag:})))), Boolean(false)) AND coalesce(EBV(GT(ENC_TV(date), ENC_TV(Struct({term_type:2,value:2008-06-20T00:00:00,data_type:http://www.w3.org/2001/XMLSchema#dateTime,language_tag:})))), Boolean(false))))
+            SparqlJoin: Inner 
+              SparqlJoin: Inner 
+                SparqlJoin: Inner 
+                  SparqlJoin: Inner 
+                    SparqlJoin: Inner 
+                      SparqlJoin: Inner 
+                        QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer7/Product296>), active_graph: Union of [DefaultGraph] 
+                        QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
+                      QuadPattern (?offer <http://purl.org/dc/elements/1.1/publisher> ?vendor), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#US>), active_graph: Union of [DefaultGraph] 
+                  QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays> ?deliveryDays), active_graph: Union of [DefaultGraph] 
+                QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price), active_graph: Union of [DefaultGraph] 
+              QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo> ?date), active_graph: Union of [DefaultGraph]

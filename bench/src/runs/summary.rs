@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
-/// Holds the statistics computed over [BenchmarkRuns].
+/// Holds the statistics computed over multiple benchmark runs.
 #[derive(Debug)]
 pub struct BenchmarkRunsSummary {
     /// Represents how often the benchmark was executed.
