@@ -81,15 +81,8 @@ impl IndexSet {
         for (i, index_component) in index_components.inner().iter().enumerate() {
             let idx = index_component.gspo_index();
             let reward = 10u32.pow((index_components.inner().len() - i) as u32);
-            let is_filtered = pattern.0[idx]
-                .predicate()
-                .map(|p| p.restricts_to_known_size())
-                .unwrap_or(false);
-
-            if is_filtered {
+            if pattern.0[idx].predicate().is_some() {
                 score += reward
-            } else {
-                break;
             }
         }
 

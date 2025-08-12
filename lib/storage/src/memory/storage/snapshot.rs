@@ -2,8 +2,7 @@ use crate::memory::encoding::{
     EncodedActiveGraph, EncodedTermPattern, EncodedTriplePattern,
 };
 use crate::memory::storage::index::IndexSet;
-use crate::memory::storage::stream::MemQuadPatternStream;
-use crate::memory::storage::VersionNumber;
+use crate::memory::storage::{MemQuadPatternStream, VersionNumber};
 use crate::memory::MemObjectIdMapping;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
@@ -164,7 +163,8 @@ impl MemQuadStorageSnapshot {
 
     /// Returns the number of quads in the storage.
     pub async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        let result = self.index_set
+        let result = self
+            .index_set
             .as_ref()
             .named_graphs()
             .await?

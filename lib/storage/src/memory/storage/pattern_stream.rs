@@ -3,9 +3,8 @@ use crate::memory::storage::index::{
     IndexScanError, IndexScanInstruction, IndexScanInstructions, IndexSet,
     MemHashIndexIterator,
 };
-use crate::memory::storage::stream::QuadEqualities;
 use crate::memory::storage::VersionNumber;
-use datafusion::arrow::array::{Array, RecordBatch};
+use datafusion::arrow::array::{RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::exec_datafusion_err;
 use datafusion::error::DataFusionError;
@@ -23,8 +22,6 @@ use tokio::sync::OwnedRwLockReadGuard;
 pub struct MemQuadPatternStream {
     /// The schema of the stream.
     schema: SchemaRef,
-    /// Quad equalities that must be checked.
-    equality: Option<QuadEqualities>,
     /// Current state of the stream.
     state: MemQuadPatternStreamState,
     /// The metrics of the stream.
@@ -67,11 +64,9 @@ impl MemQuadPatternStream {
         pattern: EncodedTriplePattern,
         metrics: BaselineMetrics,
     ) -> Self {
-        let equality = QuadEqualities::try_new(graph_variable.as_ref(), &pattern);
         Self {
             schema,
             metrics,
-            equality,
             state: MemQuadPatternStreamState::CreateIndexScanIterator(
                 index_set,
                 version_number,
@@ -128,13 +123,26 @@ impl Stream for MemQuadPatternStream {
                     None => {
                         self.state = MemQuadPatternStreamState::Finished;
                     }
-                    Some(batch) => {
-                        let lens = batch.iter().map(|a| a.object_ids().len()).collect::<Vec<_>>();
-                        let arrow_arrays =
-                            batch.into_iter().map(|a| a.into_array()).collect();
-                        let batch =
-                            RecordBatch::try_new(self.schema.clone(), arrow_arrays)
-                                .map_err(|e| DataFusionError::from(e))?;
+                    Some(mut batch) => {
+                        let arrays = self
+                            .schema
+                            .fields
+                            .iter()
+                            .map(|f| {
+                                batch
+                                    .columns
+                                    .remove(f.name())
+                                    .expect(&format!("Must be bound: {}", f.name()))
+                                    .into_array()
+                            })
+                            .collect();
+                        let batch = RecordBatch::try_new_with_options(
+                            self.schema.clone(),
+                            arrays,
+                            &RecordBatchOptions::default()
+                                .with_row_count(Some(batch.num_results)),
+                        )
+                        .map_err(|e| DataFusionError::from(e))?;
 
                         self.metrics.record_output(batch.num_rows());
                         return Poll::Ready(Some(Ok(batch)));

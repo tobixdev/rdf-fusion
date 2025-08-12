@@ -6,14 +6,15 @@ mod error;
 mod hash_index;
 mod level_data;
 mod level_mapping;
+mod scan;
 mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
 use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
 pub use components::IndexComponents;
 pub use error::*;
-pub use hash_index::MemHashIndexIterator;
 use rdf_fusion_model::Variable;
+pub use scan::{IndexScanBatch, MemHashIndexIterator};
 pub use set::IndexSet;
 
 #[derive(Debug, Clone)]
@@ -70,14 +71,14 @@ pub enum IndexScanInstruction {
     /// Traverses the index level, not binding the elements at this level.
     Traverse(Option<ObjectIdScanPredicate>),
     /// Scans the index level, binding the elements at this level.
-    Scan(Option<ObjectIdScanPredicate>),
+    Scan(String, Option<ObjectIdScanPredicate>),
 }
 
 impl IndexScanInstruction {
     pub fn predicate(&self) -> Option<&ObjectIdScanPredicate> {
         match self {
             IndexScanInstruction::Traverse(predicate) => predicate.as_ref(),
-            IndexScanInstruction::Scan(predicate) => predicate.as_ref(),
+            IndexScanInstruction::Scan(_, predicate) => predicate.as_ref(),
         }
     }
 }
@@ -90,8 +91,8 @@ impl IndexScanInstruction {
         variable: Option<&Variable>,
     ) -> IndexScanInstruction {
         let instruction_with_predicate = |predicate: Option<ObjectIdScanPredicate>| {
-            if variable.is_some() {
-                IndexScanInstruction::Scan(predicate)
+            if let Some(variable) = variable {
+                IndexScanInstruction::Scan(variable.as_str().to_owned(), predicate)
             } else {
                 IndexScanInstruction::Traverse(predicate)
             }
@@ -123,7 +124,344 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
             EncodedTermPattern::ObjectId(object_id) => IndexScanInstruction::Traverse(
                 Some(ObjectIdScanPredicate::In(HashSet::from([object_id]))),
             ),
-            EncodedTermPattern::Variable(_) => IndexScanInstruction::Scan(None),
+            EncodedTermPattern::Variable(var) => IndexScanInstruction::Scan(var, None),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::memory::storage::index::components::IndexComponent;
+    use crate::memory::storage::index::hash_index::MemHashTripleIndex;
+    use crate::memory::storage::index::{
+        IndexComponents, IndexScanError, IndexScanInstruction, IndexScanInstructions,
+        UnexpectedVersionNumberError,
+    };
+    use crate::memory::storage::VersionNumber;
+    use datafusion::arrow::array::Array;
+    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+    use rdf_fusion_encoding::EncodingArray;
+
+    #[tokio::test]
+    async fn insert_and_scan_triple() {
+        let index = create_index();
+        let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        let mut iter = index
+            .scan(
+                IndexScanInstructions([
+                    traverse(0),
+                    traverse(1),
+                    traverse(2),
+                    traverse(3),
+                ]),
+                VersionNumber(1),
+            )
+            .await
+            .unwrap();
+        let result = iter.next();
+
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().num_results, 1);
+    }
+
+    #[tokio::test]
+    async fn scan_newer_index_version_err() {
+        let index = create_index();
+        let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
+        index.insert(quads.clone(), VersionNumber(1)).await.unwrap();
+        index.remove(quads, VersionNumber(2)).await.unwrap();
+
+        assert_eq!(
+            index
+                .scan(
+                    IndexScanInstructions([scan("a"), scan("b"), scan("c"), scan("d")]),
+                    VersionNumber(1)
+                )
+                .await
+                .err(),
+            Some(IndexScanError::UnexpectedVersionNumber(
+                UnexpectedVersionNumberError(VersionNumber(2), VersionNumber(1))
+            ))
+        );
+    }
+
+    #[tokio::test]
+    async fn scan_subject_var() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([traverse(0), scan("b"), traverse(2), traverse(3)]),
+            1,
+            2,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_predicate_var() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), scan("c"), traverse(3)]),
+            1,
+            1,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_object_var() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), traverse(2), scan("d")]),
+            1,
+            1,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_multi_vars() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([traverse(0), scan("b"), traverse(2), scan("d")]),
+            2,
+            2,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_all_vars() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([scan("a"), scan("b"), scan("c"), scan("d")]),
+            4,
+            3,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_considers_predicates() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(1), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(2), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([
+                IndexScanInstruction::Scan(
+                    "a".to_owned(),
+                    Some(ObjectIdScanPredicate::In(HashSet::from([eid(0), eid(2)]))),
+                ),
+                scan("b"),
+                scan("c"),
+                scan("d"),
+            ]),
+            4,
+            2,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_batches_for_batch_size() {
+        let index = create_index_with_batch_size(10);
+        let mut quads = Vec::new();
+        for i in 0..25 {
+            quads.push(IndexedQuad([eid(0), eid(1), eid(2), eid(i)]))
+        }
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        // The lookup matches a single IndexData that will be scanned.
+        run_batch_size_test(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), traverse(2), scan("d")]),
+            &[10, 10, 5],
+            true,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn scan_multi_level_batches_coalesce_results() {
+        let index = create_index_with_batch_size(10);
+        let mut quads = Vec::new();
+        for i in 0..25 {
+            quads.push(IndexedQuad([eid(0), eid(1), eid(i), eid(2)]))
+        }
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        // The lookup matches 25 different IndexLevels, each having exactly one data entry. The
+        // batches should be combined into a single batch.
+        run_batch_size_test(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), scan("c"), traverse(2)]),
+            &[10, 10, 5],
+            true,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn delete_triple_removes_it() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
+            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+        ];
+        index.insert(quads.clone(), VersionNumber(1)).await.unwrap();
+        index.remove(quads, VersionNumber(2)).await.unwrap();
+
+        run_non_matching_test(
+            index,
+            IndexScanInstructions([scan("a"), scan("b"), scan("c"), scan("d")]),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn delete_triple_non_existing_ok() {
+        let index = create_index();
+        let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
+        let result = index.remove(quads, VersionNumber(1)).await;
+        assert!(result.ok().is_some());
+    }
+
+    fn create_index() -> MemHashTripleIndex {
+        create_index_with_batch_size(10)
+    }
+
+    fn create_index_with_batch_size(batch_size: usize) -> MemHashTripleIndex {
+        let configuration = IndexConfiguration {
+            batch_size,
+            object_id_encoding: ObjectIdEncoding::new(4),
+            components: IndexComponents::try_new([
+                IndexComponent::GraphName,
+                IndexComponent::Subject,
+                IndexComponent::Predicate,
+                IndexComponent::Object,
+            ])
+            .unwrap(),
+        };
+        MemHashTripleIndex::new(configuration)
+    }
+
+    fn traverse(id: u32) -> IndexScanInstruction {
+        IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(HashSet::from([
+            EncodedObjectId::from(id),
+        ]))))
+    }
+
+    fn scan(name: impl Into<String>) -> IndexScanInstruction {
+        IndexScanInstruction::Scan(name.into(), None)
+    }
+
+    fn eid(id: u32) -> EncodedObjectId {
+        EncodedObjectId::from(id)
+    }
+
+    async fn run_non_matching_test(
+        index: MemHashTripleIndex,
+        lookup: IndexScanInstructions,
+    ) {
+        let version_number = index.version_number().await;
+        let results = index.scan(lookup, version_number).await.unwrap().next();
+        assert!(
+            results.is_none(),
+            "Expected no results in non-matching test."
+        );
+    }
+
+    async fn run_matching_test(
+        index: MemHashTripleIndex,
+        lookup: IndexScanInstructions,
+        expected_columns: usize,
+        expected_rows: usize,
+    ) {
+        let version_number = index.version_number().await;
+        let results = index
+            .scan(lookup, version_number)
+            .await
+            .unwrap()
+            .next()
+            .unwrap();
+
+        assert_eq!(results.num_results, expected_rows);
+        assert_eq!(results.columns.len(), expected_columns);
+        for result in results.columns.values() {
+            assert_eq!(result.array().len(), expected_rows);
+        }
+    }
+
+    async fn run_batch_size_test(
+        index: MemHashTripleIndex,
+        lookup: IndexScanInstructions,
+        expected_batch_sizes: &[usize],
+        ordered: bool,
+    ) {
+        let mut batch_sizes: Vec<_> = index
+            .scan(lookup, VersionNumber(1))
+            .await
+            .unwrap()
+            .map(|arr| arr.num_results)
+            .collect();
+
+        if ordered {
+            assert_eq!(batch_sizes, expected_batch_sizes);
+        } else {
+            let mut expected_batch_sizes = expected_batch_sizes.to_vec();
+            batch_sizes.sort();
+            expected_batch_sizes.sort();
+
+            assert_eq!(batch_sizes, expected_batch_sizes);
         }
     }
 }

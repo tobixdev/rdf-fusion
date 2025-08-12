@@ -1,4 +1,3 @@
-use datafusion::execution::TaskContext;
 use datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet};
 use futures::StreamExt;
 use insta::assert_debug_snapshot;

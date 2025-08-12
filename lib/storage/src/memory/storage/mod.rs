@@ -1,11 +1,12 @@
 mod index;
 mod mem_storage;
 mod pattern_exec;
+mod pattern_stream;
 mod snapshot;
-mod stream;
 
 pub use mem_storage::MemQuadStorage;
 pub use pattern_exec::MemQuadPatternExec;
+pub use pattern_stream::MemQuadPatternStream;
 pub use snapshot::MemQuadStorageSnapshot;
 use std::fmt::{Display, Formatter};
 
