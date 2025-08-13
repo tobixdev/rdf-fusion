@@ -60,7 +60,7 @@ async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()
         .create_benchmark_context(benchmark_name)
         .unwrap();
 
-    let store = Store::new();
+    let store = Store::default();
     for query_name in BsbmExploreQueryName::list_queries() {
         let benchmark_name = format!("BSBM Explore - {query_name}");
         let query =

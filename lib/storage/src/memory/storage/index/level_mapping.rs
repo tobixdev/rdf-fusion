@@ -290,24 +290,6 @@ impl<TInnerState: Clone> IndexLevelScanState<TInnerState> {
     }
 }
 
-/// The result of an action on an index level.
-#[derive(Debug)]
-pub struct IndexLevelActionResult<TState> {
-    /// The result of this level.
-    pub batch: IndexScanBatch,
-    /// The new state of the iterator at this level.
-    pub new_state: Option<TState>,
-}
-
-impl<TState> IndexLevelActionResult<TState> {
-    pub fn finished(result: IndexScanBatch) -> Self {
-        Self {
-            batch: result,
-            new_state: None,
-        }
-    }
-}
-
 impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
     type ScanState = IndexLevelScanState<TContent::ScanState>;
 
