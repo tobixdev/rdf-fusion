@@ -63,7 +63,7 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         collector: &mut ScanCollector,
     ) -> (usize, Option<IndexLevelScanState<TInner::ScanState>>) {
         let matching_count = traversal.try_collect_enough_results_for_batch(
-            &self,
+            self,
             configuration,
             None,
             false,
@@ -90,7 +90,7 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         collector: &mut ScanCollector,
     ) -> (usize, Option<IndexLevelScanState<TInner::ScanState>>) {
         let matching_count = traversal.try_collect_enough_results_for_batch(
-            &self,
+            self,
             configuration,
             Some(name.as_str()),
             only_check_equality,
@@ -162,7 +162,7 @@ impl<TInnerState: Clone> IndexTraversal<TInnerState> {
 
     fn try_collect_results_from_iter<
         'iter,
-        InnerLevel: IndexLevelImpl<ScanState = TInnerState>,
+        InnerLevel: IndexLevelImpl<ScanState = TInnerState> + 'iter,
         Iter: IntoIterator<Item = (&'iter EncodedObjectId, Option<&'iter InnerLevel>)>,
     >(
         &mut self,
@@ -171,10 +171,7 @@ impl<TInnerState: Clone> IndexTraversal<TInnerState> {
         column: Option<&str>,
         only_check_equality: bool,
         collector: &mut ScanCollector,
-    ) -> usize
-    where
-        InnerLevel: 'iter,
-    {
+    ) -> usize {
         let mut matching_count = 0;
 
         for (oid, next_level) in iter.into_iter().skip(self.consumed) {

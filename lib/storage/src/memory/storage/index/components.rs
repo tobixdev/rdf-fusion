@@ -84,8 +84,8 @@ impl IndexComponents {
 
 #[cfg(test)]
 mod tests {
-    use crate::memory::storage::index::components::IndexComponent;
     use crate::memory::storage::index::IndexComponents;
+    use crate::memory::storage::index::components::IndexComponent;
 
     #[test]
     fn index_configuration_accepts_unique_components() {

@@ -1,4 +1,6 @@
 use crate::memory::object_id::EncodedObjectId;
+use crate::memory::storage::VersionNumber;
+use crate::memory::storage::index::level::IndexLevelImpl;
 use crate::memory::storage::index::level_data::IndexData;
 use crate::memory::storage::index::level_mapping::IndexLevel;
 use crate::memory::storage::index::scan::MemHashIndexIterator;
@@ -6,10 +8,8 @@ use crate::memory::storage::index::{
     IndexConfiguration, IndexScanError, IndexScanInstructions, IndexUpdateError,
     IndexedQuad, UnexpectedVersionNumberError,
 };
-use crate::memory::storage::VersionNumber;
 use std::sync::Arc;
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
-use crate::memory::storage::index::level::IndexLevelImpl;
 
 /// Represents the index.
 type IndexDataStructure = IndexLevel<IndexLevel<IndexLevel<IndexData>>>;

@@ -58,8 +58,8 @@ impl ScanCollector {
         let mut to_remove = vec![];
 
         // find all rows to delete
-        for i in start_to_check..column_to_check.len() {
-            if column_to_check[i] != item {
+        for (i, value) in column_to_check.iter().enumerate().skip(start_to_check) {
+            if *value != item {
                 to_remove.push(i);
             }
         }
@@ -80,7 +80,7 @@ impl ScanCollector {
         configuration: &IndexConfiguration,
     ) -> IndexScanBatch {
         // This is the result when only an index lookup is performed.
-        if num_results == 1 && self.state.len() == 0 {
+        if num_results == 1 && self.state.is_empty() {
             return IndexScanBatch {
                 num_results: 1,
                 columns: HashMap::new(),

@@ -38,7 +38,7 @@ impl IndexData {
         predicate: Option<ObjectIdScanPredicate>,
     ) -> (usize, Option<IndexDataScanState>) {
         let contained = match predicate {
-            None => self.terms.len() > 0,
+            None => !self.terms.is_empty(),
             Some(predicate) => self.terms.iter().any(|id| predicate.evaluate(*id)),
         };
         if contained { (1, None) } else { (0, None) }

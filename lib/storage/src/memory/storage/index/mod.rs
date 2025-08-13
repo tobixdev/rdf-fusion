@@ -4,15 +4,15 @@ use std::collections::HashSet;
 mod components;
 mod error;
 mod hash_index;
+mod level;
 mod level_data;
 mod level_mapping;
 mod scan;
-mod set;
 mod scan_collector;
-mod level;
+mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
@@ -134,16 +134,16 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::memory::storage::VersionNumber;
     use crate::memory::storage::index::components::IndexComponent;
     use crate::memory::storage::index::hash_index::MemHashTripleIndex;
     use crate::memory::storage::index::{
         IndexComponents, IndexScanError, IndexScanInstruction, IndexScanInstructions,
         UnexpectedVersionNumberError,
     };
-    use crate::memory::storage::VersionNumber;
     use datafusion::arrow::array::Array;
-    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
     use rdf_fusion_encoding::EncodingArray;
+    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 
     #[tokio::test]
     async fn insert_and_scan_triple() {
@@ -320,7 +320,7 @@ mod tests {
             3,
             2,
         )
-            .await;
+        .await;
     }
 
     #[tokio::test]

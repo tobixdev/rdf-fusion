@@ -1,19 +1,19 @@
+use crate::memory::MemObjectIdMapping;
 use crate::memory::encoding::{
     EncodedActiveGraph, EncodedTermPattern, EncodedTriplePattern,
 };
 use crate::memory::storage::index::IndexSet;
 use crate::memory::storage::{MemQuadPatternStream, VersionNumber};
-use crate::memory::MemObjectIdMapping;
 use datafusion::execution::SendableRecordBatchStream;
+use datafusion::physical_plan::EmptyRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use datafusion::physical_plan::EmptyRecordBatchStream;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_logical::ActiveGraph;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{
     NamedOrBlankNode, NamedOrBlankNodeRef, TermPattern, TriplePattern, Variable,
 };
@@ -146,7 +146,7 @@ impl MemQuadStorageSnapshot {
                     })
                     .collect::<Vec<_>>();
 
-                if decoded.len() == 0 {
+                if decoded.is_empty() {
                     return Err(UnknownObjectIdError);
                 }
 

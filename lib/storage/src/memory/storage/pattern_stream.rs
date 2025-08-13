@@ -1,16 +1,16 @@
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTriplePattern};
+use crate::memory::storage::VersionNumber;
 use crate::memory::storage::index::{
     IndexScanError, IndexScanInstruction, IndexScanInstructions, IndexSet,
     MemHashIndexIterator,
 };
-use crate::memory::storage::VersionNumber;
 use datafusion::arrow::array::{RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::exec_datafusion_err;
 use datafusion::error::DataFusionError;
 use datafusion::execution::RecordBatchStream;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use futures::{ready, FutureExt, Stream};
+use futures::{FutureExt, Stream, ready};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingArray;
 use rdf_fusion_model::Variable;
@@ -48,7 +48,7 @@ pub enum MemQuadPatternStreamState {
         >,
     ),
     /// The stream is emitting the results from the index scan.
-    Scan(MemHashIndexIterator),
+    Scan(Box<MemHashIndexIterator>),
     /// The stream is finished.
     Finished,
 }
@@ -118,7 +118,7 @@ impl Stream for MemQuadPatternStream {
                 MemQuadPatternStreamState::WaitingForIndexScanIterator(future) => {
                     let index_scan = ready!(future.poll_unpin(cx))
                         .map_err(|e| exec_datafusion_err!("Could not scan index: {e}"))?;
-                    self.state = MemQuadPatternStreamState::Scan(index_scan);
+                    self.state = MemQuadPatternStreamState::Scan(Box::new(index_scan));
                 }
                 MemQuadPatternStreamState::Scan(inner) => match inner.next() {
                     None => {
@@ -130,10 +130,11 @@ impl Stream for MemQuadPatternStream {
                             .fields
                             .iter()
                             .map(|f| {
+                                let name = f.name();
                                 batch
                                     .columns
-                                    .remove(f.name())
-                                    .expect(&format!("Must be bound: {}", f.name()))
+                                    .remove(name)
+                                    .unwrap_or_else(|| panic!("Must be bound: {name}"))
                                     .into_array()
                             })
                             .collect();
@@ -143,7 +144,7 @@ impl Stream for MemQuadPatternStream {
                             &RecordBatchOptions::default()
                                 .with_row_count(Some(batch.num_results)),
                         )
-                        .map_err(|e| DataFusionError::from(e))?;
+                        .map_err(DataFusionError::from)?;
 
                         self.metrics.record_output(batch.num_rows());
                         return Poll::Ready(Some(Ok(batch)));

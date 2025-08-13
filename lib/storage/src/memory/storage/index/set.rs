@@ -1,10 +1,10 @@
 use crate::memory::encoding::EncodedQuad;
-use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
+use crate::memory::storage::VersionNumber;
 use crate::memory::storage::index::hash_index::MemHashTripleIndex;
 use crate::memory::storage::index::{
     IndexComponents, IndexConfiguration, IndexScanInstructions, IndexedQuad,
 };
-use crate::memory::storage::VersionNumber;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use std::sync::Arc;
@@ -120,7 +120,7 @@ impl IndexSet {
         Ok(count)
     }
 
-    pub async fn insert_named_graph<'a>(
+    pub async fn insert_named_graph(
         &mut self,
         graph_name: EncodedObjectId,
     ) -> Result<bool, StorageError> {
@@ -152,7 +152,7 @@ impl IndexSet {
         Ok(inner_result)
     }
 
-    pub async fn contains_named_graph<'a>(
+    pub async fn contains_named_graph(
         &self,
         graph_name: EncodedObjectId,
     ) -> Result<bool, StorageError> {
@@ -174,7 +174,7 @@ impl IndexSet {
         Ok(())
     }
 
-    pub async fn clear_graph<'a>(
+    pub async fn clear_graph(
         &mut self,
         graph_name: EncodedGraphObjectId,
     ) -> Result<(), StorageError> {
@@ -216,13 +216,12 @@ impl IndexSet {
     fn any_index_with_graph_name_top_level(&self) -> &MemHashTripleIndex {
         self.indices
             .iter()
-            .filter(|index| index.configuration().components.is_graph_name_top_level())
-            .next()
+            .find(|index| index.configuration().components.is_graph_name_top_level())
             .unwrap()
     }
 
     fn any_index(&self) -> &MemHashTripleIndex {
-        self.indices.iter().next().unwrap()
+        self.indices.first().unwrap()
     }
 }
 
@@ -257,10 +256,10 @@ fn compute_scan_score(
 /// Re-orders the given `pattern` for the given `components`.
 fn reorder_quad(pattern: &IndexedQuad, components: &IndexComponents) -> IndexedQuad {
     IndexedQuad([
-        pattern.0[components.inner()[0].gspo_index()].clone(),
-        pattern.0[components.inner()[1].gspo_index()].clone(),
-        pattern.0[components.inner()[2].gspo_index()].clone(),
-        pattern.0[components.inner()[3].gspo_index()].clone(),
+        pattern.0[components.inner()[0].gspo_index()],
+        pattern.0[components.inner()[1].gspo_index()],
+        pattern.0[components.inner()[2].gspo_index()],
+        pattern.0[components.inner()[3].gspo_index()],
     ])
 }
 

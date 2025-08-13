@@ -1,5 +1,5 @@
-use thiserror::Error;
 use crate::memory::storage::VersionNumber;
+use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq, Hash)]
 #[error("Error while updating index.")]

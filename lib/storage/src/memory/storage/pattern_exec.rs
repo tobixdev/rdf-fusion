@@ -12,8 +12,8 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::ActiveGraph;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{TriplePattern, Variable};
 use std::any::Any;
 use std::fmt::Formatter;
