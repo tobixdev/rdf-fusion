@@ -2,7 +2,7 @@
 source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&string)
 ---
-ProjectionExec: expr=[ENV_PT(label@0) as label, ENV_PT(comment@1) as comment, ENV_PT(producer@2) as producer, ENV_PT(productFeature@3) as productFeature, ENV_PT(propertyTextual1@4) as propertyTextual1, ENV_PT(propertyTextual2@5) as propertyTextual2, ENV_PT(propertyTextual3@6) as propertyTextual3, ENV_PT(propertyNumeric1@7) as propertyNumeric1, ENV_PT(propertyNumeric2@8) as propertyNumeric2, ENV_PT(propertyTextual4@9) as propertyTextual4, ENV_PT(propertyTextual5@10) as propertyTextual5, ENV_PT(propertyNumeric4@11) as propertyNumeric4]
+ProjectionExec: expr=[ENC_PT(label@0) as label, ENC_PT(comment@1) as comment, ENC_PT(producer@2) as producer, ENC_PT(productFeature@3) as productFeature, ENC_PT(propertyTextual1@4) as propertyTextual1, ENC_PT(propertyTextual2@5) as propertyTextual2, ENC_PT(propertyTextual3@6) as propertyTextual3, ENC_PT(propertyNumeric1@7) as propertyNumeric1, ENC_PT(propertyNumeric2@8) as propertyNumeric2, ENC_PT(propertyTextual4@9) as propertyTextual4, ENC_PT(propertyTextual5@10) as propertyTextual5, ENC_PT(propertyNumeric4@11) as propertyNumeric4]
   CrossJoinExec
     CrossJoinExec
       CrossJoinExec

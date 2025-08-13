@@ -2,11 +2,11 @@
 source: bench/tests/plans/wind_farm.rs
 expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
 ---
-Projection: ENV_PT(site_label) AS site_label, ENV_PT(wtur_label) AS wtur_label, year AS year, month AS month, day AS day, hour AS hour, minute_10 AS minute_10, ENV_PT(avg_val) AS avg_val
+Projection: ENC_PT(site_label) AS site_label, ENC_PT(wtur_label) AS wtur_label, year AS year, month AS month, day AS day, hour AS hour, minute_10 AS minute_10, ENC_PT(avg_val) AS avg_val
   Projection: site_label, wtur_label, year, month, day, hour, minute_10, avg_val
     Extend: ?avg_val 00000000000000000000000000000001
       Projection: site_label, wtur_label, year, month, day, hour, minute_10, 00000000000000000000000000000001
-        Aggregate: groupBy=[[site_label AS site_label, wtur_label AS wtur_label, ENV_PT(year) AS year, ENV_PT(month) AS month, ENV_PT(day) AS day, ENV_PT(hour) AS hour, ENV_PT(minute_10) AS minute_10]], aggr=[[AVG(ENC_TV(val)) AS 00000000000000000000000000000001]]
+        Aggregate: groupBy=[[site_label AS site_label, wtur_label AS wtur_label, ENC_PT(year) AS year, ENC_PT(month) AS month, ENC_PT(day) AS day, ENC_PT(hour) AS hour, ENC_PT(minute_10) AS minute_10]], aggr=[[AVG(ENC_TV(val)) AS 00000000000000000000000000000001]]
           Filter: EBV(BOOLEAN_AS_TERM(coalesce(EBV(BOOLEAN_AS_TERM(coalesce(EBV(EQ(ENC_TV(site_label), ENC_TV(Struct({term_type:2,value:Wind Mountain,data_type:http://www.w3.org/2001/XMLSchema#string,language_tag:})))), Boolean(false)) AND coalesce(EBV(GEQ(ENC_TV(t), ENC_TV(Struct({term_type:2,value:2022-08-30T08:46:53,data_type:http://www.w3.org/2001/XMLSchema#dateTime,language_tag:})))), Boolean(false)))), Boolean(false)) AND coalesce(EBV(LEQ(ENC_TV(t), ENC_TV(Struct({term_type:2,value:2022-08-30T21:46:53,data_type:http://www.w3.org/2001/XMLSchema#dateTime,language_tag:})))), Boolean(false))))
             Extend: ?year YEAR(ENC_TV(t))
               Extend: ?month MONTH(ENC_TV(t))

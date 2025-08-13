@@ -2,11 +2,11 @@
 source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
 ---
-Projection: ENV_PT(product) AS product, ENV_PT(label) AS label, ENV_PT(propertyTextual) AS propertyTextual
+Projection: ENC_PT(product) AS product, ENC_PT(label) AS label, ENC_PT(propertyTextual) AS propertyTextual
   Limit: skip=5, fetch=10
-    DistinctOn: on_expr=[[ENV_SORT(ENV_PT(label)), product, propertyTextual]], select_expr=[[product, label, propertyTextual]], sort_expr=[[ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]]
+    DistinctOn: on_expr=[[ENC_SORT(ENC_PT(label)), product, propertyTextual]], select_expr=[[product, label, propertyTextual]], sort_expr=[[ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]]
       Projection: product, label, propertyTextual
-        Sort: ENV_SORT(ENV_PT(label)) ASC NULLS FIRST
+        Sort: ENC_SORT(ENC_PT(label)) ASC NULLS FIRST
           Union
             Projection: product, label, propertyTextual, p1, NULL AS p2
               Filter: EBV(GT(ENC_TV(p1), ENC_TV(Struct({term_type:2,value:457,data_type:http://www.w3.org/2001/XMLSchema#integer,language_tag:}))))
