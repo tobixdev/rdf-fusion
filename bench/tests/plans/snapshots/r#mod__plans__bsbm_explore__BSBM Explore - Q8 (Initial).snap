@@ -2,10 +2,10 @@
 source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
 ---
-Projection: ENV_PT(title) AS title, ENV_PT(text) AS text, ENV_PT(reviewDate) AS reviewDate, ENV_PT(reviewer) AS reviewer, ENV_PT(reviewerName) AS reviewerName, ENV_PT(rating1) AS rating1, ENV_PT(rating2) AS rating2, ENV_PT(rating3) AS rating3, ENV_PT(rating4) AS rating4
+Projection: ENC_PT(title) AS title, ENC_PT(text) AS text, ENC_PT(reviewDate) AS reviewDate, ENC_PT(reviewer) AS reviewer, ENC_PT(reviewerName) AS reviewerName, ENC_PT(rating1) AS rating1, ENC_PT(rating2) AS rating2, ENC_PT(rating3) AS rating3, ENC_PT(rating4) AS rating4
   Limit: skip=0, fetch=20
     Projection: title, text, reviewDate, reviewer, reviewerName, rating1, rating2, rating3, rating4
-      Sort: ENV_SORT(ENV_PT(reviewDate)) DESC NULLS FIRST
+      Sort: ENC_SORT(ENC_PT(reviewDate)) DESC NULLS FIRST
         Filter: EBV(LANGMATCHES(LANG(ENC_TV(text)), ENC_TV(Struct({term_type:2,value:EN,data_type:http://www.w3.org/2001/XMLSchema#string,language_tag:}))))
           SparqlJoin: Left 
             SparqlJoin: Left 

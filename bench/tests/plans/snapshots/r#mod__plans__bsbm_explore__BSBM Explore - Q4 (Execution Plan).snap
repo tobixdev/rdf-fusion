@@ -2,14 +2,14 @@
 source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&string)
 ---
-ProjectionExec: expr=[ENV_PT(first_value(product) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]@3) as product, ENV_PT(first_value(label) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]@4) as label, ENV_PT(first_value(propertyTextual) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]@5) as propertyTextual]
+ProjectionExec: expr=[ENC_PT(first_value(product) ORDER BY [ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]@3) as product, ENC_PT(first_value(label) ORDER BY [ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]@4) as label, ENC_PT(first_value(propertyTextual) ORDER BY [ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]@5) as propertyTextual]
   GlobalLimitExec: skip=5, fetch=10
-    SortExec: TopK(fetch=15), expr=[ENV_SORT(ENV_PT(label))@0 ASC, product@1 ASC, propertyTextual@2 ASC], preserve_partitioning=[false], sort_prefix=[ENV_SORT(ENV_PT(label))@0 ASC]
-      AggregateExec: mode=Single, gby=[__common_expr_1@0 as ENV_SORT(ENV_PT(label)), product@1 as product, propertyTextual@3 as propertyTextual], aggr=[first_value(product) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST], first_value(label) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST], first_value(propertyTextual) ORDER BY [ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]], ordering_mode=PartiallySorted([0])
-        ProjectionExec: expr=[ENV_SORT(ENV_PT(label@1)) as __common_expr_1, product@0 as product, label@1 as label, propertyTextual@2 as propertyTextual]
-          SortPreservingMergeExec: [ENV_SORT(ENV_PT(label@1)) ASC]
+    SortExec: TopK(fetch=15), expr=[ENC_SORT(ENC_PT(label))@0 ASC, product@1 ASC, propertyTextual@2 ASC], preserve_partitioning=[false], sort_prefix=[ENC_SORT(ENC_PT(label))@0 ASC]
+      AggregateExec: mode=Single, gby=[__common_expr_1@0 as ENC_SORT(ENC_PT(label)), product@1 as product, propertyTextual@3 as propertyTextual], aggr=[first_value(product) ORDER BY [ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST], first_value(label) ORDER BY [ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST], first_value(propertyTextual) ORDER BY [ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST, propertyTextual ASC NULLS FIRST]], ordering_mode=PartiallySorted([0])
+        ProjectionExec: expr=[ENC_SORT(ENC_PT(label@1)) as __common_expr_1, product@0 as product, label@1 as label, propertyTextual@2 as propertyTextual]
+          SortPreservingMergeExec: [ENC_SORT(ENC_PT(label@1)) ASC]
             UnionExec
-              SortExec: expr=[ENV_SORT(ENV_PT(label@1)) ASC], preserve_partitioning=[false]
+              SortExec: expr=[ENC_SORT(ENC_PT(label@1)) ASC], preserve_partitioning=[false]
                 CoalesceBatchesExec: target_batch_size=8192
                   HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, label@1, propertyTextual@2]
                     CoalesceBatchesExec: target_batch_size=8192
@@ -28,7 +28,7 @@ ProjectionExec: expr=[ENV_PT(first_value(product) ORDER BY [ENV_SORT(ENV_PT(labe
                     CoalesceBatchesExec: target_batch_size=8192
                       FilterExec: EBV(GT(ENC_TV(p1@1), 9:457)), projection=[product@0]
                         QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?p1
-              SortExec: expr=[ENV_SORT(ENV_PT(label@1)) ASC], preserve_partitioning=[false]
+              SortExec: expr=[ENC_SORT(ENC_PT(label@1)) ASC], preserve_partitioning=[false]
                 CoalesceBatchesExec: target_batch_size=8192
                   HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, label@1, propertyTextual@2]
                     CoalesceBatchesExec: target_batch_size=8192

@@ -2,11 +2,11 @@
 source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&string)
 ---
-ProjectionExec: expr=[ENV_PT(first_value(product) ORDER BY [ENV_SORT(ENV_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST]@2) as product, ENV_PT(first_value(productLabel) ORDER BY [ENV_SORT(ENV_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST]@3) as productLabel]
-  SortExec: TopK(fetch=5), expr=[ENV_SORT(ENV_PT(productLabel))@0 ASC, product@1 ASC], preserve_partitioning=[false], sort_prefix=[ENV_SORT(ENV_PT(productLabel))@0 ASC]
-    AggregateExec: mode=Single, gby=[__common_expr_1@0 as ENV_SORT(ENV_PT(productLabel)), product@1 as product], aggr=[first_value(product) ORDER BY [ENV_SORT(ENV_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST], first_value(productLabel) ORDER BY [ENV_SORT(ENV_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST]], ordering_mode=PartiallySorted([0])
-      ProjectionExec: expr=[ENV_SORT(ENV_PT(productLabel@1)) as __common_expr_1, product@0 as product, productLabel@1 as productLabel]
-        SortExec: expr=[ENV_SORT(ENV_PT(productLabel@1)) ASC], preserve_partitioning=[false]
+ProjectionExec: expr=[ENC_PT(first_value(product) ORDER BY [ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST]@2) as product, ENC_PT(first_value(productLabel) ORDER BY [ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST]@3) as productLabel]
+  SortExec: TopK(fetch=5), expr=[ENC_SORT(ENC_PT(productLabel))@0 ASC, product@1 ASC], preserve_partitioning=[false], sort_prefix=[ENC_SORT(ENC_PT(productLabel))@0 ASC]
+    AggregateExec: mode=Single, gby=[__common_expr_1@0 as ENC_SORT(ENC_PT(productLabel)), product@1 as product], aggr=[first_value(product) ORDER BY [ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST], first_value(productLabel) ORDER BY [ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST]], ordering_mode=PartiallySorted([0])
+      ProjectionExec: expr=[ENC_SORT(ENC_PT(productLabel@1)) as __common_expr_1, product@0 as product, productLabel@1 as productLabel]
+        SortExec: expr=[ENC_SORT(ENC_PT(productLabel@1)) ASC], preserve_partitioning=[false]
           NestedLoopJoinExec: join_type=Inner, filter=coalesce(coalesce(EBV(LT(join_proj_push_down_6@0, join_proj_push_down_8@2)), false) AND coalesce(EBV(GT(join_proj_push_down_7@1, join_proj_push_down_9@3)), false), false), projection=[product@0, productLabel@1]
             ProjectionExec: expr=[product@0 as product, productLabel@1 as productLabel, simProperty2@2 as simProperty2, ENC_TV(simProperty2@2) as join_proj_push_down_6, ENC_TV(simProperty2@2) as join_proj_push_down_7]
               CoalesceBatchesExec: target_batch_size=8192

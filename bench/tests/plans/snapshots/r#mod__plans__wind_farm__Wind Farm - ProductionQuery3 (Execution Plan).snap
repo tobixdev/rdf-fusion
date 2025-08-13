@@ -2,7 +2,7 @@
 source: bench/tests/plans/wind_farm.rs
 expression: canonicalize_uuids(&string)
 ---
-ProjectionExec: expr=[ENV_PT(site_label@0) as site_label, ENV_PT(wtur_label@1) as wtur_label, ENV_PT(t@3) as t, ENV_PT(val@2) as val]
+ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) as wtur_label, ENC_PT(t@3) as t, ENC_PT(val@2) as val]
   CoalesceBatchesExec: target_batch_size=8192
     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp@2, dp@0)], projection=[site_label@0, wtur_label@1, val@3, t@5]
       CoalesceBatchesExec: target_batch_size=8192

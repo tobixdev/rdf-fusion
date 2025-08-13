@@ -2,7 +2,7 @@
 source: bench/tests/plans/bsbm_business_intelligence.rs
 expression: canonicalize_uuids(&string)
 ---
-ProjectionExec: expr=[ENV_PT(reviewer@0) as reviewer, ENV_PT(00000000000000000000000000000001@1) as reviewerAvgScore]
+ProjectionExec: expr=[ENC_PT(reviewer@0) as reviewer, ENC_PT(00000000000000000000000000000001@1) as reviewerAvgScore]
   CoalesceBatchesExec: target_batch_size=8192
     FilterExec: EBV(GT(00000000000000000000000000000001@1, MUL(00000000000000000000000000000002@2, 7:Some(1500000000000000000),36,16))), projection=[reviewer@0, 00000000000000000000000000000001@1]
       AggregateExec: mode=Final, gby=[reviewer@0 as reviewer], aggr=[00000000000000000000000000000001, 00000000000000000000000000000002]

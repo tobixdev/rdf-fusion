@@ -2,7 +2,7 @@
 source: bench/tests/plans/wind_farm.rs
 expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
 ---
-Projection: ENV_PT(lhs.site_label) AS site_label, ENV_PT(lhs.wtur_label) AS wtur_label, ENV_PT(rhs.t) AS t, ENV_PT(lhs.val) AS val
+Projection: ENC_PT(lhs.site_label) AS site_label, ENC_PT(lhs.wtur_label) AS wtur_label, ENC_PT(rhs.t) AS t, ENC_PT(lhs.val) AS val
   Inner Join: lhs.dp = rhs.dp
     SubqueryAlias: lhs
       Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.dp AS dp, rhs.val AS val
