@@ -1,10 +1,10 @@
-use std::cmp::{max, min};
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::level::IndexLevelImpl;
 use crate::memory::storage::index::scan_collector::ScanCollector;
 use crate::memory::storage::index::{
     IndexConfiguration, IndexedQuad, ObjectIdScanPredicate,
 };
+use std::cmp::min;
 use std::collections::HashSet;
 
 /// Holds the data for the last index level.

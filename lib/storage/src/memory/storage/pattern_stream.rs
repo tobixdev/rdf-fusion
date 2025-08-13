@@ -106,7 +106,8 @@ impl Stream for MemQuadPatternStream {
                         IndexScanInstruction::from(pattern.object.clone()),
                     ]);
 
-                    let index = index_set.choose_index(&scan_instructions);
+                    let (index, scan_instructions) =
+                        index_set.choose_index(&scan_instructions);
                     let version_number = *version_number;
                     self.state = MemQuadPatternStreamState::WaitingForIndexScanIterator(
                         Box::pin(async move {

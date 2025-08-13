@@ -9,7 +9,7 @@ use crate::memory::storage::index::{
 use datafusion::arrow::array::Array;
 use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::EncodingArray;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tokio::sync::OwnedRwLockReadGuard;
 
 /// The full type of the index scan iterator.
@@ -118,35 +118,47 @@ impl Iterator for MemHashIndexIterator {
 }
 
 fn build_state(patterns: [IndexScanInstruction; 4]) -> IndexScanState {
-    let data = create_state_for_data(patterns[3].clone());
-    let first_level = create_state_for_level(patterns[2].clone(), data);
-    let second_level = create_state_for_level(patterns[1].clone(), first_level);
-    create_state_for_level(patterns[0].clone(), second_level)
+    let (data, seen) = create_state_for_data(patterns[3].clone());
+    let (first_level, seen) = create_state_for_level(patterns[2].clone(), data, seen);
+    let (second_level, seen) =
+        create_state_for_level(patterns[1].clone(), first_level, seen);
+    create_state_for_level(patterns[0].clone(), second_level, seen).0
 }
 
-fn create_state_for_data(scan_instruction: IndexScanInstruction) -> IndexDataScanState {
+fn create_state_for_data(
+    scan_instruction: IndexScanInstruction,
+) -> (IndexDataScanState, HashSet<String>) {
     match scan_instruction {
         IndexScanInstruction::Traverse(predicate) => {
-            IndexDataScanState::Traverse { predicate }
+            (IndexDataScanState::Traverse { predicate }, HashSet::new())
         }
-        IndexScanInstruction::Scan(name, predicate) => IndexDataScanState::Scan {
-            name,
-            predicate,
-            consumed: 0,
-        },
+        IndexScanInstruction::Scan(name, predicate) => (
+            IndexDataScanState::Scan {
+                name: name.clone(),
+                predicate,
+                consumed: 0,
+            },
+            HashSet::from([name]),
+        ),
     }
 }
 
 pub fn create_state_for_level<TInner: Clone>(
     scan_instruction: IndexScanInstruction,
     inner: TInner,
-) -> IndexLevelScanState<TInner> {
+    mut seen: HashSet<String>,
+) -> (IndexLevelScanState<TInner>, HashSet<String>) {
     match scan_instruction {
         IndexScanInstruction::Traverse(predicate) => {
-            IndexLevelScanState::traverse(predicate, inner)
+            (IndexLevelScanState::traverse(predicate, inner), seen)
         }
+        IndexScanInstruction::Scan(name, predicate) if seen.contains(&name) => (
+            IndexLevelScanState::traverse_and_check_equality(name, predicate, inner),
+            seen,
+        ),
         IndexScanInstruction::Scan(name, predicate) => {
-            IndexLevelScanState::scan(name, predicate, inner)
+            seen.insert(name.clone());
+            (IndexLevelScanState::scan(name, predicate, inner), seen)
         }
     }
 }

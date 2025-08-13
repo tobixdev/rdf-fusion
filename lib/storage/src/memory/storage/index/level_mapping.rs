@@ -2,14 +2,10 @@ use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::level::IndexLevelImpl;
 use crate::memory::storage::index::scan_collector::ScanCollector;
 use crate::memory::storage::index::{
-    IndexConfiguration, IndexScanBatch, IndexedQuad, ObjectIdScanPredicate,
+    IndexConfiguration, IndexedQuad, ObjectIdScanPredicate,
 };
-use datafusion::arrow::array::UInt32Array;
-use rdf_fusion_encoding::object_id::ObjectIdArray;
-use rdf_fusion_encoding::TermEncoding;
 use std::collections::HashMap;
 use std::iter::repeat_n;
-use std::sync::Arc;
 
 /// An index level is a mapping from [EncodedObjectId]. By traversing multiple index levels, users
 /// can access the data in the index.
@@ -70,6 +66,7 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
             &self,
             configuration,
             None,
+            false,
             collector,
         );
         let max_consumed = traversal.max_consumed(self.0.len());
@@ -89,12 +86,14 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         configuration: &IndexConfiguration,
         name: String,
         mut traversal: IndexTraversal<TInner::ScanState>,
+        only_check_equality: bool,
         collector: &mut ScanCollector,
     ) -> (usize, Option<IndexLevelScanState<TInner::ScanState>>) {
         let matching_count = traversal.try_collect_enough_results_for_batch(
             &self,
             configuration,
             Some(name.as_str()),
+            only_check_equality,
             collector,
         );
         let max_consumed = traversal.max_consumed(self.0.len());
@@ -106,47 +105,6 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
                 matching_count,
                 Some(IndexLevelScanState::Scan(name, traversal)),
             )
-        }
-    }
-
-    fn check_equality_if_necessary(
-        configuration: &IndexConfiguration,
-        mut batch: IndexScanBatch,
-        name: &str,
-        array: ObjectIdArray,
-    ) -> IndexScanBatch {
-        if batch.columns.contains_key(name) {
-            let lhs = array.object_ids();
-            let rhs = batch.columns[name].object_ids();
-            let is_equal = lhs
-                .iter()
-                .zip(rhs.iter())
-                .enumerate()
-                .filter_map(|(idx, (l, r))| (l == r).then(|| idx))
-                .collect::<Vec<_>>();
-
-            let mut new_results = HashMap::new();
-            let keys = batch.columns.keys().cloned().collect::<Vec<_>>();
-            for key in keys {
-                let array = batch.columns.remove(&key).unwrap();
-                let new_array = array
-                    .object_ids()
-                    .take_iter(is_equal.iter().copied().map(Some))
-                    .collect::<UInt32Array>();
-                let new_array = configuration
-                    .object_id_encoding
-                    .try_new_array(Arc::new(new_array))
-                    .expect("TODO");
-                new_results.insert(key, new_array);
-            }
-
-            IndexScanBatch {
-                num_results: is_equal.len(),
-                columns: new_results,
-            }
-        } else {
-            batch.columns.insert(name.to_owned(), array);
-            batch
         }
     }
 }
@@ -178,6 +136,7 @@ impl<TInnerState: Clone> IndexTraversal<TInnerState> {
         index: &IndexLevel<TLevel>,
         configuration: &IndexConfiguration,
         column: Option<&str>,
+        only_check_equality: bool,
         collector: &mut ScanCollector,
     ) -> usize
     where
@@ -185,15 +144,17 @@ impl<TInnerState: Clone> IndexTraversal<TInnerState> {
     {
         match self.predicate.clone() {
             Some(ObjectIdScanPredicate::In(ids)) => self.try_collect_results_from_iter(
-                ids.iter().filter_map(|id| index.0.get(id).map(|c| (id, c))),
+                ids.iter().map(|id| (id, index.0.get(id))),
                 configuration,
                 column,
+                only_check_equality,
                 collector,
             ),
             _ => self.try_collect_results_from_iter(
-                index.0.iter(),
+                index.0.iter().map(|(k, v)| (k, Some(v))),
                 configuration,
                 column,
+                only_check_equality,
                 collector,
             ),
         }
@@ -202,12 +163,13 @@ impl<TInnerState: Clone> IndexTraversal<TInnerState> {
     fn try_collect_results_from_iter<
         'iter,
         InnerLevel: IndexLevelImpl<ScanState = TInnerState>,
-        Iter: IntoIterator<Item = (&'iter EncodedObjectId, &'iter InnerLevel)>,
+        Iter: IntoIterator<Item = (&'iter EncodedObjectId, Option<&'iter InnerLevel>)>,
     >(
         &mut self,
         iter: Iter,
         configuration: &IndexConfiguration,
         column: Option<&str>,
+        only_check_equality: bool,
         collector: &mut ScanCollector,
     ) -> usize
     where
@@ -223,6 +185,11 @@ impl<TInnerState: Clone> IndexTraversal<TInnerState> {
                 continue;
             }
 
+            let Some(next_level) = next_level else {
+                self.consumed += 1;
+                continue;
+            };
+
             let (inner_len, inner_state) =
                 next_level.scan(configuration, self.inner.clone(), collector);
             matching_count += inner_len;
@@ -230,14 +197,20 @@ impl<TInnerState: Clone> IndexTraversal<TInnerState> {
             if let Some(column) = column
                 && inner_len > 0
             {
-                collector.extend(column, repeat_n(oid.as_u32(), inner_len));
+                if only_check_equality {
+                    let removed =
+                        collector.remove_non_equal(column, oid.as_u32(), inner_len);
+                    matching_count -= removed;
+                } else {
+                    collector.extend(column, repeat_n(oid.as_u32(), inner_len));
+                }
             }
 
             let inner_state = match inner_state {
                 None => {
                     self.consumed += 1;
                     self.default_state.clone()
-                },
+                }
                 Some(inner_state) => inner_state,
             };
             self.inner = inner_state;
@@ -257,6 +230,9 @@ pub enum IndexLevelScanState<TInnerState: Clone> {
     /// For this level, the iterator should traverse the entries and collect the results from the
     /// inner levels.
     Traverse(IndexTraversal<TInnerState>),
+    /// Filter equaled elements from this level. This is used if the same variable appears multiple
+    /// times in a single pattern.
+    TraverseAndFilterEqual(String, IndexTraversal<TInnerState>),
     /// Same as [Self::Traverse] but also collects the elements from this level and returns them.
     Scan(String, IndexTraversal<TInnerState>),
 }
@@ -273,6 +249,20 @@ impl<TInnerState: Clone> IndexLevelScanState<TInnerState> {
             consumed: 0,
         };
         Self::Traverse(traversal)
+    }
+
+    pub fn traverse_and_check_equality(
+        name: String,
+        predicate: Option<ObjectIdScanPredicate>,
+        default_state: TInnerState,
+    ) -> Self {
+        let traversal = IndexTraversal {
+            predicate,
+            inner: default_state.clone(),
+            default_state,
+            consumed: 0,
+        };
+        Self::TraverseAndFilterEqual(name, traversal)
     }
 
     pub fn scan(
@@ -338,8 +328,11 @@ impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
             IndexLevelScanState::Traverse(traversal) => {
                 self.traverse_impl(configuration, traversal, collector)
             }
+            IndexLevelScanState::TraverseAndFilterEqual(name, traversal) => {
+                self.scan_impl(configuration, name, traversal, true, collector)
+            }
             IndexLevelScanState::Scan(name, traversal) => {
-                self.scan_impl(configuration, name, traversal, collector)
+                self.scan_impl(configuration, name, traversal, false, collector)
             }
         }
     }

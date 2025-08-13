@@ -5,8 +5,11 @@ use rdf_fusion_encoding::TermEncoding;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// TODO
 pub struct ScanCollector {
+    /// TODO
     batch_size: usize,
+    /// TODO
     state: HashMap<String, Vec<u32>>,
 }
 
@@ -19,18 +22,22 @@ impl ScanCollector {
         }
     }
 
+    /// TODO
     pub fn batch_full(&self) -> bool {
         self.max_num_results() >= self.batch_size
     }
 
+    /// TODO
     pub fn max_num_results(&self) -> usize {
         self.state.values().map(|v| v.len()).max().unwrap_or(0)
     }
 
+    /// TODO
     pub fn num_results(&self, name: &str) -> usize {
         self.state.get(name).map(|v| v.len()).unwrap_or(0)
     }
 
+    /// TODO
     pub fn extend(&mut self, name: &str, results: impl IntoIterator<Item = u32>) {
         if let Some(vec) = self.state.get_mut(name) {
             vec.extend(results);
@@ -39,6 +46,32 @@ impl ScanCollector {
             vec.extend(results);
             self.state.insert(name.to_owned(), vec);
         }
+    }
+
+    /// TODO
+    pub fn remove_non_equal(&mut self, name: &str, item: u32, count: usize) -> usize {
+        let Some(column_to_check) = self.state.get_mut(name) else {
+            unreachable!("There should already be a value for the column.")
+        };
+
+        let start_to_check = column_to_check.len() - count;
+        let mut to_remove = vec![];
+
+        // find all rows to delete
+        for i in start_to_check..column_to_check.len() {
+            if column_to_check[i] != item {
+                to_remove.push(i);
+            }
+        }
+
+        // delete the rows from all columns
+        for vec in self.state.values_mut() {
+            for i in to_remove.iter().rev() {
+                vec.swap_remove(*i);
+            }
+        }
+
+        to_remove.len()
     }
 
     pub fn into_scan_batch(
@@ -59,7 +92,7 @@ impl ScanCollector {
             assert_eq!(
                 object_ids.len(),
                 num_results,
-                "Unexpected number of collected elements in {name}"
+                "Unexpected number of collected elements in '{name}'"
             );
 
             let arrow_array = UInt32Array::from_iter(object_ids.into_iter().map(|v| {

@@ -34,7 +34,7 @@ pub struct IndexConfiguration {
     pub components: IndexComponents,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexScanInstructions(pub [IndexScanInstruction; 4]);
 
 /// A predicate for filtering object ids.
@@ -68,7 +68,7 @@ impl ObjectIdScanPredicate {
 }
 
 /// An encoded version of a triple pattern.
-#[derive(Eq, PartialEq, Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum IndexScanInstruction {
     /// Traverses the index level, not binding the elements at this level.
     Traverse(Option<ObjectIdScanPredicate>),
@@ -310,6 +310,7 @@ mod tests {
         let quads = vec![
             IndexedQuad([eid(0), eid(2), eid(2), eid(3)]),
             IndexedQuad([eid(0), eid(1), eid(1), eid(3)]),
+            IndexedQuad([eid(0), eid(2), eid(1), eid(3)]),
         ];
         index.insert(quads, VersionNumber(1)).await.unwrap();
 
