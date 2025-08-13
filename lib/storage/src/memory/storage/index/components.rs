@@ -76,8 +76,8 @@ impl IndexComponents {
     pub const GPOS: IndexComponents = IndexComponents([
         IndexComponent::GraphName,
         IndexComponent::Predicate,
-        IndexComponent::Subject,
         IndexComponent::Object,
+        IndexComponent::Subject,
     ]);
 
     /// A GPSO index.
