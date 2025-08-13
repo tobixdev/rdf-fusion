@@ -2,10 +2,10 @@
 source: bench/tests/plans/bsbm_business_intelligence.rs
 expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
 ---
-Projection: ENV_PT(otherProduct) AS otherProduct, ENV_PT(sameFeatures) AS sameFeatures
+Projection: ENC_PT(otherProduct) AS otherProduct, ENC_PT(sameFeatures) AS sameFeatures
   Limit: skip=0, fetch=10
     Projection: otherProduct, sameFeatures
-      Sort: ENV_SORT(sameFeatures) DESC NULLS FIRST, ENV_SORT(ENV_PT(otherProduct)) ASC NULLS FIRST
+      Sort: ENC_SORT(sameFeatures) DESC NULLS FIRST, ENC_SORT(ENC_PT(otherProduct)) ASC NULLS FIRST
         Filter: EBV(BOOLEAN_AS_TERM(NOT EBV(EQ(ENC_TV(otherProduct), ENC_TV(Struct({term_type:0,value:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636,data_type:,language_tag:}))))))
           SparqlJoin: Inner 
             QuadPattern (?otherProduct <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/Product>), active_graph: Union of [DefaultGraph] 

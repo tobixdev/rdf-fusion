@@ -2,11 +2,11 @@
 source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
 ---
-Projection: ENV_PT(product) AS product, ENV_PT(label) AS label
+Projection: ENC_PT(product) AS product, ENC_PT(label) AS label
   Limit: skip=0, fetch=10
-    DistinctOn: on_expr=[[ENV_SORT(ENV_PT(label)), product]], select_expr=[[product, label]], sort_expr=[[ENV_SORT(ENV_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST]]
+    DistinctOn: on_expr=[[ENC_SORT(ENC_PT(label)), product]], select_expr=[[product, label]], sort_expr=[[ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, product ASC NULLS FIRST]]
       Projection: product, label
-        Sort: ENV_SORT(ENV_PT(label)) ASC NULLS FIRST
+        Sort: ENC_SORT(ENC_PT(label)) ASC NULLS FIRST
           Filter: EBV(GT(ENC_TV(value1), ENC_TV(Struct({term_type:2,value:136,data_type:http://www.w3.org/2001/XMLSchema#integer,language_tag:}))))
             SparqlJoin: Inner 
               SparqlJoin: Inner 

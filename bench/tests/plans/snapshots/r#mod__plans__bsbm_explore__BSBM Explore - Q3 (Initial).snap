@@ -2,10 +2,10 @@
 source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&explanation.initial_logical_plan.to_string())
 ---
-Projection: ENV_PT(product) AS product, ENV_PT(label) AS label
+Projection: ENC_PT(product) AS product, ENC_PT(label) AS label
   Limit: skip=0, fetch=10
     Projection: product, label
-      Sort: ENV_SORT(ENV_PT(label)) ASC NULLS FIRST
+      Sort: ENC_SORT(ENC_PT(label)) ASC NULLS FIRST
         Filter: EBV(BOOLEAN_AS_TERM(coalesce(EBV(BOOLEAN_AS_TERM(coalesce(EBV(GT(ENC_TV(p1), ENC_TV(Struct({term_type:2,value:156,data_type:http://www.w3.org/2001/XMLSchema#integer,language_tag:})))), Boolean(false)) AND coalesce(EBV(LT(ENC_TV(p3), ENC_TV(Struct({term_type:2,value:152,data_type:http://www.w3.org/2001/XMLSchema#integer,language_tag:})))), Boolean(false)))), Boolean(false)) AND coalesce(EBV(BOOLEAN_AS_TERM(NOT EBV(ENC_TV(BOUND(testVar))))), Boolean(false))))
           SparqlJoin: Left 
             SparqlJoin: Inner 

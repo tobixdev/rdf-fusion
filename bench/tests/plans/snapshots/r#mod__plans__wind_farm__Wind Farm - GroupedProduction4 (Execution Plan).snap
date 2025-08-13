@@ -2,8 +2,8 @@
 source: bench/tests/plans/wind_farm.rs
 expression: canonicalize_uuids(&string)
 ---
-ProjectionExec: expr=[ENV_PT(site_label@0) as site_label, ENV_PT(wtur_label@1) as wtur_label, year@2 as year, month@3 as month, day@4 as day, hour@5 as hour, minute_10@6 as minute_10, ENV_PT(00000000000000000000000000000001@7) as avg_val]
-  AggregateExec: mode=Single, gby=[site_label@0 as site_label, wtur_label@1 as wtur_label, ENV_PT(year@7) as year, ENV_PT(month@6) as month, ENV_PT(day@5) as day, ENV_PT(hour@4) as hour, ENV_PT(minute_10@3) as minute_10], aggr=[00000000000000000000000000000001]
+ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) as wtur_label, year@2 as year, month@3 as month, day@4 as day, hour@5 as hour, minute_10@6 as minute_10, ENC_PT(00000000000000000000000000000001@7) as avg_val]
+  AggregateExec: mode=Single, gby=[site_label@0 as site_label, wtur_label@1 as wtur_label, ENC_PT(year@7) as year, ENC_PT(month@6) as month, ENC_PT(day@5) as day, ENC_PT(hour@4) as hour, ENC_PT(minute_10@3) as minute_10], aggr=[00000000000000000000000000000001]
     ProjectionExec: expr=[site_label@1 as site_label, wtur_label@2 as wtur_label, val@3 as val, minute_10@4 as minute_10, hour@5 as hour, day@6 as day, MONTH(__common_expr_1@0) as month, YEAR(__common_expr_1@0) as year]
       ProjectionExec: expr=[ENC_TV(t@4) as __common_expr_1, site_label@1 as site_label, wtur_label@2 as wtur_label, val@3 as val, MUL(9:10, FLOOR(DIV(MINUTES(__common_expr_3@0), 7:Some(00000000000000000000000000000002),36,16))) as minute_10, HOURS(__common_expr_3@0) as hour, DAY(__common_expr_3@0) as day]
         ProjectionExec: expr=[ENC_TV(t@3) as __common_expr_3, site_label@0 as site_label, wtur_label@1 as wtur_label, val@2 as val, t@3 as t]
