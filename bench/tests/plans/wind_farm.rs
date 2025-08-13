@@ -2,12 +2,11 @@ use crate::plans::canonicalize_uuids;
 use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
-use rdf_fusion::store::Store;
 use rdf_fusion::{QueryExplanation, QueryOptions};
-use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::windfarm::{
-    NumTurbines, WindFarmBenchmark, WindFarmQueryName, get_wind_farm_raw_sparql_operation,
+    get_wind_farm_raw_sparql_operation, NumTurbines, WindFarmBenchmark, WindFarmQueryName,
 };
+use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::environment::{BenchmarkContext, RdfFusionBenchContext};
 use rdf_fusion_bench::operation::SparqlRawOperation;
 use std::path::PathBuf;
@@ -18,32 +17,20 @@ pub async fn initial_logical_plan_wind_farm() {
         assert_snapshot!(
             format!("{name} (Initial)"),
             canonicalize_uuids(&explanation.initial_logical_plan.to_string())
-        )
-    })
-    .await;
-}
+        );
 
-#[tokio::test]
-pub async fn optimized_logical_plan_wind_farm() {
-    for_all_explanations(|name, explanation| {
         assert_snapshot!(
             format!("{name} (Optimized)"),
             canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
-        )
-    })
-    .await;
-}
+        );
 
-#[tokio::test]
-pub async fn execution_plan_wind_farm() {
-    for_all_explanations(|name, explanation| {
         let string = displayable(explanation.execution_plan.as_ref())
             .indent(false)
             .to_string();
         assert_snapshot!(
             format!("{name} (Execution Plan)"),
             canonicalize_uuids(&string)
-        )
+        );
     })
     .await;
 }
@@ -59,7 +46,7 @@ async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()
         .create_benchmark_context(benchmark_name)
         .unwrap();
 
-    let store = Store::default();
+    let store = benchmark.prepare_store(&benchmark_context).await.unwrap();
     for query_name in WindFarmQueryName::list_queries() {
         let benchmark_name = format!("Wind Farm - {query_name}");
         let query = get_query_to_execute(&benchmark_context, query_name);

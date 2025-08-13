@@ -3,7 +3,7 @@ use crate::memory::storage::VersionNumber;
 use crate::memory::storage::index::level::IndexLevelImpl;
 use crate::memory::storage::index::level_data::IndexData;
 use crate::memory::storage::index::level_mapping::IndexLevel;
-use crate::memory::storage::index::scan::MemHashIndexIterator;
+use crate::memory::storage::index::scan::{MemHashIndexIterator, PreparedIndexScan};
 use crate::memory::storage::index::{
     IndexConfiguration, IndexScanError, IndexScanInstructions, IndexUpdateError,
     IndexedQuad, UnexpectedVersionNumberError,
@@ -70,9 +70,23 @@ impl MemHashTripleIndex {
         lookup: IndexScanInstructions,
         version_number: VersionNumber,
     ) -> Result<MemHashIndexIterator, IndexScanError> {
+        Ok(self
+            .prepare_scan(lookup, version_number)
+            .await?
+            .create_iterator())
+    }
+
+    /// Performs a lookup in the index and returns a list of object arrays.
+    ///
+    /// See [MemHashIndexIterator] for more information.
+    pub async fn prepare_scan(
+        &self,
+        lookup: IndexScanInstructions,
+        version_number: VersionNumber,
+    ) -> Result<PreparedIndexScan, IndexScanError> {
         let content = self.obtain_read_lock(version_number).await?;
-        Ok(MemHashIndexIterator::new(
-            content,
+        Ok(PreparedIndexScan::new(
+            Arc::new(content),
             self.configuration.clone(),
             lookup,
         ))

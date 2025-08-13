@@ -36,7 +36,7 @@ async fn insert_quad_then_read() {
     let batch = storage
         .snapshot()
         .await
-        .evaluate_pattern(
+        .plan_pattern_evaluation(
             ActiveGraph::DefaultGraph,
             Some(Variable::new_unchecked("g")),
             TriplePattern {
@@ -45,9 +45,10 @@ async fn insert_quad_then_read() {
                 object: TermPattern::Variable(Variable::new_unchecked("o")),
             },
             BlankNodeMatchingMode::Filter,
-            metrics,
         )
+        .await
         .unwrap()
+        .create_stream(metrics)
         .next()
         .await
         .unwrap()

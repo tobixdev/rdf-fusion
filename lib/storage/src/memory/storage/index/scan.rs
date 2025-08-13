@@ -7,9 +7,11 @@ use crate::memory::storage::index::{
     IndexConfiguration, IndexScanInstruction, IndexScanInstructions,
 };
 use datafusion::arrow::array::Array;
-use rdf_fusion_encoding::EncodingArray;
 use rdf_fusion_encoding::object_id::ObjectIdArray;
+use rdf_fusion_encoding::EncodingArray;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
+use std::sync::Arc;
 use tokio::sync::OwnedRwLockReadGuard;
 
 /// The full type of the index scan iterator.
@@ -40,7 +42,7 @@ type IndexScanState =
 pub struct MemHashIndexIterator {
     /// The iterator holds a read lock on the entire index such that another transaction cannot
     /// delete data from the index during iteration.
-    index: OwnedRwLockReadGuard<IndexContent>,
+    index: Arc<OwnedRwLockReadGuard<IndexContent>>,
     /// Additional context necessary for the iteration.
     configuration: IndexConfiguration,
     /// The states of the individual levels.
@@ -50,7 +52,7 @@ pub struct MemHashIndexIterator {
 impl MemHashIndexIterator {
     /// Creates a new [MemHashIndexIterator].
     pub(super) fn new(
-        index: OwnedRwLockReadGuard<IndexContent>,
+        index: Arc<OwnedRwLockReadGuard<IndexContent>>,
         configuration: IndexConfiguration,
         lookup: IndexScanInstructions,
     ) -> Self {
@@ -60,6 +62,47 @@ impl MemHashIndexIterator {
             configuration,
             state: Some(state),
         }
+    }
+}
+
+/// See [MemHashIndexIterator].
+#[derive(Debug, Clone)]
+pub struct PreparedIndexScan {
+    /// See [MemHashIndexIterator].
+    index: Arc<OwnedRwLockReadGuard<IndexContent>>,
+    /// See [MemHashIndexIterator].
+    configuration: IndexConfiguration,
+    /// See [MemHashIndexIterator].
+    instructions: IndexScanInstructions,
+}
+
+impl PreparedIndexScan {
+    pub(super) fn new(
+        index: Arc<OwnedRwLockReadGuard<IndexContent>>,
+        configuration: IndexConfiguration,
+        instructions: IndexScanInstructions,
+    ) -> Self {
+        Self {
+            index,
+            configuration,
+            instructions,
+        }
+    }
+
+    /// TODO
+    pub fn configuration(&self) -> &IndexConfiguration {
+        &self.configuration
+    }
+
+    /// TODO
+    pub fn create_iterator(self) -> MemHashIndexIterator {
+        MemHashIndexIterator::new(self.index, self.configuration, self.instructions)
+    }
+}
+
+impl Display for PreparedIndexScan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}]", self.configuration)
     }
 }
 

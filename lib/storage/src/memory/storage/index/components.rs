@@ -1,5 +1,6 @@
 use crate::memory::storage::index::IndexComponentsCreationError;
 use std::collections::HashSet;
+use std::fmt::{Display, Formatter};
 
 /// Represents a list of *disjunct* index components.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -17,6 +18,15 @@ impl IndexComponents {
     }
 }
 
+impl Display for IndexComponents {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for component in self.0.iter() {
+            write!(f, "{component}")?;
+        }
+        Ok(())
+    }
+}
+
 /// Represents what part of an RDF triple is index at the given position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IndexComponent {
@@ -28,6 +38,17 @@ pub enum IndexComponent {
     Predicate,
     /// The object
     Object,
+}
+
+impl Display for IndexComponent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IndexComponent::GraphName => write!(f, "G"),
+            IndexComponent::Subject => write!(f, "S"),
+            IndexComponent::Predicate => write!(f, "P"),
+            IndexComponent::Object => write!(f, "O"),
+        }
+    }
 }
 
 impl IndexComponent {

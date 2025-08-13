@@ -1,5 +1,6 @@
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use std::collections::HashSet;
+use std::fmt::{Display, Formatter};
 
 mod components;
 mod error;
@@ -16,7 +17,7 @@ use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
-pub use scan::{IndexScanBatch, MemHashIndexIterator};
+pub use scan::{IndexScanBatch, MemHashIndexIterator, PreparedIndexScan};
 pub use set::IndexSet;
 
 #[derive(Debug, Clone)]
@@ -32,6 +33,12 @@ pub struct IndexConfiguration {
     pub batch_size: usize,
     /// Differentiates between multiple configurations (e.g., SPO, PSO).
     pub components: IndexComponents,
+}
+
+impl Display for IndexConfiguration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.components)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

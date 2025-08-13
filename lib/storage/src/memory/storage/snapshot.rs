@@ -1,19 +1,22 @@
-use crate::memory::MemObjectIdMapping;
 use crate::memory::encoding::{
     EncodedActiveGraph, EncodedTermPattern, EncodedTriplePattern,
 };
-use crate::memory::storage::index::IndexSet;
+use crate::memory::storage::index::{
+    IndexScanInstruction, IndexScanInstructions, IndexSet, PreparedIndexScan,
+};
 use crate::memory::storage::{MemQuadPatternStream, VersionNumber};
+use crate::memory::MemObjectIdMapping;
+use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::execution::SendableRecordBatchStream;
-use datafusion::physical_plan::EmptyRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
+use datafusion::physical_plan::EmptyRecordBatchStream;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::UnknownObjectIdError;
-use rdf_fusion_logical::ActiveGraph;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::{
     NamedOrBlankNode, NamedOrBlankNodeRef, TermPattern, TriplePattern, Variable,
 };
@@ -32,6 +35,38 @@ pub struct MemQuadStorageSnapshot {
     index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
     /// The version number of the snapshot.
     version_number: VersionNumber,
+}
+
+/// TODO
+#[derive(Clone, Debug)]
+pub enum PlannedPatternScan {
+    /// TODO
+    Empty(SchemaRef),
+    /// TODO
+    IndexScan(
+        SchemaRef,
+        Option<Variable>,
+        TriplePattern,
+        Box<PreparedIndexScan>,
+    ),
+}
+
+impl PlannedPatternScan {
+    pub fn create_stream(self, metrics: BaselineMetrics) -> SendableRecordBatchStream {
+        match self {
+            PlannedPatternScan::Empty(schema) => {
+                Box::pin(EmptyRecordBatchStream::new(schema))
+            }
+            PlannedPatternScan::IndexScan(schema, _, _, prepared_index_scan) => {
+                let iterator = prepared_index_scan.create_iterator();
+                Box::pin(cooperative(MemQuadPatternStream::new(
+                    schema,
+                    Box::new(iterator),
+                    metrics,
+                )))
+            }
+        }
+    }
 }
 
 impl MemQuadStorageSnapshot {
@@ -56,14 +91,13 @@ impl MemQuadStorageSnapshot {
 
     /// Returns a stream that evaluates the given pattern.
     #[allow(clippy::too_many_arguments)]
-    pub fn evaluate_pattern(
+    pub async fn plan_pattern_evaluation(
         &self,
         active_graph: ActiveGraph,
         graph_variable: Option<Variable>,
         pattern: TriplePattern,
         blank_node_mode: BlankNodeMatchingMode,
-        metrics: BaselineMetrics,
-    ) -> DFResult<SendableRecordBatchStream> {
+    ) -> DFResult<PlannedPatternScan> {
         let schema = Arc::clone(
             compute_schema_for_triple_pattern(
                 self.storage_encoding(),
@@ -74,25 +108,39 @@ impl MemQuadStorageSnapshot {
             .inner(),
         );
 
-        let Ok(active_graph) = self.encode_active_graph(active_graph) else {
+        let Ok(enc_active_graph) = self.encode_active_graph(&active_graph) else {
             // The error is only triggered if no graph can be decoded.
-            return Ok(Box::pin(EmptyRecordBatchStream::new(schema.clone())));
+            return Ok(PlannedPatternScan::Empty(schema));
         };
 
-        let Ok(pattern) = self.encode_triple_pattern(&pattern, blank_node_mode) else {
+        let Ok(enc_pattern) = self.encode_triple_pattern(&pattern, blank_node_mode)
+        else {
             // For the pattern, a single unknown term causes the result to be empty.
-            return Ok(Box::pin(EmptyRecordBatchStream::new(schema.clone())));
+            return Ok(PlannedPatternScan::Empty(schema));
         };
 
-        Ok(Box::pin(cooperative(MemQuadPatternStream::new(
+        let scan_instructions = IndexScanInstructions([
+            IndexScanInstruction::from_active_graph(
+                &enc_active_graph,
+                graph_variable.as_ref(),
+            ),
+            IndexScanInstruction::from(enc_pattern.subject.clone()),
+            IndexScanInstruction::from(enc_pattern.predicate.clone()),
+            IndexScanInstruction::from(enc_pattern.object.clone()),
+        ]);
+
+        let (index, scan_instructions) = self.index_set.choose_index(&scan_instructions);
+        let index_scan_lock = index
+            .prepare_scan(scan_instructions, self.version_number)
+            .await
+            .expect("TODO");
+
+        Ok(PlannedPatternScan::IndexScan(
             schema,
-            self.index_set.clone(),
-            self.version_number,
-            active_graph,
             graph_variable,
             pattern,
-            metrics,
-        ))))
+            Box::new(index_scan_lock),
+        ))
     }
 
     /// Encodes the triple pattern.
@@ -132,7 +180,7 @@ impl MemQuadStorageSnapshot {
     /// can match the pattern (because no graph of the [ActiveGraph::Union] is known).
     fn encode_active_graph(
         &self,
-        active_graph: ActiveGraph,
+        active_graph: &ActiveGraph,
     ) -> Result<EncodedActiveGraph, UnknownObjectIdError> {
         Ok(match active_graph {
             ActiveGraph::DefaultGraph => EncodedActiveGraph::DefaultGraph,

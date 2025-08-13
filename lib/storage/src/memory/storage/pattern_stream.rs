@@ -1,23 +1,14 @@
-use crate::memory::encoding::{EncodedActiveGraph, EncodedTriplePattern};
-use crate::memory::storage::VersionNumber;
-use crate::memory::storage::index::{
-    IndexScanError, IndexScanInstruction, IndexScanInstructions, IndexSet,
-    MemHashIndexIterator,
-};
+use crate::memory::storage::index::MemHashIndexIterator;
 use datafusion::arrow::array::{RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::common::exec_datafusion_err;
 use datafusion::error::DataFusionError;
 use datafusion::execution::RecordBatchStream;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use futures::{FutureExt, Stream, ready};
+use futures::Stream;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingArray;
-use rdf_fusion_model::Variable;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::sync::OwnedRwLockReadGuard;
 
 pub struct MemQuadPatternStream {
     /// The schema of the stream.
@@ -29,24 +20,6 @@ pub struct MemQuadPatternStream {
 }
 
 pub enum MemQuadPatternStreamState {
-    /// The stream acquires locks.
-    CreateIndexScanIterator(
-        Arc<OwnedRwLockReadGuard<IndexSet>>,
-        VersionNumber,
-        EncodedActiveGraph,
-        Option<Variable>,
-        EncodedTriplePattern,
-    ),
-    /// Waiting for the index scan iterator to be ready.
-    WaitingForIndexScanIterator(
-        Pin<
-            Box<
-                dyn Future<Output = Result<MemHashIndexIterator, IndexScanError>>
-                    + Send
-                    + Sync,
-            >,
-        >,
-    ),
     /// The stream is emitting the results from the index scan.
     Scan(Box<MemHashIndexIterator>),
     /// The stream is finished.
@@ -57,23 +30,13 @@ impl MemQuadPatternStream {
     /// Creates a new [MemQuadPatternStream].
     pub fn new(
         schema: SchemaRef,
-        index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
-        version_number: VersionNumber,
-        active_graph: EncodedActiveGraph,
-        graph_variable: Option<Variable>,
-        pattern: EncodedTriplePattern,
+        iterator: Box<MemHashIndexIterator>,
         metrics: BaselineMetrics,
     ) -> Self {
         Self {
             schema,
             metrics,
-            state: MemQuadPatternStreamState::CreateIndexScanIterator(
-                index_set,
-                version_number,
-                active_graph,
-                graph_variable,
-                pattern,
-            ),
+            state: MemQuadPatternStreamState::Scan(iterator),
         }
     }
 }
@@ -83,43 +46,12 @@ impl Stream for MemQuadPatternStream {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
+        _cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         let metrics = self.metrics.clone();
         let timer = metrics.elapsed_compute().timer();
         loop {
             match &mut self.state {
-                MemQuadPatternStreamState::CreateIndexScanIterator(
-                    index_set,
-                    version_number,
-                    active_graph,
-                    graph,
-                    pattern,
-                ) => {
-                    let scan_instructions = IndexScanInstructions([
-                        IndexScanInstruction::from_active_graph(
-                            active_graph,
-                            graph.as_ref(),
-                        ),
-                        IndexScanInstruction::from(pattern.subject.clone()),
-                        IndexScanInstruction::from(pattern.predicate.clone()),
-                        IndexScanInstruction::from(pattern.object.clone()),
-                    ]);
-
-                    let (index, scan_instructions) =
-                        index_set.choose_index(&scan_instructions);
-                    let version_number = *version_number;
-                    self.state = MemQuadPatternStreamState::WaitingForIndexScanIterator(
-                        Box::pin(async move {
-                            index.scan(scan_instructions, version_number).await
-                        }),
-                    )
-                }
-                MemQuadPatternStreamState::WaitingForIndexScanIterator(future) => {
-                    let index_scan = ready!(future.poll_unpin(cx))
-                        .map_err(|e| exec_datafusion_err!("Could not scan index: {e}"))?;
-                    self.state = MemQuadPatternStreamState::Scan(Box::new(index_scan));
-                }
                 MemQuadPatternStreamState::Scan(inner) => match inner.next() {
                     None => {
                         self.state = MemQuadPatternStreamState::Finished;

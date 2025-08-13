@@ -33,12 +33,19 @@ impl ExtensionPlanner for MemQuadStorePlanner {
         _session_state: &SessionState,
     ) -> DFResult<Option<Arc<dyn ExecutionPlan>>> {
         if let Some(node) = node.as_any().downcast_ref::<QuadPatternNode>() {
+            let plan = self
+                .snapshot
+                .plan_pattern_evaluation(
+                    node.active_graph().clone(),
+                    node.graph_variable().map(|g| g.into_owned()),
+                    node.pattern().clone(),
+                    node.blank_node_mode(),
+                )
+                .await?;
+
             Ok(Some(Arc::new(MemQuadPatternExec::new(
-                self.snapshot.clone(),
-                node.active_graph().clone(),
-                node.graph_variable().map(|g| g.into_owned()),
-                node.pattern().clone(),
-                node.blank_node_mode(),
+                UserDefinedLogicalNode::schema(node).inner().clone(),
+                plan,
             ))))
         } else {
             Ok(None)
