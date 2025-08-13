@@ -89,14 +89,10 @@ fn get_query_to_execute(
     benchmark_context: &BenchmarkContext,
     query_name: BsbmExploreQueryName,
 ) -> SparqlRawOperation<BsbmExploreQueryName> {
-    let query = benchmark
+    benchmark
         .list_raw_operations(&benchmark_context)
         .unwrap()
         .into_iter()
         .find(|q| q.query_name() == query_name)
-        .unwrap();
-
-    println!("Executing query ({}): {}", query.query_name(), query.text());
-
-    query
+        .unwrap()
 }
