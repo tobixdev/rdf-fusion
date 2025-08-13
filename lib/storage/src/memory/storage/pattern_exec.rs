@@ -103,12 +103,7 @@ impl DisplayAs for MemQuadPatternExec {
 
         match &self.planned_scan {
             PlannedPatternScan::Empty(_) => write!(f, "[EMPTY]"),
-            PlannedPatternScan::IndexScan(
-                _,
-                graph_variable,
-                triple_pattern,
-                scan,
-            ) => {
+            PlannedPatternScan::IndexScan(_, graph_variable, triple_pattern, scan) => {
                 write!(f, "{scan} ")?;
 
                 if let Some(graph_variable) = &graph_variable {

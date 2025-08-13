@@ -7,8 +7,8 @@ use crate::memory::storage::index::{
     IndexConfiguration, IndexScanInstruction, IndexScanInstructions,
 };
 use datafusion::arrow::array::Array;
-use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::EncodingArray;
+use rdf_fusion_encoding::object_id::ObjectIdArray;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::sync::Arc;

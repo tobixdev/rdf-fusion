@@ -1,3 +1,4 @@
+use crate::memory::MemObjectIdMapping;
 use crate::memory::encoding::{
     EncodedActiveGraph, EncodedTermPattern, EncodedTriplePattern,
 };
@@ -5,18 +6,17 @@ use crate::memory::storage::index::{
     IndexScanInstruction, IndexScanInstructions, IndexSet, PreparedIndexScan,
 };
 use crate::memory::storage::{MemQuadPatternStream, VersionNumber};
-use crate::memory::MemObjectIdMapping;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::execution::SendableRecordBatchStream;
+use datafusion::physical_plan::EmptyRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use datafusion::physical_plan::EmptyRecordBatchStream;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_logical::ActiveGraph;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{
     NamedOrBlankNode, NamedOrBlankNodeRef, TermPattern, TriplePattern, Variable,
 };
