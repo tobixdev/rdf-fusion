@@ -9,7 +9,7 @@ use tokio::runtime::Builder;
 fn encode_solution(criterion: &mut Criterion) {
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
-    let store = Store::new();
+    let store = Store::default();
     runtime.block_on(async {
         for quad in generate_quads(8192) {
             store.insert(quad.as_ref()).await.unwrap();

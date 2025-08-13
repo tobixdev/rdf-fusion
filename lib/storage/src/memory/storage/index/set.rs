@@ -357,8 +357,8 @@ mod tests {
             IndexScanInstructions([
                 traverse_and_filter(0),
                 traverse_and_filter(2),
-                IndexScanInstruction::Scan("subject".to_string(), None),
                 IndexScanInstruction::Scan("object".to_string(), None),
+                IndexScanInstruction::Scan("subject".to_string(), None),
             ])
         )
     }

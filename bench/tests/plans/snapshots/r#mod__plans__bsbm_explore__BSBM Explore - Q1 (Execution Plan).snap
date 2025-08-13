@@ -15,10 +15,10 @@ ProjectionExec: expr=[ENC_PT(first_value(product) ORDER BY [ENC_SORT(ENC_PT(labe
                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0]
                       CoalesceBatchesExec: target_batch_size=8192
                         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0]
-                          QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType66>
-                          QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature3>
-                      QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature1967>
-                  QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?label
+                          MemQuadPatternExec: , active_graph=Union of [DefaultGraph], subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType66>
+                          MemQuadPatternExec: , active_graph=Union of [DefaultGraph], subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature3>
+                      MemQuadPatternExec: , active_graph=Union of [DefaultGraph], subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature1967>
+                  MemQuadPatternExec: , active_graph=Union of [DefaultGraph], subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?label
               CoalesceBatchesExec: target_batch_size=8192
                 FilterExec: EBV(GT(ENC_TV(value1@1), 9:136)), projection=[product@0]
-                  QuadPatternExec: n_graphs=1, subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?value1
+                  MemQuadPatternExec: , active_graph=Union of [DefaultGraph], subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?value1

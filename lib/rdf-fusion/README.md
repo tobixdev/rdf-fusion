@@ -14,7 +14,7 @@ use futures::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let store = Store::new();
+    let store = Store::default();
 
     // insertion
     let ex = NamedNode::new("http://example.com")?;
