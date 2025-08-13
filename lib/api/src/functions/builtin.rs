@@ -179,9 +179,9 @@ impl fmt::Display for BuiltinName {
             Self::Max => "MAX",
             Self::Avg => "AVG",
             Self::GroupConcat => "GROUP_CONCAT",
-            Self::WithSortableEncoding => "ENV_SORT",
+            Self::WithSortableEncoding => "ENC_SORT",
             Self::WithTypedValueEncoding => "ENC_TV",
-            Self::WithPlainTermEncoding => "ENV_PT",
+            Self::WithPlainTermEncoding => "ENC_PT",
         };
         f.write_str(name)
     }
