@@ -20,7 +20,7 @@ impl Default for CastStringSparqlOp {
 }
 
 impl CastStringSparqlOp {
-    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::CastBoolean);
+    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::CastString);
 
     pub fn new() -> Self {
         Self {}
