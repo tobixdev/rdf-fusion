@@ -1,7 +1,5 @@
 //! Evaluates certain quad patterns against the BSBM dataset.
 
-mod utils;
-
 use anyhow::Context;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use futures::StreamExt;
