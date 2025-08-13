@@ -1,34 +1,20 @@
-use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::EncodedObjectId;
+use crate::memory::storage::index::level::IndexLevelImpl;
+use crate::memory::storage::index::scan_collector::ScanCollector;
 use crate::memory::storage::index::{
     IndexConfiguration, IndexScanBatch, IndexedQuad, ObjectIdScanPredicate,
 };
-use datafusion::arrow::array::{UInt32Array, UInt32Builder};
+use datafusion::arrow::array::UInt32Array;
 use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::TermEncoding;
 use std::collections::HashMap;
+use std::iter::repeat_n;
 use std::sync::Arc;
 
 /// An index level is a mapping from [EncodedObjectId]. By traversing multiple index levels, users
 /// can access the data in the index.
 #[derive(Debug)]
 pub struct IndexLevel<TInner: IndexLevelImpl>(HashMap<EncodedObjectId, TInner>);
-
-#[derive(Debug, Clone)]
-pub struct BufferedIndexScanBatch {
-    object_id: EncodedObjectId,
-    inner: IndexScanBatch,
-}
-
-#[derive(Debug, Clone)]
-struct BufferedResults {
-    results: Vec<BufferedIndexScanBatch>,
-}
-
-impl BufferedResults {
-    pub fn num_results(&self) -> usize {
-        self.results.iter().map(|r| r.inner.num_results).sum()
-    }
-}
 
 impl<TInner: IndexLevelImpl> Default for IndexLevel<TInner> {
     fn default() -> Self {
@@ -78,25 +64,23 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         &self,
         configuration: &IndexConfiguration,
         mut traversal: IndexTraversal<TInner::ScanState>,
-    ) -> IndexLevelActionResult<IndexLevelScanState<TInner::ScanState>> {
-        let inner_results =
-            traversal.try_collect_enough_results_for_batch(&self, configuration);
+        collector: &mut ScanCollector,
+    ) -> (usize, Option<IndexLevelScanState<TInner::ScanState>>) {
+        let matching_count = traversal.try_collect_enough_results_for_batch(
+            &self,
+            configuration,
+            None,
+            collector,
+        );
+        let max_consumed = traversal.max_consumed(self.0.len());
 
-        if inner_results.results.is_empty() {
-            return IndexLevelActionResult::finished(IndexScanBatch::no_results());
-        }
-
-        let (inner_results, new_buffered) =
-            Self::pop_last_if_bigger_than_batch_size(configuration, inner_results);
-        traversal.buffered = new_buffered;
-
-        let batch = Self::coalesce_batches(configuration, &inner_results);
-        if traversal.consumed == self.0.len() {
-            return IndexLevelActionResult::finished(batch);
-        }
-        IndexLevelActionResult {
-            batch,
-            new_state: Some(IndexLevelScanState::Traverse(traversal)),
+        if traversal.consumed == max_consumed {
+            (matching_count, None)
+        } else {
+            (
+                matching_count,
+                Some(IndexLevelScanState::Traverse(traversal)),
+            )
         }
     }
 
@@ -105,29 +89,23 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
         configuration: &IndexConfiguration,
         name: String,
         mut traversal: IndexTraversal<TInner::ScanState>,
-    ) -> IndexLevelActionResult<IndexLevelScanState<TInner::ScanState>> {
-        let inner_results =
-            traversal.try_collect_enough_results_for_batch(&self, configuration);
+        collector: &mut ScanCollector,
+    ) -> (usize, Option<IndexLevelScanState<TInner::ScanState>>) {
+        let matching_count = traversal.try_collect_enough_results_for_batch(
+            &self,
+            configuration,
+            Some(name.as_str()),
+            collector,
+        );
+        let max_consumed = traversal.max_consumed(self.0.len());
 
-        if inner_results.results.is_empty() {
-            return IndexLevelActionResult::finished(IndexScanBatch::no_results());
-        }
-
-        let (inner_results, new_buffered) =
-            Self::pop_last_if_bigger_than_batch_size(configuration, inner_results);
-        traversal.buffered = new_buffered;
-
-        let array = Self::build_object_ids_for_level(configuration, &inner_results);
-        let results = Self::coalesce_batches(configuration, &inner_results);
-        let batch =
-            Self::check_equality_if_necessary(configuration, results, &name, array);
-
-        if traversal.consumed == self.0.len() {
-            return IndexLevelActionResult::finished(batch);
-        }
-        IndexLevelActionResult {
-            batch,
-            new_state: Some(IndexLevelScanState::Scan(name, traversal)),
+        if traversal.consumed == max_consumed {
+            (matching_count, None)
+        } else {
+            (
+                matching_count,
+                Some(IndexLevelScanState::Scan(name, traversal)),
+            )
         }
     }
 
@@ -171,67 +149,6 @@ impl<TInner: IndexLevelImpl> IndexLevel<TInner> {
             batch
         }
     }
-
-    fn pop_last_if_bigger_than_batch_size(
-        configuration: &IndexConfiguration,
-        mut buffered: BufferedResults,
-    ) -> (BufferedResults, Option<BufferedIndexScanBatch>) {
-        if buffered.num_results() > configuration.batch_size {
-            let last_result = buffered.results.pop();
-            (buffered, last_result)
-        } else {
-            (buffered, None)
-        }
-    }
-
-    fn build_object_ids_for_level(
-        configuration: &IndexConfiguration,
-        inner_results: &BufferedResults,
-    ) -> ObjectIdArray {
-        let mut array_builder = UInt32Builder::new();
-        for result in &inner_results.results {
-            if result.object_id == DEFAULT_GRAPH_ID.0 {
-                array_builder.append_nulls(result.inner.num_results);
-            } else {
-                array_builder
-                    .append_value_n(result.object_id.as_u32(), result.inner.num_results);
-            }
-        }
-        configuration
-            .object_id_encoding
-            .try_new_array(Arc::new(array_builder.finish()))
-            .expect("TODO")
-    }
-
-    fn coalesce_batches(
-        configuration: &IndexConfiguration,
-        inner_results: &BufferedResults,
-    ) -> IndexScanBatch {
-        if inner_results.results.is_empty() {
-            return IndexScanBatch::no_results();
-        }
-
-        let mut result = HashMap::new();
-        for field in inner_results.results[0].inner.columns.keys() {
-            let iterator = inner_results
-                .results
-                .iter()
-                .flat_map(|r| r.inner.columns[field].object_ids().values().iter())
-                .copied();
-            let u32_array = UInt32Array::from_iter_values(iterator);
-            let array = configuration
-                .object_id_encoding
-                .try_new_array(Arc::new(u32_array))
-                .expect("TODO");
-
-            result.insert(field.to_string(), array);
-        }
-
-        IndexScanBatch {
-            num_results: inner_results.num_results(),
-            columns: result,
-        }
-    }
 }
 
 /// The state of the iterator traversal. As the traversal is the same for both scan-types, they
@@ -246,71 +163,91 @@ pub(super) struct IndexTraversal<TInnerState: Clone> {
     consumed: usize,
     /// The inner state.
     inner: TInnerState,
-    /// The buffered result from the last iteration.
-    buffered: Option<BufferedIndexScanBatch>,
 }
 
 impl<TInnerState: Clone> IndexTraversal<TInnerState> {
+    pub fn max_consumed(&self, index_len: usize) -> usize {
+        match &self.predicate {
+            Some(ObjectIdScanPredicate::In(ids)) => ids.len(),
+            _ => index_len,
+        }
+    }
+
     fn try_collect_enough_results_for_batch<TLevel>(
         &mut self,
         index: &IndexLevel<TLevel>,
         configuration: &IndexConfiguration,
-    ) -> BufferedResults
+        column: Option<&str>,
+        collector: &mut ScanCollector,
+    ) -> usize
     where
         TLevel: IndexLevelImpl<ScanState = TInnerState>,
     {
-        let mut results = Vec::new();
-
-        // Collect the buffered result. If the result is already large enough, return it.
-        if let Some(buffered) = self.buffered.take() {
-            self.consumed += 1;
-            if buffered.inner.num_results == configuration.batch_size {
-                return BufferedResults {
-                    results: vec![buffered],
-                };
-            } else {
-                results.push(buffered);
-            }
+        match self.predicate.clone() {
+            Some(ObjectIdScanPredicate::In(ids)) => self.try_collect_results_from_iter(
+                ids.iter().filter_map(|id| index.0.get(id).map(|c| (id, c))),
+                configuration,
+                column,
+                collector,
+            ),
+            _ => self.try_collect_results_from_iter(
+                index.0.iter(),
+                configuration,
+                column,
+                collector,
+            ),
         }
+    }
 
-        let mut new_consumed = 0;
-        let mut current_state = self.inner.clone();
+    fn try_collect_results_from_iter<
+        'iter,
+        InnerLevel: IndexLevelImpl<ScanState = TInnerState>,
+        Iter: IntoIterator<Item = (&'iter EncodedObjectId, &'iter InnerLevel)>,
+    >(
+        &mut self,
+        iter: Iter,
+        configuration: &IndexConfiguration,
+        column: Option<&str>,
+        collector: &mut ScanCollector,
+    ) -> usize
+    where
+        InnerLevel: 'iter,
+    {
+        let mut matching_count = 0;
 
-        for (oid, next_level) in index.0.iter().skip(self.consumed) {
+        for (oid, next_level) in iter.into_iter().skip(self.consumed) {
             if let Some(predicate) = &self.predicate
                 && !predicate.evaluate(*oid)
             {
-                new_consumed += 1;
+                self.consumed += 1;
                 continue;
             }
 
-            let inner_result = next_level.scan(configuration, current_state);
+            let (inner_len, inner_state) =
+                next_level.scan(configuration, self.inner.clone(), collector);
+            matching_count += inner_len;
 
-            // An inner result was found.
-            if inner_result.batch.num_results > 0 {
-                results.push(BufferedIndexScanBatch {
-                    object_id: *oid,
-                    inner: inner_result.batch,
-                });
+            if let Some(column) = column
+                && inner_len > 0
+            {
+                collector.extend(column, repeat_n(oid.as_u32(), inner_len));
             }
 
-            // If the inner result was not consumed, the next iteration must start from here.
-            if let Some(new_state) = inner_result.new_state {
-                current_state = new_state;
-                break;
-            }
-            new_consumed += 1;
+            let inner_state = match inner_state {
+                None => {
+                    self.consumed += 1;
+                    self.default_state.clone()
+                },
+                Some(inner_state) => inner_state,
+            };
+            self.inner = inner_state;
 
-            // If the batch size is reached, return the result.
-            current_state = self.default_state.clone();
-            if new_consumed >= configuration.batch_size {
+            if collector.batch_full() {
                 break;
             }
         }
 
-        self.consumed += new_consumed;
-        self.inner = current_state;
-        BufferedResults { results }
+        matching_count
     }
 }
 
@@ -334,7 +271,6 @@ impl<TInnerState: Clone> IndexLevelScanState<TInnerState> {
             inner: default_state.clone(),
             default_state,
             consumed: 0,
-            buffered: None,
         };
         Self::Traverse(traversal)
     }
@@ -349,7 +285,6 @@ impl<TInnerState: Clone> IndexLevelScanState<TInnerState> {
             inner: default_state.clone(),
             default_state,
             consumed: 0,
-            buffered: None,
         };
         Self::Scan(name, traversal)
     }
@@ -371,38 +306,6 @@ impl<TState> IndexLevelActionResult<TState> {
             new_state: None,
         }
     }
-}
-
-/// Contains the logic for a single index level.
-pub trait IndexLevelImpl: Default {
-    /// The type of the traversal state.
-    type ScanState: Clone;
-
-    /// Inserts the triple into the index.
-    fn insert(
-        &mut self,
-        configuration: &IndexConfiguration,
-        triple: &IndexedQuad,
-        cur_depth: usize,
-    ) -> bool;
-
-    /// Deletes the triple from the index.
-    fn remove(
-        &mut self,
-        configuration: &IndexConfiguration,
-        triple: &IndexedQuad,
-        cur_depth: usize,
-    ) -> bool;
-
-    /// The number of entries in the index part.
-    fn num_triples(&self) -> usize;
-
-    /// Executes the action for scanning the index at `cur_depth`.
-    fn scan(
-        &self,
-        configuration: &IndexConfiguration,
-        state: Self::ScanState,
-    ) -> IndexLevelActionResult<Self::ScanState>;
 }
 
 impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
@@ -447,13 +350,14 @@ impl<TContent: IndexLevelImpl> IndexLevelImpl for IndexLevel<TContent> {
         &self,
         configuration: &IndexConfiguration,
         state: Self::ScanState,
-    ) -> IndexLevelActionResult<Self::ScanState> {
+        collector: &mut ScanCollector,
+    ) -> (usize, Option<Self::ScanState>) {
         match state {
             IndexLevelScanState::Traverse(traversal) => {
-                self.traverse_impl(configuration, traversal)
+                self.traverse_impl(configuration, traversal, collector)
             }
             IndexLevelScanState::Scan(name, traversal) => {
-                self.scan_impl(configuration, name, traversal)
+                self.scan_impl(configuration, name, traversal, collector)
             }
         }
     }

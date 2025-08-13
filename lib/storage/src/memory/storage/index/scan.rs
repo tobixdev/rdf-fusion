@@ -1,7 +1,8 @@
 use crate::memory::storage::index::hash_index::IndexContent;
+use crate::memory::storage::index::level::IndexLevelImpl;
 use crate::memory::storage::index::level_data::IndexDataScanState;
-use crate::memory::storage::index::level_mapping::IndexLevelImpl;
 use crate::memory::storage::index::level_mapping::IndexLevelScanState;
+use crate::memory::storage::index::scan_collector::ScanCollector;
 use crate::memory::storage::index::{
     IndexConfiguration, IndexScanInstruction, IndexScanInstructions,
 };
@@ -100,11 +101,16 @@ impl Iterator for MemHashIndexIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         let state = self.state.take()?;
-        let result = self.index.index.scan(&self.configuration, state);
-        self.state = result.new_state;
 
-        if result.batch.num_results > 0 {
-            Some(result.batch)
+        let mut collector = ScanCollector::new(self.configuration.batch_size);
+        let (results, new_state) =
+            self.index
+                .index
+                .scan(&self.configuration, state, &mut collector);
+        self.state = new_state;
+
+        if results > 0 {
+            Some(collector.into_scan_batch(results, &self.configuration))
         } else {
             None
         }

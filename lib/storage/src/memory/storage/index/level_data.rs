@@ -1,14 +1,11 @@
+use std::cmp::{max, min};
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::index::level_mapping::{
-    IndexLevelActionResult, IndexLevelImpl,
-};
+use crate::memory::storage::index::level::IndexLevelImpl;
+use crate::memory::storage::index::scan_collector::ScanCollector;
 use crate::memory::storage::index::{
-    IndexConfiguration, IndexScanBatch, IndexedQuad, ObjectIdScanPredicate,
+    IndexConfiguration, IndexedQuad, ObjectIdScanPredicate,
 };
-use datafusion::arrow::array::UInt32Array;
-use rdf_fusion_encoding::TermEncoding;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 /// Holds the data for the last index level.
 #[derive(Debug, Default)]
@@ -39,16 +36,12 @@ impl IndexData {
     fn traverse_impl(
         &self,
         predicate: Option<ObjectIdScanPredicate>,
-    ) -> IndexLevelActionResult<IndexDataScanState> {
+    ) -> (usize, Option<IndexDataScanState>) {
         let contained = match predicate {
             None => self.terms.len() > 0,
             Some(predicate) => self.terms.iter().any(|id| predicate.evaluate(*id)),
         };
-        if contained {
-            IndexLevelActionResult::finished(IndexScanBatch::single_empty_result())
-        } else {
-            IndexLevelActionResult::finished(IndexScanBatch::no_results())
-        }
+        if contained { (1, None) } else { (0, None) }
     }
 
     fn scan_impl(
@@ -57,7 +50,11 @@ impl IndexData {
         name: String,
         predicate: Option<ObjectIdScanPredicate>,
         consumed: usize,
-    ) -> IndexLevelActionResult<IndexDataScanState> {
+        collector: &mut ScanCollector,
+    ) -> (usize, Option<IndexDataScanState>) {
+        // TODO: Specialize predicate
+
+        let old_results = collector.num_results(&name);
         let iterator = self
             .terms
             .iter()
@@ -68,25 +65,21 @@ impl IndexData {
                 Some(predicate) => predicate.evaluate(**id),
             })
             .map(|id| id.as_u32());
-        let array = UInt32Array::from_iter_values(iterator);
-        let result = configuration
-            .object_id_encoding
-            .try_new_array(Arc::new(array))
-            .expect("TODO");
+        collector.extend(name.as_str(), iterator);
 
-        let batch = IndexScanBatch::new_with_column(name.clone(), result);
-        let new_consumed = consumed + batch.num_results;
+        let added_elements = collector.num_results(&name) - old_results;
+        let new_consumed = min(consumed + configuration.batch_size, self.terms.len());
         if new_consumed == self.terms.len() {
-            IndexLevelActionResult::finished(batch)
+            (added_elements, None)
         } else {
-            IndexLevelActionResult {
-                batch,
-                new_state: Some(IndexDataScanState::Scan {
+            (
+                added_elements,
+                Some(IndexDataScanState::Scan {
                     name,
                     consumed: new_consumed,
                     predicate,
                 }),
-            }
+            )
         }
     }
 }
@@ -122,14 +115,15 @@ impl IndexLevelImpl for IndexData {
         &self,
         configuration: &IndexConfiguration,
         state: Self::ScanState,
-    ) -> IndexLevelActionResult<Self::ScanState> {
+        collector: &mut ScanCollector,
+    ) -> (usize, Option<Self::ScanState>) {
         match state {
             IndexDataScanState::Traverse { predicate } => self.traverse_impl(predicate),
             IndexDataScanState::Scan {
                 name,
                 predicate,
                 consumed,
-            } => self.scan_impl(configuration, name, predicate, consumed),
+            } => self.scan_impl(configuration, name, predicate, consumed, collector),
         }
     }
 }

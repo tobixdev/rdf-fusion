@@ -8,6 +8,8 @@ mod level_data;
 mod level_mapping;
 mod scan;
 mod set;
+mod scan_collector;
+mod level;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
 use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
@@ -300,6 +302,24 @@ mod tests {
             3,
         )
         .await;
+    }
+
+    #[tokio::test]
+    async fn scan_same_var_appearing_twice() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(2), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(1), eid(3)]),
+        ];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        run_matching_test(
+            index,
+            IndexScanInstructions([scan("a"), scan("same"), scan("same"), scan("d")]),
+            3,
+            2,
+        )
+            .await;
     }
 
     #[tokio::test]
