@@ -27,7 +27,7 @@ fn bsbm_business_intelligence_10000(c: &mut Criterion) {
         c,
         &|benchmark: BsbmBenchmark<BusinessIntelligenceUseCase>,
           benchmark_context: BenchmarkContext| {
-            BsbmBusinessIntelligenceQueryName::list_queries()
+            let mut queries = BsbmBusinessIntelligenceQueryName::list_queries()
                 .into_iter()
                 .map(|query_name| {
                     (
@@ -39,20 +39,15 @@ fn bsbm_business_intelligence_10000(c: &mut Criterion) {
                         ),
                     )
                 })
-                .collect::<Vec<_>>()
-        },
-    )
-}
+                .collect::<Vec<_>>();
 
-fn bsbm_business_intelligence_10000_individual_queries(c: &mut Criterion) {
-    execute_benchmark(
-        c,
-        &|benchmark: BsbmBenchmark<BusinessIntelligenceUseCase>,
-          benchmark_context: BenchmarkContext| {
-            vec![(
+            // Query 64 is problematic for the current implementation.
+            queries.push((
                 "BSBM Business Intelligence 10000 - Query 64".to_owned(),
                 get_nth_query_to_execute(benchmark.clone(), &benchmark_context, 64),
-            )]
+            ));
+
+            queries
         },
     )
 }
@@ -60,7 +55,7 @@ fn bsbm_business_intelligence_10000_individual_queries(c: &mut Criterion) {
 criterion_group!(
     name = bsbm_business_intelligence;
     config = Criterion::default().sample_size(10);
-    targets =  bsbm_business_intelligence_10000, bsbm_business_intelligence_10000_individual_queries
+    targets =  bsbm_business_intelligence_10000
 );
 criterion_main!(bsbm_business_intelligence);
 
