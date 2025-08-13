@@ -92,6 +92,34 @@ fn store_single_pattern_with_fixed_element(c: &mut Criterion) {
             });
         },
     );
+
+    c.bench_function("Store::query - Scan Objects", |b| {
+        let store = runtime.block_on(async {
+            let store = Store::new();
+            let quads = (0..500_000).map(|i| {
+                let subject = "http://example.com/subject";
+                let predicate = "http://example.com/predicate";
+                let object = format!("http://example.com/object{i}");
+                Quad::new(
+                    Subject::NamedNode(NamedNode::new_unchecked(subject)),
+                    NamedNode::new_unchecked(predicate),
+                    Term::NamedNode(NamedNode::new_unchecked(object)),
+                    GraphName::DefaultGraph,
+                )
+            });
+            for quad in quads {
+                store.insert(quad.as_ref()).await.unwrap();
+            }
+            store
+        });
+        b.to_async(&runtime).iter(|| async {
+            let result = store
+                .query("SELECT ?o { <http://example.com/subject> <http://example.com/predicate> ?o }")
+                .await
+                .unwrap();
+            assert_number_of_results(result, 500_000).await;
+        });
+    });
 }
 
 criterion_group!(store_write, store_load);
