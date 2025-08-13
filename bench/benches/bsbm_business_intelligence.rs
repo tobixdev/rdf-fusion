@@ -23,6 +23,61 @@ use std::path::PathBuf;
 use tokio::runtime::{Builder, Runtime};
 
 fn bsbm_business_intelligence_10000(c: &mut Criterion) {
+    execute_benchmark(
+        c,
+        &|benchmark: BsbmBenchmark<BusinessIntelligenceUseCase>,
+          benchmark_context: BenchmarkContext| {
+            BsbmBusinessIntelligenceQueryName::list_queries()
+                .into_iter()
+                .map(|query_name| {
+                    (
+                        format!("BSBM Business Intelligence 10000 - {query_name}"),
+                        get_query_to_execute(
+                            benchmark.clone(),
+                            &benchmark_context,
+                            query_name,
+                        ),
+                    )
+                })
+                .collect::<Vec<_>>()
+        },
+    )
+}
+
+fn bsbm_business_intelligence_10000_individual_queries(c: &mut Criterion) {
+    execute_benchmark(
+        c,
+        &|benchmark: BsbmBenchmark<BusinessIntelligenceUseCase>,
+          benchmark_context: BenchmarkContext| {
+            vec![(
+                "BSBM Business Intelligence 10000 - Query 64".to_owned(),
+                get_nth_query_to_execute(benchmark.clone(), &benchmark_context, 64),
+            )]
+        },
+    )
+}
+
+criterion_group!(
+    name = bsbm_business_intelligence;
+    config = Criterion::default().sample_size(10);
+    targets =  bsbm_business_intelligence_10000, bsbm_business_intelligence_10000_individual_queries
+);
+criterion_main!(bsbm_business_intelligence);
+
+fn create_runtime() -> Runtime {
+    Builder::new_current_thread().enable_all().build().unwrap()
+}
+
+fn execute_benchmark(
+    c: &mut Criterion,
+    queries: &dyn Fn(
+        BsbmBenchmark<BusinessIntelligenceUseCase>,
+        BenchmarkContext,
+    ) -> Vec<(
+        String,
+        SparqlRawOperation<BsbmBusinessIntelligenceQueryName>,
+    )>,
+) {
     let verbose = is_verbose();
     let runtime = create_runtime();
     let benchmarking_context =
@@ -46,17 +101,13 @@ fn bsbm_business_intelligence_10000(c: &mut Criterion) {
     ")
         .unwrap();
 
-    for query_name in BsbmBusinessIntelligenceQueryName::list_queries() {
-        let benchmark_name = format!("BSBM Business Intelligence 10000 - {query_name}");
-        let query =
-            get_query_to_execute(benchmark.clone(), &benchmark_context, query_name);
-
+    for (benchmark_name, query) in queries(benchmark, benchmark_context) {
         if verbose {
             runtime
                 .block_on(print_query_details(
                     &store,
                     QueryOptions::default(),
-                    &query_name.to_string(),
+                    &query.query_name().to_string(),
                     query.text(),
                 ))
                 .unwrap();
@@ -74,15 +125,17 @@ fn bsbm_business_intelligence_10000(c: &mut Criterion) {
     }
 }
 
-criterion_group!(
-    name = bsbm_business_intelligence;
-    config = Criterion::default().sample_size(10);
-    targets =  bsbm_business_intelligence_10000
-);
-criterion_main!(bsbm_business_intelligence);
-
-fn create_runtime() -> Runtime {
-    Builder::new_current_thread().enable_all().build().unwrap()
+fn get_nth_query_to_execute(
+    benchmark: BsbmBenchmark<BusinessIntelligenceUseCase>,
+    benchmark_context: &BenchmarkContext,
+    n: usize,
+) -> SparqlRawOperation<BsbmBusinessIntelligenceQueryName> {
+    benchmark
+        .list_raw_operations(&benchmark_context)
+        .unwrap()
+        .into_iter()
+        .nth(n)
+        .unwrap()
 }
 
 fn get_query_to_execute(
