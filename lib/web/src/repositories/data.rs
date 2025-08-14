@@ -1,5 +1,5 @@
-use crate::error::RdfFusionServerError;
 use crate::AppState;
+use crate::error::RdfFusionServerError;
 use anyhow::anyhow;
 use axum::body::Body;
 use axum::extract::State;
