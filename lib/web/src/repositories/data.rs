@@ -28,8 +28,7 @@ pub async fn handle_data_post(
         .await
         .map_err(|error| match error {
             LoaderError::Parsing(err) => RdfFusionServerError::BadRequest(format!(
-                "Error parsing {} RDF file: {}",
-                format, err
+                "Error parsing {format} RDF file: {err}",
             )),
             LoaderError::Storage(_) => {
                 RdfFusionServerError::Internal(anyhow!("Error with storage layer."))
