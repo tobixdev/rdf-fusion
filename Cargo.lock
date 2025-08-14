@@ -3732,6 +3732,7 @@ dependencies = [
  "rdf-fusion",
  "regex",
  "reqwest",
+ "serde_json",
  "snmalloc-rs",
  "tokio",
  "zip-extract",
