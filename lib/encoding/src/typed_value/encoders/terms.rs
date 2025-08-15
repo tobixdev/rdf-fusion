@@ -1,7 +1,5 @@
 use crate::encoding::TermEncoder;
-use crate::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArrayBuilder, TypedValueEncoding,
-};
+use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
 use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult, TypedValueRef};
@@ -28,7 +26,7 @@ impl TermEncoder<TypedValueEncoding> for TermRefTypedValueEncoder {
                 }
             }
         }
-        TYPED_VALUE_ENCODING.try_new_array(value_builder.finish())
+        Ok(value_builder.finish())
     }
 
     fn encode_term(

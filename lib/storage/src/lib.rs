@@ -1,3 +1,3 @@
-mod oxigraph_memory;
+extern crate core;
 
-pub use oxigraph_memory::MemoryQuadStorage;
+pub mod memory;

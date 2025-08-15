@@ -38,7 +38,7 @@ impl QueryPlanner for RdfFusionPlanner {
     ) -> datafusion::common::Result<Arc<dyn ExecutionPlan>> {
         let mut planners: Vec<Arc<dyn ExtensionPlanner + Send + Sync>> =
             vec![Arc::new(KleenePlusPathPlanner)];
-        planners.extend(self.storage.planners());
+        planners.extend(self.storage.planners().await);
 
         let planner = DefaultPhysicalPlanner::with_extension_planners(planners);
         planner

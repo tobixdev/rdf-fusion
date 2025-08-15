@@ -17,7 +17,7 @@ use rdf_fusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
 use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
-use rdf_fusion_encoding::{TermDecoder, TermEncoding};
+use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoding};
 use rdf_fusion_logical::paths::PATH_TABLE_SCHEMA;
 use rdf_fusion_model::{GraphName, Term};
 use std::any::Any;
@@ -409,7 +409,11 @@ impl KleenePlusClosureStream {
             RecordBatchOptions::new().with_row_count(Some(self.all_paths.len()));
         RecordBatch::try_new_with_options(
             Arc::clone(&self.schema),
-            vec![graph_array, start_array, end_array],
+            vec![
+                graph_array.into_array(),
+                start_array.into_array(),
+                end_array.into_array(),
+            ],
             &options,
         )
         .map_err(Into::into)

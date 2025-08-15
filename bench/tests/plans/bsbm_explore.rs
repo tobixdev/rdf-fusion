@@ -2,7 +2,6 @@ use crate::plans::canonicalize_uuids;
 use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
-use rdf_fusion::store::Store;
 use rdf_fusion::{QueryExplanation, QueryOptions};
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
@@ -18,32 +17,20 @@ pub async fn initial_logical_plan_bsbm_explore() {
         assert_snapshot!(
             format!("{name} (Initial)"),
             canonicalize_uuids(&explanation.initial_logical_plan.to_string())
-        )
-    })
-    .await;
-}
+        );
 
-#[tokio::test]
-pub async fn optimized_logical_plan_bsbm_explore() {
-    for_all_explanations(|name, explanation| {
         assert_snapshot!(
             format!("{name} (Optimized)"),
             canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
-        )
-    })
-    .await;
-}
+        );
 
-#[tokio::test]
-pub async fn execution_plan_bsbm_explore() {
-    for_all_explanations(|name, explanation| {
         let string = displayable(explanation.execution_plan.as_ref())
             .indent(false)
             .to_string();
         assert_snapshot!(
             format!("{name} (Execution Plan)"),
             canonicalize_uuids(&string)
-        )
+        );
     })
     .await;
 }
@@ -60,7 +47,7 @@ async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()
         .create_benchmark_context(benchmark_name)
         .unwrap();
 
-    let store = Store::new();
+    let store = benchmark.prepare_store(&benchmark_context).await.unwrap();
     for query_name in BsbmExploreQueryName::list_queries() {
         let benchmark_name = format!("BSBM Explore - {query_name}");
         let query =

@@ -13,7 +13,7 @@ fn store_load(c: &mut Criterion) {
     c.bench_function("Store::load", |b| {
         b.to_async(&Builder::new_current_thread().enable_all().build().unwrap())
             .iter(|| async {
-                let store = Store::new();
+                let store = Store::default();
                 for quad in generate_quads(10_000) {
                     store.insert(quad.as_ref()).await.unwrap();
                 }
@@ -103,7 +103,7 @@ criterion_group!(
 criterion_main!(store_write, store_query);
 
 async fn prepare_store_with_generated_triples(n: usize) -> Store {
-    let store = Store::new();
+    let store = Store::default();
     for quad in generate_quads(n) {
         store.insert(quad.as_ref()).await.unwrap();
     }

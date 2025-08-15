@@ -10,6 +10,13 @@ const SIZE: u8 = 4;
 
 /// The encoded object id represents an [ObjectId] in the storage layer.
 ///
+/// # Default Graph
+///
+/// The default graph is represented by the [DEFAULT_GRAPH_ID]. Use [EncodedGraphObjectId] to
+/// indicate that an id may represent the default graph. If the id is not a [EncodedGraphObjectId],
+/// the system assumes that the id cannot represent the default graph and errors may be thrown
+/// during decoding.
+///
 /// # Why a Byte Array?
 ///
 /// While the regular [ObjectId] is fixed to `u32` ids, this id is composed of a statically sized
@@ -24,6 +31,10 @@ impl EncodedObjectId {
 
     pub fn as_object_id(&self) -> ObjectId {
         ObjectId::from(u32::from_ne_bytes(self.0))
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        u32::from_ne_bytes(self.0)
     }
 }
 
@@ -53,33 +64,52 @@ impl TryFrom<&[u8]> for EncodedObjectId {
     }
 }
 
+/// The id of the default graph.
+pub const DEFAULT_GRAPH_ID: EncodedGraphObjectId =
+    EncodedGraphObjectId(EncodedObjectId([0; SIZE as usize]));
+
+/// Wraps an [EncodedObjectId] to indicate that the id may represent the default graph.
+///
+/// The [DEFAULT_GRAPH_ID] is used for identifying the default graph.
 #[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
-pub struct GraphEncodedObjectId(pub Option<EncodedObjectId>);
+pub struct EncodedGraphObjectId(pub EncodedObjectId);
 
-impl GraphEncodedObjectId {
-    pub fn is_default_graph(&self) -> bool {
-        self.0.is_none()
+impl EncodedGraphObjectId {
+    /// Returns true if this id represents the default graph.
+    pub fn is_default_graph(self) -> bool {
+        self == DEFAULT_GRAPH_ID
+    }
+
+    /// Returns true if this id represents a named graph.
+    pub fn is_named_graph(self) -> bool {
+        !self.is_default_graph()
+    }
+
+    /// Returns the graph id as an [EncodedObjectId] if it is a named graph. Otherwise, returns
+    /// [None].
+    pub fn try_as_encoded_object_id(self) -> Option<EncodedObjectId> {
+        if self.is_default_graph() {
+            return None;
+        }
+        Some(self.0)
+    }
+
+    /// Returns the graph id as an [EncodedObjectId].
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if this id represents the default graph. Due to performance
+    /// reasons this validation will only be done in a Debug build.
+    pub fn as_encoded_object_id(self) -> EncodedObjectId {
+        self.try_as_encoded_object_id()
+            .expect("Cannot convert default graph id to object id.")
     }
 }
 
-impl From<Option<EncodedObjectId>> for GraphEncodedObjectId {
-    fn from(value: Option<EncodedObjectId>) -> Self {
-        GraphEncodedObjectId(value)
+impl From<EncodedObjectId> for EncodedGraphObjectId {
+    fn from(value: EncodedObjectId) -> Self {
+        EncodedGraphObjectId(value)
     }
-}
-
-impl From<GraphEncodedObjectId> for Option<EncodedObjectId> {
-    fn from(value: GraphEncodedObjectId) -> Self {
-        value.0
-    }
-}
-
-#[derive(Eq, PartialEq, Debug, Clone, Hash)]
-pub struct EncodedObjectIdQuad {
-    pub graph_name: GraphEncodedObjectId,
-    pub subject: EncodedObjectId,
-    pub predicate: EncodedObjectId,
-    pub object: EncodedObjectId,
 }
 
 #[cfg(test)]

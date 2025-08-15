@@ -1,5 +1,5 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder, PlainTermEncoding};
+use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
 use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::vocab::xsd;
@@ -29,7 +29,7 @@ impl TermEncoder<PlainTermEncoding> for BooleanPlainTermEncoder {
             }
         }
 
-        PLAIN_TERM_ENCODING.try_new_array(builder.finish())
+        Ok(builder.finish())
     }
 
     fn encode_term(
@@ -60,7 +60,7 @@ impl TermEncoder<PlainTermEncoding> for SimpleLiteralRefPlainTermEncoder {
             }
         }
 
-        PLAIN_TERM_ENCODING.try_new_array(builder.finish())
+        Ok(builder.finish())
     }
 
     fn encode_term(
