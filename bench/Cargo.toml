@@ -53,3 +53,7 @@ harness = false
 [[bench]]
 name = "wind_farm"
 harness = false
+
+[[bench]]
+name = "storage"
+harness = false
