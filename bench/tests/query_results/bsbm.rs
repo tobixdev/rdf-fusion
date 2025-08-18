@@ -57,6 +57,10 @@ pub async fn bsbm_1000_test_results() {
         run_select_query(&store, include_str!("./queries/explore-q3.sparql")).await
     );
     assert_snapshot!(
+        "Explore Q4",
+        run_select_query(&store, include_str!("./queries/explore-q4.sparql")).await
+    );
+    assert_snapshot!(
         "Explore Q5",
         run_select_query(&store, include_str!("./queries/explore-q5.sparql")).await
     );
@@ -69,6 +73,10 @@ pub async fn bsbm_1000_test_results() {
         run_select_query(&store, include_str!("./queries/explore-q8.sparql")).await
     );
     assert_snapshot!(
+        "Explore Q9",
+        run_graph_result_query(&store, include_str!("./queries/explore-q9.sparql")).await
+    );
+    assert_snapshot!(
         "Explore Q10",
         run_select_query(&store, include_str!("./queries/explore-q10.sparql")).await
     );
@@ -78,7 +86,41 @@ pub async fn bsbm_1000_test_results() {
     );
     assert_snapshot!(
         "Explore Q12",
-        run_construct_query(&store, include_str!("./queries/explore-q12.sparql")).await
+        run_graph_result_query(&store, include_str!("./queries/explore-q12.sparql"))
+            .await
+    );
+
+    assert_snapshot!(
+        "Business Intelligence Q1",
+        run_select_query(&store, include_str!("./queries/bi-q1.sparql")).await
+    );
+    assert_snapshot!(
+        "Business Intelligence Q2",
+        run_select_query(&store, include_str!("./queries/bi-q2.sparql")).await
+    );
+    assert_snapshot!(
+        "Business Intelligence Q3",
+        run_select_query(&store, include_str!("./queries/bi-q3.sparql")).await
+    );
+    assert_snapshot!(
+        "Business Intelligence Q4",
+        run_select_query(&store, include_str!("./queries/bi-q4.sparql")).await
+    );
+    assert_snapshot!(
+        "Business Intelligence Q5",
+        run_select_query(&store, include_str!("./queries/bi-q5.sparql")).await
+    );
+    assert_snapshot!(
+        "Business Intelligence Q6",
+        run_select_query(&store, include_str!("./queries/bi-q6.sparql")).await
+    );
+    assert_snapshot!(
+        "Business Intelligence Q7",
+        run_select_query(&store, include_str!("./queries/bi-q7.sparql")).await
+    );
+    assert_snapshot!(
+        "Business Intelligence Q8",
+        run_select_query(&store, include_str!("./queries/bi-q8.sparql")).await
     );
 }
 
@@ -103,7 +145,7 @@ async fn run_select_query(store: &Store, query: &str) -> String {
     serde_json::to_string_pretty(&v).unwrap()
 }
 
-async fn run_construct_query(store: &Store, query: &str) -> String {
+async fn run_graph_result_query(store: &Store, query: &str) -> String {
     let result = store.query(query).await.unwrap();
     let QueryResults::Graph(mut solutions) = result else {
         panic!("Unexpected result format!")

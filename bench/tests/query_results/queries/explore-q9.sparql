@@ -1,0 +1,1 @@
+DESCRIBE * WHERE { SELECT ?x WHERE { <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromRatingSite1/Review4194> <http://purl.org/stuff/rev#reviewer> ?x . } }

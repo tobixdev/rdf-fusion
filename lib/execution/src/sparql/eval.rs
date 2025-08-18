@@ -16,7 +16,7 @@ use rdf_fusion_logical::RdfFusionLogicalPlanBuilderContext;
 use rdf_fusion_model::Iri;
 use rdf_fusion_model::Variable;
 use spargebra::algebra::GraphPattern;
-use spargebra::term::{BlankNode, TriplePattern};
+use spargebra::term::TriplePattern;
 use std::sync::Arc;
 
 /// Evaluates a SPARQL query and returns the results along with execution information.
@@ -89,33 +89,22 @@ pub async fn evaluate_query(
         spargebra::Query::Describe {
             pattern, base_iri, ..
         } => {
+            // TODO: Research what a good DESCRIBE implementation would look like.
+
             let mut vars = Vec::new();
             pattern.on_in_scope_variable(|v| vars.push(v.clone()));
-            let labels = (0..vars.len())
-                .map(|_| BlankNode::default())
-                .collect::<Vec<_>>();
-            let comments = (0..vars.len())
-                .map(|_| BlankNode::default())
+            let rdf_types = vars
+                .iter()
+                .map(|v| Variable::new(format!("{}__type", v.as_str())).unwrap())
                 .collect::<Vec<_>>();
 
-            let describe_pattern = izip!(vars, labels.iter(), comments.iter())
-                .map(|(variable, label, comment)| {
-                    vec![
-                        TriplePattern {
-                            subject: variable.clone().into(),
-                            predicate: rdf_fusion_model::vocab::rdfs::LABEL
-                                .into_owned()
-                                .into(),
-                            object: label.clone().into(),
-                        },
-                        TriplePattern {
-                            subject: variable.clone().into(),
-                            predicate: rdf_fusion_model::vocab::rdfs::COMMENT
-                                .into_owned()
-                                .into(),
-                            object: comment.clone().into(),
-                        },
-                    ]
+            let describe_pattern = izip!(vars, rdf_types.iter())
+                .map(|(variable, rdf_type)| {
+                    vec![TriplePattern {
+                        subject: variable.clone().into(),
+                        predicate: rdf_fusion_model::vocab::rdf::TYPE.into_owned().into(),
+                        object: rdf_type.clone().into(),
+                    }]
                     .into_iter()
                 })
                 .flatten()

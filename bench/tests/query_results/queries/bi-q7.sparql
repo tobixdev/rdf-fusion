@@ -1,0 +1,22 @@
+SELECT ?product WHERE {
+    {
+        SELECT ?product WHERE {
+            {
+                SELECT ?product ?offerCount WHERE {
+                    {
+                        SELECT (COUNT(?offer) AS ?b66923a46633817e6e9236f319130da1) ?product WHERE {
+                            ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType1> .
+                            ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product .
+                        } GROUP BY ?product
+                    } BIND(?b66923a46633817e6e9236f319130da1 AS ?offerCount)
+                }
+            }
+        } ORDER BY DESC(?offerCount) LIMIT 1000
+    } FILTER(NOT EXISTS {
+            ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product .
+            ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor .
+            ?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country .
+            FILTER((?country = <http://downlode.org/rdf/iso-3166/countries#US>))
+        })
+}
+ORDER BY ?product

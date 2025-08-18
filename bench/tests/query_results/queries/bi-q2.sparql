@@ -1,0 +1,14 @@
+SELECT ?otherProduct ?sameFeatures WHERE {
+    ?otherProduct <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/Product> .
+    {
+        SELECT ?otherProduct ?sameFeatures WHERE {
+            {
+                SELECT (COUNT(?otherFeature) AS ?cf592933ed0aec41790a0d471e28aeef) ?otherProduct WHERE {
+                    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?feature .
+                    ?otherProduct <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?otherFeature .
+                    FILTER((?feature = ?otherFeature))
+                } GROUP BY ?otherProduct
+            } BIND(?cf592933ed0aec41790a0d471e28aeef AS ?sameFeatures)
+        }
+    } FILTER(!(?otherProduct = <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636>))
+} ORDER BY DESC(?sameFeatures) ASC(?otherProduct) LIMIT 10

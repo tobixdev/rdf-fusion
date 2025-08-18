@@ -1,0 +1,45 @@
+SELECT ?reviewer ?reviewerAvgScore WHERE {
+    {
+        SELECT (AVG(<http://www.w3.org/2001/XMLSchema#float>(?score)) AS ?8cd1ce2df4516cdceb81bfc90a874341) (MIN(?avgScore) AS ?34f7a94e53c2824c1985f6d659427216) ?reviewer WHERE {
+            {
+                SELECT ?avgScore WHERE {
+                    {
+                        SELECT (AVG(<http://www.w3.org/2001/XMLSchema#float>(?score)) AS ?f73e41a5f4215d5d2437524046002e3d) WHERE {
+                            ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6> .
+                            ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product .
+                            {
+                                {
+                                    {
+                                        ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?score .
+                                    } UNION {
+                                        ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?score .
+                                    }
+                                } UNION {
+                                    ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3> ?score .
+                                }
+                            } UNION {
+                                ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4> ?score .
+                            }
+                        }
+                    } BIND(?f73e41a5f4215d5d2437524046002e3d AS ?avgScore)
+                }
+            } ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6> .
+            ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product .
+            ?review <http://purl.org/stuff/rev#reviewer> ?reviewer .
+            {
+                {
+                    {
+                        ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?score .
+                    } UNION {
+                        ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?score .
+                    }
+                } UNION {
+                    ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3> ?score .
+                }
+            } UNION {
+                ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4> ?score .
+            }
+        } GROUP BY ?reviewer
+    } FILTER((?8cd1ce2df4516cdceb81bfc90a874341 > ?34f7a94e53c2824c1985f6d659427216 * "1.5"^^<http://www.w3.org/2001/XMLSchema#decimal>)) BIND(?8cd1ce2df4516cdceb81bfc90a874341 AS ?reviewerAvgScore)
+}
+ORDER BY ?reviewer ?reviewerAvgScore

@@ -1,0 +1,25 @@
+SELECT DISTINCT ?product ?label ?propertyTextual
+WHERE {
+    {
+        ?product <http://www.w3.org/2000/01/rdf-schema#label> ?label .
+        ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType85> .
+        ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature2594> .
+        ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature2594> .
+        ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual1> ?propertyTextual .
+        ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?p1 .
+        FILTER((?p1 > "226"^^<http://www.w3.org/2001/XMLSchema#integer>))
+    }
+    UNION
+    {
+        ?product <http://www.w3.org/2000/01/rdf-schema#label> ?label .
+        ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType85> .
+        ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature2594> .
+        ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature24> .
+        ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual1> ?propertyTextual .
+        ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?p2 .
+        FILTER((?p2 > "4"^^<http://www.w3.org/2001/XMLSchema#integer>))
+    }
+}
+ORDER BY ASC(?label)
+OFFSET 5
+LIMIT 10

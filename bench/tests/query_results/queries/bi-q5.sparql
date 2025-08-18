@@ -1,0 +1,43 @@
+SELECT ?country ?product ?nrOfReviews ?avgPrice WHERE {
+    {
+        SELECT ?country ?maxReviews WHERE {
+            {
+                SELECT (MAX(?nrOfReviews) AS ?fb630eb4b2582d090dbb6b1f60135f08) ?country WHERE {
+                    {
+                        SELECT ?country ?product ?nrOfReviews WHERE {
+                            {
+                                SELECT (COUNT(?review) AS ?58daae0fec1150fa24ff5a047efbdb0c) ?country ?product WHERE {
+                                    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111> .
+                                    ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product .
+                                    ?review <http://purl.org/stuff/rev#reviewer> ?reviewer .
+                                    ?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country .
+                                } GROUP BY ?country ?product
+                            } BIND(?58daae0fec1150fa24ff5a047efbdb0c AS ?nrOfReviews)
+                        }
+                    }
+                } GROUP BY ?country
+            } BIND(?fb630eb4b2582d090dbb6b1f60135f08 AS ?maxReviews)
+        }
+    } {
+        SELECT ?country ?product ?avgPrice WHERE {
+            {
+                SELECT (AVG(<http://www.w3.org/2001/XMLSchema#float>(<http://www.w3.org/2001/XMLSchema#string>(?price))) AS ?c0b0677977321799e9afecc288fb2f2b) ?country ?product WHERE {
+                    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111> .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price .
+                } GROUP BY ?country ?product
+            } BIND(?c0b0677977321799e9afecc288fb2f2b AS ?avgPrice)
+        }
+    } {
+        SELECT ?country ?product ?nrOfReviews WHERE {
+            {
+                SELECT (COUNT(?review) AS ?4d3332a4701338235164c82a0297a86a) ?country ?product WHERE {
+                    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111> .
+                    ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product .
+                    ?review <http://purl.org/stuff/rev#reviewer> ?reviewer .
+                    ?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country .
+                } GROUP BY ?country ?product
+            } BIND(?4d3332a4701338235164c82a0297a86a AS ?nrOfReviews)
+        }
+    } FILTER((?nrOfReviews = ?maxReviews))
+} ORDER BY DESC(?nrOfReviews) ASC(?country) ASC(?product)
