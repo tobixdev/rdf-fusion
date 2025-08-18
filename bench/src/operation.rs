@@ -46,9 +46,10 @@ impl<QueryName> SparqlOperation<QueryName> {
     pub async fn run(
         &self,
         store: &Store,
-    ) -> anyhow::Result<(BenchmarkRun, QueryExplanation)> {
+    ) -> anyhow::Result<(BenchmarkRun, QueryExplanation, usize)> {
         let start = datafusion::common::instant::Instant::now();
 
+        let mut num_results = 0;
         let options = QueryOptions::default();
         let explanation = match &self {
             SparqlOperation::Query(_, q) => {
@@ -59,12 +60,13 @@ impl<QueryName> SparqlOperation<QueryName> {
                     QueryResults::Solutions(s) => {
                         let mut stream = s.into_record_batch_stream()?;
                         while let Some(s) = stream.next().await {
-                            s?;
+                            num_results += s?.num_rows();
                         }
                     }
                     QueryResults::Graph(mut g) => {
                         while let Some(t) = g.next().await {
                             t?;
+                            num_results += 1;
                         }
                     }
                 }
@@ -73,7 +75,7 @@ impl<QueryName> SparqlOperation<QueryName> {
         };
 
         let duration = start.elapsed();
-        Ok((BenchmarkRun { duration }, explanation))
+        Ok((BenchmarkRun { duration }, explanation, num_results))
     }
 }
 

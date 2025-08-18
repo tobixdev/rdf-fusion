@@ -15,6 +15,6 @@ impl Display for BenchmarkRunsSummary {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Benchmark Summary:")?;
         writeln!(f, "Number of Samples: {}", self.number_of_samples)?;
-        write!(f, "Average Duration: {:?}", self.avg_duration)
+        writeln!(f, "Average Duration: {:?}", self.avg_duration)
     }
 }

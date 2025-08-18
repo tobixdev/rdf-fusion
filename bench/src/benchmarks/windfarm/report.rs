@@ -20,6 +20,8 @@ pub struct QueryDetails {
     pub total_time: std::time::Duration,
     /// The explanation returned from the engine
     pub explanation: QueryExplanation,
+    /// The number of results returned
+    pub num_results: usize,
 }
 
 /// Stores the final report of executing a wind farm benchmark.
@@ -35,10 +37,15 @@ impl WindFarmReport {
     fn write_summary<W: Write + ?Sized>(&self, writer: &mut W) -> anyhow::Result<()> {
         // Create the table
         let mut table = Table::new();
-        table.add_row(row!["Query", "Duration (ms)"]);
+        table.add_row(row!["Query", "Duration (ms)", "Number of Results"]);
         for query in WindFarmQueryName::list_queries() {
             let run = self.runs.get(&query).context("Cannot get run")?;
-            table.add_row(row![query.to_string(), run.duration.as_millis()]);
+            let details = self.details.get(&query).context("Cannot get run")?;
+            table.add_row(row![
+                query.to_string(),
+                run.duration.as_millis(),
+                details.num_results
+            ]);
         }
         table.print(writer)?;
 

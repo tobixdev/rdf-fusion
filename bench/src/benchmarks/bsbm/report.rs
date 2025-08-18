@@ -22,6 +22,8 @@ pub struct QueryDetails {
     pub total_time: std::time::Duration,
     /// The explanation returned from the engine
     pub explanation: QueryExplanation,
+    /// The number of results returned
+    pub num_results: usize,
 }
 
 /// Stores the final report of executing a BSBM explore benchmark.
@@ -38,7 +40,12 @@ impl<TUseCase: BsbmUseCase> BsbmReport<TUseCase> {
     fn write_summary<W: Write + ?Sized>(&self, writer: &mut W) -> anyhow::Result<()> {
         // Create the table
         let mut table = Table::new();
-        table.add_row(row!["Query", "Samples", "Average Duration"]);
+        table.add_row(row![
+            "Query",
+            "Samples",
+            "Average Duration",
+            "Average Results"
+        ]);
         for query in TUseCase::list_queries() {
             let summary = self
                 .runs
@@ -53,7 +60,20 @@ impl<TUseCase: BsbmUseCase> BsbmReport<TUseCase> {
                 .as_ref()
                 .map_or_else(|| "-".to_owned(), |s| format!("{:?}", s.avg_duration));
 
-            table.add_row(row![query.to_string(), samples, average_duration]);
+            let details = self
+                .details
+                .iter()
+                .filter(|d| d.query_type == query.to_string())
+                .collect::<Vec<_>>();
+            let total_results = details.iter().map(|d| d.num_results).sum::<usize>();
+            let average_results = total_results as f64 / details.len() as f64;
+
+            table.add_row(row![
+                query.to_string(),
+                samples,
+                average_duration,
+                average_results
+            ]);
         }
         table.print(writer)?;
 
@@ -64,12 +84,13 @@ impl<TUseCase: BsbmUseCase> BsbmReport<TUseCase> {
     fn write_details<W: Write + ?Sized>(&self, writer: &mut W) -> anyhow::Result<()> {
         let mut writer = csv::Writer::from_writer(writer);
 
-        writer.write_record(["id", "type", "duration (us)"])?;
+        writer.write_record(["id", "type", "duration (us)", "number of results"])?;
         for (i, details) in self.details.iter().enumerate() {
             writer.write_record([
                 i.to_string(),
                 details.query_type.to_string(),
                 details.total_time.as_micros().to_string(),
+                details.num_results.to_string(),
             ])?;
         }
 

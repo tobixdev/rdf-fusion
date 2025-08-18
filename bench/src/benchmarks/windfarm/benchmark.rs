@@ -162,12 +162,14 @@ async fn execute_benchmark(
 
         let operation = get_wind_farm_raw_sparql_operation(context, query_name)?;
         let query_text = operation.text().to_owned();
-        let (run, explanation) = operation.parse().unwrap().run(store).await?;
+        let (run, explanation, num_results) =
+            operation.parse().unwrap().run(store).await?;
         report.add_run(query_name, run.clone());
         if context.parent().options().verbose_results {
             let details = QueryDetails {
                 query: query_text,
                 total_time: run.duration,
+                num_results,
                 explanation,
             };
             report.add_explanation(query_name, details);

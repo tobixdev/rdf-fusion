@@ -21,13 +21,13 @@
 
 use futures::StreamExt;
 use insta::assert_snapshot;
+use rdf_fusion::QueryResults;
 use rdf_fusion::io::{RdfFormat, RdfSerializer};
 use rdf_fusion::results::{QueryResultsFormat, QueryResultsSerializer};
 use rdf_fusion::store::Store;
-use rdf_fusion::QueryResults;
+use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::NumProducts::N1_000;
 use rdf_fusion_bench::benchmarks::bsbm::{BsbmBenchmark, ExploreUseCase};
-use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use serde_json::Value;
 use std::path::PathBuf;
