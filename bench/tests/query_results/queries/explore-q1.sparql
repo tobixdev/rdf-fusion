@@ -1,0 +1,12 @@
+SELECT DISTINCT ?product ?label
+WHERE {
+    ?product <http://www.w3.org/2000/01/rdf-schema#label> ?label .
+    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType56> .
+    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature1645> .
+    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature8> .
+    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?value1 .
+
+    FILTER((?value1 > "318"^^<http://www.w3.org/2001/XMLSchema#integer>))
+}
+ORDER BY ASC(?label)
+LIMIT 10

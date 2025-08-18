@@ -1,0 +1,18 @@
+SELECT ?title ?text ?reviewDate ?reviewer ?reviewerName ?rating1 ?rating2 ?rating3 ?rating4
+WHERE {
+    ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer12/Product578> .
+    ?review <http://purl.org/dc/elements/1.1/title> ?title .
+    ?review <http://purl.org/stuff/rev#text> ?text .
+    ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewDate> ?reviewDate .
+    ?review <http://purl.org/stuff/rev#reviewer> ?reviewer .
+    ?reviewer <http://xmlns.com/foaf/0.1/name> ?reviewerName .
+
+    OPTIONAL { ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?rating1 . }
+    OPTIONAL { ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?rating2 . }
+    OPTIONAL { ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3> ?rating3 . }
+    OPTIONAL { ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4> ?rating4 . }
+
+    FILTER(LANGMATCHES(LANG(?text), "EN"))
+}
+ORDER BY DESC(?reviewDate)
+LIMIT 20

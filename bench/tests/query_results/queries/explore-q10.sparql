@@ -1,0 +1,14 @@
+SELECT DISTINCT ?offer ?price
+WHERE {
+    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer7/Product296> .
+    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor .
+    ?offer <http://purl.org/dc/elements/1.1/publisher> ?vendor .
+    ?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#US> .
+    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays> ?deliveryDays .
+    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price .
+    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo> ?date .
+
+    FILTER(((?deliveryDays <= "3"^^<http://www.w3.org/2001/XMLSchema#integer>) && (?date > "2008-06-20T00:00:00"^^<http://www.w3.org/2001/XMLSchema#dateTime>)))
+}
+ORDER BY ASC(<http://www.w3.org/2001/XMLSchema#double>(STR(?price)))
+LIMIT 10

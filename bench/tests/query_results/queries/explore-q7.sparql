@@ -1,0 +1,17 @@
+SELECT ?productLabel ?offer ?price ?vendor ?vendorTitle ?review ?revTitle ?reviewer ?revName ?rating1 ?rating2
+WHERE {
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer17/Product801> <http://www.w3.org/2000/01/rdf-schema#label> ?productLabel .
+    OPTIONAL { ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer17/Product801> .
+    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price .?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor .
+    ?vendor <http://www.w3.org/2000/01/rdf-schema#label> ?vendorTitle .?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#DE> .
+    ?offer <http://purl.org/dc/elements/1.1/publisher> ?vendor .?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo> ?date .
+    FILTER((?date > "2008-06-20T00:00:00"^^<http://www.w3.org/2001/XMLSchema#dateTime>)) }
+
+    OPTIONAL {
+        ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer17/Product801> .
+        ?review <http://purl.org/stuff/rev#reviewer> ?reviewer .?reviewer <http://xmlns.com/foaf/0.1/name> ?revName .?review <http://purl.org/dc/elements/1.1/title> ?revTitle .
+        OPTIONAL { ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?rating1 . }
+        OPTIONAL { ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?rating2 . }
+    }
+}
+ORDER BY ?productLabel ?offer ?price ?vendor ?vendorTitle ?review ?revTitle ?reviewer ?revName ?rating1 ?rating2

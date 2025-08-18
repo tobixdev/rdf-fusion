@@ -1,2 +1,2 @@
 mod plans;
-mod results;
+mod query_results;
