@@ -26,7 +26,7 @@ impl WindFarmQueryName {
             WindFarmQueryName::MultiGrouped1,
             WindFarmQueryName::MultiGrouped2,
             WindFarmQueryName::MultiGrouped3,
-            // WindFarmQueryName::MultiGrouped4,
+            WindFarmQueryName::MultiGrouped4,
             WindFarmQueryName::ProductionQuery1,
             WindFarmQueryName::ProductionQuery2,
             WindFarmQueryName::ProductionQuery3,
