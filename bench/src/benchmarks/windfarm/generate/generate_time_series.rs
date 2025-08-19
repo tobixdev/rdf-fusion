@@ -6,7 +6,7 @@ use rand::rngs::ThreadRng;
 use rand_distr::{LogNormal, Normal};
 use std::io::Write;
 
-/// Generates the time series data for the windfarm (Chrontext) benchmark.
+/// Generates the time series data for the wind farm (Chrontext) benchmark.
 ///
 /// This includes:
 /// - Energy production data (double) for each turbine generator.

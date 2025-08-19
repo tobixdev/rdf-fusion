@@ -21,7 +21,7 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 /// Holds file paths for the files required for executing a BSBM run.
-struct WindfarmFilePaths {
+struct WindFarmFilePaths {
     /// A path to the wind farm data NTriples file.
     wind_farm_data: PathBuf,
     /// A path to the time series NTriples file.
@@ -195,13 +195,13 @@ pub fn get_wind_farm_raw_sparql_operation(
     Ok(SparqlRawOperation::Query(query_name, query.clone()))
 }
 
-fn create_files(ctx: &BenchmarkContext) -> anyhow::Result<WindfarmFilePaths> {
-    let wind_farm_data = ctx.parent().join_data_dir(Path::new("windfarm.nt"))?;
-    let time_series_data = ctx.parent().join_data_dir(Path::new("timeseries.nt"))?;
+fn create_files(ctx: &BenchmarkContext) -> anyhow::Result<WindFarmFilePaths> {
+    let wind_farm_data = ctx.parent().join_data_dir(Path::new("wind-farm.ttl"))?;
+    let time_series_data = ctx.parent().join_data_dir(Path::new("timeseries.ttl"))?;
     let query_folder = ctx
         .parent()
         .join_data_dir(Path::new("./source/benchmark-docker/queries_chrontext/"))?;
-    Ok(WindfarmFilePaths {
+    Ok(WindFarmFilePaths {
         wind_farm_data,
         time_series_data,
         query_folder,
