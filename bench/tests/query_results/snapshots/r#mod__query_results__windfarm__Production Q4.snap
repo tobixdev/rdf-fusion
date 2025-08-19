@@ -26,7 +26,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2704662.8756666942"
+          "value": "7733845.344533691"
         },
         "wtur_label": {
           "type": "literal",
@@ -46,7 +46,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2705234.5617687795"
+          "value": "7733105.323862744"
         },
         "wtur_label": {
           "type": "literal",
@@ -66,7 +66,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2705037.4792975294"
+          "value": "7733639.776943101"
         },
         "wtur_label": {
           "type": "literal",
@@ -86,7 +86,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2705743.8492182335"
+          "value": "7732704.09601749"
         },
         "wtur_label": {
           "type": "literal",
@@ -106,7 +106,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2705193.737899678"
+          "value": "7733352.477327683"
         },
         "wtur_label": {
           "type": "literal",
@@ -126,7 +126,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2706382.7264427734"
+          "value": "7731008.607879448"
         },
         "wtur_label": {
           "type": "literal",
@@ -146,7 +146,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2706886.5267571714"
+          "value": "7730526.333293544"
         },
         "wtur_label": {
           "type": "literal",
@@ -166,7 +166,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2706503.5248778164"
+          "value": "7728941.081898271"
         },
         "wtur_label": {
           "type": "literal",
@@ -186,7 +186,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2707523.213098274"
+          "value": "7727492.742440262"
         },
         "wtur_label": {
           "type": "literal",
@@ -206,7 +206,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-produc
         "val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "2709421.021511712"
+          "value": "7727387.513989724"
         },
         "wtur_label": {
           "type": "literal",
