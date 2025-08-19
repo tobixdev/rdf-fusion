@@ -19,18 +19,13 @@
 //! the results of a new test (e.g., [JSON Compare](https://jsoncompare.org/)). `CONSTRUCT` queries
 //! have been compared manually.
 
-use futures::StreamExt;
 use insta::assert_snapshot;
-use rdf_fusion::QueryResults;
-use rdf_fusion::io::{RdfFormat, RdfSerializer};
-use rdf_fusion::results::{QueryResultsFormat, QueryResultsSerializer};
-use rdf_fusion::store::Store;
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::NumProducts::N1_000;
 use rdf_fusion_bench::benchmarks::bsbm::{BsbmBenchmark, ExploreUseCase};
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
-use serde_json::Value;
 use std::path::PathBuf;
+use crate::query_results::{run_graph_result_query, run_select_query};
 
 #[tokio::test]
 pub async fn bsbm_1000_test_results() {
@@ -122,43 +117,4 @@ pub async fn bsbm_1000_test_results() {
         "Business Intelligence Q8",
         run_select_query(&store, include_str!("./queries/bi-q8.sparql")).await
     );
-}
-
-async fn run_select_query(store: &Store, query: &str) -> String {
-    let result = store.query(query).await.unwrap();
-    let QueryResults::Solutions(mut solutions) = result else {
-        panic!("Unexpected result format!")
-    };
-
-    let mut buffer = Vec::new();
-    let mut serializer = QueryResultsSerializer::from_format(QueryResultsFormat::Json)
-        .serialize_solutions_to_writer(&mut buffer, solutions.variables().to_vec())
-        .unwrap();
-    while let Some(solution) = solutions.next().await {
-        let solution = solution.unwrap();
-        serializer.serialize(solution.iter()).unwrap();
-    }
-    serializer.finish().unwrap();
-
-    let raw_json = String::from_utf8(buffer).unwrap();
-    let v: Value = serde_json::from_str(&raw_json).unwrap();
-    serde_json::to_string_pretty(&v).unwrap()
-}
-
-async fn run_graph_result_query(store: &Store, query: &str) -> String {
-    let result = store.query(query).await.unwrap();
-    let QueryResults::Graph(mut solutions) = result else {
-        panic!("Unexpected result format!")
-    };
-
-    let mut buffer = Vec::new();
-    let mut serializer =
-        RdfSerializer::from_format(RdfFormat::Turtle).for_writer(&mut buffer);
-    while let Some(solution) = solutions.next().await {
-        let solution = solution.unwrap();
-        serializer.serialize_triple(solution.as_ref()).unwrap();
-    }
-    serializer.finish().unwrap();
-
-    String::from_utf8(buffer).unwrap()
 }

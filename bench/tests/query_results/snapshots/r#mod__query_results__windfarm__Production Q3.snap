@@ -1,0 +1,218 @@
+---
+source: bench/tests/query_results/windfarm.rs
+expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-production-query3.sparql\")).await"
+---
+{
+  "head": {
+    "vars": [
+      "site_label",
+      "wtur_label",
+      "t",
+      "val"
+    ]
+  },
+  "results": {
+    "bindings": [
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:00:00"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2411528.3272655276"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      },
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:00:10"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2410542.166869082"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      },
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:00:20"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2411951.8453256562"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      },
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:00:30"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2411754.019375635"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      },
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:00:40"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2412147.8203119887"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      },
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:00:50"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2412249.253002241"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      },
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:01:00"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2413314.642376354"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      },
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:01:10"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2413916.376799415"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      },
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:01:20"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2412751.8899747"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      },
+      {
+        "site_label": {
+          "type": "literal",
+          "value": "Wind Mountain"
+        },
+        "t": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+          "type": "literal",
+          "value": "2022-08-29T00:01:30"
+        },
+        "val": {
+          "datatype": "http://www.w3.org/2001/XMLSchema#double",
+          "type": "literal",
+          "value": "2414976.6533613717"
+        },
+        "wtur_label": {
+          "type": "literal",
+          "value": "A1"
+        }
+      }
+    ]
+  }
+}
