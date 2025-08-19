@@ -5,8 +5,8 @@
 
 use crate::query_results::run_select_query;
 use insta::assert_snapshot;
-use rdf_fusion_bench::benchmarks::windfarm::{NumTurbines, WindFarmBenchmark};
 use rdf_fusion_bench::benchmarks::Benchmark;
+use rdf_fusion_bench::benchmarks::windfarm::{NumTurbines, WindFarmBenchmark};
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
 

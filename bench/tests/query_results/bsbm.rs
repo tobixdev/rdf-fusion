@@ -19,13 +19,13 @@
 //! the results of a new test (e.g., [JSON Compare](https://jsoncompare.org/)). `CONSTRUCT` queries
 //! have been compared manually.
 
+use crate::query_results::{run_graph_result_query, run_select_query};
 use insta::assert_snapshot;
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::NumProducts::N1_000;
 use rdf_fusion_bench::benchmarks::bsbm::{BsbmBenchmark, ExploreUseCase};
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
-use crate::query_results::{run_graph_result_query, run_select_query};
 
 #[tokio::test]
 pub async fn bsbm_1000_test_results() {
