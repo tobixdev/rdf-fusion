@@ -1,9 +1,9 @@
 use crate::benchmarks::windfarm::generate::write_prefixes;
 use anyhow::Context;
 use chrono::{NaiveDate, NaiveDateTime};
+use rand::SeedableRng;
 use rand::distr::{Distribution, Uniform};
 use rand::prelude::StdRng;
-use rand::SeedableRng;
 use rand_distr::{LogNormal, Normal};
 use std::io::Write;
 
