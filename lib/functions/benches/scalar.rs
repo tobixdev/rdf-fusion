@@ -72,10 +72,16 @@ fn bench_all(c: &mut Criterion) {
     );
     let registry = DefaultRdfFusionFunctionRegistry::new(encodings);
 
-    let runs = HashMap::from([(
-        BuiltinName::IsIri,
-        [UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
-    )]);
+    let runs = HashMap::from([
+        (
+            BuiltinName::IsIri,
+            vec![UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
+            ),
+        (
+            BuiltinName::IsLiteral,
+            vec![UnaryScenario::Mixed],
+            )
+    ]);
 
     for (my_built_in, scenarios) in runs {
         let implementation = registry
