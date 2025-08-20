@@ -17,6 +17,7 @@ use std::sync::Arc;
 enum UnaryScenario {
     AllNamedNodes,
     Mixed,
+    AllBlank,
 }
 
 impl UnaryScenario {
@@ -59,6 +60,15 @@ impl UnaryScenario {
                 }
                 vec![ColumnarValue::Array(payload_builder.finish())]
             }
+            UnaryScenario::AllBlank => {
+                let mut payload_builder = TypedValueArrayBuilder::default();
+                for _ in 0 .. 8192 {
+                    payload_builder
+                        .append_blank_node(BlankNode::default().as_ref())
+                        .unwrap();
+                }
+                vec![ColumnarValue::Array(payload_builder.finish())]
+            }
         }
     }
 }
@@ -80,6 +90,14 @@ fn bench_all(c: &mut Criterion) {
         (
             BuiltinName::IsLiteral,
             vec![UnaryScenario::Mixed],
+            ),
+        (
+            BuiltinName::IsNumeric,
+            vec![UnaryScenario::Mixed],
+            ),
+        (
+            BuiltinName::IsBlank,
+            vec![UnaryScenario::Mixed, UnaryScenario::AllBlank],
             )
     ]);
 
