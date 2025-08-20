@@ -6,7 +6,7 @@ use std::io::Write;
 /// Generates the static part of the data for the windfarm (Chrontext) benchmark.
 ///
 /// This includes:
-/// - Windfarm Sites
+/// - Wind Farm Sites
 /// - Wind Turbines
 /// - Generator Systems
 /// - Generators
@@ -34,6 +34,7 @@ const WIND_FARM_SITES: [(&str, u32); 4] = [
 /// A wind farm site has the following triples:
 fn generate_wind_farm_sites<W: Write>(writer: &mut W) -> anyhow::Result<()> {
     for (name, iri_idx) in WIND_FARM_SITES {
+        let iri_idx = iri_idx + 1;
         write!(
             writer,
             r#"
@@ -57,7 +58,7 @@ fn generate_wind_turbines<W: Write>(
     for i in 1..=n_turbines {
         let max_power_value = MAX_POWER_VALUES[i % MAX_POWER_VALUES.len()];
         let site_idx = i / turbines_per_site;
-        let idx_within_site = i % turbines_per_site;
+        let idx_within_site = (i % turbines_per_site) + 1;
 
         write!(
             writer,

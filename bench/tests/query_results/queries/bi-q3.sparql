@@ -1,0 +1,36 @@
+SELECT ?product ?ratio
+WHERE {
+    {
+        SELECT ?product ?monthCount
+        WHERE {
+            {
+                SELECT (COUNT(?review) AS ?55e63d3abed0b85acc686f7b98f21200) ?product
+                WHERE {
+                    ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product .
+                    ?review <http://purl.org/dc/elements/1.1/date> ?date .
+                    FILTER(((?date >= "2007-10-10"^^<http://www.w3.org/2001/XMLSchema#date>) && (?date < "2007-11-07"^^<http://www.w3.org/2001/XMLSchema#date>)))
+                }
+                GROUP BY ?product
+            }
+            BIND(?55e63d3abed0b85acc686f7b98f21200 AS ?monthCount)
+        }
+    }
+    {
+        SELECT ?product ?monthBeforeCount WHERE {
+            {
+                SELECT (COUNT(?review) AS ?9122b338cf65883169452059b85a0c87) ?product
+                WHERE {
+                    ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product .
+                    ?review <http://purl.org/dc/elements/1.1/date> ?date .
+                    FILTER(((?date >= "2007-09-12"^^<http://www.w3.org/2001/XMLSchema#date>) && (?date < "2007-10-10"^^<http://www.w3.org/2001/XMLSchema#date>)))
+                }
+                GROUP BY ?product
+            }
+            FILTER((?9122b338cf65883169452059b85a0c87 > "0"^^<http://www.w3.org/2001/XMLSchema#integer>))
+            BIND(?9122b338cf65883169452059b85a0c87 AS ?monthBeforeCount)
+        }
+    }
+    BIND(<http://www.w3.org/2001/XMLSchema#float>(?monthCount) / ?monthBeforeCount AS ?ratio)
+}
+ORDER BY DESC(<http://www.w3.org/2001/XMLSchema#float>(?monthCount) / ?monthBeforeCount) ASC(?product)
+LIMIT 10

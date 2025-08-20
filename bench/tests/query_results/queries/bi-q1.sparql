@@ -1,0 +1,24 @@
+SELECT ?productType ?reviewCount
+WHERE {
+    {
+        SELECT ?productType ?reviewCount
+        WHERE {
+            {
+                SELECT (COUNT(?review) AS ?781b100c3eb7288f2f2daf4a8dd45c4b) ?productType
+                WHERE {
+                    ?productType <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/ProductType> .
+                    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?productType .
+                    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> ?producer .
+                    ?producer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#AT> .
+                    ?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product .
+                    ?review <http://purl.org/stuff/rev#reviewer> ?reviewer .
+                    ?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#US> .
+                }
+                GROUP BY ?productType
+            }
+            BIND(?781b100c3eb7288f2f2daf4a8dd45c4b AS ?reviewCount)
+        }
+    }
+}
+ORDER BY DESC(?reviewCount) ASC(?productType)
+LIMIT 10

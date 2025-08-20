@@ -1,0 +1,32 @@
+SELECT ?feature ?priceRatio WHERE {
+    {
+        SELECT ?feature ?withFeaturePrice WHERE {
+            {
+                SELECT (AVG(<http://www.w3.org/2001/XMLSchema#float>(<http://www.w3.org/2001/XMLSchema#string>(?price))) AS ?95e09c1c38eb9d85fcf0bca14fa12987) ?feature WHERE {
+                    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> .
+                    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?feature .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price .
+                } GROUP BY ?feature
+            } BIND(?95e09c1c38eb9d85fcf0bca14fa12987 AS ?withFeaturePrice)
+        }
+    } {
+        SELECT ?feature ?withoutFeaturePrice WHERE {
+            {
+                SELECT (AVG(<http://www.w3.org/2001/XMLSchema#float>(<http://www.w3.org/2001/XMLSchema#string>(?price))) AS ?c54862af24f0f14b67e15d266b9830dc) ?feature WHERE {
+                    {
+                        SELECT DISTINCT ?feature WHERE {
+                            ?p <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> .
+                            ?p <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?feature .
+                        }
+                    } ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48> .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price .
+                    FILTER(NOT EXISTS {
+                            ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?feature .
+                        })
+                } GROUP BY ?feature
+            } BIND(?c54862af24f0f14b67e15d266b9830dc AS ?withoutFeaturePrice)
+        }
+    } BIND(?withFeaturePrice / ?withoutFeaturePrice AS ?priceRatio)
+} ORDER BY DESC(?withFeaturePrice / ?withoutFeaturePrice) ASC(?feature) LIMIT 10

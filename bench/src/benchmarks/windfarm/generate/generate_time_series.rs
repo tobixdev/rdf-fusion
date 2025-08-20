@@ -1,12 +1,13 @@
 use crate::benchmarks::windfarm::generate::write_prefixes;
 use anyhow::Context;
 use chrono::{NaiveDate, NaiveDateTime};
+use rand::SeedableRng;
 use rand::distr::{Distribution, Uniform};
-use rand::rngs::ThreadRng;
+use rand::prelude::StdRng;
 use rand_distr::{LogNormal, Normal};
 use std::io::Write;
 
-/// Generates the time series data for the windfarm (Chrontext) benchmark.
+/// Generates the time series data for the wind farm (Chrontext) benchmark.
 ///
 /// This includes:
 /// - Energy production data (double) for each turbine generator.
@@ -19,7 +20,7 @@ pub fn generate_time_series<W: Write>(
 ) -> anyhow::Result<()> {
     write_prefixes(writer)?;
 
-    let mut rng = rand::rng();
+    let mut rng = StdRng::seed_from_u64(0);
     let uniform = Uniform::new(0.0, 1.0)?;
 
     let mut init_ep_values = create_initial_ep_values(&mut rng, num_turbines)?;
@@ -64,7 +65,7 @@ pub fn generate_time_series<W: Write>(
 
 /// Creates initial energy production values for each turbine.
 fn create_initial_ep_values(
-    rng: &mut ThreadRng,
+    rng: &mut StdRng,
     num_turbines: usize,
 ) -> anyhow::Result<Vec<f64>> {
     const MAX_POWER_VALUES: [u32; 3] = [5_000_000, 10_000_000, 15_000_000];
@@ -80,7 +81,7 @@ fn create_initial_ep_values(
 
 /// Creates initial wind direction values for each turbine.
 fn create_initial_wdir_values(
-    rng: &mut ThreadRng,
+    rng: &mut StdRng,
     num_turbines: usize,
 ) -> anyhow::Result<Vec<f64>> {
     let uniform = Uniform::new(0.0, 360.0)?;
@@ -90,7 +91,7 @@ fn create_initial_wdir_values(
 
 /// Creates initial wind speed values for each turbine.
 fn create_initial_wsp_values(
-    rng: &mut ThreadRng,
+    rng: &mut StdRng,
     num_turbines: usize,
 ) -> anyhow::Result<Vec<f64>> {
     let log_normal =
@@ -124,7 +125,7 @@ fn generate_energy_production_for_hour<W: Write>(
     timestamps: &[NaiveDateTime],
     init_ep_values: &mut [f64],
     operating_values: &[bool],
-    rng: &mut ThreadRng,
+    rng: &mut StdRng,
     n_turbines: usize,
 ) -> anyhow::Result<()> {
     let normal_dist = Normal::new(0.0, 1000.0)?;
@@ -188,7 +189,7 @@ fn generate_wind_direction_for_hour<W: Write>(
     writer: &mut W,
     timestamps: &[NaiveDateTime],
     init_wdir_values: &mut [f64],
-    rng: &mut ThreadRng,
+    rng: &mut StdRng,
 ) -> anyhow::Result<()> {
     let normal_dist =
         Normal::new(0.0, 3.6).context("Failed to create normal distribution")?;
@@ -223,7 +224,7 @@ fn generate_wind_speed_for_hour<W: Write>(
     writer: &mut W,
     timestamps: &[NaiveDateTime],
     init_wsp_values: &mut [f64],
-    rng: &mut ThreadRng,
+    rng: &mut StdRng,
 ) -> anyhow::Result<()> {
     let normal_dist =
         Normal::new(0.0, 1.0).context("Failed to create normal distribution")?;

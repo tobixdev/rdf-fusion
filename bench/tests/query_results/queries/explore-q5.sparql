@@ -1,0 +1,13 @@
+SELECT DISTINCT ?product ?productLabel
+WHERE {
+    ?product <http://www.w3.org/2000/01/rdf-schema#label> ?productLabel .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?prodFeature .
+    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?prodFeature .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?origProperty1 .
+    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?simProperty1 .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?origProperty2 .
+    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?simProperty2 .
+    FILTER(((!(<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> = ?product) && ((?simProperty1 < ?origProperty1 + "120"^^<http://www.w3.org/2001/XMLSchema#integer>) && (?simProperty1 > ?origProperty1 - "120"^^<http://www.w3.org/2001/XMLSchema#integer>))) && ((?simProperty2 < ?origProperty2 + "170"^^<http://www.w3.org/2001/XMLSchema#integer>) && (?simProperty2 > ?origProperty2 - "170"^^<http://www.w3.org/2001/XMLSchema#integer>))))
+}
+ORDER BY ASC(?productLabel)
+LIMIT 5

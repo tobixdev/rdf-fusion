@@ -1,0 +1,23 @@
+CONSTRUCT {
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/export/product> ?productURI .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/export/productlabel> ?productlabel .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/export/vendor> ?vendorname .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/export/vendorhomepage> ?vendorhomepage .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/export/offerURL> ?offerURL .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/export/price> ?price .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/export/deliveryDays> ?deliveryDays .
+    <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/export/validuntil> ?validTo .
+}
+WHERE {
+    SELECT * WHERE {
+        <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?productURI .
+        ?productURI <http://www.w3.org/2000/01/rdf-schema#label> ?productlabel .
+        <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendorURI .
+        ?vendorURI <http://www.w3.org/2000/01/rdf-schema#label> ?vendorname .
+        ?vendorURI <http://xmlns.com/foaf/0.1/homepage> ?vendorhomepage .
+        <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/offerWebpage> ?offerURL .
+        <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price .
+        <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays> ?deliveryDays .
+        <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromVendor5/Offer9035> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo> ?validTo .
+    }
+}

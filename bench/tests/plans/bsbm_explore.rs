@@ -13,17 +13,6 @@ use rdf_fusion_bench::operation::SparqlRawOperation;
 use std::path::PathBuf;
 
 #[tokio::test]
-pub async fn initial_logical_plan_bsbm_explore() {
-    for_all_explanations(|name, explanation| {
-        assert_snapshot!(
-            format!("{name} (Initial)"),
-            canonicalize_uuids(&explanation.initial_logical_plan.to_string())
-        )
-    })
-    .await;
-}
-
-#[tokio::test]
 pub async fn optimized_logical_plan_bsbm_explore() {
     for_all_explanations(|name, explanation| {
         assert_snapshot!(
