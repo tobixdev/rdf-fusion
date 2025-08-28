@@ -1,10 +1,14 @@
 use crate::memory::storage::index::scan_collector::ScanCollector;
-use crate::memory::storage::index::{IndexConfiguration, IndexedQuad};
+use crate::memory::storage::index::{
+    IndexConfiguration, IndexScanInstruction, IndexedQuad,
+};
 
 /// Contains the logic for a single index level.
 pub(super) trait IndexLevelImpl: Default {
     /// The type of the traversal state.
-    type ScanState: Clone;
+    type ScanState<'idx>: ScanState
+    where
+        Self: 'idx;
 
     /// Inserts the triple into the index.
     fn insert(
@@ -25,11 +29,17 @@ pub(super) trait IndexLevelImpl: Default {
     /// The number of entries in the index part.
     fn num_triples(&self) -> usize;
 
-    /// Executes the action for scanning the index at `cur_depth`.
-    fn scan(
+    /// Creates a scan state for the given `index_scan_instructions`.
+    fn create_scan_state(
         &self,
         configuration: &IndexConfiguration,
-        state: Self::ScanState,
-        collector: &mut ScanCollector,
-    ) -> (usize, Option<Self::ScanState>);
+        index_scan_instructions: Vec<IndexScanInstruction>,
+    ) -> Self::ScanState<'_>;
+}
+
+pub(super) trait ScanState {
+    /// Continues
+    fn scan(self, collector: &mut ScanCollector) -> (usize, Option<Self>)
+    where
+        Self: Sized;
 }
