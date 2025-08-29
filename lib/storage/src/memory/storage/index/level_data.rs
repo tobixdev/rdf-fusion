@@ -1,10 +1,9 @@
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::index::level::IndexLevelImpl;
+use crate::memory::storage::index::level::{IndexLevelImpl, ScanState};
 use crate::memory::storage::index::scan_collector::ScanCollector;
 use crate::memory::storage::index::{
-    IndexConfiguration, IndexedQuad, ObjectIdScanPredicate,
+    IndexConfiguration, IndexScanInstruction, IndexedQuad, ObjectIdScanPredicate,
 };
-use std::cmp::min;
 use std::collections::HashSet;
 
 /// Holds the data for the last index level.
@@ -14,78 +13,8 @@ pub struct IndexData {
     terms: HashSet<EncodedObjectId>,
 }
 
-/// Represents the state of scanning an [IndexData] instance.
-#[derive(Debug, Clone)]
-pub enum IndexDataScanState {
-    /// Look up the object id in the index. If a single item is that is contained in `filter` is
-    /// found, the lookup is successful.
-    Traverse {
-        predicate: Option<ObjectIdScanPredicate>,
-    },
-    /// Scan the object ids in this level, only yielding the ids in `filter`.
-    Scan {
-        name: String,
-        predicate: Option<ObjectIdScanPredicate>,
-        consumed: usize,
-    },
-}
-
-impl IndexData {
-    /// Implements the lookup only action by checking whether any of the object ids is contained
-    /// in the index.
-    fn traverse_impl(
-        &self,
-        predicate: Option<ObjectIdScanPredicate>,
-    ) -> (usize, Option<IndexDataScanState>) {
-        let contained = match predicate {
-            None => !self.terms.is_empty(),
-            Some(predicate) => self.terms.iter().any(|id| predicate.evaluate(*id)),
-        };
-        if contained { (1, None) } else { (0, None) }
-    }
-
-    fn scan_impl(
-        &self,
-        configuration: &IndexConfiguration,
-        name: String,
-        predicate: Option<ObjectIdScanPredicate>,
-        consumed: usize,
-        collector: &mut ScanCollector,
-    ) -> (usize, Option<IndexDataScanState>) {
-        // TODO: Specialize predicate
-
-        let old_results = collector.num_results(&name);
-        let iterator = self
-            .terms
-            .iter()
-            .skip(consumed)
-            .take(configuration.batch_size)
-            .filter(|id| match &predicate {
-                None => true,
-                Some(predicate) => predicate.evaluate(**id),
-            })
-            .map(|id| id.as_u32());
-        collector.extend(name.as_str(), iterator);
-
-        let added_elements = collector.num_results(&name) - old_results;
-        let new_consumed = min(consumed + configuration.batch_size, self.terms.len());
-        if new_consumed == self.terms.len() {
-            (added_elements, None)
-        } else {
-            (
-                added_elements,
-                Some(IndexDataScanState::Scan {
-                    name,
-                    consumed: new_consumed,
-                    predicate,
-                }),
-            )
-        }
-    }
-}
-
 impl IndexLevelImpl for IndexData {
-    type ScanState = IndexDataScanState;
+    type ScanState<'idx> = IndexDataScanState<'idx>;
 
     fn insert(
         &mut self,
@@ -111,19 +40,91 @@ impl IndexLevelImpl for IndexData {
         self.terms.len()
     }
 
-    fn scan(
+    fn create_scan_state(
         &self,
         configuration: &IndexConfiguration,
-        state: Self::ScanState,
+        mut index_scan_instructions: Vec<IndexScanInstruction>,
+    ) -> Self::ScanState<'_> {
+        let instruction = index_scan_instructions
+            .pop()
+            .expect("There should always be a single instruction.");
+        debug_assert!(index_scan_instructions.is_empty());
+
+        let iterator: TraversalIterator = match instruction.predicate().cloned() {
+            None => Box::new(self.terms.iter().copied()),
+            Some(ObjectIdScanPredicate::In(ids)) => {
+                Box::new(ids.into_iter().filter(|id| self.terms.contains(id)))
+            }
+            Some(predicate) => Box::new(
+                self.terms
+                    .iter()
+                    .filter(move |id| predicate.evaluate(**id))
+                    .copied(),
+            ),
+        };
+
+        match instruction {
+            IndexScanInstruction::Traverse(_) => {
+                IndexDataScanState::Traverse { iterator }
+            }
+            IndexScanInstruction::Scan(name, _) => IndexDataScanState::Scan {
+                name,
+                batch_size: configuration.batch_size,
+                iterator,
+            },
+        }
+    }
+}
+
+/// An iterator over object ids is used for traversing the index.
+type TraversalIterator<'idx> = Box<dyn Iterator<Item = EncodedObjectId> + 'idx + Send>;
+
+/// Represents the state of scanning an [IndexData] instance.
+pub enum IndexDataScanState<'idx> {
+    /// Look up the object id in the index. If a single item is that is contained in `filter` is
+    /// found, the lookup is successful.
+    Traverse { iterator: TraversalIterator<'idx> },
+    /// Scan the object ids in this level, only yielding the ids in `filter`.
+    Scan {
+        name: String,
+        batch_size: usize,
+        iterator: TraversalIterator<'idx>,
+    },
+}
+
+impl ScanState for IndexDataScanState<'_> {
+    fn scan(
+        self,
+        _configuration: &IndexConfiguration,
         collector: &mut ScanCollector,
-    ) -> (usize, Option<Self::ScanState>) {
-        match state {
-            IndexDataScanState::Traverse { predicate } => self.traverse_impl(predicate),
+    ) -> (usize, Option<Self>) {
+        match self {
+            // During traversal, check how many items are in the iterator.
+            IndexDataScanState::Traverse { iterator } => (iterator.count(), None),
+            // During scan, yield the next batch of ids.
             IndexDataScanState::Scan {
                 name,
-                predicate,
-                consumed,
-            } => self.scan_impl(configuration, name, predicate, consumed, collector),
+                batch_size,
+                mut iterator,
+            } => {
+                let old_results = collector.num_results(&name);
+                let batch_iter = iterator.by_ref().take(batch_size).map(|id| id.as_u32());
+                collector.extend(name.as_str(), batch_iter);
+
+                let added_elements = collector.num_results(&name) - old_results;
+                if added_elements < batch_size {
+                    (added_elements, None)
+                } else {
+                    (
+                        batch_size,
+                        Some(IndexDataScanState::Scan {
+                            name,
+                            batch_size,
+                            iterator,
+                        }),
+                    )
+                }
+            }
         }
     }
 }

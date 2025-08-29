@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 async-trait.workspace = true
 futures.workspace = true
+ouroboros = "0.18"
 rdf-fusion-api.workspace = true
 rdf-fusion-common.workspace = true
 rdf-fusion-model.workspace = true
@@ -19,7 +20,6 @@ dashmap.workspace = true
 rustc-hash.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-log = "0.4.27"
 
 [dev-dependencies]
 insta.workspace = true
