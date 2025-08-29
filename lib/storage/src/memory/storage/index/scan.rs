@@ -38,6 +38,8 @@ type IndexType = IndexLevel<IndexLevel<IndexLevel<IndexData>>>;
 /// If no variable is given (and only term patterns) the iterator will return a single item with an
 /// empty vector. If no triple matches the pattern, then `None` will be returned.
 pub struct MemHashIndexIterator {
+    /// The variables that are used in the patterns. This may contain duplicate variables.
+    variables: [Option<String>; 4],
     /// The iterator holds a read lock on the entire index such that another transaction cannot
     /// delete data from the index during iteration.
     #[allow(
@@ -82,6 +84,12 @@ impl PreparedIndexScan {
 
     /// TODO
     pub fn create_iterator(self) -> MemHashIndexIterator {
+        let variables = self
+            .instructions
+            .0
+            .clone()
+            .map(|i| i.scan_variable().map(|v| v.to_owned()));
+
         let configuration = self.configuration.clone();
         let instructions = self.instructions.0.to_vec();
         let scan_state = self
@@ -102,6 +110,7 @@ impl PreparedIndexScan {
         };
 
         MemHashIndexIterator {
+            variables,
             index: self.index.clone(),
             configuration: self.configuration,
             state: Some(scan_state_static),
@@ -159,7 +168,11 @@ impl Iterator for MemHashIndexIterator {
         self.state = new_state;
 
         if results > 0 {
-            Some(collector.into_scan_batch(results, &self.configuration))
+            Some(collector.into_scan_batch(
+                results,
+                self.variables.clone(),
+                &self.configuration,
+            ))
         } else {
             None
         }

@@ -10,7 +10,7 @@ pub struct ScanCollector {
     /// TODO
     batch_size: usize,
     /// TODO
-    state: HashMap<String, Vec<u32>>,
+    state: [Vec<u32>; 4],
 }
 
 impl ScanCollector {
@@ -18,39 +18,35 @@ impl ScanCollector {
     pub fn new(batch_size: usize) -> Self {
         Self {
             batch_size,
-            state: HashMap::new(),
+            state: [
+                Vec::default(),
+                Vec::default(),
+                Vec::default(),
+                Vec::default(),
+            ],
         }
     }
 
     /// TODO
     pub fn batch_full(&self) -> bool {
-        self.max_num_results() >= self.batch_size
+        self.state.iter().any(|v| v.len() == self.batch_size)
     }
 
     /// TODO
-    pub fn max_num_results(&self) -> usize {
-        self.state.values().map(|v| v.len()).max().unwrap_or(0)
+    pub fn num_results(&self, idx: usize) -> usize {
+        self.state[idx].len()
     }
 
     /// TODO
-    pub fn num_results(&self, name: &str) -> usize {
-        self.state.get(name).map(|v| v.len()).unwrap_or(0)
-    }
-
-    /// TODO
-    pub fn extend(&mut self, name: &str, results: impl IntoIterator<Item = u32>) {
-        if let Some(vec) = self.state.get_mut(name) {
-            vec.extend(results);
-        } else {
-            let mut vec = Vec::with_capacity(self.batch_size);
-            vec.extend(results);
-            self.state.insert(name.to_owned(), vec);
-        }
+    pub fn extend(&mut self, idx: usize, results: impl IntoIterator<Item = u32>) {
+        let vec = &mut self.state[idx];
+        vec.extend(results);
     }
 
     pub fn into_scan_batch(
         self,
         num_results: usize,
+        vars: [Option<String>; 4],
         configuration: &IndexConfiguration,
     ) -> IndexScanBatch {
         // This is the result when only an index lookup is performed.
@@ -62,7 +58,12 @@ impl ScanCollector {
         }
 
         let mut columns = HashMap::new();
-        for (name, object_ids) in self.state.into_iter() {
+        for (name, object_ids) in vars
+            .into_iter()
+            .zip(self.state.into_iter())
+            .flat_map(|(name, object_ids)| name.map(|name| (name, object_ids)))
+            .filter(|(_, object_ids)| !object_ids.is_empty())
+        {
             assert_eq!(
                 object_ids.len(),
                 num_results,

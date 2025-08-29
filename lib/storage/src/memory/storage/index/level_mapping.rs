@@ -131,9 +131,17 @@ impl<TInner: IndexLevelImpl> IndexLevelImpl for IndexLevel<TInner> {
                     .iter()
                     .any(|inst| inst.scan_variable() == Some(&name));
                 if needs_equality_check {
-                    IndexLevelScanState::ScanAndBindInnerLevels(name, traversal)
+                    IndexLevelScanState::ScanAndBindInnerLevels(
+                        name,
+                        3 - traversal.inner_instructions.len(),
+                        traversal,
+                    )
                 } else {
-                    IndexLevelScanState::Scan(name, traversal)
+                    IndexLevelScanState::Scan(
+                        name,
+                        3 - traversal.inner_instructions.len(),
+                        traversal,
+                    )
                 }
             }
         }
@@ -210,10 +218,10 @@ pub enum IndexLevelScanState<'idx, TContent: IndexLevelImpl> {
     /// inner levels.
     Traverse(IndexTraversal<'idx, TContent>),
     /// Same as [Self::Traverse] but also collects the elements from this level and returns them.
-    Scan(String, IndexTraversal<'idx, TContent>),
+    Scan(String, usize, IndexTraversal<'idx, TContent>),
     /// Same as [Self::Scan] but also binds inner levels with the same name to the results from
     /// this level.
-    ScanAndBindInnerLevels(String, IndexTraversal<'idx, TContent>),
+    ScanAndBindInnerLevels(String, usize, IndexTraversal<'idx, TContent>),
 }
 
 impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TContent> {
@@ -243,12 +251,12 @@ impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TCo
                 }
                 (count, None)
             }
-            IndexLevelScanState::Scan(name, mut traversal) => {
+            IndexLevelScanState::Scan(name, result_idx, mut traversal) => {
                 let mut count = 0;
                 while let Some((oid, state)) = traversal.next_state(configuration) {
                     let (this_count, state) = state.drive_scan(configuration, collector);
                     count += this_count;
-                    collector.extend(&name, repeat_n(oid.as_u32(), this_count));
+                    collector.extend(result_idx, repeat_n(oid.as_u32(), this_count));
 
                     if collector.batch_full() {
                         let traversal = IndexTraversal {
@@ -256,19 +264,26 @@ impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TCo
                             inner_instructions: traversal.inner_instructions,
                             iterator: traversal.iterator,
                         };
-                        return (count, Some(IndexLevelScanState::Scan(name, traversal)));
+                        return (
+                            count,
+                            Some(IndexLevelScanState::Scan(name, result_idx, traversal)),
+                        );
                     }
                 }
                 (count, None)
             }
-            IndexLevelScanState::ScanAndBindInnerLevels(name, mut traversal) => {
+            IndexLevelScanState::ScanAndBindInnerLevels(
+                name,
+                result_idx,
+                mut traversal,
+            ) => {
                 let mut count = 0;
                 while let Some((oid, state)) =
                     traversal.next_state_with_rewrite(configuration, &name)
                 {
                     let (this_count, state) = state.drive_scan(configuration, collector);
                     count += this_count;
-                    collector.extend(&name, repeat_n(oid.as_u32(), this_count));
+                    collector.extend(result_idx, repeat_n(oid.as_u32(), this_count));
 
                     if collector.batch_full() {
                         let traversal = IndexTraversal {
@@ -276,7 +291,10 @@ impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TCo
                             inner_instructions: traversal.inner_instructions,
                             iterator: traversal.iterator,
                         };
-                        return (count, Some(IndexLevelScanState::Scan(name, traversal)));
+                        return (
+                            count,
+                            Some(IndexLevelScanState::Scan(name, result_idx, traversal)),
+                        );
                     }
                 }
                 (count, None)

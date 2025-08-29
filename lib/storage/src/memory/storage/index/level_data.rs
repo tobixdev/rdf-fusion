@@ -67,11 +67,13 @@ impl IndexLevelImpl for IndexData {
             IndexScanInstruction::Traverse(_) => {
                 IndexDataScanState::Traverse { iterator }
             }
-            IndexScanInstruction::Scan(name, _) => IndexDataScanState::Scan {
-                name,
-                batch_size: configuration.batch_size,
-                iterator,
-            },
+            IndexScanInstruction::Scan(_, _) => {
+                IndexDataScanState::Scan {
+                    result_idx: 3, // Data is always the last level.
+                    batch_size: configuration.batch_size,
+                    iterator,
+                }
+            }
         }
     }
 }
@@ -86,7 +88,7 @@ pub enum IndexDataScanState<'idx> {
     Traverse { iterator: TraversalIterator<'idx> },
     /// Scan the object ids in this level, only yielding the ids in `filter`.
     Scan {
-        name: String,
+        result_idx: usize,
         batch_size: usize,
         iterator: TraversalIterator<'idx>,
     },
@@ -103,22 +105,22 @@ impl ScanState for IndexDataScanState<'_> {
             IndexDataScanState::Traverse { iterator } => (iterator.count(), None),
             // During scan, yield the next batch of ids.
             IndexDataScanState::Scan {
-                name,
+                result_idx,
                 batch_size,
                 mut iterator,
             } => {
-                let old_results = collector.num_results(&name);
+                let old_results = collector.num_results(result_idx);
                 let batch_iter = iterator.by_ref().take(batch_size).map(|id| id.as_u32());
-                collector.extend(name.as_str(), batch_iter);
+                collector.extend(result_idx, batch_iter);
 
-                let added_elements = collector.num_results(&name) - old_results;
+                let added_elements = collector.num_results(result_idx) - old_results;
                 if added_elements < batch_size {
                     (added_elements, None)
                 } else {
                     (
                         batch_size,
                         Some(IndexDataScanState::Scan {
-                            name,
+                            result_idx,
                             batch_size,
                             iterator,
                         }),
