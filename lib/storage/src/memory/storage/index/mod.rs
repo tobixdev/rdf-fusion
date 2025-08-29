@@ -13,7 +13,7 @@ mod scan_collector;
 mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
+use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
@@ -141,16 +141,17 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::storage::VersionNumber;
     use crate::memory::storage::index::components::IndexComponent;
     use crate::memory::storage::index::hash_index::MemHashTripleIndex;
     use crate::memory::storage::index::{
         IndexComponents, IndexScanError, IndexScanInstruction, IndexScanInstructions,
         UnexpectedVersionNumberError,
     };
+    use crate::memory::storage::VersionNumber;
     use datafusion::arrow::array::Array;
-    use rdf_fusion_encoding::EncodingArray;
+    use insta::assert_debug_snapshot;
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+    use rdf_fusion_encoding::EncodingArray;
 
     #[tokio::test]
     async fn insert_and_scan_triple() {
@@ -174,6 +175,62 @@ mod tests {
 
         assert!(result.is_some());
         assert_eq!(result.unwrap().num_results, 1);
+    }
+
+    #[tokio::test]
+    async fn scan_returns_sorted_results_on_last_level() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(2), eid(2)]),
+        ];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        let mut iter = index
+            .create_scan(
+                IndexScanInstructions([traverse(0), traverse(1), traverse(2), scan("d")]),
+                VersionNumber(1),
+            )
+            .await
+            .unwrap();
+        let result = iter.next();
+
+        assert!(result.is_some());
+        assert_debug_snapshot!(result.unwrap().columns.get("d").unwrap().object_ids(), @r"
+        PrimitiveArray<UInt32>
+        [
+          2,
+          3,
+        ]
+        ");
+    }
+
+    #[tokio::test]
+    async fn scan_returns_sorted_results_on_intermediate_level() {
+        let index = create_index();
+        let quads = vec![
+            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
+            IndexedQuad([eid(0), eid(1), eid(1), eid(3)]),
+        ];
+        index.insert(quads, VersionNumber(1)).await.unwrap();
+
+        let mut iter = index
+            .create_scan(
+                IndexScanInstructions([traverse(0), traverse(1), scan("c"), traverse(3)]),
+                VersionNumber(1),
+            )
+            .await
+            .unwrap();
+        let result = iter.next();
+
+        assert!(result.is_some());
+        assert_debug_snapshot!(result.unwrap().columns.get("c").unwrap().object_ids(), @r"
+        PrimitiveArray<UInt32>
+        [
+          1,
+          2,
+        ]
+        ");
     }
 
     #[tokio::test]

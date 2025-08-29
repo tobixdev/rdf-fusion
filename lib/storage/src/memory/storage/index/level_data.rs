@@ -4,13 +4,13 @@ use crate::memory::storage::index::scan_collector::ScanCollector;
 use crate::memory::storage::index::{
     IndexConfiguration, IndexScanInstruction, IndexedQuad, ObjectIdScanPredicate,
 };
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 /// Holds the data for the last index level.
 #[derive(Debug, Default)]
 pub struct IndexData {
     /// The object ids already seen.
-    terms: HashSet<EncodedObjectId>,
+    terms: BTreeSet<EncodedObjectId>,
 }
 
 impl IndexLevelImpl for IndexData {

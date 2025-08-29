@@ -4,17 +4,17 @@ use crate::memory::storage::index::scan_collector::ScanCollector;
 use crate::memory::storage::index::{
     IndexConfiguration, IndexScanInstruction, IndexedQuad, ObjectIdScanPredicate,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::iter::repeat_n;
 
 /// An index level is a mapping from [EncodedObjectId]. By traversing multiple index levels, users
 /// can access the data in the index.
 #[derive(Debug)]
-pub struct IndexLevel<TInner: IndexLevelImpl>(HashMap<EncodedObjectId, TInner>);
+pub struct IndexLevel<TInner: IndexLevelImpl>(BTreeMap<EncodedObjectId, TInner>);
 
 impl<TInner: IndexLevelImpl> Default for IndexLevel<TInner> {
     fn default() -> Self {
-        Self(HashMap::new())
+        Self(BTreeMap::new())
     }
 }
 
