@@ -42,7 +42,7 @@ impl IndexLevelImpl for IndexData {
 
     fn create_scan_state(
         &self,
-        configuration: &IndexConfiguration,
+        _configuration: &IndexConfiguration,
         index_scan_instructions: &[IndexScanInstruction],
     ) -> Self::ScanState<'_> {
         let instruction = &index_scan_instructions[0];
@@ -68,7 +68,6 @@ impl IndexLevelImpl for IndexData {
             IndexScanInstruction::Scan(_, _) => {
                 IndexDataScanState::Scan {
                     result_idx: 3, // Data is always the last level.
-                    batch_size: configuration.batch_size,
                     iterator,
                 }
             }
@@ -86,8 +85,7 @@ pub enum IndexDataScanState<'idx> {
     Traverse { iterator: TraversalIterator<'idx> },
     /// Scan the object ids in this level, only yielding the ids in `filter`.
     Scan {
-        result_idx: usize,
-        batch_size: usize,
+        result_idx: u8,
         iterator: TraversalIterator<'idx>,
     },
 }
@@ -104,22 +102,24 @@ impl ScanState for IndexDataScanState<'_> {
             // During scan, yield the next batch of ids.
             IndexDataScanState::Scan {
                 result_idx,
-                batch_size,
                 mut iterator,
             } => {
-                let old_results = collector.num_results(result_idx);
-                let batch_iter = iterator.by_ref().take(batch_size).map(|id| id.as_u32());
-                collector.extend(result_idx, batch_iter);
+                let old_results = collector.num_results(result_idx as usize);
+                let batch_iter = iterator
+                    .by_ref()
+                    .take(collector.batch_size())
+                    .map(|id| id.as_u32());
+                collector.extend(result_idx as usize, batch_iter);
 
-                let added_elements = collector.num_results(result_idx) - old_results;
-                if added_elements < batch_size {
+                let added_elements =
+                    collector.num_results(result_idx as usize) - old_results;
+                if added_elements < collector.batch_size() {
                     (added_elements, None)
                 } else {
                     (
-                        batch_size,
+                        collector.batch_size(),
                         Some(IndexDataScanState::Scan {
                             result_idx,
-                            batch_size,
                             iterator,
                         }),
                     )

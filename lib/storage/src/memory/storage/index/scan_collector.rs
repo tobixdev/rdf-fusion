@@ -27,6 +27,10 @@ impl ScanCollector {
         }
     }
 
+    pub fn batch_size(&self) -> usize {
+        self.batch_size
+    }
+
     /// TODO
     pub fn batch_full(&self) -> bool {
         self.state.iter().any(|v| v.len() == self.batch_size)

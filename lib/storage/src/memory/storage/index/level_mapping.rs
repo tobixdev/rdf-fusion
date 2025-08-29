@@ -134,13 +134,13 @@ impl<TInner: IndexLevelImpl> IndexLevelImpl for IndexLevel<TInner> {
                 if needs_equality_check {
                     IndexLevelScanState::ScanAndBindInnerLevels(
                         name.clone(),
-                        3 - traversal.inner_instructions.len(),
+                        3 - traversal.inner_instructions.len() as u8,
                         traversal,
                     )
                 } else {
                     IndexLevelScanState::Scan(
                         name.clone(),
-                        3 - traversal.inner_instructions.len(),
+                        3 - traversal.inner_instructions.len() as u8,
                         traversal,
                     )
                 }
@@ -218,10 +218,10 @@ pub enum IndexLevelScanState<'idx, TContent: IndexLevelImpl> {
     /// inner levels.
     Traverse(IndexTraversal<'idx, TContent>),
     /// Same as [Self::Traverse] but also collects the elements from this level and returns them.
-    Scan(Arc<String>, usize, IndexTraversal<'idx, TContent>),
+    Scan(Arc<String>, u8, IndexTraversal<'idx, TContent>),
     /// Same as [Self::Scan] but also binds inner levels with the same name to the results from
     /// this level.
-    ScanAndBindInnerLevels(Arc<String>, usize, IndexTraversal<'idx, TContent>),
+    ScanAndBindInnerLevels(Arc<String>, u8, IndexTraversal<'idx, TContent>),
 }
 
 impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TContent> {
@@ -256,7 +256,8 @@ impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TCo
                 while let Some((oid, state)) = traversal.next_state(configuration) {
                     let (this_count, state) = state.drive_scan(configuration, collector);
                     count += this_count;
-                    collector.extend(result_idx, repeat_n(oid.as_u32(), this_count));
+                    collector
+                        .extend(result_idx as usize, repeat_n(oid.as_u32(), this_count));
 
                     if collector.batch_full() {
                         let traversal = IndexTraversal {
@@ -283,7 +284,8 @@ impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TCo
                 {
                     let (this_count, state) = state.drive_scan(configuration, collector);
                     count += this_count;
-                    collector.extend(result_idx, repeat_n(oid.as_u32(), this_count));
+                    collector
+                        .extend(result_idx as usize, repeat_n(oid.as_u32(), this_count));
 
                     if collector.batch_full() {
                         let traversal = IndexTraversal {
