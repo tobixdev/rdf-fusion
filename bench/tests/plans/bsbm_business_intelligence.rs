@@ -3,11 +3,11 @@ use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
 use rdf_fusion::{QueryExplanation, QueryOptions};
+use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
     BsbmBenchmark, BsbmBusinessIntelligenceQueryName, BusinessIntelligenceUseCase,
     NumProducts,
 };
-use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::environment::{BenchmarkContext, RdfFusionBenchContext};
 use rdf_fusion_bench::operation::SparqlRawOperation;
 use std::path::PathBuf;

@@ -13,7 +13,7 @@ mod scan_collector;
 mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
@@ -84,6 +84,13 @@ pub enum IndexScanInstruction {
 }
 
 impl IndexScanInstruction {
+    pub fn scan_variable(&self) -> Option<&str> {
+        match self {
+            IndexScanInstruction::Traverse(_) => None,
+            IndexScanInstruction::Scan(variable, _) => Some(variable.as_str()),
+        }
+    }
+
     pub fn predicate(&self) -> Option<&ObjectIdScanPredicate> {
         match self {
             IndexScanInstruction::Traverse(predicate) => predicate.as_ref(),
@@ -141,17 +148,17 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::memory::storage::VersionNumber;
     use crate::memory::storage::index::components::IndexComponent;
     use crate::memory::storage::index::hash_index::MemHashTripleIndex;
     use crate::memory::storage::index::{
         IndexComponents, IndexScanError, IndexScanInstruction, IndexScanInstructions,
         UnexpectedVersionNumberError,
     };
-    use crate::memory::storage::VersionNumber;
     use datafusion::arrow::array::Array;
     use insta::assert_debug_snapshot;
-    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
     use rdf_fusion_encoding::EncodingArray;
+    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 
     #[tokio::test]
     async fn insert_and_scan_triple() {

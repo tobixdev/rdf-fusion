@@ -117,37 +117,8 @@ impl<TInner: IndexLevelImpl> IndexLevelImpl for IndexLevel<TInner> {
             ),
         };
 
-        let state_factory: Box<
-            dyn Fn(EncodedObjectId) -> Vec<IndexScanInstruction> + Send,
-        > = match &instruction {
-            IndexScanInstruction::Scan(name, _) => {
-                let name = name.clone();
-                Box::new(move |oid| {
-                    index_scan_instructions
-                        .clone()
-                        .into_iter()
-                        .map(|inst| match inst {
-                            IndexScanInstruction::Scan(inner_name, predicate)
-                                if inner_name == name =>
-                            {
-                                if predicate.is_some() {
-                                    todo!("Proper error handling")
-                                }
-
-                                IndexScanInstruction::Traverse(Some(
-                                    ObjectIdScanPredicate::In(HashSet::from([oid])),
-                                ))
-                            }
-                            inst => inst,
-                        })
-                        .collect()
-                })
-            }
-            _ => Box::new(move |_| index_scan_instructions.clone()),
-        };
-
         let traversal = IndexTraversal {
-            state_factory,
+            inner_instructions: index_scan_instructions,
             inner_state: None,
             iterator,
         };
@@ -155,7 +126,15 @@ impl<TInner: IndexLevelImpl> IndexLevelImpl for IndexLevel<TInner> {
         match instruction {
             IndexScanInstruction::Traverse(_) => IndexLevelScanState::Traverse(traversal),
             IndexScanInstruction::Scan(name, _) => {
-                IndexLevelScanState::Scan(name, traversal)
+                let needs_equality_check = traversal
+                    .inner_instructions
+                    .iter()
+                    .any(|inst| inst.scan_variable() == Some(&name));
+                if needs_equality_check {
+                    IndexLevelScanState::ScanAndBindInnerLevels(name, traversal)
+                } else {
+                    IndexLevelScanState::Scan(name, traversal)
+                }
             }
         }
     }
@@ -170,7 +149,7 @@ pub(super) struct IndexTraversal<'idx, TInner: IndexLevelImpl> {
     /// The current inner state. If this is `None`, the next entry should be scanned.
     inner_state: Option<(EncodedObjectId, TInner::ScanState<'idx>)>,
     /// Used to create the inner instructions when the next entry is scanned.
-    state_factory: Box<dyn Fn(EncodedObjectId) -> Vec<IndexScanInstruction> + Send>,
+    inner_instructions: Vec<IndexScanInstruction>,
     /// The iterator over the entries in the index that match the given predicate.
     iterator: TraversalIterator<'idx, TInner>,
 }
@@ -184,7 +163,42 @@ impl<'idx, TInner: IndexLevelImpl> IndexTraversal<'idx, TInner> {
             return Some(state);
         }
         let (oid, inner) = self.iterator.next()?;
-        let instructions = (self.state_factory)(*oid);
+        let state =
+            inner.create_scan_state(configuration, self.inner_instructions.clone());
+        Some((*oid, state))
+    }
+
+    fn next_state_with_rewrite(
+        &mut self,
+        configuration: &IndexConfiguration,
+        name: &str,
+    ) -> Option<(EncodedObjectId, TInner::ScanState<'idx>)> {
+        if let Some(state) = self.inner_state.take() {
+            return Some(state);
+        }
+
+        let (oid, inner) = self.iterator.next()?;
+
+        let instructions = self
+            .inner_instructions
+            .clone()
+            .into_iter()
+            .map(|inst| match inst {
+                IndexScanInstruction::Scan(inner_name, predicate)
+                    if inner_name == name =>
+                {
+                    if predicate.is_some() {
+                        todo!("Proper handling")
+                    }
+
+                    IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
+                        HashSet::from([*oid]),
+                    )))
+                }
+                inst => inst,
+            })
+            .collect();
+
         let state = inner.create_scan_state(configuration, instructions);
         Some((*oid, state))
     }
@@ -197,6 +211,9 @@ pub enum IndexLevelScanState<'idx, TContent: IndexLevelImpl> {
     Traverse(IndexTraversal<'idx, TContent>),
     /// Same as [Self::Traverse] but also collects the elements from this level and returns them.
     Scan(String, IndexTraversal<'idx, TContent>),
+    /// Same as [Self::Scan] but also binds inner levels with the same name to the results from
+    /// this level.
+    ScanAndBindInnerLevels(String, IndexTraversal<'idx, TContent>),
 }
 
 impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TContent> {
@@ -218,7 +235,7 @@ impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TCo
                     if collector.batch_full() {
                         let traversal = IndexTraversal {
                             inner_state: state.map(|state| (oid, state)),
-                            state_factory: traversal.state_factory,
+                            inner_instructions: traversal.inner_instructions,
                             iterator: traversal.iterator,
                         };
                         return (count, Some(IndexLevelScanState::Traverse(traversal)));
@@ -236,7 +253,27 @@ impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TCo
                     if collector.batch_full() {
                         let traversal = IndexTraversal {
                             inner_state: state.map(|state| (oid, state)),
-                            state_factory: traversal.state_factory,
+                            inner_instructions: traversal.inner_instructions,
+                            iterator: traversal.iterator,
+                        };
+                        return (count, Some(IndexLevelScanState::Scan(name, traversal)));
+                    }
+                }
+                (count, None)
+            }
+            IndexLevelScanState::ScanAndBindInnerLevels(name, mut traversal) => {
+                let mut count = 0;
+                while let Some((oid, state)) =
+                    traversal.next_state_with_rewrite(configuration, &name)
+                {
+                    let (this_count, state) = state.drive_scan(configuration, collector);
+                    count += this_count;
+                    collector.extend(&name, repeat_n(oid.as_u32(), this_count));
+
+                    if collector.batch_full() {
+                        let traversal = IndexTraversal {
+                            inner_state: state.map(|state| (oid, state)),
+                            inner_instructions: traversal.inner_instructions,
                             iterator: traversal.iterator,
                         };
                         return (count, Some(IndexLevelScanState::Scan(name, traversal)));
