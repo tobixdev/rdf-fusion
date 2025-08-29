@@ -65,7 +65,7 @@ impl MemHashTripleIndex {
     /// Performs a lookup in the index and returns a list of object arrays.
     ///
     /// See [MemHashIndexIterator] for more information.
-    pub async fn scan(
+    pub async fn create_scan(
         &self,
         lookup: IndexScanInstructions,
         version_number: VersionNumber,

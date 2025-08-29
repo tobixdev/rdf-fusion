@@ -48,32 +48,6 @@ impl ScanCollector {
         }
     }
 
-    /// TODO
-    pub fn remove_non_equal(&mut self, name: &str, item: u32, count: usize) -> usize {
-        let Some(column_to_check) = self.state.get_mut(name) else {
-            unreachable!("There should already be a value for the column.")
-        };
-
-        let start_to_check = column_to_check.len() - count;
-        let mut to_remove = vec![];
-
-        // find all rows to delete
-        for (i, value) in column_to_check.iter().enumerate().skip(start_to_check) {
-            if *value != item {
-                to_remove.push(i);
-            }
-        }
-
-        // delete the rows from all columns
-        for vec in self.state.values_mut() {
-            for i in to_remove.iter().rev() {
-                vec.swap_remove(*i);
-            }
-        }
-
-        to_remove.len()
-    }
-
     pub fn into_scan_batch(
         self,
         num_results: usize,

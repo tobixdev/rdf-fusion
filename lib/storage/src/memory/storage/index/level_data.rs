@@ -93,7 +93,7 @@ pub enum IndexDataScanState<'idx> {
 }
 
 impl ScanState for IndexDataScanState<'_> {
-    fn scan(
+    fn drive_scan(
         self,
         _configuration: &IndexConfiguration,
         collector: &mut ScanCollector,

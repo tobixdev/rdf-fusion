@@ -3,11 +3,11 @@ use crate::memory::storage::index::level::IndexLevelImpl;
 use crate::memory::storage::index::level::ScanState;
 use crate::memory::storage::index::level_data::IndexData;
 use crate::memory::storage::index::level_mapping::IndexLevel;
+use crate::memory::storage::index::scan_collector::ScanCollector;
 use crate::memory::storage::index::{IndexConfiguration, IndexScanInstructions};
 use datafusion::arrow::array::Array;
-use ouroboros::self_referencing;
-use rdf_fusion_encoding::object_id::ObjectIdArray;
 use rdf_fusion_encoding::EncodingArray;
+use rdf_fusion_encoding::object_id::ObjectIdArray;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::Arc;
@@ -37,17 +37,18 @@ type IndexType = IndexLevel<IndexLevel<IndexLevel<IndexData>>>;
 ///
 /// If no variable is given (and only term patterns) the iterator will return a single item with an
 /// empty vector. If no triple matches the pattern, then `None` will be returned.
-#[self_referencing]
 pub struct MemHashIndexIterator {
     /// The iterator holds a read lock on the entire index such that another transaction cannot
     /// delete data from the index during iteration.
+    #[allow(
+        dead_code,
+        reason = "This is needed to ensure that the index stays valid (and locked) during iteration."
+    )]
     index: Arc<OwnedRwLockReadGuard<IndexContent>>,
     /// Additional context necessary for the iteration.
     configuration: IndexConfiguration,
-    #[borrows(index)]
-    #[not_covariant]
     /// The states of the individual levels.
-    state: Option<<IndexType as IndexLevelImpl>::ScanState<'this>>,
+    state: Option<<IndexType as IndexLevelImpl>::ScanState<'static>>,
 }
 
 /// See [MemHashIndexIterator].
@@ -83,19 +84,28 @@ impl PreparedIndexScan {
     pub fn create_iterator(self) -> MemHashIndexIterator {
         let configuration = self.configuration.clone();
         let instructions = self.instructions.0.to_vec();
+        let scan_state = self
+            .index
+            .as_ref()
+            .index
+            .create_scan_state(&configuration, instructions);
 
-        MemHashIndexIteratorBuilder {
-            index: self.index,
+        let scan_state_static: <IndexType as IndexLevelImpl>::ScanState<'static> = unsafe {
+            // SAFETY: The ScanState<'_> borrows from the backing data in the index,
+            // which is protected and owned by the Arc<OwnedRwLockReadGuard<IndexContent>>
+            // held in the iterator. This Arc is cloned into the iterator struct and
+            // will be kept alive as long as the iterator exists.
+            std::mem::transmute::<
+                <IndexType as IndexLevelImpl>::ScanState<'_>,
+                <IndexType as IndexLevelImpl>::ScanState<'static>,
+            >(scan_state)
+        };
+
+        MemHashIndexIterator {
+            index: self.index.clone(),
             configuration: self.configuration,
-            state_builder: move |idx| {
-                Some(
-                    idx.as_ref()
-                        .index
-                        .create_scan_state(&configuration, instructions),
-                )
-            },
+            state: Some(scan_state_static),
         }
-        .build()
     }
 }
 
@@ -142,6 +152,16 @@ impl Iterator for MemHashIndexIterator {
     type Item = IndexScanBatch;
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        let state = self.state.take()?;
+
+        let mut collector = ScanCollector::new(self.configuration.batch_size);
+        let (results, new_state) = state.drive_scan(&self.configuration, &mut collector);
+        self.state = new_state;
+
+        if results > 0 {
+            Some(collector.into_scan_batch(results, &self.configuration))
+        } else {
+            None
+        }
     }
 }

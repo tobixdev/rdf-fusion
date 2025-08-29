@@ -9,7 +9,6 @@ rust-version.workspace = true
 [dependencies]
 async-trait.workspace = true
 futures.workspace = true
-ouroboros = "0.18"
 rdf-fusion-api.workspace = true
 rdf-fusion-common.workspace = true
 rdf-fusion-model.workspace = true

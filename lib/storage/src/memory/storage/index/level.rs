@@ -39,7 +39,7 @@ pub(super) trait IndexLevelImpl: Default + Sync {
 
 pub(super) trait ScanState: Send {
     /// Continues
-    fn scan(
+    fn drive_scan(
         self,
         configuration: &IndexConfiguration,
         collector: &mut ScanCollector,

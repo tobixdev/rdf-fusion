@@ -159,7 +159,7 @@ mod tests {
         index.insert(quads, VersionNumber(1)).await.unwrap();
 
         let mut iter = index
-            .scan(
+            .create_scan(
                 IndexScanInstructions([
                     traverse(0),
                     traverse(1),
@@ -185,7 +185,7 @@ mod tests {
 
         assert_eq!(
             index
-                .scan(
+                .create_scan(
                     IndexScanInstructions([scan("a"), scan("b"), scan("c"), scan("d")]),
                     VersionNumber(1)
                 )
@@ -205,7 +205,7 @@ mod tests {
 
         let version_number = index.version_number().await;
         let result = index
-            .scan(
+            .create_scan(
                 IndexScanInstructions([traverse(1), scan("b"), traverse(2), traverse(3)]),
                 version_number,
             )
@@ -362,7 +362,7 @@ mod tests {
         let index = create_index_with_batch_size(10);
         let mut quads = Vec::new();
         for i in 0..25 {
-            quads.push(IndexedQuad([eid(0), eid(1), eid(2), eid(i)]))
+            quads.push(IndexedQuad([eid(0), eid(1), eid(2), eid(i + 1)]))
         }
         index.insert(quads, VersionNumber(1)).await.unwrap();
 
@@ -460,7 +460,11 @@ mod tests {
         lookup: IndexScanInstructions,
     ) {
         let version_number = index.version_number().await;
-        let results = index.scan(lookup, version_number).await.unwrap().next();
+        let results = index
+            .create_scan(lookup, version_number)
+            .await
+            .unwrap()
+            .next();
         assert!(
             results.is_none(),
             "Expected no results in non-matching test."
@@ -475,7 +479,7 @@ mod tests {
     ) {
         let version_number = index.version_number().await;
         let results = index
-            .scan(lookup, version_number)
+            .create_scan(lookup, version_number)
             .await
             .unwrap()
             .next()
@@ -495,7 +499,7 @@ mod tests {
         ordered: bool,
     ) {
         let mut batch_sizes: Vec<_> = index
-            .scan(lookup, VersionNumber(1))
+            .create_scan(lookup, VersionNumber(1))
             .await
             .unwrap()
             .map(|arr| arr.num_results)
