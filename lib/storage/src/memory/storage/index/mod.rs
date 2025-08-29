@@ -1,6 +1,7 @@
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 
 mod components;
 mod error;
@@ -80,7 +81,7 @@ pub enum IndexScanInstruction {
     /// Traverses the index level, not binding the elements at this level.
     Traverse(Option<ObjectIdScanPredicate>),
     /// Scans the index level, binding the elements at this level.
-    Scan(String, Option<ObjectIdScanPredicate>),
+    Scan(Arc<String>, Option<ObjectIdScanPredicate>),
 }
 
 impl IndexScanInstruction {
@@ -108,7 +109,10 @@ impl IndexScanInstruction {
     ) -> IndexScanInstruction {
         let instruction_with_predicate = |predicate: Option<ObjectIdScanPredicate>| {
             if let Some(variable) = variable {
-                IndexScanInstruction::Scan(variable.as_str().to_owned(), predicate)
+                IndexScanInstruction::Scan(
+                    Arc::new(variable.as_str().to_owned()),
+                    predicate,
+                )
             } else {
                 IndexScanInstruction::Traverse(predicate)
             }
@@ -140,7 +144,9 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
             EncodedTermPattern::ObjectId(object_id) => IndexScanInstruction::Traverse(
                 Some(ObjectIdScanPredicate::In(HashSet::from([object_id]))),
             ),
-            EncodedTermPattern::Variable(var) => IndexScanInstruction::Scan(var, None),
+            EncodedTermPattern::Variable(var) => {
+                IndexScanInstruction::Scan(Arc::new(var), None)
+            }
         }
     }
 }
@@ -408,7 +414,7 @@ mod tests {
             index,
             IndexScanInstructions([
                 IndexScanInstruction::Scan(
-                    "a".to_owned(),
+                    Arc::new("a".to_owned()),
                     Some(ObjectIdScanPredicate::In(HashSet::from([eid(0), eid(2)]))),
                 ),
                 scan("b"),
@@ -512,7 +518,7 @@ mod tests {
     }
 
     fn scan(name: impl Into<String>) -> IndexScanInstruction {
-        IndexScanInstruction::Scan(name.into(), None)
+        IndexScanInstruction::Scan(Arc::new(name.into()), None)
     }
 
     fn eid(id: u32) -> EncodedObjectId {

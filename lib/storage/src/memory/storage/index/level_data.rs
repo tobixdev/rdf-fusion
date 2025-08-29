@@ -43,11 +43,9 @@ impl IndexLevelImpl for IndexData {
     fn create_scan_state(
         &self,
         configuration: &IndexConfiguration,
-        mut index_scan_instructions: Vec<IndexScanInstruction>,
+        index_scan_instructions: &[IndexScanInstruction],
     ) -> Self::ScanState<'_> {
-        let instruction = index_scan_instructions
-            .pop()
-            .expect("There should always be a single instruction.");
+        let instruction = &index_scan_instructions[0];
         debug_assert!(index_scan_instructions.is_empty());
 
         let iterator: TraversalIterator = match instruction.predicate().cloned() {

@@ -33,7 +33,7 @@ pub(super) trait IndexLevelImpl: Default + Sync {
     fn create_scan_state(
         &self,
         configuration: &IndexConfiguration,
-        index_scan_instructions: Vec<IndexScanInstruction>,
+        index_scan_instructions: &[IndexScanInstruction],
     ) -> Self::ScanState<'_>;
 }
 

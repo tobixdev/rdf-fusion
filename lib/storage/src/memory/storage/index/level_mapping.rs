@@ -6,6 +6,7 @@ use crate::memory::storage::index::{
 };
 use std::collections::{BTreeMap, HashSet};
 use std::iter::repeat_n;
+use std::sync::Arc;
 
 /// An index level is a mapping from [EncodedObjectId]. By traversing multiple index levels, users
 /// can access the data in the index.
@@ -101,9 +102,9 @@ impl<TInner: IndexLevelImpl> IndexLevelImpl for IndexLevel<TInner> {
     fn create_scan_state(
         &self,
         _configuration: &IndexConfiguration,
-        mut index_scan_instructions: Vec<IndexScanInstruction>,
+        index_scan_instructions: &[IndexScanInstruction],
     ) -> Self::ScanState<'_> {
-        let instruction = index_scan_instructions.remove(0);
+        let instruction = &index_scan_instructions[0];
 
         let iterator: TraversalIterator<TInner> = match instruction.predicate().cloned() {
             None => Box::new(self.0.iter()),
@@ -118,7 +119,7 @@ impl<TInner: IndexLevelImpl> IndexLevelImpl for IndexLevel<TInner> {
         };
 
         let traversal = IndexTraversal {
-            inner_instructions: index_scan_instructions,
+            inner_instructions: index_scan_instructions[1..].to_vec(),
             inner_state: None,
             iterator,
         };
@@ -129,16 +130,16 @@ impl<TInner: IndexLevelImpl> IndexLevelImpl for IndexLevel<TInner> {
                 let needs_equality_check = traversal
                     .inner_instructions
                     .iter()
-                    .any(|inst| inst.scan_variable() == Some(&name));
+                    .any(|inst| inst.scan_variable() == Some(name));
                 if needs_equality_check {
                     IndexLevelScanState::ScanAndBindInnerLevels(
-                        name,
+                        name.clone(),
                         3 - traversal.inner_instructions.len(),
                         traversal,
                     )
                 } else {
                     IndexLevelScanState::Scan(
-                        name,
+                        name.clone(),
                         3 - traversal.inner_instructions.len(),
                         traversal,
                     )
@@ -171,15 +172,14 @@ impl<'idx, TInner: IndexLevelImpl> IndexTraversal<'idx, TInner> {
             return Some(state);
         }
         let (oid, inner) = self.iterator.next()?;
-        let state =
-            inner.create_scan_state(configuration, self.inner_instructions.clone());
+        let state = inner.create_scan_state(configuration, &self.inner_instructions);
         Some((*oid, state))
     }
 
     fn next_state_with_rewrite(
         &mut self,
         configuration: &IndexConfiguration,
-        name: &str,
+        name: &Arc<String>,
     ) -> Option<(EncodedObjectId, TInner::ScanState<'idx>)> {
         if let Some(state) = self.inner_state.take() {
             return Some(state);
@@ -193,7 +193,7 @@ impl<'idx, TInner: IndexLevelImpl> IndexTraversal<'idx, TInner> {
             .into_iter()
             .map(|inst| match inst {
                 IndexScanInstruction::Scan(inner_name, predicate)
-                    if inner_name == name =>
+                    if &inner_name == name =>
                 {
                     if predicate.is_some() {
                         todo!("Proper handling")
@@ -205,9 +205,9 @@ impl<'idx, TInner: IndexLevelImpl> IndexTraversal<'idx, TInner> {
                 }
                 inst => inst,
             })
-            .collect();
+            .collect::<Vec<_>>();
 
-        let state = inner.create_scan_state(configuration, instructions);
+        let state = inner.create_scan_state(configuration, &instructions);
         Some((*oid, state))
     }
 }
@@ -218,10 +218,10 @@ pub enum IndexLevelScanState<'idx, TContent: IndexLevelImpl> {
     /// inner levels.
     Traverse(IndexTraversal<'idx, TContent>),
     /// Same as [Self::Traverse] but also collects the elements from this level and returns them.
-    Scan(String, usize, IndexTraversal<'idx, TContent>),
+    Scan(Arc<String>, usize, IndexTraversal<'idx, TContent>),
     /// Same as [Self::Scan] but also binds inner levels with the same name to the results from
     /// this level.
-    ScanAndBindInnerLevels(String, usize, IndexTraversal<'idx, TContent>),
+    ScanAndBindInnerLevels(Arc<String>, usize, IndexTraversal<'idx, TContent>),
 }
 
 impl<'idx, TContent: IndexLevelImpl> ScanState for IndexLevelScanState<'idx, TContent> {

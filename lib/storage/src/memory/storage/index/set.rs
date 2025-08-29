@@ -313,7 +313,7 @@ mod tests {
         let pattern = IndexScanInstructions([
             traverse_and_filter(0),
             traverse_and_filter(1),
-            IndexScanInstruction::Scan("predicate".to_string(), None),
+            IndexScanInstruction::Scan(Arc::new("predicate".to_string()), None),
             traverse_and_filter(3),
         ]);
 
@@ -329,7 +329,7 @@ mod tests {
                 traverse_and_filter(0),
                 traverse_and_filter(3),
                 traverse_and_filter(1),
-                IndexScanInstruction::Scan("predicate".to_string(), None),
+                IndexScanInstruction::Scan(Arc::new("predicate".to_string()), None),
             ])
         )
     }
@@ -340,9 +340,9 @@ mod tests {
 
         let pattern = IndexScanInstructions([
             traverse_and_filter(0),
-            IndexScanInstruction::Scan("subject".to_string(), None),
+            IndexScanInstruction::Scan(Arc::new("subject".to_string()), None),
             traverse_and_filter(2),
-            IndexScanInstruction::Scan("object".to_string(), None),
+            IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
         ]);
 
         let (index, new_instructions) = set.choose_index(&pattern);
@@ -357,8 +357,8 @@ mod tests {
             IndexScanInstructions([
                 traverse_and_filter(0),
                 traverse_and_filter(2),
-                IndexScanInstruction::Scan("object".to_string(), None),
-                IndexScanInstruction::Scan("subject".to_string(), None),
+                IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
+                IndexScanInstruction::Scan(Arc::new("subject".to_string()), None),
             ])
         )
     }

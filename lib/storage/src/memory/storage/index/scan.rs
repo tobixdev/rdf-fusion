@@ -96,7 +96,7 @@ impl PreparedIndexScan {
             .index
             .as_ref()
             .index
-            .create_scan_state(&configuration, instructions);
+            .create_scan_state(&configuration, &instructions);
 
         let scan_state_static: <IndexType as IndexLevelImpl>::ScanState<'static> = unsafe {
             // SAFETY: The ScanState<'_> borrows from the backing data in the index,
