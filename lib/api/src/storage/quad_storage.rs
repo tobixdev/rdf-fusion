@@ -25,10 +25,13 @@ pub trait QuadStorage: Send + Sync {
     /// A query plan must often evaluate multiple quad patterns that have access to the same
     /// storage. It is the responsibility of the storage layer to ensure that the quad patterns use
     /// the same snapshot of the storage layer.
-    fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
+    async fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
 
     /// Loads the given quads into the storage.
-    async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError>;
+    async fn insert(&self, quads: Vec<Quad>) -> Result<usize, StorageError>;
+
+    /// Removes the given quad from the storage.
+    async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError>;
 
     /// Creates an empty named graph in the storage.
     async fn insert_named_graph<'a>(
@@ -55,16 +58,16 @@ pub trait QuadStorage: Send + Sync {
     ) -> Result<(), StorageError>;
 
     /// Removes the entire named graph from the storage.
-    async fn remove_named_graph(
+    async fn drop_named_graph(
         &self,
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError>;
 
-    /// Removes the given quad from the storage.
-    async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError>;
-
     /// Returns the number of quads in the storage.
     async fn len(&self) -> Result<usize, StorageError>;
+
+    /// Optimizes the storage (e.g., building indices).
+    async fn optimize(&self) -> Result<(), StorageError>;
 
     /// Validates invariants in the store
     async fn validate(&self) -> Result<(), StorageError>;

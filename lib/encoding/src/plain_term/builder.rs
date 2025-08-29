@@ -1,6 +1,6 @@
-use crate::plain_term::PlainTermEncoding;
 use crate::plain_term::encoding::{PlainTermEncodingField, PlainTermType};
-use datafusion::arrow::array::{ArrayRef, StringBuilder, StructBuilder, UInt8Builder};
+use crate::plain_term::{PlainTermArray, PlainTermEncoding};
+use datafusion::arrow::array::{StringBuilder, StructBuilder, UInt8Builder};
 use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 use std::sync::Arc;
 
@@ -125,7 +125,7 @@ impl PlainTermArrayBuilder {
         self.builder.append(true)
     }
 
-    pub fn finish(mut self) -> ArrayRef {
-        Arc::new(self.builder.finish())
+    pub fn finish(mut self) -> PlainTermArray {
+        PlainTermArray::new_unchecked(Arc::new(self.builder.finish()))
     }
 }

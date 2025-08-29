@@ -32,7 +32,7 @@ macro_rules! make_simple_term_value_encoder {
                         Err(_) => builder.append_null()?,
                     }
                 }
-                $crate::typed_value::TYPED_VALUE_ENCODING.try_new_array(builder.finish())
+                Ok(builder.finish())
             }
 
             fn encode_term(
