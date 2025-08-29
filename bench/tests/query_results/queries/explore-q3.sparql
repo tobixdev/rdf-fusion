@@ -1,0 +1,17 @@
+SELECT ?product ?label
+WHERE {
+    ?product <http://www.w3.org/2000/01/rdf-schema#label> ?label .
+    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType141> .
+    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature4393> .
+    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?p1 .
+    ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric3> ?p3 .
+
+    OPTIONAL {
+        ?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature1453> .
+        ?product <http://www.w3.org/2000/01/rdf-schema#label> ?testVar .
+    }
+
+    FILTER((((?p1 > "498"^^<http://www.w3.org/2001/XMLSchema#integer>) && (?p3 < "214"^^<http://www.w3.org/2001/XMLSchema#integer>)) && !BOUND(?testVar)))
+}
+ORDER BY ASC(?label)
+LIMIT 10

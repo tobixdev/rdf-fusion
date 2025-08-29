@@ -1,0 +1,36 @@
+SELECT ?vendor ?cheapExpensiveRatio WHERE {
+    {
+        SELECT ?vendor ?belowAvg WHERE {
+            {
+                SELECT (COUNT(?offer) AS ?c92d11fda2c53029bc907b9d6fa247a1) ?vendor WHERE {
+                    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4> .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price .
+                    {
+                        SELECT ?product ?avgPrice WHERE {
+                            {
+                                SELECT (AVG(<http://www.w3.org/2001/XMLSchema#float>(<http://www.w3.org/2001/XMLSchema#string>(?price))) AS ?30f6fe3ba5cd59d8afb484ebeb878167) ?product WHERE {
+                                    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4> .
+                                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product .
+                                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor .
+                                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price .
+                                } GROUP BY ?product
+                            } BIND(?30f6fe3ba5cd59d8afb484ebeb878167 AS ?avgPrice)
+                        }
+                    } FILTER((<http://www.w3.org/2001/XMLSchema#float>(<http://www.w3.org/2001/XMLSchema#string>(?price)) < ?avgPrice))
+                } GROUP BY ?vendor
+            } BIND(?c92d11fda2c53029bc907b9d6fa247a1 AS ?belowAvg)
+        }
+    } {
+        SELECT ?vendor ?offerCount WHERE {
+            {
+                SELECT (COUNT(?offer) AS ?93be19544e346ce0ea0ab03806809406) ?vendor WHERE {
+                    ?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4> .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product .
+                    ?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor .
+                } GROUP BY ?vendor
+            } BIND(?93be19544e346ce0ea0ab03806809406 AS ?offerCount)
+        }
+    } BIND(<http://www.w3.org/2001/XMLSchema#float>(?belowAvg) / ?offerCount AS ?cheapExpensiveRatio)
+} ORDER BY DESC(<http://www.w3.org/2001/XMLSchema#float>(?belowAvg) / ?offerCount) ASC(?vendor) LIMIT 10

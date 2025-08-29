@@ -2,11 +2,8 @@
 source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&string)
 ---
-ProjectionExec: expr=[ENC_PT(x@0) as x, ENC_PT(00000000000000000000000000000001@1) as 00000000000000000000000000000001, ENC_PT(00000000000000000000000000000002@2) as 00000000000000000000000000000002]
+ProjectionExec: expr=[ENC_PT(x@0) as x, ENC_PT(x__type@1) as x__type]
   CoalesceBatchesExec: target_batch_size=8192
-    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(x@0, x@0)], projection=[x@0, 00000000000000000000000000000001@1, 00000000000000000000000000000002@2]
-      CoalesceBatchesExec: target_batch_size=8192
-        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(x@0, x@0)], projection=[x@0, 00000000000000000000000000000001@1, 00000000000000000000000000000002@3]
-          MemQuadPatternExec: [GPOS] subject=?x, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=_:00000000000000000000000000000001
-          MemQuadPatternExec: [GPOS] subject=?x, predicate=<http://www.w3.org/2000/01/rdf-schema#comment>, object=_:00000000000000000000000000000002
-      MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromRatingSite1/Review4194>, predicate=<http://purl.org/stuff/rev#reviewer>, object=?x
+    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(x@0, x@0)], projection=[x@0, x__type@1]
+      QuadPatternExec: n_graphs=1, subject=?x, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=?x__type
+      QuadPatternExec: n_graphs=1, subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromRatingSite1/Review4194>, predicate=<http://purl.org/stuff/rev#reviewer>, object=?x

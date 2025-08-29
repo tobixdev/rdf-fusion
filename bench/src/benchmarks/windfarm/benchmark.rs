@@ -21,7 +21,7 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 /// Holds file paths for the files required for executing a BSBM run.
-struct WindfarmFilePaths {
+struct WindFarmFilePaths {
     /// A path to the wind farm data NTriples file.
     wind_farm_data: PathBuf,
     /// A path to the time series NTriples file.
@@ -162,12 +162,14 @@ async fn execute_benchmark(
 
         let operation = get_wind_farm_raw_sparql_operation(context, query_name)?;
         let query_text = operation.text().to_owned();
-        let (run, explanation) = operation.parse().unwrap().run(store).await?;
+        let (run, explanation, num_results) =
+            operation.parse().unwrap().run(store).await?;
         report.add_run(query_name, run.clone());
         if context.parent().options().verbose_results {
             let details = QueryDetails {
                 query: query_text,
                 total_time: run.duration,
+                num_results,
                 explanation,
             };
             report.add_explanation(query_name, details);
@@ -193,13 +195,13 @@ pub fn get_wind_farm_raw_sparql_operation(
     Ok(SparqlRawOperation::Query(query_name, query.clone()))
 }
 
-fn create_files(ctx: &BenchmarkContext) -> anyhow::Result<WindfarmFilePaths> {
-    let wind_farm_data = ctx.parent().join_data_dir(Path::new("windfarm.nt"))?;
-    let time_series_data = ctx.parent().join_data_dir(Path::new("timeseries.nt"))?;
+fn create_files(ctx: &BenchmarkContext) -> anyhow::Result<WindFarmFilePaths> {
+    let wind_farm_data = ctx.parent().join_data_dir(Path::new("wind-farm.ttl"))?;
+    let time_series_data = ctx.parent().join_data_dir(Path::new("timeseries.ttl"))?;
     let query_folder = ctx
         .parent()
         .join_data_dir(Path::new("./source/benchmark-docker/queries_chrontext/"))?;
-    Ok(WindfarmFilePaths {
+    Ok(WindFarmFilePaths {
         wind_farm_data,
         time_series_data,
         query_folder,

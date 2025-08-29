@@ -40,7 +40,7 @@ impl BenchmarkName {
                 format!("bsbm-{num_products}")
             }
             BenchmarkName::WindFarm { num_turbines } => {
-                format!("windfarm-{num_turbines}")
+                format!("wind-farm-{num_turbines}")
             }
         }
     }

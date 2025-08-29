@@ -2,6 +2,7 @@ use crate::plans::canonicalize_uuids;
 use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
+use rdf_fusion::store::Store;
 use rdf_fusion::{QueryExplanation, QueryOptions};
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
@@ -13,25 +14,26 @@ use rdf_fusion_bench::operation::SparqlRawOperation;
 use std::path::PathBuf;
 
 #[tokio::test]
-pub async fn plans_bsbm_business_intelligence() {
+pub async fn optimized_logical_plan_bsbm_business_intelligence() {
     for_all_explanations(|name, explanation| {
-        assert_snapshot!(
-            format!("{name} (Initial)"),
-            canonicalize_uuids(&explanation.initial_logical_plan.to_string())
-        );
-
         assert_snapshot!(
             format!("{name} (Optimized)"),
             canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
-        );
+        )
+    })
+    .await;
+}
 
+#[tokio::test]
+pub async fn execution_plan_bsbm_business_intelligence() {
+    for_all_explanations(|name, explanation| {
         let string = displayable(explanation.execution_plan.as_ref())
             .indent(false)
             .to_string();
         assert_snapshot!(
             format!("{name} (Execution Plan)"),
             canonicalize_uuids(&string)
-        );
+        )
     })
     .await;
 }

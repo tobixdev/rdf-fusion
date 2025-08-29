@@ -201,7 +201,7 @@ async fn run_operation<TUseCase: BsbmUseCase>(
     store: &Store,
     operation: &SparqlOperation<TUseCase::QueryName>,
 ) -> anyhow::Result<()> {
-    let (run, explanation) = operation.run(store).await?;
+    let (run, explanation, num_results) = operation.run(store).await?;
     report.add_run(operation.query_name(), run.clone());
     if context.parent().options().verbose_results {
         let details = QueryDetails {
@@ -209,6 +209,7 @@ async fn run_operation<TUseCase: BsbmUseCase>(
             query_type: operation.query_name().to_string(),
             total_time: run.duration,
             explanation,
+            num_results,
         };
         report.add_explanation(details);
     }
