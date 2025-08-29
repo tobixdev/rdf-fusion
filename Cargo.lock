@@ -3867,14 +3867,15 @@ dependencies = [
  "dashmap",
  "datafusion",
  "futures",
+ "insta",
  "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-logical",
  "rdf-fusion-model",
- "rdf-fusion-physical",
  "rustc-hash",
  "thiserror 2.0.15",
+ "tokio",
 ]
 
 [[package]]
