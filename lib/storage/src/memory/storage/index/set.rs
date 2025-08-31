@@ -6,6 +6,7 @@ use crate::memory::storage::index::{
 };
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 /// Represents a set of multiple indexes, each of which indexes a different ordering of the
@@ -20,6 +21,7 @@ use std::sync::Arc;
 /// The [IndexSet] allows managing multiple such indices.
 #[derive(Debug)]
 pub struct IndexSet {
+    named_graphs: HashSet<EncodedObjectId>,
     indices: Vec<MemQuadIndex>,
 }
 
@@ -44,7 +46,10 @@ impl IndexSet {
             }),
         ];
 
-        Self { indices }
+        Self {
+            named_graphs: HashSet::new(),
+            indices,
+        }
     }
 
     /// Returns
@@ -95,6 +100,11 @@ impl IndexSet {
                 .map(|q| reorder_quad(&q, &components));
             count = index.insert(quads);
         }
+
+        for quad in quads {
+            self.named_graphs.insert(quad.graph_name.0);
+        }
+
         Ok(count)
     }
 
@@ -112,25 +122,15 @@ impl IndexSet {
     }
 
     pub fn insert_named_graph(&mut self, graph_name: EncodedObjectId) -> bool {
-        let mut result = false;
-
-        for index in self.indices.iter_mut() {
-            if !index.configuration().components.is_graph_name_top_level() {
-                continue;
-            }
-
-            todo!()
-        }
-
-        result
+        self.named_graphs.insert(graph_name)
     }
 
     pub fn named_graphs(&self) -> Vec<EncodedObjectId> {
-        todo!()
+        self.named_graphs.iter().copied().collect()
     }
 
     pub fn contains_named_graph(&self, graph_name: EncodedObjectId) -> bool {
-        todo!()
+        self.named_graphs.contains(&graph_name)
     }
 
     pub fn clear(&mut self) {
@@ -140,22 +140,14 @@ impl IndexSet {
     }
 
     pub fn clear_graph(&mut self, graph_name: EncodedGraphObjectId) {
-        // TODO: this does not handle non-top level graph names
-
         for index in self.indices.iter_mut() {
             todo!()
         }
     }
 
     pub fn drop_named_graph(&mut self, graph_name: EncodedObjectId) -> bool {
-        todo!("Clear then remove")
-    }
-
-    fn any_index_with_graph_name_top_level(&self) -> &MemQuadIndex {
-        self.indices
-            .iter()
-            .find(|index| index.configuration().components.is_graph_name_top_level())
-            .unwrap()
+        self.clear_graph(EncodedGraphObjectId(graph_name));
+        self.named_graphs.remove(&graph_name)
     }
 
     fn any_index(&self) -> &MemQuadIndex {

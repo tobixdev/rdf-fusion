@@ -11,11 +11,6 @@ impl IndexComponents {
     pub fn inner(&self) -> &[IndexComponent; 4] {
         &self.0
     }
-
-    /// Returns true if the index starts with a graph name.
-    pub fn is_graph_name_top_level(&self) -> bool {
-        self.0[0] == IndexComponent::GraphName
-    }
 }
 
 impl Display for IndexComponents {
@@ -105,8 +100,8 @@ impl IndexComponents {
 
 #[cfg(test)]
 mod tests {
-    use crate::memory::storage::index::IndexComponents;
     use crate::memory::storage::index::components::IndexComponent;
+    use crate::memory::storage::index::IndexComponents;
 
     #[test]
     fn index_configuration_accepts_unique_components() {

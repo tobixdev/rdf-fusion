@@ -248,7 +248,7 @@ async fn snapshot_consistency() {
     storage.clear().await.unwrap();
 
     // Snapshot should still see the original quad
-    assert_eq!(snapshot.len().await.unwrap(), 1);
+    assert_eq!(snapshot.len(), 1);
 }
 
 #[tokio::test]

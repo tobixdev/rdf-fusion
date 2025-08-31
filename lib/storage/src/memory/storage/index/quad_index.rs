@@ -50,21 +50,26 @@ impl MemQuadIndex {
     ///
     /// Quads that already exist in the index are ignored.
     pub fn insert(&mut self, quads: impl IntoIterator<Item = IndexedQuad>) -> usize {
-        let mut to_insert = [const { Vec::new() }; 4];
+        let mut to_insert = Vec::new();
 
         for quad in quads {
             let Some(idx) = self.find_quad_insertion_index(&quad) else {
                 continue;
             };
 
-            for i in 0..4 {
-                to_insert[i].push((idx, quad.0[i]));
-            }
+            to_insert.push((idx, quad))
+        }
+        to_insert.sort_unstable_by_key(|(_, quad)| quad.0[0]);
+
+        for element in 0..4 {
+            let to_insert_column = to_insert
+                .iter()
+                .map(|(idx, quad)| (*idx, quad.0[element]))
+                .collect::<Vec<_>>();
+            self.content[element].insert(&to_insert_column)
         }
 
-        todo!("insert");
-
-        to_insert[0].len()
+        to_insert.len()
     }
 
     /// TODO
@@ -81,39 +86,54 @@ impl MemQuadIndex {
     ///
     /// Quads that do not exist in the index are ignored.
     pub fn remove(&mut self, quads: impl IntoIterator<Item = IndexedQuad>) -> usize {
-        let mut to_delete = Vec::new();
+        let mut to_remove = Vec::new();
 
         for quad in quads {
             if let Some(index) = self.find_quad(&quad) {
-                to_delete.push(index)
+                to_remove.push(index)
             }
         }
 
-        to_delete.sort_unstable();
+        to_remove.sort_unstable();
 
         todo!();
 
-        to_delete.len()
+        to_remove.len()
     }
 
     /// Tries to find `object_id` in the index and returns its index.
     fn find_quad(&self, quad: &IndexedQuad) -> Option<usize> {
-        let range = self.content[0].find(quad.0[0], None)?;
-        let range = self.content[1].find(quad.0[1], Some(range))?;
-        let range = self.content[2].find(quad.0[2], Some(range))?;
-        let range = self.content[3].find(quad.0[3], Some(range))?;
+        let range = self.content[0].find(quad.0[0], None).ok()?;
+        let range = self.content[1].find(quad.0[1], Some(range)).ok()?;
+        let range = self.content[2].find(quad.0[2], Some(range)).ok()?;
+        let range = self.content[3].find(quad.0[3], Some(range)).ok()?;
 
-        assert_eq!(
-            range.0.start, range.0.end,
-            "The quad is inserted multiple times"
-        );
-        Some(range.0.start)
+        assert_eq!(range.0, range.1, "The quad is inserted multiple times");
+        Some(range.0)
     }
 
     /// Tries to find the insertion index for the `quad` in the index.
     ///
     /// Returns [None] if the quad is already in the index
     fn find_quad_insertion_index(&self, quad: &IndexedQuad) -> Option<usize> {
-        todo!()
+        let range = match self.content[0].find(quad.0[0], None) {
+            Ok(range) => range,
+            Err(insertion_index) => return Some(insertion_index),
+        };
+
+        let range = match self.content[1].find(quad.0[1], Some(range)) {
+            Ok(range) => range,
+            Err(insertion_index) => return Some(insertion_index),
+        };
+
+        let range = match self.content[2].find(quad.0[2], Some(range)) {
+            Ok(range) => range,
+            Err(insertion_index) => return Some(insertion_index),
+        };
+
+        match self.content[3].find(quad.0[3], Some(range)) {
+            Ok(_) => None, // The quad is already in the index.
+            Err(insertion_index) => Some(insertion_index),
+        }
     }
 }
