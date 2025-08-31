@@ -1,4 +1,4 @@
-use crate::memory::storage::index::StaticMemQuadIndexScanIterator;
+use crate::memory::storage::index::MemQuadIndexScanIterator;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::execution::RecordBatchStream;
@@ -12,7 +12,7 @@ pub struct MemIndexScanStream {
     /// The schema of the stream.
     schema: SchemaRef,
     /// Current state of the stream.
-    iterator: Option<StaticMemQuadIndexScanIterator>,
+    iterator: Option<MemQuadIndexScanIterator>,
     /// The metrics of the stream.
     metrics: BaselineMetrics,
 }
@@ -21,7 +21,7 @@ impl MemIndexScanStream {
     /// Creates a new [MemIndexScanStream].
     pub fn new(
         schema: SchemaRef,
-        iterator: StaticMemQuadIndexScanIterator,
+        iterator: MemQuadIndexScanIterator,
         metrics: BaselineMetrics,
     ) -> Self {
         Self {

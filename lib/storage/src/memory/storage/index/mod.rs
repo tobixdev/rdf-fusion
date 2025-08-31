@@ -15,7 +15,7 @@ use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
-pub use scan::{PlannedPatternScan, StaticMemQuadIndexScanIterator};
+pub use scan::{MemQuadIndexScanIterator, PlannedPatternScan};
 pub use set::IndexSet;
 
 #[derive(Debug, Clone)]
@@ -165,12 +165,10 @@ mod tests {
         let mut index = create_index();
         index.insert(vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])]);
 
-        let mut iter = index.scan_quads(IndexScanInstructions([
-            traverse(0),
-            traverse(1),
-            traverse(2),
-            traverse(3),
-        ]));
+        let mut iter = scan_quads(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), traverse(2), traverse(3)]),
+        );
         let result = iter.next();
 
         assert!(result.is_some());
@@ -185,12 +183,10 @@ mod tests {
             IndexedQuad([eid(0), eid(1), eid(2), eid(2)]),
         ]);
 
-        let mut iter = index.scan_quads(IndexScanInstructions([
-            traverse(0),
-            traverse(1),
-            traverse(2),
-            scan("d"),
-        ]));
+        let mut iter = scan_quads(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), traverse(2), scan("d")]),
+        );
         let result = iter.next();
 
         assert!(result.is_some());
@@ -211,12 +207,10 @@ mod tests {
             IndexedQuad([eid(0), eid(1), eid(1), eid(3)]),
         ]);
 
-        let mut iter = index.scan_quads(IndexScanInstructions([
-            traverse(0),
-            traverse(1),
-            scan("c"),
-            traverse(3),
-        ]));
+        let mut iter = scan_quads(
+            index,
+            IndexScanInstructions([traverse(0), traverse(1), scan("c"), traverse(3)]),
+        );
         let result = iter.next();
 
         assert!(result.is_some());
@@ -234,14 +228,11 @@ mod tests {
         let mut index = create_index();
         index.insert(vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])]);
 
-        let result = index
-            .scan_quads(IndexScanInstructions([
-                traverse(1),
-                scan("b"),
-                traverse(2),
-                traverse(3),
-            ]))
-            .next();
+        let result = scan_quads(
+            index,
+            IndexScanInstructions([traverse(1), scan("b"), traverse(2), traverse(3)]),
+        )
+        .next();
 
         assert!(result.is_none());
     }
@@ -468,8 +459,8 @@ mod tests {
         EncodedObjectId::from(id)
     }
 
-    fn run_non_matching_test(index: MemQuadIndex, lookup: IndexScanInstructions) {
-        let results = index.scan_quads(lookup).next();
+    fn run_non_matching_test(index: MemQuadIndex, instructions: IndexScanInstructions) {
+        let results = scan_quads(index, instructions).next();
         assert!(
             results.is_none(),
             "Expected no results in non-matching test."
@@ -478,11 +469,11 @@ mod tests {
 
     fn run_matching_test(
         index: MemQuadIndex,
-        lookup: IndexScanInstructions,
+        instructions: IndexScanInstructions,
         expected_columns: usize,
         expected_rows: usize,
     ) {
-        let results = index.scan_quads(lookup).next().unwrap();
+        let results = scan_quads(index, instructions).next().unwrap();
 
         assert_eq!(results.num_rows(), expected_rows);
         assert_eq!(results.columns().len(), expected_columns);
@@ -493,12 +484,13 @@ mod tests {
 
     fn run_batch_size_test(
         index: MemQuadIndex,
-        lookup: IndexScanInstructions,
+        instructions: IndexScanInstructions,
         expected_batch_sizes: &[usize],
         ordered: bool,
     ) {
-        let mut batch_sizes: Vec<_> =
-            index.scan_quads(lookup).map(|arr| arr.num_rows()).collect();
+        let mut batch_sizes: Vec<_> = scan_quads(index, instructions)
+            .map(|arr| arr.num_rows())
+            .collect();
 
         if ordered {
             assert_eq!(batch_sizes, expected_batch_sizes);
@@ -509,5 +501,17 @@ mod tests {
 
             assert_eq!(batch_sizes, expected_batch_sizes);
         }
+    }
+
+    fn scan_quads(
+        index: MemQuadIndex,
+        instructions: IndexScanInstructions,
+    ) -> MemQuadIndexScanIterator {
+        IndexSet::new(
+            ObjectIdEncoding::new(4),
+            16,
+            &[index.configuration().components.clone()],
+        );
+        todo!()
     }
 }

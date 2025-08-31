@@ -22,33 +22,30 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct IndexSet {
     named_graphs: HashSet<EncodedObjectId>,
-    indices: Vec<MemQuadIndex>,
+    indexes: Vec<MemQuadIndex>,
 }
 
 impl IndexSet {
     /// Creates a new [IndexSet] with the given `object_id_encoding` and `batch_size`.
-    pub fn new(object_id_encoding: ObjectIdEncoding, batch_size: usize) -> Self {
-        let indices = vec![
-            MemQuadIndex::new(IndexConfiguration {
-                object_id_encoding: object_id_encoding.clone(),
-                batch_size,
-                components: IndexComponents::GSPO,
-            }),
-            MemQuadIndex::new(IndexConfiguration {
-                object_id_encoding: object_id_encoding.clone(),
-                batch_size,
-                components: IndexComponents::GPOS,
-            }),
-            MemQuadIndex::new(IndexConfiguration {
-                object_id_encoding: object_id_encoding.clone(),
-                batch_size,
-                components: IndexComponents::GOSP,
-            }),
-        ];
+    pub fn new(
+        object_id_encoding: ObjectIdEncoding,
+        batch_size: usize,
+        components: &[IndexComponents],
+    ) -> Self {
+        let indexes = components
+            .iter()
+            .map(|components| {
+                MemQuadIndex::new(IndexConfiguration {
+                    object_id_encoding: object_id_encoding.clone(),
+                    batch_size,
+                    components: components.clone(),
+                })
+            })
+            .collect();
 
         Self {
             named_graphs: HashSet::new(),
-            indices,
+            indexes,
         }
     }
 
@@ -57,7 +54,7 @@ impl IndexSet {
         &self,
         index_configuration: &IndexConfiguration,
     ) -> Option<&MemQuadIndex> {
-        self.indices
+        self.indexes
             .iter()
             .filter(|index| index.configuration() == index_configuration)
             .next()
@@ -69,7 +66,7 @@ impl IndexSet {
         pattern: &IndexScanInstructions,
     ) -> (&MemQuadIndex, IndexScanInstructions) {
         let index = self
-            .indices
+            .indexes
             .iter()
             .rev() // Prefer SPO (max by uses the last on equality)
             .max_by(|lhs, rhs| {
@@ -92,7 +89,7 @@ impl IndexSet {
 
     pub fn insert(&mut self, quads: &[EncodedQuad]) -> Result<usize, StorageError> {
         let mut count = 0;
-        for index in self.indices.iter_mut() {
+        for index in self.indexes.iter_mut() {
             let components = index.configuration().components.clone();
             let quads = quads
                 .iter()
@@ -110,7 +107,7 @@ impl IndexSet {
 
     pub fn remove(&mut self, quads: &[EncodedQuad]) -> usize {
         let mut count = 0;
-        for index in self.indices.iter_mut() {
+        for index in self.indexes.iter_mut() {
             let components = index.configuration().components.clone();
             let quads = quads
                 .iter()
@@ -134,13 +131,13 @@ impl IndexSet {
     }
 
     pub fn clear(&mut self) {
-        for index in self.indices.iter_mut() {
+        for index in self.indexes.iter_mut() {
             index.clear();
         }
     }
 
     pub fn clear_graph(&mut self, graph_name: EncodedGraphObjectId) {
-        for index in self.indices.iter_mut() {
+        for index in self.indexes.iter_mut() {
             todo!()
         }
     }
@@ -151,7 +148,7 @@ impl IndexSet {
     }
 
     fn any_index(&self) -> &MemQuadIndex {
-        self.indices.first().unwrap()
+        self.indexes.first().unwrap()
     }
 }
 
@@ -294,7 +291,15 @@ mod tests {
     }
 
     fn create_index_set() -> IndexSet {
-        IndexSet::new(ObjectIdEncoding::new(4), 100)
+        IndexSet::new(
+            ObjectIdEncoding::new(4),
+            100,
+            &[
+                IndexComponents::GSPO,
+                IndexComponents::GPOS,
+                IndexComponents::GOSP,
+            ],
+        )
     }
 
     fn traverse_and_filter(id: u32) -> IndexScanInstruction {

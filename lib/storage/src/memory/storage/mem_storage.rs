@@ -1,5 +1,5 @@
 use crate::memory::planner::MemQuadStorePlanner;
-use crate::memory::storage::index::IndexSet;
+use crate::memory::storage::index::{IndexComponents, IndexSet};
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
 use crate::memory::MemObjectIdMapping;
 use async_trait::async_trait;
@@ -30,6 +30,11 @@ impl MemQuadStorage {
             indices: Arc::new(RwLock::new(IndexSet::new(
                 object_id_mapping.encoding(),
                 batch_size,
+                &[
+                    IndexComponents::GSPO,
+                    IndexComponents::GPOS,
+                    IndexComponents::GOSP,
+                ],
             ))),
             object_id_mapping,
         }

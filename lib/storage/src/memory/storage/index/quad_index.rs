@@ -28,6 +28,11 @@ impl MemQuadIndex {
         }
     }
 
+    /// Returns a reference to the content of the index.
+    pub fn content(&self) -> &[IndexColumn<UInt32Array>; 4] {
+        &self.content
+    }
+
     /// Returns a reference to the index configuration.
     pub fn configuration(&self) -> &IndexConfiguration {
         &self.configuration
@@ -36,14 +41,6 @@ impl MemQuadIndex {
     /// Returns the total number of quads.
     pub fn len(&self) -> usize {
         self.content[3].len()
-    }
-
-    /// Returns an iterator that scans the index.
-    pub fn scan_quads(
-        &self,
-        lookup: IndexScanInstructions,
-    ) -> MemQuadIndexScanIterator<'_> {
-        todo!()
     }
 
     /// Inserts a list of quads.

@@ -30,6 +30,11 @@ impl<TIndexArray: IndexArray> IndexColumn<TIndexArray> {
     }
 
     /// Returns the number of elements in the column.
+    pub fn batches(&self) -> &[Arc<TIndexArray>] {
+        &self.data
+    }
+
+    /// Returns the number of elements in the column.
     pub fn len(&self) -> usize {
         self.data.len()
     }
