@@ -1,14 +1,14 @@
-use crate::memory::MemObjectIdMapping;
 use crate::memory::planner::MemQuadStorePlanner;
 use crate::memory::storage::index::IndexSet;
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
+use crate::memory::MemObjectIdMapping;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_api::storage::QuadStorage;
-use rdf_fusion_common::DFResult;
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{
     GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
 };
@@ -67,17 +67,13 @@ impl QuadStorage for MemQuadStorage {
             .map(|q| self.object_id_mapping.encode_quad(q.as_ref()))
             .collect::<DFResult<Vec<_>>>()
             .expect("TODO");
-        self.indices.write().await.insert(encoded.as_ref()).await
+        self.indices.write().await.insert(encoded.as_ref())
     }
 
     async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
         let encoded = self.object_id_mapping.encode_quad(quad).expect("TODO");
-        self.indices
-            .write()
-            .await
-            .remove(&[encoded])
-            .await
-            .map(|c| c == 1)
+        let count = self.indices.write().await.remove(&[encoded]);
+        Ok(count > 0)
     }
 
     async fn insert_named_graph<'a>(
@@ -85,22 +81,23 @@ impl QuadStorage for MemQuadStorage {
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
         let encoded = self.object_id_mapping.encode_term_intern(graph_name);
-        self.indices.write().await.insert_named_graph(encoded).await
+        Ok(self.indices.write().await.insert_named_graph(encoded))
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        self.snapshot().await.named_graphs().await
+        Ok(self.snapshot().await.named_graphs())
     }
 
     async fn contains_named_graph<'a>(
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        self.snapshot().await.contains_named_graph(graph_name).await
+        Ok(self.snapshot().await.contains_named_graph(graph_name))
     }
 
     async fn clear(&self) -> Result<(), StorageError> {
-        self.indices.write().await.clear().await
+        self.indices.write().await.clear();
+        Ok(())
     }
 
     async fn clear_graph<'a>(
@@ -113,7 +110,8 @@ impl QuadStorage for MemQuadStorage {
         else {
             return Ok(());
         };
-        self.indices.write().await.clear_graph(encoded).await
+        self.indices.write().await.clear_graph(encoded);
+        Ok(())
     }
 
     async fn drop_named_graph(
@@ -127,11 +125,11 @@ impl QuadStorage for MemQuadStorage {
             return Ok(false);
         };
 
-        self.indices.write().await.drop_named_graph(encoded).await
+        Ok(self.indices.write().await.drop_named_graph(encoded))
     }
 
     async fn len(&self) -> Result<usize, StorageError> {
-        self.snapshot().await.len().await
+        Ok(self.snapshot().await.len())
     }
 
     async fn optimize(&self) -> Result<(), StorageError> {

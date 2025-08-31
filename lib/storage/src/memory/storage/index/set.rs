@@ -1,7 +1,6 @@
 use crate::memory::encoding::EncodedQuad;
-use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
-use crate::memory::storage::VersionNumber;
-use crate::memory::storage::index::hash_index::MemHashTripleIndex;
+use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId};
+use crate::memory::storage::index::quad_index::MemQuadIndex;
 use crate::memory::storage::index::{
     IndexComponents, IndexConfiguration, IndexScanInstructions, IndexedQuad,
 };
@@ -19,49 +18,51 @@ use std::sync::Arc;
 /// evaluated with an SPO index. For this pattern, the query engine should use an POS or OPS index.
 ///
 /// The [IndexSet] allows managing multiple such indices.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct IndexSet {
-    version_number: VersionNumber,
-    indices: Vec<Arc<MemHashTripleIndex>>,
+    indices: Vec<MemQuadIndex>,
 }
 
 impl IndexSet {
     /// Creates a new [IndexSet] with the given `object_id_encoding` and `batch_size`.
     pub fn new(object_id_encoding: ObjectIdEncoding, batch_size: usize) -> Self {
         let indices = vec![
-            Arc::new(MemHashTripleIndex::new(IndexConfiguration {
+            MemQuadIndex::new(IndexConfiguration {
                 object_id_encoding: object_id_encoding.clone(),
                 batch_size,
                 components: IndexComponents::GSPO,
-            })),
-            Arc::new(MemHashTripleIndex::new(IndexConfiguration {
+            }),
+            MemQuadIndex::new(IndexConfiguration {
                 object_id_encoding: object_id_encoding.clone(),
                 batch_size,
                 components: IndexComponents::GPOS,
-            })),
-            Arc::new(MemHashTripleIndex::new(IndexConfiguration {
+            }),
+            MemQuadIndex::new(IndexConfiguration {
                 object_id_encoding: object_id_encoding.clone(),
                 batch_size,
                 components: IndexComponents::GOSP,
-            })),
+            }),
         ];
 
-        Self {
-            version_number: VersionNumber(0),
-            indices,
-        }
+        Self { indices }
     }
 
-    /// Returns the current version number of the index set.
-    pub fn version_number(&self) -> VersionNumber {
-        self.version_number
+    /// Returns
+    pub fn get_index(
+        &self,
+        index_configuration: &IndexConfiguration,
+    ) -> Option<&MemQuadIndex> {
+        self.indices
+            .iter()
+            .filter(|index| index.configuration() == index_configuration)
+            .next()
     }
 
     /// Choses the index with the highest scan score (see [Self::compute_scan_score]).
     pub fn choose_index(
         &self,
         pattern: &IndexScanInstructions,
-    ) -> (Arc<MemHashTripleIndex>, IndexScanInstructions) {
+    ) -> (&MemQuadIndex, IndexScanInstructions) {
         let index = self
             .indices
             .iter()
@@ -77,150 +78,87 @@ impl IndexSet {
 
         let reordered_pattern =
             reorder_pattern(pattern, &index.configuration().components);
-        (Arc::clone(index), reordered_pattern)
+        (index, reordered_pattern)
     }
 
-    pub async fn len(&self) -> Result<usize, StorageError> {
-        Ok(self
-            .any_index()
-            .len(self.version_number)
-            .await
-            .expect("TODO"))
+    pub fn len(&self) -> usize {
+        self.any_index().len()
     }
 
-    pub async fn insert(&mut self, quads: &[EncodedQuad]) -> Result<usize, StorageError> {
-        let version_number = self.version_number.next();
-
+    pub fn insert(&mut self, quads: &[EncodedQuad]) -> Result<usize, StorageError> {
         let mut count = 0;
         for index in self.indices.iter_mut() {
+            let components = index.configuration().components.clone();
             let quads = quads
                 .iter()
                 .map(|q| IndexedQuad([q.graph_name.0, q.subject, q.predicate, q.object]))
-                .map(|q| reorder_quad(&q, &index.configuration().components));
-            count = index.insert(quads, version_number).await.expect("TODO");
+                .map(|q| reorder_quad(&q, &components));
+            count = index.insert(quads);
         }
-
-        self.version_number = version_number;
         Ok(count)
     }
 
-    pub async fn remove(&mut self, quads: &[EncodedQuad]) -> Result<usize, StorageError> {
-        let version_number = self.version_number.next();
-
+    pub fn remove(&mut self, quads: &[EncodedQuad]) -> usize {
         let mut count = 0;
         for index in self.indices.iter_mut() {
+            let components = index.configuration().components.clone();
             let quads = quads
                 .iter()
                 .map(|q| IndexedQuad([q.graph_name.0, q.subject, q.predicate, q.object]))
-                .map(|q| reorder_quad(&q, &index.configuration().components));
-            count = index.remove(quads, version_number).await.expect("TODO")
+                .map(|q| reorder_quad(&q, &components));
+            count = index.remove(quads);
         }
-
-        self.version_number = version_number;
-        Ok(count)
+        count
     }
 
-    pub async fn insert_named_graph(
-        &mut self,
-        graph_name: EncodedObjectId,
-    ) -> Result<bool, StorageError> {
+    pub fn insert_named_graph(&mut self, graph_name: EncodedObjectId) -> bool {
         let mut result = false;
 
-        let version_number = self.version_number.next();
         for index in self.indices.iter_mut() {
             if !index.configuration().components.is_graph_name_top_level() {
                 continue;
             }
 
-            result = index
-                .insert_top_level(graph_name, version_number)
-                .await
-                .expect("TODO");
+            todo!()
         }
 
-        self.version_number = version_number;
-        Ok(result)
+        result
     }
 
-    pub async fn named_graphs(&self) -> Result<Vec<EncodedObjectId>, StorageError> {
-        let mut inner_result = self
-            .any_index_with_graph_name_top_level()
-            .scan_top_level(self.version_number)
-            .await
-            .expect("TODO");
-        inner_result.retain(|oid| *oid != DEFAULT_GRAPH_ID.0);
-        Ok(inner_result)
+    pub fn named_graphs(&self) -> Vec<EncodedObjectId> {
+        todo!()
     }
 
-    pub async fn contains_named_graph(
-        &self,
-        graph_name: EncodedObjectId,
-    ) -> Result<bool, StorageError> {
-        Ok(self
-            .any_index_with_graph_name_top_level()
-            .contains_top_level(graph_name, self.version_number)
-            .await
-            .expect("TODO"))
+    pub fn contains_named_graph(&self, graph_name: EncodedObjectId) -> bool {
+        todo!()
     }
 
-    pub async fn clear(&mut self) -> Result<(), StorageError> {
-        let version_number = self.version_number.next();
-
+    pub fn clear(&mut self) {
         for index in self.indices.iter_mut() {
-            index.clear(version_number).await.expect("TODO");
+            index.clear();
         }
-
-        self.version_number = version_number;
-        Ok(())
     }
 
-    pub async fn clear_graph(
-        &mut self,
-        graph_name: EncodedGraphObjectId,
-    ) -> Result<(), StorageError> {
-        let version_number = self.version_number.next();
-
+    pub fn clear_graph(&mut self, graph_name: EncodedGraphObjectId) {
         // TODO: this does not handle non-top level graph names
 
         for index in self.indices.iter_mut() {
-            index
-                .clear_top_level(graph_name.0, version_number)
-                .await
-                .expect("TODO");
+            todo!()
         }
-
-        self.version_number = version_number;
-        Ok(())
     }
 
-    pub async fn drop_named_graph(
-        &mut self,
-        graph_name: EncodedObjectId,
-    ) -> Result<bool, StorageError> {
-        let version_number = self.version_number.next();
-
-        // TODO: this does not handle non-top level graph names
-
-        let mut result = false;
-        for index in self.indices.iter_mut() {
-            result = index
-                .drop_top_level(graph_name, version_number)
-                .await
-                .expect("TODO");
-        }
-
-        self.version_number = version_number;
-        Ok(result)
+    pub fn drop_named_graph(&mut self, graph_name: EncodedObjectId) -> bool {
+        todo!("Clear then remove")
     }
 
-    fn any_index_with_graph_name_top_level(&self) -> &MemHashTripleIndex {
+    fn any_index_with_graph_name_top_level(&self) -> &MemQuadIndex {
         self.indices
             .iter()
             .find(|index| index.configuration().components.is_graph_name_top_level())
             .unwrap()
     }
 
-    fn any_index(&self) -> &MemHashTripleIndex {
+    fn any_index(&self) -> &MemQuadIndex {
         self.indices.first().unwrap()
     }
 }
@@ -285,8 +223,8 @@ mod tests {
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
     use std::collections::HashSet;
 
-    #[tokio::test]
-    async fn choose_index_all_bound() {
+    #[test]
+    fn choose_index_all_bound() {
         let set = create_index_set();
 
         let pattern = IndexScanInstructions([
@@ -306,8 +244,8 @@ mod tests {
         assert_eq!(new_instructions, pattern)
     }
 
-    #[tokio::test]
-    async fn choose_index_scan_predicate() {
+    #[test]
+    fn choose_index_scan_predicate() {
         let set = create_index_set();
 
         let pattern = IndexScanInstructions([
@@ -334,8 +272,8 @@ mod tests {
         )
     }
 
-    #[tokio::test]
-    async fn choose_index_scan_subject_and_object() {
+    #[test]
+    fn choose_index_scan_subject_and_object() {
         let set = create_index_set();
 
         let pattern = IndexScanInstructions([

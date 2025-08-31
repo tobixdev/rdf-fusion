@@ -1,22 +1,15 @@
-use crate::memory::MemObjectIdMapping;
 use crate::memory::encoding::{
     EncodedActiveGraph, EncodedTermPattern, EncodedTriplePattern,
 };
 use crate::memory::storage::index::{
-    IndexScanInstruction, IndexScanInstructions, IndexSet, PreparedIndexScan,
+    IndexScanInstruction, IndexScanInstructions, IndexSet, PlannedPatternScan,
 };
-use crate::memory::storage::{MemQuadPatternStream, VersionNumber};
-use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::execution::SendableRecordBatchStream;
-use datafusion::physical_plan::EmptyRecordBatchStream;
-use datafusion::physical_plan::coop::cooperative;
-use datafusion::physical_plan::metrics::BaselineMetrics;
-use rdf_fusion_common::error::StorageError;
+use crate::memory::MemObjectIdMapping;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::UnknownObjectIdError;
-use rdf_fusion_logical::ActiveGraph;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::{
     NamedOrBlankNode, NamedOrBlankNodeRef, TermPattern, TriplePattern, Variable,
 };
@@ -31,42 +24,9 @@ pub struct MemQuadStorageSnapshot {
     encoding: QuadStorageEncoding,
     /// Object id mapping
     object_id_mapping: Arc<MemObjectIdMapping>,
-    /// Index set
+    /// Holds a read lock on the index set. Holding the lock prevents concurrent modifications to
+    /// the index.
     index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
-    /// The version number of the snapshot.
-    version_number: VersionNumber,
-}
-
-/// TODO
-#[derive(Clone, Debug)]
-pub enum PlannedPatternScan {
-    /// TODO
-    Empty(SchemaRef),
-    /// TODO
-    IndexScan(
-        SchemaRef,
-        Option<Variable>,
-        TriplePattern,
-        Box<PreparedIndexScan>,
-    ),
-}
-
-impl PlannedPatternScan {
-    pub fn create_stream(self, metrics: BaselineMetrics) -> SendableRecordBatchStream {
-        match self {
-            PlannedPatternScan::Empty(schema) => {
-                Box::pin(EmptyRecordBatchStream::new(schema))
-            }
-            PlannedPatternScan::IndexScan(schema, _, _, prepared_index_scan) => {
-                let iterator = prepared_index_scan.create_iterator();
-                Box::pin(cooperative(MemQuadPatternStream::new(
-                    schema,
-                    Box::new(iterator),
-                    metrics,
-                )))
-            }
-        }
-    }
 }
 
 impl MemQuadStorageSnapshot {
@@ -79,7 +39,6 @@ impl MemQuadStorageSnapshot {
         Self {
             encoding,
             object_id_mapping,
-            version_number: index_set.version_number(),
             index_set,
         }
     }
@@ -129,18 +88,15 @@ impl MemQuadStorageSnapshot {
             IndexScanInstruction::from(enc_pattern.object.clone()),
         ]);
 
-        let (index, scan_instructions) = self.index_set.choose_index(&scan_instructions);
-        let index_scan_lock = index
-            .prepare_scan(scan_instructions, self.version_number)
-            .await
-            .expect("TODO");
-
-        Ok(PlannedPatternScan::IndexScan(
+        let (index, instructions) = self.index_set.choose_index(&scan_instructions);
+        Ok(PlannedPatternScan::IndexScan {
             schema,
+            index_set: self.index_set.clone(),
+            index: index.configuration().clone(),
+            instructions,
             graph_variable,
             pattern,
-            Box::new(index_scan_lock),
-        ))
+        })
     }
 
     /// Encodes the triple pattern.
@@ -205,39 +161,31 @@ impl MemQuadStorageSnapshot {
     }
 
     /// Returns the number of quads in the storage.
-    pub async fn len(&self) -> Result<usize, StorageError> {
-        self.index_set.as_ref().len().await
+    pub fn len(&self) -> usize {
+        self.index_set.as_ref().len()
     }
 
     /// Returns the number of quads in the storage.
-    pub async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        let result = self
-            .index_set
+    pub fn named_graphs(&self) -> Vec<NamedOrBlankNode> {
+        self.index_set
             .as_ref()
             .named_graphs()
-            .await?
             .into_iter()
             .map(|g| self.object_id_mapping.decode_named_graph(g))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(result)
+            .collect::<Result<Vec<_>, _>>()
+            .expect("Index only contains valid named graphs")
     }
 
     /// Returns whether the storage contains the named graph `graph_name`.
-    pub async fn contains_named_graph(
-        &self,
-        graph_name: NamedOrBlankNodeRef<'_>,
-    ) -> Result<bool, StorageError> {
+    pub fn contains_named_graph(&self, graph_name: NamedOrBlankNodeRef<'_>) -> bool {
         let Some(object_id) = self
             .object_id_mapping
             .try_get_encoded_object_id_from_term(graph_name)
         else {
-            return Ok(false);
+            return false;
         };
 
-        self.index_set
-            .as_ref()
-            .contains_named_graph(object_id)
-            .await
+        self.index_set.as_ref().contains_named_graph(object_id)
     }
 }
 

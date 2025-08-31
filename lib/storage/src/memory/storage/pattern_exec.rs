@@ -1,4 +1,4 @@
-use crate::memory::storage::snapshot::PlannedPatternScan;
+use crate::memory::storage::index::PlannedPatternScan;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{exec_err, internal_err};
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
@@ -103,16 +103,21 @@ impl DisplayAs for MemQuadPatternExec {
 
         match &self.planned_scan {
             PlannedPatternScan::Empty(_) => write!(f, "[EMPTY]"),
-            PlannedPatternScan::IndexScan(_, graph_variable, triple_pattern, scan) => {
-                write!(f, "{scan} ")?;
+            PlannedPatternScan::IndexScan {
+                index,
+                graph_variable,
+                pattern,
+                ..
+            } => {
+                write!(f, "[{index}] ")?;
 
                 if let Some(graph_variable) = &graph_variable {
                     write!(f, "graph={graph_variable}, ")?;
                 }
 
-                write!(f, "subject={}", &triple_pattern.subject)?;
-                write!(f, ", predicate={}", &triple_pattern.predicate)?;
-                write!(f, ", object={}", &triple_pattern.object)
+                write!(f, "subject={}", &pattern.subject)?;
+                write!(f, ", predicate={}", &pattern.predicate)?;
+                write!(f, ", object={}", &pattern.object)
             }
         }
     }
