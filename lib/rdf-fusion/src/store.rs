@@ -37,11 +37,11 @@ use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
 use rdf_fusion_common::error::StorageError;
+use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_execution::results::{QuadStream, QuerySolutionStream};
 use rdf_fusion_execution::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
-use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
     SubjectRef, TermRef, Variable,

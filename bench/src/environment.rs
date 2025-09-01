@@ -1,7 +1,7 @@
-use crate::benchmarks::BenchmarkName;
-use crate::prepare::{ensure_file_download, prepare_file_download};
-use crate::prepare::{prepare_run_closure, prepare_run_command, PrepRequirement};
 use crate::BenchmarkingOptions;
+use crate::benchmarks::BenchmarkName;
+use crate::prepare::{PrepRequirement, prepare_run_closure, prepare_run_command};
+use crate::prepare::{ensure_file_download, prepare_file_download};
 use anyhow::bail;
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion::prelude::SessionConfig;

@@ -7,15 +7,15 @@
 
 mod utils;
 
-use crate::utils::{consume_results, create_runtime};
 use crate::utils::verbose::{is_verbose, print_query_details};
+use crate::utils::{consume_results, create_runtime};
 use anyhow::Context;
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use rdf_fusion::QueryOptions;
+use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
     BsbmBenchmark, BsbmExploreQueryName, ExploreUseCase, NumProducts,
 };
-use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::environment::{BenchmarkContext, RdfFusionBenchContext};
 use rdf_fusion_bench::operation::SparqlRawOperation;
 use std::path::PathBuf;
@@ -35,7 +35,8 @@ fn bsbm_explore_10000_4_partitions(c: &mut Criterion) {
 
 fn bsbm_explore_10000(c: &mut Criterion, benchmarking_context: &RdfFusionBenchContext) {
     let verbose = is_verbose();
-    let runtime = create_runtime(benchmarking_context.options().target_partitions.unwrap());
+    let runtime =
+        create_runtime(benchmarking_context.options().target_partitions.unwrap());
 
     // Load the benchmark data and set max query count to one.
     let benchmark =
