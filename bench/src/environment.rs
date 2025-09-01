@@ -36,7 +36,7 @@ impl RdfFusionBenchContext {
             options: BenchmarkingOptions {
                 verbose_results: false,
                 target_partitions: Some(target_partitions),
-                memory_size: Some(1024 * 1024 * 1024 * 4), // 4 GiB
+                memory_size: None
             },
             data_dir: Mutex::new(data_dir),
             results_dir: Mutex::new(PathBuf::from("/temp")),
