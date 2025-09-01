@@ -20,7 +20,6 @@ use rdf_fusion_bench::benchmarks::bsbm::{
 use rdf_fusion_bench::environment::{BenchmarkContext, RdfFusionBenchContext};
 use rdf_fusion_bench::operation::SparqlRawOperation;
 use std::path::PathBuf;
-use tokio::runtime::{Builder, Runtime};
 
 fn bsbm_business_intelligence_10000_1_partition(c: &mut Criterion) {
     let benchmarking_context =

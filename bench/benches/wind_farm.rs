@@ -13,7 +13,6 @@ use rdf_fusion_bench::benchmarks::windfarm::{
 };
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
-use tokio::runtime::{Builder, Runtime};
 
 fn wind_farm_16_1_partition(c: &mut Criterion) {
     let benchmarking_context =
