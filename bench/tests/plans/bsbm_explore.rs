@@ -40,7 +40,7 @@ pub async fn execution_plan_bsbm_explore() {
 
 async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()) {
     let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
 
     // Load the benchmark data and set max query count to one.
     let benchmark =

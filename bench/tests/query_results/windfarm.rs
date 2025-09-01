@@ -13,7 +13,7 @@ use std::path::PathBuf;
 #[tokio::test]
 pub async fn wind_farm_4_test_results() {
     let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
     let benchmark = WindFarmBenchmark::new(NumTurbines::N4);
     let benchmark_name = benchmark.name();
     let ctx = benchmarking_context
