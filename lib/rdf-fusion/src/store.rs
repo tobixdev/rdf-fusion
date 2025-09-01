@@ -32,15 +32,16 @@
 
 use crate::error::{LoaderError, SerializerError};
 use crate::sparql::error::QueryEvaluationError;
+use datafusion::execution::runtime_env::RuntimeEnv;
 use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
 use rdf_fusion_common::error::StorageError;
-use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_execution::results::{QuadStream, QuerySolutionStream};
 use rdf_fusion_execution::sparql::{
     Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
 };
+use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
     SubjectRef, TermRef, Variable,
@@ -105,14 +106,19 @@ impl Store {
     ///
     /// Equivalent to calling [Self::new_with_datafusion_config] with the default settings.
     pub fn new() -> Store {
-        Self::new_with_datafusion_config(SessionConfig::new())
+        Self::new_with_datafusion_config(
+            SessionConfig::new(),
+            Arc::new(RuntimeEnv::default()),
+        )
     }
 
     /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
-    pub fn new_with_datafusion_config(config: SessionConfig) -> Store {
+    pub fn new_with_datafusion_config(
+        config: SessionConfig,
+        runtime_env: Arc<RuntimeEnv>,
+    ) -> Store {
         let storage = MemoryQuadStorage::new();
-        let engine =
-            RdfFusionContext::new_with_storage(config, Arc::new(storage.clone()));
+        let engine = RdfFusionContext::new(config, runtime_env, Arc::new(storage));
         Self { engine }
     }
 

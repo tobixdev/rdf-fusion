@@ -1,19 +1,20 @@
 use crate::planner::RdfFusionPlanner;
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{
-    Query, QueryExplanation, QueryOptions, QueryResults, evaluate_query,
+    evaluate_query, Query, QueryExplanation, QueryOptions, QueryResults,
 };
 use datafusion::dataframe::DataFrame;
 use datafusion::error::DataFusionError;
+use datafusion::execution::runtime_env::RuntimeEnv;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::{SessionConfig, SessionContext};
-use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_api::functions::{
     RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
 use rdf_fusion_api::storage::QuadStorage;
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
@@ -46,8 +47,9 @@ pub struct RdfFusionContext {
 
 impl RdfFusionContext {
     /// Creates a new [RdfFusionContext] with the default configuration and the given `storage`.
-    pub fn new_with_storage(
+    pub fn new(
         config: SessionConfig,
+        runtime_env: Arc<RuntimeEnv>,
         storage: Arc<dyn QuadStorage>,
     ) -> Self {
         // TODO make a builder
@@ -71,6 +73,7 @@ impl RdfFusionContext {
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
+            .with_runtime_env(runtime_env)
             .with_config(config)
             .build();
 

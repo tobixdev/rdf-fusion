@@ -2,15 +2,15 @@
 
 mod utils;
 
-use crate::utils::consume_results;
+use crate::utils::{consume_results, create_runtime};
 use crate::utils::verbose::{is_verbose, print_query_details};
 use anyhow::Context;
-use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use rdf_fusion::QueryOptions;
-use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::windfarm::{
-    NumTurbines, WindFarmBenchmark, WindFarmQueryName, get_wind_farm_raw_sparql_operation,
+    get_wind_farm_raw_sparql_operation, NumTurbines, WindFarmBenchmark, WindFarmQueryName,
 };
+use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
 use tokio::runtime::{Builder, Runtime};
@@ -29,7 +29,7 @@ fn wind_farm_16_4_partitions(c: &mut Criterion) {
 
 fn wind_farm_16(c: &mut Criterion, benchmarking_context: &RdfFusionBenchContext) {
     let verbose = is_verbose();
-    let runtime = create_runtime();
+    let runtime = create_runtime(benchmarking_context.options().target_partitions.unwrap());
     let benchmark = WindFarmBenchmark::new(NumTurbines::N16);
     let benchmark_name = benchmark.name();
     let benchmark_context = benchmarking_context
@@ -45,7 +45,18 @@ fn wind_farm_16(c: &mut Criterion, benchmarking_context: &RdfFusionBenchContext)
     ")
         .unwrap();
 
+    let disabled_queries = vec![
+        WindFarmQueryName::MultiGrouped1,
+        WindFarmQueryName::MultiGrouped2,
+        WindFarmQueryName::MultiGrouped3,
+        WindFarmQueryName::MultiGrouped4,
+    ];
     for query_name in WindFarmQueryName::list_queries() {
+        if disabled_queries.contains(&query_name) {
+            println!("Skipping query: {}", query_name);
+            continue;
+        }
+
         let benchmark_name = format!(
             "Wind Farm 16 (target_partitions={}) - {query_name}",
             benchmarking_context.options().target_partitions.unwrap()
@@ -82,7 +93,3 @@ criterion_group!(
     targets = wind_farm_16_1_partition, wind_farm_16_4_partitions
 );
 criterion_main!(wind_farm);
-
-fn create_runtime() -> Runtime {
-    Builder::new_current_thread().enable_all().build().unwrap()
-}

@@ -7,16 +7,16 @@
 
 mod utils;
 
-use crate::utils::consume_results;
+use crate::utils::{consume_results, create_runtime};
 use crate::utils::verbose::{is_verbose, print_query_details};
 use anyhow::Context;
-use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use rdf_fusion::QueryOptions;
-use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
     BsbmBenchmark, BsbmBusinessIntelligenceQueryName, BusinessIntelligenceUseCase,
     NumProducts,
 };
+use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::environment::{BenchmarkContext, RdfFusionBenchContext};
 use rdf_fusion_bench::operation::SparqlRawOperation;
 use std::path::PathBuf;
@@ -76,10 +76,6 @@ criterion_group!(
 );
 criterion_main!(bsbm_business_intelligence);
 
-fn create_runtime() -> Runtime {
-    Builder::new_current_thread().enable_all().build().unwrap()
-}
-
 fn execute_benchmark(
     c: &mut Criterion,
     benchmarking_context: RdfFusionBenchContext,
@@ -92,7 +88,7 @@ fn execute_benchmark(
     )>,
 ) {
     let verbose = is_verbose();
-    let runtime = create_runtime();
+    let runtime = create_runtime(benchmarking_context.options().target_partitions.unwrap());
 
     // Load the benchmark data and set max query count to one.
     let benchmark =
