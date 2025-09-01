@@ -94,6 +94,13 @@ fn bench_binary_function(
     let return_field =
         Arc::new(Field::new("result", TYPED_VALUE_ENCODING.data_type(), true));
 
+    /* nur aus testzwecken drinnen
+    // richtigen Rückgabetyp vom UDF ermitteln
+    let return_type = function
+        .return_type(&[TYPED_VALUE_ENCODING.data_type(), TYPED_VALUE_ENCODING.data_type()])
+        .expect("cannot resolve return type");
+    let return_field = Arc::new(Field::new("result", return_type, true));*/
+
     let name = format!("{}_{scenario:?}", function.name());
     c.bench_function(&name, |b| {
         b.iter(|| {
