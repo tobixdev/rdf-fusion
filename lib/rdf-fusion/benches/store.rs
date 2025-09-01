@@ -43,7 +43,7 @@ fn store_single_pattern(c: &mut Criterion) {
 
     // No Quads
     c.bench_function("Store::query - Single Pattern / No Quads", |b| {
-        let store = runtime.block_on(prepare_store_with_generated_triples(0, 1));
+        let store = runtime.block_on(prepare_store_with_generated_triples(0));
         b.to_async(&runtime).iter(|| trivial_query(&store, 0));
     });
     // One Quad
