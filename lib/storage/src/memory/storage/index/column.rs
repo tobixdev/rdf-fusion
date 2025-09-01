@@ -16,14 +16,16 @@ use std::sync::Arc;
 /// insertions and deletions is costly.
 #[derive(Debug)]
 pub(super) struct IndexColumn<TIndexArray: IndexArray> {
+    is_nullable: bool,
     batch_size: usize,
     data: Vec<Arc<TIndexArray>>,
 }
 
 impl<TIndexArray: IndexArray> IndexColumn<TIndexArray> {
     /// Creates a new [IndexColumn].
-    pub fn new(batch_size: usize) -> Self {
+    pub fn new(batch_size: usize, is_nullable: bool) -> Self {
         Self {
+            is_nullable,
             batch_size,
             data: Vec::new(),
         }
@@ -54,7 +56,17 @@ impl<TIndexArray: IndexArray> IndexColumn<TIndexArray> {
     ///
     /// `range` can be used to restrict the search space.
     pub fn insert(&mut self, object_ids: &[(usize, EncodedObjectId)]) {
-        TIndexArray::insert(&mut self.data, object_ids, self.batch_size);
+        TIndexArray::insert(
+            &mut self.data,
+            object_ids,
+            self.batch_size,
+            self.is_nullable,
+        );
+    }
+
+    /// TODO
+    pub fn remove(&mut self, indices: &[usize]) {
+        todo!()
     }
 }
 
@@ -80,6 +92,7 @@ pub(super) trait IndexArray: Debug {
         arrays: &mut Vec<Arc<Self>>,
         insertions: &[(usize, EncodedObjectId)],
         batch_size: usize,
+        is_nullable: bool,
     );
 }
 
@@ -217,6 +230,7 @@ impl IndexArray for UInt32Array {
         batches: &mut Vec<Arc<Self>>,
         insertions: &[(usize, EncodedObjectId)],
         batch_size: usize,
+        is_nullable: bool,
     ) {
         /// Gathers all insertions for the given batch.
         fn gather_insertions_for_batch(
@@ -242,13 +256,18 @@ impl IndexArray for UInt32Array {
             batch: &UInt32Array,
             insertions: &[(usize, EncodedObjectId)],
             batch_size: usize,
+            is_nullable: bool,
         ) -> Vec<Arc<UInt32Array>> {
             // copy existing values into Vec<u32>
-            let mut vec: Vec<u32> = batch.values().iter().copied().collect();
+            let mut vec: Vec<Option<u32>> = batch.iter().collect();
 
             // insert in ascending order of index
             for (rel_idx, obj) in insertions.iter().rev() {
-                vec.insert(*rel_idx, obj.as_u32());
+                if is_nullable && obj.as_u32() == 0 {
+                    vec.insert(*rel_idx, None);
+                } else {
+                    vec.insert(*rel_idx, Some(obj.as_u32()));
+                }
             }
 
             if vec.len() > batch_size {
@@ -279,8 +298,12 @@ impl IndexArray for UInt32Array {
                 continue;
             }
 
-            let new_batches =
-                insert_into_batch(batch, batch_insertions.as_slice(), batch_size);
+            let new_batches = insert_into_batch(
+                batch,
+                batch_insertions.as_slice(),
+                batch_size,
+                is_nullable,
+            );
 
             // Remove old batch and insert new batches. TODO: Investigate linked list
             batches.remove(i);
@@ -295,7 +318,11 @@ impl IndexArray for UInt32Array {
         let mut batch = Vec::new();
         while let Some((index, value)) = ins_iter.next() {
             debug_assert_eq!(*index, global_offset, "Invalid insertion index");
-            batch.push(value.as_u32());
+            if is_nullable && value.as_u32() == 0 {
+                batch.push(None);
+            } else {
+                batch.push(Some(value.as_u32()));
+            }
 
             if batch.len() == batch_size {
                 let batch_to_push = std::mem::take(&mut batch);
@@ -401,26 +428,37 @@ mod tests {
 
     #[test]
     fn insert_with_empty_column_and_multiple_batches() {
-        let mut data = column_with_batch_size(2, []);
+        let mut data = column_with_batch_size(2, false, []);
         data.insert(&[(0, enc(1)); 5]);
         assert_eq!(data.data, column([vec![1, 1], vec![1, 1], vec![1]]).data);
     }
 
     #[test]
     fn insert_and_split_batches_if_needed() {
-        let mut data = column_with_batch_size(4, [vec![1, 2, 3, 4]]);
+        let mut data = column_with_batch_size(4, false, [vec![1, 2, 3, 4]]);
         data.insert(&[(0, enc(1)), (3, enc(4))]);
         assert_eq!(data.data, column([vec![1, 1, 2], vec![3, 4, 4]]).data);
+    }
+
+    #[test]
+    fn insert_nullable_inserts_zero_as_null() {
+        let mut data = column_with_batch_size(4, true, []);
+        data.insert(&[(0, enc(0)), (0, enc(1))]);
+        assert_eq!(
+            data.data,
+            vec![Arc::new(UInt32Array::from(vec![None, Some(1)]))]
+        );
     }
 
     fn column<'a>(
         partitions: impl IntoIterator<Item = Vec<u32>>,
     ) -> IndexColumn<UInt32Array> {
-        column_with_batch_size(16, partitions)
+        column_with_batch_size(16, false, partitions)
     }
 
     fn column_with_batch_size<'a>(
         batch_size: usize,
+        is_nullable: bool,
         partitions: impl IntoIterator<Item = Vec<u32>>,
     ) -> IndexColumn<UInt32Array> {
         let arrays = partitions
@@ -428,6 +466,7 @@ mod tests {
             .map(|p| Arc::new(UInt32Array::from(p.to_vec())))
             .collect();
         IndexColumn {
+            is_nullable,
             batch_size,
             data: arrays,
         }

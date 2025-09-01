@@ -23,7 +23,7 @@ impl Display for IndexComponents {
 }
 
 /// Represents what part of an RDF triple is index at the given position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum IndexComponent {
     /// The graph name
     GraphName,

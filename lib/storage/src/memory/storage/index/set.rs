@@ -1,13 +1,17 @@
 use crate::memory::encoding::EncodedQuad;
 use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId};
 use crate::memory::storage::index::quad_index::MemQuadIndex;
+use crate::memory::storage::index::scan::QuadIndexBatch;
 use crate::memory::storage::index::{
-    IndexComponents, IndexConfiguration, IndexScanInstructions, IndexedQuad,
+    IndexComponents, IndexConfiguration, IndexRefInSet, IndexScanInstruction,
+    IndexScanInstructions, IndexedQuad, MemQuadIndexScanIterator,
 };
+use datafusion::arrow::array::Array;
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use std::collections::HashSet;
 use std::sync::Arc;
+use tokio::sync::OwnedRwLockReadGuard;
 
 /// Represents a set of multiple indexes, each of which indexes a different ordering of the
 /// triple component (e.g., SPO, POS). This is necessary as different triple patterns require
@@ -152,6 +156,47 @@ impl IndexSet {
     }
 }
 
+/// TODO
+pub struct MemQuadIndexSetScanIterator {
+    instructions: IndexScanInstructions,
+    components: IndexComponents,
+    inner: MemQuadIndexScanIterator<IndexRefInSet>,
+}
+
+impl MemQuadIndexSetScanIterator {
+    pub fn new(
+        index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
+        index: IndexConfiguration,
+        instructions: IndexScanInstructions,
+    ) -> Self {
+        let components = index.components.clone();
+        let iterator = MemQuadIndexScanIterator::new_from_index_set(
+            index_set,
+            index,
+            instructions.clone(),
+        );
+        MemQuadIndexSetScanIterator {
+            instructions,
+            components,
+            inner: iterator,
+        }
+    }
+}
+
+impl Iterator for MemQuadIndexSetScanIterator {
+    type Item = QuadIndexBatch;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.inner.next()?;
+        let reordered =
+            reorder_result(next.columns, &self.instructions, &self.components);
+        Some(QuadIndexBatch {
+            num_rows: next.num_rows,
+            columns: reordered,
+        })
+    }
+}
+
 /// Computes the "scan score" for the given `index_components` and `pattern`.
 ///
 /// The higher the scan score, the better is the index suited for scanning a particular pattern.
@@ -203,14 +248,43 @@ fn reorder_pattern(
     ])
 }
 
+/// Re-orders the given `pattern` for the given `components`.
+fn reorder_result(
+    columns: Vec<Arc<dyn Array>>,
+    instructions: &IndexScanInstructions,
+    components: &IndexComponents,
+) -> Vec<Arc<dyn Array>> {
+    let mut reordered = Vec::new();
+    let mut seen = HashSet::new();
+
+    for i in 0..4 {
+        let idx_reordered = components
+            .inner()
+            .iter()
+            .position(|c| c.gspo_index() == i)
+            .unwrap();
+        if let Some(variable) = instructions.0[idx_reordered].scan_variable() {
+            let inserted = seen.insert(variable);
+            if inserted {
+                reordered.push(columns[seen.len() - 1].clone());
+            }
+        }
+    }
+
+    debug_assert_eq!(columns.len(), reordered.len());
+    columns
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::memory::storage::index::{
         IndexScanInstruction, IndexScanInstructions, ObjectIdScanPredicate,
     };
+    use insta::assert_debug_snapshot;
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
     use std::collections::HashSet;
+    use tokio::sync::RwLock;
 
     #[test]
     fn choose_index_all_bound() {
@@ -288,6 +362,37 @@ mod tests {
                 IndexScanInstruction::Scan(Arc::new("subject".to_string()), None),
             ])
         )
+    }
+
+    #[tokio::test]
+    async fn scan_subject_and_object() {
+        let set = RwLock::new(create_index_set());
+        set.write()
+            .await
+            .insert(&[EncodedQuad {
+                graph_name: EncodedGraphObjectId(EncodedObjectId::from(1)),
+                subject: EncodedObjectId::from(2),
+                predicate: EncodedObjectId::from(3),
+                object: EncodedObjectId::from(4),
+            }])
+            .unwrap();
+
+        let pattern = IndexScanInstructions([
+            traverse_and_filter(1),
+            IndexScanInstruction::Scan(Arc::new("subject".to_string()), None),
+            traverse_and_filter(3),
+            IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
+        ]);
+
+        let set_lock = Arc::new(Arc::new(set).read_owned().await);
+        let (index, new_instructions) = set_lock.choose_index(&pattern);
+        let configuration = index.configuration().clone();
+
+        let mut scan =
+            MemQuadIndexSetScanIterator::new(set_lock, configuration, new_instructions);
+
+        let batch = scan.next().unwrap();
+        assert_debug_snapshot!(batch.columns, @r"");
     }
 
     fn create_index_set() -> IndexSet {

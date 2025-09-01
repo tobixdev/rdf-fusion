@@ -1,9 +1,11 @@
 use crate::memory::storage::index::column::IndexColumn;
+use crate::memory::storage::index::components::IndexComponent;
 use crate::memory::storage::index::scan::MemQuadIndexScanIterator;
 use crate::memory::storage::index::{
-    IndexConfiguration, IndexScanInstructions, IndexedQuad,
+    DirectIndexRef, IndexConfiguration, IndexScanInstructions, IndexedQuad,
 };
 use datafusion::arrow::array::UInt32Array;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// TODO
 #[derive(Debug)]
@@ -18,12 +20,7 @@ impl MemQuadIndex {
     /// Creates a new [MemQuadIndex].
     pub fn new(configuration: IndexConfiguration) -> Self {
         Self {
-            content: [
-                IndexColumn::new(configuration.batch_size),
-                IndexColumn::new(configuration.batch_size),
-                IndexColumn::new(configuration.batch_size),
-                IndexColumn::new(configuration.batch_size),
-            ],
+            content: create_empty_index_content(&configuration),
             configuration,
         }
     }
@@ -47,21 +44,19 @@ impl MemQuadIndex {
     ///
     /// Quads that already exist in the index are ignored.
     pub fn insert(&mut self, quads: impl IntoIterator<Item = IndexedQuad>) -> usize {
-        let mut to_insert = Vec::new();
+        let mut to_insert = BTreeMap::new();
 
         for quad in quads {
             let Some(idx) = self.find_quad_insertion_index(&quad) else {
                 continue;
             };
-
-            to_insert.push((idx, quad))
+            to_insert.entry(idx).or_insert(BTreeSet::new()).insert(quad);
         }
-        to_insert.sort_unstable_by_key(|(_, quad)| quad.0[0]);
 
         for element in 0..4 {
             let to_insert_column = to_insert
                 .iter()
-                .map(|(idx, quad)| (*idx, quad.0[element]))
+                .flat_map(|(idx, quads)| quads.iter().map(|quad| (*idx, quad.0[element])))
                 .collect::<Vec<_>>();
             self.content[element].insert(&to_insert_column)
         }
@@ -71,12 +66,7 @@ impl MemQuadIndex {
 
     /// TODO
     pub fn clear(&mut self) -> () {
-        self.content = [
-            IndexColumn::new(self.configuration.batch_size),
-            IndexColumn::new(self.configuration.batch_size),
-            IndexColumn::new(self.configuration.batch_size),
-            IndexColumn::new(self.configuration.batch_size),
-        ];
+        self.content = create_empty_index_content(&self.configuration);
     }
 
     /// Removes a list of quads.
@@ -90,12 +80,22 @@ impl MemQuadIndex {
                 to_remove.push(index)
             }
         }
-
         to_remove.sort_unstable();
+        to_remove.reverse();
 
-        todo!();
+        for element in 0..4 {
+            self.content[element].remove(&to_remove)
+        }
 
         to_remove.len()
+    }
+
+    /// TODO
+    pub fn scan_quads(
+        &self,
+        instructions: IndexScanInstructions,
+    ) -> MemQuadIndexScanIterator<DirectIndexRef<'_>> {
+        MemQuadIndexScanIterator::new(self, instructions)
     }
 
     /// Tries to find `object_id` in the index and returns its index.
@@ -133,4 +133,27 @@ impl MemQuadIndex {
             Err(insertion_index) => Some(insertion_index),
         }
     }
+}
+
+fn create_empty_index_content(
+    configuration: &IndexConfiguration,
+) -> [IndexColumn<UInt32Array>; 4] {
+    [
+        IndexColumn::new(
+            configuration.batch_size,
+            configuration.components.inner()[0] == IndexComponent::GraphName,
+        ),
+        IndexColumn::new(
+            configuration.batch_size,
+            configuration.components.inner()[1] == IndexComponent::GraphName,
+        ),
+        IndexColumn::new(
+            configuration.batch_size,
+            configuration.components.inner()[2] == IndexComponent::GraphName,
+        ),
+        IndexColumn::new(
+            configuration.batch_size,
+            configuration.components.inner()[3] == IndexComponent::GraphName,
+        ),
+    ]
 }

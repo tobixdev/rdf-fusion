@@ -15,10 +15,12 @@ use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
-pub use scan::{MemQuadIndexScanIterator, PlannedPatternScan};
-pub use set::IndexSet;
+pub use scan::{
+    DirectIndexRef, IndexRef, IndexRefInSet, MemQuadIndexScanIterator, PlannedPatternScan,
+};
+pub use set::{IndexSet, MemQuadIndexSetScanIterator};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct IndexedQuad(pub [EncodedObjectId; 4]);
 
 /// Holds the configuration for the index.
@@ -159,38 +161,69 @@ mod tests {
     use datafusion::arrow::array::Array;
     use insta::assert_debug_snapshot;
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+    use std::sync::RwLock;
 
     #[tokio::test]
     async fn insert_and_scan_triple() {
         let mut index = create_index();
-        index.insert(vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])]);
+        index.insert(vec![IndexedQuad([eid(1), eid(2), eid(3), eid(4)])]);
 
-        let mut iter = scan_quads(
-            index,
-            IndexScanInstructions([traverse(0), traverse(1), traverse(2), traverse(3)]),
-        );
+        let mut iter = index.scan_quads(IndexScanInstructions([
+            traverse(1),
+            traverse(2),
+            traverse(3),
+            traverse(4),
+        ]));
         let result = iter.next();
 
         assert!(result.is_some());
-        assert_eq!(result.unwrap().num_rows(), 1);
+        assert_eq!(result.unwrap().num_rows, 1);
     }
 
     #[tokio::test]
     async fn scan_returns_sorted_results_on_last_level() {
         let mut index = create_index();
         index.insert(vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(2), eid(2)]),
+            IndexedQuad([eid(1), eid(2), eid(3), eid(4)]),
+            IndexedQuad([eid(1), eid(2), eid(3), eid(3)]),
         ]);
 
-        let mut iter = scan_quads(
-            index,
-            IndexScanInstructions([traverse(0), traverse(1), traverse(2), scan("d")]),
-        );
+        let mut iter = index.scan_quads(IndexScanInstructions([
+            traverse(1),
+            traverse(2),
+            traverse(3),
+            scan("d"),
+        ]));
         let result = iter.next();
 
         assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().column(0), @r"
+        assert_debug_snapshot!(result.unwrap().columns[0], @r"
+        PrimitiveArray<UInt32>
+        [
+          3,
+          4,
+        ]
+        ");
+    }
+
+    #[tokio::test]
+    async fn scan_returns_sorted_results_on_intermediate_level() {
+        let mut index = create_index();
+        index.insert(vec![
+            IndexedQuad([eid(1), eid(2), eid(3), eid(4)]),
+            IndexedQuad([eid(1), eid(2), eid(2), eid(4)]),
+        ]);
+
+        let mut iter = index.scan_quads(IndexScanInstructions([
+            traverse(1),
+            traverse(2),
+            scan("c"),
+            traverse(4),
+        ]));
+        let result = iter.next();
+
+        assert!(result.is_some());
+        assert_debug_snapshot!(result.unwrap().columns[0], @r"
         PrimitiveArray<UInt32>
         [
           2,
@@ -200,39 +233,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn scan_returns_sorted_results_on_intermediate_level() {
-        let mut index = create_index();
-        index.insert(vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(1), eid(3)]),
-        ]);
-
-        let mut iter = scan_quads(
-            index,
-            IndexScanInstructions([traverse(0), traverse(1), scan("c"), traverse(3)]),
-        );
-        let result = iter.next();
-
-        assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().column(0), @r"
-        PrimitiveArray<UInt32>
-        [
-          1,
-          2,
-        ]
-        ");
-    }
-
-    #[tokio::test]
     async fn scan_with_no_match() {
         let mut index = create_index();
-        index.insert(vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])]);
+        index.insert(vec![IndexedQuad([eid(1), eid(2), eid(3), eid(4)])]);
 
-        let result = scan_quads(
-            index,
-            IndexScanInstructions([traverse(1), scan("b"), traverse(2), traverse(3)]),
-        )
-        .next();
+        let result = index
+            .scan_quads(IndexScanInstructions([
+                traverse(2),
+                scan("b"),
+                traverse(3),
+                traverse(4),
+            ]))
+            .next();
 
         assert!(result.is_none());
     }
@@ -241,14 +253,14 @@ mod tests {
     async fn scan_subject_var() {
         let mut index = create_index();
         index.insert(vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(1), eid(2), eid(3), eid(4)]),
+            IndexedQuad([eid(1), eid(2), eid(5), eid(6)]),
+            IndexedQuad([eid(1), eid(7), eid(3), eid(4)]),
         ]);
 
         run_matching_test(
             index,
-            IndexScanInstructions([traverse(0), scan("b"), traverse(2), traverse(3)]),
+            IndexScanInstructions([traverse(1), scan("b"), traverse(3), traverse(4)]),
             1,
             2,
         );
@@ -258,14 +270,14 @@ mod tests {
     async fn scan_predicate_var() {
         let mut index = create_index();
         index.insert(vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(1), eid(2), eid(3), eid(4)]),
+            IndexedQuad([eid(1), eid(2), eid(5), eid(6)]),
+            IndexedQuad([eid(1), eid(7), eid(3), eid(4)]),
         ]);
 
         run_matching_test(
             index,
-            IndexScanInstructions([traverse(0), traverse(1), scan("c"), traverse(3)]),
+            IndexScanInstructions([traverse(1), traverse(2), scan("c"), traverse(4)]),
             1,
             1,
         );
@@ -275,14 +287,14 @@ mod tests {
     async fn scan_object_var() {
         let mut index = create_index();
         index.insert(vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(1), eid(2), eid(3), eid(4)]),
+            IndexedQuad([eid(1), eid(2), eid(5), eid(6)]),
+            IndexedQuad([eid(1), eid(7), eid(3), eid(4)]),
         ]);
 
         run_matching_test(
             index,
-            IndexScanInstructions([traverse(0), traverse(1), traverse(2), scan("d")]),
+            IndexScanInstructions([traverse(1), traverse(2), traverse(3), scan("d")]),
             1,
             1,
         );
@@ -292,14 +304,14 @@ mod tests {
     async fn scan_multi_vars() {
         let mut index = create_index();
         index.insert(vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(1), eid(2), eid(3), eid(4)]),
+            IndexedQuad([eid(1), eid(2), eid(5), eid(6)]),
+            IndexedQuad([eid(1), eid(7), eid(3), eid(4)]),
         ]);
 
         run_matching_test(
             index,
-            IndexScanInstructions([traverse(0), scan("b"), traverse(2), scan("d")]),
+            IndexScanInstructions([traverse(1), scan("b"), traverse(3), scan("d")]),
             2,
             2,
         );
@@ -309,9 +321,9 @@ mod tests {
     async fn scan_all_vars() {
         let mut index = create_index();
         index.insert(vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(1), eid(2), eid(3), eid(4)]),
+            IndexedQuad([eid(1), eid(2), eid(5), eid(6)]),
+            IndexedQuad([eid(1), eid(7), eid(3), eid(4)]),
         ]);
 
         run_matching_test(
@@ -326,9 +338,9 @@ mod tests {
     async fn scan_same_var_appearing_twice() {
         let mut index = create_index();
         index.insert(vec![
-            IndexedQuad([eid(0), eid(2), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(1), eid(3)]),
-            IndexedQuad([eid(0), eid(2), eid(1), eid(3)]),
+            IndexedQuad([eid(1), eid(3), eid(3), eid(4)]),
+            IndexedQuad([eid(1), eid(2), eid(2), eid(4)]),
+            IndexedQuad([eid(1), eid(3), eid(2), eid(4)]),
         ]);
 
         run_matching_test(
@@ -343,9 +355,9 @@ mod tests {
     async fn scan_considers_predicates() {
         let mut index = create_index();
         index.insert(vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(1), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(2), eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(1), eid(2), eid(3), eid(4)]),
+            IndexedQuad([eid(2), eid(2), eid(5), eid(6)]),
+            IndexedQuad([eid(3), eid(7), eid(3), eid(4)]),
         ]);
 
         run_matching_test(
@@ -353,7 +365,7 @@ mod tests {
             IndexScanInstructions([
                 IndexScanInstruction::Scan(
                     Arc::new("a".to_owned()),
-                    Some(ObjectIdScanPredicate::In(HashSet::from([eid(0), eid(2)]))),
+                    Some(ObjectIdScanPredicate::In(HashSet::from([eid(1), eid(3)]))),
                 ),
                 scan("b"),
                 scan("c"),
@@ -369,14 +381,14 @@ mod tests {
         let mut index = create_index_with_batch_size(10);
         let mut quads = Vec::new();
         for i in 0..25 {
-            quads.push(IndexedQuad([eid(0), eid(1), eid(2), eid(i + 1)]))
+            quads.push(IndexedQuad([eid(1), eid(2), eid(3), eid(i + 1)]))
         }
         index.insert(quads);
 
         // The lookup matches a single IndexData that will be scanned.
         run_batch_size_test(
             index,
-            IndexScanInstructions([traverse(0), traverse(1), traverse(2), scan("d")]),
+            IndexScanInstructions([traverse(1), traverse(2), traverse(3), scan("d")]),
             &[10, 10, 5],
             true,
         );
@@ -387,7 +399,7 @@ mod tests {
         let mut index = create_index_with_batch_size(10);
         let mut quads = Vec::new();
         for i in 0..25 {
-            quads.push(IndexedQuad([eid(0), eid(1), eid(i), eid(2)]))
+            quads.push(IndexedQuad([eid(1), eid(2), eid(i), eid(3)]))
         }
         index.insert(quads);
 
@@ -395,7 +407,7 @@ mod tests {
         // batches should be combined into a single batch.
         run_batch_size_test(
             index,
-            IndexScanInstructions([traverse(0), traverse(1), scan("c"), traverse(2)]),
+            IndexScanInstructions([traverse(1), traverse(2), scan("c"), traverse(3)]),
             &[10, 10, 5],
             true,
         );
@@ -405,9 +417,9 @@ mod tests {
     async fn delete_triple_removes_it() {
         let mut index = create_index();
         let quads = vec![
-            IndexedQuad([eid(0), eid(1), eid(2), eid(3)]),
-            IndexedQuad([eid(0), eid(1), eid(4), eid(5)]),
-            IndexedQuad([eid(0), eid(6), eid(2), eid(3)]),
+            IndexedQuad([eid(1), eid(2), eid(3), eid(4)]),
+            IndexedQuad([eid(1), eid(2), eid(5), eid(6)]),
+            IndexedQuad([eid(1), eid(7), eid(3), eid(4)]),
         ];
         index.insert(quads.clone());
         index.remove(quads);
@@ -421,7 +433,7 @@ mod tests {
     #[tokio::test]
     async fn delete_triple_non_existing_returns_zero() {
         let mut index = create_index();
-        let quads = vec![IndexedQuad([eid(0), eid(1), eid(2), eid(3)])];
+        let quads = vec![IndexedQuad([eid(1), eid(2), eid(3), eid(4)])];
         let result = index.remove(quads);
         assert_eq!(result, 0);
     }
@@ -460,7 +472,7 @@ mod tests {
     }
 
     fn run_non_matching_test(index: MemQuadIndex, instructions: IndexScanInstructions) {
-        let results = scan_quads(index, instructions).next();
+        let results = index.scan_quads(instructions).next();
         assert!(
             results.is_none(),
             "Expected no results in non-matching test."
@@ -473,11 +485,11 @@ mod tests {
         expected_columns: usize,
         expected_rows: usize,
     ) {
-        let results = scan_quads(index, instructions).next().unwrap();
+        let results = index.scan_quads(instructions).next().unwrap();
 
-        assert_eq!(results.num_rows(), expected_rows);
-        assert_eq!(results.columns().len(), expected_columns);
-        for result in results.columns() {
+        assert_eq!(results.num_rows, expected_rows);
+        assert_eq!(results.columns.len(), expected_columns);
+        for result in results.columns {
             assert_eq!(result.len(), expected_rows);
         }
     }
@@ -488,8 +500,9 @@ mod tests {
         expected_batch_sizes: &[usize],
         ordered: bool,
     ) {
-        let mut batch_sizes: Vec<_> = scan_quads(index, instructions)
-            .map(|arr| arr.num_rows())
+        let mut batch_sizes: Vec<_> = index
+            .scan_quads(instructions)
+            .map(|arr| arr.num_rows)
             .collect();
 
         if ordered {
@@ -501,17 +514,5 @@ mod tests {
 
             assert_eq!(batch_sizes, expected_batch_sizes);
         }
-    }
-
-    fn scan_quads(
-        index: MemQuadIndex,
-        instructions: IndexScanInstructions,
-    ) -> MemQuadIndexScanIterator {
-        IndexSet::new(
-            ObjectIdEncoding::new(4),
-            16,
-            &[index.configuration().components.clone()],
-        );
-        todo!()
     }
 }

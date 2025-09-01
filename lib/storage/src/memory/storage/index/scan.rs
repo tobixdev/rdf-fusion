@@ -1,9 +1,14 @@
+use crate::memory::storage::index::quad_index::MemQuadIndex;
 use crate::memory::storage::index::{
-    IndexConfiguration, IndexScanInstructions, IndexSet,
+    IndexConfiguration, IndexScanInstruction, IndexScanInstructions, IndexSet,
+    MemQuadIndexSetScanIterator, ObjectIdScanPredicate,
 };
 use crate::memory::storage::stream::MemIndexScanStream;
-use datafusion::arrow::array::{RecordBatch, UInt32Array};
+use datafusion::arrow::array::{Array, BooleanArray, UInt32Array};
+use datafusion::arrow::compute::kernels::cmp::{eq, neq};
+use datafusion::arrow::compute::{and, filter, is_null, or};
 use datafusion::arrow::datatypes::SchemaRef;
+use datafusion::common::ScalarValue;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
@@ -12,41 +17,63 @@ use rdf_fusion_model::{TriplePattern, Variable};
 use std::sync::Arc;
 use tokio::sync::OwnedRwLockReadGuard;
 
-pub struct MemQuadIndexScanIterator {
-    /// A reference to the index.
-    state: ScanState,
-    /// The instructions to scan the index.
-    instructions: IndexScanInstructions,
+pub struct QuadIndexBatch {
+    pub num_rows: usize,
+    pub columns: Vec<Arc<dyn Array>>,
 }
 
-impl MemQuadIndexScanIterator {
+pub struct MemQuadIndexScanIterator<TIndexRef: IndexRef> {
+    /// A reference to the index.
+    state: ScanState<TIndexRef>,
+}
+
+impl<'index> MemQuadIndexScanIterator<DirectIndexRef<'index>> {
     /// TODO
-    pub fn new(
+    pub fn new(index: &'index MemQuadIndex, instructions: IndexScanInstructions) -> Self {
+        Self {
+            state: ScanState::CollectRelevantBatches(DirectIndexRef(index), instructions),
+        }
+    }
+}
+
+impl MemQuadIndexScanIterator<IndexRefInSet> {
+    /// TODO
+    pub fn new_from_index_set(
         index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
         index: IndexConfiguration,
         instructions: IndexScanInstructions,
     ) -> Self {
         Self {
-            state: ScanState::CollectRelevantBatches(index_set, index),
-            instructions,
+            state: ScanState::CollectRelevantBatches(
+                IndexRefInSet(index_set, index),
+                instructions,
+            ),
         }
     }
 }
 
-enum ScanState {
-    CollectRelevantBatches(Arc<OwnedRwLockReadGuard<IndexSet>>, IndexConfiguration),
-    Scanning([Vec<Arc<UInt32Array>>; 4]),
+enum ScanState<TIndexRef: IndexRef> {
+    CollectRelevantBatches(TIndexRef, IndexScanInstructions),
+    Scanning {
+        data: [Vec<Arc<UInt32Array>>; 4],
+        /// Contains the instructions to scan the index. These may differ from the instructions
+        /// in [Self::CollectRelevantBatches] if the collecting process already evaluated parts of
+        /// the filters. These filters become [None] and ideally, the index should only be scanned
+        /// after identifying the batches (we prune the first and last batch if necessary). As a
+        /// result, the iterator can simply copy the batches without any more filtering.
+        instructions: [Option<IndexScanInstruction>; 4],
+    },
     Finished,
 }
 
-impl Iterator for MemQuadIndexScanIterator {
-    type Item = RecordBatch;
+impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
+    type Item = QuadIndexBatch;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            self.state = match &self.state {
-                ScanState::CollectRelevantBatches(index_set, index) => {
-                    let index = index_set.get_index(&index).expect("Index must exist");
+            match &mut self.state {
+                ScanState::CollectRelevantBatches(index_ref, instructions) => {
+                    let index = index_ref.get_index();
                     let index_columns = index.content();
                     let batches = index_columns
                         .iter()
@@ -61,15 +88,147 @@ impl Iterator for MemQuadIndexScanIterator {
                     let batches =
                         TryInto::<[Vec<Arc<UInt32Array>>; 4]>::try_into(batches).unwrap();
 
-                    ScanState::Scanning(batches)
+                    // TODO: optimize this by only scanning the relevant batches
+
+                    if batches[0].is_empty() {
+                        self.state = ScanState::Finished;
+                    } else {
+                        self.state = ScanState::Scanning {
+                            data: batches,
+                            instructions: instructions.0.clone().map(|i| Some(i)),
+                        };
+                    }
                 }
-                ScanState::Scanning(batches) => {
-                    todo!()
+                ScanState::Scanning { data, instructions } => {
+                    assert!(!data[0].is_empty());
+
+                    let next_batch = [
+                        data[0].remove(0),
+                        data[1].remove(0),
+                        data[2].remove(0),
+                        data[3].remove(0),
+                    ];
+
+                    let selection_vector =
+                        Self::compute_selection_vector(&next_batch, instructions);
+
+                    match selection_vector {
+                        None => {
+                            let columns = next_batch
+                                .iter()
+                                .zip(instructions.iter())
+                                .filter_map(|(data, instruction)| match instruction {
+                                    Some(IndexScanInstruction::Scan(_, _)) => {
+                                        Some(data.clone() as Arc<dyn Array>)
+                                    }
+                                    _ => None,
+                                })
+                                .collect();
+
+                            if data[0].is_empty() {
+                                // This is the last iteration.
+                                self.state = ScanState::Finished;
+                            }
+
+                            return Some(QuadIndexBatch {
+                                num_rows: next_batch[0].len(),
+                                columns,
+                            });
+                        }
+                        Some(selection_vector) => {
+                            let columns = next_batch
+                                .iter()
+                                .zip(instructions.iter())
+                                .filter_map(|(data, instruction)| match instruction {
+                                    Some(IndexScanInstruction::Scan(_, _)) => Some(data),
+                                    _ => None,
+                                })
+                                .map(|data| {
+                                    filter(data.as_ref(), &selection_vector)
+                                        .expect("Array length must match")
+                                })
+                                .collect::<Vec<_>>();
+
+                            if data[0].is_empty() {
+                                // This is the last iteration.
+                                self.state = ScanState::Finished;
+                            }
+
+                            if columns.is_empty() {
+                                return Some(QuadIndexBatch {
+                                    num_rows: selection_vector.true_count(),
+                                    columns: vec![],
+                                });
+                            } else if columns[0].len() > 0 {
+                                return Some(QuadIndexBatch {
+                                    num_rows: columns[0].len(),
+                                    columns,
+                                });
+                            }
+                        }
+                    }
                 }
                 ScanState::Finished => {
                     return None;
                 }
             }
+        }
+    }
+}
+
+impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
+    fn compute_selection_vector(
+        data: &[Arc<UInt32Array>; 4],
+        instructions: &[Option<IndexScanInstruction>; 4],
+    ) -> Option<BooleanArray> {
+        data.iter()
+            .zip(instructions.iter())
+            .filter_map(|(array, instruction)| {
+                instruction
+                    .as_ref()
+                    .and_then(|i| i.predicate())
+                    .map(|p| (array, p))
+            })
+            .flat_map(|(array, predicate)| Self::apply_predicate(array, predicate))
+            .reduce(|lhs, rhs| and(&lhs, &rhs).expect("Array length must match"))
+    }
+
+    /// TODO
+    ///
+    /// We assume that the number of elements in the sets is relatively small. Therefore, doing
+    /// vectorized comparisons and merging the resulting arrays is more performant as iterating
+    /// over the array and consulting the set. In the future, one could check the size of the
+    /// set and switch to the different strategy for large predicates.
+    fn apply_predicate(
+        data: &UInt32Array,
+        predicate: &ObjectIdScanPredicate,
+    ) -> Option<BooleanArray> {
+        match predicate {
+            ObjectIdScanPredicate::In(ids) => ids
+                .iter()
+                .map(|id| {
+                    // TODO make handling default graph better. (const generic in impl)
+                    if id.as_u32() == 0 {
+                        is_null(&data).expect("null never errors")
+                    } else {
+                        eq(
+                            data,
+                            &ScalarValue::UInt32(Some(id.as_u32())).to_scalar().unwrap(),
+                        )
+                        .expect("Array length must match, Data Types match")
+                    }
+                })
+                .reduce(|lhs, rhs| or(&lhs, &rhs).expect("Array length must match")),
+            ObjectIdScanPredicate::Except(ids) => ids
+                .iter()
+                .map(|id| {
+                    neq(
+                        data,
+                        &ScalarValue::UInt32(Some(id.as_u32())).to_scalar().unwrap(),
+                    )
+                    .expect("Array length must match, Data Types match")
+                })
+                .reduce(|lhs, rhs| and(&lhs, &rhs).expect("Array length must match")),
         }
     }
 }
@@ -109,11 +268,35 @@ impl PlannedPatternScan {
                 ..
             } => {
                 let iterator =
-                    MemQuadIndexScanIterator::new(index_set, index, instructions);
+                    MemQuadIndexSetScanIterator::new(index_set, index, instructions);
                 Box::pin(cooperative(MemIndexScanStream::new(
                     schema, iterator, metrics,
                 )))
             }
         }
+    }
+}
+
+/// TODO
+pub trait IndexRef {
+    /// TODO
+    fn get_index(&self) -> &MemQuadIndex;
+}
+
+/// TODO
+pub struct IndexRefInSet(Arc<OwnedRwLockReadGuard<IndexSet>>, IndexConfiguration);
+
+impl IndexRef for IndexRefInSet {
+    fn get_index(&self) -> &MemQuadIndex {
+        self.0.get_index(&self.1).expect("Index must exist")
+    }
+}
+
+/// TODO
+pub struct DirectIndexRef<'index>(&'index MemQuadIndex);
+
+impl IndexRef for DirectIndexRef<'_> {
+    fn get_index(&self) -> &MemQuadIndex {
+        self.0
     }
 }
