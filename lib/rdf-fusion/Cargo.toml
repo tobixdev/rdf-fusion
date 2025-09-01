@@ -16,6 +16,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+datafusion.workspace = true
 rdf-fusion-common.workspace = true
 rdf-fusion-model.workspace = true
 futures.workspace = true

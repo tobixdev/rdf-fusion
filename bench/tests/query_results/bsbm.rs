@@ -30,7 +30,7 @@ use std::path::PathBuf;
 #[tokio::test]
 pub async fn bsbm_1000_test_results() {
     let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
     let benchmark = BsbmBenchmark::<ExploreUseCase>::try_new(N1_000, None).unwrap();
     let benchmark_name = benchmark.name();
     let ctx = benchmarking_context

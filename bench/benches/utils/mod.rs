@@ -1,6 +1,7 @@
 use anyhow::Context;
 use futures::StreamExt;
 use rdf_fusion::QueryResults;
+use tokio::runtime::{Builder, Runtime};
 
 pub mod verbose;
 
@@ -26,5 +27,17 @@ pub async fn consume_results(result: QueryResults) -> anyhow::Result<usize> {
             Ok(count)
         }
         _ => panic!("Unexpected QueryResults"),
+    }
+}
+
+pub fn create_runtime(target_partitions: usize) -> Runtime {
+    if target_partitions == 1 {
+        Builder::new_current_thread().enable_all().build().unwrap()
+    } else {
+        Builder::new_multi_thread()
+            .worker_threads(target_partitions)
+            .enable_all()
+            .build()
+            .unwrap()
     }
 }
