@@ -62,6 +62,22 @@ fn bench_all_binary(c: &mut Criterion) {
         (
             BuiltinName::Equal,
             vec![BinaryScenario::AllInt],
+        ),
+        (
+            BuiltinName::GreaterOrEqual,
+            vec![BinaryScenario::AllInt],
+        ),
+        (
+            BuiltinName::GreaterThan,
+            vec![BinaryScenario::AllInt],
+        ),
+        (
+            BuiltinName::LessOrEqual,
+            vec![BinaryScenario::AllInt],
+        ),
+        (
+            BuiltinName::LessThan,
+            vec![BinaryScenario::AllInt],
         )
     ]);
 
