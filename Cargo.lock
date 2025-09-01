@@ -3690,6 +3690,7 @@ name = "rdf-fusion"
 version = "0.1.0"
 dependencies = [
  "codspeed-criterion-compat",
+ "datafusion",
  "futures",
  "oxrdfio",
  "rdf-fusion-common",

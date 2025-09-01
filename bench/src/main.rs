@@ -11,6 +11,8 @@ async fn main() -> anyhow::Result<()> {
 
     let options = BenchmarkingOptions {
         verbose_results: args.verbose_results,
+        target_partitions: None,
+        memory_size: None,
     };
     execute_benchmark_operation(options, args.operation, args.benchmark).await?;
     Ok(())

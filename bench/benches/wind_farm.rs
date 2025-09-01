@@ -15,13 +15,21 @@ use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
 use tokio::runtime::{Builder, Runtime};
 
-fn wind_farm_16(c: &mut Criterion) {
-    let verbose = is_verbose();
-
-    let runtime = create_runtime();
+fn wind_farm_16_1_partition(c: &mut Criterion) {
     let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
+    wind_farm_16(c, &benchmarking_context);
+}
 
+fn wind_farm_16_4_partitions(c: &mut Criterion) {
+    let benchmarking_context =
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 4);
+    wind_farm_16(c, &benchmarking_context);
+}
+
+fn wind_farm_16(c: &mut Criterion, benchmarking_context: &RdfFusionBenchContext) {
+    let verbose = is_verbose();
+    let runtime = create_runtime();
     let benchmark = WindFarmBenchmark::new(NumTurbines::N16);
     let benchmark_name = benchmark.name();
     let benchmark_context = benchmarking_context
@@ -37,19 +45,11 @@ fn wind_farm_16(c: &mut Criterion) {
     ")
         .unwrap();
 
-    let disabled_queries = vec![
-        WindFarmQueryName::MultiGrouped1,
-        WindFarmQueryName::MultiGrouped2,
-        WindFarmQueryName::MultiGrouped3,
-        WindFarmQueryName::MultiGrouped4,
-    ];
     for query_name in WindFarmQueryName::list_queries() {
-        if disabled_queries.contains(&query_name) {
-            println!("Skipping query: {}", query_name);
-            continue;
-        }
-
-        let benchmark_name = format!("Wind Farm 16 - {query_name}");
+        let benchmark_name = format!(
+            "Wind Farm 16 (target_partitions={}) - {query_name}",
+            benchmarking_context.options().target_partitions.unwrap()
+        );
         let query =
             get_wind_farm_raw_sparql_operation(&benchmark_context, query_name).unwrap();
 
@@ -79,7 +79,7 @@ fn wind_farm_16(c: &mut Criterion) {
 criterion_group!(
     name = wind_farm;
     config = Criterion::default().sample_size(10);
-    targets = wind_farm_16
+    targets = wind_farm_16_1_partition, wind_farm_16_4_partitions
 );
 criterion_main!(wind_farm);
 

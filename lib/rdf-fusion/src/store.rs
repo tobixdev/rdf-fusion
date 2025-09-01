@@ -32,6 +32,7 @@
 
 use crate::error::{LoaderError, SerializerError};
 use crate::sparql::error::QueryEvaluationError;
+use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
 use rdf_fusion_common::error::StorageError;
@@ -101,9 +102,17 @@ impl Default for Store {
 
 impl Store {
     /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
+    ///
+    /// Equivalent to calling [Self::new_with_datafusion_config] with the default settings.
     pub fn new() -> Store {
+        Self::new_with_datafusion_config(SessionConfig::new())
+    }
+
+    /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
+    pub fn new_with_datafusion_config(config: SessionConfig) -> Store {
         let storage = MemoryQuadStorage::new();
-        let engine = RdfFusionContext::new_with_storage(Arc::new(storage.clone()));
+        let engine =
+            RdfFusionContext::new_with_storage(config, Arc::new(storage.clone()));
         Self { engine }
     }
 

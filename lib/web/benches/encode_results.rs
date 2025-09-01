@@ -1,5 +1,6 @@
 use axum_test::TestServer;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use datafusion::prelude::SessionConfig;
 use rdf_fusion::model::{GraphName, NamedNode, Quad, Subject, Term};
 use rdf_fusion::store::Store;
 use rdf_fusion_web::{AppState, create_router};
@@ -9,7 +10,8 @@ use tokio::runtime::Builder;
 fn encode_solution(criterion: &mut Criterion) {
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
-    let store = Store::new();
+    let store =
+        Store::new_with_datafusion_config(SessionConfig::new().with_target_partitions(1));
     runtime.block_on(async {
         for quad in generate_quads(8192) {
             store.insert(quad.as_ref()).await.unwrap();

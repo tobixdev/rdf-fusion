@@ -31,10 +31,12 @@ impl RdfFusionBenchContext {
     }
 
     /// Creates a new [RdfFusionBenchContext] used in the criterion benchmarks.
-    pub fn new_for_criterion(data_dir: PathBuf) -> Self {
+    pub fn new_for_criterion(data_dir: PathBuf, target_partitions: usize) -> Self {
         Self {
             options: BenchmarkingOptions {
                 verbose_results: false,
+                target_partitions: Some(target_partitions),
+                memory_size: Some(1024 * 1024 * 1024 * 4), // 4 GiB
             },
             data_dir: Mutex::new(data_dir),
             results_dir: Mutex::new(PathBuf::from("/temp")),

@@ -46,7 +46,10 @@ pub struct RdfFusionContext {
 
 impl RdfFusionContext {
     /// Creates a new [RdfFusionContext] with the default configuration and the given `storage`.
-    pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> Self {
+    pub fn new_with_storage(
+        config: SessionConfig,
+        storage: Arc<dyn QuadStorage>,
+    ) -> Self {
         // TODO make a builder
         let object_id_encoding = match storage.encoding() {
             QuadStorageEncoding::PlainTerm => None,
@@ -65,11 +68,9 @@ impl RdfFusionContext {
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
-        let config = SessionConfig::new().with_target_partitions(1);
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            // TODO: For now we use only a single partition. This should be configurable.
             .with_config(config)
             .build();
 

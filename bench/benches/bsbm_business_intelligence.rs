@@ -22,16 +22,33 @@ use rdf_fusion_bench::operation::SparqlRawOperation;
 use std::path::PathBuf;
 use tokio::runtime::{Builder, Runtime};
 
-fn bsbm_business_intelligence_10000(c: &mut Criterion) {
+fn bsbm_business_intelligence_10000_1_partition(c: &mut Criterion) {
+    let benchmarking_context =
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
+    bsbm_business_intelligence_10000(c, benchmarking_context);
+}
+
+fn bsbm_business_intelligence_10000_4_partitions(c: &mut Criterion) {
+    let benchmarking_context =
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 4);
+    bsbm_business_intelligence_10000(c, benchmarking_context);
+}
+
+fn bsbm_business_intelligence_10000(
+    c: &mut Criterion,
+    benchmarking_context: RdfFusionBenchContext,
+) {
+    let target_partitions = benchmarking_context.options().target_partitions.unwrap();
     execute_benchmark(
         c,
+        benchmarking_context,
         &|benchmark: BsbmBenchmark<BusinessIntelligenceUseCase>,
           benchmark_context: BenchmarkContext| {
             let mut queries = BsbmBusinessIntelligenceQueryName::list_queries()
                 .into_iter()
                 .map(|query_name| {
                     (
-                        format!("BSBM Business Intelligence 10000 - {query_name}"),
+                        format!("BSBM Business Intelligence 10000 (target_partitions={target_partitions}) - {query_name}"),
                         get_query_to_execute(
                             benchmark.clone(),
                             &benchmark_context,
@@ -41,9 +58,9 @@ fn bsbm_business_intelligence_10000(c: &mut Criterion) {
                 })
                 .collect::<Vec<_>>();
 
-            // Query 64 is problematic for the current implementation.
+            // Query 64 is work-intensive
             queries.push((
-                "BSBM Business Intelligence 10000 - Query 64".to_owned(),
+                format!("BSBM Business Intelligence 10000 (target_partitions={target_partitions}) - Query 64"),
                 get_nth_query_to_execute(benchmark.clone(), &benchmark_context, 64),
             ));
 
@@ -55,7 +72,7 @@ fn bsbm_business_intelligence_10000(c: &mut Criterion) {
 criterion_group!(
     name = bsbm_business_intelligence;
     config = Criterion::default().sample_size(10);
-    targets =  bsbm_business_intelligence_10000
+    targets =  bsbm_business_intelligence_10000_1_partition, bsbm_business_intelligence_10000_4_partitions
 );
 criterion_main!(bsbm_business_intelligence);
 
@@ -65,6 +82,7 @@ fn create_runtime() -> Runtime {
 
 fn execute_benchmark(
     c: &mut Criterion,
+    benchmarking_context: RdfFusionBenchContext,
     queries: &dyn Fn(
         BsbmBenchmark<BusinessIntelligenceUseCase>,
         BenchmarkContext,
@@ -75,8 +93,6 @@ fn execute_benchmark(
 ) {
     let verbose = is_verbose();
     let runtime = create_runtime();
-    let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
 
     // Load the benchmark data and set max query count to one.
     let benchmark =
