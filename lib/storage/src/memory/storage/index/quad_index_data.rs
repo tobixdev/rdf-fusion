@@ -153,7 +153,15 @@ impl IndexData {
                             from, 0,
                             "From must be 0, otherwise early terminated"
                         );
-                        new_relevant_row_groups.push(row_group.slice(from, to));
+
+                        // If the end of the range is before the end of the row group, slice and
+                        // abort
+                        if to < row_group.len() {
+                            new_relevant_row_groups.push(row_group.slice(from, to));
+                            break;
+                        } else {
+                            new_relevant_row_groups.push(row_group.clone());
+                        }
                     }
                     FindRangeResult::After => unreachable!("Column is sorted"),
                 }
@@ -658,6 +666,54 @@ mod tests {
         ")
     }
 
+    /// This test aims to test the following scenario:
+    /// - 1st row group matches completely
+    /// - 2nd row group matches partly
+    /// - 3rd row group doesn't match
+    ///
+    /// It is important that the algorithm stops after the 2nd group (the partial match).
+    #[test]
+    fn test_prune_filter_partial_match_breaks_early() {
+        let mut index = IndexData::new(5, 0);
+
+        index.insert(
+            &[
+                // 1st row group
+                quad_from_values(10, 10, 10, 10),
+                quad_from_values(10, 10, 10, 11),
+                quad_from_values(10, 10, 10, 12),
+                quad_from_values(10, 10, 10, 13),
+                quad_from_values(10, 10, 10, 14),
+                // 2nd row group
+                quad_from_values(10, 10, 10, 15),
+                quad_from_values(10, 10, 10, 16),
+                quad_from_values(10, 10, 10, 17),
+                quad_from_values(10, 10, 10, 18),
+                quad_from_values(20, 5, 5, 5),
+                // 3rd row group
+                quad_from_values(20, 5, 5, 6),
+                quad_from_values(20, 5, 5, 7),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        let predicate =
+            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        let relevant = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(relevant.len(), 2);
+        assert_eq!(relevant[0].len(), 5);
+        assert_eq!(relevant[1].len(), 4);
+    }
+
     #[test]
     fn test_prune_filter_single_quad_absent() {
         let mut index = IndexData::new(2, 0);
@@ -792,6 +848,16 @@ mod tests {
             EncodedObjectId::from(val),
             EncodedObjectId::from(val),
             EncodedObjectId::from(val),
+        ])
+    }
+
+    /// Creates a quad where all four terms have the same u32 value
+    fn quad_from_values(val1: u32, val2: u32, val3: u32, val4: u32) -> IndexedQuad {
+        IndexedQuad([
+            EncodedObjectId::from(val1),
+            EncodedObjectId::from(val2),
+            EncodedObjectId::from(val3),
+            EncodedObjectId::from(val4),
         ])
     }
 
