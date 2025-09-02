@@ -3,10 +3,10 @@ use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-mod column;
 mod components;
 mod error;
 mod quad_index;
+mod quad_index_data;
 mod scan;
 mod set;
 

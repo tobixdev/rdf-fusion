@@ -1,4 +1,5 @@
 use crate::memory::storage::index::quad_index::MemQuadIndex;
+use crate::memory::storage::index::quad_index_data::MemRowGroup;
 use crate::memory::storage::index::{
     IndexConfiguration, IndexScanInstruction, IndexScanInstructions, IndexSet,
     MemQuadIndexSetScanIterator, ObjectIdScanPredicate,
@@ -56,7 +57,8 @@ impl MemQuadIndexScanIterator<IndexRefInSet> {
 enum ScanState<TIndexRef: IndexRef> {
     CollectRelevantBatches(TIndexRef, IndexScanInstructions),
     Scanning {
-        data: [Vec<Arc<UInt32Array>>; 4],
+        /// The data to scan.
+        data: Vec<MemRowGroup>,
         /// Contains the instructions to scan the index. These may differ from the instructions
         /// in [Self::CollectRelevantBatches] if the collecting process already evaluated parts of
         /// the filters. These filters become [None] and ideally, the index should only be scanned
@@ -75,47 +77,31 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
             match &mut self.state {
                 ScanState::CollectRelevantBatches(index_ref, instructions) => {
                     let index = index_ref.get_index();
-                    let index_columns = index.content();
-                    let batches = index_columns
-                        .iter()
-                        .map(|column| {
-                            column
-                                .batches()
-                                .iter()
-                                .map(|batches| batches.clone())
-                                .collect()
-                        })
-                        .collect::<Vec<_>>();
-                    let batches =
-                        TryInto::<[Vec<Arc<UInt32Array>>; 4]>::try_into(batches).unwrap();
+                    let index_data = index.data();
+                    let row_groups = index_data.prune_relevant_row_groups(instructions);
 
-                    // TODO: optimize this by only scanning the relevant batches
-
-                    if batches[0].is_empty() {
+                    if row_groups.is_empty() {
                         self.state = ScanState::Finished;
                     } else {
                         self.state = ScanState::Scanning {
-                            data: batches,
+                            data: row_groups,
                             instructions: instructions.0.clone().map(|i| Some(i)),
                         };
                     }
                 }
                 ScanState::Scanning { data, instructions } => {
-                    assert!(!data[0].is_empty());
+                    assert!(!data.is_empty());
 
-                    let next_batch = [
-                        data[0].remove(0),
-                        data[1].remove(0),
-                        data[2].remove(0),
-                        data[3].remove(0),
-                    ];
+                    let next_row_group = data.remove(0);
+                    let batch_size = next_row_group.len();
+                    let batch = next_row_group.into_arrays();
 
                     let selection_vector =
-                        Self::compute_selection_vector(&next_batch, instructions);
+                        Self::compute_selection_vector(&batch, instructions);
 
                     match selection_vector {
                         None => {
-                            let columns = next_batch
+                            let columns = batch
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
@@ -127,18 +113,18 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 })
                                 .collect();
 
-                            if data[0].is_empty() {
+                            if data.is_empty() {
                                 // This is the last iteration.
                                 self.state = ScanState::Finished;
                             }
 
                             return Some(QuadIndexBatch {
-                                num_rows: next_batch[0].len(),
+                                num_rows: batch_size,
                                 columns,
                             });
                         }
                         Some(selection_vector) => {
-                            let columns = next_batch
+                            let columns = batch
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
@@ -156,7 +142,7 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 })
                                 .collect::<HashMap<_, _>>();
 
-                            if data[0].is_empty() {
+                            if data.is_empty() {
                                 // This is the last iteration.
                                 self.state = ScanState::Finished;
                             }

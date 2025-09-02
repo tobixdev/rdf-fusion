@@ -3868,6 +3868,7 @@ dependencies = [
  "datafusion",
  "futures",
  "insta",
+ "itertools 0.14.0",
  "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
