@@ -54,9 +54,7 @@ impl MemQuadIndex {
             to_insert.insert(quad);
         }
 
-        self.data.insert(&to_insert);
-
-        to_insert.len()
+        self.data.insert(&to_insert)
     }
 
     /// TODO

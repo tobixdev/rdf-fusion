@@ -166,24 +166,26 @@ impl IndexData {
     }
 
     /// Insert `to_insert` into the index.
-    pub fn insert(&mut self, to_insert: &BTreeSet<IndexedQuad>) {
+    pub fn insert(&mut self, to_insert: &BTreeSet<IndexedQuad>) -> usize {
+        let mut count = 0;
         let mut row_group_idx = 0;
         let mut to_insert = to_insert.into_iter().peekable();
 
         while row_group_idx < self.row_groups.len() {
             let current_row_group = &mut self.row_groups[row_group_idx];
 
-            let mut to_insert_row_group = Vec::new();
+            let mut to_insert_row_group = BTreeSet::new();
             while let Some(current_quad) = to_insert.peek() {
                 match current_row_group.find(current_quad) {
                     QuadFindResult::Before => {
-                        to_insert_row_group.push(to_insert.next().unwrap())
+                        to_insert_row_group.insert(to_insert.next().unwrap().clone());
                     }
                     QuadFindResult::Contained(_) => {
                         // Skip to the next quad if already contained.
+                        to_insert.next();
                     }
                     QuadFindResult::NotContained(_) => {
-                        to_insert_row_group.push(to_insert.next().unwrap());
+                        to_insert_row_group.insert(to_insert.next().unwrap().clone());
                     }
                     QuadFindResult::After => {
                         // Stop collecting for this row group.
@@ -191,7 +193,9 @@ impl IndexData {
                     }
                 }
             }
-            current_row_group.insert(&to_insert_row_group);
+
+            count += to_insert_row_group.len();
+            current_row_group.insert(to_insert_row_group);
 
             row_group_idx += 1;
         }
@@ -199,8 +203,11 @@ impl IndexData {
         for chunk in to_insert.chunks(self.row_group_size).into_iter() {
             let chunk = chunk.collect::<Vec<_>>();
             let new_row_group = MemRowGroup::new(chunk);
+            count += new_row_group.len();
             self.row_groups.push(new_row_group);
         }
+
+        count
     }
 
     /// TODO
@@ -255,8 +262,12 @@ impl MemRowGroup {
     /// This method assumes the following:
     /// - No quad is already contained in this row group
     /// - The list is sorted
-    pub fn insert(&self, quads: &[&IndexedQuad]) {
-        todo!()
+    pub fn insert(&mut self, mut quads: BTreeSet<IndexedQuad>) {
+        let mut new_quads = self.quads();
+        new_quads.append(&mut quads);
+
+        let new_data = Self::new(new_quads.iter().collect());
+        self.column_chunks = new_data.column_chunks;
     }
 
     /// TODO
@@ -290,8 +301,23 @@ impl MemRowGroup {
             to = new_to;
         }
 
-        debug_assert_eq!(from, to + 1, "Could not identify a single quad."); // to is exclusive
+        debug_assert_eq!(from, to - 1, "Could not identify a single quad."); // to is exclusive
         QuadFindResult::Contained(from)
+    }
+
+    /// TODO
+    fn quads(&self) -> BTreeSet<IndexedQuad> {
+        let n = self.len();
+        (0..n)
+            .map(|i| {
+                IndexedQuad([
+                    self.column_chunks[0].data.value(i).into(),
+                    self.column_chunks[1].data.value(i).into(),
+                    self.column_chunks[2].data.value(i).into(),
+                    self.column_chunks[3].data.value(i).into(),
+                ])
+            })
+            .collect()
     }
 
     /// TODO
@@ -498,6 +524,55 @@ mod tests {
         let mut index = IndexData::new(2, 0);
         let items = quad_set([0, 1, 2]);
         index.insert(&items);
+    }
+
+    #[test]
+    fn test_memrowgroup_insert_to_empty() {
+        let quads: Vec<IndexedQuad> = [10, 20, 30].into_iter().map(|i| quad(i)).collect();
+        let mut group = MemRowGroup::new(vec![]);
+
+        group.insert(quads.into_iter().collect());
+        let arrays = group.clone().into_arrays();
+        let values = arrays[0].values();
+        assert_eq!(values, &[10, 20, 30]);
+    }
+
+    #[test]
+    fn test_memrowgroup_insert_appends_to_existing() {
+        // Insert after initial values, nothing overlaps
+        let initial: Vec<IndexedQuad> = [10, 20].into_iter().map(|i| quad(i)).collect();
+        let mut group = MemRowGroup::new(initial.iter().collect());
+        let new_quads: Vec<IndexedQuad> = [30, 40].into_iter().map(|i| quad(i)).collect();
+
+        group.insert(new_quads.into_iter().collect());
+        let arrays = group.clone().into_arrays();
+        let values = arrays[0].values();
+        assert_eq!(values, &[10, 20, 30, 40]);
+    }
+
+    #[test]
+    fn test_memrowgroup_insert_inserts_in_middle() {
+        // Insert in the middle
+        let initial: Vec<IndexedQuad> = [10, 30].into_iter().map(|i| quad(i)).collect();
+        let mut group = MemRowGroup::new(initial.iter().collect());
+        let new_quads: Vec<IndexedQuad> = [20].into_iter().map(|i| quad(i)).collect();
+
+        group.insert(new_quads.into_iter().collect());
+        let arrays = group.clone().into_arrays();
+        let values = arrays[0].values();
+        assert_eq!(values, &[10, 20, 30]);
+    }
+
+    #[test]
+    fn test_memrowgroup_insert_with_nulls() {
+        let initial: Vec<IndexedQuad> = [0, 2].into_iter().map(|i| quad(i)).collect();
+        let mut group = MemRowGroup::new(initial.iter().collect());
+
+        let new_quads: Vec<IndexedQuad> = [1].into_iter().map(|i| quad(i)).collect();
+        group.insert(new_quads.into_iter().collect());
+
+        let arrays = group.clone().into_arrays();
+        assert_eq!(arrays[0].values(), &[0, 1, 2]);
     }
 
     #[test]
