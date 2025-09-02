@@ -14,12 +14,13 @@ use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_plan::EmptyRecordBatchStream;
 use rdf_fusion_model::{TriplePattern, Variable};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::OwnedRwLockReadGuard;
 
 pub struct QuadIndexBatch {
     pub num_rows: usize,
-    pub columns: Vec<Arc<dyn Array>>,
+    pub columns: HashMap<String, Arc<dyn Array>>,
 }
 
 pub struct MemQuadIndexScanIterator<TIndexRef: IndexRef> {
@@ -118,9 +119,10 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
-                                    Some(IndexScanInstruction::Scan(_, _)) => {
-                                        Some(data.clone() as Arc<dyn Array>)
-                                    }
+                                    Some(IndexScanInstruction::Scan(name, _)) => Some((
+                                        name.as_str().to_owned(),
+                                        data.clone() as Arc<dyn Array>,
+                                    )),
                                     _ => None,
                                 })
                                 .collect();
@@ -140,31 +142,34 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
-                                    Some(IndexScanInstruction::Scan(_, _)) => Some(data),
+                                    Some(IndexScanInstruction::Scan(name, _)) => {
+                                        Some((name.as_str().to_owned(), data))
+                                    }
                                     _ => None,
                                 })
-                                .map(|data| {
-                                    filter(data.as_ref(), &selection_vector)
-                                        .expect("Array length must match")
+                                .map(|(name, data)| {
+                                    (
+                                        name,
+                                        filter(data.as_ref(), &selection_vector)
+                                            .expect("Array length must match"),
+                                    )
                                 })
-                                .collect::<Vec<_>>();
+                                .collect::<HashMap<_, _>>();
 
                             if data[0].is_empty() {
                                 // This is the last iteration.
                                 self.state = ScanState::Finished;
                             }
 
-                            if columns.is_empty() {
-                                return Some(QuadIndexBatch {
-                                    num_rows: selection_vector.true_count(),
-                                    columns: vec![],
-                                });
-                            } else if columns[0].len() > 0 {
-                                return Some(QuadIndexBatch {
-                                    num_rows: columns[0].len(),
-                                    columns,
-                                });
+                            // Don't return empty batches.
+                            if selection_vector.true_count() == 0 {
+                                continue;
                             }
+
+                            return Some(QuadIndexBatch {
+                                num_rows: selection_vector.true_count(),
+                                columns,
+                            });
                         }
                     }
                 }
@@ -267,8 +272,12 @@ impl PlannedPatternScan {
                 instructions,
                 ..
             } => {
-                let iterator =
-                    MemQuadIndexSetScanIterator::new(index_set, index, instructions);
+                let iterator = MemQuadIndexSetScanIterator::new(
+                    schema.clone(),
+                    index_set,
+                    index,
+                    instructions,
+                );
                 Box::pin(cooperative(MemIndexScanStream::new(
                     schema, iterator, metrics,
                 )))
@@ -288,7 +297,7 @@ pub struct IndexRefInSet(Arc<OwnedRwLockReadGuard<IndexSet>>, IndexConfiguration
 
 impl IndexRef for IndexRefInSet {
     fn get_index(&self) -> &MemQuadIndex {
-        self.0.get_index(&self.1).expect("Index must exist")
+        self.0.find_index(&self.1).expect("Index must exist")
     }
 }
 

@@ -26,7 +26,7 @@ impl MemQuadIndex {
     }
 
     /// Returns a reference to the content of the index.
-    pub fn content(&self) -> &[IndexColumn<UInt32Array>; 4] {
+    pub(super) fn content(&self) -> &[IndexColumn<UInt32Array>; 4] {
         &self.content
     }
 

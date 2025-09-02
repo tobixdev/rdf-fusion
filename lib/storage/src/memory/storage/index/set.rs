@@ -1,15 +1,15 @@
 use crate::memory::encoding::EncodedQuad;
 use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId};
 use crate::memory::storage::index::quad_index::MemQuadIndex;
-use crate::memory::storage::index::scan::QuadIndexBatch;
 use crate::memory::storage::index::{
-    IndexComponents, IndexConfiguration, IndexRefInSet, IndexScanInstruction,
-    IndexScanInstructions, IndexedQuad, MemQuadIndexScanIterator,
+    IndexComponents, IndexConfiguration, IndexRefInSet, IndexScanInstructions,
+    IndexedQuad, MemQuadIndexScanIterator,
 };
-use datafusion::arrow::array::Array;
+use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
+use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::OwnedRwLockReadGuard;
 
@@ -53,24 +53,23 @@ impl IndexSet {
         }
     }
 
-    /// Returns
-    pub fn get_index(
+    /// Finds an index with the given `configuration`.
+    pub fn find_index(
         &self,
-        index_configuration: &IndexConfiguration,
+        configuration: &IndexConfiguration,
     ) -> Option<&MemQuadIndex> {
         self.indexes
             .iter()
-            .filter(|index| index.configuration() == index_configuration)
+            .filter(|index| index.configuration() == configuration)
             .next()
     }
 
-    /// Choses the index with the highest scan score (see [Self::compute_scan_score]).
-    pub fn choose_index(
-        &self,
-        pattern: &IndexScanInstructions,
-    ) -> (&MemQuadIndex, IndexScanInstructions) {
-        let index = self
-            .indexes
+    /// Chooses the index for scanning the given `pattern`.
+    ///
+    /// This returns an [IndexConfiguration] that identifies the chosen index. Use
+    /// [MemQuadIndexSetScanIterator] for executing the scan operation.
+    pub fn choose_index(&self, pattern: &IndexScanInstructions) -> IndexConfiguration {
+        self.indexes
             .iter()
             .rev() // Prefer SPO (max by uses the last on equality)
             .max_by(|lhs, rhs| {
@@ -80,11 +79,9 @@ impl IndexSet {
                     compute_scan_score(&rhs.configuration().components, pattern);
                 lhs_score.cmp(&rhs_score)
             })
-            .expect("At least one index must be available");
-
-        let reordered_pattern =
-            reorder_pattern(pattern, &index.configuration().components);
-        (index, reordered_pattern)
+            .expect("At least one index must be available")
+            .configuration()
+            .clone()
     }
 
     pub fn len(&self) -> usize {
@@ -158,42 +155,47 @@ impl IndexSet {
 
 /// TODO
 pub struct MemQuadIndexSetScanIterator {
-    instructions: IndexScanInstructions,
-    components: IndexComponents,
+    /// TODO
+    schema: SchemaRef,
+    /// TODO
     inner: MemQuadIndexScanIterator<IndexRefInSet>,
 }
 
 impl MemQuadIndexSetScanIterator {
+    /// TODO
     pub fn new(
+        schema: SchemaRef,
         index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
         index: IndexConfiguration,
         instructions: IndexScanInstructions,
     ) -> Self {
-        let components = index.components.clone();
+        let instructions = reorder_pattern(&instructions, &index.components);
         let iterator = MemQuadIndexScanIterator::new_from_index_set(
             index_set,
             index,
             instructions.clone(),
         );
         MemQuadIndexSetScanIterator {
-            instructions,
-            components,
+            schema,
             inner: iterator,
         }
     }
 }
 
 impl Iterator for MemQuadIndexSetScanIterator {
-    type Item = QuadIndexBatch;
+    type Item = RecordBatch;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.inner.next()?;
-        let reordered =
-            reorder_result(next.columns, &self.instructions, &self.components);
-        Some(QuadIndexBatch {
-            num_rows: next.num_rows,
-            columns: reordered,
-        })
+        let reordered = reorder_result(&self.schema, next.columns);
+        Some(
+            RecordBatch::try_new_with_options(
+                self.schema.clone(),
+                reordered,
+                &RecordBatchOptions::new().with_row_count(Some(next.num_rows)),
+            )
+            .expect("Creates valid record batches"),
+        )
     }
 }
 
@@ -250,29 +252,19 @@ fn reorder_pattern(
 
 /// Re-orders the given `pattern` for the given `components`.
 fn reorder_result(
-    columns: Vec<Arc<dyn Array>>,
-    instructions: &IndexScanInstructions,
-    components: &IndexComponents,
+    schema: &Schema,
+    columns: HashMap<String, Arc<dyn Array>>,
 ) -> Vec<Arc<dyn Array>> {
-    let mut reordered = Vec::new();
-    let mut seen = HashSet::new();
-
-    for i in 0..4 {
-        let idx_reordered = components
-            .inner()
-            .iter()
-            .position(|c| c.gspo_index() == i)
-            .unwrap();
-        if let Some(variable) = instructions.0[idx_reordered].scan_variable() {
-            let inserted = seen.insert(variable);
-            if inserted {
-                reordered.push(columns[seen.len() - 1].clone());
-            }
-        }
-    }
-
-    debug_assert_eq!(columns.len(), reordered.len());
-    columns
+    schema
+        .fields()
+        .iter()
+        .map(|field| {
+            columns
+                .get(field.name())
+                .expect("Column must exist for scan")
+                .clone()
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -281,6 +273,7 @@ mod tests {
     use crate::memory::storage::index::{
         IndexScanInstruction, IndexScanInstructions, ObjectIdScanPredicate,
     };
+    use datafusion::arrow::datatypes::{DataType, Field, Fields};
     use insta::assert_debug_snapshot;
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
     use std::collections::HashSet;
@@ -297,14 +290,10 @@ mod tests {
             traverse_and_filter(4),
         ]);
 
-        let (index, new_instructions) = set.choose_index(&pattern);
+        let result = set.choose_index(&pattern);
 
-        assert_eq!(index.configuration().components, IndexComponents::GSPO);
-        assert_eq!(
-            compute_scan_score(&index.configuration().components, &pattern),
-            15
-        );
-        assert_eq!(new_instructions, pattern)
+        assert_eq!(result.components, IndexComponents::GSPO);
+        assert_eq!(compute_scan_score(&result.components, &pattern), 15);
     }
 
     #[test]
@@ -318,21 +307,9 @@ mod tests {
             traverse_and_filter(3),
         ]);
 
-        let (index, new_instructions) = set.choose_index(&pattern);
-        assert_eq!(index.configuration().components, IndexComponents::GOSP);
-        assert_eq!(
-            compute_scan_score(&index.configuration().components, &pattern),
-            14
-        );
-        assert_eq!(
-            new_instructions,
-            IndexScanInstructions([
-                traverse_and_filter(0),
-                traverse_and_filter(3),
-                traverse_and_filter(1),
-                IndexScanInstruction::Scan(Arc::new("predicate".to_string()), None),
-            ])
-        )
+        let result = set.choose_index(&pattern);
+        assert_eq!(result.components, IndexComponents::GOSP);
+        assert_eq!(compute_scan_score(&result.components, &pattern), 14);
     }
 
     #[test]
@@ -346,26 +323,62 @@ mod tests {
             IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
         ]);
 
-        let (index, new_instructions) = set.choose_index(&pattern);
+        let result = set.choose_index(&pattern);
 
-        assert_eq!(index.configuration().components, IndexComponents::GPOS);
+        assert_eq!(result.components, IndexComponents::GPOS);
+        assert_eq!(compute_scan_score(&result.components, &pattern), 12);
+    }
+
+    #[test]
+    fn test_reorder_quad_gspo() {
+        let quad = dummy_quad();
+        let reordered = reorder_quad(&quad, &IndexComponents::GSPO);
+        assert_eq!(reordered.0, [oid(1), oid(2), oid(3), oid(4)]);
+    }
+
+    #[test]
+    fn test_reorder_quad_gpos() {
+        let quad = dummy_quad();
+        let reordered = reorder_quad(&quad, &IndexComponents::GPOS);
+        assert_eq!(reordered.0, [oid(1), oid(3), oid(4), oid(2)]);
+    }
+
+    #[test]
+    fn test_reorder_pattern_gspo() {
+        let pattern = IndexScanInstructions([
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
+        ]);
+        let reordered = reorder_pattern(&pattern, &IndexComponents::GSPO);
+        assert_eq!(reordered.0, pattern.0);
+    }
+
+    #[test]
+    fn test_reorder_pattern_gpos() {
+        let pattern = IndexScanInstructions([
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Scan(Arc::new("O".to_string()), None),
+        ]);
+
+        let reordered = reorder_pattern(&pattern, &IndexComponents::GPOS);
+
         assert_eq!(
-            compute_scan_score(&index.configuration().components, &pattern),
-            12
+            reordered.0,
+            [
+                IndexScanInstruction::Traverse(None),
+                IndexScanInstruction::Traverse(None),
+                IndexScanInstruction::Scan(Arc::new("O".to_string()), None),
+                IndexScanInstruction::Traverse(None),
+            ]
         );
-        assert_eq!(
-            new_instructions,
-            IndexScanInstructions([
-                traverse_and_filter(0),
-                traverse_and_filter(2),
-                IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
-                IndexScanInstruction::Scan(Arc::new("subject".to_string()), None),
-            ])
-        )
     }
 
     #[tokio::test]
-    async fn scan_subject_and_object() {
+    async fn scan_gpos_subject_and_object() {
         let set = RwLock::new(create_index_set());
         set.write()
             .await
@@ -384,15 +397,63 @@ mod tests {
             IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
         ]);
 
-        let set_lock = Arc::new(Arc::new(set).read_owned().await);
-        let (index, new_instructions) = set_lock.choose_index(&pattern);
-        let configuration = index.configuration().clone();
+        let schema = Arc::new(Schema::new(Fields::from(vec![
+            Field::new("subject", DataType::UInt32, false),
+            Field::new("object", DataType::UInt32, false),
+        ])));
 
-        let mut scan =
-            MemQuadIndexSetScanIterator::new(set_lock, configuration, new_instructions);
+        let set_lock = Arc::new(Arc::new(set).read_owned().await);
+        let configuration = set_lock.choose_index(&pattern);
+
+        let mut scan = MemQuadIndexSetScanIterator::new(
+            schema,
+            set_lock,
+            configuration.clone(),
+            pattern,
+        );
 
         let batch = scan.next().unwrap();
-        assert_debug_snapshot!(batch.columns, @r"");
+        assert_eq!(configuration.components, IndexComponents::GPOS);
+        assert_debug_snapshot!(batch, @r#"
+        RecordBatch {
+            schema: Schema {
+                fields: [
+                    Field {
+                        name: "subject",
+                        data_type: UInt32,
+                        nullable: false,
+                        dict_id: 0,
+                        dict_is_ordered: false,
+                        metadata: {},
+                    },
+                    Field {
+                        name: "object",
+                        data_type: UInt32,
+                        nullable: false,
+                        dict_id: 0,
+                        dict_is_ordered: false,
+                        metadata: {},
+                    },
+                ],
+                metadata: {},
+            },
+            columns: [
+                PrimitiveArray<UInt32>
+                [
+                  2,
+                ],
+                PrimitiveArray<UInt32>
+                [
+                  4,
+                ],
+            ],
+            row_count: 1,
+        }
+        "#);
+    }
+
+    fn dummy_quad() -> IndexedQuad {
+        IndexedQuad([oid(1), oid(2), oid(3), oid(4)])
     }
 
     fn create_index_set() -> IndexSet {

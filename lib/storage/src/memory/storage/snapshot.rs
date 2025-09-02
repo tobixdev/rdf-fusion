@@ -88,12 +88,12 @@ impl MemQuadStorageSnapshot {
             IndexScanInstruction::from(enc_pattern.object.clone()),
         ]);
 
-        let (index, instructions) = self.index_set.choose_index(&scan_instructions);
+        let index = self.index_set.choose_index(&scan_instructions);
         Ok(PlannedPatternScan::IndexScan {
             schema,
             index_set: self.index_set.clone(),
-            index: index.configuration().clone(),
-            instructions,
+            index,
+            instructions: scan_instructions,
             graph_variable,
             pattern,
         })

@@ -1,7 +1,5 @@
-use crate::memory::storage::index::{
-    IndexRefInSet, MemQuadIndexScanIterator, MemQuadIndexSetScanIterator,
-};
-use datafusion::arrow::array::{RecordBatch, RecordBatchOptions};
+use crate::memory::storage::index::MemQuadIndexSetScanIterator;
+use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::execution::RecordBatchStream;
 use datafusion::physical_plan::metrics::BaselineMetrics;
@@ -50,12 +48,6 @@ impl Stream for MemIndexScanStream {
         let batch = iterator.next();
 
         if let Some(batch) = batch {
-            let batch = RecordBatch::try_new_with_options(
-                self.schema.clone(),
-                batch.columns,
-                &RecordBatchOptions::new().with_row_count(Some(batch.num_rows)),
-            )
-            .unwrap();
             metrics.record_output(batch.num_rows());
             Poll::Ready(Some(Ok(batch)))
         } else {

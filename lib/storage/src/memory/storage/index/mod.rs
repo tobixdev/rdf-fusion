@@ -16,7 +16,7 @@ pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
 pub use scan::{
-    DirectIndexRef, IndexRef, IndexRefInSet, MemQuadIndexScanIterator, PlannedPatternScan,
+    DirectIndexRef, IndexRefInSet, MemQuadIndexScanIterator, PlannedPatternScan,
 };
 pub use set::{IndexSet, MemQuadIndexSetScanIterator};
 
@@ -161,7 +161,6 @@ mod tests {
     use datafusion::arrow::array::Array;
     use insta::assert_debug_snapshot;
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-    use std::sync::RwLock;
 
     #[tokio::test]
     async fn insert_and_scan_triple() {
@@ -197,13 +196,15 @@ mod tests {
         let result = iter.next();
 
         assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().columns[0], @r"
-        PrimitiveArray<UInt32>
-        [
-          3,
-          4,
-        ]
-        ");
+        assert_debug_snapshot!(result.unwrap().columns, @r#"
+        {
+            "d": PrimitiveArray<UInt32>
+            [
+              3,
+              4,
+            ],
+        }
+        "#);
     }
 
     #[tokio::test]
@@ -223,13 +224,15 @@ mod tests {
         let result = iter.next();
 
         assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().columns[0], @r"
-        PrimitiveArray<UInt32>
-        [
-          2,
-          3,
-        ]
-        ");
+        assert_debug_snapshot!(result.unwrap().columns, @r#"
+        {
+            "c": PrimitiveArray<UInt32>
+            [
+              2,
+              3,
+            ],
+        }
+        "#);
     }
 
     #[tokio::test]
@@ -489,7 +492,7 @@ mod tests {
 
         assert_eq!(results.num_rows, expected_rows);
         assert_eq!(results.columns.len(), expected_columns);
-        for result in results.columns {
+        for (_, result) in results.columns {
             assert_eq!(result.len(), expected_rows);
         }
     }
