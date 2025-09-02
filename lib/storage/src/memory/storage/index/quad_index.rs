@@ -46,11 +46,27 @@ impl MemQuadIndex {
     pub fn insert(&mut self, quads: impl IntoIterator<Item = IndexedQuad>) -> usize {
         let mut to_insert = BTreeMap::new();
 
+        let mut count = 0;
+
         for quad in quads {
             let Some(idx) = self.find_quad_insertion_index(&quad) else {
                 continue;
             };
             to_insert.entry(idx).or_insert(BTreeSet::new()).insert(quad);
+            count += 1;
+
+            if count % self.configuration.batch_size == 0 {
+                for element in 0..4 {
+                    let to_insert_column = to_insert
+                        .iter()
+                        .flat_map(|(idx, quads)| {
+                            quads.iter().map(|quad| (*idx, quad.0[element]))
+                        })
+                        .collect::<Vec<_>>();
+                    self.content[element].insert(&to_insert_column)
+                }
+                to_insert.clear();
+            }
         }
 
         for element in 0..4 {
@@ -61,7 +77,7 @@ impl MemQuadIndex {
             self.content[element].insert(&to_insert_column)
         }
 
-        to_insert.len()
+        count
     }
 
     /// TODO

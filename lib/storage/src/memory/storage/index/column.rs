@@ -1,3 +1,4 @@
+use std::cmp::min;
 use crate::memory::object_id::EncodedObjectId;
 use datafusion::arrow::array::UInt32Array;
 use std::fmt::Debug;
@@ -38,7 +39,7 @@ impl<TIndexArray: IndexArray> IndexColumn<TIndexArray> {
 
     /// Returns the number of elements in the column.
     pub fn len(&self) -> usize {
-        self.data.len()
+        TIndexArray::len(&self.data)
     }
 
     /// Finds the range of indices that contain the given object id.
@@ -190,7 +191,7 @@ impl IndexArray for UInt32Array {
                 }
 
                 let local_start = start.saturating_sub(global_offset);
-                let local_end = end - global_offset;
+                let local_end = min(end - global_offset, batch.len());
                 let slice = &batch.values()[local_start..local_end];
                 if let Ok(mut idx) = slice.binary_search(&object_id.as_u32()) {
                     while idx < slice.len() - 1 && slice[idx + 1] == slice[idx] {
@@ -263,7 +264,8 @@ impl IndexArray for UInt32Array {
 
             // insert in ascending order of index
             for (rel_idx, obj) in insertions.iter().rev() {
-                if is_nullable && obj.as_u32() == 0 {
+                if obj.as_u32() == 0 {
+                    assert!(is_nullable, "Inserting 0 in a non-nullable column");
                     vec.insert(*rel_idx, None);
                 } else {
                     vec.insert(*rel_idx, Some(obj.as_u32()));
@@ -318,7 +320,8 @@ impl IndexArray for UInt32Array {
         let mut batch = Vec::new();
         while let Some((index, value)) = ins_iter.next() {
             debug_assert_eq!(*index, global_offset, "Invalid insertion index");
-            if is_nullable && value.as_u32() == 0 {
+            if value.as_u32() == 0 {
+                assert!(is_nullable, "Inserting 0 in a non-nullable column");
                 batch.push(None);
             } else {
                 batch.push(Some(value.as_u32()));
@@ -420,6 +423,14 @@ mod tests {
     }
 
     #[test]
+    fn insert_multiple() {
+        let mut data = column([vec![]]);
+        data.insert(&[(0, enc(2)), (0, enc(4))]);
+        data.insert(&[(0, enc(2)), (1, enc(4))]);
+        assert_eq!(data.data, column([vec![2, 2, 4, 4]]).data);
+    }
+
+    #[test]
     fn insert_with_empty_column() {
         let mut data = column([]);
         data.insert(&[(0, enc(1)), (0, enc(2))]);
@@ -438,6 +449,13 @@ mod tests {
         let mut data = column_with_batch_size(4, false, [vec![1, 2, 3, 4]]);
         data.insert(&[(0, enc(1)), (3, enc(4))]);
         assert_eq!(data.data, column([vec![1, 1, 2], vec![3, 4, 4]]).data);
+    }
+
+    #[test]
+    #[should_panic]
+    fn insert_0_non_nullable_inserts_panics() {
+        let mut data = column_with_batch_size(4, false, []);
+        data.insert(&[(0, enc(0)), (0, enc(1))]);
     }
 
     #[test]

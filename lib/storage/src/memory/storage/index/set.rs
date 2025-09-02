@@ -99,7 +99,7 @@ impl IndexSet {
             count = index.insert(quads);
         }
 
-        for quad in quads {
+        for quad in quads.iter().filter(|q| !q.graph_name.is_default_graph()) {
             self.named_graphs.insert(quad.graph_name.0);
         }
 
