@@ -142,14 +142,11 @@ impl IndexData {
             for row_group in &relevant_row_groups[first_row_group + 1..] {
                 let column_chunk = &row_group.column_chunks[column_idx];
                 match column_chunk.find_range(id, 0, column_chunk.len()) {
-                    FindRangeResult::Before => {
-                        new_relevant_row_groups.push(row_group.clone());
-                    }
-                    FindRangeResult::NotContained(_) => {
+                    FindRangeResult::Before | FindRangeResult::NotContained(_) => {
                         break;
                     }
                     FindRangeResult::Contained(from, to) => {
-                        debug_assert_eq!(
+                        assert_eq!(
                             from, 0,
                             "From must be 0, otherwise early terminated"
                         );
