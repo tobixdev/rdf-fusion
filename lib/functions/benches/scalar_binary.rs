@@ -49,6 +49,7 @@ impl BinaryScenario {
     }
 }
 
+//TODO: write run for BuiltinName::SameTerm; add other scenarios
 fn bench_all_binary(c: &mut Criterion) {
     let encodings = RdfFusionEncodings::new(
         PLAIN_TERM_ENCODING,
