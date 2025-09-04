@@ -30,3 +30,7 @@ workspace = true
 [[bench]]
 name = "scalar"
 harness = false
+
+[[bench]]
+name = "scalar_binary"
+harness = false
