@@ -1,15 +1,15 @@
+use crate::memory::MemObjectIdMapping;
 use crate::memory::encoding::{
     EncodedActiveGraph, EncodedTermPattern, EncodedTriplePattern,
 };
 use crate::memory::storage::index::{
     IndexScanInstruction, IndexScanInstructions, IndexSet, PlannedPatternScan,
 };
-use crate::memory::MemObjectIdMapping;
 use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_logical::ActiveGraph;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::{
     NamedOrBlankNode, NamedOrBlankNodeRef, TermPattern, TriplePattern, Variable,
 };
@@ -95,7 +95,7 @@ impl MemQuadStorageSnapshot {
             index,
             instructions: scan_instructions,
             graph_variable,
-            pattern,
+            pattern: Box::new(pattern),
         })
     }
 

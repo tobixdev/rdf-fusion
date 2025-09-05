@@ -58,14 +58,15 @@ impl MemQuadIndex {
     }
 
     /// TODO
-    pub fn clear(&mut self) -> () {
-        self.data = IndexData::new(self.configuration.batch_size, self.data.nullable_position());
+    pub fn clear(&mut self) {
+        self.data =
+            IndexData::new(self.configuration.batch_size, self.data.nullable_position());
     }
 
     /// Removes a list of quads.
     ///
     /// Quads that do not exist in the index are ignored.
-    pub fn remove(&mut self, quads: impl IntoIterator<Item = IndexedQuad>) -> usize {
+    pub fn remove(&mut self, _quads: impl IntoIterator<Item = IndexedQuad>) -> usize {
         todo!()
     }
 

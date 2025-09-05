@@ -23,30 +23,24 @@ const SIZE: u8 = 4;
 /// byte array. The idea is to support arbitrary byte-arrays for object ids in the future. These are
 /// the remains of one such experiment and should be furthered in the future.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub struct EncodedObjectId([u8; SIZE as usize]);
+pub struct EncodedObjectId(u32);
 
 impl EncodedObjectId {
-    pub const SIZE: u8 = SIZE;
+    pub const SIZE: u8 = 4;
     pub const SIZE_I32: i32 = SIZE as i32;
 
     pub fn as_object_id(&self) -> ObjectId {
-        ObjectId::from(u32::from_ne_bytes(self.0))
+        ObjectId::from(self.0)
     }
 
     pub fn as_u32(&self) -> u32 {
-        u32::from_ne_bytes(self.0)
+        self.0
     }
 }
 
 impl From<u32> for EncodedObjectId {
     fn from(value: u32) -> Self {
-        Self(value.to_ne_bytes())
-    }
-}
-
-impl AsRef<[u8]> for EncodedObjectId {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
+        Self(value)
     }
 }
 
@@ -58,7 +52,8 @@ impl TryFrom<&[u8]> for EncodedObjectId {
     type Error = InvalidObjectIdError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        TryInto::<[u8; EncodedObjectId::SIZE as usize]>::try_into(value.as_bytes())
+        TryInto::<[u8; 4]>::try_into(value.as_bytes())
+            .map(u32::from_ne_bytes)
             .map(Self)
             .map_err(|_| InvalidObjectIdError)
     }
@@ -66,7 +61,7 @@ impl TryFrom<&[u8]> for EncodedObjectId {
 
 /// The id of the default graph.
 pub const DEFAULT_GRAPH_ID: EncodedGraphObjectId =
-    EncodedGraphObjectId(EncodedObjectId([0; SIZE as usize]));
+    EncodedGraphObjectId(EncodedObjectId(0));
 
 /// Wraps an [EncodedObjectId] to indicate that the id may represent the default graph.
 ///
@@ -120,7 +115,7 @@ mod tests {
     fn test_from_byte_slice_success() {
         let array: [u8; 4] = [0x56, 0x78, 0x9A, 0xBC];
         let id = EncodedObjectId::try_from(array.as_slice()).unwrap();
-        assert_eq!(id.0, [0x56, 0x78, 0x9A, 0xBC]);
+        assert_eq!(id.0.to_ne_bytes(), [0x56, 0x78, 0x9A, 0xBC]);
     }
 
     #[test]

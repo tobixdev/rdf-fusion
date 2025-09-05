@@ -60,8 +60,7 @@ impl IndexSet {
     ) -> Option<&MemQuadIndex> {
         self.indexes
             .iter()
-            .filter(|index| index.configuration() == configuration)
-            .next()
+            .find(|index| index.configuration() == configuration)
     }
 
     /// Chooses the index for scanning the given `pattern`.
@@ -91,7 +90,7 @@ impl IndexSet {
     pub fn insert(&mut self, quads: &[EncodedQuad]) -> Result<usize, StorageError> {
         let mut count = 0;
         for index in self.indexes.iter_mut() {
-            let components = index.configuration().components.clone();
+            let components = index.configuration().components;
             let quads = quads
                 .iter()
                 .map(|q| IndexedQuad([q.graph_name.0, q.subject, q.predicate, q.object]))
@@ -109,7 +108,7 @@ impl IndexSet {
     pub fn remove(&mut self, quads: &[EncodedQuad]) -> usize {
         let mut count = 0;
         for index in self.indexes.iter_mut() {
-            let components = index.configuration().components.clone();
+            let components = index.configuration().components;
             let quads = quads
                 .iter()
                 .map(|q| IndexedQuad([q.graph_name.0, q.subject, q.predicate, q.object]))
@@ -137,11 +136,7 @@ impl IndexSet {
         }
     }
 
-    pub fn clear_graph(&mut self, graph_name: EncodedGraphObjectId) {
-        for index in self.indexes.iter_mut() {
-            todo!()
-        }
-    }
+    pub fn clear_graph(&mut self, _graph_name: EncodedGraphObjectId) {}
 
     pub fn drop_named_graph(&mut self, graph_name: EncodedObjectId) -> bool {
         self.clear_graph(EncodedGraphObjectId(graph_name));

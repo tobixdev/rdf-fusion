@@ -22,7 +22,7 @@
 use crate::query_results::{run_graph_result_query, run_select_query};
 use insta::assert_snapshot;
 use rdf_fusion_bench::benchmarks::Benchmark;
-use rdf_fusion_bench::benchmarks::bsbm::NumProducts::{N10_000, N1_000};
+use rdf_fusion_bench::benchmarks::bsbm::NumProducts::{N1_000, N10_000};
 use rdf_fusion_bench::benchmarks::bsbm::{BsbmBenchmark, ExploreUseCase};
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
@@ -39,51 +39,51 @@ pub async fn bsbm_1000_test_results() {
 
     let store = benchmark.prepare_store(&ctx).await.unwrap();
 
-    // assert_snapshot!(
-    //     "Explore Q1",
-    //     run_select_query(&store, include_str!("./queries/explore-q1.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q2",
-    //     run_select_query(&store, include_str!("./queries/explore-q2.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q3",
-    //     run_select_query(&store, include_str!("./queries/explore-q3.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q4",
-    //     run_select_query(&store, include_str!("./queries/explore-q4.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q5",
-    //     run_select_query(&store, include_str!("./queries/explore-q5.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q7",
-    //     run_select_query(&store, include_str!("./queries/explore-q7.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q8",
-    //     run_select_query(&store, include_str!("./queries/explore-q8.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q9",
-    //     run_graph_result_query(&store, include_str!("./queries/explore-q9.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q10",
-    //     run_select_query(&store, include_str!("./queries/explore-q10.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q11",
-    //     run_select_query(&store, include_str!("./queries/explore-q11.sparql")).await
-    // );
-    // assert_snapshot!(
-    //     "Explore Q12",
-    //     run_graph_result_query(&store, include_str!("./queries/explore-q12.sparql"))
-    //         .await
-    // );
+    assert_snapshot!(
+        "Explore Q1",
+        run_select_query(&store, include_str!("./queries/explore-q1.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q2",
+        run_select_query(&store, include_str!("./queries/explore-q2.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q3",
+        run_select_query(&store, include_str!("./queries/explore-q3.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q4",
+        run_select_query(&store, include_str!("./queries/explore-q4.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q5",
+        run_select_query(&store, include_str!("./queries/explore-q5.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q7",
+        run_select_query(&store, include_str!("./queries/explore-q7.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q8",
+        run_select_query(&store, include_str!("./queries/explore-q8.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q9",
+        run_graph_result_query(&store, include_str!("./queries/explore-q9.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q10",
+        run_select_query(&store, include_str!("./queries/explore-q10.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q11",
+        run_select_query(&store, include_str!("./queries/explore-q11.sparql")).await
+    );
+    assert_snapshot!(
+        "Explore Q12",
+        run_graph_result_query(&store, include_str!("./queries/explore-q12.sparql"))
+            .await
+    );
 
     assert_snapshot!(
         "Business Intelligence Q1",

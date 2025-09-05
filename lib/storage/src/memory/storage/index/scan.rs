@@ -11,9 +11,9 @@ use datafusion::arrow::compute::{and, filter, is_null, or};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::ScalarValue;
 use datafusion::execution::SendableRecordBatchStream;
+use datafusion::physical_plan::EmptyRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use datafusion::physical_plan::EmptyRecordBatchStream;
 use rdf_fusion_model::{TriplePattern, Variable};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -241,7 +241,7 @@ pub enum PlannedPatternScan {
         /// The graph variable. Used for printing the query plan.
         graph_variable: Option<Variable>,
         /// The triple pattern. Used for printing the query plan.
-        pattern: TriplePattern,
+        pattern: Box<TriplePattern>,
     },
 }
 

@@ -4,29 +4,8 @@ use crate::memory::storage::index::{
 };
 use datafusion::arrow::array::{Array, UInt32Array};
 use itertools::Itertools;
-use std::cmp::min;
 use std::collections::BTreeSet;
 use std::sync::Arc;
-
-/// Identifies a single position in the index.
-///
-/// The end is inclusive.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub(super) struct IndexRange {
-    /// The first index in the range.
-    from: IndexDataElement,
-    /// The last index in the range (inclusive).
-    to: IndexDataElement,
-}
-
-/// Identifies a single position in the index.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub(super) struct IndexDataElement {
-    /// The index of the row group.
-    row_group_index: usize,
-    /// The index within the row group.
-    local_index: usize,
-}
 
 /// Contains the data of the index.
 ///
@@ -54,20 +33,6 @@ impl IndexData {
     /// Returns which column of this index is nullable
     pub fn nullable_position(&self) -> usize {
         self.nullable_position
-    }
-
-    /// Returns the [IndexDataElement] of the last element in the column.
-    pub fn last_element(&self) -> Option<IndexDataElement> {
-        if self.row_groups.is_empty() {
-            return None;
-        }
-
-        let row_group_index = self.row_groups.len() - 1;
-        let local_index = self.row_groups.last().unwrap().len() - 1;
-        Some(IndexDataElement {
-            row_group_index,
-            local_index,
-        })
     }
 
     /// Returns the number of elements in the index.
@@ -110,7 +75,7 @@ impl IndexData {
                 .enumerate()
                 .filter_map(|(row_group_idx, row_group)| {
                     let column_chunk = &row_group.column_chunks[column_idx];
-                    match column_chunk.find_range(id, 0, column_chunk.len()) {
+                    match column_chunk.find_range(id) {
                         FindRangeResult::After => None,
                         result => Some((row_group_idx, result)),
                     }
@@ -122,7 +87,7 @@ impl IndexData {
                 return vec![];
             };
 
-            // All other results (After, NotContained) indicate that the given id is not contained
+            // All other results (e.g., NotContained) indicate that the given id is not contained
             // in the first batch. As a result, it won't be contained in any other batch.
             let FindRangeResult::Contained(from, to) = first_range_result else {
                 return vec![];
@@ -131,50 +96,48 @@ impl IndexData {
             let mut new_relevant_row_groups =
                 vec![relevant_row_groups[first_row_group].slice(from, to)];
 
-            // If the end of the range is before the end of the row group, we can return the
-            // relevant row group. Other row groups cannot be relevant as they must contain a
-            // higher value.
-            if to < relevant_row_groups[first_row_group].len() {
-                return new_relevant_row_groups;
-            }
-
-            // Find the end of relevant row groups.
-            for row_group in &relevant_row_groups[first_row_group + 1..] {
-                let column_chunk = &row_group.column_chunks[column_idx];
-                match column_chunk.find_range(id, 0, column_chunk.len()) {
-                    FindRangeResult::Before | FindRangeResult::NotContained(_) => {
-                        break;
-                    }
-                    FindRangeResult::Contained(from, to) => {
-                        assert_eq!(
-                            from, 0,
-                            "From must be 0, otherwise early terminated"
-                        );
-
-                        // If the end of the range is before the end of the row group, slice and
-                        // abort
-                        if to < row_group.len() {
-                            new_relevant_row_groups.push(row_group.slice(from, to));
+            // Find the end of relevant row groups. Can be skipped if the end of the first check
+            // was before the end of the row group.
+            if to == relevant_row_groups[first_row_group].len() {
+                for row_group in &relevant_row_groups[first_row_group + 1..] {
+                    let column_chunk = &row_group.column_chunks[column_idx];
+                    match column_chunk.find_range(id) {
+                        FindRangeResult::Before => {
                             break;
-                        } else {
-                            new_relevant_row_groups.push(row_group.clone());
+                        }
+                        FindRangeResult::Contained(from, to) => {
+                            assert_eq!(
+                                from, 0,
+                                "From must be 0, otherwise early terminated"
+                            );
+
+                            // If the end of the range is before the end of the row group, slice and
+                            // abort
+                            if to < row_group.len() {
+                                new_relevant_row_groups.push(row_group.slice(from, to));
+                                break;
+                            } else {
+                                new_relevant_row_groups.push(row_group.clone());
+                            }
+                        }
+                        FindRangeResult::After | FindRangeResult::NotContained(_) => {
+                            unreachable!("Column is sorted")
                         }
                     }
-                    FindRangeResult::After => unreachable!("Column is sorted"),
                 }
             }
 
             relevant_row_groups = new_relevant_row_groups;
         }
 
-        relevant_row_groups.iter().cloned().collect()
+        relevant_row_groups
     }
 
     /// Insert `to_insert` into the index.
     pub fn insert(&mut self, to_insert: &BTreeSet<IndexedQuad>) -> usize {
         let mut count = 0;
         let mut row_group_idx = 0;
-        let mut to_insert = to_insert.into_iter().peekable();
+        let mut to_insert = to_insert.iter().peekable();
 
         while row_group_idx < self.row_groups.len() {
             let current_row_group = &mut self.row_groups[row_group_idx];
@@ -216,12 +179,12 @@ impl IndexData {
     }
 
     /// TODO
-    pub fn remove(&mut self, indices: &[usize]) {
+    pub fn remove(&mut self, _indices: &[usize]) {
         todo!()
     }
 }
 
-///
+/// TODO
 pub enum QuadFindResult {
     Before,
     Contained(usize),
@@ -281,7 +244,8 @@ impl MemRowGroup {
         let mut to = self.len();
 
         for (chunk, id) in self.column_chunks.iter().zip(quads.0.iter()) {
-            let (new_from, new_to) = match chunk.find_range(*id, from, to) {
+            let chunk = chunk.slice(from, to);
+            let (new_from, new_to) = match chunk.find_range(*id) {
                 FindRangeResult::Before => {
                     return if from == 0 {
                         QuadFindResult::Before
@@ -345,7 +309,7 @@ impl MemRowGroup {
 
 /// TODO
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum FindRangeResult {
+pub(super) enum FindRangeResult {
     Before,
     NotContained(usize),
     Contained(usize, usize),
@@ -371,52 +335,47 @@ impl MemColumnChunk {
     }
 
     /// TODO
-    pub fn find_range(
-        &self,
-        value: EncodedObjectId,
-        from: usize,
-        to: usize,
-    ) -> FindRangeResult {
-        debug_assert!(from <= to, "From must be smaller than to");
+    pub fn find_range(&self, value: EncodedObjectId) -> FindRangeResult {
         let null_count = self.data.null_count();
 
         if value.as_u32() == 0 {
-            if null_count < from + 1 {
+            if null_count == 0 {
                 return FindRangeResult::Before;
             }
-
-            return FindRangeResult::Contained(from, min(null_count, to));
+            return FindRangeResult::Contained(0, null_count);
         }
 
-        let range = &self.data.values()[from..to];
-        let find_result = range.iter().position(|v| *v >= value.as_u32());
+        // TODO: Check last value for early return
+
+        let find_result = self.data.values().iter().position(|v| *v >= value.as_u32());
 
         let count_first_larger_value = match find_result {
             None => return FindRangeResult::After,
             Some(position) => {
-                if position == 0 && range[position] != value.as_u32() {
+                if position == 0 && self.data.values()[0] != value.as_u32() {
                     return FindRangeResult::Before;
-                } else if range[position] != value.as_u32() {
-                    return FindRangeResult::NotContained(from + position);
+                } else if self.data.values()[position] != value.as_u32() {
+                    return FindRangeResult::NotContained(null_count + position);
                 } else {
                     position
                 }
             }
         };
 
-        let equal_count = range[count_first_larger_value..]
+        let equal_count = self.data.values()[count_first_larger_value..]
             .iter()
             .take_while(|v| **v == value.as_u32())
             .count();
 
         FindRangeResult::Contained(
-            from + count_first_larger_value,
-            from + count_first_larger_value + equal_count,
+            count_first_larger_value,
+            count_first_larger_value + equal_count,
         )
     }
 
     /// TODO
     fn slice(&self, from: usize, to: usize) -> MemColumnChunk {
+        debug_assert!(from < to, "From must be smaller than to");
         let len = to - from;
         Self {
             data: Arc::new(self.data.slice(from, len)),
@@ -431,6 +390,26 @@ mod tests {
     use crate::memory::storage::index::IndexScanInstruction;
     use insta::assert_debug_snapshot;
     use std::collections::HashSet;
+
+    #[test]
+    fn test_memcolumnchunk_slice_simple() {
+        let chunk = MemColumnChunk::new(vec![Some(10), Some(20), Some(30), Some(40)]);
+        assert_eq!(chunk.slice(1, 3).data.values(), &[20, 30]);
+    }
+
+    #[test]
+    fn test_memcolumnchunk_slice_of_slice() {
+        let chunk = MemColumnChunk::new(vec![
+            Some(5),
+            Some(6),
+            Some(7),
+            Some(8),
+            Some(9),
+            Some(10),
+        ]);
+        let mid_slice = chunk.slice(1, 5); // [6, 7, 8, 9]
+        assert_eq!(mid_slice.slice(1, 3).data.values(), &[7, 8]);
+    }
 
     #[test]
     fn test_empty_indexdata() {
@@ -471,32 +450,6 @@ mod tests {
 
         assert_eq!(index.len(), 0);
         assert_eq!(index.row_groups.len(), 0);
-    }
-
-    #[test]
-    fn test_last_element_empty() {
-        let mut index = IndexData::new(2, 0);
-        assert_eq!(index.last_element(), None);
-    }
-
-    #[test]
-    fn test_last_element_multiple_single_groups() {
-        let mut index = IndexData::new(10, 0);
-        let items = quad_set([5, 6, 7]);
-        index.insert(&items);
-        let last = index.last_element().unwrap();
-        assert_eq!(last.row_group_index, 0);
-        assert_eq!(last.local_index, 2);
-    }
-
-    #[test]
-    fn test_last_element_multiple_row_groups() {
-        let mut index = IndexData::new(2, 0);
-        let items = quad_set([5, 6, 7]);
-        index.insert(&items);
-        let last = index.last_element().unwrap();
-        assert_eq!(last.row_group_index, 1);
-        assert_eq!(last.local_index, 0);
     }
 
     #[test]
@@ -712,6 +665,147 @@ mod tests {
     }
 
     #[test]
+    fn test_prune_filter_breaks_early_on_last_row() {
+        let mut index = IndexData::new(5, 0);
+
+        index.insert(
+            &[
+                // 1st row group
+                quad_from_values(10, 10, 10, 10),
+                quad_from_values(10, 10, 10, 11),
+                quad_from_values(10, 10, 10, 12),
+                quad_from_values(10, 10, 10, 13),
+                quad_from_values(11, 10, 10, 14),
+                // 2nd row group
+                quad_from_values(11, 10, 10, 15),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        let predicate =
+            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        let relevant = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(relevant.len(), 1);
+        assert_eq!(relevant[0].len(), 4);
+    }
+
+    #[test]
+    fn test_prune_filter_multi_row_groups() {
+        let mut index = IndexData::new(5, 0);
+
+        index.insert(
+            &[
+                // 1st row group
+                quad_from_values(0, 10, 10, 10),
+                quad_from_values(0, 11, 10, 11),
+                quad_from_values(0, 11, 10, 12),
+                quad_from_values(0, 11, 10, 13),
+                quad_from_values(0, 11, 10, 14),
+                // 2nd row group
+                quad_from_values(0, 11, 10, 21),
+                quad_from_values(0, 11, 10, 22),
+                quad_from_values(0, 11, 10, 23),
+                quad_from_values(0, 11, 10, 24),
+                quad_from_values(0, 11, 10, 25),
+                // 3rd row group
+                quad_from_values(0, 11, 10, 31),
+                quad_from_values(0, 11, 12, 32),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
+                HashSet::from([EncodedObjectId::from(0)]),
+            ))),
+            IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
+                HashSet::from([EncodedObjectId::from(11)]),
+            ))),
+            IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
+                HashSet::from([EncodedObjectId::from(10)]),
+            ))),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        let relevant = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(relevant.len(), 3);
+        assert_eq!(relevant[0].len(), 4);
+        assert_eq!(relevant[1].len(), 5);
+        assert_eq!(relevant[2].len(), 1);
+    }
+
+    #[test]
+    fn test_prune_multiple_filters_start_fixed() {
+        let mut index = IndexData::new(5, 0);
+
+        index.insert(
+            &[
+                quad_from_values(10, 10, 10, 10),
+                quad_from_values(10, 10, 12, 11),
+                quad_from_values(10, 11, 12, 12),
+                quad_from_values(20, 20, 20, 20),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        let predicate =
+            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        let relevant = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(relevant.len(), 1);
+        assert_eq!(relevant[0].len(), 1);
+    }
+
+    #[test]
+    fn test_prune_multiple_filters_end_fixed() {
+        let mut index = IndexData::new(5, 0);
+
+        index.insert(
+            &[
+                quad_from_values(10, 9, 9, 10),
+                quad_from_values(10, 10, 9, 10),
+                quad_from_values(10, 10, 10, 10),
+                quad_from_values(20, 20, 20, 20),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        let predicate =
+            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        let relevant = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(relevant.len(), 1);
+        assert_eq!(relevant[0].len(), 1);
+    }
+
+    #[test]
     fn test_prune_filter_single_quad_absent() {
         let mut index = IndexData::new(2, 0);
         let items = quad_set([1, 2, 3, 4]);
@@ -753,49 +847,41 @@ mod tests {
     }
 
     #[test]
-    fn test_find_range_empty_column() {
-        let chunk = MemColumnChunk::new(vec![]);
-        let value = EncodedObjectId::from(5u32);
-        let result = chunk.find_range(value, 0, 0);
-        assert_eq!(result, FindRangeResult::After);
-    }
-
-    #[test]
     fn test_find_range_all_nulls() {
         let chunk = MemColumnChunk::new(vec![None, None, None]);
         let value = EncodedObjectId::from(0u32);
-        let result = chunk.find_range(value, 0, chunk.len());
+        let result = chunk.find_range(value);
         assert_eq!(result, FindRangeResult::Contained(0, 3));
     }
 
     #[test]
     fn test_find_range_nulls_before_data() {
         let chunk = MemColumnChunk::new(vec![None, None, Some(3), Some(5), Some(7)]);
-        let result_null = chunk.find_range(EncodedObjectId::from(0u32), 0, chunk.len());
+        let result_null = chunk.find_range(EncodedObjectId::from(0u32));
         assert_eq!(result_null, FindRangeResult::Contained(0, 2));
 
-        let result_val = chunk.find_range(EncodedObjectId::from(5u32), 0, chunk.len());
+        let result_val = chunk.find_range(EncodedObjectId::from(5u32));
         assert_eq!(result_val, FindRangeResult::Contained(3, 4));
     }
 
     #[test]
     fn test_find_range_value_present_single() {
         let chunk = MemColumnChunk::new(vec![Some(2), Some(4), Some(6)]);
-        let result = chunk.find_range(EncodedObjectId::from(4u32), 0, chunk.len());
+        let result = chunk.find_range(EncodedObjectId::from(4u32));
         assert_eq!(result, FindRangeResult::Contained(1, 2));
     }
 
     #[test]
     fn test_find_range_value_present_multiple() {
         let chunk = MemColumnChunk::new(vec![Some(4), Some(4), Some(4), Some(5)]);
-        let result = chunk.find_range(EncodedObjectId::from(4u32), 0, chunk.len());
+        let result = chunk.find_range(EncodedObjectId::from(4u32));
         assert_eq!(result, FindRangeResult::Contained(0, 3));
     }
 
     #[test]
     fn test_find_range_value_not_present_between() {
         let chunk = MemColumnChunk::new(vec![Some(1), Some(3), Some(5), Some(7)]);
-        let result = chunk.find_range(EncodedObjectId::from(4u32), 0, chunk.len());
+        let result = chunk.find_range(EncodedObjectId::from(4u32));
         // 4 is not present, but would fall between 3 (idx 1) and 5 (idx 2)
         assert_eq!(result, FindRangeResult::NotContained(2));
     }
@@ -804,38 +890,12 @@ mod tests {
     fn test_find_range_value_too_small_and_too_big() {
         let chunk = MemColumnChunk::new(vec![Some(10), Some(20), Some(30)]);
         // Value smaller than any element
-        let result_before = chunk.find_range(EncodedObjectId::from(2u32), 0, chunk.len());
+        let result_before = chunk.find_range(EncodedObjectId::from(2u32));
         assert_eq!(result_before, FindRangeResult::Before);
 
         // Value greater than any element
-        let result_after = chunk.find_range(EncodedObjectId::from(50u32), 0, chunk.len());
+        let result_after = chunk.find_range(EncodedObjectId::from(50u32));
         assert_eq!(result_after, FindRangeResult::After);
-    }
-
-    #[test]
-    fn test_find_range_respects_slice_bounds() {
-        let chunk =
-            MemColumnChunk::new(vec![Some(1), Some(2), Some(3), Some(4), Some(5)]);
-        let result = chunk.find_range(EncodedObjectId::from(3u32), 1, 4);
-        assert_eq!(result, FindRangeResult::Contained(2, 3));
-    }
-
-    #[test]
-    fn test_find_range_within_nulls_and_offset() {
-        // Chunk: [None, None, 3, 4, 4, 5]
-        let chunk =
-            MemColumnChunk::new(vec![None, None, Some(3), Some(4), Some(4), Some(5)]);
-        // Slice from index 2 (first non-null) to 5 (exclusive), searching for 4
-        let result = chunk.find_range(EncodedObjectId::from(4u32), 2, 5);
-        // There are two 4s at positions 3 and 4 (indices in the overall array: 3 and 4)
-        assert_eq!(result, FindRangeResult::Contained(3, 5));
-    }
-
-    #[test]
-    fn test_find_range_null_requested_but_out_of_range() {
-        let chunk = MemColumnChunk::new(vec![None, Some(1), Some(2)]);
-        let result = chunk.find_range(EncodedObjectId::from(0u32), 1, 3);
-        assert_eq!(result, FindRangeResult::Before);
     }
 
     /// Creates a quad where all four terms have the same u32 value
