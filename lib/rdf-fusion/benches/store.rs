@@ -134,9 +134,8 @@ criterion_main!(store_write, store_query);
 
 async fn prepare_store_with_generated_triples(n: usize) -> Store {
     let store = Store::default();
-    for quad in generate_quads(n) {
-        store.insert(quad.as_ref()).await.unwrap();
-    }
+    let quads = generate_quads(n).collect::<Vec<_>>();
+    store.extend(quads.iter().map(Quad::as_ref)).await.unwrap();
     store
 }
 

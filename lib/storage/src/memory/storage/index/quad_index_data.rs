@@ -161,7 +161,10 @@ impl IndexData {
             }
 
             count += to_insert_row_group.len();
-            current_row_group.insert(to_insert_row_group);
+
+            if to_insert_row_group.len() == 0 {
+                current_row_group.insert(to_insert_row_group);
+            }
 
             row_group_idx += 1;
         }
