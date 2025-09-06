@@ -11,9 +11,6 @@ configure-toolchain:
 configure-toolchain-ci: configure-toolchain
     cargo install cargo-codspeed
 
-# Run all recipies executed by the CI
-ci: prepare-bench-tests lint test rustdoc
-
 # Run all lints (e.g., formatting, clippy)
 lint:
     cargo fmt -- --check

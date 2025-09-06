@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - name: Setup rust toolchain
@@ -34,4 +34,27 @@ jobs:
         run: just configure-toolchain-ci
 
       - name: Run CI Recipe
-        run: just ci
+        run: just prepare-bench-tests test rustdoc
+
+  lints:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup rust toolchain
+        uses: moonrepo/setup-rust@v1
+        with:
+          channel: 1.89
+          cache-target: release
+
+      - name: Install just
+        uses: extractions/setup-just@v3
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Run CI Setup
+        run: just configure-toolchain-ci
+
+      - name: Run Lints
+        run: just lint
