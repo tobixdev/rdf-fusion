@@ -26,7 +26,7 @@ rustdoc:
     RUSTDOCFLAGS="-D warnings" cargo doc
 
 [working-directory: 'bench']
-prepare-bench-tests:
+prepare-benches-tests:
     cargo run --profile test prepare bsbm-explore --num-products 1000 # BSBM use cases share the data
     cargo run --profile test prepare wind-farm --num-turbines 4
 

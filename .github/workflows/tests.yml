@@ -34,7 +34,7 @@ jobs:
         run: just configure-toolchain-ci
 
       - name: Run CI Recipe
-        run: just prepare-bench-tests test rustdoc
+        run: just prepare-benches-tests test rustdoc
 
   lints:
     runs-on: ubuntu-latest
