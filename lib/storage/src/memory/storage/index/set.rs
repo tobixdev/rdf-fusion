@@ -385,12 +385,12 @@ mod tests {
             }])
             .unwrap();
 
-        let pattern = IndexScanInstructions([
+        let pattern = Box::new(IndexScanInstructions([
             traverse_and_filter(1),
             IndexScanInstruction::Scan(Arc::new("subject".to_string()), None),
             traverse_and_filter(3),
             IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
-        ]);
+        ]));
 
         let schema = Arc::new(Schema::new(Fields::from(vec![
             Field::new("subject", DataType::UInt32, false),

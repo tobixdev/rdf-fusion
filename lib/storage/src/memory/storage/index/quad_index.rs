@@ -66,8 +66,14 @@ impl MemQuadIndex {
     /// Removes a list of quads.
     ///
     /// Quads that do not exist in the index are ignored.
-    pub fn remove(&mut self, _quads: impl IntoIterator<Item = IndexedQuad>) -> usize {
-        todo!()
+    pub fn remove(&mut self, quads: impl IntoIterator<Item = IndexedQuad>) -> usize {
+        let mut to_insert = BTreeSet::new();
+
+        for quad in quads {
+            to_insert.insert(quad);
+        }
+
+        self.data.remove(&to_insert)
     }
 
     /// TODO

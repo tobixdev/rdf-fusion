@@ -9,9 +9,6 @@ use std::sync::Arc;
 
 /// Contains the data of the index.
 ///
-/// In the following, we borrow terminology from [Apache Parquet](https://parquet.apache.org/), as
-/// the data is organized similarly to their approach.
-///
 /// TODO
 #[derive(Debug)]
 pub(super) struct IndexData {
@@ -47,7 +44,8 @@ impl IndexData {
     ///
     /// This handles two tasks.
     /// 1. Search all row groups that may contain quads that match the given instructions
-    /// 2. If necessary, filter the first and last row group such that
+    /// 2. If necessary, slice the first and last row group such that some filters must not be
+    ///    evaluated during the actual scan.
     pub fn prune_relevant_row_groups(
         &self,
         instructions: &IndexScanInstructions,
@@ -179,8 +177,44 @@ impl IndexData {
     }
 
     /// TODO
-    pub fn remove(&mut self, _indices: &[usize]) {
-        todo!()
+    pub fn remove(&mut self, to_remove: &BTreeSet<IndexedQuad>) -> usize {
+        let mut count = 0;
+        let mut row_group_idx = 0;
+        let mut to_insert = to_remove.iter().peekable();
+
+        while row_group_idx < self.row_groups.len() {
+            let current_row_group = &mut self.row_groups[row_group_idx];
+
+            let mut to_remove_row_group = BTreeSet::new();
+            while let Some(current_quad) = to_insert.peek() {
+                match current_row_group.find(current_quad) {
+                    QuadFindResult::Before | QuadFindResult::NotContained(_) => {
+                        // Do nothing, the quad is not present.
+                        to_insert.next();
+                    }
+                    QuadFindResult::Contained(_) => {
+                        to_remove_row_group.insert(to_insert.next().unwrap().clone());
+                    }
+                    QuadFindResult::After => {
+                        // Stop collecting for this row group.
+                        break;
+                    }
+                }
+            }
+
+            count += to_remove_row_group.len();
+            current_row_group.remove(to_remove_row_group);
+
+            if current_row_group.len() == 0 {
+                self.row_groups.remove(row_group_idx);
+            } else {
+                row_group_idx += 1;
+            }
+        }
+
+        // Remaining quads are not contained in any row group.
+
+        count
     }
 }
 
@@ -192,6 +226,8 @@ pub enum QuadFindResult {
     After,
 }
 
+/// In the following, we borrow terminology from [Apache Parquet](https://parquet.apache.org/), as
+/// the data is organized similarly to their approach.
 #[derive(Debug, Clone)]
 pub(super) struct MemRowGroup {
     column_chunks: [MemColumnChunk; 4],
@@ -227,14 +263,24 @@ impl MemRowGroup {
 
     /// Inserts the given quads into this [MemRowGroup].
     ///
-    /// This method assumes the following:
+    /// This method may assume the following:
     /// - No quad is already contained in this row group
-    /// - The list is sorted
     pub fn insert(&mut self, mut quads: BTreeSet<IndexedQuad>) {
         let mut new_quads = self.quads();
         new_quads.append(&mut quads);
 
         let new_data = Self::new(new_quads.iter().collect());
+        self.column_chunks = new_data.column_chunks;
+    }
+
+    /// Removes the given quads from this [MemRowGroup].
+    ///
+    /// This method may assume the following:
+    /// - All quads are contained in this row group
+    pub fn remove(&mut self, quads: BTreeSet<IndexedQuad>) {
+        let mut new_quads = self.quads();
+        let difference = new_quads.difference(&quads);
+        let new_data = Self::new(difference.collect());
         self.column_chunks = new_data.column_chunks;
     }
 

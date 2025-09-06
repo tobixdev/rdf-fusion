@@ -1,6 +1,6 @@
 #![allow(clippy::panic)]
 
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use futures::StreamExt;
 use rand::prelude::*;
 use rand::seq::SliceRandom;
