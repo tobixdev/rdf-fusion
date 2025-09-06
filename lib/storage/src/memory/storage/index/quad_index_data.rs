@@ -146,11 +146,11 @@ impl IndexData {
                     QuadFindResult::Before => {
                         to_insert_row_group.insert(to_insert.next().unwrap().clone());
                     }
-                    QuadFindResult::Contained(_) => {
+                    QuadFindResult::Contained => {
                         // Skip to the next quad if already contained.
                         to_insert.next();
                     }
-                    QuadFindResult::NotContained(_) => {
+                    QuadFindResult::NotContained => {
                         to_insert_row_group.insert(to_insert.next().unwrap().clone());
                     }
                     QuadFindResult::After => {
@@ -188,11 +188,11 @@ impl IndexData {
             let mut to_remove_row_group = BTreeSet::new();
             while let Some(current_quad) = to_insert.peek() {
                 match current_row_group.find(current_quad) {
-                    QuadFindResult::Before | QuadFindResult::NotContained(_) => {
+                    QuadFindResult::Before | QuadFindResult::NotContained => {
                         // Do nothing, the quad is not present.
                         to_insert.next();
                     }
-                    QuadFindResult::Contained(_) => {
+                    QuadFindResult::Contained => {
                         to_remove_row_group.insert(to_insert.next().unwrap().clone());
                     }
                     QuadFindResult::After => {
@@ -221,8 +221,8 @@ impl IndexData {
 /// TODO
 pub enum QuadFindResult {
     Before,
-    Contained(usize),
-    NotContained(usize),
+    Contained,
+    NotContained,
     After,
 }
 
@@ -278,7 +278,7 @@ impl MemRowGroup {
     /// This method may assume the following:
     /// - All quads are contained in this row group
     pub fn remove(&mut self, quads: BTreeSet<IndexedQuad>) {
-        let mut new_quads = self.quads();
+        let new_quads = self.quads();
         let difference = new_quads.difference(&quads);
         let new_data = Self::new(difference.collect());
         self.column_chunks = new_data.column_chunks;
@@ -296,18 +296,18 @@ impl MemRowGroup {
                     return if from == 0 {
                         QuadFindResult::Before
                     } else {
-                        QuadFindResult::NotContained(from)
+                        QuadFindResult::NotContained
                     };
                 }
-                FindRangeResult::NotContained(index) => {
-                    return QuadFindResult::NotContained(index);
+                FindRangeResult::NotContained(_) => {
+                    return QuadFindResult::NotContained;
                 }
                 FindRangeResult::Contained(from, to) => (from, to),
                 FindRangeResult::After => {
                     return if to == self.len() {
                         QuadFindResult::After
                     } else {
-                        QuadFindResult::NotContained(to)
+                        QuadFindResult::NotContained
                     };
                 }
             };
@@ -317,7 +317,7 @@ impl MemRowGroup {
         }
 
         debug_assert_eq!(from, to - 1, "Could not identify a single quad."); // to is exclusive
-        QuadFindResult::Contained(from)
+        QuadFindResult::Contained
     }
 
     /// TODO
