@@ -219,6 +219,7 @@ impl IndexData {
 }
 
 /// TODO
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum QuadFindResult {
     Before,
     Contained,
@@ -302,7 +303,9 @@ impl MemRowGroup {
                 FindRangeResult::NotContained(_) => {
                     return QuadFindResult::NotContained;
                 }
-                FindRangeResult::Contained(from, to) => (from, to),
+                FindRangeResult::Contained(found_from, found_to) => {
+                    (from + found_from, from + found_to)
+                }
                 FindRangeResult::After => {
                     return if to == self.len() {
                         QuadFindResult::After
@@ -401,7 +404,7 @@ impl MemColumnChunk {
                 if position == 0 && self.data.values()[0] != value.as_u32() {
                     return FindRangeResult::Before;
                 } else if self.data.values()[position] != value.as_u32() {
-                    return FindRangeResult::NotContained(null_count + position);
+                    return FindRangeResult::NotContained(position);
                 } else {
                     position
                 }
@@ -942,6 +945,31 @@ mod tests {
         // Value greater than any element
         let result_after = chunk.find_range(EncodedObjectId::from(50u32));
         assert_eq!(result_after, FindRangeResult::After);
+    }
+
+    #[test]
+    fn test_find_quad_contained_complex() {
+        let mut index = IndexData::new(5, 0);
+
+        index.insert(
+            &[
+                quad_from_values(1, 2, 3, 4),
+                quad_from_values(1, 5, 3, 4),
+                quad_from_values(1, 5, 3, 6),
+                quad_from_values(1, 7, 3, 8),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        let result = index.row_groups[0].find(&IndexedQuad([
+            EncodedObjectId::from(1),
+            EncodedObjectId::from(5),
+            EncodedObjectId::from(3),
+            EncodedObjectId::from(4),
+        ]));
+
+        assert_eq!(QuadFindResult::Contained, result);
     }
 
     /// Creates a quad where all four terms have the same u32 value

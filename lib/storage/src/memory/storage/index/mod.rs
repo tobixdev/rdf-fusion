@@ -42,7 +42,41 @@ impl Display for IndexConfiguration {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IndexScanInstructions(pub [IndexScanInstruction; 4]);
+pub struct IndexScanInstructions([IndexScanInstruction; 4]);
+
+impl IndexScanInstructions {
+    /// Creates a new [IndexScanInstructions] from the given [IndexScanInstruction]s.
+    ///
+    /// If more than one scans bind to a given variable, equality checks are handled automatically.
+    pub fn new(instructions: [IndexScanInstruction; 4]) -> Self {
+        let mut new_instructions = Vec::new();
+        let mut seen = HashSet::new();
+
+        for instruction in instructions {
+            match instruction {
+                IndexScanInstruction::Scan(var, predicate) => {
+                    let inserted = seen.insert(var.clone());
+                    if inserted {
+                        new_instructions.push(IndexScanInstruction::Scan(var, predicate))
+                    } else {
+                        new_instructions.push(IndexScanInstruction::Traverse(Some(
+                            ObjectIdScanPredicate::EqualTo(var.clone()),
+                        )));
+                    }
+                }
+                instruction => {
+                    new_instructions.push(instruction);
+                }
+            }
+        }
+
+        Self(new_instructions.try_into().unwrap())
+    }
+
+    pub fn instructions(&self) -> &[IndexScanInstruction; 4] {
+        &self.0
+    }
+}
 
 /// A predicate for filtering object ids.
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -51,27 +85,8 @@ pub enum ObjectIdScanPredicate {
     In(HashSet<EncodedObjectId>),
     /// Checks whether the object id is *not* in the given set.
     Except(HashSet<EncodedObjectId>),
-}
-
-impl ObjectIdScanPredicate {
-    /// Indicates whether the predicate restricts to a set of known size.
-    ///
-    /// For example, [ObjectIdScanPredicate::In] restricts to a known size, while
-    /// [ObjectIdScanPredicate::Except] does not, as the universe of object ids is not known.
-    pub fn restricts_to_known_size(&self) -> bool {
-        match self {
-            ObjectIdScanPredicate::In(_) => true,
-            ObjectIdScanPredicate::Except(_) => false,
-        }
-    }
-
-    /// Evaluates the predicate for the given object id.
-    pub fn evaluate(&self, object_id: EncodedObjectId) -> bool {
-        match self {
-            ObjectIdScanPredicate::In(ids) => ids.contains(&object_id),
-            ObjectIdScanPredicate::Except(ids) => !ids.contains(&object_id),
-        }
-    }
+    /// Checks whether the object id is equal to the scan instruction with the given variable.
+    EqualTo(Arc<String>),
 }
 
 /// An encoded version of a triple pattern.

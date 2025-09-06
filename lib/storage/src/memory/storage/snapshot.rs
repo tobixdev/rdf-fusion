@@ -78,7 +78,7 @@ impl MemQuadStorageSnapshot {
             return Ok(PlannedPatternScan::Empty(schema));
         };
 
-        let scan_instructions = IndexScanInstructions([
+        let scan_instructions = IndexScanInstructions::new([
             IndexScanInstruction::from_active_graph(
                 &enc_active_graph,
                 graph_variable.as_ref(),

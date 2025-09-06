@@ -180,7 +180,9 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                     .and_then(|i| i.predicate())
                     .map(|p| (array, p))
             })
-            .flat_map(|(array, predicate)| Self::apply_predicate(array, predicate))
+            .flat_map(|(array, predicate)| {
+                Self::apply_predicate(data, instructions, array, predicate)
+            })
             .reduce(|lhs, rhs| and(&lhs, &rhs).expect("Array length must match"))
     }
 
@@ -191,6 +193,8 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     /// over the array and consulting the set. In the future, one could check the size of the
     /// set and switch to the different strategy for large predicates.
     fn apply_predicate(
+        all_data: &[Arc<UInt32Array>; 4],
+        instructions: &[Option<IndexScanInstruction>; 4],
         data: &UInt32Array,
         predicate: &ObjectIdScanPredicate,
     ) -> Option<BooleanArray> {
@@ -220,6 +224,16 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                     .expect("Array length must match, Data Types match")
                 })
                 .reduce(|lhs, rhs| and(&lhs, &rhs).expect("Array length must match")),
+            ObjectIdScanPredicate::EqualTo(name) => {
+                let index = instructions.iter().position(|i| match i {
+                    Some(IndexScanInstruction::Scan(var, _)) => var == name,
+                    _ => false,
+                })?;
+                Some(
+                    eq(all_data[index].as_ref(), data)
+                        .expect("Array length must match, Data Types match"),
+                )
+            }
         }
     }
 }
