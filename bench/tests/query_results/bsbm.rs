@@ -31,13 +31,17 @@ pub async fn bsbm_1000_test_results() {
     let benchmarking_context =
         RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
     let benchmark =
-        BsbmBenchmark::<ExploreUseCase>::try_new(NumProducts::N10_000, None).unwrap();
+        BsbmBenchmark::<ExploreUseCase>::try_new(NumProducts::N1_000, None).unwrap();
     let benchmark_name = benchmark.name();
     let ctx = benchmarking_context
         .create_benchmark_context(benchmark_name)
         .unwrap();
 
     let store = benchmark.prepare_store(&ctx).await.unwrap();
+
+    //
+    // Explore
+    //
 
     assert_snapshot!(
         "Explore Q1",
@@ -84,6 +88,10 @@ pub async fn bsbm_1000_test_results() {
         run_graph_result_query(&store, include_str!("./queries/explore-q12.sparql"))
             .await
     );
+
+    //
+    // Business Intelligence
+    //
 
     assert_snapshot!(
         "Business Intelligence Q1",

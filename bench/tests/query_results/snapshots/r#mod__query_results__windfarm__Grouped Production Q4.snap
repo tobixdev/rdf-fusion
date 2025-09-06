@@ -141,7 +141,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-groupe
         "avg_val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "7782867.750758759"
+          "value": "7782867.750758758"
         },
         "day": {
           "datatype": "http://www.w3.org/2001/XMLSchema#integer",
@@ -301,7 +301,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-groupe
         "avg_val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "7780092.301139751"
+          "value": "7780092.301139752"
         },
         "day": {
           "datatype": "http://www.w3.org/2001/XMLSchema#integer",
@@ -381,7 +381,7 @@ expression: "run_select_query(&store,\ninclude_str!(\"./queries/wind-farm-groupe
         "avg_val": {
           "datatype": "http://www.w3.org/2001/XMLSchema#double",
           "type": "literal",
-          "value": "7774602.599276078"
+          "value": "7774602.599276076"
         },
         "day": {
           "datatype": "http://www.w3.org/2001/XMLSchema#integer",
