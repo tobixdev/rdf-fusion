@@ -182,7 +182,7 @@ mod tests {
         let mut index = create_index();
         index.insert(vec![IndexedQuad([eid(1), eid(2), eid(3), eid(4)])]);
 
-        let mut iter = index.scan_quads(IndexScanInstructions([
+        let mut iter = index.scan_quads(IndexScanInstructions::new([
             traverse(1),
             traverse(2),
             traverse(3),
@@ -202,7 +202,7 @@ mod tests {
             IndexedQuad([eid(1), eid(2), eid(3), eid(3)]),
         ]);
 
-        let mut iter = index.scan_quads(IndexScanInstructions([
+        let mut iter = index.scan_quads(IndexScanInstructions::new([
             traverse(1),
             traverse(2),
             traverse(3),
@@ -230,7 +230,7 @@ mod tests {
             IndexedQuad([eid(1), eid(2), eid(2), eid(4)]),
         ]);
 
-        let mut iter = index.scan_quads(IndexScanInstructions([
+        let mut iter = index.scan_quads(IndexScanInstructions::new([
             traverse(1),
             traverse(2),
             scan("c"),
@@ -256,7 +256,7 @@ mod tests {
         index.insert(vec![IndexedQuad([eid(1), eid(2), eid(3), eid(4)])]);
 
         let result = index
-            .scan_quads(IndexScanInstructions([
+            .scan_quads(IndexScanInstructions::new([
                 traverse(2),
                 scan("b"),
                 traverse(3),
@@ -278,7 +278,12 @@ mod tests {
 
         run_matching_test(
             index,
-            IndexScanInstructions([traverse(1), scan("b"), traverse(3), traverse(4)]),
+            IndexScanInstructions::new([
+                traverse(1),
+                scan("b"),
+                traverse(3),
+                traverse(4),
+            ]),
             1,
             2,
         );
@@ -295,7 +300,12 @@ mod tests {
 
         run_matching_test(
             index,
-            IndexScanInstructions([traverse(1), traverse(2), scan("c"), traverse(4)]),
+            IndexScanInstructions::new([
+                traverse(1),
+                traverse(2),
+                scan("c"),
+                traverse(4),
+            ]),
             1,
             1,
         );
@@ -312,7 +322,12 @@ mod tests {
 
         run_matching_test(
             index,
-            IndexScanInstructions([traverse(1), traverse(2), traverse(3), scan("d")]),
+            IndexScanInstructions::new([
+                traverse(1),
+                traverse(2),
+                traverse(3),
+                scan("d"),
+            ]),
             1,
             1,
         );
@@ -329,7 +344,7 @@ mod tests {
 
         run_matching_test(
             index,
-            IndexScanInstructions([traverse(1), scan("b"), traverse(3), scan("d")]),
+            IndexScanInstructions::new([traverse(1), scan("b"), traverse(3), scan("d")]),
             2,
             2,
         );
@@ -346,7 +361,7 @@ mod tests {
 
         run_matching_test(
             index,
-            IndexScanInstructions([scan("a"), scan("b"), scan("c"), scan("d")]),
+            IndexScanInstructions::new([scan("a"), scan("b"), scan("c"), scan("d")]),
             4,
             3,
         );
@@ -363,7 +378,12 @@ mod tests {
 
         run_matching_test(
             index,
-            IndexScanInstructions([scan("a"), scan("same"), scan("same"), scan("d")]),
+            IndexScanInstructions::new([
+                scan("a"),
+                scan("same"),
+                scan("same"),
+                scan("d"),
+            ]),
             3,
             2,
         );
@@ -380,7 +400,7 @@ mod tests {
 
         run_matching_test(
             index,
-            IndexScanInstructions([
+            IndexScanInstructions::new([
                 IndexScanInstruction::Scan(
                     Arc::new("a".to_owned()),
                     Some(ObjectIdScanPredicate::In(HashSet::from([eid(1), eid(3)]))),
@@ -406,7 +426,12 @@ mod tests {
         // The lookup matches a single IndexData that will be scanned.
         run_batch_size_test(
             index,
-            IndexScanInstructions([traverse(1), traverse(2), traverse(3), scan("d")]),
+            IndexScanInstructions::new([
+                traverse(1),
+                traverse(2),
+                traverse(3),
+                scan("d"),
+            ]),
             &[10, 10, 5],
             true,
         );
@@ -425,7 +450,12 @@ mod tests {
         // batches should be combined into a single batch.
         run_batch_size_test(
             index,
-            IndexScanInstructions([traverse(1), traverse(2), scan("c"), traverse(3)]),
+            IndexScanInstructions::new([
+                traverse(1),
+                traverse(2),
+                scan("c"),
+                traverse(3),
+            ]),
             &[10, 10, 5],
             true,
         );
@@ -444,7 +474,7 @@ mod tests {
 
         run_non_matching_test(
             index,
-            IndexScanInstructions([scan("a"), scan("b"), scan("c"), scan("d")]),
+            IndexScanInstructions::new([scan("a"), scan("b"), scan("c"), scan("d")]),
         );
     }
 
