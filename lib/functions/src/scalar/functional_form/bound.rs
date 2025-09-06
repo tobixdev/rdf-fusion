@@ -134,5 +134,5 @@ fn impl_bound_array(array: &dyn Array) -> DFResult<TypedValueArray> {
         builder.append_boolean(value.into())?;
     }
 
-    TYPED_VALUE_ENCODING.try_new_array(builder.finish())
+    Ok(builder.finish())
 }

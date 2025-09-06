@@ -10,7 +10,7 @@
 //! use futures::StreamExt;
 //!
 //! # tokio_test::block_on(async {
-//! let store = Store::new();
+//! let store = Store::default();
 //!
 //! // insertion
 //! let ex = NamedNode::new("http://example.com")?;
@@ -44,7 +44,7 @@ use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
     SubjectRef, TermRef, Variable,
 };
-use rdf_fusion_storage::MemoryQuadStorage;
+use rdf_fusion_storage::memory::{MemObjectIdMapping, MemQuadStorage};
 use std::io::{Read, Write};
 use std::sync::{Arc, LazyLock};
 
@@ -69,7 +69,7 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// use futures::StreamExt;
 ///
 /// # tokio_test::block_on(async {
-/// let store = Store::new();
+/// let store = Store::default();
 ///
 /// // insertion
 /// let ex = NamedNode::new("http://example.com")?;
@@ -95,15 +95,18 @@ pub struct Store {
 
 impl Default for Store {
     fn default() -> Self {
-        Self::new()
+        let object_id_mapping = MemObjectIdMapping::new();
+        let storage = MemQuadStorage::new(Arc::new(object_id_mapping), 8192);
+        let engine = RdfFusionContext::new_with_storage(Arc::new(storage));
+        Self { engine }
     }
 }
 
 impl Store {
-    /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
-    pub fn new() -> Store {
-        let storage = MemoryQuadStorage::new();
-        let engine = RdfFusionContext::new_with_storage(Arc::new(storage.clone()));
+    /// Creates a [Store] backed by the given engine.
+    ///
+    /// Users that want to create a default in-memory [Store] should use [Store::default].
+    pub fn new(engine: RdfFusionContext) -> Store {
         Self { engine }
     }
 
@@ -117,7 +120,7 @@ impl Store {
     /// use futures::StreamExt;
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
+    /// let store = Store::default();
     ///
     /// // insertions
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -150,7 +153,7 @@ impl Store {
     /// use futures::StreamExt;
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// if let QueryResults::Solutions(mut solutions) = store.query_opt(
     ///     "SELECT (STR(1) AS ?nt) WHERE {}",
     ///     QueryOptions::default(),
@@ -183,7 +186,7 @@ impl Store {
     /// use futures::StreamExt;
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// if let (QueryResults::Solutions(mut solutions), _explanation) = store.explain_query_opt(
     ///     "SELECT ?s WHERE { VALUES ?s { 1 2 3 } }",
     ///     QueryOptions::default(),
@@ -217,7 +220,7 @@ impl Store {
     /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
+    /// let store = Store::default();
     ///
     /// // insertion
     /// let ex = NamedNode::new("http://example.com")?;
@@ -256,7 +259,7 @@ impl Store {
     /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
+    /// let store = Store::default();
     ///
     /// // insertion
     /// let ex = NamedNode::new("http://example.com")?;
@@ -284,7 +287,7 @@ impl Store {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
     ///
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// assert!(!store.contains(quad).await?);
     ///
     /// store.insert(quad).await?;
@@ -314,7 +317,7 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// store.insert(QuadRef::new(ex, ex, ex, ex)).await?;
     /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph)).await?;
     /// assert_eq!(2, store.len().await?);
@@ -333,7 +336,7 @@ impl Store {
     /// use rdf_fusion::store::Store;
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// assert!(store.is_empty().await?);
     ///
     /// let ex = NamedNodeRef::new("http://example.com")?;
@@ -355,7 +358,7 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// // TODO #7: Implement Update
-    /// // let store = Store::new();
+    /// // let store = Store::default();
     /// // insertion
     /// // store
     /// //    .update("INSERT DATA { <http://example.com> <http://example.com> <http://example.com> }").await?;
@@ -384,7 +387,7 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// // TODO #7: Implement Update
-    /// // let store = Store::new();
+    /// // let store = Store::default();
     /// // store.update_opt(
     /// //    "INSERT { ?s <http://example.com/n-triples-representation> ?n } WHERE { ?s ?p ?o BIND(<http://www.w3.org/ns/formats/N-Triples>(?s) AS ?nt) }",
     /// //    QueryOptions::default()
@@ -415,7 +418,7 @@ impl Store {
     /// use oxrdfio::RdfParser;
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
+    /// let store = Store::default();
     ///
     /// // insert a dataset file (former load_dataset method)
     /// let file = b"<http://example.com> <http://example.com> <http://example.com> <http://example.com/g> .";
@@ -450,7 +453,7 @@ impl Store {
             .collect::<Result<Vec<_>, _>>()?;
         self.engine
             .storage()
-            .extend(quads)
+            .insert(quads)
             .await
             .map(|_| ())
             .map_err(LoaderError::from)
@@ -469,7 +472,7 @@ impl Store {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
     ///
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// assert!(store.insert(quad).await?);
     /// assert!(!store.insert(quad).await?);
     ///
@@ -484,7 +487,7 @@ impl Store {
         let quad = vec![quad.into().into_owned()];
         self.engine
             .storage()
-            .extend(quad)
+            .insert(quad)
             .await
             .map(|inserted| inserted > 0)
     }
@@ -495,7 +498,7 @@ impl Store {
         quads: impl IntoIterator<Item = impl Into<Quad>>,
     ) -> Result<(), StorageError> {
         let quads = quads.into_iter().map(Into::into).collect::<Vec<_>>();
-        self.engine.storage().extend(quads).await?;
+        self.engine.storage().insert(quads).await?;
         Ok(())
     }
 
@@ -512,7 +515,7 @@ impl Store {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
     ///
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// store.insert(quad).await?;
     /// assert!(store.remove(quad).await?);
     /// assert!(!store.remove(quad).await?);
@@ -539,7 +542,7 @@ impl Store {
     ///         .as_bytes();
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// store.load_from_reader(RdfFormat::NQuads, file).await?;
     ///
     /// let buffer = store.dump_to_writer(RdfFormat::NQuads, Vec::new()).await?;
@@ -576,7 +579,7 @@ impl Store {
     /// let file = "<http://example.com> <http://example.com> <http://example.com> .\n".as_bytes();
     ///
     /// # tokio_test::block_on(async {
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// let parser = RdfParser::from_format(RdfFormat::NTriples);
     /// store.load_from_reader(parser, file.as_ref()).await?;
     ///
@@ -611,7 +614,7 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNode::new("http://example.com")?;
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// store.insert(QuadRef::new(&ex, &ex, &ex, &ex)).await?;
     /// store.insert(QuadRef::new(&ex, &ex, &ex, GraphNameRef::DefaultGraph)).await?;
     /// assert_eq!(
@@ -634,7 +637,7 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNode::new("http://example.com")?;
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// store.insert(QuadRef::new(&ex, &ex, &ex, &ex)).await?;
     /// assert!(store.contains_named_graph(&ex).await?);
     /// # Result::<_, Box<dyn std::error::Error>>::Ok(())
@@ -662,7 +665,7 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// store.insert_named_graph(ex).await?;
     ///
     /// assert_eq!(
@@ -692,7 +695,7 @@ impl Store {
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// store.insert(quad).await?;
     /// assert_eq!(1, store.len().await?);
     ///
@@ -721,7 +724,7 @@ impl Store {
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
     /// let quad = QuadRef::new(ex, ex, ex, ex);
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// store.insert(quad).await?;
     /// assert_eq!(1, store.len().await?);
     ///
@@ -737,7 +740,7 @@ impl Store {
     ) -> Result<bool, StorageError> {
         self.engine
             .storage()
-            .remove_named_graph(graph_name.into())
+            .drop_named_graph(graph_name.into())
             .await
     }
 
@@ -750,7 +753,7 @@ impl Store {
     ///
     /// # tokio_test::block_on(async {
     /// let ex = NamedNodeRef::new("http://example.com")?;
-    /// let store = Store::new();
+    /// let store = Store::default();
     /// store.insert(QuadRef::new(ex, ex, ex, ex)).await?;
     /// store.insert(QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph)).await?;
     /// assert_eq!(2, store.len().await?);
@@ -764,6 +767,13 @@ impl Store {
         self.engine.storage().clear().await
     }
 
+    /// Optimizes the database for future workload.
+    ///
+    /// Useful to call after a batch upload or another similar operation. Usually
+    pub async fn optimize(&self) -> Result<(), StorageError> {
+        self.engine.storage().optimize().await
+    }
+
     /// Validates that all the store invariants hold in the data storage
     pub async fn validate(&self) -> Result<(), StorageError> {
         self.engine.storage().validate().await
@@ -775,6 +785,7 @@ impl Store {
 mod tests {
     use super::*;
     use rdf_fusion_model::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
+    use std::collections::HashSet;
 
     #[test]
     fn test_send_sync() {
@@ -784,7 +795,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_stream_default_graph_quads() -> Result<(), QueryEvaluationError> {
-        let store = Store::new();
+        let store = Store::default();
         let ex = NamedNodeRef::new("http://example.com")
             .map_err(|e| QueryEvaluationError::InternalError(e.to_string()))?;
         let quad = QuadRef::new(ex, ex, ex, GraphNameRef::DefaultGraph);
@@ -799,7 +810,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_stream_named_graph_quads() -> Result<(), QueryEvaluationError> {
-        let store = Store::new();
+        let store = Store::default();
         let ex = NamedNodeRef::new("http://example.com")
             .map_err(|e| QueryEvaluationError::InternalError(e.to_string()))?;
         let graph = GraphName::BlankNode(BlankNode::default());
@@ -864,7 +875,7 @@ mod tests {
             ),
         ];
 
-        let store = Store::new();
+        let store = Store::default();
         for t in &default_quads {
             assert!(store.insert(t).await?);
         }
@@ -879,14 +890,18 @@ mod tests {
         store.validate().await?;
 
         assert_eq!(store.len().await?, 4);
-        assert_eq!(store.stream().await?.try_collect_to_vec().await?, all_quads);
+
+        assert_eq!(
+            store.stream().await?.try_collect_to_set().await?,
+            HashSet::from_iter(all_quads.iter().cloned())
+        );
         assert_eq!(
             store
                 .quads_for_pattern(Some(main_s.as_ref()), None, None, None)
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            all_quads
+            HashSet::from_iter(all_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -897,9 +912,9 @@ mod tests {
                     None
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            all_quads
+            HashSet::from_iter(all_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -910,9 +925,9 @@ mod tests {
                     None
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone(), default_quad.clone()]
+            HashSet::from([named_quad.clone(), default_quad.clone()])
         );
         assert_eq!(
             store
@@ -923,9 +938,9 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![default_quad.clone()]
+            HashSet::from([default_quad.clone()])
         );
         assert_eq!(
             store
@@ -936,11 +951,13 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone()]
+            HashSet::from([named_quad.clone()])
         );
+
         default_quads.reverse();
+
         assert_eq!(
             store
                 .quads_for_pattern(
@@ -950,9 +967,9 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            default_quads
+            HashSet::from_iter(default_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -963,9 +980,9 @@ mod tests {
                     None
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone(), default_quad.clone()]
+            HashSet::from([named_quad.clone(), default_quad.clone()])
         );
         assert_eq!(
             store
@@ -976,9 +993,9 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![default_quad.clone()]
+            HashSet::from([default_quad.clone()])
         );
         assert_eq!(
             store
@@ -989,9 +1006,9 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone()]
+            HashSet::from([named_quad.clone()])
         );
         assert_eq!(
             store
@@ -1002,17 +1019,17 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            default_quads
+            HashSet::from_iter(default_quads.iter().cloned())
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, Some(main_p.as_ref()), None, None)
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            all_quads
+            HashSet::from_iter(all_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -1023,25 +1040,25 @@ mod tests {
                     None
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone(), default_quad.clone()]
+            HashSet::from([named_quad.clone(), default_quad.clone()])
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, None, Some(main_o.as_ref()), None)
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad.clone(), default_quad.clone()]
+            HashSet::from([named_quad.clone(), default_quad.clone()])
         );
         assert_eq!(
             store
                 .quads_for_pattern(None, None, None, Some(GraphNameRef::DefaultGraph))
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            default_quads
+            HashSet::from_iter(default_quads.iter().cloned())
         );
         assert_eq!(
             store
@@ -1052,9 +1069,9 @@ mod tests {
                     Some(GraphNameRef::DefaultGraph)
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![default_quad]
+            HashSet::from([default_quad.clone()])
         );
         assert_eq!(
             store
@@ -1065,9 +1082,9 @@ mod tests {
                     Some(main_g.as_ref())
                 )
                 .await?
-                .try_collect_to_vec()
+                .try_collect_to_set()
                 .await?,
-            vec![named_quad]
+            HashSet::from([named_quad.clone()])
         );
 
         Ok(())

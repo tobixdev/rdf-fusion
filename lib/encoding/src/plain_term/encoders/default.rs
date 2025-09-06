@@ -1,5 +1,5 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder, PlainTermEncoding};
+use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
 use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
@@ -22,7 +22,7 @@ impl TermEncoder<PlainTermEncoding> for DefaultPlainTermEncoder {
                 Err(_) => value_builder.append_null(),
             }
         }
-        PLAIN_TERM_ENCODING.try_new_array(value_builder.finish())
+        Ok(value_builder.finish())
     }
 
     fn encode_term(

@@ -2,7 +2,6 @@ use crate::plans::canonicalize_uuids;
 use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
-use rdf_fusion::store::Store;
 use rdf_fusion::{QueryExplanation, QueryOptions};
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::windfarm::{
@@ -48,7 +47,7 @@ async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()
         .create_benchmark_context(benchmark_name)
         .unwrap();
 
-    let store = Store::new();
+    let store = benchmark.prepare_store(&benchmark_context).await.unwrap();
     for query_name in WindFarmQueryName::list_queries() {
         let benchmark_name = format!("Wind Farm - {query_name}");
         let query = get_query_to_execute(&benchmark_context, query_name);
