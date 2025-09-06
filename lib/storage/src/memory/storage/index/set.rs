@@ -42,7 +42,7 @@ impl IndexSet {
                 MemQuadIndex::new(IndexConfiguration {
                     object_id_encoding: object_id_encoding.clone(),
                     batch_size,
-                    components: components.clone(),
+                    components: *components,
                 })
             })
             .collect();
@@ -162,7 +162,7 @@ impl MemQuadIndexSetScanIterator {
         schema: SchemaRef,
         index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
         index: IndexConfiguration,
-        instructions: IndexScanInstructions,
+        instructions: Box<IndexScanInstructions>,
     ) -> Self {
         let instructions = reorder_pattern(&instructions, &index.components);
         let iterator = MemQuadIndexScanIterator::new_from_index_set(

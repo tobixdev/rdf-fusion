@@ -93,7 +93,7 @@ impl MemQuadStorageSnapshot {
             schema,
             index_set: self.index_set.clone(),
             index,
-            instructions: scan_instructions,
+            instructions: Box::new(scan_instructions),
             graph_variable,
             pattern: Box::new(pattern),
         })

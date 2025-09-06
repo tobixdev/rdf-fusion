@@ -85,7 +85,7 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                     } else {
                         self.state = ScanState::Scanning {
                             data: row_groups,
-                            instructions: instructions.0.clone().map(|i| Some(i)),
+                            instructions: instructions.0.clone().map(Some),
                         };
                     }
                 }
@@ -237,7 +237,7 @@ pub enum PlannedPatternScan {
         /// Which index to scan.
         index: IndexConfiguration,
         /// The instructions to scan the index.
-        instructions: IndexScanInstructions,
+        instructions: Box<IndexScanInstructions>,
         /// The graph variable. Used for printing the query plan.
         graph_variable: Option<Variable>,
         /// The triple pattern. Used for printing the query plan.

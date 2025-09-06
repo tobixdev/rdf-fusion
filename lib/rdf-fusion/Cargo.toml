@@ -28,6 +28,7 @@ sparesults.workspace = true
 
 [dev-dependencies]
 codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
+rand.workspace = true
 tokio-test.workspace = true
 
 [lints]
