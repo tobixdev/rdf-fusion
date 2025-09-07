@@ -13,12 +13,12 @@ use tokio::runtime::Builder;
 /// This benchmark measures transactionally inserting synthetic quads into the store.
 fn store_load(c: &mut Criterion) {
     c.bench_function("Store::load, target_partitions=1", |b| {
+        let store = Store::new_with_datafusion_config(
+            SessionConfig::new().with_target_partitions(1),
+            RuntimeEnv::default().into(),
+        );
         b.to_async(&Builder::new_current_thread().enable_all().build().unwrap())
             .iter(|| async {
-                let store = Store::new_with_datafusion_config(
-                    SessionConfig::new().with_target_partitions(1),
-                    RuntimeEnv::default().into(),
-                );
                 for quad in generate_quads(10_000) {
                     store.insert(quad.as_ref()).await.unwrap();
                 }
@@ -26,12 +26,12 @@ fn store_load(c: &mut Criterion) {
     });
 
     c.bench_function("Store::load, target_partitions=4", |b| {
+        let store = Store::new_with_datafusion_config(
+            SessionConfig::new().with_target_partitions(4),
+            RuntimeEnv::default().into(),
+        );
         b.to_async(&Builder::new_current_thread().enable_all().build().unwrap())
             .iter(|| async {
-                let store = Store::new_with_datafusion_config(
-                    SessionConfig::new().with_target_partitions(4),
-                    RuntimeEnv::default().into(),
-                );
                 for quad in generate_quads(10_000) {
                     store.insert(quad.as_ref()).await.unwrap();
                 }
