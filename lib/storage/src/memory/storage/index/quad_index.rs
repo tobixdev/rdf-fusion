@@ -1,3 +1,4 @@
+use crate::memory::object_id::EncodedGraphObjectId;
 use crate::memory::storage::index::quad_index_data::IndexData;
 use crate::memory::storage::index::scan::MemQuadIndexScanIterator;
 use crate::memory::storage::index::{
@@ -57,12 +58,6 @@ impl MemQuadIndex {
         self.data.insert(&to_insert)
     }
 
-    /// TODO
-    pub fn clear(&mut self) {
-        self.data =
-            IndexData::new(self.configuration.batch_size, self.data.nullable_position());
-    }
-
     /// Removes a list of quads.
     ///
     /// Quads that do not exist in the index are ignored.
@@ -74,6 +69,19 @@ impl MemQuadIndex {
         }
 
         self.data.remove(&to_insert)
+    }
+
+    /// TODO
+    pub fn clear(&mut self) {
+        self.data =
+            IndexData::new(self.configuration.batch_size, self.data.nullable_position());
+    }
+
+    /// TODO
+    pub fn clear_graph(&mut self, graph_name: EncodedGraphObjectId) {
+        let index = self.data.nullable_position();
+        self.data
+            .clear_all_with_value_in_column(graph_name.0, index);
     }
 
     /// TODO

@@ -162,7 +162,7 @@ impl IndexData {
 
             count += to_insert_row_group.len();
 
-            if to_insert_row_group.len() == 0 {
+            if !to_insert_row_group.is_empty() {
                 current_row_group.insert(to_insert_row_group);
             }
 
@@ -218,6 +218,32 @@ impl IndexData {
         // Remaining quads are not contained in any row group.
 
         count
+    }
+
+    /// TODO
+    pub(crate) fn clear_all_with_value_in_column(
+        &mut self,
+        p0: EncodedObjectId,
+        column_idx: usize,
+    ) {
+        let mut row_group_idx = 0;
+        while row_group_idx < self.row_groups.len() {
+            let current_row_group = &mut self.row_groups[row_group_idx];
+
+            current_row_group.remove(
+                current_row_group
+                    .quads()
+                    .into_iter()
+                    .filter(|q| q.0[column_idx] == p0)
+                    .collect(),
+            );
+
+            if current_row_group.len() == 0 {
+                self.row_groups.remove(row_group_idx);
+            } else {
+                row_group_idx += 1;
+            }
+        }
     }
 }
 
@@ -982,6 +1008,47 @@ mod tests {
         ]));
 
         assert_eq!(QuadFindResult::Contained, result);
+    }
+
+    #[test]
+    fn test_clear_all_with_value_in_column_removes_only_matching() {
+        let mut index = IndexData::new(5, 0);
+
+        index.insert(
+            &[
+                quad_from_values(1, 100, 3, 4),
+                quad_from_values(2, 100, 3, 4),
+                quad_from_values(3, 200, 3, 4),
+                quad_from_values(4, 200, 3, 4),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        index.clear_all_with_value_in_column(EncodedObjectId::from(100), 1);
+
+        assert_eq!(index.len(), 2);
+        for value in index.row_groups[0].column_chunks[1].data.values() {
+            assert_ne!(*value, 100);
+        }
+    }
+
+    #[test]
+    fn test_clear_all_with_value_in_column_no_match_leaves_index_unchanged() {
+        let mut index = IndexData::new(3, 0);
+
+        index.insert(
+            &[
+                quad_from_values(10, 20, 30, 40),
+                quad_from_values(11, 22, 33, 44),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        index.clear_all_with_value_in_column(EncodedObjectId::from(99), 0);
+
+        assert_eq!(index.len(), 2);
     }
 
     /// Creates a quad where all four terms have the same u32 value

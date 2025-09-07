@@ -136,7 +136,11 @@ impl IndexSet {
         }
     }
 
-    pub fn clear_graph(&mut self, _graph_name: EncodedGraphObjectId) {}
+    pub fn clear_graph(&mut self, graph_name: EncodedGraphObjectId) {
+        for index in self.indexes.iter_mut() {
+            index.clear_graph(graph_name);
+        }
+    }
 
     pub fn drop_named_graph(&mut self, graph_name: EncodedObjectId) -> bool {
         self.clear_graph(EncodedGraphObjectId(graph_name));
