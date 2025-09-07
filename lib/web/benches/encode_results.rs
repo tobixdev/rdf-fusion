@@ -10,10 +10,9 @@ fn encode_solution(criterion: &mut Criterion) {
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
     let store = Store::default();
+    let quads = generate_quads(8192).collect::<Vec<_>>();
     runtime.block_on(async {
-        for quad in generate_quads(8192) {
-            store.insert(quad.as_ref()).await.unwrap();
-        }
+        store.extend(quads.iter().map(Quad::as_ref)).await.unwrap();
     });
 
     let app_state = AppState {
