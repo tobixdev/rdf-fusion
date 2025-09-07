@@ -388,8 +388,20 @@ impl MemColumnChunk {
 
     /// TODO
     pub fn find_range(&self, value: EncodedObjectId) -> FindRangeResult {
-        let null_count = self.data.null_count();
+        let values = self.data.values();
 
+        // Fast path for before check
+        if value.as_u32() < *values.first().expect("Chunks are never empty") {
+            return FindRangeResult::Before;
+        }
+
+        // Fast path for after check
+        if values.last().expect("Chunks are never empty") < &value.as_u32() {
+            return FindRangeResult::After;
+        }
+
+        // Fast path for null handling
+        let null_count = self.data.null_count();
         if value.as_u32() == 0 {
             if null_count == 0 {
                 return FindRangeResult::Before;
@@ -397,15 +409,12 @@ impl MemColumnChunk {
             return FindRangeResult::Contained(0, null_count);
         }
 
-        // TODO: Check last value for early return
-
         let find_result = self.data.values().iter().position(|v| *v >= value.as_u32());
-
         let count_first_larger_value = match find_result {
-            None => return FindRangeResult::After,
+            None => unreachable!("Should have been caught by fast path"),
             Some(position) => {
                 if position == 0 && self.data.values()[0] != value.as_u32() {
-                    return FindRangeResult::Before;
+                    unreachable!("Should have been caught by fast path");
                 } else if self.data.values()[position] != value.as_u32() {
                     return FindRangeResult::NotContained(position);
                 } else {
