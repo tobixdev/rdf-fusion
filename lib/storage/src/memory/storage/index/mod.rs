@@ -99,6 +99,7 @@ pub enum IndexScanInstruction {
 }
 
 impl IndexScanInstruction {
+    /// Returns the scan variable (i.e., the variable to bind the results to) for this instruction.
     pub fn scan_variable(&self) -> Option<&str> {
         match self {
             IndexScanInstruction::Traverse(_) => None,
@@ -106,10 +107,22 @@ impl IndexScanInstruction {
         }
     }
 
+    /// Returns the predicate for this instruction.
     pub fn predicate(&self) -> Option<&ObjectIdScanPredicate> {
         match self {
             IndexScanInstruction::Traverse(predicate) => predicate.as_ref(),
             IndexScanInstruction::Scan(_, predicate) => predicate.as_ref(),
+        }
+    }
+
+    /// Creates a new [IndexScanInstruction] that has no predicate, even if the original instruction
+    /// contained a predicate.
+    pub fn without_predicate(&self) -> Self {
+        match self {
+            IndexScanInstruction::Traverse(_) => IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Scan(variable, _) => {
+                IndexScanInstruction::Scan(variable.clone(), None)
+            }
         }
     }
 }

@@ -78,14 +78,20 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                 ScanState::CollectRelevantBatches(index_ref, instructions) => {
                     let index = index_ref.get_index();
                     let index_data = index.data();
-                    let row_groups = index_data.prune_relevant_row_groups(instructions);
+                    let pruning_result =
+                        index_data.prune_relevant_row_groups(instructions);
 
-                    if row_groups.is_empty() {
+                    let instructions = match pruning_result.new_instructions {
+                        None => instructions.0.clone(),
+                        Some(new_instructions) => new_instructions.0,
+                    };
+
+                    if pruning_result.row_groups.is_empty() {
                         self.state = ScanState::Finished;
                     } else {
                         self.state = ScanState::Scanning {
-                            data: row_groups,
-                            instructions: instructions.0.clone().map(Some),
+                            data: pruning_result.row_groups,
+                            instructions: instructions.map(Some),
                         };
                     }
                 }

@@ -17,6 +17,19 @@ pub(super) struct IndexData {
     row_groups: Vec<MemRowGroup>,
 }
 
+/// The result of [IndexData::prune_relevant_row_groups].
+///
+/// During this task, some filters are already completely applied, and re-applying them would be
+/// unnecessary overhead. Therefore, the result includes [Self::new_instructions] to signal
+/// that some filters have become obsolete. Note that applying the old instructions will still be
+/// correct.
+pub(super) struct RowGroupPruningResult {
+    /// The row groups that may contain quads that match the given instructions.
+    pub row_groups: Vec<MemRowGroup>,
+    /// The new instructions that should be applied to the index.
+    pub new_instructions: Option<IndexScanInstructions>,
+}
+
 impl IndexData {
     /// Creates a new [IndexColumn].
     pub fn new(batch_size: usize, nullable_position: usize) -> Self {
@@ -49,7 +62,8 @@ impl IndexData {
     pub fn prune_relevant_row_groups(
         &self,
         instructions: &IndexScanInstructions,
-    ) -> Vec<MemRowGroup> {
+    ) -> RowGroupPruningResult {
+        let mut new_instructions = Vec::new();
         let mut relevant_row_groups = self.row_groups.clone();
 
         for (column_idx, instruction) in instructions.0.iter().enumerate() {
@@ -82,13 +96,19 @@ impl IndexData {
 
             // No batch contains any relevant data
             let Some((first_row_group, first_range_result)) = first_relevant else {
-                return vec![];
+                return RowGroupPruningResult {
+                    row_groups: vec![],
+                    new_instructions: None,
+                };
             };
 
             // All other results (e.g., NotContained) indicate that the given id is not contained
             // in the first batch. As a result, it won't be contained in any other batch.
             let FindRangeResult::Contained(from, to) = first_range_result else {
-                return vec![];
+                return RowGroupPruningResult {
+                    row_groups: vec![],
+                    new_instructions: None,
+                };
             };
 
             let mut new_relevant_row_groups =
@@ -126,9 +146,26 @@ impl IndexData {
             }
 
             relevant_row_groups = new_relevant_row_groups;
+
+            new_instructions.push(instruction.without_predicate())
         }
 
-        relevant_row_groups
+        let new_instructions = if new_instructions.is_empty() {
+            None
+        } else {
+            let missing_instructions = &instructions.0[new_instructions.len()..];
+            new_instructions.extend_from_slice(missing_instructions);
+            Some(IndexScanInstructions::new(
+                new_instructions
+                    .try_into()
+                    .expect("Should yield 4 instructions"),
+            ))
+        };
+
+        RowGroupPruningResult {
+            row_groups: relevant_row_groups,
+            new_instructions,
+        }
     }
 
     /// Insert `to_insert` into the index.
@@ -632,7 +669,7 @@ mod tests {
 
         let relevant = index.prune_relevant_row_groups(&instructions);
 
-        assert!(relevant.is_empty());
+        assert!(relevant.row_groups.is_empty());
     }
 
     #[test]
@@ -648,8 +685,8 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let relevant = index.prune_relevant_row_groups(&instructions);
-        assert_eq!(relevant.len(), index.row_groups.len());
+        let result = index.prune_relevant_row_groups(&instructions);
+        assert_eq!(result.row_groups.len(), index.row_groups.len());
     }
 
     #[test]
@@ -668,10 +705,11 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let relevant = index.prune_relevant_row_groups(&instructions);
+        let result = index.prune_relevant_row_groups(&instructions);
 
-        assert_eq!(relevant.len(), 1);
-        assert_debug_snapshot!(relevant[0], @r"
+        assert_eq!(result.row_groups.len(), 1);
+        assert!(result.new_instructions.unwrap().0[0].predicate().is_none());
+        assert_debug_snapshot!(result.row_groups[0], @r"
         MemRowGroup {
             column_chunks: [
                 MemColumnChunk {
@@ -700,7 +738,7 @@ mod tests {
                 },
             ],
         }
-        ")
+        ");
     }
 
     /// This test aims to test the following scenario:
@@ -744,11 +782,21 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let relevant = index.prune_relevant_row_groups(&instructions);
+        let result = index.prune_relevant_row_groups(&instructions);
 
-        assert_eq!(relevant.len(), 2);
-        assert_eq!(relevant[0].len(), 5);
-        assert_eq!(relevant[1].len(), 4);
+        assert_eq!(result.row_groups.len(), 2);
+        assert_eq!(result.row_groups[0].len(), 5);
+        assert_eq!(result.row_groups[1].len(), 4);
+        assert!(
+            result.new_instructions.as_ref().unwrap().0[0]
+                .predicate()
+                .is_none()
+        );
+        assert!(
+            result.new_instructions.as_ref().unwrap().0[1]
+                .predicate()
+                .is_none()
+        );
     }
 
     #[test]
@@ -779,10 +827,11 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let relevant = index.prune_relevant_row_groups(&instructions);
+        let result = index.prune_relevant_row_groups(&instructions);
 
-        assert_eq!(relevant.len(), 1);
-        assert_eq!(relevant[0].len(), 4);
+        assert_eq!(result.row_groups.len(), 1);
+        assert_eq!(result.row_groups[0].len(), 4);
+        assert!(result.new_instructions.unwrap().0[0].predicate().is_none());
     }
 
     #[test]
@@ -824,12 +873,12 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let relevant = index.prune_relevant_row_groups(&instructions);
+        let result = index.prune_relevant_row_groups(&instructions);
 
-        assert_eq!(relevant.len(), 3);
-        assert_eq!(relevant[0].len(), 4);
-        assert_eq!(relevant[1].len(), 5);
-        assert_eq!(relevant[2].len(), 1);
+        assert_eq!(result.row_groups.len(), 3);
+        assert_eq!(result.row_groups[0].len(), 4);
+        assert_eq!(result.row_groups[1].len(), 5);
+        assert_eq!(result.row_groups[2].len(), 1);
     }
 
     #[test]
@@ -856,10 +905,10 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let relevant = index.prune_relevant_row_groups(&instructions);
+        let result = index.prune_relevant_row_groups(&instructions);
 
-        assert_eq!(relevant.len(), 1);
-        assert_eq!(relevant[0].len(), 1);
+        assert_eq!(result.row_groups.len(), 1);
+        assert_eq!(result.row_groups[0].len(), 1);
     }
 
     #[test]
@@ -886,10 +935,10 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let relevant = index.prune_relevant_row_groups(&instructions);
+        let result = index.prune_relevant_row_groups(&instructions);
 
-        assert_eq!(relevant.len(), 1);
-        assert_eq!(relevant[0].len(), 1);
+        assert_eq!(result.row_groups.len(), 1);
+        assert_eq!(result.row_groups[0].len(), 1);
     }
 
     #[test]
@@ -907,9 +956,9 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let relevant = index.prune_relevant_row_groups(&instructions);
+        let result = index.prune_relevant_row_groups(&instructions);
 
-        assert!(relevant.is_empty());
+        assert!(result.row_groups.is_empty());
     }
 
     #[test]
@@ -928,9 +977,9 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let relevant = index.prune_relevant_row_groups(&instructions);
+        let result = index.prune_relevant_row_groups(&instructions);
 
-        assert_eq!(relevant.len(), index.row_groups.len());
+        assert_eq!(result.row_groups.len(), index.row_groups.len());
     }
 
     #[test]
