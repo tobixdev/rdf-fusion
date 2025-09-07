@@ -1,6 +1,8 @@
 #![allow(clippy::panic)]
 
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use datafusion::execution::runtime_env::RuntimeEnv;
+use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
 use rdf_fusion::model::Term;
 use rdf_fusion::store::Store;
@@ -10,10 +12,26 @@ use tokio::runtime::Builder;
 
 /// This benchmark measures transactionally inserting synthetic quads into the store.
 fn store_load(c: &mut Criterion) {
-    c.bench_function("Store::load", |b| {
+    c.bench_function("Store::load, target_partitions=1", |b| {
+        let store = Store::new_with_datafusion_config(
+            SessionConfig::new().with_target_partitions(1),
+            RuntimeEnv::default().into(),
+        );
         b.to_async(&Builder::new_current_thread().enable_all().build().unwrap())
             .iter(|| async {
-                let store = Store::new();
+                for quad in generate_quads(10_000) {
+                    store.insert(quad.as_ref()).await.unwrap();
+                }
+            });
+    });
+
+    c.bench_function("Store::load, target_partitions=4", |b| {
+        let store = Store::new_with_datafusion_config(
+            SessionConfig::new().with_target_partitions(4),
+            RuntimeEnv::default().into(),
+        );
+        b.to_async(&Builder::new_current_thread().enable_all().build().unwrap())
+            .iter(|| async {
                 for quad in generate_quads(10_000) {
                     store.insert(quad.as_ref()).await.unwrap();
                 }
@@ -103,7 +121,10 @@ criterion_group!(
 criterion_main!(store_write, store_query);
 
 async fn prepare_store_with_generated_triples(n: usize) -> Store {
-    let store = Store::new();
+    let store = Store::new_with_datafusion_config(
+        SessionConfig::new().with_target_partitions(1),
+        RuntimeEnv::default().into(),
+    );
     for quad in generate_quads(n) {
         store.insert(quad.as_ref()).await.unwrap();
     }

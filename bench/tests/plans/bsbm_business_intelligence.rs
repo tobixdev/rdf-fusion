@@ -2,7 +2,6 @@ use crate::plans::canonicalize_uuids;
 use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
-use rdf_fusion::store::Store;
 use rdf_fusion::{QueryExplanation, QueryOptions};
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
@@ -40,7 +39,7 @@ pub async fn execution_plan_bsbm_business_intelligence() {
 
 async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()) {
     let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
 
     // Load the benchmark data and set max query count to one.
     let benchmark =
@@ -51,7 +50,7 @@ async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()
         .create_benchmark_context(benchmark_name)
         .unwrap();
 
-    let store = Store::new();
+    let store = benchmarking_context.create_store();
     for query_name in BsbmBusinessIntelligenceQueryName::list_queries() {
         let benchmark_name = format!("BSBM Business Intelligence - {query_name}");
         let query =

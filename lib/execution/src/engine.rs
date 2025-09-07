@@ -5,6 +5,7 @@ use crate::sparql::{
 };
 use datafusion::dataframe::DataFrame;
 use datafusion::error::DataFusionError;
+use datafusion::execution::runtime_env::RuntimeEnv;
 use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
@@ -46,7 +47,11 @@ pub struct RdfFusionContext {
 
 impl RdfFusionContext {
     /// Creates a new [RdfFusionContext] with the default configuration and the given `storage`.
-    pub fn new_with_storage(storage: Arc<dyn QuadStorage>) -> Self {
+    pub fn new(
+        config: SessionConfig,
+        runtime_env: Arc<RuntimeEnv>,
+        storage: Arc<dyn QuadStorage>,
+    ) -> Self {
         // TODO make a builder
         let object_id_encoding = match storage.encoding() {
             QuadStorageEncoding::PlainTerm => None,
@@ -65,11 +70,10 @@ impl RdfFusionContext {
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
-        let config = SessionConfig::new().with_target_partitions(1);
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
-            // TODO: For now we use only a single partition. This should be configurable.
+            .with_runtime_env(runtime_env)
             .with_config(config)
             .build();
 

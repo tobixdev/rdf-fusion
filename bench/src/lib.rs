@@ -33,6 +33,10 @@ pub struct BenchmarkingOptions {
     /// For example, while non-verbose results could show an aggregated version of multiple runs,
     /// verbose results could write the results for each run.
     pub verbose_results: bool,
+    /// The number of partitions to use for configuring DataFusion.
+    pub target_partitions: Option<usize>,
+    /// The number of MiBs that DataFusion is allowed to Suse.
+    pub memory_size: Option<usize>,
 }
 
 /// Executes an `operation` of a given `benchmark`.
