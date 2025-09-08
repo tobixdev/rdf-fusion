@@ -4,6 +4,8 @@ use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use datafusion::execution::runtime_env::RuntimeEnv;
 use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
+use rand::SeedableRng;
+use rand::prelude::{SliceRandom, SmallRng};
 use rdf_fusion::model::Term;
 use rdf_fusion::store::Store;
 use rdf_fusion_execution::results::QueryResults;

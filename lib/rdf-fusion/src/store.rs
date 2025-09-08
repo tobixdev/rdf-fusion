@@ -112,7 +112,7 @@ impl Default for Store {
 }
 
 impl Store {
-    /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
+    /// Creates a [Store] with a [MemQuadStorage] as backing storage.
     ///
     /// Equivalent to calling [Self::new_with_datafusion_config] with the default settings.
     pub fn new() -> Store {
@@ -122,7 +122,8 @@ impl Store {
         )
     }
 
-    /// Creates a [Store] with a [MemoryQuadStorage] as backing storage.
+    /// Creates a [Store] with a [MemQuadStorage] as backing storage using the given `config` and
+    /// `runtime_env`.
     pub fn new_with_datafusion_config(
         config: SessionConfig,
         runtime_env: Arc<RuntimeEnv>,
