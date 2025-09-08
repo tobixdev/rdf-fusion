@@ -26,12 +26,12 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Maintains a mapping between RDF terms and object IDs in memory.
 ///
-/// The mapping happens on two levels: first all strings are interned, second the [EncodedTerm]
-/// that refers to the interned strings is mapped to an [EncodedObjectId].
+/// The mapping happens on two levels: first, all strings are interned, second, the encoded term
+/// that refers to the interned strings is mapped to an encoded Object ID.
 ///
 /// # Object IDs
 ///
-/// The [EncodedObjectId] is a 32-bit unsigned integer that is used to uniquely identify RDF terms.
+/// The encoded Object ID is a 32-bit unsigned integer used to uniquely identify RDF terms.
 /// Currently, we simply use a counter to allocate new object IDs.
 ///
 /// # Typed Values

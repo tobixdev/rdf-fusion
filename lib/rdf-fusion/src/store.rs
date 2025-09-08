@@ -32,7 +32,7 @@
 
 use crate::error::{LoaderError, SerializerError};
 use crate::sparql::error::QueryEvaluationError;
-use datafusion::execution::runtime_env::RuntimeEnv;
+use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
@@ -97,9 +97,16 @@ pub struct Store {
 
 impl Default for Store {
     fn default() -> Self {
+        let config = SessionConfig::new()
+            .with_batch_size(8192)
+            .with_target_partitions(1);
         let object_id_mapping = MemObjectIdMapping::new();
         let storage = MemQuadStorage::new(Arc::new(object_id_mapping), 8192);
-        let engine = RdfFusionContext::new_with_storage(Arc::new(storage));
+        let engine = RdfFusionContext::new(
+            config,
+            RuntimeEnvBuilder::default().build_arc().unwrap(),
+            Arc::new(storage),
+        );
         Self { engine }
     }
 }
@@ -120,7 +127,8 @@ impl Store {
         config: SessionConfig,
         runtime_env: Arc<RuntimeEnv>,
     ) -> Store {
-        let storage = MemoryQuadStorage::new();
+        let storage =
+            MemQuadStorage::new(Arc::new(MemObjectIdMapping::new()), config.batch_size());
         let engine = RdfFusionContext::new(config, runtime_env, Arc::new(storage));
         Self { engine }
     }
