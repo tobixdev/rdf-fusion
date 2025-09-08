@@ -9,7 +9,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::vocab::{rdf, xsd};
 use rdf_fusion_model::{Numeric, ThinError, TypedValueRef};
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct DatatypeSparqlOp;
 
 impl Default for DatatypeSparqlOp {

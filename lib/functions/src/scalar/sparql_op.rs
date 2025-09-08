@@ -15,10 +15,10 @@ use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
 use std::any::Any;
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 
 /// TODO
-pub trait ScalarSparqlOp: Debug + Send + Sync {
+pub trait ScalarSparqlOp: Debug + Hash + Eq + Send + Sync {
     /// TODO
     type Args<TEncoding: TermEncoding>: SparqlOpArgs<TEncoding>;
 
@@ -51,7 +51,7 @@ pub trait ScalarSparqlOp: Debug + Send + Sync {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq)]
 pub struct ScalarSparqlOpAdapter<TScalarSparqlOp: ScalarSparqlOp> {
     name: String,
     signature: Signature,
@@ -271,11 +271,21 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             EncodingName::Sortable => exec_err!("Not supported"),
         }
     }
+}
 
-    fn hash_value(&self) -> u64 {
-        let hasher = &mut DefaultHasher::new();
-        self.as_any().type_id().hash(hasher);
-        self.name().hash(hasher);
-        hasher.finish()
+/// While it would be possible to create two different SparqlOpAdapters for the same
+/// [ScalarSparqlOp] that are not identical (different encodings), this situation is unlikely to
+/// happen when using RDF Fusion "normally". Therefore, we only hash the contained [ScalarSparqlOp].
+impl<TScalarSparqlOp: ScalarSparqlOp> Hash for ScalarSparqlOpAdapter<TScalarSparqlOp> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.op.hash(state);
+    }
+}
+
+impl<TScalarSparqlOp: ScalarSparqlOp> PartialEq
+    for ScalarSparqlOpAdapter<TScalarSparqlOp>
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.op == other.op && self.encodings == other.encodings
     }
 }

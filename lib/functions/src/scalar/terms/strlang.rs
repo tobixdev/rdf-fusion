@@ -9,7 +9,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{LanguageString, ThinError, TypedValue, TypedValueRef};
 
 /// TODO
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct StrLangSparqlOp;
 
 impl Default for StrLangSparqlOp {

@@ -9,7 +9,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{SimpleLiteralRef, ThinError, TypedValueRef};
 
 /// Implementation of the SPARQL `langMatches` function.
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct LangMatchesSparqlOp;
 
 impl Default for LangMatchesSparqlOp {

@@ -10,7 +10,7 @@ use rdf_fusion_model::{
     LanguageString, SimpleLiteral, StringLiteralRef, ThinError, ThinResult, TypedValue,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ConcatSparqlOp;
 
 impl Default for ConcatSparqlOp {

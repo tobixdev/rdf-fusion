@@ -8,7 +8,7 @@ use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncodin
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use rdf_fusion_model::{BlankNode, BlankNodeRef, ThinError, TypedValueRef};
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct BNodeSparqlOp;
 
 impl Default for BNodeSparqlOp {

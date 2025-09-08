@@ -9,7 +9,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{SimpleLiteral, ThinError, TypedValue, TypedValueRef};
 use sha1::{Digest, Sha1};
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Sha1SparqlOp;
 
 impl Default for Sha1SparqlOp {

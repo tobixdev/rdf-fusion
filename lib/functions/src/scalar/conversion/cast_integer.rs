@@ -8,7 +8,7 @@ use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{Integer, Numeric, ThinError, TypedValueRef};
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct CastIntegerSparqlOp;
 
 impl Default for CastIntegerSparqlOp {

@@ -33,7 +33,7 @@ clap = "4.0"
 clap_complete = "4.0"
 clap_mangen = "0.2"
 csv = "1.3"
-datafusion = "49.0"
+datafusion = { git = "https://github.com/apache/datafusion", rev = "241b669e1ba0bc63d9802505be9d6be50607574c" }
 dashmap = "6.1"
 futures = "0.3"
 itertools = "0.14"

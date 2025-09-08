@@ -9,7 +9,7 @@ use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
 use rdf_fusion_model::{Numeric, TypedValueRef};
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct RandSparqlOp;
 
 impl Default for RandSparqlOp {

@@ -16,7 +16,7 @@ use rdf_fusion_encoding::{
     TermEncoder, TermEncoding,
 };
 use std::any::Any;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::Hash;
 use std::sync::Arc;
 
 pub fn with_typed_value_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF> {
@@ -25,7 +25,7 @@ pub fn with_typed_value_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF
 }
 
 /// Transforms RDF Terms into the [TypedValueEncoding](rdf_fusion_encoding::typed_value::TypedValueEncoding).
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 struct WithTypedValueEncoding {
     /// The name of this function
     name: String,
@@ -137,12 +137,5 @@ impl ScalarUDFImpl for WithTypedValueEncoding {
             [ColumnarValue::Array(array)] => self.convert_array(encoding_name, array),
             [ColumnarValue::Scalar(scalar)] => self.convert_scalar(encoding_name, scalar),
         }
-    }
-
-    fn hash_value(&self) -> u64 {
-        // Remove once https://github.com/apache/datafusion/pull/16977 is in release
-        let hasher = &mut DefaultHasher::new();
-        self.as_any().type_id().hash(hasher);
-        hasher.finish()
     }
 }

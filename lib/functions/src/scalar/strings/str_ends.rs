@@ -11,7 +11,7 @@ use rdf_fusion_model::{
 };
 
 /// Implementation of the SPARQL `strends` function.
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct StrEndsSparqlOp;
 
 impl Default for StrEndsSparqlOp {

@@ -10,7 +10,7 @@ use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct CastStringSparqlOp;
 
 impl Default for CastStringSparqlOp {

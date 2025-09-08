@@ -10,7 +10,7 @@ use rdf_fusion_model::{
     LanguageString, SimpleLiteral, ThinError, TypedValue, TypedValueRef,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct LCaseSparqlOp;
 
 impl Default for LCaseSparqlOp {

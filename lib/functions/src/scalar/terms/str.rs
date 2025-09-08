@@ -15,7 +15,7 @@ use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct StrSparqlOp;
 
 impl Default for StrSparqlOp {
