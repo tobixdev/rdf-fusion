@@ -100,7 +100,7 @@ impl WindFarmBenchmark {
         let start = datafusion::common::instant::Instant::now();
         println!("Creating in-memory store and loading data ...");
         let dataset_path = create_files(ctx)?;
-        let memory_store = Store::default();
+        let memory_store = ctx.parent().create_store();
 
         println!("Loading static data ...");
         let data = fs::read(&dataset_path.wind_farm_data)?;

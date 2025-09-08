@@ -2,8 +2,8 @@
 
 mod utils;
 
-use crate::utils::consume_results;
 use crate::utils::verbose::{is_verbose, print_query_details};
+use crate::utils::{consume_results, create_runtime};
 use anyhow::Context;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use rdf_fusion::QueryOptions;
@@ -13,15 +13,23 @@ use rdf_fusion_bench::benchmarks::windfarm::{
 };
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
-use tokio::runtime::{Builder, Runtime};
 
-fn wind_farm_16(c: &mut Criterion) {
-    let verbose = is_verbose();
-
-    let runtime = create_runtime();
+fn wind_farm_16_1_partition(c: &mut Criterion) {
     let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
+    wind_farm_16(c, &benchmarking_context);
+}
 
+fn wind_farm_16_4_partitions(c: &mut Criterion) {
+    let benchmarking_context =
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 4);
+    wind_farm_16(c, &benchmarking_context);
+}
+
+fn wind_farm_16(c: &mut Criterion, benchmarking_context: &RdfFusionBenchContext) {
+    let verbose = is_verbose();
+    let runtime =
+        create_runtime(benchmarking_context.options().target_partitions.unwrap());
     let benchmark = WindFarmBenchmark::new(NumTurbines::N16);
     let benchmark_name = benchmark.name();
     let benchmark_context = benchmarking_context
@@ -49,7 +57,10 @@ fn wind_farm_16(c: &mut Criterion) {
             continue;
         }
 
-        let benchmark_name = format!("Wind Farm 16 - {query_name}");
+        let benchmark_name = format!(
+            "Wind Farm 16 (target_partitions={}) - {query_name}",
+            benchmarking_context.options().target_partitions.unwrap()
+        );
         let query =
             get_wind_farm_raw_sparql_operation(&benchmark_context, query_name).unwrap();
 
@@ -79,10 +90,6 @@ fn wind_farm_16(c: &mut Criterion) {
 criterion_group!(
     name = wind_farm;
     config = Criterion::default().sample_size(10);
-    targets = wind_farm_16
+    targets = wind_farm_16_1_partition, wind_farm_16_4_partitions
 );
 criterion_main!(wind_farm);
-
-fn create_runtime() -> Runtime {
-    Builder::new_current_thread().enable_all().build().unwrap()
-}

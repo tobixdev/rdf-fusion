@@ -1,9 +1,9 @@
 #![allow(clippy::panic)]
 
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use datafusion::execution::runtime_env::RuntimeEnv;
+use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
-use rand::prelude::*;
-use rand::seq::SliceRandom;
 use rdf_fusion::model::Term;
 use rdf_fusion::store::Store;
 use rdf_fusion_execution::results::QueryResults;
@@ -133,7 +133,10 @@ criterion_group!(
 criterion_main!(store_write, store_query);
 
 async fn prepare_store_with_generated_triples(n: usize) -> Store {
-    let store = Store::default();
+    let store = Store::new_with_datafusion_config(
+        SessionConfig::new().with_target_partitions(1),
+        RuntimeEnv::default().into(),
+    );
     let quads = generate_quads(n).collect::<Vec<_>>();
     store.extend(quads.iter().map(Quad::as_ref)).await.unwrap();
     store

@@ -3,8 +3,11 @@ use crate::benchmarks::BenchmarkName;
 use crate::prepare::{PrepRequirement, prepare_run_closure, prepare_run_command};
 use crate::prepare::{ensure_file_download, prepare_file_download};
 use anyhow::bail;
+use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
+use datafusion::prelude::SessionConfig;
+use rdf_fusion::store::Store;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// Represents a context used to execute benchmarks.
 pub struct RdfFusionBenchContext {
@@ -31,10 +34,12 @@ impl RdfFusionBenchContext {
     }
 
     /// Creates a new [RdfFusionBenchContext] used in the criterion benchmarks.
-    pub fn new_for_criterion(data_dir: PathBuf) -> Self {
+    pub fn new_for_criterion(data_dir: PathBuf, target_partitions: usize) -> Self {
         Self {
             options: BenchmarkingOptions {
                 verbose_results: false,
+                target_partitions: Some(target_partitions),
+                memory_size: None,
             },
             data_dir: Mutex::new(data_dir),
             results_dir: Mutex::new(PathBuf::from("/temp")),
@@ -53,6 +58,19 @@ impl RdfFusionBenchContext {
         }
 
         Ok(self.data_dir.lock().unwrap().join(file))
+    }
+
+    pub fn create_store(&self) -> Store {
+        let config = SessionConfig::new()
+            .with_target_partitions(self.options.target_partitions.unwrap_or(1));
+        let runtime_enc = match self.options.memory_size {
+            None => Arc::new(RuntimeEnv::default()),
+            Some(memory_size) => RuntimeEnvBuilder::new()
+                .with_memory_limit(memory_size * 1024 * 1024, 1f64)
+                .build_arc()
+                .expect("Only setting memory limit"),
+        };
+        Store::new_with_datafusion_config(config, runtime_enc)
     }
 
     /// Creates a new folder in the results directory and uses it until [Self::pop_dir] is
