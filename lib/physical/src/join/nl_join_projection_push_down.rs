@@ -779,6 +779,7 @@ mod test {
                 random(),
                 vec![],
                 FieldRef::new(Field::new("out", DataType::Float64, false)),
+                Arc::new(ConfigOptions::default()),
             )),
             join_schema,
         )?;
