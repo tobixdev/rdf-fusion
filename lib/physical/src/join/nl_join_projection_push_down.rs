@@ -3,8 +3,6 @@ use datafusion::common::alias::AliasGenerator;
 use datafusion::common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
 use datafusion::common::{JoinSide, JoinType};
 use datafusion::config::ConfigOptions;
-use datafusion::logical_expr::Volatility;
-use datafusion::physical_expr::ScalarFunctionExpr;
 use datafusion::physical_expr::expressions::Column;
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::physical_plan::coalesce_batches::CoalesceBatchesExec;
@@ -430,15 +428,11 @@ impl<'a> JoinFilterRewriter<'a> {
 }
 
 fn is_volatile(expr: &dyn PhysicalExpr) -> bool {
-    match expr.as_any().downcast_ref::<ScalarFunctionExpr>() {
-        None => expr
+    expr.is_volatile_node()
+        || expr
             .children()
             .iter()
-            .map(|expr| is_volatile(expr.as_ref()))
-            .reduce(|lhs, rhs| lhs || rhs)
-            .unwrap_or(false),
-        Some(expr) => expr.fun().signature().volatility == Volatility::Volatile,
-    }
+            .any(|expr| is_volatile(expr.as_ref()))
 }
 
 #[cfg(test)]
@@ -448,8 +442,8 @@ mod test {
     use datafusion::common::{JoinSide, JoinType};
     use datafusion::functions::math::random;
     use datafusion::logical_expr::Operator;
-    use datafusion::physical_expr::PhysicalExpr;
     use datafusion::physical_expr::expressions::{Column, binary, lit};
+    use datafusion::physical_expr::{PhysicalExpr, ScalarFunctionExpr};
     use datafusion::physical_optimizer::PhysicalOptimizerRule;
     use datafusion::physical_plan::displayable;
     use datafusion::physical_plan::empty::EmptyExec;
