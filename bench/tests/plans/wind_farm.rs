@@ -47,7 +47,7 @@ async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()
         .create_benchmark_context(benchmark_name)
         .unwrap();
 
-    let store = benchmarking_context.create_store();
+    let store = benchmark.prepare_store(&benchmark_context).await.unwrap();
     for query_name in WindFarmQueryName::list_queries() {
         let benchmark_name = format!("Wind Farm - {query_name}");
         let query = get_query_to_execute(&benchmark_context, query_name);

@@ -15,10 +15,9 @@ fn encode_solution(criterion: &mut Criterion) {
         SessionConfig::new().with_target_partitions(1),
         RuntimeEnv::default().into(),
     );
+    let quads = generate_quads(8192).collect::<Vec<_>>();
     runtime.block_on(async {
-        for quad in generate_quads(8192) {
-            store.insert(quad.as_ref()).await.unwrap();
-        }
+        store.extend(quads.iter().map(Quad::as_ref)).await.unwrap();
     });
 
     let app_state = AppState {

@@ -1,56 +1,75 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::oxigraph_memory::encoded::{EncodedTerm, EncodedTypedValue};
-use crate::oxigraph_memory::object_id::{
-    EncodedObjectId, EncodedObjectIdQuad, GraphEncodedObjectId,
-};
+use crate::memory::encoding::{EncodedQuad, EncodedTerm, EncodedTypedValue};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::{
     ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncoding, ObjectIdMapping,
-    ObjectIdScalar,
+    ObjectIdMappingError, ObjectIdScalar,
 };
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{
-    PlainTermArray, PlainTermArrayBuilder, PlainTermEncoding, PlainTermScalar,
+    PlainTermArray, PlainTermArrayBuilder, PlainTermScalar,
 };
-use rdf_fusion_encoding::typed_value::{
-    TypedValueArray, TypedValueArrayBuilder, TypedValueEncoding,
-};
-use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoding};
+use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueArrayBuilder};
+use rdf_fusion_encoding::{EncodingArray, TermDecoder};
 use rdf_fusion_model::{
-    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, QuadRef, TermRef, TypedValueRef,
+    BlankNodeRef, GraphName, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNode,
+    QuadRef, Term, TermRef, TypedValueRef,
 };
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-/// TODO
+/// Maintains a mapping between RDF terms and object IDs in memory.
+///
+/// The mapping happens on two levels: first, all strings are interned, second, the encoded term
+/// that refers to the interned strings is mapped to an encoded Object ID.
+///
+/// # Object IDs
+///
+/// The encoded Object ID is a 32-bit unsigned integer used to uniquely identify RDF terms.
+/// Currently, we simply use a counter to allocate new object IDs.
+///
+/// # Typed Values
+///
+/// In addition to mapping object ids to terms, we also maintain a mapping to the typed value to
+/// speed-up queries working on typed values.
 #[derive(Debug)]
-pub struct MemoryObjectIdMapping {
-    plain_term_encoding: PlainTermEncoding,
-    typed_value_encoding: TypedValueEncoding,
+pub struct MemObjectIdMapping {
+    /// Contains the next free object id.
     next_id: AtomicU32,
+    /// A set for interning strings.
     str_interning: DashSet<Arc<str>>,
+    /// Maps object ids to the encoded terms & typed values.
     id2term: DashMap<
         EncodedObjectId,
         (EncodedTerm, EncodedTypedValue),
         BuildHasherDefault<FxHasher>,
     >,
+    /// Maps terms to their object id.
+    ///
+    /// A lookup from typed values to the object id of the "canonical" term is only possible by
+    /// first converting the typed value to term.
     term2id: DashMap<EncodedTerm, EncodedObjectId, BuildHasherDefault<FxHasher>>,
 }
 
-impl MemoryObjectIdMapping {
-    pub fn new(
-        plain_term_encoding: PlainTermEncoding,
-        typed_value_encoding: TypedValueEncoding,
-    ) -> Self {
+impl Default for MemObjectIdMapping {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MemObjectIdMapping {
+    /// Creates a new empty [MemObjectIdMapping].
+    ///
+    /// The given encodings are used for creating the outputs of the mapping.
+    pub fn new() -> Self {
         Self {
-            plain_term_encoding,
-            typed_value_encoding,
-            next_id: AtomicU32::new(0),
+            next_id: AtomicU32::new(1), // Start at 1 to account for Default Graph.
             str_interning: DashSet::new(),
             id2term: DashMap::with_hasher(BuildHasherDefault::default()),
             term2id: DashMap::with_hasher(BuildHasherDefault::default()),
@@ -60,15 +79,15 @@ impl MemoryObjectIdMapping {
     pub fn encode_graph_name_intern(
         &self,
         scalar: GraphNameRef<'_>,
-    ) -> GraphEncodedObjectId {
+    ) -> EncodedGraphObjectId {
         match scalar {
             GraphNameRef::NamedNode(nn) => {
-                GraphEncodedObjectId(Some(self.encode_term_intern(nn)))
+                EncodedGraphObjectId(self.encode_term_intern(nn))
             }
             GraphNameRef::BlankNode(bnode) => {
-                GraphEncodedObjectId(Some(self.encode_term_intern(bnode)))
+                EncodedGraphObjectId(self.encode_term_intern(bnode))
             }
-            GraphNameRef::DefaultGraph => GraphEncodedObjectId(None),
+            GraphNameRef::DefaultGraph => DEFAULT_GRAPH_ID,
         }
     }
 
@@ -82,8 +101,8 @@ impl MemoryObjectIdMapping {
     }
 
     /// TODO
-    pub fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedObjectIdQuad> {
-        Ok(EncodedObjectIdQuad {
+    pub fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedQuad> {
+        Ok(EncodedQuad {
             graph_name: self.encode_graph_name_intern(quad.graph_name),
             subject: self.encode_term_intern(quad.subject),
             predicate: self.encode_term_intern(quad.predicate),
@@ -92,8 +111,46 @@ impl MemoryObjectIdMapping {
     }
 
     /// TODO
-    pub fn try_get_encoded_quad(&self, quad: QuadRef<'_>) -> Option<EncodedObjectIdQuad> {
-        Some(EncodedObjectIdQuad {
+    pub fn decode_term(
+        &self,
+        term: EncodedObjectId,
+    ) -> Result<Term, ObjectIdMappingError> {
+        let term = self
+            .try_get_encoded_term_from_object_id(term)
+            .ok_or(ObjectIdMappingError::UnknownObjectId)?;
+        Ok(TermRef::from(&term).into_owned())
+    }
+
+    /// TODO
+    pub fn decode_named_graph(
+        &self,
+        term: EncodedObjectId,
+    ) -> Result<NamedOrBlankNode, ObjectIdMappingError> {
+        match self.decode_term(term)? {
+            Term::NamedNode(nn) => Ok(NamedOrBlankNode::NamedNode(nn)),
+            Term::BlankNode(bnode) => Ok(NamedOrBlankNode::BlankNode(bnode)),
+            Term::Literal(_) => Err(ObjectIdMappingError::LiteralAsGraphName),
+        }
+    }
+
+    /// TODO
+    pub fn decode_graph_name(
+        &self,
+        term: EncodedGraphObjectId,
+    ) -> Result<GraphName, ObjectIdMappingError> {
+        match term {
+            DEFAULT_GRAPH_ID => Ok(GraphName::DefaultGraph),
+            term => match self.decode_term(term.0)? {
+                Term::NamedNode(nn) => Ok(GraphName::NamedNode(nn)),
+                Term::BlankNode(bnode) => Ok(GraphName::BlankNode(bnode)),
+                Term::Literal(_) => Err(ObjectIdMappingError::LiteralAsGraphName),
+            },
+        }
+    }
+
+    /// TODO
+    pub fn try_get_encoded_quad(&self, quad: QuadRef<'_>) -> Option<EncodedQuad> {
+        Some(EncodedQuad {
             graph_name: self
                 .try_get_encoded_object_id_from_graph_name(quad.graph_name)?,
             subject: self.try_get_encoded_object_id_from_term(quad.subject)?,
@@ -174,15 +231,15 @@ impl MemoryObjectIdMapping {
     pub fn try_get_encoded_object_id_from_graph_name(
         &self,
         encoded_term: GraphNameRef<'_>,
-    ) -> Option<GraphEncodedObjectId> {
+    ) -> Option<EncodedGraphObjectId> {
         match encoded_term {
             GraphNameRef::NamedNode(nn) => self
                 .try_get_encoded_object_id_from_term(TermRef::from(nn))
-                .map(|inner| GraphEncodedObjectId(Some(inner))),
+                .map(EncodedGraphObjectId),
             GraphNameRef::BlankNode(bnode) => self
                 .try_get_encoded_object_id_from_term(TermRef::from(bnode))
-                .map(|inner| GraphEncodedObjectId(Some(inner))),
-            GraphNameRef::DefaultGraph => Some(GraphEncodedObjectId(None)),
+                .map(EncodedGraphObjectId),
+            GraphNameRef::DefaultGraph => Some(DEFAULT_GRAPH_ID),
         }
     }
 
@@ -242,7 +299,7 @@ impl MemoryObjectIdMapping {
     }
 }
 
-impl ObjectIdMapping for MemoryObjectIdMapping {
+impl ObjectIdMapping for MemObjectIdMapping {
     fn encoding(&self) -> ObjectIdEncoding {
         ObjectIdEncoding::new(EncodedObjectId::SIZE)
     }
@@ -250,7 +307,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
     fn try_get_object_id(
         &self,
         scalar: &PlainTermScalar,
-    ) -> DFResult<Option<ObjectIdScalar>> {
+    ) -> Result<Option<ObjectIdScalar>, ObjectIdMappingError> {
         let term = DefaultPlainTermDecoder::decode_term(scalar);
         let result = term
             .ok()
@@ -262,7 +319,10 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
         Ok(result)
     }
 
-    fn encode_array(&self, array: &PlainTermArray) -> DFResult<ObjectIdArray> {
+    fn encode_array(
+        &self,
+        array: &PlainTermArray,
+    ) -> Result<ObjectIdArray, ObjectIdMappingError> {
         let terms = DefaultPlainTermDecoder::decode_terms(array);
 
         // TODO: without alloc/Arc copy
@@ -281,7 +341,10 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
         Ok(result.finish())
     }
 
-    fn decode_array(&self, array: &ObjectIdArray) -> DFResult<PlainTermArray> {
+    fn decode_array(
+        &self,
+        array: &ObjectIdArray,
+    ) -> Result<PlainTermArray, ObjectIdMappingError> {
         let terms = array.object_ids().iter().map(|oid| {
             let oid = oid.map(EncodedObjectId::from);
             oid.map(|oid| {
@@ -320,13 +383,13 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
             }
         }
 
-        self.plain_term_encoding.try_new_array(builder.finish())
+        Ok(builder.finish())
     }
 
     fn decode_array_to_typed_value(
         &self,
         array: &ObjectIdArray,
-    ) -> DFResult<TypedValueArray> {
+    ) -> Result<TypedValueArray, ObjectIdMappingError> {
         let typed_values = array.object_ids().iter().map(|oid| {
             let oid = oid.map(EncodedObjectId::from);
             oid.map(|oid| {
@@ -347,7 +410,7 @@ impl ObjectIdMapping for MemoryObjectIdMapping {
             }
         }
 
-        self.typed_value_encoding.try_new_array(builder.finish())
+        Ok(builder.finish())
     }
 }
 
@@ -356,19 +419,14 @@ mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
     use rdf_fusion_common::ObjectId;
-    use rdf_fusion_encoding::object_id::ObjectIdArrayBuilder;
-    use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
-    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-    use rdf_fusion_encoding::{EncodingArray, EncodingScalar};
+    use rdf_fusion_encoding::EncodingArray;
+    use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
     use rdf_fusion_model::vocab::xsd;
-    use rdf_fusion_model::{
-        BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, QuadRef, TermRef,
-    };
+    use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 
     #[test]
     fn test_encode_decode_roundtrip() -> DFResult<()> {
-        let mapping =
-            MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+        let mapping = MemObjectIdMapping::new();
         let mut builder = PlainTermArrayBuilder::new(5);
         builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
         builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
@@ -377,9 +435,7 @@ mod tests {
             "world", "en",
         ));
         builder.append_null();
-        let plain_term_array = mapping
-            .plain_term_encoding
-            .try_new_array(builder.finish())?;
+        let plain_term_array = builder.finish();
 
         let object_id_array = mapping.encode_array(&plain_term_array)?;
         let decoded_plain_term_array = mapping.decode_array(&object_id_array)?;
@@ -398,8 +454,7 @@ mod tests {
 
     #[test]
     fn test_id_uniqueness_and_consistency() -> DFResult<()> {
-        let mapping =
-            MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+        let mapping = MemObjectIdMapping::new();
         let mut builder = PlainTermArrayBuilder::new(5);
         let nn1 = NamedNodeRef::new_unchecked("http://example.com/a");
         let nn2 = NamedNodeRef::new_unchecked("http://example.com/b");
@@ -408,9 +463,7 @@ mod tests {
         builder.append_named_node(nn1);
         builder.append_named_node(nn2);
         builder.append_named_node(nn1);
-        let plain_term_array = mapping
-            .plain_term_encoding
-            .try_new_array(builder.finish())?;
+        let plain_term_array = builder.finish();
 
         let object_id_array = mapping.encode_array(&plain_term_array)?;
 
@@ -425,9 +478,7 @@ mod tests {
         let mut builder2 = PlainTermArrayBuilder::new(2);
         builder2.append_named_node(nn2);
         builder2.append_named_node(nn1);
-        let plain_term_array2 = mapping
-            .plain_term_encoding
-            .try_new_array(builder2.finish())?;
+        let plain_term_array2 = builder2.finish();
         let object_id_array2 = mapping.encode_array(&plain_term_array2)?;
 
         let id4 = object_id_array2.object_ids().value(0);
@@ -441,8 +492,7 @@ mod tests {
 
     #[test]
     fn test_try_get_object_id() -> DFResult<()> {
-        let mapping =
-            MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
+        let mapping = MemObjectIdMapping::new();
 
         let term1 = PlainTermScalar::from(TermRef::NamedNode(
             NamedNodeRef::new_unchecked("http://example.com/a"),
@@ -458,7 +508,7 @@ mod tests {
         let mut builder = PlainTermArrayBuilder::new(2);
         builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
         builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
-        let plain_term_array = PLAIN_TERM_ENCODING.try_new_array(builder.finish())?;
+        let plain_term_array = builder.finish();
         let object_id_array = mapping.encode_array(&plain_term_array)?;
 
         // After encoding, should be Some
@@ -482,62 +532,6 @@ mod tests {
             NamedNodeRef::new_unchecked("http://example.com/c"),
         ));
         assert!(mapping.try_get_object_id(&term3)?.is_none());
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_encode_quad() -> DFResult<()> {
-        let mapping =
-            MemoryObjectIdMapping::new(PLAIN_TERM_ENCODING, TYPED_VALUE_ENCODING);
-        let quad = QuadRef {
-            subject: NamedNodeRef::new_unchecked("http://example.com/s").into(),
-            predicate: NamedNodeRef::new_unchecked("http://example.com/p").into(),
-            object: LiteralRef::new_typed_literal("object", xsd::STRING).into(),
-            graph_name: GraphNameRef::NamedNode(NamedNodeRef::new_unchecked(
-                "http://example.com/g",
-            )),
-        };
-
-        let object_id_quad = mapping.encode_quad(quad)?;
-
-        // To verify, we can decode the IDs.
-        // Let's build an array with the IDs and decode it.
-        let mut builder = ObjectIdArrayBuilder::new(mapping.encoding());
-        builder.append_object_id(object_id_quad.subject.as_object_id());
-        builder.append_object_id(object_id_quad.predicate.as_object_id());
-        builder.append_object_id(object_id_quad.object.as_object_id());
-        if let Some(graph_id) = object_id_quad.graph_name.0.as_ref() {
-            builder.append_object_id(graph_id.as_object_id());
-        }
-        let id_array = builder.finish();
-
-        let decoded_array = mapping.decode_array(&id_array)?;
-
-        let decoded_subject = decoded_array.try_as_scalar(0)?;
-        let decoded_predicate = decoded_array.try_as_scalar(1)?;
-        let decoded_object = decoded_array.try_as_scalar(2)?;
-
-        assert_eq!(
-            PlainTermScalar::from(quad.subject).into_scalar_value(),
-            decoded_subject.into_scalar_value()
-        );
-        assert_eq!(
-            PlainTermScalar::from(quad.predicate).into_scalar_value(),
-            decoded_predicate.into_scalar_value()
-        );
-        assert_eq!(
-            PlainTermScalar::from(quad.object).into_scalar_value(),
-            decoded_object.into_scalar_value()
-        );
-
-        if !quad.graph_name.is_default_graph() {
-            let decoded_graph = decoded_array.try_as_scalar(3)?;
-            assert_eq!(
-                PlainTermScalar::from_graph_name(quad.graph_name)?.into_scalar_value(),
-                decoded_graph.into_scalar_value()
-            );
-        }
 
         Ok(())
     }

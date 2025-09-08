@@ -6,6 +6,7 @@ use datafusion::common::exec_err;
 use rdf_fusion_common::DFResult;
 
 /// Represents an Arrow array with an [ObjectIdEncoding].
+#[derive(Debug, Clone)]
 pub struct ObjectIdArray {
     encoding: ObjectIdEncoding,
     inner: ArrayRef,

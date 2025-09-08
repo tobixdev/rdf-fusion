@@ -75,7 +75,7 @@ pub async fn sparql_evaluate_negative_result_syntax_test(
 }
 
 pub async fn sparql_evaluate_evaluation_test(test: &Test) -> Result<()> {
-    let store = Store::new();
+    let store = Store::default();
     if let Some(data) = &test.data {
         load_to_store(data, &store, GraphName::DefaultGraph).await?;
     }
@@ -156,7 +156,7 @@ pub fn sparql_evaluate_negative_update_syntax_test(test: &Test) -> Result<()> {
 }
 
 pub async fn sparql_evaluate_update_evaluation_test(test: &Test) -> Result<()> {
-    let store = Store::new();
+    let store = Store::default();
     if let Some(data) = &test.data {
         load_to_store(data, &store, GraphName::DefaultGraph).await?;
     }
@@ -164,7 +164,7 @@ pub async fn sparql_evaluate_update_evaluation_test(test: &Test) -> Result<()> {
         load_to_store(value, &store, name.clone()).await?;
     }
 
-    let result_store = Store::new();
+    let result_store = Store::default();
     if let Some(data) = &test.result {
         load_to_store(data, &result_store, GraphName::DefaultGraph).await?;
     }
@@ -385,10 +385,12 @@ impl StaticQueryResults {
 
     async fn from_graph(graph: &Graph) -> Result<Self> {
         // Hack to normalize literals
-        let store = Store::new();
-        for t in graph {
-            store.insert(t.in_graph(GraphNameRef::DefaultGraph)).await?;
-        }
+        let store = Store::default();
+        let quads = graph
+            .into_iter()
+            .map(|t| t.in_graph(GraphNameRef::DefaultGraph));
+        store.extend(quads).await?;
+
         let mut graph = store
             .stream()
             .await?

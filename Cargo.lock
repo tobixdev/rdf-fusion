@@ -3686,6 +3686,7 @@ dependencies = [
  "datafusion",
  "futures",
  "oxrdfio",
+ "rand 0.9.2",
  "rdf-fusion-common",
  "rdf-fusion-execution",
  "rdf-fusion-model",
@@ -3861,14 +3862,16 @@ dependencies = [
  "dashmap",
  "datafusion",
  "futures",
+ "insta",
+ "itertools 0.14.0",
  "rdf-fusion-api",
  "rdf-fusion-common",
  "rdf-fusion-encoding",
  "rdf-fusion-logical",
  "rdf-fusion-model",
- "rdf-fusion-physical",
  "rustc-hash",
  "thiserror 2.0.16",
+ "tokio",
 ]
 
 [[package]]
