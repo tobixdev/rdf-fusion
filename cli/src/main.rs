@@ -283,7 +283,7 @@ mod tests {
             .assert()
             .failure()
             .stdout("")
-            .stderr(predicate::str::contains("RdfFusion"));
+            .stderr(predicate::str::contains("RDF Fusion"));
     }
 
     #[test]
