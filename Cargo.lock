@@ -1208,7 +1208,7 @@ dependencies = [
 [[package]]
 name = "datafusion"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "arrow-ipc",
@@ -1262,7 +1262,7 @@ dependencies = [
 [[package]]
 name = "datafusion-catalog"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1287,7 +1287,7 @@ dependencies = [
 [[package]]
 name = "datafusion-catalog-listing"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1309,7 +1309,7 @@ dependencies = [
 [[package]]
 name = "datafusion-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "ahash",
  "arrow",
@@ -1333,7 +1333,7 @@ dependencies = [
 [[package]]
 name = "datafusion-common-runtime"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "futures",
  "log",
@@ -1343,7 +1343,7 @@ dependencies = [
 [[package]]
 name = "datafusion-datasource"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-compression",
@@ -1379,7 +1379,7 @@ dependencies = [
 [[package]]
 name = "datafusion-datasource-csv"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1403,7 +1403,7 @@ dependencies = [
 [[package]]
 name = "datafusion-datasource-json"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1427,7 +1427,7 @@ dependencies = [
 [[package]]
 name = "datafusion-datasource-parquet"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1459,12 +1459,12 @@ dependencies = [
 [[package]]
 name = "datafusion-doc"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 
 [[package]]
 name = "datafusion-execution"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1483,7 +1483,7 @@ dependencies = [
 [[package]]
 name = "datafusion-expr"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1504,7 +1504,7 @@ dependencies = [
 [[package]]
 name = "datafusion-expr-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "datafusion-common",
@@ -1516,7 +1516,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "arrow-buffer",
@@ -1544,7 +1544,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-aggregate"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "ahash",
  "arrow",
@@ -1564,7 +1564,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-aggregate-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "ahash",
  "arrow",
@@ -1576,7 +1576,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-nested"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "arrow-ord",
@@ -1597,7 +1597,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-table"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1612,7 +1612,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-window"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "datafusion-common",
@@ -1629,7 +1629,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-window-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "datafusion-common",
  "datafusion-physical-expr-common",
@@ -1638,7 +1638,7 @@ dependencies = [
 [[package]]
 name = "datafusion-macros"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "datafusion-expr",
  "quote",
@@ -1648,7 +1648,7 @@ dependencies = [
 [[package]]
 name = "datafusion-optimizer"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "chrono",
@@ -1667,7 +1667,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "ahash",
  "arrow",
@@ -1689,7 +1689,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr-adapter"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "datafusion-common",
@@ -1703,7 +1703,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "ahash",
  "arrow",
@@ -1716,7 +1716,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-optimizer"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "datafusion-common",
@@ -1735,7 +1735,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-plan"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "ahash",
  "arrow",
@@ -1765,7 +1765,7 @@ dependencies = [
 [[package]]
 name = "datafusion-pruning"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "arrow-schema",
@@ -1782,7 +1782,7 @@ dependencies = [
 [[package]]
 name = "datafusion-session"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1805,7 +1805,7 @@ dependencies = [
 [[package]]
 name = "datafusion-sql"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#e463ef324d82b5cc1dd9c03677b3d5894728c1d9"
+source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
 dependencies = [
  "arrow",
  "bigdecimal",
