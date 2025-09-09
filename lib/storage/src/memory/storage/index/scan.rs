@@ -240,6 +240,7 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                         .expect("Array length must match, Data Types match"),
                 )
             }
+            ObjectIdScanPredicate::Between(_, _) => todo!(),
         }
     }
 }

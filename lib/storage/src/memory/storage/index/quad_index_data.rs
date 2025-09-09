@@ -513,7 +513,6 @@ mod tests {
     use crate::memory::object_id::EncodedObjectId;
     use crate::memory::storage::index::IndexScanInstruction;
     use insta::assert_debug_snapshot;
-    use std::collections::HashSet;
 
     #[test]
     fn test_memcolumnchunk_slice_simple() {
@@ -696,8 +695,7 @@ mod tests {
         index.insert(&items);
 
         // Only filter first column, look for value 30 which should be in second row group
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(30u32)]));
+        let predicate = ObjectIdScanPredicate::In([EncodedObjectId::from(30u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate)),
             IndexScanInstruction::Traverse(None),
@@ -773,8 +771,7 @@ mod tests {
             .collect(),
         );
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let predicate = ObjectIdScanPredicate::In([EncodedObjectId::from(10u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate.clone())),
             IndexScanInstruction::Traverse(Some(predicate.clone())),
@@ -818,8 +815,7 @@ mod tests {
             .collect(),
         );
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let predicate = ObjectIdScanPredicate::In([EncodedObjectId::from(10u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate.clone())),
             IndexScanInstruction::Traverse(None),
@@ -862,13 +858,13 @@ mod tests {
 
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
-                HashSet::from([EncodedObjectId::from(0)]),
+                [EncodedObjectId::from(0)].into(),
             ))),
             IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
-                HashSet::from([EncodedObjectId::from(11)]),
+                [EncodedObjectId::from(11)].into(),
             ))),
             IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
-                HashSet::from([EncodedObjectId::from(10)]),
+                [EncodedObjectId::from(10)].into(),
             ))),
             IndexScanInstruction::Traverse(None),
         ]);
@@ -896,8 +892,7 @@ mod tests {
             .collect(),
         );
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let predicate = ObjectIdScanPredicate::In([EncodedObjectId::from(10u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate.clone())),
             IndexScanInstruction::Traverse(Some(predicate.clone())),
@@ -926,8 +921,7 @@ mod tests {
             .collect(),
         );
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let predicate = ObjectIdScanPredicate::In([EncodedObjectId::from(10u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate.clone())),
             IndexScanInstruction::Traverse(Some(predicate.clone())),
@@ -947,8 +941,7 @@ mod tests {
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(99u32)]));
+        let predicate = ObjectIdScanPredicate::In([EncodedObjectId::from(99u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate)),
             IndexScanInstruction::Traverse(None),
@@ -967,9 +960,8 @@ mod tests {
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
-        let set =
-            HashSet::from([EncodedObjectId::from(2u32), EncodedObjectId::from(3u32)]);
-        let predicate = ObjectIdScanPredicate::In(set);
+        let set = [EncodedObjectId::from(2u32), EncodedObjectId::from(3u32)];
+        let predicate = ObjectIdScanPredicate::In(set.into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate)),
             IndexScanInstruction::Traverse(None),

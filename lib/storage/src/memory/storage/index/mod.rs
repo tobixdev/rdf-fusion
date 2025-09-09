@@ -1,5 +1,5 @@
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
@@ -11,7 +11,7 @@ mod scan;
 mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
+use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
@@ -82,11 +82,13 @@ impl IndexScanInstructions {
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ObjectIdScanPredicate {
     /// Checks whether the object id is in the given set.
-    In(HashSet<EncodedObjectId>),
+    In(BTreeSet<EncodedObjectId>),
     /// Checks whether the object id is *not* in the given set.
-    Except(HashSet<EncodedObjectId>),
+    Except(BTreeSet<EncodedObjectId>),
     /// Checks whether the object id is equal to the scan instruction with the given variable.
     EqualTo(Arc<String>),
+    /// Checks whether the object id is between the given object ids (end is inclusive).
+    Between(EncodedObjectId, EncodedObjectId),
 }
 
 /// An encoded version of a triple pattern.
@@ -147,16 +149,16 @@ impl IndexScanInstruction {
 
         match active_graph {
             EncodedActiveGraph::DefaultGraph => {
-                let object_ids = HashSet::from([DEFAULT_GRAPH_ID.0]);
+                let object_ids = BTreeSet::from([DEFAULT_GRAPH_ID.0]);
                 instruction_with_predicate(Some(ObjectIdScanPredicate::In(object_ids)))
             }
             EncodedActiveGraph::AllGraphs => instruction_with_predicate(None),
             EncodedActiveGraph::Union(graphs) => {
-                let object_ids = HashSet::from_iter(graphs.iter().map(|g| g.0));
+                let object_ids = BTreeSet::from_iter(graphs.iter().map(|g| g.0));
                 instruction_with_predicate(Some(ObjectIdScanPredicate::In(object_ids)))
             }
             EncodedActiveGraph::AnyNamedGraph => {
-                let object_ids = HashSet::from([DEFAULT_GRAPH_ID.0]);
+                let object_ids = BTreeSet::from([DEFAULT_GRAPH_ID.0]);
                 instruction_with_predicate(Some(ObjectIdScanPredicate::Except(
                     object_ids,
                 )))
@@ -169,11 +171,54 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
     fn from(value: EncodedTermPattern) -> Self {
         match value {
             EncodedTermPattern::ObjectId(object_id) => IndexScanInstruction::Traverse(
-                Some(ObjectIdScanPredicate::In(HashSet::from([object_id]))),
+                Some(ObjectIdScanPredicate::In(BTreeSet::from([object_id]))),
             ),
             EncodedTermPattern::Variable(var) => {
                 IndexScanInstruction::Scan(Arc::new(var), None)
             }
+        }
+    }
+}
+
+/// TODO
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct PruningPredicates([Option<PruningPredicate>; 4]);
+
+impl From<&IndexScanInstructions> for PruningPredicates {
+    fn from(value: &IndexScanInstructions) -> Self {
+        let predicates = value
+            .0
+            .iter()
+            .map(|i| i.predicate().and_then(Option::<PruningPredicate>::from))
+            .collect::<Vec<_>>();
+        Self(predicates.try_into().expect("Should yield 4 predicates"))
+    }
+}
+
+/// TODO
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum PruningPredicate {
+    /// Checks whether the object id is in the given set.
+    EqualTo(EncodedObjectId),
+    /// Checks whether the object id is between the given object ids (end is inclusive).
+    Between(EncodedObjectId, EncodedObjectId),
+}
+
+impl From<&ObjectIdScanPredicate> for Option<PruningPredicate> {
+    fn from(value: &ObjectIdScanPredicate) -> Self {
+        match value {
+            ObjectIdScanPredicate::In(ids) => {
+                let predicate = if ids.len() == 1 {
+                    PruningPredicate::EqualTo(*ids.first().unwrap())
+                } else {
+                    PruningPredicate::Between(*ids.first().unwrap(), *ids.last().unwrap())
+                };
+                Some(predicate)
+            }
+            ObjectIdScanPredicate::Between(from, to) => {
+                Some(PruningPredicate::Between(*from, *to))
+            }
+            _ => None,
         }
     }
 }
@@ -416,7 +461,7 @@ mod tests {
             IndexScanInstructions::new([
                 IndexScanInstruction::Scan(
                     Arc::new("a".to_owned()),
-                    Some(ObjectIdScanPredicate::In(HashSet::from([eid(1), eid(3)]))),
+                    Some(ObjectIdScanPredicate::In([eid(1), eid(3)].into())),
                 ),
                 scan("b"),
                 scan("c"),
@@ -519,9 +564,9 @@ mod tests {
     }
 
     fn traverse(id: u32) -> IndexScanInstruction {
-        IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(HashSet::from([
-            EncodedObjectId::from(id),
-        ]))))
+        IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
+            [EncodedObjectId::from(id)].into(),
+        )))
     }
 
     fn scan(name: impl Into<String>) -> IndexScanInstruction {
