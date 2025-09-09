@@ -1,4 +1,4 @@
-# RdfFusion
+# RDF Fusion
 
 RDF Fusion is an experimental columnar [SPARQL](https://www.w3.org/TR/sparql11-overview/) engine.
 It is based on [Apache DataFusion](https://datafusion.apache.org/), an extensible query engine based
@@ -26,7 +26,7 @@ RDF Fusion can currently be used in two modes: as a "library" for DataFusion or 
 
 The `Store` API provides high-level methods for interacting with a triple store (e.g., inserting, querying).
 Users that want to *use RDF Fusion's* capability are advised to use this API.
-While the `Store` API is similar to Oxigraph's `Store` (remember, it started as a fork) there is not a full
+While the `Store` API is similar to [Oxigraph](https://github.com/oxigraph/oxigraph)'s `Store` there is not a full
 compatibility.
 
 TODO point to example
@@ -71,19 +71,20 @@ about RdfFusion.
 
 ## License
 
-This project is licensed under either of
+This project is licensed under the Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE.txt) or
+http://www.apache.org/licenses/LICENSE-2.0).
 
-- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
-  http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or
-  http://opensource.org/licenses/MIT)
+As this project started as a fork of [Oxigraph](https://github.com/oxigraph/oxigraph), it still contains some code
+from Oxigraph. Oxigraph was originally licensed under Apache 2.0 OR MIT. This means that the Oxigraph portions of
+the code can also be used under the MIT license, while all new contributions in this repository are provided only
+under Apache 2.0.
 
-at your option.
+The license files of Oxigraph at the moment of the fork can be found in [oxigraph_license](./misc/oxigraph_license).
 
 ## Contributing
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in RDF Fusion by you, as
-defined in the Apache-2.0 license, shall be dually licensed as above, without any additional terms or conditions.
+defined in the Apache-2.0 license, shall be licensed as above, without any additional terms or conditions.
 
 ## Acknowledgements
 

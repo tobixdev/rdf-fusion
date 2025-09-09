@@ -8,7 +8,7 @@ keywords = ["RDF", "SPARQL", "graph-database", "database"]
 categories = ["command-line-utilities", "database"]
 repository = "https://github.com/tobixdev/rdf-fusion/tree/main/cli"
 description = """
-RdfFusion CLI tool and SPARQL HTTP server
+RDF Fusion CLI tool and SPARQL HTTP server
 """
 edition.workspace = true
 rust-version.workspace = true
