@@ -33,7 +33,7 @@ clap = "4.0"
 clap_complete = "4.0"
 clap_mangen = "0.2"
 csv = "1.3"
-datafusion = { git = "https://github.com/tobixdev/datafusion", branch = "hash-phys-scalar-function-expr" }
+datafusion = { git = "https://github.com/apache/datafusion", branch = "branch-50" }
 dashmap = "6.1"
 futures = "0.3"
 itertools = "0.14"

@@ -1208,7 +1208,7 @@ dependencies = [
 [[package]]
 name = "datafusion"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "arrow-ipc",
@@ -1262,7 +1262,7 @@ dependencies = [
 [[package]]
 name = "datafusion-catalog"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1287,7 +1287,7 @@ dependencies = [
 [[package]]
 name = "datafusion-catalog-listing"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1309,7 +1309,7 @@ dependencies = [
 [[package]]
 name = "datafusion-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "ahash",
  "arrow",
@@ -1333,7 +1333,7 @@ dependencies = [
 [[package]]
 name = "datafusion-common-runtime"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "futures",
  "log",
@@ -1343,7 +1343,7 @@ dependencies = [
 [[package]]
 name = "datafusion-datasource"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-compression",
@@ -1379,7 +1379,7 @@ dependencies = [
 [[package]]
 name = "datafusion-datasource-csv"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1403,7 +1403,7 @@ dependencies = [
 [[package]]
 name = "datafusion-datasource-json"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1427,7 +1427,7 @@ dependencies = [
 [[package]]
 name = "datafusion-datasource-parquet"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1459,12 +1459,12 @@ dependencies = [
 [[package]]
 name = "datafusion-doc"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 
 [[package]]
 name = "datafusion-execution"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1483,7 +1483,7 @@ dependencies = [
 [[package]]
 name = "datafusion-expr"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1504,7 +1504,7 @@ dependencies = [
 [[package]]
 name = "datafusion-expr-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "datafusion-common",
@@ -1516,7 +1516,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "arrow-buffer",
@@ -1544,7 +1544,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-aggregate"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "ahash",
  "arrow",
@@ -1564,7 +1564,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-aggregate-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "ahash",
  "arrow",
@@ -1576,7 +1576,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-nested"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "arrow-ord",
@@ -1597,7 +1597,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-table"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1612,7 +1612,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-window"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "datafusion-common",
@@ -1629,7 +1629,7 @@ dependencies = [
 [[package]]
 name = "datafusion-functions-window-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "datafusion-common",
  "datafusion-physical-expr-common",
@@ -1638,7 +1638,7 @@ dependencies = [
 [[package]]
 name = "datafusion-macros"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "datafusion-expr",
  "quote",
@@ -1648,7 +1648,7 @@ dependencies = [
 [[package]]
 name = "datafusion-optimizer"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "chrono",
@@ -1667,7 +1667,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "ahash",
  "arrow",
@@ -1689,7 +1689,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr-adapter"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "datafusion-common",
@@ -1703,7 +1703,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-expr-common"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "ahash",
  "arrow",
@@ -1716,7 +1716,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-optimizer"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "datafusion-common",
@@ -1735,7 +1735,7 @@ dependencies = [
 [[package]]
 name = "datafusion-physical-plan"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "ahash",
  "arrow",
@@ -1765,7 +1765,7 @@ dependencies = [
 [[package]]
 name = "datafusion-pruning"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "arrow-schema",
@@ -1782,7 +1782,7 @@ dependencies = [
 [[package]]
 name = "datafusion-session"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "async-trait",
@@ -1805,7 +1805,7 @@ dependencies = [
 [[package]]
 name = "datafusion-sql"
 version = "50.0.0"
-source = "git+https://github.com/tobixdev/datafusion?branch=hash-phys-scalar-function-expr#93f7c7cccf83cd865f577dec13e4869b26a42e25"
+source = "git+https://github.com/apache/datafusion?branch=branch-50#9e7141f36ddbb0ad9c79ed3c95e332f495c1b078"
 dependencies = [
  "arrow",
  "bigdecimal",
@@ -2836,12 +2836,6 @@ checksum = "840db8cf39d9ec4dd794376f38acc40d0fc65eec2a8f484f7fd375b84602becd"
 dependencies = [
  "zlib-rs",
 ]
-
-[[package]]
-name = "linux-raw-sys"
-version = "0.9.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd945864f07fe9f5371a27ad7b52a172b4b499999f1d97574c9fa68373937e12"
 
 [[package]]
 name = "linux-raw-sys"
@@ -4084,15 +4078,14 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "1.1.1"
+version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9621e389a110cae094269936383d69b869492f03e5c1ed2d575a53c029d4441d"
+checksum = "cd15f8a2c5551a84d56efdc1cd049089e409ac19a3072d5037a17fd70719ff3e"
 dependencies = [
  "bitflags",
  "errno",
  "libc",
- "linux-raw-sys 0.11.0",
- "linux-raw-sys 0.9.4",
+ "linux-raw-sys",
  "windows-sys 0.61.0",
 ]
 
@@ -4511,15 +4504,15 @@ dependencies = [
 
 [[package]]
 name = "tempfile"
-version = "3.21.0"
+version = "3.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15b61f8f20e3a6f7e0649d825294eaf317edce30f82cf6026e7e4cb9222a7d1e"
+checksum = "84fa4d11fadde498443cca10fd3ac23c951f0dc59e080e9f4b93d4df4e4eea53"
 dependencies = [
  "fastrand",
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.0",
 ]
 
 [[package]]
