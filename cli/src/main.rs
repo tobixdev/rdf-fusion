@@ -1,6 +1,6 @@
 #![allow(clippy::print_stderr, clippy::cast_precision_loss, clippy::use_debug)]
 use crate::cli::{Args, Command};
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use clap::Parser;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::prelude::SessionConfig;
@@ -10,7 +10,7 @@ use rdf_fusion::store::Store;
 use rdf_fusion_web::ServerConfig;
 use std::ffi::OsStr;
 use std::fs::File;
-use std::io::{self, stdin, stdout, BufWriter, Read, Write};
+use std::io::{self, BufWriter, Read, Write, stdin, stdout};
 use std::path::Path;
 use std::str;
 use tracing_subscriber::layer::SubscriberExt;
