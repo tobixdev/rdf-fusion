@@ -1,1 +1,1 @@
-Change logs for each release can be found [here](dev/changelog).
+Change logs for each release can be found [here](misc/changelog).
