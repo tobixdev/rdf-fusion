@@ -1,5 +1,6 @@
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use datafusion::arrow::datatypes::Field;
+use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
@@ -112,6 +113,7 @@ fn bench_unary_function(
                 arg_fields: vec![input_field.clone()],
                 number_rows: 8192,
                 return_field: return_field.clone(),
+                config_options: Arc::new(ConfigOptions::default()),
             };
             function.invoke_with_args(args).unwrap();
         });
