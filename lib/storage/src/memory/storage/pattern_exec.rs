@@ -1,4 +1,5 @@
 use crate::memory::storage::index::PlannedPatternScan;
+use crate::memory::storage::predicate_push_down::supports_push_down;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{exec_err, internal_err};
 use datafusion::config::ConfigOptions;
@@ -16,6 +17,7 @@ use datafusion::physical_plan::metrics::{
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
+use itertools::Itertools;
 use rdf_fusion_common::DFResult;
 use std::any::Any;
 use std::fmt::Formatter;
@@ -105,9 +107,18 @@ impl ExecutionPlan for MemQuadPatternExec {
         _phase: FilterPushdownPhase,
         child_pushdown_result: ChildPushdownResult,
         _config: &ConfigOptions,
-    ) -> datafusion::common::Result<FilterPushdownPropagation<Arc<dyn ExecutionPlan>>>
-    {
-        todo!()
+    ) -> DFResult<FilterPushdownPropagation<Arc<dyn ExecutionPlan>>> {
+        let parent_filters = child_pushdown_result
+            .parent_filters
+            .clone()
+            .into_iter()
+            .map(|f| {
+                let rewritten = supports_push_down(self.schema().as_ref(), &f.filter)?;
+                Ok((f.filter, rewritten))
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+
+        Ok(FilterPushdownPropagation::if_all(child_pushdown_result))
     }
 }
 

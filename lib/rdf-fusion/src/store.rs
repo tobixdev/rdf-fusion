@@ -97,9 +97,13 @@ pub struct Store {
 
 impl Default for Store {
     fn default() -> Self {
-        let config = SessionConfig::new()
+        let mut config = SessionConfig::new()
             .with_batch_size(8192)
             .with_target_partitions(1);
+
+        let options = config.options_mut();
+        options.optimizer.enable_dynamic_filter_pushdown = true;
+
         let object_id_mapping = MemObjectIdMapping::new();
         let storage = MemQuadStorage::new(Arc::new(object_id_mapping), 8192);
         let engine = RdfFusionContext::new(
@@ -113,13 +117,8 @@ impl Default for Store {
 
 impl Store {
     /// Creates a [Store] with a [MemQuadStorage] as backing storage.
-    ///
-    /// Equivalent to calling [Self::new_with_datafusion_config] with the default settings.
     pub fn new() -> Store {
-        Self::new_with_datafusion_config(
-            SessionConfig::new(),
-            Arc::new(RuntimeEnv::default()),
-        )
+        Self::default()
     }
 
     /// Creates a [Store] with a [MemQuadStorage] as backing storage using the given `config` and
