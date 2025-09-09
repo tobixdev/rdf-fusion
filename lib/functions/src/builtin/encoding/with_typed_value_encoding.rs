@@ -16,7 +16,7 @@ use rdf_fusion_encoding::{
     TermEncoder, TermEncoding,
 };
 use std::any::Any;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 pub fn with_typed_value_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF> {
@@ -25,7 +25,7 @@ pub fn with_typed_value_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF
 }
 
 /// Transforms RDF Terms into the [TypedValueEncoding](rdf_fusion_encoding::typed_value::TypedValueEncoding).
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq)]
 struct WithTypedValueEncoding {
     /// The name of this function
     name: String,
@@ -137,5 +137,11 @@ impl ScalarUDFImpl for WithTypedValueEncoding {
             [ColumnarValue::Array(array)] => self.convert_array(encoding_name, array),
             [ColumnarValue::Scalar(scalar)] => self.convert_scalar(encoding_name, scalar),
         }
+    }
+}
+
+impl Hash for WithTypedValueEncoding {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_any().type_id().hash(state);
     }
 }

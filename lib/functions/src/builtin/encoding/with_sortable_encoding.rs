@@ -20,7 +20,7 @@ use rdf_fusion_encoding::{
     TermEncoder, TermEncoding,
 };
 use std::any::Any;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 pub fn with_sortable_term_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF> {
@@ -29,7 +29,7 @@ pub fn with_sortable_term_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarU
 }
 
 /// Transforms RDF Terms into the [SortableTermEncoding](rdf_fusion_encoding::sortable_term::SortableTermEncoding).
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq)]
 struct WithSortableEncoding {
     /// The name of this function
     name: String,
@@ -135,5 +135,11 @@ impl ScalarUDFImpl for WithSortableEncoding {
                 Self::convert_scalar(encoding_name, scalar)
             }
         }
+    }
+}
+
+impl Hash for WithSortableEncoding {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_any().type_id().hash(state);
     }
 }
