@@ -1,10 +1,14 @@
 use crate::memory::storage::index::PlannedPatternScan;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{exec_err, internal_err};
+use datafusion::config::ConfigOptions;
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{
     Boundedness, EmissionType, SchedulingType,
+};
+use datafusion::physical_plan::filter_pushdown::{
+    ChildPushdownResult, FilterPushdownPhase, FilterPushdownPropagation,
 };
 use datafusion::physical_plan::metrics::{
     BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet,
@@ -94,6 +98,16 @@ impl ExecutionPlan for MemQuadPatternExec {
 
     fn metrics(&self) -> Option<MetricsSet> {
         Some(self.metrics.clone_inner())
+    }
+
+    fn handle_child_pushdown_result(
+        &self,
+        _phase: FilterPushdownPhase,
+        child_pushdown_result: ChildPushdownResult,
+        _config: &ConfigOptions,
+    ) -> datafusion::common::Result<FilterPushdownPropagation<Arc<dyn ExecutionPlan>>>
+    {
+        todo!()
     }
 }
 

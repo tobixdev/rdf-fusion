@@ -114,6 +114,11 @@ impl MemQuadIndex {
             };
 
             score += reward << potent;
+
+            // While we can prune at the Between level, the inner results cannot be pruned yet.
+            if matches!(predicate, PruningPredicate::Between(_, _)) {
+                break;
+            }
         }
 
         score
