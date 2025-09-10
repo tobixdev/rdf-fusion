@@ -67,7 +67,7 @@ impl UnaryScenario {
                         .append_blank_node(BlankNode::default().as_ref())
                         .unwrap();
                 }
-                vec![ColumnarValue::Array(payload_builder.finish())]
+                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
             }
         }
     }
