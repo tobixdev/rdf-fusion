@@ -1,7 +1,11 @@
 #![allow(clippy::panic)]
 
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
+use datafusion::execution::runtime_env::RuntimeEnv;
+use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
+use rand::SeedableRng;
+use rand::prelude::{SliceRandom, SmallRng};
 use rdf_fusion::model::Term;
 use rdf_fusion::store::Store;
 use rdf_fusion_execution::results::QueryResults;
@@ -10,14 +14,42 @@ use tokio::runtime::Builder;
 
 /// This benchmark measures transactionally inserting synthetic quads into the store.
 fn store_load(c: &mut Criterion) {
-    c.bench_function("Store::load", |b| {
-        b.to_async(&Builder::new_current_thread().enable_all().build().unwrap())
-            .iter(|| async {
-                let store = Store::new();
-                for quad in generate_quads(10_000) {
-                    store.insert(quad.as_ref()).await.unwrap();
-                }
-            });
+    let runtime = Builder::new_current_thread().enable_all().build().unwrap();
+
+    c.bench_function("Store::extend", |b| {
+        let store = Store::default();
+        let quads = generate_quads(10_000).collect::<Vec<_>>();
+        b.to_async(&runtime).iter(|| async {
+            store
+                .extend(quads.iter().map(|q| q.as_ref()))
+                .await
+                .unwrap();
+        });
+    });
+
+    c.bench_function("Store::insert (ascending)", |b| {
+        let store = Store::default();
+        let quads = generate_quads(500).collect::<Vec<_>>();
+        b.to_async(&runtime).iter(|| async {
+            store
+                .extend(quads.iter().map(|q| q.as_ref()))
+                .await
+                .unwrap();
+        });
+    });
+
+    c.bench_function("Store::insert (random)", |b| {
+        let store = Store::default();
+        let mut quads = generate_quads(500).collect::<Vec<_>>();
+        let mut rng = SmallRng::seed_from_u64(123);
+        quads.as_mut_slice().shuffle(&mut rng);
+
+        b.to_async(&runtime).iter(|| async {
+            store
+                .extend(quads.iter().map(|q| q.as_ref()))
+                .await
+                .unwrap();
+        });
     });
 }
 
@@ -103,10 +135,12 @@ criterion_group!(
 criterion_main!(store_write, store_query);
 
 async fn prepare_store_with_generated_triples(n: usize) -> Store {
-    let store = Store::new();
-    for quad in generate_quads(n) {
-        store.insert(quad.as_ref()).await.unwrap();
-    }
+    let store = Store::new_with_datafusion_config(
+        SessionConfig::new().with_target_partitions(1),
+        RuntimeEnv::default().into(),
+    );
+    let quads = generate_quads(n).collect::<Vec<_>>();
+    store.extend(quads.iter().map(Quad::as_ref)).await.unwrap();
     store
 }
 

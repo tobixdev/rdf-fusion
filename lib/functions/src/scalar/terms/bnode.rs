@@ -4,8 +4,8 @@ use crate::scalar::{NullaryArgs, NullaryOrUnaryArgs, ScalarSparqlOp, UnaryArgs};
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_api::functions::FunctionName;
-use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
+use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use rdf_fusion_model::{BlankNode, BlankNodeRef, ThinError, TypedValueRef};
 
 #[derive(Debug)]
@@ -45,7 +45,7 @@ impl ScalarSparqlOp for BNodeSparqlOp {
                 for _ in 0..number_rows {
                     builder.append_blank_node(BlankNode::default().as_ref())?;
                 }
-                Ok(ColumnarValue::Array(builder.finish()))
+                Ok(ColumnarValue::Array(builder.finish().into_array()))
             }
             NullaryOrUnaryArgs::Unary(UnaryArgs(arg)) => dispatch_unary_typed_value(
                 &arg,

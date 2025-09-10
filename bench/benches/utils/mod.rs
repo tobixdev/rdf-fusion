@@ -1,6 +1,7 @@
 use anyhow::Context;
 use futures::StreamExt;
 use rdf_fusion::QueryResults;
+use tokio::runtime::{Builder, Runtime};
 
 pub mod verbose;
 
@@ -26,5 +27,19 @@ pub async fn consume_results(result: QueryResults) -> anyhow::Result<usize> {
             Ok(count)
         }
         _ => panic!("Unexpected QueryResults"),
+    }
+}
+
+pub fn create_runtime(target_partitions: usize) -> Runtime {
+    let force_single_thred =
+        std::env::var("RDF_FUSION_SINGLE_THREAD_BENCH") == Ok("true".to_string());
+    if target_partitions == 1 || force_single_thred {
+        Builder::new_current_thread().enable_all().build().unwrap()
+    } else {
+        Builder::new_multi_thread()
+            .worker_threads(target_partitions)
+            .enable_all()
+            .build()
+            .unwrap()
     }
 }

@@ -22,22 +22,26 @@
 use crate::query_results::{run_graph_result_query, run_select_query};
 use insta::assert_snapshot;
 use rdf_fusion_bench::benchmarks::Benchmark;
-use rdf_fusion_bench::benchmarks::bsbm::NumProducts::N1_000;
-use rdf_fusion_bench::benchmarks::bsbm::{BsbmBenchmark, ExploreUseCase};
+use rdf_fusion_bench::benchmarks::bsbm::{BsbmBenchmark, ExploreUseCase, NumProducts};
 use rdf_fusion_bench::environment::RdfFusionBenchContext;
 use std::path::PathBuf;
 
 #[tokio::test]
 pub async fn bsbm_1000_test_results() {
     let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"));
-    let benchmark = BsbmBenchmark::<ExploreUseCase>::try_new(N1_000, None).unwrap();
+        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
+    let benchmark =
+        BsbmBenchmark::<ExploreUseCase>::try_new(NumProducts::N1_000, None).unwrap();
     let benchmark_name = benchmark.name();
     let ctx = benchmarking_context
         .create_benchmark_context(benchmark_name)
         .unwrap();
 
     let store = benchmark.prepare_store(&ctx).await.unwrap();
+
+    //
+    // Explore
+    //
 
     assert_snapshot!(
         "Explore Q1",
@@ -84,6 +88,10 @@ pub async fn bsbm_1000_test_results() {
         run_graph_result_query(&store, include_str!("./queries/explore-q12.sparql"))
             .await
     );
+
+    //
+    // Business Intelligence
+    //
 
     assert_snapshot!(
         "Business Intelligence Q1",

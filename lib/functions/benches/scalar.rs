@@ -7,7 +7,7 @@ use rdf_fusion_api::functions::{
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
-use rdf_fusion_encoding::{RdfFusionEncodings, TermEncoding};
+use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoding};
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_model::{BlankNode, Float, Integer, NamedNodeRef};
 use std::collections::HashMap;
@@ -32,7 +32,7 @@ impl UnaryScenario {
                         ))
                         .unwrap();
                 }
-                vec![ColumnarValue::Array(payload_builder.finish())]
+                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
             }
             UnaryScenario::Mixed => {
                 let mut payload_builder = TypedValueArrayBuilder::default();
@@ -58,7 +58,7 @@ impl UnaryScenario {
                         }
                     }
                 }
-                vec![ColumnarValue::Array(payload_builder.finish())]
+                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
             }
             UnaryScenario::AllBlank => {
                 let mut payload_builder = TypedValueArrayBuilder::default();

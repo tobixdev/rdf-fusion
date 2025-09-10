@@ -18,6 +18,13 @@ pub struct TypedValueArray {
 }
 
 impl TypedValueArray {
+    /// Creates a new [TypedValueArray] without verifying the schema.
+    pub(super) fn new_unchecked(array: ArrayRef) -> Self {
+        Self { inner: array }
+    }
+}
+
+impl TypedValueArray {
     /// Returns a reference to all the child arrays contained in this array. It is expected to call
     /// this method once and work on the resulting [TypedValueArrayParts].
     ///
