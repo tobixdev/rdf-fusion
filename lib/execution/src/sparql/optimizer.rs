@@ -38,9 +38,9 @@ pub fn create_optimizer_rules(
         }
         OptimizationLevel::Default => {
             let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = Vec::new();
-            rules.push(Arc::new(SparqlJoinReorderingRule::new(
-                context.encodings().clone(),
-            )));
+            // rules.push(Arc::new(SparqlJoinReorderingRule::new(
+            //     context.encodings().clone(),
+            // )));
             rules.extend(lowering_rules);
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
 
@@ -53,9 +53,9 @@ pub fn create_optimizer_rules(
         }
         OptimizationLevel::Full => {
             let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = Vec::new();
-            rules.push(Arc::new(SparqlJoinReorderingRule::new(
-                context.encodings().clone(),
-            )));
+            // rules.push(Arc::new(SparqlJoinReorderingRule::new(
+            //     context.encodings().clone(),
+            // )));
             rules.extend(lowering_rules);
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
 
