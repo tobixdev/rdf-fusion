@@ -16,8 +16,9 @@ Projection: ENC_PT(product) AS product, ENC_PT(ratio) AS ratio
                       QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product), active_graph: Union of [DefaultGraph] 
                     SubqueryAlias: rhs
                       Projection: review
-                        Filter: coalesce(EBV(GEQ(ENC_TV(date), Union 12:{value:6332757120000.0000000000000000,offset:})), Boolean(false)) AND coalesce(EBV(LT(ENC_TV(date), Union 12:{value:6332999040000.0000000000000000,offset:})), Boolean(false))
-                          QuadPattern (?review <http://purl.org/dc/elements/1.1/date> ?date), active_graph: Union of [DefaultGraph] 
+                        Filter: EBV(GEQ(__common_expr_5, Union 12:{value:6332757120000.0000000000000000,offset:})) AND EBV(LT(__common_expr_5, Union 12:{value:6332999040000.0000000000000000,offset:}))
+                          Projection: ENC_TV(date) AS __common_expr_5, review
+                            QuadPattern (?review <http://purl.org/dc/elements/1.1/date> ?date), active_graph: Union of [DefaultGraph] 
           SubqueryAlias: rhs
             Projection: product, enc_int64_as_rdf_term(00000000000000000000000000000002) AS monthBeforeCount
               Filter: EBV(GT(enc_int64_as_rdf_term(00000000000000000000000000000002), Union 9:0))
@@ -28,5 +29,6 @@ Projection: ENC_PT(product) AS product, ENC_PT(ratio) AS ratio
                         QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product), active_graph: Union of [DefaultGraph] 
                       SubqueryAlias: rhs
                         Projection: review
-                          Filter: coalesce(EBV(GEQ(ENC_TV(date), Union 12:{value:6332515200000.0000000000000000,offset:})), Boolean(false)) AND coalesce(EBV(LT(ENC_TV(date), Union 12:{value:6332757120000.0000000000000000,offset:})), Boolean(false))
-                            QuadPattern (?review <http://purl.org/dc/elements/1.1/date> ?date), active_graph: Union of [DefaultGraph]
+                          Filter: EBV(GEQ(__common_expr_6, Union 12:{value:6332515200000.0000000000000000,offset:})) AND EBV(LT(__common_expr_6, Union 12:{value:6332757120000.0000000000000000,offset:}))
+                            Projection: ENC_TV(date) AS __common_expr_6, review
+                              QuadPattern (?review <http://purl.org/dc/elements/1.1/date> ?date), active_graph: Union of [DefaultGraph]
