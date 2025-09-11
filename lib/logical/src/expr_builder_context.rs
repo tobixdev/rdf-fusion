@@ -1,19 +1,19 @@
 use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{
-    exec_datafusion_err, plan_datafusion_err, plan_err, Column, DFSchema, Spans,
+    Column, DFSchema, Spans, exec_datafusion_err, plan_datafusion_err, plan_err,
 };
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{
-    and, exists, lit, not_exists, Expr, ExprSchemable, LogicalPlan,
-    LogicalPlanBuilder, ScalarUDF, Subquery,
+    Expr, ExprSchemable, LogicalPlan, LogicalPlanBuilder, ScalarUDF, Subquery, and,
+    exists, lit, not_exists,
 };
+use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
 };
-use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
