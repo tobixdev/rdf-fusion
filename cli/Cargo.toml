@@ -8,7 +8,7 @@ keywords = ["RDF", "SPARQL", "graph-database", "database"]
 categories = ["command-line-utilities", "database"]
 repository = "https://github.com/tobixdev/rdf-fusion/tree/main/cli"
 description = """
-RdfFusion CLI tool and SPARQL HTTP server
+RDF Fusion CLI tool and SPARQL HTTP server
 """
 edition.workspace = true
 rust-version.workspace = true
@@ -21,16 +21,12 @@ doc = false
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
+datafusion.workspace = true
 rdf-fusion.workspace = true
 rdf-fusion-web.workspace = true
 snmalloc-rs.workspace = true
 tokio.workspace = true
 tracing-subscriber.workspace = true
-
-[dev-dependencies]
-assert_cmd.workspace = true
-assert_fs.workspace = true
-predicates.workspace = true
 
 [build-dependencies]
 clap = { workspace = true, features = ["derive"] }

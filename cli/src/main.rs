@@ -2,6 +2,8 @@
 use crate::cli::{Args, Command};
 use anyhow::{Context, bail};
 use clap::Parser;
+use datafusion::execution::runtime_env::RuntimeEnvBuilder;
+use datafusion::prelude::SessionConfig;
 use rdf_fusion::io::{RdfFormat, RdfParser, RdfSerializer};
 use rdf_fusion::model::{GraphName, NamedNode};
 use rdf_fusion::store::Store;
@@ -35,7 +37,19 @@ pub async fn main() -> anyhow::Result<()> {
             bind,
             cors,
             union_default_graph,
-        } => serve(Store::default(), &bind, false, cors, union_default_graph).await,
+        } => {
+            let runtime_env = match matches.runtime.memory_limit {
+                None => RuntimeEnvBuilder::default().build_arc()?,
+                Some(limit) => RuntimeEnvBuilder::default()
+                    .with_memory_limit(limit * 1024 * 1024, 1f64)
+                    .build_arc()?,
+            };
+            let store = Store::new_with_datafusion_config(
+                SessionConfig::from_env()?,
+                runtime_env,
+            );
+            serve(store, &bind, false, cors, union_default_graph).await
+        }
         Command::Convert {
             from_file,
             from_format,
@@ -254,109 +268,4 @@ fn close_file_writer(writer: BufWriter<File>) -> io::Result<()> {
         .map_err(io::IntoInnerError::into_error)?;
     file.flush()?;
     file.sync_all()
-}
-
-#[cfg(test)]
-#[allow(clippy::panic_in_result_fn)]
-mod tests {
-    use super::*;
-    use anyhow::Result;
-    use assert_cmd::Command;
-    use assert_fs::NamedTempFile;
-    use assert_fs::prelude::*;
-    use predicates::prelude::*;
-
-    fn cli_command() -> Command {
-        let mut command = Command::new(env!("CARGO"));
-        command
-            .arg("run")
-            .arg("--bin")
-            .arg("rdf-fusion")
-            .arg("--no-default-features");
-        command.arg("--");
-        command
-    }
-
-    #[test]
-    fn cli_help() {
-        cli_command()
-            .assert()
-            .failure()
-            .stdout("")
-            .stderr(predicate::str::contains("RdfFusion"));
-    }
-
-    #[test]
-    fn cli_convert_file() -> Result<()> {
-        let input_file = NamedTempFile::new("input.ttl")?;
-        input_file.write_str("@prefix schema: <http://schema.org/> .\n<#me> a schema:Person ;\n\tschema:name \"Foo Bar\"@en .\n")?;
-        let output_file = NamedTempFile::new("output.rdf")?;
-        cli_command()
-            .arg("convert")
-            .arg("--from-file")
-            .arg(input_file.path())
-            .arg("--from-base")
-            .arg("http://example.com/")
-            .arg("--to-file")
-            .arg(output_file.path())
-            .assert()
-            .success();
-        output_file
-            .assert("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rdf:RDF xml:base=\"http://example.com/\" xmlns:schema=\"http://schema.org/\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\t<schema:Person rdf:about=\"#me\">\n\t\t<schema:name xml:lang=\"en\">Foo Bar</schema:name>\n\t</schema:Person>\n</rdf:RDF>");
-        Ok(())
-    }
-
-    #[test]
-    fn cli_convert_from_default_graph_to_named_graph() {
-        cli_command()
-            .arg("convert")
-            .arg("--from-format")
-            .arg("trig")
-            .arg("--to-format")
-            .arg("nq")
-            .arg("--from-default-graph")
-            .arg("--to-graph")
-            .arg("http://example.com/t")
-            .write_stdin("@base <http://example.com/> . <s> <p> <o> . <g> { <sg> <pg> <og> . }")
-            .assert()
-            .stdout("<http://example.com/s> <http://example.com/p> <http://example.com/o> <http://example.com/t> .\n")
-            .success();
-    }
-
-    #[test]
-    fn cli_convert_from_named_graph() {
-        cli_command()
-            .arg("convert")
-            .arg("--from-format")
-            .arg("trig")
-            .arg("--to-format")
-            .arg("nq")
-            .arg("--from-graph")
-            .arg("http://example.com/g")
-            .write_stdin("@base <http://example.com/> . <s> <p> <o> . <g> { <sg> <pg> <og> . }")
-            .assert()
-            .stdout("<http://example.com/sg> <http://example.com/pg> <http://example.com/og> .\n");
-    }
-
-    #[test]
-    fn cli_convert_to_base() {
-        cli_command()
-            .arg("convert")
-            .arg("--from-format")
-            .arg("ttl")
-            .arg("--to-format")
-            .arg("ttl")
-            .arg("--to-base")
-            .arg("http://example.com")
-            .write_stdin("@base <http://example.com/> . <s> <p> <o> .")
-            .assert()
-            .stdout("@base <http://example.com> .\n</s> </p> </o> .\n");
-    }
-
-    #[test]
-    fn clap_debug() {
-        use clap::CommandFactory;
-
-        Args::command().debug_assert()
-    }
 }

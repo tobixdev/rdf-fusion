@@ -1,1 +1,1 @@
-No Release Yet
+Change logs for each release can be found [here](misc/changelog).
