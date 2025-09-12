@@ -9,7 +9,7 @@ use datafusion::physical_optimizer::optimizer::PhysicalOptimizer;
 use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_logical::expr::SimplifySparqlExpressionsRule;
 use rdf_fusion_logical::extend::ExtendLoweringRule;
-use rdf_fusion_logical::join::{SparqlJoinLoweringRule, SparqlJoinReorderingRule};
+use rdf_fusion_logical::join::SparqlJoinLoweringRule;
 use rdf_fusion_logical::minus::MinusLoweringRule;
 use rdf_fusion_logical::paths::PropertyPathLoweringRule;
 use rdf_fusion_logical::patterns::PatternLoweringRule;
