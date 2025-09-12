@@ -14,7 +14,7 @@ use rdf_fusion_model::{
 };
 
 /// Implementation of the SPARQL `substr` function (binary version).
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct SubStrSparqlOp;
 
 impl Default for SubStrSparqlOp {

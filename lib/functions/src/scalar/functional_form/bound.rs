@@ -13,7 +13,7 @@ use rdf_fusion_encoding::typed_value::{
 };
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermEncoding};
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct BoundSparqlOp;
 
 impl Default for BoundSparqlOp {

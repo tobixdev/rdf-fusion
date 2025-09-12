@@ -9,7 +9,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{ThinError, TypedValueRef};
 
 /// TODO
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct IsIriSparqlOp;
 
 impl Default for IsIriSparqlOp {

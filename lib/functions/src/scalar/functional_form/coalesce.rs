@@ -15,7 +15,7 @@ use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::ThinError;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct CoalesceSparqlOp;
 
 impl Default for CoalesceSparqlOp {

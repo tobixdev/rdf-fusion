@@ -185,7 +185,7 @@ mod tests {
         let rewritten = execute_test_for_builtin(&schema, BuiltinName::IsCompatible);
         assert_snapshot!(rewritten.data, @r"
         Projection: column1 = column2 AS IS_COMPATIBLE(column1,column2)
-          EmptyRelation
+          EmptyRelation: rows=0
         ");
     }
 
@@ -195,7 +195,7 @@ mod tests {
         let rewritten = execute_test_for_builtin(&schema, BuiltinName::IsCompatible);
         assert_snapshot!(rewritten.data, @r"
         Projection: IS_COMPATIBLE(column1, column2)
-          EmptyRelation
+          EmptyRelation: rows=0
         ");
     }
 
@@ -217,7 +217,7 @@ mod tests {
         let rewritten = execute_test_for_expr(&schema, expr);
         assert_snapshot!(rewritten.data, @r"
         Projection: NOT EBV(ENC_TV(column1)) AS EBV(BOOLEAN_AS_TERM(NOT EBV(ENC_TV(column1))))
-          EmptyRelation
+          EmptyRelation: rows=0
         ");
         Ok(())
     }

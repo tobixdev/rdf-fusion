@@ -18,7 +18,7 @@ use rdf_fusion_model::{
 use std::borrow::Cow;
 
 /// Implementation of the SPARQL `regex` function (binary version).
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ReplaceSparqlOp;
 
 impl Default for ReplaceSparqlOp {

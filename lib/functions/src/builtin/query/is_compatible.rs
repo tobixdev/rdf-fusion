@@ -12,7 +12,7 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
 use std::any::Any;
 use std::cmp::Ordering;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 pub fn is_compatible(encodings: &RdfFusionEncodings) -> Arc<ScalarUDF> {
@@ -20,7 +20,7 @@ pub fn is_compatible(encodings: &RdfFusionEncodings) -> Arc<ScalarUDF> {
     Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq)]
 struct IsCompatible {
     name: String,
     signature: Signature,
@@ -79,12 +79,18 @@ impl ScalarUDFImpl for IsCompatible {
             _ => exec_err!("Invalid arguments for IsCompatible"),
         }
     }
+}
 
-    fn hash_value(&self) -> u64 {
-        // Remove once https://github.com/apache/datafusion/pull/16977 is in release
-        let hasher = &mut DefaultHasher::new();
-        self.as_any().type_id().hash(hasher);
-        hasher.finish()
+impl Hash for IsCompatible {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_any().type_id().hash(state);
+    }
+}
+
+impl PartialEq for IsCompatible {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_any().type_id() == other.as_any().type_id()
+            && self.signature.eq(&other.signature)
     }
 }
 

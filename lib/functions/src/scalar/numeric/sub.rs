@@ -9,7 +9,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{Numeric, NumericPair, ThinError, TypedValueRef};
 
 /// Implementation of the SPARQL `-` operator.
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct SubSparqlOp;
 
 impl Default for SubSparqlOp {

@@ -10,7 +10,7 @@ use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{LiteralRef, TermRef, ThinError};
 
 /// Implementation of the SPARQL `SAME_TERM` operator.
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct SameTermSparqlOp;
 
 impl Default for SameTermSparqlOp {

@@ -14,7 +14,7 @@ use rdf_fusion_model::{
     Decimal, Double, Float, Int, Integer, Numeric, ThinError, ThinResult, TypedValueRef,
 };
 use std::any::Any;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 pub fn effective_boolean_value() -> Arc<ScalarUDF> {
@@ -22,7 +22,7 @@ pub fn effective_boolean_value() -> Arc<ScalarUDF> {
     Arc::new(ScalarUDF::new_from_impl(udf_impl))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq)]
 struct EffectiveBooleanValue {
     name: String,
     signature: Signature,
@@ -78,12 +78,17 @@ impl ScalarUDFImpl for EffectiveBooleanValue {
             _ => exec_err!("Unexpected number of arguments"),
         }
     }
+}
 
-    fn hash_value(&self) -> u64 {
-        // Remove once https://github.com/apache/datafusion/pull/16977 is in release
-        let hasher = &mut DefaultHasher::new();
-        self.as_any().type_id().hash(hasher);
-        hasher.finish()
+impl Hash for EffectiveBooleanValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_any().type_id().hash(state);
+    }
+}
+
+impl PartialEq for EffectiveBooleanValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_any().type_id() == other.as_any().type_id()
     }
 }
 

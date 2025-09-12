@@ -6,7 +6,7 @@ license.workspace = true
 readme = "README.md"
 repository = "https://github.com/tobixdev/rdf-fusion/tree/main/bench"
 description = """
-RdfFusion benchmarking tool
+RDF Fusion benchmarking tool
 """
 edition.workspace = true
 rust-version.workspace = true

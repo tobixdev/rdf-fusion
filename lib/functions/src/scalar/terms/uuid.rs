@@ -9,7 +9,7 @@ use rdf_fusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
 use rdf_fusion_model::{NamedNode, TypedValue};
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct UuidSparqlOp;
 
 impl Default for UuidSparqlOp {
