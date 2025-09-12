@@ -11,22 +11,22 @@ ProjectionExec: expr=[ENC_PT(label@0) as label, ENC_PT(comment@1) as comment, EN
             CrossJoinExec
               CrossJoinExec
                 CrossJoinExec
-                  CrossJoinExec
-                    CrossJoinExec
+                  CoalesceBatchesExec: target_batch_size=8192
+                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(f@3, f@0)], projection=[label@0, comment@1, producer@2, productFeature@5]
                       CrossJoinExec
-                        MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?label
-                        MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www.w3.org/2000/01/rdf-schema#comment>, object=?comment
-                      CoalesceBatchesExec: target_batch_size=8192
-                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@0, p@0)], projection=[producer@2]
-                          CoalesceBatchesExec: target_batch_size=8192
-                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@0, p@0)], projection=[p@0]
-                              MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=?p
-                              MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?p
-                          MemQuadPatternExec: [GPOS] subject=?p, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?producer
-                    CoalesceBatchesExec: target_batch_size=8192
-                      HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(f@0, f@0)], projection=[productFeature@2]
+                        CoalesceBatchesExec: target_batch_size=8192
+                          HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@2, p@0)], projection=[label@0, comment@1, producer@3]
+                            CoalesceBatchesExec: target_batch_size=8192
+                              HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@2, p@0)], projection=[label@0, comment@1, p@2, producer@4]
+                                CrossJoinExec
+                                  CrossJoinExec
+                                    MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?label
+                                    MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www.w3.org/2000/01/rdf-schema#comment>, object=?comment
+                                  MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=?p
+                                MemQuadPatternExec: [GPOS] subject=?p, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?producer
+                            MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?p
                         MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?f
-                        MemQuadPatternExec: [GPOS] subject=?f, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?productFeature
+                      MemQuadPatternExec: [GPOS] subject=?f, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?productFeature
                   MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual1>, object=?propertyTextual1
                 MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual2>, object=?propertyTextual2
               MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual3>, object=?propertyTextual3
