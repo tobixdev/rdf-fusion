@@ -11,9 +11,9 @@ ProjectionExec: expr=[ENC_PT(productLabel@0) as productLabel, ENC_PT(offer@1) as
           CoalesceBatchesExec: target_batch_size=8192
             HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0), (vendor@2, vendor@1)], projection=[offer@0, price@1, vendor@2, vendorTitle@3]
               CoalesceBatchesExec: target_batch_size=8192
-                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(vendor@2, vendor@0)], projection=[offer@0, price@1, vendor@2, vendorTitle@4]
+                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(vendor@2, vendor@0)], projection=[offer@0, price@1, vendor@2, vendorTitle@3]
                   CoalesceBatchesExec: target_batch_size=8192
-                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(vendor@2, vendor@0)], projection=[offer@0, price@1, vendor@2]
+                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(vendor@2, vendor@0)], projection=[offer@0, price@1, vendor@2, vendorTitle@4]
                       CoalesceBatchesExec: target_batch_size=8192
                         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, price@1, vendor@3]
                           CoalesceBatchesExec: target_batch_size=8192
@@ -21,8 +21,8 @@ ProjectionExec: expr=[ENC_PT(productLabel@0) as productLabel, ENC_PT(offer@1) as
                               MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer17/Product801>
                               MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
                           MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
-                      MemQuadPatternExec: [GPOS] subject=?vendor, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=<http://downlode.org/rdf/iso-3166/countries#DE>
-                  MemQuadPatternExec: [GPOS] subject=?vendor, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?vendorTitle
+                      MemQuadPatternExec: [GPOS] subject=?vendor, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?vendorTitle
+                  MemQuadPatternExec: [GPOS] subject=?vendor, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=<http://downlode.org/rdf/iso-3166/countries#DE>
               MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?vendor
           CoalesceBatchesExec: target_batch_size=8192
             FilterExec: EBV(GT(ENC_TV(date@1), 10:{value:6334951680000.0000000000000000,offset:})), projection=[offer@0]

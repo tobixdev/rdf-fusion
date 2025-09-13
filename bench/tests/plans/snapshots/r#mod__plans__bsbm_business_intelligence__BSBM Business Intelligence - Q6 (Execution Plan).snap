@@ -8,24 +8,24 @@ ProjectionExec: expr=[ENC_PT(reviewer@0) as reviewer, ENC_PT(0000000000000000000
       AggregateExec: mode=Final, gby=[reviewer@0 as reviewer], aggr=[00000000000000000000000000000001, 00000000000000000000000000000002]
         CoalescePartitionsExec
           AggregateExec: mode=Partial, gby=[reviewer@1 as reviewer], aggr=[00000000000000000000000000000001, 00000000000000000000000000000002]
-            CrossJoinExec
-              ProjectionExec: expr=[00000000000000000000000000000003@0 as avgScore]
-                AggregateExec: mode=Final, gby=[], aggr=[00000000000000000000000000000003]
-                  CoalescePartitionsExec
-                    AggregateExec: mode=Partial, gby=[], aggr=[00000000000000000000000000000003]
-                      CoalesceBatchesExec: target_batch_size=8192
-                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[score@2]
+            CoalesceBatchesExec: target_batch_size=8192
+              HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@1, review@0)], projection=[avgScore@0, reviewer@2, score@4]
+                CrossJoinExec
+                  ProjectionExec: expr=[00000000000000000000000000000003@0 as avgScore]
+                    AggregateExec: mode=Final, gby=[], aggr=[00000000000000000000000000000003]
+                      CoalescePartitionsExec
+                        AggregateExec: mode=Partial, gby=[], aggr=[00000000000000000000000000000003]
                           CoalesceBatchesExec: target_batch_size=8192
-                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[review@1]
-                              MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>
-                              MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product
-                          UnionExec
-                            MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score
-                            MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score
-                            MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score
-                            MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score
-              CoalesceBatchesExec: target_batch_size=8192
-                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[reviewer@1, score@3]
+                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[score@2]
+                              CoalesceBatchesExec: target_batch_size=8192
+                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[review@1]
+                                  MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>
+                                  MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product
+                              UnionExec
+                                MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score
+                                MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score
+                                MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score
+                                MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score
                   CoalesceBatchesExec: target_batch_size=8192
                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[review@0, reviewer@2]
                       CoalesceBatchesExec: target_batch_size=8192
@@ -33,8 +33,8 @@ ProjectionExec: expr=[ENC_PT(reviewer@0) as reviewer, ENC_PT(0000000000000000000
                           MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>
                           MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product
                       MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer
-                  UnionExec
-                    MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score
-                    MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score
-                    MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score
-                    MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score
+                UnionExec
+                  MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score
+                  MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score
+                  MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score
+                  MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score
