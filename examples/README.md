@@ -15,6 +15,7 @@ cargo run --example use-store # Run the `use-store` example. Replace `use-store`
 
 ## Basic Usage
 
-* **[use-store](./examples/use-store.rs)**: Using RDF Fusion via an adaption of [Oxigraph](https://github.com/oxigraph/oxigraph)'s 
+* **[use-store](./examples/use_store.rs)**: Using RDF Fusion via an adaption of [Oxigraph](https://github.com/oxigraph/oxigraph)'s 
   Store API. 
+* **[query-store](./examples/query_store.rs)**: Send a basic query against the store.
 

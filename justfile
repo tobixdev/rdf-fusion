@@ -25,6 +25,7 @@ test:
 [working-directory: 'examples']
 test-examples:
     cargo run --example use_store
+    cargo run --example query_store
 
 # Build and check documentation
 rustdoc:
