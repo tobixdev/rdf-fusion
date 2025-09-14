@@ -16,7 +16,7 @@ use tokio;
 async fn insert_quad() {
     let storage = create_storage();
 
-    let inserted = storage.insert(vec![example_quad()]).await.unwrap();
+    let inserted = storage.extend(vec![example_quad()]).await.unwrap();
     assert_eq!(inserted, 1);
 
     let len = storage.len().await.unwrap();
@@ -27,7 +27,7 @@ async fn insert_quad() {
 async fn insert_quad_then_read() {
     let storage = create_storage();
 
-    let inserted = storage.insert(vec![example_quad()]).await.unwrap();
+    let inserted = storage.extend(vec![example_quad()]).await.unwrap();
     assert_eq!(inserted, 1);
 
     let ep_metrics = ExecutionPlanMetricsSet::default();
@@ -121,9 +121,9 @@ async fn insert_quad_then_read() {
 async fn insert_duplicate_quads_no_effect() {
     let storage = create_storage();
 
-    storage.insert(vec![example_quad()]).await.unwrap();
+    storage.extend(vec![example_quad()]).await.unwrap();
 
-    let inserted = storage.insert(vec![example_quad()]).await.unwrap();
+    let inserted = storage.extend(vec![example_quad()]).await.unwrap();
     assert_eq!(inserted, 0); // duplicate
 }
 
@@ -132,7 +132,7 @@ async fn insert_duplicate_quads_in_same_operation_quads() {
     let storage = create_storage();
 
     let inserted = storage
-        .insert(vec![example_quad(), example_quad()])
+        .extend(vec![example_quad(), example_quad()])
         .await
         .unwrap();
 
@@ -161,7 +161,7 @@ async fn remove_quad() {
     let storage = create_storage();
     let quad = example_quad_in_graph("http://example.com/g");
 
-    storage.insert(vec![quad.clone()]).await.unwrap();
+    storage.extend(vec![quad.clone()]).await.unwrap();
     let removed = storage.remove(quad.as_ref()).await.unwrap();
     assert!(removed);
 
@@ -177,7 +177,7 @@ async fn clear_graph() {
     let g2 = "http://example.com/g2";
 
     storage
-        .insert(vec![example_quad_in_graph(g1), example_quad_in_graph(g2)])
+        .extend(vec![example_quad_in_graph(g1), example_quad_in_graph(g2)])
         .await
         .unwrap();
 
@@ -220,7 +220,7 @@ async fn remove_named_graph() {
 async fn clear_all() {
     let storage = create_storage();
     storage
-        .insert(vec![
+        .extend(vec![
             example_quad(), // default graph
             example_quad_in_graph("http://example.com/g1"),
             example_quad_in_graph("http://example.com/g2"),
@@ -238,7 +238,7 @@ async fn clear_all() {
 async fn snapshot_consistency() {
     let storage = create_storage();
     storage
-        .insert(vec![example_quad_in_graph("http://g")])
+        .extend(vec![example_quad_in_graph("http://g")])
         .await
         .unwrap();
 
@@ -256,7 +256,7 @@ async fn validate_storage() {
     let storage = create_storage();
 
     storage
-        .insert(vec![example_quad_in_graph("http://g")])
+        .extend(vec![example_quad_in_graph("http://g")])
         .await
         .unwrap();
 

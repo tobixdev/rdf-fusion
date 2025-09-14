@@ -11,9 +11,20 @@
 
 pub mod error;
 pub mod io;
-pub mod model;
-pub mod results;
-pub mod sparql;
 pub mod store;
 
-pub use rdf_fusion_execution::sparql::*;
+pub mod model {
+    pub use rdf_fusion_model::*;
+}
+
+pub mod logical {
+    pub use rdf_fusion_logical::*;
+}
+
+pub mod execution {
+    pub use rdf_fusion_execution::*;
+}
+
+pub mod storage {
+    pub use rdf_fusion_storage::*;
+}

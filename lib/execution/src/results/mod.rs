@@ -6,10 +6,6 @@ use datafusion::physical_plan::memory::MemoryStream;
 use futures::StreamExt;
 use oxrdfio::{RdfFormat, RdfSerializer};
 use rdf_fusion_model::{Variable, VariableRef};
-use sparesults::{
-    QueryResultsFormat, QueryResultsParseError, QueryResultsParser,
-    QueryResultsSerializer, ReaderQueryResultsParserOutput,
-};
 use std::error::Error;
 use std::io::{Read, Write};
 use std::sync::Arc;
@@ -27,7 +23,11 @@ use rdf_fusion_encoding::plain_term::{
     PLAIN_TERM_ENCODING, PlainTermArrayElementBuilder,
 };
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
-pub use sparesults::QuerySolution;
+pub use sparesults::{
+    QueryResultsFormat, QueryResultsParseError, QueryResultsParser,
+    QueryResultsSerializer, QuerySolution, ReaderQueryResultsParserOutput,
+    WriterSolutionsSerializer,
+};
 pub use triples::QueryTripleStream;
 
 /// Results of a [SPARQL query](https://www.w3.org/TR/sparql11-query/).

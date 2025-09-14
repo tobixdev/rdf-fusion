@@ -19,3 +19,7 @@ cargo run --example use-store # Run the `use-store` example. Replace `use-store`
   Store API. 
 * **[query-store](./examples/query_store.rs)**: Send a basic query against the store.
 
+## Advanced Usage
+
+* **[plan-builder](./examples/plan_builder.rs)**: Use RDF Fusion's plan builder to create a custom query plan.
+

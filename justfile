@@ -22,10 +22,10 @@ test:
     cargo test --exclude rdf-fusion-examples
 
 # Runs all examples to see whether they fail
-[working-directory: 'examples']
 test-examples:
-    cargo run --example use_store
-    cargo run --example query_store
+    cargo run --package rdf-fusion-examples --example plan_builder
+    cargo run --package rdf-fusion-examples --example query_store
+    cargo run --package rdf-fusion-examples --example use_store
 
 # Build and check documentation
 rustdoc:

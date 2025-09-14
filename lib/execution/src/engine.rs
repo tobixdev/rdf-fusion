@@ -1,7 +1,9 @@
 use crate::planner::RdfFusionPlanner;
+use crate::results::QueryResults;
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{
-    Query, QueryExplanation, QueryOptions, QueryResults, evaluate_query,
+    OptimizationLevel, Query, QueryExplanation, QueryOptions, create_optimizer_rules,
+    create_pyhsical_optimizer_rules, evaluate_query,
 };
 use datafusion::dataframe::DataFrame;
 use datafusion::error::DataFusionError;
@@ -70,9 +72,22 @@ impl RdfFusionContext {
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
+        let context_view = RdfFusionContextView::new(
+            Arc::clone(&registry),
+            encodings.clone(),
+            storage.encoding(),
+        );
+
+        let optimizer_rules =
+            create_optimizer_rules(context_view, OptimizationLevel::Full);
+        let physical_optimizer_rules =
+            create_pyhsical_optimizer_rules(OptimizationLevel::Full);
+
         let state = SessionStateBuilder::new()
             .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
+            .with_optimizer_rules(optimizer_rules)
+            .with_physical_optimizer_rules(physical_optimizer_rules)
             .with_runtime_env(runtime_env)
             .with_config(config)
             .build();

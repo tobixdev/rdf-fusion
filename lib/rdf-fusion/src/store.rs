@@ -31,16 +31,16 @@
 //! ```
 
 use crate::error::{LoaderError, SerializerError};
-use crate::sparql::error::QueryEvaluationError;
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
 use rdf_fusion_common::error::StorageError;
 use rdf_fusion_execution::RdfFusionContext;
-use rdf_fusion_execution::results::{QuadStream, QuerySolutionStream};
+use rdf_fusion_execution::results::{QuadStream, QueryResults, QuerySolutionStream};
+use rdf_fusion_execution::sparql::error::QueryEvaluationError;
 use rdf_fusion_execution::sparql::{
-    Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
+    Query, QueryExplanation, QueryOptions, Update, UpdateOptions,
 };
 use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
@@ -477,7 +477,7 @@ impl Store {
             .collect::<Result<Vec<_>, _>>()?;
         self.engine
             .storage()
-            .insert(quads)
+            .extend(quads)
             .await
             .map(|_| ())
             .map_err(LoaderError::from)
@@ -511,7 +511,7 @@ impl Store {
         let quad = vec![quad.into().into_owned()];
         self.engine
             .storage()
-            .insert(quad)
+            .extend(quad)
             .await
             .map(|inserted| inserted > 0)
     }
@@ -522,7 +522,7 @@ impl Store {
         quads: impl IntoIterator<Item = impl Into<Quad>>,
     ) -> Result<(), StorageError> {
         let quads = quads.into_iter().map(Into::into).collect::<Vec<_>>();
-        self.engine.storage().insert(quads).await?;
+        self.engine.storage().extend(quads).await?;
         Ok(())
     }
 

@@ -66,7 +66,7 @@ impl QuadStorage for MemQuadStorage {
         vec![Arc::new(MemQuadStorePlanner::new(snapshot))]
     }
 
-    async fn insert(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
+    async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
         let encoded = quads
             .iter()
             .map(|q| self.object_id_mapping.encode_quad(q.as_ref()))

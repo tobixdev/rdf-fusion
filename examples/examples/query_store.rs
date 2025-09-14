@@ -1,5 +1,6 @@
+use anyhow::Context;
+use rdf_fusion::execution::results::QueryResultsFormat;
 use rdf_fusion::io::{RdfFormat, RdfParser};
-use rdf_fusion::results::QueryResultsFormat;
 use rdf_fusion::store::Store;
 
 /// This example shows how to query RDF Fusion with SPARQL.
@@ -7,7 +8,8 @@ use rdf_fusion::store::Store;
 pub async fn main() -> anyhow::Result<()> {
     // Load data from a file.
     let store = Store::default();
-    let file = std::fs::File::open("./examples/data/spiderman.ttl")?;
+    let file = std::fs::File::open("./examples/data/spiderman.ttl")
+        .context("Could not find spiderman.ttl")?;
     let reader = RdfParser::from_format(RdfFormat::Turtle);
     store.load_from_reader(reader, &file).await?;
 
