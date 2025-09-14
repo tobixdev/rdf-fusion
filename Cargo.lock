@@ -3650,6 +3650,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rdf-fusion-examples"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "rdf-fusion",
+ "tokio",
+]
+
+[[package]]
 name = "rdf-fusion-execution"
 version = "0.1.0"
 dependencies = [

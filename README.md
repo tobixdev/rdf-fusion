@@ -28,8 +28,7 @@ The `Store` API provides high-level methods for interacting with a triple store 
 Users that want to *use RDF Fusion's* capability are advised to use this API.
 While the `Store` API is similar to [Oxigraph](https://github.com/oxigraph/oxigraph)'s `Store` there is not a full
 compatibility.
-
-TODO point to example
+See [examples](./examples) for further details.
 
 ### Library Use
 
@@ -38,9 +37,8 @@ Users that want to *significantly extend RDF Fusion's* capability are advised to
 Note that limited extension points can also be used via the `Store` API (e.g., not altering SPARQL syntax).
 
 Users can use RDF Fusion's implementation of SPARQL operators directly via DataFusion.
-They have full control over the processing of the query and only choose and pick the required parts of RDF Fusion. 
-
-TODO point to example
+They have full control over the processing of the query and only choose and pick the required parts of RDF Fusion.
+See [examples](./examples) for further details.
 
 ## Comparison with Other SPARQL Databases
 

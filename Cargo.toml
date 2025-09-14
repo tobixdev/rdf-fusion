@@ -2,6 +2,7 @@
 members = [
     "bench",
     "cli",
+    "examples",
     "lib/api",
     "lib/model",
     "lib/common",
@@ -23,6 +24,7 @@ authors = ["Tobias Schwarzinger <tobias.schwarzinger@tuwien.ac.at>"]
 license = "Apache-2.0"
 edition = "2024"
 rust-version = "1.85"
+repository = "https://github.com/tobixdev/rdf-fusion"
 
 [workspace.dependencies]
 anyhow = "1.0"
@@ -38,7 +40,6 @@ dashmap = "6.1"
 futures = "0.3"
 itertools = "0.14"
 md-5 = "0.10"
-predicates = ">=2.0, <4.0"
 rand = "0.9"
 rand_distr = "0.5"
 regex = "1.11"
@@ -72,8 +73,6 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 
 # Testing / Benchmarking dependencies
 
-assert_cmd = "2.0"
-assert_fs = "1.0"
 codspeed-criterion-compat = "3.0"
 insta = "1.43"
 prettytable-rs = "0.10"
@@ -101,6 +100,7 @@ rdf-fusion-physical = { version = "=0.1.0", path = "lib/physical" }
 rdf-fusion-storage = { version = "=0.1.0", path = "lib/storage" }
 rdf-fusion = { version = "=0.1.0", path = "lib/rdf-fusion" }
 rdf-fusion-web = { version = "=0.1.0", path = "lib/web" }
+rdf-fusion-examples = { version = "=0.1.0", path = "examples" }
 
 #
 # Most of the remainder of this file (profiles & lints) stem from DataFusion.

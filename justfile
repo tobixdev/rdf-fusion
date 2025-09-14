@@ -19,7 +19,12 @@ lint:
 
 # Run all tests
 test:
-    cargo test
+    cargo test --exclude rdf-fusion-examples
+
+# Runs all examples to see whether they fail
+[working-directory: 'examples']
+test-examples:
+    cargo run --example use_store
 
 # Build and check documentation
 rustdoc:
