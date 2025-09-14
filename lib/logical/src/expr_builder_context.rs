@@ -1,19 +1,17 @@
 use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{
-    Column, DFSchema, Spans, exec_datafusion_err, plan_datafusion_err, plan_err,
+    exec_datafusion_err, plan_datafusion_err, plan_err, Column, DFSchema, Spans,
 };
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{
-    Expr, ExprSchemable, LogicalPlan, LogicalPlanBuilder, ScalarUDF, Subquery, and,
-    exists, lit, not_exists,
+    and, exists, lit, not_exists, Expr, ExprSchemable, LogicalPlan,
+    LogicalPlanBuilder, ScalarUDF, Subquery,
 };
+use rdf_fusion_api::functions::{BuiltinName, FunctionName, RdfFusionFunctionRegistry};
 use rdf_fusion_api::RdfFusionContextView;
-use rdf_fusion_api::functions::{
-    BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
-};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
@@ -405,21 +403,23 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         name: BuiltinName,
         arg: Expr,
+        constant_args: Vec<Expr>,
         distinct: bool,
-        args: RdfFusionFunctionArgs,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let udaf = self
-            .registry()
-            .create_udaf(FunctionName::Builtin(name), args)?;
+        let udaf = self.registry().udaf(FunctionName::Builtin(name))?;
 
         // Currently, UDAFs are only supported for typed values
         let arg = self
             .try_create_builder(arg)?
             .with_encoding(EncodingName::TypedValue)?
             .build()?;
+
+        let mut args = vec![arg];
+        args.extend(constant_args);
+
         let expr = Expr::AggregateFunction(AggregateFunction::new_udf(
             udaf,
-            vec![arg],
+            args,
             distinct,
             None,
             Vec::new(),
@@ -435,7 +435,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         name: BuiltinName,
         further_args: Vec<Expr>,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        self.apply_builtin_with_args(name, further_args, RdfFusionFunctionArgs::empty())
+        self.apply_builtin_with_args(name, further_args)
     }
 
     /// Applies a built-in SPARQL function to a list of arguments, with additional arguments
@@ -446,9 +446,8 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         name: BuiltinName,
         args: Vec<Expr>,
-        udf_args: RdfFusionFunctionArgs,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let expr = self.apply_builtin_with_args_no_builder(name, args, udf_args)?;
+        let expr = self.apply_builtin_with_args_no_builder(name, args)?;
         self.try_create_builder(expr)
     }
 
@@ -459,12 +458,11 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         name: BuiltinName,
         args: Vec<Expr>,
-        udf_args: RdfFusionFunctionArgs,
     ) -> DFResult<Expr> {
-        let udf = self.create_builtin_udf_with_args(name, udf_args)?;
+        let udf = self.create_builtin_udf_with_args(name)?;
         let supported_encodings = self
             .registry()
-            .supported_encodings(FunctionName::Builtin(name))?;
+            .udf_supported_encodings(FunctionName::Builtin(name))?;
 
         if supported_encodings.is_empty() {
             return plan_err!("No supported encodings for builtin '{}'", name);
@@ -493,17 +491,14 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         name: BuiltinName,
     ) -> DFResult<Arc<ScalarUDF>> {
-        self.registry()
-            .create_udf(FunctionName::Builtin(name), RdfFusionFunctionArgs::empty())
+        self.registry().udf(FunctionName::Builtin(name))
     }
 
     pub(crate) fn create_builtin_udf_with_args(
         &self,
         name: BuiltinName,
-        args: RdfFusionFunctionArgs,
     ) -> DFResult<Arc<ScalarUDF>> {
-        self.registry()
-            .create_udf(FunctionName::Builtin(name), args)
+        self.registry().udf(FunctionName::Builtin(name))
     }
 
     /// TODO

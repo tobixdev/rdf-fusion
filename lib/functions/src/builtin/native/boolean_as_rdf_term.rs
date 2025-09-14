@@ -11,11 +11,10 @@ use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuil
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use std::any::Any;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 
-pub fn native_boolean_as_term() -> Arc<ScalarUDF> {
+pub fn native_boolean_as_term() -> ScalarUDF {
     let udf_impl = NativeBooleanAsTerm::new();
-    Arc::new(ScalarUDF::new_from_impl(udf_impl))
+    ScalarUDF::new_from_impl(udf_impl)
 }
 
 #[derive(Debug, Eq)]

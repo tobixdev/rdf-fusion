@@ -7,15 +7,14 @@ use datafusion::logical_expr::{
     TypeSignature, Volatility,
 };
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
+use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use std::any::Any;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 
-pub fn native_int64_as_term() -> Arc<ScalarUDF> {
+pub fn native_int64_as_term() -> ScalarUDF {
     let udf_impl = NativeInt64AsTerm::new();
-    Arc::new(ScalarUDF::new_from_impl(udf_impl))
+    ScalarUDF::new_from_impl(udf_impl)
 }
 
 #[derive(Debug, Eq)]

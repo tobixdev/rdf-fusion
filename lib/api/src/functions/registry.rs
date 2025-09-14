@@ -1,4 +1,3 @@
-use crate::functions::RdfFusionFunctionArgs;
 use crate::functions::name::FunctionName;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_common::DFResult;
@@ -22,22 +21,20 @@ pub type RdfFusionFunctionRegistryRef = Arc<dyn RdfFusionFunctionRegistry>;
 /// - [SPARQL 1.1 Query Language - Functions](https://www.w3.org/TR/sparql11-query/#SparqlOps)
 pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
     /// Returns the encodings supported by `function_name`.
-    fn supported_encodings(
+    fn udf_supported_encodings(
         &self,
         function_name: FunctionName,
     ) -> DFResult<Vec<EncodingName>>;
 
-    /// Creates a DataFusion [ScalarUDF] given the `constant_args`.
-    fn create_udf(
-        &self,
-        function_name: FunctionName,
-        constant_args: RdfFusionFunctionArgs,
-    ) -> DFResult<Arc<ScalarUDF>>;
+    /// Creates a [ScalarUDF] given the `constant_args`.
+    fn udf(&self, function_name: FunctionName) -> DFResult<Arc<ScalarUDF>>;
 
-    /// Creates a DataFusion [AggregateUDF] given the `constant_args`.
-    fn create_udaf(
-        &self,
-        function_name: FunctionName,
-        constant_args: RdfFusionFunctionArgs,
-    ) -> DFResult<Arc<AggregateUDF>>;
+    /// Creates a [AggregateUDF] given the `constant_args`.
+    fn udaf(&self, function_name: FunctionName) -> DFResult<Arc<AggregateUDF>>;
+
+    /// Register a [ScalarUDF].
+    fn register_udf(&self, udf: ScalarUDF) -> Option<Arc<ScalarUDF>>;
+
+    /// Register a [AggregateUDF].
+    fn register_udaf(&self, udaf: AggregateUDF) -> Option<Arc<AggregateUDF>>;
 }

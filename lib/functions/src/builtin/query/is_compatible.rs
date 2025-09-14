@@ -15,9 +15,9 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-pub fn is_compatible(encodings: &RdfFusionEncodings) -> Arc<ScalarUDF> {
+pub fn is_compatible(encodings: &RdfFusionEncodings) -> ScalarUDF {
     let udf_impl = IsCompatible::new(encodings);
-    Arc::new(ScalarUDF::new_from_impl(udf_impl))
+    ScalarUDF::new_from_impl(udf_impl)
 }
 
 #[derive(Debug, Eq)]

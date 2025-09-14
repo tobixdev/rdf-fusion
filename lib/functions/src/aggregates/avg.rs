@@ -19,15 +19,15 @@ use rdf_fusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinRe
 use std::ops::Div;
 use std::sync::Arc;
 
-pub fn avg_typed_value() -> Arc<AggregateUDF> {
-    Arc::new(create_udaf(
+pub fn avg_typed_value() -> AggregateUDF {
+    create_udaf(
         BuiltinName::Avg.to_string().as_str(),
         vec![TYPED_VALUE_ENCODING.data_type()],
         Arc::new(TYPED_VALUE_ENCODING.data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlAvg::new()))),
         Arc::new(vec![TYPED_VALUE_ENCODING.data_type(), DataType::UInt64]),
-    ))
+    )
 }
 
 #[derive(Debug)]

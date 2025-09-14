@@ -2,13 +2,11 @@ use crate::RdfFusionExprBuilderContext;
 use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
-use datafusion::logical_expr::{Expr, ExprSchemable, lit};
-use rdf_fusion_api::functions::{
-    BuiltinName, RdfFusionBuiltinArgNames, RdfFusionFunctionArgs,
-    RdfFusionFunctionArgsBuilder,
-};
+use datafusion::logical_expr::{lit, Expr, ExprSchemable};
+use datafusion::scalar::ScalarValue;
+use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermScalar};
+use rdf_fusion_encoding::plain_term::{PlainTermScalar, PLAIN_TERM_ENCODING};
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar};
 use rdf_fusion_model::{Iri, TermRef};
@@ -161,13 +159,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - IRI](https://www.w3.org/TR/sparql11-query/#func-iri)
     pub fn iri(self, base_iri: Option<&Iri<String>>) -> DFResult<Self> {
-        let args = RdfFusionFunctionArgsBuilder::new()
-            .with_optional_arg(
-                RdfFusionBuiltinArgNames::BASE_IRI.to_owned(),
-                base_iri.cloned(),
-            )
-            .build();
-        self.apply_builtin_with_args(BuiltinName::Iri, vec![], args)
+        let arg = match base_iri {
+            None => None,
+            Some(value) => Some(value.to_string()),
+        };
+        self.apply_builtin_with_args(BuiltinName::Iri, vec![lit(ScalarValue::Utf8(arg))])
     }
 
     /// Creates an expression that constructs a blank node from a string.
@@ -707,11 +703,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Avg](https://www.w3.org/TR/sparql11-query/#defn_aggAvg)
     pub fn avg(self, distinct: bool) -> DFResult<Self> {
-        self.apply_builtin_udaf(
-            BuiltinName::Avg,
-            distinct,
-            RdfFusionFunctionArgs::empty(),
-        )
+        self.apply_builtin_udaf(BuiltinName::Avg, distinct)
     }
 
     /// Creates a new aggregate expression that computes the average of the inner expression.
@@ -739,7 +731,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Max](https://www.w3.org/TR/sparql11-query/#defn_aggMax)
     pub fn max(self) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Max, false, RdfFusionFunctionArgs::empty())
+        self.apply_builtin_udaf(BuiltinName::Max, false)
     }
 
     /// Creates a new aggregate expression that computes the minimum of the inner expression.
@@ -747,7 +739,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Min](https://www.w3.org/TR/sparql11-query/#defn_aggMin)
     pub fn min(self) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Min, false, RdfFusionFunctionArgs::empty())
+        self.apply_builtin_udaf(BuiltinName::Min, false)
     }
 
     /// Creates a new aggregate expression that returns any value of the inner expression.
@@ -770,11 +762,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Sum](https://www.w3.org/TR/sparql11-query/#defn_aggSum)
     pub fn sum(self, distinct: bool) -> DFResult<Self> {
-        self.apply_builtin_udaf(
-            BuiltinName::Sum,
-            distinct,
-            RdfFusionFunctionArgs::empty(),
-        )
+        self.apply_builtin_udaf(BuiltinName::Sum, distinct)
     }
 
     /// Creates a new aggregate expression that computes the concatenation of the inner expression.
@@ -786,13 +774,13 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - GroupConcat](https://www.w3.org/TR/sparql11-query/#defn_aggGroupConcat)
     pub fn group_concat(self, distinct: bool, separator: Option<&str>) -> DFResult<Self> {
-        let args = RdfFusionFunctionArgsBuilder::new()
-            .with_optional_arg::<String>(
-                RdfFusionBuiltinArgNames::SEPARATOR.to_owned(),
-                separator.map(Into::into),
-            )
-            .build();
-        self.apply_builtin_udaf(BuiltinName::GroupConcat, distinct, args)
+        let arg = ScalarValue::Utf8(separator.map(|s| s.to_string()));
+        self.context.apply_builtin_udaf(
+            BuiltinName::GroupConcat,
+            self.expr,
+            vec![lit(arg)],
+            distinct,
+        )
     }
 
     //
@@ -876,19 +864,14 @@ impl<'root> RdfFusionExprBuilder<'root> {
     // Built-Ins
     //
 
-    fn apply_builtin_udaf(
-        self,
-        name: BuiltinName,
-        distinct: bool,
-        udaf_args: RdfFusionFunctionArgs,
-    ) -> DFResult<Self> {
+    fn apply_builtin_udaf(self, name: BuiltinName, distinct: bool) -> DFResult<Self> {
         self.context
-            .apply_builtin_udaf(name, self.expr, distinct, udaf_args)
+            .apply_builtin_udaf(name, self.expr, vec![], distinct)
     }
 
     /// Applies a built-in function to the current expression.
     fn apply_builtin(self, name: BuiltinName, further_args: Vec<Expr>) -> DFResult<Self> {
-        self.apply_builtin_with_args(name, further_args, RdfFusionFunctionArgs::empty())
+        self.apply_builtin_with_args(name, further_args)
     }
 
     /// Applies a built-in function with additional arguments to the current expression.
@@ -896,11 +879,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
         self,
         name: BuiltinName,
         further_args: Vec<Expr>,
-        udf_args: RdfFusionFunctionArgs,
     ) -> DFResult<Self> {
         let mut args = vec![self.expr];
         args.extend(further_args);
-        self.context.apply_builtin_with_args(name, args, udf_args)
+        self.context.apply_builtin_with_args(name, args)
     }
 
     //
@@ -963,11 +945,8 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// This is a terminating builder function as it no longer produces an RDF term as output.
     pub fn build_is_compatible(self, rhs: Expr) -> DFResult<Expr> {
         let args = vec![self.expr, rhs];
-        self.context.apply_builtin_with_args_no_builder(
-            BuiltinName::IsCompatible,
-            args,
-            RdfFusionFunctionArgs::empty(),
-        )
+        self.context
+            .apply_builtin_with_args_no_builder(BuiltinName::IsCompatible, args)
     }
 
     /// Builds an expression that checks for `sameTerm` equality with a scalar value.

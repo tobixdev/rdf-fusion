@@ -239,7 +239,7 @@ mod tests {
         let expr = Expr::ScalarFunction(ScalarFunction {
             func: registry
                 .functions()
-                .create_udf(
+                .udf(
                     FunctionName::Builtin(builtin),
                     RdfFusionFunctionArgs::empty(),
                 )

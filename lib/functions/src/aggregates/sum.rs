@@ -11,16 +11,15 @@ use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding
 use rdf_fusion_model::{Integer, Numeric, NumericPair, ThinResult};
 use std::sync::Arc;
 
-pub fn sum_typed_value() -> Arc<AggregateUDF> {
-    let udaf = create_udaf(
+pub fn sum_typed_value() -> AggregateUDF {
+    create_udaf(
         &BuiltinName::Sum.to_string(),
         vec![TYPED_VALUE_ENCODING.data_type()],
         Arc::new(TYPED_VALUE_ENCODING.data_type()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlTypedValueSum::new()))),
         Arc::new(vec![TYPED_VALUE_ENCODING.data_type()]),
-    );
-    Arc::new(udaf)
+    )
 }
 
 #[derive(Debug)]

@@ -17,11 +17,10 @@ use rdf_fusion_encoding::{
 };
 use std::any::Any;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 
-pub fn with_plain_term_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF> {
+pub fn with_plain_term_encoding(encodings: RdfFusionEncodings) -> ScalarUDF {
     let udf_impl = WithPlainTermEncoding::new(encodings);
-    Arc::new(ScalarUDF::new_from_impl(udf_impl))
+    ScalarUDF::new_from_impl(udf_impl)
 }
 
 /// Transforms RDF Terms into the [PlainTermEncoding](rdf_fusion_encoding::plain_term::PlainTermEncoding).

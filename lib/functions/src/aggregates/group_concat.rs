@@ -11,9 +11,9 @@ use rdf_fusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{StringLiteralRef, ThinError};
 use std::sync::Arc;
 
-pub fn group_concat_typed_value(separator: Option<String>) -> Arc<AggregateUDF> {
-    let separator = separator.unwrap_or_else(|| " ".to_owned());
-    let udaf = create_udaf(
+pub fn group_concat_typed_value() -> AggregateUDF {
+    let separator: String = todo!("Separator");
+    create_udaf(
         "group_concat",
         vec![TYPED_VALUE_ENCODING.data_type()],
         Arc::new(TYPED_VALUE_ENCODING.data_type()),
@@ -25,8 +25,7 @@ pub fn group_concat_typed_value(separator: Option<String>) -> Arc<AggregateUDF> 
             DataType::Boolean,
             DataType::Utf8,
         ]),
-    );
-    Arc::new(udaf)
+    )
 }
 
 #[derive(Debug)]

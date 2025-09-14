@@ -70,7 +70,7 @@ impl RdfFusionContext {
         );
 
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
-            Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
+            Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone(), ));
 
         let context_view = RdfFusionContextView::new(
             Arc::clone(&registry),
@@ -117,9 +117,19 @@ impl RdfFusionContext {
         &self.ctx
     }
 
+    /// Returns a reference to the used [RdfFusionFunctionRegistry].
+    pub fn functions(&self) -> &RdfFusionFunctionRegistryRef {
+        &self.functions
+    }
+
+    /// Returns a reference to the used [RdfFusionEncodings].
+    pub fn encodings(&self) -> &RdfFusionEncodings {
+        &self.encodings
+    }
+
     /// Provides access to the [QuadStorage] of this instance for writing operations.
-    pub fn storage(&self) -> &dyn QuadStorage {
-        self.storage.as_ref()
+    pub fn storage(&self) -> &Arc<dyn QuadStorage> {
+        &self.storage
     }
 
     //

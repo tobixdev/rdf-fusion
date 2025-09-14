@@ -98,7 +98,7 @@ fn bench_all(c: &mut Criterion) {
 
     for (my_built_in, scenarios) in runs {
         let implementation = registry
-            .create_udf(
+            .udf(
                 FunctionName::Builtin(my_built_in),
                 RdfFusionFunctionArgs::empty(),
             )
