@@ -163,10 +163,7 @@ mod tests {
     use crate::RdfFusionExprBuilderContext;
     use datafusion::arrow::datatypes::{Field, Schema};
     use datafusion::common::{DFSchema, DFSchemaRef};
-    use datafusion::functions::core::coalesce;
-    use datafusion::logical_expr::{
-        EmptyRelation, LogicalPlan, LogicalPlanBuilder, col, lit,
-    };
+    use datafusion::logical_expr::{EmptyRelation, LogicalPlan, LogicalPlanBuilder, col};
     use datafusion::optimizer::OptimizerContext;
     use insta::assert_snapshot;
     use rdf_fusion_api::RdfFusionContextView;
