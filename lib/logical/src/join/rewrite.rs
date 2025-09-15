@@ -2,8 +2,10 @@ use crate::RdfFusionExprBuilderContext;
 use crate::check_same_schema;
 use crate::join::{SparqlJoinNode, SparqlJoinType};
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{Column, ExprSchema, JoinType, NullEquality, plan_err};
-use datafusion::logical_expr::{Expr, ExprSchemable, UserDefinedLogicalNode};
+use datafusion::common::{
+    Column, ExprSchema, JoinConstraint, JoinType, NullEquality, plan_err,
+};
+use datafusion::logical_expr::{Expr, ExprSchemable, Join, UserDefinedLogicalNode};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_api::RdfFusionContextView;
@@ -69,11 +71,28 @@ impl SparqlJoinLoweringRule {
     fn rewrite_sparql_join(&self, node: &SparqlJoinNode) -> DFResult<LogicalPlan> {
         let (lhs_keys, rhs_keys) = get_join_keys(node);
 
-        // If both solutions are disjoint and there is no filter, we can use a cross-join.
+        // If both solutions are disjoint, there is no filter, and this is an inner join we must
+        // use a cross-join.
         if lhs_keys.is_disjoint(&rhs_keys) && node.filter().is_none() {
-            return LogicalPlanBuilder::new(node.lhs().clone())
-                .cross_join(node.rhs().clone())?
-                .build();
+            let result = match node.join_type() {
+                SparqlJoinType::Inner => LogicalPlanBuilder::new(node.lhs().clone())
+                    .cross_join(node.rhs().clone())?
+                    .build(),
+                SparqlJoinType::Left => {
+                    let join = Join::try_new(
+                        node.lhs().clone().into(),
+                        node.rhs().clone().into(),
+                        vec![],
+                        None,
+                        JoinType::Left,
+                        JoinConstraint::On,
+                        NullEquality::NullEqualsNothing,
+                    )?;
+
+                    Ok(LogicalPlan::Join(join))
+                }
+            };
+            return result;
         }
 
         let mut join_on = lhs_keys
