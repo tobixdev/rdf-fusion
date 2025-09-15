@@ -49,11 +49,19 @@ pub async fn bsbm_1000_test_results() {
     );
     assert_snapshot!(
         "Explore Q2 (empty optional)",
-        run_select_query(&store, include_str!("./queries/explore-q2-empty-optional.sparql")).await
+        run_select_query(
+            &store,
+            include_str!("./queries/explore-q2-empty-optional.sparql")
+        )
+        .await
     );
     assert_snapshot!(
         "Explore Q2 (non-empty optional)",
-        run_select_query(&store, include_str!("./queries/explore-q2-non-empty-optional.sparql")).await
+        run_select_query(
+            &store,
+            include_str!("./queries/explore-q2-non-empty-optional.sparql")
+        )
+        .await
     );
     assert_snapshot!(
         "Explore Q3",

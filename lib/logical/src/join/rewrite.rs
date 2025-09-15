@@ -379,3 +379,101 @@ fn get_join_keys(node: &SparqlJoinNode) -> (HashSet<String>, HashSet<String>) {
         .collect();
     (lhs_keys, rhs_keys)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{RdfFusionLogicalPlanBuilder, RdfFusionLogicalPlanBuilderContext};
+    use datafusion::arrow::datatypes::Field;
+    use datafusion::common::DFSchema;
+    use datafusion::logical_expr::EmptyRelation;
+    use datafusion::optimizer::OptimizerContext;
+    use insta::assert_snapshot;
+    use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+    use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
+    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+    use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings, TermEncoding};
+    use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
+    use std::sync::Arc;
+
+    #[test]
+    fn join_non_overlapping_variables_produces_cross_join() {
+        let ctx = make_test_context();
+        let builder_ctx = RdfFusionLogicalPlanBuilderContext::new(ctx.clone());
+
+        let left = logical_plan_with_column("a");
+        let right = logical_plan_with_column("b");
+        let builder = RdfFusionLogicalPlanBuilder::new(builder_ctx, Arc::new(left));
+        let initial_plan = builder
+            .join(right, SparqlJoinType::Inner, None)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let result = rewrite_plan(ctx, initial_plan);
+
+        assert_snapshot!(&result, @r"
+        Cross Join: 
+          EmptyRelation
+          EmptyRelation
+        ");
+    }
+
+    #[test]
+    fn optional_non_overlapping_variables_produces_left_join_with_empty_filter() {
+        let ctx = make_test_context();
+        let builder_ctx = RdfFusionLogicalPlanBuilderContext::new(ctx.clone());
+
+        let left = logical_plan_with_column("a");
+        let right = logical_plan_with_column("b");
+        let builder = RdfFusionLogicalPlanBuilder::new(builder_ctx, Arc::new(left));
+        let initial_plan = builder
+            .join(right, SparqlJoinType::Left, None)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let result = rewrite_plan(ctx, initial_plan);
+
+        assert_snapshot!(&result, @r"
+        Left Join: 
+          EmptyRelation
+          EmptyRelation
+        ");
+    }
+
+    fn make_test_context() -> RdfFusionContextView {
+        let encodings = RdfFusionEncodings::new(
+            PLAIN_TERM_ENCODING,
+            TYPED_VALUE_ENCODING,
+            None,
+            SORTABLE_TERM_ENCODING,
+        );
+        let registry = Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
+        RdfFusionContextView::new(registry, encodings, QuadStorageEncoding::PlainTerm)
+    }
+
+    fn logical_plan_with_column(name: &str) -> LogicalPlan {
+        let schema = DFSchema::new_with_metadata(
+            vec![(
+                None,
+                Arc::new(Field::new(name, PLAIN_TERM_ENCODING.data_type(), false)),
+            )],
+            Default::default(),
+        )
+        .unwrap();
+
+        LogicalPlan::EmptyRelation(EmptyRelation {
+            produce_one_row: false,
+            schema: Arc::new(schema),
+        })
+    }
+
+    fn rewrite_plan(ctx: RdfFusionContextView, plan: LogicalPlan) -> LogicalPlan {
+        let config = OptimizerContext::new();
+        SparqlJoinLoweringRule::new(ctx)
+            .rewrite(plan, &config)
+            .unwrap()
+            .data
+    }
+}
