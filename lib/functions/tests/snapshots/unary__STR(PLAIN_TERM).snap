@@ -1,0 +1,31 @@
+---
+source: lib/functions/tests/unary.rs
+expression: "invoke_udf(&registry, BuiltinName::Str, test_vector.into_array())"
+---
+[
+  "http://example.org/foo",
+  "myBlank",
+  "4e15c8ff3a72491a92c64e7415a11d90",
+  "",
+  "Plain Literal",
+  "🤖🦀🤖 Bee Boo Boo Ba Bee Bee 🤖🦀🤖",
+  "Äpfel",
+  "привіт",
+  "true",
+  "false",
+  "10",
+  "010",
+  "0",
+  "10",
+  "010",
+  "0",
+  "10",
+  "10.0",
+  "0",
+  "10",
+  "10.0",
+  "0",
+  "10",
+  "10.0",
+  "0",
+]
