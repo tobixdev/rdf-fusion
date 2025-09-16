@@ -1,6 +1,6 @@
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
@@ -8,7 +8,7 @@ use datafusion::logical_expr::{
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use rdf_fusion_encoding::typed_value::{TypedValueArray, TYPED_VALUE_ENCODING};
+use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArray};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_model::{
     Decimal, Double, Float, Int, Integer, Numeric, ThinError, ThinResult, TypedValueRef,

@@ -70,7 +70,7 @@ impl RdfFusionContext {
         );
 
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
-            Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone(), ));
+            Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
         let context_view = RdfFusionContextView::new(
             Arc::clone(&registry),

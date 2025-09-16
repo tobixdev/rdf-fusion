@@ -48,8 +48,8 @@ use crate::scalar::terms::{
     StrSparqlOp, UuidSparqlOp,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
-use datafusion::execution::registry::MemoryFunctionRegistry;
 use datafusion::execution::FunctionRegistry;
+use datafusion::execution::registry::MemoryFunctionRegistry;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionRegistry};
 use rdf_fusion_common::DFResult;

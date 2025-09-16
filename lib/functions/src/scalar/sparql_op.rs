@@ -1,5 +1,5 @@
-use crate::scalar::sparql_op_impl::SparqlOpImpl;
 use crate::scalar::SparqlOpArgs;
+use crate::scalar::sparql_op_impl::SparqlOpImpl;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
 use datafusion::logical_expr::{
@@ -9,8 +9,8 @@ use datafusion::logical_expr::{
 use rdf_fusion_api::functions::FunctionName;
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
-use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TYPED_VALUE_ENCODING};
+use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
+use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
 use std::any::Any;
 use std::collections::HashSet;

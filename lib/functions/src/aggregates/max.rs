@@ -1,13 +1,13 @@
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
-use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
+use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
 use rdf_fusion_common::DFResult;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::Arc;

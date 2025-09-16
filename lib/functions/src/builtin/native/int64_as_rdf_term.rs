@@ -7,7 +7,7 @@ use datafusion::logical_expr::{
     TypeSignature, Volatility,
 };
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TYPED_VALUE_ENCODING};
+use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use std::any::Any;
 use std::hash::{Hash, Hasher};
