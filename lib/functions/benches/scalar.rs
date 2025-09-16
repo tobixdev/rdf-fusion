@@ -62,7 +62,7 @@ impl UnaryScenario {
             }
             UnaryScenario::AllBlank => {
                 let mut payload_builder = TypedValueArrayBuilder::default();
-                for _ in 0 .. 8192 {
+                for _ in 0..8192 {
                     payload_builder
                         .append_blank_node(BlankNode::default().as_ref())
                         .unwrap();
@@ -86,19 +86,13 @@ fn bench_all(c: &mut Criterion) {
         (
             BuiltinName::IsIri,
             vec![UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
-            ),
-        (
-            BuiltinName::IsLiteral,
-            vec![UnaryScenario::Mixed],
-            ),
-        (
-            BuiltinName::IsNumeric,
-            vec![UnaryScenario::Mixed],
-            ),
+        ),
+        (BuiltinName::IsLiteral, vec![UnaryScenario::Mixed]),
+        (BuiltinName::IsNumeric, vec![UnaryScenario::Mixed]),
         (
             BuiltinName::IsBlank,
             vec![UnaryScenario::Mixed, UnaryScenario::AllBlank],
-            )
+        ),
     ]);
 
     for (my_built_in, scenarios) in runs {

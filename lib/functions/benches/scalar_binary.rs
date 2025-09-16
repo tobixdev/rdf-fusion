@@ -7,7 +7,7 @@ use rdf_fusion_api::functions::{
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
-use rdf_fusion_encoding::{RdfFusionEncodings, TermEncoding};
+use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoding};
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_model::{BlankNode, Float, Integer, NamedNodeRef};
 use std::collections::HashMap;
@@ -41,8 +41,8 @@ impl BinaryScenario {
                     }
                 }
                 vec![
-                    ColumnarValue::Array(left_builder.finish()),
-                    ColumnarValue::Array(right_builder.finish()),
+                    ColumnarValue::Array(left_builder.finish().into_array()),
+                    ColumnarValue::Array(right_builder.finish().into_array()),
                 ]
             }
         }
@@ -60,26 +60,11 @@ fn bench_all_binary(c: &mut Criterion) {
     let registry = DefaultRdfFusionFunctionRegistry::new(encodings);
 
     let runs = HashMap::from([
-        (
-            BuiltinName::Equal,
-            vec![BinaryScenario::AllInt],
-        ),
-        (
-            BuiltinName::GreaterOrEqual,
-            vec![BinaryScenario::AllInt],
-        ),
-        (
-            BuiltinName::GreaterThan,
-            vec![BinaryScenario::AllInt],
-        ),
-        (
-            BuiltinName::LessOrEqual,
-            vec![BinaryScenario::AllInt],
-        ),
-        (
-            BuiltinName::LessThan,
-            vec![BinaryScenario::AllInt],
-        )
+        (BuiltinName::Equal, vec![BinaryScenario::AllInt]),
+        (BuiltinName::GreaterOrEqual, vec![BinaryScenario::AllInt]),
+        (BuiltinName::GreaterThan, vec![BinaryScenario::AllInt]),
+        (BuiltinName::LessOrEqual, vec![BinaryScenario::AllInt]),
+        (BuiltinName::LessThan, vec![BinaryScenario::AllInt]),
     ]);
 
     for (my_built_in, scenarios) in runs {
@@ -111,8 +96,8 @@ fn bench_binary_function(
     let return_field =
         Arc::new(Field::new("result", TYPED_VALUE_ENCODING.data_type(), true));
 
-    /* nur aus testzwecken drinnen
-    // richtigen Rückgabetyp vom UDF ermitteln
+    /* code used only for testing purposes (remove before official launch)
+    // determine correct return type of UDF
     let return_type = function
         .return_type(&[TYPED_VALUE_ENCODING.data_type(), TYPED_VALUE_ENCODING.data_type()])
         .expect("cannot resolve return type");
