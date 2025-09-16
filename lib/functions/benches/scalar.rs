@@ -19,6 +19,7 @@ use std::sync::Arc;
 enum UnaryScenario {
     AllNamedNodes,
     Mixed,
+    AllBlank,
 }
 
 impl UnaryScenario {
@@ -61,6 +62,15 @@ impl UnaryScenario {
                 }
                 vec![ColumnarValue::Array(payload_builder.finish().into_array())]
             }
+            UnaryScenario::AllBlank => {
+                let mut payload_builder = TypedValueArrayBuilder::default();
+                for _ in 0..8192 {
+                    payload_builder
+                        .append_blank_node(BlankNode::default().as_ref())
+                        .unwrap();
+                }
+                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+            }
         }
     }
 }
@@ -74,10 +84,18 @@ fn bench_all(c: &mut Criterion) {
     );
     let registry = DefaultRdfFusionFunctionRegistry::new(encodings);
 
-    let runs = HashMap::from([(
-        BuiltinName::IsIri,
-        [UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
-    )]);
+    let runs = HashMap::from([
+        (
+            BuiltinName::IsIri,
+            vec![UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
+        ),
+        (BuiltinName::IsLiteral, vec![UnaryScenario::Mixed]),
+        (BuiltinName::IsNumeric, vec![UnaryScenario::Mixed]),
+        (
+            BuiltinName::IsBlank,
+            vec![UnaryScenario::Mixed, UnaryScenario::AllBlank],
+        ),
+    ]);
 
     for (my_built_in, scenarios) in runs {
         let implementation = registry
