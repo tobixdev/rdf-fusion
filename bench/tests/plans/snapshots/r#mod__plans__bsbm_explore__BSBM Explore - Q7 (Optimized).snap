@@ -3,7 +3,7 @@ source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
 ---
 Projection: ENC_PT(productLabel) AS productLabel, ENC_PT(offer) AS offer, ENC_PT(price) AS price, ENC_PT(vendor) AS vendor, ENC_PT(vendorTitle) AS vendorTitle, ENC_PT(review) AS review, ENC_PT(revTitle) AS revTitle, ENC_PT(reviewer) AS reviewer, ENC_PT(revName) AS revName, ENC_PT(rating1) AS rating1, ENC_PT(rating2) AS rating2
-  Cross Join: 
+  Left Join: 
     Projection: lhs.productLabel AS productLabel, rhs.offer AS offer, rhs.price AS price, rhs.vendor AS vendor, rhs.vendorTitle AS vendorTitle
       Left Join: 
         SubqueryAlias: lhs
@@ -15,10 +15,10 @@ Projection: ENC_PT(productLabel) AS productLabel, ENC_PT(offer) AS offer, ENC_PT
                 Projection: lhs.offer AS offer, lhs.price AS price, lhs.vendor AS vendor, lhs.vendorTitle AS vendorTitle
                   Inner Join: lhs.offer = rhs.offer, lhs.vendor = rhs.vendor
                     SubqueryAlias: lhs
-                      Projection: lhs.offer AS offer, lhs.price AS price, lhs.vendor AS vendor, rhs.vendorTitle AS vendorTitle
+                      Projection: lhs.offer AS offer, lhs.price AS price, lhs.vendor AS vendor, lhs.vendorTitle AS vendorTitle
                         Inner Join: lhs.vendor = rhs.vendor
                           SubqueryAlias: lhs
-                            Projection: lhs.offer AS offer, lhs.price AS price, lhs.vendor AS vendor
+                            Projection: lhs.offer AS offer, lhs.price AS price, lhs.vendor AS vendor, rhs.vendorTitle AS vendorTitle
                               Inner Join: lhs.vendor = rhs.vendor
                                 SubqueryAlias: lhs
                                   Projection: lhs.offer AS offer, lhs.price AS price, rhs.vendor AS vendor
@@ -33,9 +33,9 @@ Projection: ENC_PT(productLabel) AS productLabel, ENC_PT(offer) AS offer, ENC_PT
                                       SubqueryAlias: rhs
                                         QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor), active_graph: Union of [DefaultGraph] 
                                 SubqueryAlias: rhs
-                                  QuadPattern (?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#DE>), active_graph: Union of [DefaultGraph] 
+                                  QuadPattern (?vendor <http://www.w3.org/2000/01/rdf-schema#label> ?vendorTitle), active_graph: Union of [DefaultGraph] 
                           SubqueryAlias: rhs
-                            QuadPattern (?vendor <http://www.w3.org/2000/01/rdf-schema#label> ?vendorTitle), active_graph: Union of [DefaultGraph] 
+                            QuadPattern (?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#DE>), active_graph: Union of [DefaultGraph] 
                     SubqueryAlias: rhs
                       QuadPattern (?offer <http://purl.org/dc/elements/1.1/publisher> ?vendor), active_graph: Union of [DefaultGraph] 
               SubqueryAlias: rhs

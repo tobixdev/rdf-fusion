@@ -1,6 +1,6 @@
 ---
-source: bench/tests/results/bsbm.rs
-expression: "run_explore_query(&store, include_str!(\"./queries/explore-q2.sparql\")).await"
+source: bench/tests/query_results/bsbm.rs
+expression: "run_select_query(&store,\ninclude_str!(\"./queries/explore-q2-non-empty-optional.sparql\")).await"
 ---
 {
   "head": {

@@ -24,9 +24,9 @@ ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) a
                                       CoalesceBatchesExec: target_batch_size=8192
                                         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(gensys_asp@2, gensys_asp@1)], projection=[site_label@0, wtur_label@1, gensys@3]
                                           CoalesceBatchesExec: target_batch_size=8192
-                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@2, wtur@0)], projection=[site_label@0, wtur_label@1, gensys_asp@4]
+                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@2, wtur@0)], projection=[site_label@0, wtur_label@1, gensys_asp@3]
                                               CoalesceBatchesExec: target_batch_size=8192
-                                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@2, wtur@0)], projection=[site_label@0, wtur_label@1, wtur@2]
+                                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@2, wtur@0)], projection=[site_label@0, wtur_label@1, wtur@2, gensys_asp@4]
                                                   CoalesceBatchesExec: target_batch_size=8192
                                                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur_asp@1, wtur_asp@1)], projection=[site_label@0, wtur_label@2, wtur@3]
                                                       CoalesceBatchesExec: target_batch_size=8192
@@ -41,12 +41,12 @@ ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) a
                                                                       MemQuadPatternExec: [GPOS] subject=?site, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?site_label
                                                               MemQuadPatternExec: [GPOS] subject=?site, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?wtur_asp
                                                           CoalesceBatchesExec: target_batch_size=8192
-                                                            FilterExec: EBV(EQ(__common_expr_2@0, 3:{value:A1,language:})) OR EBV(EQ(__common_expr_2@0, 3:{value:A2,language:})) OR EBV(EQ(__common_expr_2@0, 3:{value:A3,language:})) OR EBV(EQ(__common_expr_2@0, 3:{value:A4,language:})) OR EBV(EQ(__common_expr_2@0, 3:{value:A5,language:})) OR EBV(EQ(__common_expr_2@0, 3:{value:A6,language:})) OR EBV(EQ(__common_expr_2@0, 3:{value:A7,language:})) OR EBV(EQ(__common_expr_2@0, 3:{value:A8,language:})) OR EBV(EQ(__common_expr_2@0, 3:{value:A9,language:})) OR EBV(EQ(__common_expr_2@0, 3:{value:A10,language:})), projection=[wtur_asp@1, wtur_label@2]
-                                                              ProjectionExec: expr=[ENC_TV(wtur_label@1) as __common_expr_2, wtur_asp@0 as wtur_asp, wtur_label@1 as wtur_label]
+                                                            FilterExec: EBV(EQ(__common_expr_3@0, 3:{value:A1,language:})) OR EBV(EQ(__common_expr_3@0, 3:{value:A2,language:})) OR EBV(EQ(__common_expr_3@0, 3:{value:A3,language:})) OR EBV(EQ(__common_expr_3@0, 3:{value:A4,language:})) OR EBV(EQ(__common_expr_3@0, 3:{value:A5,language:})) OR EBV(EQ(__common_expr_3@0, 3:{value:A6,language:})) OR EBV(EQ(__common_expr_3@0, 3:{value:A7,language:})) OR EBV(EQ(__common_expr_3@0, 3:{value:A8,language:})) OR EBV(EQ(__common_expr_3@0, 3:{value:A9,language:})) OR EBV(EQ(__common_expr_3@0, 3:{value:A10,language:})), projection=[wtur_asp@1, wtur_label@2]
+                                                              ProjectionExec: expr=[ENC_TV(wtur_label@1) as __common_expr_3, wtur_asp@0 as wtur_asp, wtur_label@1 as wtur_label]
                                                                 MemQuadPatternExec: [GPOS] subject=?wtur_asp, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?wtur_label
                                                       MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?wtur_asp
-                                                  MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#A>
-                                              MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?gensys_asp
+                                                  MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?gensys_asp
+                                              MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#A>
                                           MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?gensys_asp
                                       MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#RA>
                                   MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?generator_asp

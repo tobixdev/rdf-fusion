@@ -20,12 +20,6 @@ fn wind_farm_16_1_partition(c: &mut Criterion) {
     wind_farm_16(c, &benchmarking_context);
 }
 
-fn wind_farm_16_4_partitions(c: &mut Criterion) {
-    let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 4);
-    wind_farm_16(c, &benchmarking_context);
-}
-
 fn wind_farm_16(c: &mut Criterion, benchmarking_context: &RdfFusionBenchContext) {
     let verbose = is_verbose();
     let runtime =
@@ -90,6 +84,6 @@ fn wind_farm_16(c: &mut Criterion, benchmarking_context: &RdfFusionBenchContext)
 criterion_group!(
     name = wind_farm;
     config = Criterion::default().sample_size(10);
-    targets = wind_farm_16_1_partition, wind_farm_16_4_partitions
+    targets = wind_farm_16_1_partition
 );
 criterion_main!(wind_farm);

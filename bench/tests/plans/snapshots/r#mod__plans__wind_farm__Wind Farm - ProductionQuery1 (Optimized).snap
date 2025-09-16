@@ -32,10 +32,10 @@ Projection: ENC_PT(lhs.site_label) AS site_label, ENC_PT(lhs.wtur_label) AS wtur
                                                       Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, rhs.gensys AS gensys
                                                         Inner Join: lhs.gensys_asp = rhs.gensys_asp
                                                           SubqueryAlias: lhs
-                                                            Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, rhs.gensys_asp AS gensys_asp
+                                                            Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.gensys_asp AS gensys_asp
                                                               Inner Join: lhs.wtur = rhs.wtur
                                                                 SubqueryAlias: lhs
-                                                                  Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.wtur AS wtur
+                                                                  Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.wtur AS wtur, rhs.gensys_asp AS gensys_asp
                                                                     Inner Join: lhs.wtur = rhs.wtur
                                                                       SubqueryAlias: lhs
                                                                         Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, rhs.wtur AS wtur
@@ -62,9 +62,9 @@ Projection: ENC_PT(lhs.site_label) AS site_label, ENC_PT(lhs.wtur_label) AS wtur
                                                                             SubqueryAlias: rhs
                                                                               QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?wtur_asp), active_graph: Union of [DefaultGraph] 
                                                                       SubqueryAlias: rhs
-                                                                        QuadPattern (?wtur <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#A>), active_graph: Union of [DefaultGraph] 
+                                                                        QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?gensys_asp), active_graph: Union of [DefaultGraph] 
                                                                 SubqueryAlias: rhs
-                                                                  QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?gensys_asp), active_graph: Union of [DefaultGraph] 
+                                                                  QuadPattern (?wtur <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#A>), active_graph: Union of [DefaultGraph] 
                                                           SubqueryAlias: rhs
                                                             QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?gensys_asp), active_graph: Union of [DefaultGraph] 
                                                     SubqueryAlias: rhs
