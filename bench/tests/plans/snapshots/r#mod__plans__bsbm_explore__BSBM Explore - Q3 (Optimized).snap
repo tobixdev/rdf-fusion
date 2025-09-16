@@ -5,7 +5,7 @@ expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
 Projection: ENC_PT(product) AS product, ENC_PT(label) AS label
   Sort: ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, fetch=10
     Projection: lhs.product AS product, lhs.label AS label
-      Filter: NOT EBV(ENC_TV(BOUND(rhs.testVar)))
+      Filter: NOT EBV(BOUND(rhs.testVar))
         Projection: lhs.product, lhs.label, rhs.testVar
           Left Join: lhs.product = rhs.product
             SubqueryAlias: lhs
