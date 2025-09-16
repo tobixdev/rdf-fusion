@@ -18,23 +18,23 @@ ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) a
                           CoalesceBatchesExec: target_batch_size=8192
                             HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(generator@2, generator@0)], projection=[site_label@0, wtur_label@1, val_speed@3, t@4, val_dir@5, ts_prod@7]
                               CoalesceBatchesExec: target_batch_size=8192
-                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_dir@5, dp_dir@0), (t@4, t@1)], projection=[site_label@0, wtur_label@1, generator@2, val_speed@3, t@4, val_dir@6]
+                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_dir@5, ts_dir@0)], projection=[site_label@0, wtur_label@1, generator@2, val_speed@3, t@4, val_dir@6]
                                   CoalesceBatchesExec: target_batch_size=8192
-                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_dir@5, dp_dir@0)], projection=[site_label@0, wtur_label@1, generator@2, val_speed@3, t@4, dp_dir@5, val_dir@7]
+                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_dir@6, dp_dir@0), (t@4, t@1)], projection=[site_label@0, wtur_label@1, generator@2, val_speed@3, t@4, ts_dir@5, val_dir@7]
                                       CoalesceBatchesExec: target_batch_size=8192
-                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_dir@5, ts_dir@0)], projection=[site_label@0, wtur_label@1, generator@2, val_speed@3, t@4, dp_dir@7]
+                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_dir@6, dp_dir@0)], projection=[site_label@0, wtur_label@1, generator@2, val_speed@3, t@4, ts_dir@5, dp_dir@6, val_dir@8]
                                           CoalesceBatchesExec: target_batch_size=8192
-                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_dir@5, ts_dir@0)], projection=[site_label@0, wtur_label@1, generator@2, val_speed@3, t@4, ts_dir@5]
+                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_dir@5, ts_dir@0)], projection=[site_label@0, wtur_label@1, generator@2, val_speed@3, t@4, ts_dir@5, dp_dir@7]
                                               CoalesceBatchesExec: target_batch_size=8192
                                                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(weather@3, weather@0)], projection=[site_label@0, wtur_label@1, generator@2, val_speed@4, t@5, ts_dir@7]
                                                   CoalesceBatchesExec: target_batch_size=8192
-                                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_speed@4, dp_speed@0)], projection=[site_label@0, wtur_label@1, generator@2, weather@3, val_speed@5, t@7]
+                                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_speed@4, ts_speed@0)], projection=[site_label@0, wtur_label@1, generator@2, weather@3, val_speed@5, t@6]
                                                       CoalesceBatchesExec: target_batch_size=8192
-                                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_speed@4, dp_speed@0)], projection=[site_label@0, wtur_label@1, generator@2, weather@3, dp_speed@4, val_speed@6]
+                                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_speed@5, dp_speed@0)], projection=[site_label@0, wtur_label@1, generator@2, weather@3, ts_speed@4, val_speed@6, t@8]
                                                           CoalesceBatchesExec: target_batch_size=8192
-                                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_speed@4, ts_speed@0)], projection=[site_label@0, wtur_label@1, generator@2, weather@3, dp_speed@6]
+                                                            HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp_speed@5, dp_speed@0)], projection=[site_label@0, wtur_label@1, generator@2, weather@3, ts_speed@4, dp_speed@5, val_speed@7]
                                                               CoalesceBatchesExec: target_batch_size=8192
-                                                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_speed@4, ts_speed@0)], projection=[site_label@0, wtur_label@1, generator@2, weather@3, ts_speed@4]
+                                                                HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(ts_speed@4, ts_speed@0)], projection=[site_label@0, wtur_label@1, generator@2, weather@3, ts_speed@4, dp_speed@6]
                                                                   CoalesceBatchesExec: target_batch_size=8192
                                                                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(weather@3, weather@0)], projection=[site_label@0, wtur_label@1, generator@2, weather@3, ts_speed@5]
                                                                       CoalesceBatchesExec: target_batch_size=8192
@@ -86,21 +86,21 @@ ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) a
                                                                               MemQuadPatternExec: [GPOS] subject=?weather, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?weather_asp
                                                                           MemQuadPatternExec: [GPOS] subject=?weather, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#LE>
                                                                       MemQuadPatternExec: [GPOS] subject=?weather, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts_speed
-                                                                  MemQuadPatternExec: [GPOS] subject=?ts_speed, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="Windspeed"
-                                                              MemQuadPatternExec: [GPOS] subject=?ts_speed, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp_speed
-                                                          MemQuadPatternExec: [GPOS] subject=?dp_speed, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val_speed
-                                                      CoalesceBatchesExec: target_batch_size=8192
-                                                        FilterExec: EBV(GEQ(__common_expr_13@0, 10:{value:6379744601300.0000000000000000,offset:})) AND EBV(LEQ(__common_expr_13@0, 10:{value:6379749281300.0000000000000000,offset:})), projection=[dp_speed@1, t@2]
-                                                          ProjectionExec: expr=[ENC_TV(t@1) as __common_expr_13, dp_speed@0 as dp_speed, t@1 as t]
-                                                            MemQuadPatternExec: [GPOS] subject=?dp_speed, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t
+                                                                  MemQuadPatternExec: [GPOS] subject=?ts_speed, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp_speed
+                                                              MemQuadPatternExec: [GPOS] subject=?dp_speed, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val_speed
+                                                          CoalesceBatchesExec: target_batch_size=8192
+                                                            FilterExec: EBV(GEQ(__common_expr_13@0, 10:{value:6379744601300.0000000000000000,offset:})) AND EBV(LEQ(__common_expr_13@0, 10:{value:6379749281300.0000000000000000,offset:})), projection=[dp_speed@1, t@2]
+                                                              ProjectionExec: expr=[ENC_TV(t@1) as __common_expr_13, dp_speed@0 as dp_speed, t@1 as t]
+                                                                MemQuadPatternExec: [GPOS] subject=?dp_speed, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t
+                                                      MemQuadPatternExec: [GPOS] subject=?ts_speed, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="Windspeed"
                                                   MemQuadPatternExec: [GPOS] subject=?weather, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts_dir
-                                              MemQuadPatternExec: [GPOS] subject=?ts_dir, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="WindDirection"
-                                          MemQuadPatternExec: [GPOS] subject=?ts_dir, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp_dir
-                                      MemQuadPatternExec: [GPOS] subject=?dp_dir, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val_dir
-                                  CoalesceBatchesExec: target_batch_size=8192
-                                    FilterExec: EBV(GEQ(__common_expr_14@0, 10:{value:6379744601300.0000000000000000,offset:})) AND EBV(LEQ(__common_expr_14@0, 10:{value:6379749281300.0000000000000000,offset:})), projection=[dp_dir@1, t@2]
-                                      ProjectionExec: expr=[ENC_TV(t@1) as __common_expr_14, dp_dir@0 as dp_dir, t@1 as t]
-                                        MemQuadPatternExec: [GPOS] subject=?dp_dir, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t
+                                              MemQuadPatternExec: [GPOS] subject=?ts_dir, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp_dir
+                                          MemQuadPatternExec: [GPOS] subject=?dp_dir, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val_dir
+                                      CoalesceBatchesExec: target_batch_size=8192
+                                        FilterExec: EBV(GEQ(__common_expr_14@0, 10:{value:6379744601300.0000000000000000,offset:})) AND EBV(LEQ(__common_expr_14@0, 10:{value:6379749281300.0000000000000000,offset:})), projection=[dp_dir@1, t@2]
+                                          ProjectionExec: expr=[ENC_TV(t@1) as __common_expr_14, dp_dir@0 as dp_dir, t@1 as t]
+                                            MemQuadPatternExec: [GPOS] subject=?dp_dir, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t
+                                  MemQuadPatternExec: [GPOS] subject=?ts_dir, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="WindDirection"
                               MemQuadPatternExec: [GPOS] subject=?generator, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts_prod
                           MemQuadPatternExec: [GPOS] subject=?ts_prod, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="Production"
                       MemQuadPatternExec: [GPOS] subject=?ts_prod, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp_prod

@@ -28,9 +28,9 @@ ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) a
                                               CoalesceBatchesExec: target_batch_size=8192
                                                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(gensys_asp@2, gensys_asp@1)], projection=[site_label@0, wtur_label@1, gensys@3]
                                                   CoalesceBatchesExec: target_batch_size=8192
-                                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@2, wtur@0)], projection=[site_label@0, wtur_label@1, gensys_asp@4]
+                                                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@2, wtur@0)], projection=[site_label@0, wtur_label@1, gensys_asp@3]
                                                       CoalesceBatchesExec: target_batch_size=8192
-                                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@2, wtur@0)], projection=[site_label@0, wtur_label@1, wtur@2]
+                                                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur@2, wtur@0)], projection=[site_label@0, wtur_label@1, wtur@2, gensys_asp@4]
                                                           CoalesceBatchesExec: target_batch_size=8192
                                                             HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(wtur_asp@1, wtur_asp@1)], projection=[site_label@0, wtur_label@2, wtur@3]
                                                               CoalesceBatchesExec: target_batch_size=8192
@@ -46,8 +46,8 @@ ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) a
                                                                       MemQuadPatternExec: [GPOS] subject=?site, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?wtur_asp
                                                                   MemQuadPatternExec: [GPOS] subject=?wtur_asp, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?wtur_label
                                                               MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?wtur_asp
-                                                          MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#A>
-                                                      MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?gensys_asp
+                                                          MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?gensys_asp
+                                                      MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#A>
                                                   MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?gensys_asp
                                               MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#RA>
                                           MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?generator_asp
