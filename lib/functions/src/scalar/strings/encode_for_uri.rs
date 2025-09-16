@@ -8,7 +8,7 @@ use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{SimpleLiteral, ThinError, TypedValue, TypedValueRef};
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct EncodeForUriSparqlOp;
 
 impl Default for EncodeForUriSparqlOp {

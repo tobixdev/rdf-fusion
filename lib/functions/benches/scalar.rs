@@ -1,5 +1,6 @@
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use datafusion::arrow::datatypes::Field;
+use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
@@ -116,6 +117,7 @@ fn bench_unary_function(
     scenario: UnaryScenario,
 ) {
     let args = scenario.create_args();
+    let options = Arc::new(ConfigOptions::default());
 
     let input_field =
         Arc::new(Field::new("input", TYPED_VALUE_ENCODING.data_type(), true));
@@ -130,6 +132,7 @@ fn bench_unary_function(
                 arg_fields: vec![input_field.clone()],
                 number_rows: 8192,
                 return_field: return_field.clone(),
+                config_options: options.clone(),
             };
             function.invoke_with_args(args).unwrap();
         });

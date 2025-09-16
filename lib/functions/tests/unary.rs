@@ -1,5 +1,6 @@
 use datafusion::arrow::array::Array;
 use datafusion::arrow::datatypes::Field;
+use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::ScalarFunctionArgs;
 use datafusion::physical_plan::ColumnarValue;
 use insta::assert_snapshot;
@@ -44,6 +45,7 @@ fn invoke_udf(
         .create_udf(FunctionName::Builtin(name), RdfFusionFunctionArgs::empty())
         .unwrap();
 
+    let options = Arc::new(ConfigOptions::default());
     let result = udf
         .invoke_with_args(ScalarFunctionArgs {
             arg_fields: vec![Arc::new(Field::new("arg", arg.data_type().clone(), true))],
@@ -54,6 +56,7 @@ fn invoke_udf(
                 true,
             )),
             args: vec![ColumnarValue::Array(arg)],
+            config_options: options,
         })
         .unwrap();
 

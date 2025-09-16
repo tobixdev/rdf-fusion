@@ -10,7 +10,7 @@ use rdf_fusion_model::{ThinError, TypedValueRef};
 use std::cmp::Ordering;
 
 /// Implementation of the SPARQL `<=` operator.
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct LessOrEqualSparqlOp;
 
 impl Default for LessOrEqualSparqlOp {

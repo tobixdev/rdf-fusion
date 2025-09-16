@@ -19,7 +19,7 @@ use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{SimpleLiteral, TypedValue, TypedValueRef};
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct StrSparqlOp;
 
 impl Default for StrSparqlOp {

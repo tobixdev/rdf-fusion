@@ -1,5 +1,6 @@
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use datafusion::arrow::datatypes::Field;
+use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
 use rdf_fusion_api::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
@@ -9,7 +10,7 @@ use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoding};
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
-use rdf_fusion_model::{BlankNode, Float, Integer, NamedNodeRef};
+use rdf_fusion_model::Integer;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -88,6 +89,7 @@ fn bench_binary_function(
     scenario: BinaryScenario,
 ) {
     let args = scenario.create_args();
+    let options = Arc::new(ConfigOptions::default());
 
     let input_field_left =
         Arc::new(Field::new("left", TYPED_VALUE_ENCODING.data_type(), true));
@@ -111,6 +113,7 @@ fn bench_binary_function(
                 arg_fields: vec![input_field_left.clone(), input_field_right.clone()],
                 number_rows: 8192,
                 return_field: return_field.clone(),
+                config_options: options.clone(),
             };
             function.invoke_with_args(args).unwrap();
         });

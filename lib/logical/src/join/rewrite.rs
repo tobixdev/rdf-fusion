@@ -414,8 +414,8 @@ mod tests {
 
         assert_snapshot!(&result, @r"
         Cross Join: 
-          EmptyRelation
-          EmptyRelation
+          EmptyRelation: rows=0
+          EmptyRelation: rows=0
         ");
     }
 
@@ -437,8 +437,8 @@ mod tests {
 
         assert_snapshot!(&result, @r"
         Left Join: 
-          EmptyRelation
-          EmptyRelation
+          EmptyRelation: rows=0
+          EmptyRelation: rows=0
         ");
     }
 

@@ -13,7 +13,7 @@ use regex::{Regex, RegexBuilder};
 use std::borrow::Cow;
 
 /// Implementation of the SPARQL `regex` function (binary version).
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct RegexSparqlOp;
 
 impl Default for RegexSparqlOp {

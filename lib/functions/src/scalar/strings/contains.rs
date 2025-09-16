@@ -11,7 +11,7 @@ use rdf_fusion_model::{
 };
 
 /// Implementation of the SPARQL `contains` function.
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ContainsSparqlOp;
 
 impl Default for ContainsSparqlOp {
