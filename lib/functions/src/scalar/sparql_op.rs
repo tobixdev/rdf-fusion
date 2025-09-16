@@ -1,4 +1,4 @@
-use crate::scalar::SparqlOpArgs;
+use crate::scalar::ScalarSparqlOpArgs;
 use crate::scalar::sparql_op_impl::SparqlOpImpl;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
@@ -13,37 +13,51 @@ use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
 use std::any::Any;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 
 /// TODO
-pub trait ScalarSparqlOp: Debug + Hash + Eq + Send + Sync {
-    /// TODO
-    type Args<TEncoding: TermEncoding>: SparqlOpArgs<TEncoding>;
+pub enum SparqlOpArity {
+    Fixed(usize),
+    FixedOneOf(BTreeSet<usize>),
+    Variadic,
+}
 
+/// TODO
+pub struct ScalarSparqlOpDetails {
+    pub volatility: Volatility,
+    pub num_constant_args: usize,
+    pub arity: SparqlOpArity,
+}
+
+impl ScalarSparqlOpDetails {
+    pub fn default_with_arity(arity: SparqlOpArity) -> Self {
+        Self {
+            volatility: Volatility::Immutable,
+            num_constant_args: 0,
+            arity,
+        }
+    }
+}
+
+/// TODO
+pub trait ScalarSparqlOp: Debug + Hash + Eq + Send + Sync {
     /// TODO
     fn name(&self) -> &FunctionName;
 
     /// TODO
-    fn volatility(&self) -> Volatility;
-
-    /// TODO
-    fn num_constant_args(&self) -> usize {
-        0
-    }
+    fn details(&self) -> ScalarSparqlOpDetails;
 
     /// TODO
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
+    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
         None
     }
 
     /// TODO
-    fn plain_term_encoding_op(
-        &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<PlainTermEncoding>>>> {
+    fn plain_term_encoding_op(&self) -> Option<Box<dyn SparqlOpImpl<PlainTermEncoding>>> {
         None
     }
 
@@ -51,7 +65,7 @@ pub trait ScalarSparqlOp: Debug + Hash + Eq + Send + Sync {
     fn object_id_encoding_op(
         &self,
         _object_id_encoding: &ObjectIdEncoding,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
+    ) -> Option<Box<dyn SparqlOpImpl<ObjectIdEncoding>>> {
         None
     }
 }
@@ -68,33 +82,23 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
     /// TODO
     pub fn new(encodings: RdfFusionEncodings, op: TScalarSparqlOp) -> Self {
         let name = op.name().to_string();
+        let details = op.details();
 
         let mut type_signatures = Vec::new();
         if op.plain_term_encoding_op().is_some() {
-            type_signatures.push(
-                TScalarSparqlOp::Args::<PlainTermEncoding>::type_signature(
-                    &PLAIN_TERM_ENCODING,
-                ),
-            );
+            todo!("Implement support for plain term encodings");
         }
+
         if op.typed_value_encoding_op().is_some() {
-            type_signatures.push(
-                TScalarSparqlOp::Args::<TypedValueEncoding>::type_signature(
-                    &TYPED_VALUE_ENCODING,
-                ),
-            );
+            todo!("Implement support for plain term encodings");
         }
+
         if let Some(oid_encoding) = encodings.object_id() {
             if op.object_id_encoding_op(oid_encoding).is_some() {
-                type_signatures.push(
-                    TScalarSparqlOp::Args::<ObjectIdEncoding>::type_signature(
-                        oid_encoding,
-                    ),
-                );
+                todo!("Implement support for plain term encodings");
             }
         }
 
-        let volatility = op.volatility();
         let type_signature = if type_signatures.len() == 1 {
             type_signatures.pop().unwrap()
         } else if type_signatures.is_empty() {
@@ -102,7 +106,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
         } else {
             TypeSignature::OneOf(type_signatures)
         };
-        let signature = Signature::new(type_signature, volatility);
+        let signature = Signature::new(type_signature, details.volatility);
 
         Self {
             name,
@@ -211,6 +215,28 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
+        match self.op.details().arity {
+            SparqlOpArity::Fixed(expected) => {
+                if args.args.len() != expected {
+                    return exec_err!(
+                        "Expected {} arguments, but got {}.",
+                        expected,
+                        args.args.len()
+                    );
+                }
+            }
+            SparqlOpArity::FixedOneOf(expected) => {
+                if !expected.contains(&args.args.len()) {
+                    return exec_err!(
+                        "Expected any of {:?} arguments, but got {}.",
+                        expected,
+                        args.args.len()
+                    );
+                }
+            }
+            SparqlOpArity::Variadic => {}
+        }
+
         let data_types = args
             .arg_fields
             .iter()
@@ -237,23 +263,23 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
 
         match encoding {
             EncodingName::PlainTerm => {
-                let args = TScalarSparqlOp::Args::<PlainTermEncoding>::try_from_args(
-                    &PLAIN_TERM_ENCODING,
-                    args,
-                )?;
                 if let Some(op) = self.op.plain_term_encoding_op() {
-                    op.invoke(args)
+                    op.invoke(prepare_args(
+                        &PLAIN_TERM_ENCODING,
+                        args,
+                        self.op.details(),
+                    )?)
                 } else {
                     exec_err!("PlainTerm encoding not supported for this operation")
                 }
             }
             EncodingName::TypedValue => {
-                let args = TScalarSparqlOp::Args::<TypedValueEncoding>::try_from_args(
-                    &TYPED_VALUE_ENCODING,
-                    args,
-                )?;
                 if let Some(op) = self.op.typed_value_encoding_op() {
-                    op.invoke(args)
+                    op.invoke(prepare_args(
+                        &TYPED_VALUE_ENCODING,
+                        args,
+                        self.op.details(),
+                    )?)
                 } else {
                     exec_err!("TypedValue encoding not supported for this operation")
                 }
@@ -263,12 +289,8 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                     return exec_err!("Object ID is not registered.");
                 };
 
-                let args = TScalarSparqlOp::Args::<ObjectIdEncoding>::try_from_args(
-                    object_id_encoding,
-                    args,
-                )?;
                 if let Some(op) = self.op.object_id_encoding_op(object_id_encoding) {
-                    op.invoke(args)
+                    op.invoke(prepare_args(object_id_encoding, args, self.op.details())?)
                 } else {
                     exec_err!("TypedValue encoding not supported for this operation")
                 }
@@ -276,6 +298,23 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             EncodingName::Sortable => exec_err!("Not supported"),
         }
     }
+}
+
+fn prepare_args<TEncoding: TermEncoding>(
+    encoding: &TEncoding,
+    args: ScalarFunctionArgs,
+    _details: ScalarSparqlOpDetails,
+) -> DFResult<ScalarSparqlOpArgs<TEncoding>> {
+    let new_args = args
+        .args
+        .into_iter()
+        .map(|cv| encoding.try_new_datum(cv, args.number_rows))
+        .collect::<DFResult<Vec<_>>>()?;
+
+    Ok(ScalarSparqlOpArgs {
+        number_rows: args.number_rows,
+        args: new_args,
+    })
 }
 
 /// While it would be possible to create two different SparqlOpAdapters for the same

@@ -2,11 +2,9 @@ use crate::scalar::dispatch::{
     dispatch_binary_typed_value, dispatch_ternary_typed_value,
 };
 use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::{BinaryArgs, BinaryOrTernaryArgs, ScalarSparqlOp, TernaryArgs};
-use datafusion::logical_expr::Volatility;
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_api::functions::FunctionName;
-use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{SimpleLiteralRef, ThinError, ThinResult, TypedValueRef};
 use regex::{Regex, RegexBuilder};
@@ -32,24 +30,24 @@ impl RegexSparqlOp {
 }
 
 impl ScalarSparqlOp for RegexSparqlOp {
-    type Args<TEncoding: TermEncoding> = BinaryOrTernaryArgs<TEncoding>;
-
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn volatility(&self) -> Volatility {
-        Volatility::Immutable
+    fn details(&self) -> ScalarSparqlOpDetails {
+        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::FixedOneOf(
+            [2, 3].into(),
+        ))
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
-        Some(create_typed_value_sparql_op_impl(|args| match args {
-            BinaryOrTernaryArgs::Binary(BinaryArgs(lhs, rhs)) => {
-                dispatch_binary_typed_value(
-                    &lhs,
-                    &rhs,
+    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+        Some(create_typed_value_sparql_op_impl(|args| {
+            match args.args.len() {
+                2 => dispatch_binary_typed_value(
+                    &args.args[0],
+                    &args.args[1],
                     |lhs_value, rhs_value| {
                         let TypedValueRef::SimpleLiteral(pattern) = rhs_value else {
                             return ThinError::expected();
@@ -71,13 +69,11 @@ impl ScalarSparqlOp for RegexSparqlOp {
                         }
                     },
                     |_, _| ThinError::expected(),
-                )
-            }
-            BinaryOrTernaryArgs::Ternary(TernaryArgs(arg0, arg1, arg2)) => {
-                dispatch_ternary_typed_value(
-                    &arg0,
-                    &arg1,
-                    &arg2,
+                ),
+                3 => dispatch_ternary_typed_value(
+                    &args.args[0],
+                    &args.args[1],
+                    &args.args[2],
                     |arg0, arg1, arg2| {
                         let arg1 = SimpleLiteralRef::try_from(arg1)?;
                         let arg2 = SimpleLiteralRef::try_from(arg2)?;
@@ -98,7 +94,8 @@ impl ScalarSparqlOp for RegexSparqlOp {
                         }
                     },
                     |_, _, _| ThinError::expected(),
-                )
+                ),
+                _ => unreachable!("Invalid number of arguments"),
             }
         }))
     }

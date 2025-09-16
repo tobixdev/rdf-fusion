@@ -62,8 +62,6 @@ impl ContainsSpidermanSparqlOp {
 }
 
 impl ScalarSparqlOp for ContainsSpidermanSparqlOp {
-    type Args<TEncoding: TermEncoding> = BinaryArgs<TEncoding>;
-
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
@@ -74,11 +72,11 @@ impl ScalarSparqlOp for ContainsSpidermanSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
-        Some(create_typed_value_sparql_op_impl(|BinaryArgs(lhs, rhs)| {
+    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+        Some(create_typed_value_sparql_op_impl(|args| {
             dispatch_binary_typed_value(
-                &lhs,
-                &rhs,
+                &args.args[0],
+                &args.args[1],
                 |lhs_value, rhs_value| {
                     let lhs_value = StringLiteralRef::try_from(lhs_value)?;
                     let rhs_value = StringLiteralRef::try_from(rhs_value)?;

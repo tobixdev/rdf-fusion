@@ -1,11 +1,11 @@
 use crate::scalar::dispatch::dispatch_unary_typed_value;
 use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::{NullaryArgs, NullaryOrUnaryArgs, ScalarSparqlOp, UnaryArgs};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_api::functions::FunctionName;
+use rdf_fusion_encoding::EncodingArray;
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
-use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use rdf_fusion_model::{BlankNode, BlankNodeRef, ThinError, TypedValueRef};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -26,38 +26,43 @@ impl BNodeSparqlOp {
 }
 
 impl ScalarSparqlOp for BNodeSparqlOp {
-    type Args<TEncoding: TermEncoding> = NullaryOrUnaryArgs<TEncoding>;
-
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn volatility(&self) -> Volatility {
-        Volatility::Volatile
+    fn details(&self) -> ScalarSparqlOpDetails {
+        ScalarSparqlOpDetails {
+            volatility: Volatility::Volatile,
+            num_constant_args: 0,
+            arity: SparqlOpArity::FixedOneOf([0, 1].into()),
+        }
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
-        Some(create_typed_value_sparql_op_impl(|args| match args {
-            NullaryOrUnaryArgs::Nullary(NullaryArgs { number_rows }) => {
-                let mut builder = TypedValueArrayBuilder::default();
-                for _ in 0..number_rows {
-                    builder.append_blank_node(BlankNode::default().as_ref())?;
-                }
-                Ok(ColumnarValue::Array(builder.finish().into_array()))
-            }
-            NullaryOrUnaryArgs::Unary(UnaryArgs(arg)) => dispatch_unary_typed_value(
-                &arg,
-                |value| match value {
-                    TypedValueRef::SimpleLiteral(value) => {
-                        let bnode = BlankNodeRef::new(value.value)?;
-                        Ok(TypedValueRef::BlankNode(bnode))
+    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+        Some(create_typed_value_sparql_op_impl(|args| {
+            match args.args.len() {
+                0 => {
+                    let mut builder = TypedValueArrayBuilder::default();
+                    for _ in 0..args.number_rows {
+                        builder.append_blank_node(BlankNode::default().as_ref())?;
                     }
-                    _ => ThinError::expected(),
-                },
-                ThinError::expected,
-            ),
+                    Ok(ColumnarValue::Array(builder.finish().into_array()))
+                }
+                1 => dispatch_unary_typed_value(
+                    &args.args[0],
+                    |value| match value {
+                        TypedValueRef::SimpleLiteral(value) => {
+                            let bnode = BlankNodeRef::new(value.value)?;
+                            Ok(TypedValueRef::BlankNode(bnode))
+                        }
+                        _ => ThinError::expected(),
+                    },
+                    ThinError::expected,
+                ),
+                _ => unreachable!("Invalid number of arguments"),
+            }
         }))
     }
 }

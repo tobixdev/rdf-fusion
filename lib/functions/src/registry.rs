@@ -48,8 +48,8 @@ use crate::scalar::terms::{
     StrSparqlOp, UuidSparqlOp,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
-use datafusion::execution::FunctionRegistry;
 use datafusion::execution::registry::MemoryFunctionRegistry;
+use datafusion::execution::FunctionRegistry;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
 use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionRegistry};
 use rdf_fusion_common::DFResult;
@@ -124,28 +124,6 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
             .register_udaf(Arc::new(udaf))
             .expect("Cannot fail")
     }
-}
-
-fn supported_encodings<TSparqlOp>(encodings: RdfFusionEncodings) -> Vec<EncodingName>
-where
-    TSparqlOp: Default + ScalarSparqlOp + 'static,
-{
-    let op = TSparqlOp::default();
-
-    let mut result = Vec::new();
-    if op.plain_term_encoding_op().is_some() {
-        result.push(EncodingName::PlainTerm);
-    }
-    if op.typed_value_encoding_op().is_some() {
-        result.push(EncodingName::TypedValue);
-    }
-    if let Some(oid_encoding) = encodings.object_id() {
-        if op.object_id_encoding_op(oid_encoding).is_some() {
-            result.push(EncodingName::ObjectId);
-        }
-    }
-
-    result
 }
 
 fn create_scalar_udf<TSparqlOp>(encodings: RdfFusionEncodings) -> ScalarUDF

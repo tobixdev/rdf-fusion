@@ -3,11 +3,9 @@ use rdf_fusion_model::{SimpleLiteral, TypedValue, TypedValueRef};
 
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
 use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::{ScalarSparqlOp, UnaryArgs};
-use datafusion::logical_expr::Volatility;
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_api::functions::FunctionName;
-use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -28,22 +26,20 @@ impl CastStringSparqlOp {
 }
 
 impl ScalarSparqlOp for CastStringSparqlOp {
-    type Args<TEncoding: TermEncoding> = UnaryArgs<TEncoding>;
-
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn volatility(&self) -> Volatility {
-        Volatility::Immutable
+    fn details(&self) -> ScalarSparqlOpDetails {
+        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Fixed(1))
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
-        Some(create_typed_value_sparql_op_impl(|UnaryArgs(arg)| {
+    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+        Some(create_typed_value_sparql_op_impl(|args| {
             dispatch_unary_owned_typed_value(
-                &arg,
+                &args.args[0],
                 |value| {
                     let converted = match value {
                         TypedValueRef::NamedNode(value) => value.as_str().to_owned(),
