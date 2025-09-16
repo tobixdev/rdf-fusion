@@ -1,5 +1,9 @@
 # RDF Fusion
 
+<p align="center">
+  <img src="./logo.png" width="128" alt="RDF Fusion Logo" align="right">
+</p>
+
 RDF Fusion is an experimental columnar [SPARQL](https://www.w3.org/TR/sparql11-overview/) engine.
 It is based on [Apache DataFusion](https://datafusion.apache.org/), an extensible query engine based
 on [Apache Arrow](https://arrow.apache.org/).

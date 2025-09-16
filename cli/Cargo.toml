@@ -6,7 +6,7 @@ license.workspace = true
 readme = "README.md"
 keywords = ["RDF", "SPARQL", "graph-database", "database"]
 categories = ["command-line-utilities", "database"]
-repository = "https://github.com/tobixdev/rdf-fusion/tree/main/cli"
+repository.workspace = true
 description = """
 RDF Fusion CLI tool and SPARQL HTTP server
 """
