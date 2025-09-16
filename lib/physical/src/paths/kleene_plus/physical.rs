@@ -16,7 +16,7 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
-use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
+use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayElementBuilder};
 use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoding};
 use rdf_fusion_logical::paths::PATH_TABLE_SCHEMA;
 use rdf_fusion_model::{GraphName, Term};
@@ -383,9 +383,9 @@ impl KleenePlusClosureStream {
 
     /// Creates a [RecordBatch] from the internal state of `self`.
     fn create_output_batch(&self) -> DFResult<RecordBatch> {
-        let mut graph_builder = PlainTermArrayBuilder::default();
-        let mut start_builder = PlainTermArrayBuilder::default();
-        let mut end_builder = PlainTermArrayBuilder::default();
+        let mut graph_builder = PlainTermArrayElementBuilder::default();
+        let mut start_builder = PlainTermArrayElementBuilder::default();
+        let mut end_builder = PlainTermArrayElementBuilder::default();
 
         for path in &self.all_paths {
             match &path.graph {
