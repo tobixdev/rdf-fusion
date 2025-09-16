@@ -23,7 +23,9 @@ use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
-use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayElementBuilder};
+use rdf_fusion_encoding::plain_term::{
+    PLAIN_TERM_ENCODING, PlainTermArrayElementBuilder,
+};
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 pub use sparesults::QuerySolution;
 pub use triples::QueryTripleStream;

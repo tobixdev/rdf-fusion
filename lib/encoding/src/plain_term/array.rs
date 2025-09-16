@@ -1,6 +1,6 @@
-use crate::encoding::EncodingArray;
-use crate::plain_term::{PlainTermEncoding, PlainTermEncodingField, PLAIN_TERM_ENCODING};
 use crate::TermEncoding;
+use crate::encoding::EncodingArray;
+use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding, PlainTermEncodingField};
 use datafusion::arrow::array::{
     Array, ArrayRef, AsArray, StringArray, StructArray, UInt8Array,
 };

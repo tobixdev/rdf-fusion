@@ -8,7 +8,7 @@ use rdf_fusion_api::functions::{
 };
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{
-    PlainTermArray, PlainTermArrayElementBuilder, PLAIN_TERM_ENCODING,
+    PLAIN_TERM_ENCODING, PlainTermArray, PlainTermArrayElementBuilder,
 };
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;

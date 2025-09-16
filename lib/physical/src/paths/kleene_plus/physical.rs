@@ -16,7 +16,9 @@ use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
-use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayElementBuilder};
+use rdf_fusion_encoding::plain_term::{
+    PLAIN_TERM_ENCODING, PlainTermArrayElementBuilder,
+};
 use rdf_fusion_encoding::{EncodingArray, TermDecoder, TermEncoding};
 use rdf_fusion_logical::paths::PATH_TABLE_SCHEMA;
 use rdf_fusion_model::{GraphName, Term};
