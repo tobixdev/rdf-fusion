@@ -5,6 +5,7 @@ use datafusion::common::{DataFusionError, ScalarValue, exec_err};
 use rdf_fusion_common::DFResult;
 
 /// Represents an Arrow scalar with a [SortableTermEncoding].
+#[derive(Clone)]
 pub struct SortableTermScalar {
     inner: ScalarValue,
 }

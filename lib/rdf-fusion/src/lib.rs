@@ -13,6 +13,18 @@ pub mod error;
 pub mod io;
 pub mod store;
 
+pub mod api {
+    pub use rdf_fusion_api::*;
+}
+
+pub mod encoding {
+    pub use rdf_fusion_encoding::*;
+}
+
+pub mod functions {
+    pub use rdf_fusion_functions::*;
+}
+
 pub mod model {
     pub use rdf_fusion_model::*;
 }

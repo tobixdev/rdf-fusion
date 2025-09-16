@@ -17,7 +17,10 @@ rust-version.workspace = true
 
 [dependencies]
 datafusion.workspace = true
+rdf-fusion-api.workspace = true
 rdf-fusion-common.workspace = true
+rdf-fusion-encoding.workspace = true
+rdf-fusion-functions.workspace = true
 rdf-fusion-model.workspace = true
 futures.workspace = true
 rdf-fusion-execution.workspace = true
@@ -26,7 +29,6 @@ rdf-fusion-storage.workspace = true
 oxrdfio.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-sparesults.workspace = true
 
 [dev-dependencies]
 codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }

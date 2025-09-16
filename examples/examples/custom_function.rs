@@ -1,8 +1,17 @@
 use anyhow::Context;
-use futures::StreamExt;
+use datafusion::logical_expr::ScalarUDF;
+use rdf_fusion::api::functions::FunctionName;
+use rdf_fusion::encoding::typed_value::TypedValueEncoding;
 use rdf_fusion::execution::results::QueryResultsFormat;
+use rdf_fusion::functions::scalar::dispatch::dispatch_unary_typed_value;
+use rdf_fusion::functions::scalar::{
+    ScalarSparqlOp, ScalarSparqlOpAdapter, ScalarSparqlOpDetails, SparqlOpArity,
+    SparqlOpImpl, create_typed_value_sparql_op_impl,
+};
 use rdf_fusion::io::{RdfFormat, RdfParser};
-use rdf_fusion::model::{GraphName, NamedNode, Quad};
+use rdf_fusion::model::{
+    CompatibleStringArgs, Iri, StringLiteralRef, ThinError, TypedValueRef,
+};
 use rdf_fusion::store::Store;
 
 /// This example shows how to register a custom SPARQL function that can be used by RDF Fusion.
@@ -16,16 +25,23 @@ pub async fn main() -> anyhow::Result<()> {
     store.load_from_reader(reader, &file).await?;
 
     // Register custom function.
-    todo!("Register custom function");
+    let context = store.context();
+    context.functions().register_udf(ScalarUDF::new_from_impl(
+        ScalarSparqlOpAdapter::new(
+            context.encodings().clone(),
+            ContainsSpidermanSparqlOp::new(),
+        ),
+    ));
 
     // Run SPARQL query.
     let query = "
     BASE <http://example.org/>
     PREFIX rel: <http://www.perceive.net/schemas/relationship/>
 
-    SELECT ?enemy
+    SELECT ?subject ?enemy
     WHERE {
-        <#spiderman> rel:enemyOf ?enemy .
+        ?subject rel:enemyOf ?enemy .
+        FILTER(<http://example.org/containsSpiderman>(?subject))
     }
     ";
     let result = store.query(query).await?;
@@ -40,11 +56,15 @@ pub async fn main() -> anyhow::Result<()> {
     // Print results.
     println!("Enemies of Spiderman:");
     print!("{result}");
+
+    Ok(())
 }
 
 /// Checks whether a given element (IRI, blank node, literal) contains the string `spiderman`.
-#[derive(Debug)]
-pub struct ContainsSpidermanSparqlOp;
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct ContainsSpidermanSparqlOp {
+    name: FunctionName,
+}
 
 impl Default for ContainsSpidermanSparqlOp {
     fn default() -> Self {
@@ -53,39 +73,43 @@ impl Default for ContainsSpidermanSparqlOp {
 }
 
 impl ContainsSpidermanSparqlOp {
-    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::Contains);
-
     /// Creates a new [ContainsSpidermanSparqlOp].
     pub fn new() -> Self {
-        Self {}
+        Self {
+            name: FunctionName::Custom(
+                Iri::parse("http://example.org/containsSpiderman".to_owned()).unwrap(),
+            ),
+        }
     }
 }
 
 impl ScalarSparqlOp for ContainsSpidermanSparqlOp {
     fn name(&self) -> &FunctionName {
-        &Self::NAME
+        &self.name
     }
 
-    fn volatility(&self) -> Volatility {
-        Volatility::Immutable
+    fn details(&self) -> ScalarSparqlOpDetails {
+        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Fixed(1))
     }
 
     fn typed_value_encoding_op(
         &self,
     ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_binary_typed_value(
+            // We provide some helper functions that allow you to "iterate" over the content of the
+            // arrays. Note that directly operating on the array data usually can be more
+            // performant.
+            dispatch_unary_typed_value(
                 &args.args[0],
-                &args.args[1],
-                |lhs_value, rhs_value| {
+                |lhs_value| {
                     let lhs_value = StringLiteralRef::try_from(lhs_value)?;
-                    let rhs_value = StringLiteralRef::try_from(rhs_value)?;
+                    let rhs_value = StringLiteralRef("spiderman", None);
                     let args = CompatibleStringArgs::try_from(lhs_value, rhs_value)?;
                     Ok(TypedValueRef::BooleanLiteral(
                         args.lhs.contains(args.rhs).into(),
                     ))
                 },
-                |_, _| ThinError::expected(),
+                |_| ThinError::expected(),
             )
         }))
     }

@@ -13,6 +13,7 @@ use rdf_fusion_model::{
 };
 
 /// Represents an Arrow scalar with a [PlainTermEncoding].
+#[derive(Clone)]
 pub struct PlainTermScalar {
     inner: ScalarValue,
 }

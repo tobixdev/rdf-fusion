@@ -8,6 +8,7 @@ use datafusion::common::exec_err;
 use datafusion::error::DataFusionError;
 
 /// Represents an Arrow array with a [PlainTermEncoding].
+#[derive(Clone)]
 pub struct PlainTermArray {
     inner: ArrayRef,
 }

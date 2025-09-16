@@ -1,6 +1,6 @@
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
 use crate::scalar::sparql_op_impl::{
-    create_plain_term_sparql_op_impl, create_typed_value_sparql_op_impl, SparqlOpImpl,
+    SparqlOpImpl, create_plain_term_sparql_op_impl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
 use datafusion::arrow::array::{Array, StringArray, UInt8Array};
@@ -14,8 +14,8 @@ use rdf_fusion_encoding::plain_term::{
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar};
-use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::ThinError;
+use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{SimpleLiteral, TypedValue, TypedValueRef};
 use std::sync::Arc;
 
