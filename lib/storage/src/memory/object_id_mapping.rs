@@ -11,7 +11,7 @@ use rdf_fusion_encoding::object_id::{
 };
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{
-    PlainTermArray, PlainTermArrayBuilder, PlainTermScalar,
+    PlainTermArray, PlainTermArrayElementBuilder, PlainTermScalar,
 };
 use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{EncodingArray, TermDecoder};
@@ -355,7 +355,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
         });
 
         // TODO: can we remove the clone?
-        let mut builder = PlainTermArrayBuilder::new(array.array().len());
+        let mut builder = PlainTermArrayElementBuilder::new(array.array().len());
         for term in terms {
             match term {
                 Some(EncodedTerm::NamedNode(value)) => {
@@ -420,14 +420,14 @@ mod tests {
     use datafusion::arrow::array::AsArray;
     use rdf_fusion_common::ObjectId;
     use rdf_fusion_encoding::EncodingArray;
-    use rdf_fusion_encoding::plain_term::PlainTermArrayBuilder;
+    use rdf_fusion_encoding::plain_term::PlainTermArrayElementBuilder;
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 
     #[test]
     fn test_encode_decode_roundtrip() -> DFResult<()> {
         let mapping = MemObjectIdMapping::new();
-        let mut builder = PlainTermArrayBuilder::new(5);
+        let mut builder = PlainTermArrayElementBuilder::new(5);
         builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
         builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
         builder.append_literal(LiteralRef::new_typed_literal("hello", xsd::STRING));
@@ -455,7 +455,7 @@ mod tests {
     #[test]
     fn test_id_uniqueness_and_consistency() -> DFResult<()> {
         let mapping = MemObjectIdMapping::new();
-        let mut builder = PlainTermArrayBuilder::new(5);
+        let mut builder = PlainTermArrayElementBuilder::new(5);
         let nn1 = NamedNodeRef::new_unchecked("http://example.com/a");
         let nn2 = NamedNodeRef::new_unchecked("http://example.com/b");
 
@@ -475,7 +475,7 @@ mod tests {
         assert_ne!(id1, id2);
 
         // Now encode again, the IDs should be the same
-        let mut builder2 = PlainTermArrayBuilder::new(2);
+        let mut builder2 = PlainTermArrayElementBuilder::new(2);
         builder2.append_named_node(nn2);
         builder2.append_named_node(nn1);
         let plain_term_array2 = builder2.finish();
@@ -505,7 +505,7 @@ mod tests {
         assert!(mapping.try_get_object_id(&term2)?.is_none());
 
         // Encode an array to populate the mapping
-        let mut builder = PlainTermArrayBuilder::new(2);
+        let mut builder = PlainTermArrayElementBuilder::new(2);
         builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
         builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
         let plain_term_array = builder.finish();

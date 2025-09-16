@@ -22,7 +22,7 @@ uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
 codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
-tokio-test.workspace = true
+insta.workspace = true
 
 [lints]
 workspace = true
