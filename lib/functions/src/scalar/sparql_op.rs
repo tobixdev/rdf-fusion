@@ -24,10 +24,27 @@ pub enum SparqlOpArity {
     Variadic,
 }
 
+impl SparqlOpArity {
+    /// Returns a [TypeSignature] for the given [SparqlOpArity].
+    pub fn type_signature(&self, data_type: DataType) -> TypeSignature {
+        match self {
+            SparqlOpArity::Fixed(n) => TypeSignature::Uniform(*n, vec![data_type]),
+            SparqlOpArity::FixedOneOf(ns) => {
+                let inner = ns
+                    .iter()
+                    .map(|n| TypeSignature::Uniform(*n, vec![data_type.clone()]))
+                    .collect::<Vec<_>>();
+                TypeSignature::OneOf(inner)
+            }
+            SparqlOpArity::Variadic => TypeSignature::Variadic(vec![data_type]),
+        }
+    }
+}
+
 /// TODO
 pub struct ScalarSparqlOpDetails {
     pub volatility: Volatility,
-    pub num_constant_args: usize,
+    pub constant_args: Vec<DataType>,
     pub arity: SparqlOpArity,
 }
 
@@ -35,7 +52,7 @@ impl ScalarSparqlOpDetails {
     pub fn default_with_arity(arity: SparqlOpArity) -> Self {
         Self {
             volatility: Volatility::Immutable,
-            num_constant_args: 0,
+            constant_args: vec![],
             arity,
         }
     }
@@ -86,16 +103,24 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
 
         let mut type_signatures = Vec::new();
         if op.plain_term_encoding_op().is_some() {
-            todo!("Implement support for plain term encodings");
+            let type_signature = details
+                .arity
+                .type_signature(encodings.plain_term().data_type());
+            type_signatures.push(type_signature);
         }
 
         if op.typed_value_encoding_op().is_some() {
-            todo!("Implement support for plain term encodings");
+            let type_signature = details
+                .arity
+                .type_signature(encodings.typed_value().data_type());
+            type_signatures.push(type_signature);
         }
 
         if let Some(oid_encoding) = encodings.object_id() {
             if op.object_id_encoding_op(oid_encoding).is_some() {
-                todo!("Implement support for plain term encodings");
+                let type_signature =
+                    details.arity.type_signature(oid_encoding.data_type());
+                type_signatures.push(type_signature);
             }
         }
 
@@ -139,6 +164,39 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
             return plan_err!("More than one RDF term encoding used for arguments.");
         }
         Ok(encoding_name.into_iter().next())
+    }
+
+    fn prepare_args<TEncoding: TermEncoding>(
+        &self,
+        encoding: &TEncoding,
+        args: ScalarFunctionArgs,
+    ) -> DFResult<ScalarSparqlOpArgs<TEncoding>> {
+        let regular_args = args.args.len() - self.op.details().constant_args.len();
+
+        let mut args_iter = args.args.into_iter().enumerate();
+
+        let sparql_args = args_iter
+            .by_ref()
+            .take(regular_args)
+            .map(|(_, cv)| encoding.try_new_datum(cv, args.number_rows))
+            .collect::<DFResult<Vec<_>>>()?;
+
+        let constant_args = args_iter
+            .map(|(pos, cv)| match cv {
+                ColumnarValue::Array(_) => plan_err!(
+                    "{} only supports scalar arguments at position {}.",
+                    &self.name,
+                    pos
+                ),
+                ColumnarValue::Scalar(scalar) => Ok(scalar),
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+
+        Ok(ScalarSparqlOpArgs {
+            number_rows: args.number_rows,
+            args: sparql_args,
+            constant_args,
+        })
     }
 }
 
@@ -264,22 +322,14 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
         match encoding {
             EncodingName::PlainTerm => {
                 if let Some(op) = self.op.plain_term_encoding_op() {
-                    op.invoke(prepare_args(
-                        &PLAIN_TERM_ENCODING,
-                        args,
-                        self.op.details(),
-                    )?)
+                    op.invoke(self.prepare_args(&PLAIN_TERM_ENCODING, args)?)
                 } else {
                     exec_err!("PlainTerm encoding not supported for this operation")
                 }
             }
             EncodingName::TypedValue => {
                 if let Some(op) = self.op.typed_value_encoding_op() {
-                    op.invoke(prepare_args(
-                        &TYPED_VALUE_ENCODING,
-                        args,
-                        self.op.details(),
-                    )?)
+                    op.invoke(self.prepare_args(&TYPED_VALUE_ENCODING, args)?)
                 } else {
                     exec_err!("TypedValue encoding not supported for this operation")
                 }
@@ -290,7 +340,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                 };
 
                 if let Some(op) = self.op.object_id_encoding_op(object_id_encoding) {
-                    op.invoke(prepare_args(object_id_encoding, args, self.op.details())?)
+                    op.invoke(self.prepare_args(object_id_encoding, args)?)
                 } else {
                     exec_err!("TypedValue encoding not supported for this operation")
                 }
@@ -298,23 +348,6 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             EncodingName::Sortable => exec_err!("Not supported"),
         }
     }
-}
-
-fn prepare_args<TEncoding: TermEncoding>(
-    encoding: &TEncoding,
-    args: ScalarFunctionArgs,
-    _details: ScalarSparqlOpDetails,
-) -> DFResult<ScalarSparqlOpArgs<TEncoding>> {
-    let new_args = args
-        .args
-        .into_iter()
-        .map(|cv| encoding.try_new_datum(cv, args.number_rows))
-        .collect::<DFResult<Vec<_>>>()?;
-
-    Ok(ScalarSparqlOpArgs {
-        number_rows: args.number_rows,
-        args: new_args,
-    })
 }
 
 /// While it would be possible to create two different SparqlOpAdapters for the same

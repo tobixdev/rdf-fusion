@@ -10,15 +10,15 @@ To run an example, use the cargo run command, such as:
 git clone https://github.com/tobixdev/rdf-fusion
 cd rdf-fusion
 cd examples
-cargo run --example use-store # Run the `use-store` example. Replace `use-store` with the name of the example.
+cargo run --example use_store # Run the `use_store` example. Replace `use_store` with the name of the example.
 ```
 
 ## Basic Usage
 
-* **[use-store](./examples/use_store.rs)**: Using RDF Fusion via an adaption of [Oxigraph](https://github.com/oxigraph/oxigraph)'s 
-  Store API. 
+* **[use-store](./examples/use_store.rs)**: Using RDF Fusion via an adaption
+  of [Oxigraph](https://github.com/oxigraph/oxigraph)'s Store API.
 * **[query-store](./examples/query_store.rs)**: Send a basic query against the store.
-* **[query-store](./examples/custom_function.rs)**: Register a custom query function.
+* **[custom-function](./examples/custom_function.rs)**: Register a custom scalar function.
 
 ## Advanced Usage
 

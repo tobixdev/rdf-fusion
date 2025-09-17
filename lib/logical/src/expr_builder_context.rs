@@ -77,6 +77,28 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         RdfFusionExprBuilder::try_new_from_context(*self, expr)
     }
 
+    /// Creates a new [RdfFusionExprBuilder] from an existing [Expr].
+    pub fn try_create_builder_for_udf(
+        &self,
+        name: &FunctionName,
+        args: Vec<Expr>,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
+        let udf = self.rdf_fusion_context.functions().udf(name)?;
+
+        if args.is_empty() {
+            return self.try_create_builder(udf.call(vec![]));
+        }
+
+        // The function might only accept constant arguments which don't have to be an RDF term.
+        let first_arg_encoding = self.get_encodings(&args[..1]);
+        if first_arg_encoding.is_err() {
+            return self.try_create_builder(udf.call(args));
+        }
+
+        let expr = self.apply_with_args_no_builder(name, args)?;
+        self.try_create_builder(expr)
+    }
+
     /// Creates a new expression that evaluates to the first argument that does not produce an
     /// error.
     ///
@@ -406,7 +428,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         constant_args: Vec<Expr>,
         distinct: bool,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let udaf = self.registry().udaf(FunctionName::Builtin(name))?;
+        let udaf = self.registry().udaf(&FunctionName::Builtin(name))?;
 
         // Currently, UDAFs are only supported for typed values
         let arg = self
@@ -447,22 +469,20 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         name: BuiltinName,
         args: Vec<Expr>,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let expr = self.apply_builtin_with_args_no_builder(name, args)?;
+        let expr = self.apply_with_args_no_builder(&FunctionName::Builtin(name), args)?;
         self.try_create_builder(expr)
     }
 
     /// Similar to [Self::apply_builtin_with_args] but does not wrap the resulting expression
     /// in a builder. Therefore, this method can be used to create expressions that do not evaluate
     /// to an RDF term.
-    pub(crate) fn apply_builtin_with_args_no_builder(
+    pub(crate) fn apply_with_args_no_builder(
         &self,
-        name: BuiltinName,
+        name: &FunctionName,
         args: Vec<Expr>,
     ) -> DFResult<Expr> {
-        let udf = self.create_builtin_udf_with_args(name)?;
-        let supported_encodings = self
-            .registry()
-            .udf_supported_encodings(FunctionName::Builtin(name))?;
+        let udf = self.rdf_fusion_context.functions().udf(name)?;
+        let supported_encodings = self.registry().udf_supported_encodings(name)?;
 
         if supported_encodings.is_empty() {
             return plan_err!("No supported encodings for builtin '{}'", name);
@@ -491,14 +511,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         name: BuiltinName,
     ) -> DFResult<Arc<ScalarUDF>> {
-        self.registry().udf(FunctionName::Builtin(name))
-    }
-
-    pub(crate) fn create_builtin_udf_with_args(
-        &self,
-        name: BuiltinName,
-    ) -> DFResult<Arc<ScalarUDF>> {
-        self.registry().udf(FunctionName::Builtin(name))
+        self.registry().udf(&FunctionName::Builtin(name))
     }
 
     /// TODO

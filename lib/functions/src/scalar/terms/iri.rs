@@ -1,6 +1,7 @@
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
 use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::Volatility;
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_api::functions::FunctionName;
@@ -22,7 +23,7 @@ impl ScalarSparqlOp for IriSparqlOp {
     fn details(&self) -> ScalarSparqlOpDetails {
         ScalarSparqlOpDetails {
             volatility: Volatility::Immutable,
-            num_constant_args: 1,
+            constant_args: vec![DataType::Utf8],
             arity: SparqlOpArity::Fixed(1),
         }
     }
@@ -31,6 +32,10 @@ impl ScalarSparqlOp for IriSparqlOp {
         &self,
     ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(move |args| {
+            let base_iri = args.constant_args[0]
+                .try_as_str()
+                .expect("Constant arg should exist")
+                .map(|s| Iri::parse(s.to_owned()).unwrap());
             dispatch_unary_owned_typed_value(
                 &args.args[0],
                 |value| match value {
@@ -38,7 +43,6 @@ impl ScalarSparqlOp for IriSparqlOp {
                         Ok(TypedValue::NamedNode(named_node.into_owned()))
                     }
                     TypedValueRef::SimpleLiteral(simple_literal) => {
-                        let base_iri: Option<Iri<String>> = todo!("base_iri");
                         let resolving_result = if let Some(base_iri) = &base_iri {
                             base_iri.resolve(simple_literal.value)?
                         } else {

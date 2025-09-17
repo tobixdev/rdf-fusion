@@ -1,5 +1,5 @@
 use crate::functions::BuiltinName;
-use rdf_fusion_model::Iri;
+use rdf_fusion_model::NamedNode;
 use std::fmt::{Display, Formatter};
 
 /// Identifier for a function. Either it is an RDF Fusion builtin (e.g., a SPARQL operation) or a
@@ -9,7 +9,7 @@ pub enum FunctionName {
     /// An RDF Fusion builtin function.
     Builtin(BuiltinName),
     /// A custom function.
-    Custom(Iri<String>),
+    Custom(NamedNode),
 }
 
 impl Display for FunctionName {

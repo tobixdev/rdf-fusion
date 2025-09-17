@@ -48,12 +48,14 @@ use crate::scalar::terms::{
     StrSparqlOp, UuidSparqlOp,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
-use datafusion::execution::FunctionRegistry;
+use datafusion::common::plan_datafusion_err;
 use datafusion::execution::registry::MemoryFunctionRegistry;
-use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
+use datafusion::execution::FunctionRegistry;
+use datafusion::logical_expr::{AggregateUDF, ScalarUDF, TypeSignature};
 use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionRegistry};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
@@ -70,7 +72,17 @@ pub struct DefaultRdfFusionFunctionRegistry {
     encodings: RdfFusionEncodings,
     /// A DataFusion [MemoryFunctionRegistry] that is used for actually storing the functions. Note
     /// that this registry is *not* connected to the [SessionContext] of the RDF Fusion engine.
-    inner: Arc<RwLock<MemoryFunctionRegistry>>,
+    inner: Arc<RwLock<RegistryContent>>,
+}
+
+/// The actual data storage of the registry.
+pub struct RegistryContent {
+    /// The supported encodings for each function.
+    ///
+    /// Currently, this is not needed for aggregate functions as they only support typed values.
+    udf_encodings: HashMap<String, Vec<EncodingName>>,
+    /// The actual function registry.
+    registry: MemoryFunctionRegistry,
 }
 
 impl Debug for DefaultRdfFusionFunctionRegistry {
@@ -86,7 +98,10 @@ impl DefaultRdfFusionFunctionRegistry {
     pub fn new(encodings: RdfFusionEncodings) -> Self {
         let mut registry = Self {
             encodings,
-            inner: Arc::new(RwLock::new(MemoryFunctionRegistry::new())),
+            inner: Arc::new(RwLock::new(RegistryContent {
+                udf_encodings: HashMap::default(),
+                registry: MemoryFunctionRegistry::default(),
+            })),
         };
         register_functions(&mut registry);
         registry
@@ -96,33 +111,77 @@ impl DefaultRdfFusionFunctionRegistry {
 impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     fn udf_supported_encodings(
         &self,
-        _function_name: FunctionName,
+        function_name: &FunctionName,
     ) -> DFResult<Vec<EncodingName>> {
-        todo!("Compute supported encodings for function. MAybe cache.")
-    }
-
-    fn udf(&self, function_name: FunctionName) -> DFResult<Arc<ScalarUDF>> {
-        self.inner.read().unwrap().udf(&function_name.to_string())
-    }
-
-    fn udaf(&self, function_name: FunctionName) -> DFResult<Arc<AggregateUDF>> {
-        self.inner.read().unwrap().udaf(&function_name.to_string())
-    }
-
-    fn register_udf(&self, udf: ScalarUDF) -> Option<Arc<ScalarUDF>> {
         self.inner
-            .write()
+            .read()
             .unwrap()
+            .udf_encodings
+            .get(&function_name.to_string())
+            .cloned()
+            .ok_or_else(|| plan_datafusion_err!("Function {function_name} not found"))
+    }
+
+    fn udf(&self, function_name: &FunctionName) -> DFResult<Arc<ScalarUDF>> {
+        self.inner
+            .read()
+            .unwrap()
+            .registry
+            .udf(&function_name.to_string())
+    }
+
+    fn udaf(&self, function_name: &FunctionName) -> DFResult<Arc<AggregateUDF>> {
+        self.inner
+            .read()
+            .unwrap()
+            .registry
+            .udaf(&function_name.to_string())
+    }
+
+    fn register_udf(&self, udf: ScalarUDF) {
+        let supported_encodings =
+            supported_encodings(&self.encodings, &udf.signature().type_signature);
+
+        let mut lock = self.inner.write().unwrap();
+
+        lock.udf_encodings.insert(
+            udf.name().to_owned(),
+            supported_encodings.into_iter().collect(),
+        );
+        lock.registry
             .register_udf(Arc::new(udf))
-            .expect("Cannot fail")
+            .expect("Cannot fail");
     }
 
-    fn register_udaf(&self, udaf: AggregateUDF) -> Option<Arc<AggregateUDF>> {
+    fn register_udaf(&self, udaf: AggregateUDF) {
         self.inner
             .write()
             .unwrap()
+            .registry
             .register_udaf(Arc::new(udaf))
-            .expect("Cannot fail")
+            .expect("Cannot fail");
+    }
+}
+
+/// Computes the supported encodings from the given type signature.
+fn supported_encodings(
+    encodings: &RdfFusionEncodings,
+    signature: &TypeSignature,
+) -> HashSet<EncodingName> {
+    match signature {
+        TypeSignature::Variadic(data_type) => data_type
+            .iter()
+            .flat_map(|dt| encodings.try_get_encoding_name(dt))
+            .collect(),
+        TypeSignature::Uniform(_, data_type) => data_type
+            .iter()
+            .flat_map(|dt| encodings.try_get_encoding_name(dt))
+            .collect(),
+        TypeSignature::OneOf(inner) => inner
+            .iter()
+            .flat_map(|ts| supported_encodings(encodings, ts).into_iter())
+            .collect(),
+        _ => HashSet::new(), // Unsupported type signature.
     }
 }
 

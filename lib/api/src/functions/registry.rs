@@ -23,18 +23,18 @@ pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
     /// Returns the encodings supported by `function_name`.
     fn udf_supported_encodings(
         &self,
-        function_name: FunctionName,
+        function_name: &FunctionName,
     ) -> DFResult<Vec<EncodingName>>;
 
     /// Creates a [ScalarUDF] given the `constant_args`.
-    fn udf(&self, function_name: FunctionName) -> DFResult<Arc<ScalarUDF>>;
+    fn udf(&self, function_name: &FunctionName) -> DFResult<Arc<ScalarUDF>>;
 
     /// Creates a [AggregateUDF] given the `constant_args`.
-    fn udaf(&self, function_name: FunctionName) -> DFResult<Arc<AggregateUDF>>;
+    fn udaf(&self, function_name: &FunctionName) -> DFResult<Arc<AggregateUDF>>;
 
     /// Register a [ScalarUDF].
-    fn register_udf(&self, udf: ScalarUDF) -> Option<Arc<ScalarUDF>>;
+    fn register_udf(&self, udf: ScalarUDF);
 
     /// Register a [AggregateUDF].
-    fn register_udaf(&self, udaf: AggregateUDF) -> Option<Arc<AggregateUDF>>;
+    fn register_udaf(&self, udaf: AggregateUDF);
 }

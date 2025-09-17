@@ -4,7 +4,7 @@ use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{Expr, ExprSchemable, lit};
 use datafusion::scalar::ScalarValue;
-use rdf_fusion_api::functions::BuiltinName;
+use rdf_fusion_api::functions::{BuiltinName, FunctionName};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermScalar};
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
@@ -945,8 +945,10 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// This is a terminating builder function as it no longer produces an RDF term as output.
     pub fn build_is_compatible(self, rhs: Expr) -> DFResult<Expr> {
         let args = vec![self.expr, rhs];
-        self.context
-            .apply_builtin_with_args_no_builder(BuiltinName::IsCompatible, args)
+        self.context.apply_with_args_no_builder(
+            &FunctionName::Builtin(BuiltinName::IsCompatible),
+            args,
+        )
     }
 
     /// Builds an expression that checks for `sameTerm` equality with a scalar value.

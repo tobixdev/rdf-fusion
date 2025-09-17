@@ -34,7 +34,7 @@ impl ScalarSparqlOp for RandSparqlOp {
     fn details(&self) -> ScalarSparqlOpDetails {
         ScalarSparqlOpDetails {
             volatility: Volatility::Volatile,
-            num_constant_args: 0,
+            constant_args: vec![],
             arity: SparqlOpArity::Fixed(0),
         }
     }

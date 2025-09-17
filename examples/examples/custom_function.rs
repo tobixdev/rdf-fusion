@@ -9,9 +9,7 @@ use rdf_fusion::functions::scalar::{
     SparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use rdf_fusion::io::{RdfFormat, RdfParser};
-use rdf_fusion::model::{
-    CompatibleStringArgs, Iri, StringLiteralRef, ThinError, TypedValueRef,
-};
+use rdf_fusion::model::{NamedNode, ThinError, TypedValueRef};
 use rdf_fusion::store::Store;
 
 /// This example shows how to register a custom SPARQL function that can be used by RDF Fusion.
@@ -38,9 +36,9 @@ pub async fn main() -> anyhow::Result<()> {
     BASE <http://example.org/>
     PREFIX rel: <http://www.perceive.net/schemas/relationship/>
 
-    SELECT ?subject ?enemy
+    SELECT ?subject ?predicate ?object
     WHERE {
-        ?subject rel:enemyOf ?enemy .
+        ?subject ?predicate ?object .
         FILTER(<http://example.org/containsSpiderman>(?subject))
     }
     ";
@@ -77,7 +75,7 @@ impl ContainsSpidermanSparqlOp {
     pub fn new() -> Self {
         Self {
             name: FunctionName::Custom(
-                Iri::parse("http://example.org/containsSpiderman".to_owned()).unwrap(),
+                NamedNode::new("http://example.org/containsSpiderman").unwrap(),
             ),
         }
     }
@@ -101,15 +99,20 @@ impl ScalarSparqlOp for ContainsSpidermanSparqlOp {
             // performant.
             dispatch_unary_typed_value(
                 &args.args[0],
-                |lhs_value| {
-                    let lhs_value = StringLiteralRef::try_from(lhs_value)?;
-                    let rhs_value = StringLiteralRef("spiderman", None);
-                    let args = CompatibleStringArgs::try_from(lhs_value, rhs_value)?;
-                    Ok(TypedValueRef::BooleanLiteral(
-                        args.lhs.contains(args.rhs).into(),
-                    ))
+                |value| {
+                    let result = match value {
+                        TypedValueRef::NamedNode(nn) => nn.as_str().contains("spiderman"),
+                        TypedValueRef::SimpleLiteral(lit) => {
+                            lit.value.contains("spiderman")
+                        }
+                        TypedValueRef::LanguageStringLiteral(lit) => {
+                            lit.value.contains("spiderman")
+                        }
+                        _ => false,
+                    };
+                    Ok(TypedValueRef::BooleanLiteral(result.into()))
                 },
-                |_| ThinError::expected(),
+                || ThinError::expected(),
             )
         }))
     }
