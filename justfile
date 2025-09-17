@@ -19,7 +19,7 @@ lint:
 
 # Run all tests
 test:
-    cargo test --exclude rdf-fusion-examples
+    cargo test --workspace --exclude rdf-fusion-examples
 
 # Runs all examples to see whether they fail
 test-examples:
