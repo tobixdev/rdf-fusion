@@ -31,30 +31,8 @@ These strengths include:
 
 ## Using RDF Fusion
 
-RDF Fusion can currently be used in two modes: via a convenient `Store` API or as a "library" for DataFusion.
-
-### Store API
-
-The `Store` API provides high-level methods for interacting with the database (e.g., inserting, querying).
-Users that want to *use* RDF Fusion are advised to use this API.
-Note that while the `Store` API is similar to [Oxigraph](https://github.com/oxigraph/oxigraph)'s `Store` we do not
-strive for full
-compatibility, as some aspects of RDF Fusion work fundamentally differently (e.g., `async` methods).
-
-The `Store` API supports extending SPARQL for domain-specific purposes.
-For example, users can register custom SPARQL functions commonly found in other SPARQL engines.
-In the future, we plan to provide additional extension points.
-See [examples](./examples) for examples that make use of the `Store` API.
-
-### Library Use
-
-RDF Fusion can also be used as a "library" for DataFusion.
-In this scenario, users directly interact with DataFusion's query engine and make use of RDF Fusion's operators and
-rewriting rules that we use to implement SPARQL.
-This allows users to combine operators from DataFusion, RDF Fusion, and even other systems building on DataFusion within
-a single query.
-Users that want to *build something new* using RDF Fusion's capabilities are advised to use this API.
-See [examples](./examples) for further details.
+Documentation for using can be found in the main crate's [README](./lib/rdf-fusion/README.md).
+Examples of using RDF Fusion can be found in the [examples](./examples) directory.
 
 ## Comparison with Some Other SPARQL Engines
 

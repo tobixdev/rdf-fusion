@@ -1,4 +1,0 @@
-RdfFusion Rust crates
-====================
-
-TODO
