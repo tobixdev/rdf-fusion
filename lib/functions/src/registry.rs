@@ -49,13 +49,13 @@ use crate::scalar::terms::{
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
 use datafusion::common::plan_datafusion_err;
-use datafusion::execution::registry::MemoryFunctionRegistry;
 use datafusion::execution::FunctionRegistry;
+use datafusion::execution::registry::MemoryFunctionRegistry;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF, TypeSignature};
 use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionRegistry};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
@@ -167,7 +167,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
 fn supported_encodings(
     encodings: &RdfFusionEncodings,
     signature: &TypeSignature,
-) -> HashSet<EncodingName> {
+) -> BTreeSet<EncodingName> {
     match signature {
         TypeSignature::Variadic(data_type) => data_type
             .iter()
@@ -181,7 +181,7 @@ fn supported_encodings(
             .iter()
             .flat_map(|ts| supported_encodings(encodings, ts).into_iter())
             .collect(),
-        _ => HashSet::new(), // Unsupported type signature.
+        _ => BTreeSet::new(), // Unsupported type signature.
     }
 }
 

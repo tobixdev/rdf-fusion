@@ -1,5 +1,6 @@
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
+use datafusion::common::plan_err;
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::function::{
     AccumulatorArgs, AggregateFunctionSimplification,
@@ -11,11 +12,13 @@ use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_common::DFResult;
-use rdf_fusion_encoding::typed_value::decoders::StringLiteralRefTermValueDecoder;
-use rdf_fusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::typed_value::decoders::{
+    DefaultTypedValueDecoder, StringLiteralRefTermValueDecoder,
+};
+use rdf_fusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
 use rdf_fusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
-use rdf_fusion_model::{StringLiteralRef, ThinError};
+use rdf_fusion_model::{StringLiteralRef, ThinError, TypedValueRef};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -37,8 +40,9 @@ impl SparqlGroupConcat {
     /// Creates a new [SparqlGroupConcat] aggregate UDF.
     pub fn new() -> Self {
         let name = BuiltinName::GroupConcat.to_string();
-        let signature = Signature::exact(
-            vec![TYPED_VALUE_ENCODING.data_type(), DataType::Utf8],
+        let signature = Signature::uniform(
+            2,
+            vec![TYPED_VALUE_ENCODING.data_type()],
             Volatility::Stable,
         );
         SparqlGroupConcat { name, signature }
@@ -81,11 +85,18 @@ impl AggregateUDFImpl for SparqlGroupConcat {
 
             let separator_expr = &function.params.args[1];
             let separator = match separator_expr {
-                Expr::Literal(value, _) => match value.try_as_str() {
-                    Some(Some(str)) => str.to_string(),
-                    _ => unreachable!("Separator should be a string literal"),
-                },
-                _ => unreachable!("Separator should be a literal"),
+                Expr::Literal(value, _) => {
+                    let scalar = TYPED_VALUE_ENCODING.try_new_scalar(value.clone())?;
+                    let term = DefaultTypedValueDecoder::decode_term(&scalar);
+                    match term {
+                        Ok(TypedValueRef::SimpleLiteral(literal)) => {
+                            literal.value.to_owned()
+                        }
+                        Err(_) => " ".to_owned(),
+                        _ => return plan_err!("Separator should be a simple literal"),
+                    }
+                }
+                _ => return plan_err!("Separator should be a literal"),
             };
 
             Ok(Expr::AggregateFunction(AggregateFunction::new_udf(

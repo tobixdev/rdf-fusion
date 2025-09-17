@@ -35,9 +35,10 @@ impl ScalarSparqlOp for RegexSparqlOp {
     }
 
     fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::FixedOneOf(
-            [2, 3].into(),
-        ))
+        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::OneOf(vec![
+            SparqlOpArity::Fixed(2),
+            SparqlOpArity::Fixed(3),
+        ]))
     }
 
     fn typed_value_encoding_op(

@@ -34,8 +34,7 @@ impl ScalarSparqlOp for UuidSparqlOp {
     fn details(&self) -> ScalarSparqlOpDetails {
         ScalarSparqlOpDetails {
             volatility: Volatility::Volatile,
-            constant_args: vec![],
-            arity: SparqlOpArity::Fixed(0),
+            arity: SparqlOpArity::Nullary,
         }
     }
 

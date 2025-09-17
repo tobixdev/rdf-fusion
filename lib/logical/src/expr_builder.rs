@@ -3,13 +3,15 @@ use datafusion::common::{plan_datafusion_err, plan_err};
 use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{Expr, ExprSchemable, lit};
-use datafusion::scalar::ScalarValue;
 use rdf_fusion_api::functions::{BuiltinName, FunctionName};
 use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermScalar};
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::{EncodingName, EncodingScalar};
-use rdf_fusion_model::{Iri, TermRef};
+use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
+use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder};
+use rdf_fusion_model::{
+    Iri, LiteralRef, SimpleLiteralRef, TermRef, ThinError, TypedValueRef,
+};
 use std::ops::Not;
 
 /// A builder for expressions that make use of RDF Fusion built-ins.
@@ -159,11 +161,15 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - IRI](https://www.w3.org/TR/sparql11-query/#func-iri)
     pub fn iri(self, base_iri: Option<&Iri<String>>) -> DFResult<Self> {
+        let typed_value_encoding = self.context.encodings().typed_value();
+
         let arg = match base_iri {
-            None => None,
-            Some(value) => Some(value.to_string()),
+            None => typed_value_encoding.encode_term(ThinError::expected())?,
+            Some(value) => typed_value_encoding.encode_term(Ok(TermRef::Literal(
+                LiteralRef::new_simple_literal(value.as_str()),
+            )))?,
         };
-        self.apply_builtin_with_args(BuiltinName::Iri, vec![lit(ScalarValue::Utf8(arg))])
+        self.apply_builtin_with_args(BuiltinName::Iri, vec![lit(arg.into_scalar_value())])
     }
 
     /// Creates an expression that constructs a blank node from a string.
@@ -774,11 +780,14 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - GroupConcat](https://www.w3.org/TR/sparql11-query/#defn_aggGroupConcat)
     pub fn group_concat(self, distinct: bool, separator: Option<&str>) -> DFResult<Self> {
-        let arg = ScalarValue::Utf8(separator.map(|s| s.to_string()));
+        let arg = DefaultTypedValueEncoder::encode_term(
+            separator
+                .map(|sep| TypedValueRef::SimpleLiteral(SimpleLiteralRef { value: sep }))
+                .ok_or(ThinError::ExpectedError),
+        )?;
         self.context.apply_builtin_udaf(
             BuiltinName::GroupConcat,
-            self.expr,
-            vec![lit(arg)],
+            vec![self.expr, lit(arg.into_scalar_value())],
             distinct,
         )
     }
@@ -820,36 +829,9 @@ impl<'root> RdfFusionExprBuilder<'root> {
             return Ok(self);
         }
 
-        let target_encoding = target_encodings[0];
-        let functions_to_apply = match (source_encoding, target_encoding) {
-            (
-                EncodingName::ObjectId | EncodingName::TypedValue,
-                EncodingName::PlainTerm,
-            ) => {
-                vec![BuiltinName::WithPlainTermEncoding]
-            }
-            (EncodingName::PlainTerm, EncodingName::TypedValue) => {
-                vec![BuiltinName::WithTypedValueEncoding]
-            }
-            (EncodingName::ObjectId, EncodingName::TypedValue) => {
-                vec![BuiltinName::WithTypedValueEncoding]
-            }
-            (
-                EncodingName::PlainTerm | EncodingName::TypedValue,
-                EncodingName::Sortable,
-            ) => {
-                vec![BuiltinName::WithSortableEncoding]
-            }
-            (EncodingName::ObjectId, EncodingName::Sortable) => vec![
-                BuiltinName::WithPlainTermEncoding,
-                BuiltinName::WithSortableEncoding,
-            ],
-            _ => {
-                return plan_err!(
-                    "Transformation from '{source_encoding:?}' to '{target_encoding:?}' is not supported."
-                );
-            }
-        };
+        let functions_to_apply =
+            Self::functions_for_encoding_change(source_encoding, target_encodings)
+                .unwrap();
 
         let mut expr = self.expr;
         for function in functions_to_apply {
@@ -860,13 +842,50 @@ impl<'root> RdfFusionExprBuilder<'root> {
         Ok(Self { expr, ..self })
     }
 
+    fn functions_for_encoding_change(
+        source_encoding: EncodingName,
+        target_encodings: &[EncodingName],
+    ) -> DFResult<Vec<BuiltinName>> {
+        for target_encoding in target_encodings {
+            let functions_to_apply = match (source_encoding, target_encoding) {
+                (
+                    EncodingName::ObjectId | EncodingName::TypedValue,
+                    EncodingName::PlainTerm,
+                ) => {
+                    vec![BuiltinName::WithPlainTermEncoding]
+                }
+                (EncodingName::PlainTerm, EncodingName::TypedValue) => {
+                    vec![BuiltinName::WithTypedValueEncoding]
+                }
+                (EncodingName::ObjectId, EncodingName::TypedValue) => {
+                    vec![BuiltinName::WithTypedValueEncoding]
+                }
+                (
+                    EncodingName::PlainTerm | EncodingName::TypedValue,
+                    EncodingName::Sortable,
+                ) => {
+                    vec![BuiltinName::WithSortableEncoding]
+                }
+                (EncodingName::ObjectId, EncodingName::Sortable) => vec![
+                    BuiltinName::WithPlainTermEncoding,
+                    BuiltinName::WithSortableEncoding,
+                ],
+                _ => continue,
+            };
+            return Ok(functions_to_apply);
+        }
+
+        plan_err!(
+            "Transformation from '{source_encoding:?}' to '{target_encodings:?}' is not supported."
+        )
+    }
     //
     // Built-Ins
     //
 
     fn apply_builtin_udaf(self, name: BuiltinName, distinct: bool) -> DFResult<Self> {
         self.context
-            .apply_builtin_udaf(name, self.expr, vec![], distinct)
+            .apply_builtin_udaf(name, vec![self.expr], distinct)
     }
 
     /// Applies a built-in function to the current expression.

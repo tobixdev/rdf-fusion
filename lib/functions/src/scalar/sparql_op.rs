@@ -13,30 +13,41 @@ use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
 use std::any::Any;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 
 /// TODO
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum SparqlOpArity {
+    Nullary,
     Fixed(usize),
-    FixedOneOf(BTreeSet<usize>),
+    OneOf(Vec<SparqlOpArity>),
     Variadic,
 }
 
 impl SparqlOpArity {
     /// Returns a [TypeSignature] for the given [SparqlOpArity].
-    pub fn type_signature(&self, data_type: DataType) -> TypeSignature {
+    pub fn type_signature<TEncoding: TermEncoding>(
+        &self,
+        encoding: &TEncoding,
+    ) -> TypeSignature {
         match self {
-            SparqlOpArity::Fixed(n) => TypeSignature::Uniform(*n, vec![data_type]),
-            SparqlOpArity::FixedOneOf(ns) => {
+            SparqlOpArity::Nullary => TypeSignature::Nullary,
+            SparqlOpArity::Fixed(n) => {
+                TypeSignature::Uniform(*n, vec![encoding.data_type()])
+            }
+            SparqlOpArity::OneOf(ns) => {
                 let inner = ns
                     .iter()
-                    .map(|n| TypeSignature::Uniform(*n, vec![data_type.clone()]))
+                    .map(|n| n.type_signature(encoding))
                     .collect::<Vec<_>>();
                 TypeSignature::OneOf(inner)
             }
-            SparqlOpArity::Variadic => TypeSignature::Variadic(vec![data_type]),
+            SparqlOpArity::Variadic => TypeSignature::OneOf(vec![
+                TypeSignature::Nullary,
+                TypeSignature::Variadic(vec![encoding.data_type()]),
+            ]),
         }
     }
 }
@@ -44,7 +55,6 @@ impl SparqlOpArity {
 /// TODO
 pub struct ScalarSparqlOpDetails {
     pub volatility: Volatility,
-    pub constant_args: Vec<DataType>,
     pub arity: SparqlOpArity,
 }
 
@@ -52,7 +62,6 @@ impl ScalarSparqlOpDetails {
     pub fn default_with_arity(arity: SparqlOpArity) -> Self {
         Self {
             volatility: Volatility::Immutable,
-            constant_args: vec![],
             arity,
         }
     }
@@ -103,23 +112,18 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
 
         let mut type_signatures = Vec::new();
         if op.plain_term_encoding_op().is_some() {
-            let type_signature = details
-                .arity
-                .type_signature(encodings.plain_term().data_type());
+            let type_signature = details.arity.type_signature(encodings.plain_term());
             type_signatures.push(type_signature);
         }
 
         if op.typed_value_encoding_op().is_some() {
-            let type_signature = details
-                .arity
-                .type_signature(encodings.typed_value().data_type());
+            let type_signature = details.arity.type_signature(encodings.typed_value());
             type_signatures.push(type_signature);
         }
 
         if let Some(oid_encoding) = encodings.object_id() {
             if op.object_id_encoding_op(oid_encoding).is_some() {
-                let type_signature =
-                    details.arity.type_signature(oid_encoding.data_type());
+                let type_signature = details.arity.type_signature(oid_encoding);
                 type_signatures.push(type_signature);
             }
         }
@@ -171,31 +175,15 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
         encoding: &TEncoding,
         args: ScalarFunctionArgs,
     ) -> DFResult<ScalarSparqlOpArgs<TEncoding>> {
-        let regular_args = args.args.len() - self.op.details().constant_args.len();
-
-        let mut args_iter = args.args.into_iter().enumerate();
-
-        let sparql_args = args_iter
-            .by_ref()
-            .take(regular_args)
-            .map(|(_, cv)| encoding.try_new_datum(cv, args.number_rows))
-            .collect::<DFResult<Vec<_>>>()?;
-
-        let constant_args = args_iter
-            .map(|(pos, cv)| match cv {
-                ColumnarValue::Array(_) => plan_err!(
-                    "{} only supports scalar arguments at position {}.",
-                    &self.name,
-                    pos
-                ),
-                ColumnarValue::Scalar(scalar) => Ok(scalar),
-            })
+        let sparql_args = args
+            .args
+            .into_iter()
+            .map(|cv| encoding.try_new_datum(cv, args.number_rows))
             .collect::<DFResult<Vec<_>>>()?;
 
         Ok(ScalarSparqlOpArgs {
             number_rows: args.number_rows,
             args: sparql_args,
-            constant_args,
         })
     }
 }
@@ -273,28 +261,6 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
-        match self.op.details().arity {
-            SparqlOpArity::Fixed(expected) => {
-                if args.args.len() != expected {
-                    return exec_err!(
-                        "Expected {} arguments, but got {}.",
-                        expected,
-                        args.args.len()
-                    );
-                }
-            }
-            SparqlOpArity::FixedOneOf(expected) => {
-                if !expected.contains(&args.args.len()) {
-                    return exec_err!(
-                        "Expected any of {:?} arguments, but got {}.",
-                        expected,
-                        args.args.len()
-                    );
-                }
-            }
-            SparqlOpArity::Variadic => {}
-        }
-
         let data_types = args
             .arg_fields
             .iter()

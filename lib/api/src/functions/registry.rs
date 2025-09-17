@@ -26,10 +26,10 @@ pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
         function_name: &FunctionName,
     ) -> DFResult<Vec<EncodingName>>;
 
-    /// Creates a [ScalarUDF] given the `constant_args`.
+    /// Creates a [ScalarUDF].
     fn udf(&self, function_name: &FunctionName) -> DFResult<Arc<ScalarUDF>>;
 
-    /// Creates a [AggregateUDF] given the `constant_args`.
+    /// Creates a [AggregateUDF].
     fn udaf(&self, function_name: &FunctionName) -> DFResult<Arc<AggregateUDF>>;
 
     /// Register a [ScalarUDF].

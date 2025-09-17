@@ -424,20 +424,20 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     pub(crate) fn apply_builtin_udaf(
         &self,
         name: BuiltinName,
-        arg: Expr,
-        constant_args: Vec<Expr>,
+        args: Vec<Expr>,
         distinct: bool,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
         let udaf = self.registry().udaf(&FunctionName::Builtin(name))?;
 
         // Currently, UDAFs are only supported for typed values
-        let arg = self
-            .try_create_builder(arg)?
-            .with_encoding(EncodingName::TypedValue)?
-            .build()?;
-
-        let mut args = vec![arg];
-        args.extend(constant_args);
+        let args = args
+            .into_iter()
+            .map(|e| {
+                self.try_create_builder(e)?
+                    .with_encoding(EncodingName::TypedValue)?
+                    .build()
+            })
+            .collect::<DFResult<Vec<_>>>()?;
 
         let expr = Expr::AggregateFunction(AggregateFunction::new_udf(
             udaf,
@@ -548,5 +548,13 @@ fn decide_input_encoding(
     }
 
     // Otherwise we currently return the first encoding.
-    Ok(supported_encodings[0])
+    supported_encodings
+        .iter()
+        .filter_map(|enc| match enc {
+            // We cannot convert to the object ID encoding
+            EncodingName::ObjectId => None,
+            enc => Some(*enc),
+        })
+        .next()
+        .ok_or_else(|| plan_datafusion_err!("No supported encodings"))
 }

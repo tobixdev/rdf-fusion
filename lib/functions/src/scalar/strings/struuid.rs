@@ -32,7 +32,7 @@ impl ScalarSparqlOp for StrUuidSparqlOp {
     }
 
     fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Fixed(0))
+        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Nullary)
     }
 
     fn typed_value_encoding_op(

@@ -16,7 +16,7 @@ impl Default for IfSparqlOp {
 }
 
 impl IfSparqlOp {
-    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::Bound);
+    const NAME: FunctionName = FunctionName::Builtin(BuiltinName::If);
 
     pub fn new() -> Self {
         Self {}

@@ -33,8 +33,10 @@ impl ScalarSparqlOp for BNodeSparqlOp {
     fn details(&self) -> ScalarSparqlOpDetails {
         ScalarSparqlOpDetails {
             volatility: Volatility::Volatile,
-            constant_args: vec![],
-            arity: SparqlOpArity::FixedOneOf([0, 1].into()),
+            arity: SparqlOpArity::OneOf(vec![
+                SparqlOpArity::Nullary,
+                SparqlOpArity::Fixed(1),
+            ]),
         }
     }
 
