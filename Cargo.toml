@@ -22,7 +22,7 @@ version = "0.1.0"
 authors = ["Tobias Schwarzinger <tobias.schwarzinger@tuwien.ac.at>"]
 license = "Apache-2.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.86" # Minimum Supported Rust Version (Adopt from DataFusion)
 repository = "https://github.com/tobixdev/rdf-fusion"
 
 [workspace.dependencies]

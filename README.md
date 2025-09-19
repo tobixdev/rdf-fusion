@@ -90,6 +90,10 @@ The license files of Oxigraph at the moment of the fork can be found in [oxigrap
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in RDF Fusion by you, as
 defined in the Apache-2.0 license, shall be licensed as above, without any additional terms or conditions.
 
+## Minimum Supported Rust Version Policy
+
+Our policy is to adopt the Minimum Supported Rust Version (MSRV) of DataFusion.
+
 ## Acknowledgements
 
 The project started as a fork from [Oxigraph](https://github.com/oxigraph/oxigraph), a graph database written in Rust
