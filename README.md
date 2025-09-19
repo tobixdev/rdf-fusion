@@ -36,6 +36,17 @@ Examples of using RDF Fusion can be found in the [examples](./examples) director
 
 ## Comparison with Some Other SPARQL Engines
 
+Considering RDF Fusion for a project of yours?
+Great!
+This section is intended to give you an idea if RDF Fusion is a good fit for your project.
+
+We believe the combination of the following aspects makes RDF Fusion stand out from other open-source SPARQL engines:
+
+- Integration with the larger Arrow and DataFusion communities
+- Extensibility is a primary goal, both based on DataFusion's infrastructure and SPARQL-specific extension points
+- A columnar query engine based on DataFusion
+- If you come from Arrow / DataFusion, a query engine architecture that you're already familiar with :)
+
 Here is a short comparison with other open-source SPARQL engines.
 
 - [Apache Jena ARQ](https://jena.apache.org/) is a well-known SPARQL engine written in Java.
@@ -43,13 +54,20 @@ Here is a short comparison with other open-source SPARQL engines.
   Supporting a similar set of SPARQL extension points for columnar query execution is one goal of RDF Fusion.
   We believe that while Jena may remain the go-to platform for experimenting with SPARQL, RDF Fusion has aspects that
   Jena cannot easily provide. Most notably, the integration with the Arrow and DataFusion communities and a columnar
-  execution model.
+  execution model. We believe that similar arguments hold for other well-known SPARQL engines, such
+  as [RDF4J](https://rdf4j.org/) and will thus not repeat them here.
 - [Oxigraph](https://github.com/oxigraph/oxigraph) is a relatively new SPARQL engine written in Rust.
   It was a major inspiration for this project, as RDF Fusion started as a fork from it.
-  Oxigraph uses a custom-built row-based query engine that has very low overhead and is thus fast for simple
+  Oxigraph uses a custom row-based query engine that has very low overhead and is thus fast for simple
   data retrieval queries.
-  However, the extension system is not as extensive as DataFusion's approach and RDF Fusion tends to perform better on
+  However, the extension system is not as extensive as DataFusion's approach, and RDF Fusion tends to perform better on
   queries that involve processing large amounts of data.
+- [QLever](https://github.com/ad-freiburg/qlever) is a SPARQL engine written in C++ that is designed to perform well,
+  especially on large datasets.
+  It is based on a custom-built query engine tailored for SPARQL workloads.
+  While their "from-scratch approach" certainly has benefits, it cannot easily interact with the Arrow and DataFusion ecosystem.
+  Furthermore, RDF Fusion has a stronger focus on extensibility, especially if you want to interact with non-graph data
+  in your queries.
 
 ## Getting Started
 
@@ -61,6 +79,36 @@ git clone --recursive https://github.com/tobixdev/graphfusion.git # Clone Reposi
 git submodule update --init # Initialize submodules
 just test # Run tests 
 ```
+
+## Missing Feature?
+
+As mentioned above, RDF Fusion is still in an early stage.
+We are missing essential features for a standalone SPARQL engine, such as persistent storage, RDF 1.2 support, a
+graphical user interface, and many other features that have been developed in other engines over many years.
+Even though Arrow and DataFusion helps us in building these features (A LOT!), this is still a non-trivial task that
+requires sustained effort.
+If you are looking to implement some of these features, please create or comment on
+an [issue](https://github.com/tobixdev/rdf-fusion/issues) to get in touch with us.
+We are more than happy to help you with your first steps and welcome all kinds of contributions!
+
+## Project Structure
+
+You can find the core implementation of RDF Fusion in the [rdf-fusion](./lib/rdf-fusion) crate.
+The sub crates of this crate are explained in its documentation.
+
+In addition to that, this repository also contains the following crates:
+
+- [rdf-fusion-cli](./cli): A command line interface for using RDF Fusion.
+- [rdf-fusion-bench](./bench): A program for executing benchmarks with RDF Fusion. Note that Criterion benchmarks are
+  not also part of the other creations.
+- [rdf-fusion-examples](./examples): A collection of examples for using RDF Fusion.
+- [rdf-fusion-testsuite](./testsuite): An end-to-end test suite, including SPARQL conformance tests.
+
+In addition to the Rust code, this repository also contains the following folders:
+
+- [misc](./misc): Miscellaneous files, such as the changelog and license files of Oxigraph (see below).
+- [justfile](./justfile) A justfile for running common commands (e.g., preparing benchmark data) with the goal of making
+  it easier to run the project locally.
 
 ## Help
 

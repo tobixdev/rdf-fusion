@@ -7,7 +7,7 @@ use datafusion::common::{exec_datafusion_err, exec_err};
 use datafusion::logical_expr::Volatility;
 use rdf_fusion_api::functions::BuiltinName;
 use rdf_fusion_api::functions::FunctionName;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::{EncodingDatum, TermDecoder};

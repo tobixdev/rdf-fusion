@@ -2,7 +2,7 @@ use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
 use crate::object_id::ObjectIdEncoding;
 use datafusion::common::{ScalarValue, exec_err};
-use rdf_fusion_common::{DFResult, ObjectId};
+use rdf_fusion_model::{DFResult, ObjectId};
 
 /// Represents an Arrow scalar with a [ObjectIdEncoding].
 pub struct ObjectIdScalar {

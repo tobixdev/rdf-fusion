@@ -5,7 +5,7 @@ use crate::memory::encoding::{
 use crate::memory::storage::index::{
     IndexScanInstruction, IndexScanInstructions, IndexSet, PlannedPatternScan,
 };
-use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
+use rdf_fusion_model::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_logical::ActiveGraph;

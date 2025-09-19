@@ -2,7 +2,7 @@ use datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSe
 use futures::StreamExt;
 use insta::assert_debug_snapshot;
 use rdf_fusion_api::storage::QuadStorage;
-use rdf_fusion_common::BlankNodeMatchingMode;
+use rdf_fusion_model::BlankNodeMatchingMode;
 use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::{
     GraphName, GraphNameRef, Literal, NamedNode, NamedNodePattern, NamedOrBlankNode,

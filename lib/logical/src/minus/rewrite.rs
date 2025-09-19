@@ -9,7 +9,7 @@ use datafusion::logical_expr::{Expr, UserDefinedLogicalNode, and};
 use datafusion::logical_expr::{Extension, LogicalPlan, LogicalPlanBuilder};
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use rdf_fusion_api::RdfFusionContextView;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use std::collections::HashSet;
 use std::sync::Arc;
 

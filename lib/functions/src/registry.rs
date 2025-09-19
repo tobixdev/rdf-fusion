@@ -53,7 +53,7 @@ use datafusion::execution::FunctionRegistry;
 use datafusion::execution::registry::MemoryFunctionRegistry;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF, TypeSignature};
 use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionRegistry};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Debug;

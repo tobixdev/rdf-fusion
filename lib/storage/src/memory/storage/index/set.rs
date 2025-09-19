@@ -7,8 +7,8 @@ use crate::memory::storage::index::{
 };
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
-use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_model::StorageError;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::OwnedRwLockReadGuard;

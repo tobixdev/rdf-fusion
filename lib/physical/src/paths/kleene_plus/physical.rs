@@ -12,7 +12,7 @@ use datafusion::physical_plan::{
 };
 use futures::{Stream, StreamExt};
 use itertools::izip;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };

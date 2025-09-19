@@ -4,7 +4,7 @@ use crate::object_id::{ObjectIdArray, ObjectIdScalar};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::ScalarValue;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use std::clone::Clone;
 use std::hash::Hash;
 

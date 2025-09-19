@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoder;
 use crate::plain_term::{PlainTermArrayElementBuilder, PlainTermEncoding};
 use crate::{EncodingArray, TermEncoding};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{Boolean, LiteralRef, SimpleLiteralRef, ThinResult};
 

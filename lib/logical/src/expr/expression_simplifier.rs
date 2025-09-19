@@ -6,7 +6,7 @@ use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan};
 use datafusion::optimizer::utils::NamePreserver;
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use std::sync::Arc;
 
 /// An optimizer rule that tries to optimize SPARQL expressions.

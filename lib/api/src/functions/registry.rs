@@ -1,6 +1,6 @@
 use crate::functions::name::FunctionName;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::EncodingName;
 use std::fmt::Debug;
 use std::sync::Arc;

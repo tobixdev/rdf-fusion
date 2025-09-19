@@ -9,7 +9,6 @@ rust-version.workspace = true
 [dependencies]
 datafusion.workspace = true
 rdf-fusion-api.workspace = true
-rdf-fusion-common.workspace = true
 rdf-fusion-encoding.workspace = true
 rdf-fusion-model.workspace = true
 itertools.workspace = true

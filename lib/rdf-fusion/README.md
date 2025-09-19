@@ -200,23 +200,89 @@ This challenge motivates **RDF Fusion's RDF term encodings**, which bridge the g
 solutions and the expressive type system of Apache Arrow.
 We will cover this topic in more detail in the next section.
 
-# Architecture
+# SPARQL on top of DataFusion
 
 Before diving into the details of RDF Fusion, it makes sense to have a high-level
 overview [DataFusion's architecture](https://docs.rs/datafusion/latest/datafusion/index.html#architecture).
 As RDF Fusion is built on top of DataFusion, it shares the same architecture of the query engine.
-Nevertheless, there are interesting aspects of how we extend DataFusion to support SPARQL, thus warranting its own
-section.
+Nevertheless, there are interesting aspects of how we extend DataFusion to support SPARQL.
 Here, we will briefly discuss various aspects of RDF Fusion and then link to the more detailed documentation.
 
 ## Encoding RDF Terms in Arrow
 
-Encoding RDF terms in Arrow is the core aspect of RDF Fusion.
-Solutions in SPARQL (i.e., "rows" in the result) have a few peculiarities that may be surprising to some users
-coming
-from relational databases.
-The most important one being that
+Recall that within a solution set, one solution may map a variable to a string value, while another may map the same
+variable to an integer value.
+If this does not make sense to you, the previous section should help.
 
-## Crates
+If we were theoretical mathematicians, we could simply state that the domain of column within a SPARQL solution is the
+set of RDF terms, and we would be done.
+Easy enough, right?
+Unfortunately, in practice, this is not so easy as Arrow would need a native Data Type for RDF terms for this to work.
+As this is not the case, we must somehow encode the domain of RDF terms in the data types supported by Arrow.
 
-TO
+Furthermore, this encoding must support efficiently evaluating multiple types of operations.
+For example, one operation is joining solution sets, while another one is allowing is evaluating arithmetic expressions.
+As it turns out, doing this according to the SPARQL standard is not trivial.
+
+One of the major challenges lies in the "two worlds" that are associated with RDF literals.
+To recap, on the one hand, RDF literals have a lexical value and an optional datatype (ignoring language tags for now).
+On the other hand, the very same literal has a typed value that is part in a different domain.
+The domain is determined by the datatype.
+For example, the RDF term `"1"^^xsd:integer` has a typed value of `1` in the set of integers.
+In addition, another RDF term `"01"^^xsd:integer` also has a typed value of `1` in the same domain.
+Note that the necessary mapping functions (RDF term → Typed Value and vice versa) are not bijective.
+In other words, there is no one-to-one mapping between RDF terms and typed values.
+
+Let us stay a bit longer on this example because this is a very important aspect of RDF Fusion.
+Some SPARQL operations now would like to use the lexical value of a literal, while others would like to use the typed
+value.
+For example, the SPARQL join operation would like to use the lexical value of a literal, as the join operation is
+defined
+on RDF term equality, which in turn requires comparing the lexical values of the literals.
+As a result, RDF Fusion cannot simply encode the typed value of a literal because it would lose information about the
+lexical value.
+
+On the other hand, the SPARQL arithmetic operations would like to use the typed value of a literal, as the arithmetic
+operations are defined on typed values.
+For example, the SPARQL `+` operation does not care whether the lexical value of an integer literal is `"1"` or `"01"`.
+It cares about the typed value of the literal, which is `1` in both cases.
+Furthermore, while it is possible to extract the typed value of a literal (i.e., parsing), it is additional overhead
+that must be accounted for in evaluating each sub-expression, as DataFusion uses Arrow arrays to pass data between
+operators.
+So evaluating a complex expression would be scattered with parsing and stringification operations if only the lexical
+value of the literal was materialized.
+As a result, also encoding just the lexical value of a literal would create problems.
+
+To address these challenges, RDF Fusion uses multiple encodings for the same domain of RDF terms.  
+One of the encodings retains the lexical value of the literal, while the other one retains the typed value.
+Then there are additional encodings that we use to improve the performance of certain operations.
+For further details, please refer to
+the [rdf-fusion-encoding](../encoding) crate.
+
+## Using DataFusion's Extension Points
+
+TODO:
+- How we use it (link to the crates)
+  - Logical & Physical Plan
+  - Scalar & Aggregate Functions
+  - Rewriting rules
+- How you can use it
+
+
+# Crates
+
+To conclude, here is a list of the creates that constitute RDF Fusion with a quick description of each one.
+You can find more details in their respective documentation.
+
+- [rdf-fusion-api](../api): Contains a set of traits and core data types used to extend RDF Fusion (e.g., custom storage
+  layer). Ideally, we would like to have extension of RDF Fusion only depend on this package. However, this idea is
+  still in a very early stage, and we have not evaluated the feasibility of this approach.
+- [rdf-fusion-encoding](../encoding): The RDF term encodings used by RDF Fusion.
+- [rdf-fusion-functions](../functions): Scalar and aggregate functions for RDF Fusion.
+- [rdf-fusion-logical](../logical): The logical plan operators and rewriting rules used by RDF Fusion.
+- [rdf-fusion-model](../model): Provides a model for RDF and SPARQL. This is not part of common as it does not have a
+  dependency on DataFusion.
+- [rdf-fusion-physical](../physical): The physical plan operators and rewriting rules used by RDF Fusion.
+- [rdf-fusion](../rdf-fusion): This crate. The primary entry point for RDF Fusion.
+- [rdf-fusion-storage](../storage): The storage layer implementations for RDF Fusion.
+- [rdf-fusion-web](../web): The web server for RDF Fusion.

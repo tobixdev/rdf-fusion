@@ -3,7 +3,7 @@ use datafusion::common::{DFSchema, DFSchemaRef, plan_datafusion_err, plan_err};
 use datafusion::logical_expr::{
     Expr, ExprSchemable, LogicalPlan, UserDefinedLogicalNodeCore,
 };
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};

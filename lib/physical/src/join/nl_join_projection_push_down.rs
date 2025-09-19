@@ -10,7 +10,7 @@ use datafusion::physical_plan::joins::NestedLoopJoinExec;
 use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
 use datafusion::physical_plan::projection::ProjectionExec;
 use datafusion::physical_plan::{ExecutionPlan, PhysicalExpr};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -450,7 +450,7 @@ mod test {
     use datafusion::physical_plan::joins::NestedLoopJoinExec;
     use datafusion::physical_plan::joins::utils::{ColumnIndex, JoinFilter};
     use insta::assert_snapshot;
-    use rdf_fusion_common::DFResult;
+    use rdf_fusion_model::DFResult;
     use std::sync::Arc;
 
     #[tokio::test]

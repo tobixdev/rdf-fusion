@@ -1,5 +1,5 @@
 use datafusion::logical_expr::ColumnarValue;
-use rdf_fusion_common::{DFResult, ObjectId};
+use rdf_fusion_model::{DFResult, ObjectId};
 use rdf_fusion_encoding::object_id::{
     DefaultObjectIdDecoder, ObjectIdArrayBuilder, ObjectIdEncoding,
 };

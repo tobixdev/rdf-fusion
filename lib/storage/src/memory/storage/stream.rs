@@ -4,7 +4,7 @@ use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::execution::RecordBatchStream;
 use datafusion::physical_plan::metrics::BaselineMetrics;
 use futures::Stream;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 

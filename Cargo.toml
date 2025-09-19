@@ -5,7 +5,6 @@ members = [
     "examples",
     "lib/api",
     "lib/model",
-    "lib/common",
     "lib/encoding",
     "lib/execution",
     "lib/functions",
@@ -91,7 +90,6 @@ spargebra = "0.3.5"
 # Internal dependencies
 rdf-fusion-api = { version = "=0.1.0", path = "lib/api" }
 rdf-fusion-model = { version = "=0.1.0", path = "lib/model" }
-rdf-fusion-common = { version = "=0.1.0", path = "lib/common" }
 rdf-fusion-encoding = { version = "=0.1.0", path = "lib/encoding" }
 rdf-fusion-execution = { version = "=0.1.0", path = "lib/execution" }
 rdf-fusion-functions = { version = "=0.1.0", path = "lib/functions" }

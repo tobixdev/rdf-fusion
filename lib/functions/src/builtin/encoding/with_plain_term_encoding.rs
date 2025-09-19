@@ -6,7 +6,7 @@ use datafusion::logical_expr::{
     Signature, TypeSignature, Volatility,
 };
 use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::plain_term::encoders::TypedValueRefPlainTermEncoder;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;

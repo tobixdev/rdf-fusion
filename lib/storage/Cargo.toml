@@ -11,7 +11,6 @@ async-trait.workspace = true
 futures.workspace = true
 itertools.workspace = true
 rdf-fusion-api.workspace = true
-rdf-fusion-common.workspace = true
 rdf-fusion-model.workspace = true
 datafusion.workspace = true
 rdf-fusion-encoding.workspace = true

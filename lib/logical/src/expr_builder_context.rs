@@ -12,7 +12,7 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_api::RdfFusionContextView;
 use rdf_fusion_api::functions::{BuiltinName, FunctionName, RdfFusionFunctionRegistry};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
     EncodingName, EncodingScalar, RdfFusionEncodings, TermEncoder,

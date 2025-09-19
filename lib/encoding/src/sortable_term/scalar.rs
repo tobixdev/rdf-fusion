@@ -2,7 +2,7 @@ use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
 use crate::sortable_term::{SORTABLE_TERM_ENCODING, SortableTermEncoding};
 use datafusion::common::{DataFusionError, ScalarValue, exec_err};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 
 /// Represents an Arrow scalar with a [SortableTermEncoding].
 #[derive(Clone)]
