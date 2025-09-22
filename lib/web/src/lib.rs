@@ -1,14 +1,24 @@
+#![doc(test(attr(deny(warnings))))]
+#![doc(
+    html_favicon_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
+)]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
+)]
+
+//! Contains the Web API for [RDF Fusion](../../rdf-fusion).
+
 use axum::body::Body;
 use axum::extract::DefaultBodyLimit;
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
-use axum::{Router, middleware, routing::get};
+use axum::{middleware, routing::get, Router};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use tower_http::trace::{HttpMakeClassifier, TraceLayer};
-use tracing::{Level, error};
+use tracing::{error, Level};
 
 mod app;
 mod config;

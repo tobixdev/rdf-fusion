@@ -1,3 +1,16 @@
+#![doc(test(attr(deny(warnings))))]
+#![doc(
+    html_favicon_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
+)]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
+)]
+
+//! This crate contains the RDF Fusion model, including types for RDF terms, quads, and RDF graphs.
+//! Note that the data representation based on Arrow arrays is *not* part of this crate.
+//!
+//! Large portions of the available types are re-exported from [Oxigraph](https://github.com/oxigraph/oxigraph).
+
 mod blank_node_mode;
 mod error;
 mod object_id;

@@ -1,7 +1,7 @@
 # RDF Fusion
 
 <p align="center">
-  <img src="./logo.png" width="128" alt="RDF Fusion Logo" align="right">
+  <img src="misc/logo/logo.png" width="128" alt="RDF Fusion Logo" align="right">
 </p>
 
 RDF Fusion is an experimental columnar [SPARQL](https://www.w3.org/TR/sparql11-overview/) engine.

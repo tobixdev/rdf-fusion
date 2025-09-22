@@ -1,10 +1,10 @@
-RDF Fusion Extensions
+RDF Fusion Encoding
 ======
 
 [RDF Fusion][rdf-fusion] is an extensible query execution framework, written in Rust, that is based
 on [Apache DataFusion][df].
 
-This crate is a submodule of RDF Fusion that defines traits and core data structures necessary for extending RDF Fusion.
+This crate is a submodule of RDF Fusion that defines Arrow-encodings for RDF terms.
 
 Most projects should use the [`rdf-fusion`] crate directly, which re-exports this module. If you are already using the
 [`rdf-fusion`] crate, there is no reason to use this crate directly in your project as well.

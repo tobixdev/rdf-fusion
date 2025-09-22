@@ -1,11 +1,37 @@
-#![doc = include_str!("../README.md")]
 #![doc(test(attr(deny(warnings))))]
 #![doc(
-    html_favicon_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/logo.png"
+    html_favicon_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
 )]
 #![doc(
-    html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/logo.png"
+    html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
 )]
+
+//! This crate defines the execution engine of RDF Fusion.
+//!
+//! # RDF Fusion Context
+//!
+//! Similar to DataFusion’s [`SessionContext`](datafusion::SessionContext),
+//! RDF Fusion provides an [`RdfFusionContext`](engine::RdfFusionContext).
+//! This context manages the state of the RDF Fusion engine, including the registered RDF term
+//! encodings.
+//! For more details, see the [`RdfFusionContext`] documentation.
+//!
+//! # Executing SPARQL Queries
+//!
+//! DataFusion operates on the concept of a *logical plan*.
+//! While DataFusion includes an SQL front-end, it does not provide a SPARQL front-end.
+//! To execute SPARQL queries, we convert them into logical plans through the following pipeline:
+//!
+//! ```text
+//! Query String -> SPARQL Algebra (Oxigraph) -> Logical Plan
+//! ```
+//!
+//! The query string is first parsed by Oxigraph’s SPARQL parser, which produces a SPARQL algebra
+//! graph pattern. This graph pattern already includes high-level concepts such as `Join`, `Filter`,
+//! and `Projection`.
+//!
+//! We then convert this algebra pattern into a DataFusion logical plan through a rewriting step.
+//! The resulting logical plan is executed by DataFusion.
 
 extern crate core;
 
