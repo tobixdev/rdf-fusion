@@ -10,8 +10,8 @@
 //!
 //! # RDF Fusion Context
 //!
-//! Similar to DataFusion’s [`SessionContext`](datafusion::SessionContext),
-//! RDF Fusion provides an [`RdfFusionContext`](engine::RdfFusionContext).
+//! Similar to DataFusion’s [`SessionContext`](datafusion::prelude::SessionContext),
+//! RDF Fusion provides an [`RdfFusionContext`].
 //! This context manages the state of the RDF Fusion engine, including the registered RDF term
 //! encodings.
 //! For more details, see the [`RdfFusionContext`] documentation.

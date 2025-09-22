@@ -1,4 +1,3 @@
-#![doc = include_str!("../README.md")]
 #![doc(test(attr(deny(warnings))))]
 #![doc(
     html_favicon_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
@@ -78,7 +77,7 @@
 //!
 //! For example, the following triple states that Spiderman (an IRI) has the name "Spiderman" (a literal):
 //!
-//! ```
+//! ```text
 //! (<http://example.org/spiderman>, <http://xmlns.com/foaf/0.1/name>, "Spiderman")
 //! ```
 //!
