@@ -7,7 +7,7 @@ ProjectionExec: expr=[ENC_PT(vendor@0) as vendor, ENC_PT(cheapExpensiveRatio@3) 
     ProjectionExec: expr=[vendor@0 as vendor, belowAvg@1 as belowAvg, offerCount@2 as offerCount, DIV(xsd:float(belowAvg@1), offerCount@2) as cheapExpensiveRatio]
       CoalesceBatchesExec: target_batch_size=8192
         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(vendor@0, vendor@0)], projection=[vendor@0, belowAvg@1, offerCount@3]
-          ProjectionExec: expr=[vendor@0 as vendor, enc_int64_as_rdf_term(00000000000000000000000000000001@1) as belowAvg]
+          ProjectionExec: expr=[vendor@0 as vendor, INT64_AS_TERM(00000000000000000000000000000001@1) as belowAvg]
             AggregateExec: mode=Single, gby=[vendor@1 as vendor], aggr=[00000000000000000000000000000001]
               CoalesceBatchesExec: target_batch_size=8192
                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], filter=EBV(LT(xsd:float(xsd:string(ENC_TV(price@0))), avgPrice@1)), projection=[offer@1, vendor@2]
@@ -34,7 +34,7 @@ ProjectionExec: expr=[ENC_PT(vendor@0) as vendor, ENC_PT(cheapExpensiveRatio@3) 
                               ProjectionExec: expr=[offer@0 as offer]
                                 MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
                           MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
-          ProjectionExec: expr=[vendor@0 as vendor, enc_int64_as_rdf_term(00000000000000000000000000000003@1) as offerCount]
+          ProjectionExec: expr=[vendor@0 as vendor, INT64_AS_TERM(00000000000000000000000000000003@1) as offerCount]
             AggregateExec: mode=Single, gby=[vendor@1 as vendor], aggr=[00000000000000000000000000000003]
               CoalesceBatchesExec: target_batch_size=8192
                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, vendor@2]

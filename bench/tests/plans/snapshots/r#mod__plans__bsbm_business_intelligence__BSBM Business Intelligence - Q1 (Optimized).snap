@@ -4,7 +4,7 @@ expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
 ---
 Projection: ENC_PT(productType) AS productType, ENC_PT(reviewCount) AS reviewCount
   Sort: ENC_SORT(reviewCount) DESC NULLS FIRST, ENC_SORT(ENC_PT(productType)) ASC NULLS FIRST, fetch=10
-    Projection: productType, enc_int64_as_rdf_term(00000000000000000000000000000001) AS reviewCount
+    Projection: productType, INT64_AS_TERM(00000000000000000000000000000001) AS reviewCount
       Aggregate: groupBy=[[productType AS productType]], aggr=[[count(review) AS 00000000000000000000000000000001]]
         Projection: lhs.productType AS productType, lhs.review AS review
           Inner Join: lhs.reviewer = rhs.reviewer

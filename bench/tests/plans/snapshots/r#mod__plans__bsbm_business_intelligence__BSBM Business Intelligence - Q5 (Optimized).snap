@@ -12,7 +12,7 @@ Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) 
               SubqueryAlias: lhs
                 Projection: ENC_PT(country) AS country, 00000000000000000000000000000001 AS maxReviews
                   Aggregate: groupBy=[[country AS country]], aggr=[[MAX(nrOfReviews) AS 00000000000000000000000000000001]]
-                    Projection: country, enc_int64_as_rdf_term(00000000000000000000000000000002) AS nrOfReviews
+                    Projection: country, INT64_AS_TERM(00000000000000000000000000000002) AS nrOfReviews
                       Aggregate: groupBy=[[country AS country, product AS product]], aggr=[[count(review) AS 00000000000000000000000000000002]]
                         Projection: lhs.product AS product, lhs.review AS review, rhs.country AS country
                           Inner Join: lhs.reviewer = rhs.reviewer
@@ -45,7 +45,7 @@ Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) 
                         SubqueryAlias: rhs
                           QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price), active_graph: Union of [DefaultGraph] 
         SubqueryAlias: rhs
-          Projection: ENC_PT(country) AS country, product, enc_int64_as_rdf_term(00000000000000000000000000000004) AS nrOfReviews
+          Projection: ENC_PT(country) AS country, product, INT64_AS_TERM(00000000000000000000000000000004) AS nrOfReviews
             Aggregate: groupBy=[[country AS country, product AS product]], aggr=[[count(review) AS 00000000000000000000000000000004]]
               Projection: lhs.product AS product, lhs.review AS review, rhs.country AS country
                 Inner Join: lhs.reviewer = rhs.reviewer
