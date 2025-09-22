@@ -10,8 +10,8 @@ use datafusion::logical_expr::{
     Expr, ExprSchemable, LogicalPlan, LogicalPlanBuilder, ScalarUDF, Subquery, and,
     exists, lit, not_exists,
 };
-use rdf_fusion_api::RdfFusionContextView;
-use rdf_fusion_api::functions::{BuiltinName, FunctionName, RdfFusionFunctionRegistry};
+use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_extensions::functions::{BuiltinName, FunctionName, RdfFusionFunctionRegistry};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{

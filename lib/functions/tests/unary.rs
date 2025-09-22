@@ -4,7 +4,7 @@ use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::ScalarFunctionArgs;
 use datafusion::physical_plan::ColumnarValue;
 use insta::assert_snapshot;
-use rdf_fusion_api::functions::{
+use rdf_fusion_extensions::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
 };
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;

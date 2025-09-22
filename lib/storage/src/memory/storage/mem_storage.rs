@@ -4,7 +4,7 @@ use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
 use crate::memory::MemObjectIdMapping;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
-use rdf_fusion_api::storage::QuadStorage;
+use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::DFResult;

@@ -1,10 +1,10 @@
 #![doc = include_str!("../README.md")]
 #![doc(test(attr(deny(warnings))))]
 #![doc(
-    html_favicon_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/logo.svg"
+    html_favicon_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/logo.png"
 )]
 #![doc(
-    html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/logo.svg"
+    html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/logo.png"
 )]
 
 pub mod error;
@@ -12,7 +12,7 @@ pub mod io;
 pub mod store;
 
 pub mod api {
-    pub use rdf_fusion_api::*;
+    pub use rdf_fusion_extensions::*;
 }
 
 pub mod encoding {

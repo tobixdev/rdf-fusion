@@ -1,7 +1,7 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use datafusion::common::{internal_err, plan_err};
 use datafusion::logical_expr::{Expr, Operator, lit, or};
-use rdf_fusion_api::functions::FunctionName;
+use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use rdf_fusion_model::Iri;

@@ -22,7 +22,7 @@ use std::sync::Arc;
 /// ```
 /// # use std::sync::Arc;
 /// # use datafusion::logical_expr::LogicalPlan;
-/// # use rdf_fusion_api::RdfFusionContextView;
+/// # use rdf_fusion_extensions::RdfFusionContextView;
 /// # use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 /// # use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
 /// # use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;

@@ -262,22 +262,21 @@ the [rdf-fusion-encoding](../encoding) crate.
 ## Using DataFusion's Extension Points
 
 TODO:
-- How we use it (link to the crates)
-  - Logical & Physical Plan
-  - Scalar & Aggregate Functions
-  - Rewriting rules
-- How you can use it
 
+- How we use it (link to the crates)
+    - Logical & Physical Plan
+    - Scalar & Aggregate Functions
+    - Rewriting rules
+- How you can use it
 
 # Crates
 
 To conclude, here is a list of the creates that constitute RDF Fusion with a quick description of each one.
 You can find more details in their respective documentation.
 
-- [rdf-fusion-api](../api): Contains a set of traits and core data types used to extend RDF Fusion (e.g., custom storage
-  layer). Ideally, we would like to have extension of RDF Fusion only depend on this package. However, this idea is
-  still in a very early stage, and we have not evaluated the feasibility of this approach.
 - [rdf-fusion-encoding](../encoding): The RDF term encodings used by RDF Fusion.
+- [rdf-fusion-extensions](../extensions): Contains a set of traits and core data types used to extend RDF Fusion (e.g.,
+  custom storage layer).
 - [rdf-fusion-functions](../functions): Scalar and aggregate functions for RDF Fusion.
 - [rdf-fusion-logical](../logical): The logical plan operators and rewriting rules used by RDF Fusion.
 - [rdf-fusion-model](../model): Provides a model for RDF and SPARQL. This is not part of common as it does not have a

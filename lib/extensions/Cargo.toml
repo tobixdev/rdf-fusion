@@ -1,5 +1,5 @@
 [package]
-name = "rdf-fusion-api"
+name = "rdf-fusion-extensions"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

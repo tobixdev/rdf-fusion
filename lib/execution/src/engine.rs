@@ -12,11 +12,11 @@ use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::{SessionConfig, SessionContext};
-use rdf_fusion_api::RdfFusionContextView;
-use rdf_fusion_api::functions::{
+use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_extensions::functions::{
     RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
-use rdf_fusion_api::storage::QuadStorage;
+use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;

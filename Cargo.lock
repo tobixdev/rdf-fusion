@@ -3567,9 +3567,9 @@ dependencies = [
  "futures",
  "oxrdfio",
  "rand 0.9.2",
- "rdf-fusion-api",
  "rdf-fusion-encoding",
  "rdf-fusion-execution",
+ "rdf-fusion-extensions",
  "rdf-fusion-functions",
  "rdf-fusion-logical",
  "rdf-fusion-model",
@@ -3577,17 +3577,6 @@ dependencies = [
  "thiserror 2.0.16",
  "tokio",
  "tokio-test",
-]
-
-[[package]]
-name = "rdf-fusion-api"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "datafusion",
- "rdf-fusion-encoding",
- "rdf-fusion-model",
- "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -3661,8 +3650,8 @@ dependencies = [
  "futures",
  "itertools 0.14.0",
  "oxrdfio",
- "rdf-fusion-api",
  "rdf-fusion-encoding",
+ "rdf-fusion-extensions",
  "rdf-fusion-functions",
  "rdf-fusion-logical",
  "rdf-fusion-model",
@@ -3671,6 +3660,17 @@ dependencies = [
  "spargebra",
  "thiserror 2.0.16",
  "tokio",
+]
+
+[[package]]
+name = "rdf-fusion-extensions"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "datafusion",
+ "rdf-fusion-encoding",
+ "rdf-fusion-model",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -3683,8 +3683,8 @@ dependencies = [
  "itertools 0.14.0",
  "md-5",
  "rand 0.9.2",
- "rdf-fusion-api",
  "rdf-fusion-encoding",
+ "rdf-fusion-extensions",
  "rdf-fusion-model",
  "regex",
  "sha1",
@@ -3698,8 +3698,8 @@ version = "0.1.0"
 dependencies = [
  "datafusion",
  "insta",
- "rdf-fusion-api",
  "rdf-fusion-encoding",
+ "rdf-fusion-extensions",
  "rdf-fusion-functions",
  "rdf-fusion-model",
 ]
@@ -3725,8 +3725,8 @@ dependencies = [
  "futures",
  "insta",
  "itertools 0.14.0",
- "rdf-fusion-api",
  "rdf-fusion-encoding",
+ "rdf-fusion-extensions",
  "rdf-fusion-logical",
  "rdf-fusion-model",
  "tokio",
@@ -3742,8 +3742,8 @@ dependencies = [
  "futures",
  "insta",
  "itertools 0.14.0",
- "rdf-fusion-api",
  "rdf-fusion-encoding",
+ "rdf-fusion-extensions",
  "rdf-fusion-logical",
  "rdf-fusion-model",
  "rustc-hash",

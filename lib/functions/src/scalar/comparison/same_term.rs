@@ -1,8 +1,8 @@
 use crate::scalar::dispatch::dispatch_binary_plain_term;
 use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_plain_term_sparql_op_impl};
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_api::functions::FunctionName;
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{LiteralRef, TermRef, ThinError};
