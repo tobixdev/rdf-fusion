@@ -58,3 +58,26 @@ jobs:
 
       - name: Run Lints
         run: just lint
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup rust toolchain
+        uses: moonrepo/setup-rust@v1
+        with:
+          channel: 1.90.0
+          cache-target: release
+
+      - name: Install just
+        uses: extractions/setup-just@v3
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Run CI Setup
+        run: just configure-toolchain-ci
+
+      - name: Check Docs
+        run: just rustdoc
