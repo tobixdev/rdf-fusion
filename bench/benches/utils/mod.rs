@@ -1,6 +1,6 @@
 use anyhow::Context;
 use futures::StreamExt;
-use rdf_fusion::QueryResults;
+use rdf_fusion::execution::results::QueryResults;
 use tokio::runtime::{Builder, Runtime};
 
 pub mod verbose;

@@ -42,6 +42,14 @@
 //!
 //! See the [examples](../../examples) directory for more details.
 //!
+//! As this documentation aims to be somewhat self-sufficient for users coming from the Semantic Web
+//! *and* for users coming from DataFusion, we will introduce the basic concepts in the following
+//! sections.
+//!
+//! # A Brief Introduction to DataFusion
+//!
+//! TODO: Introduce basics, relational model, logical plans, execution plans, rewriting rules
+//!
 //! # A Brief Introduction to RDF and SPARQL
 //!
 //! If you're familiar with relational databases, you might wonder how SPARQL queries can be implemented on a relational
@@ -263,7 +271,7 @@
 //! For further details, please refer to
 //! the [rdf-fusion-encoding](../encoding) crate.
 //!
-//! ## Using DataFusion's Extension Points
+//! # How RDF Fusion uses DataFusion's Extension Points
 //!
 //! TODO:
 //!
