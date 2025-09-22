@@ -11,15 +11,15 @@ use datafusion::logical_expr::{
     Expr, Extension, LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode, Values,
     col, lit,
 };
-use rdf_fusion_extensions::RdfFusionContextView;
-use rdf_fusion_extensions::functions::RdfFusionFunctionRegistryRef;
-use rdf_fusion_model::DFResult;
-use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
     EncodingScalar, QuadStorageEncoding, RdfFusionEncodings, TermEncoder, TermEncoding,
 };
+use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_extensions::functions::RdfFusionFunctionRegistryRef;
+use rdf_fusion_model::DFResult;
+use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::{
     GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Subject, Term,
     TermPattern, TermRef, ThinError, TriplePattern, Variable,

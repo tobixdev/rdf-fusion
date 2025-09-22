@@ -6,10 +6,10 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
-use rdf_fusion_extensions::functions::BuiltinName;
-use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::hash::{Hash, Hasher};
 

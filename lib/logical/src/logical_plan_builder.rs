@@ -9,8 +9,8 @@ use datafusion::logical_expr::{
     Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
     UserDefinedLogicalNode, col,
 };
-use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::EncodingName;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::Variable;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

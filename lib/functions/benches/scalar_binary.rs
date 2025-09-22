@@ -2,13 +2,13 @@ use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use datafusion::arrow::datatypes::Field;
 use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
-use rdf_fusion_extensions::functions::{
-    BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
-};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoding};
+use rdf_fusion_extensions::functions::{
+    BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
+};
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_model::Integer;
 use std::collections::HashMap;

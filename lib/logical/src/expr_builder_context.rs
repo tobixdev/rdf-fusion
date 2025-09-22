@@ -10,13 +10,15 @@ use datafusion::logical_expr::{
     Expr, ExprSchemable, LogicalPlan, LogicalPlanBuilder, ScalarUDF, Subquery, and,
     exists, lit, not_exists,
 };
-use rdf_fusion_extensions::RdfFusionContextView;
-use rdf_fusion_extensions::functions::{BuiltinName, FunctionName, RdfFusionFunctionRegistry};
-use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
     EncodingName, EncodingScalar, RdfFusionEncodings, TermEncoder,
 };
+use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_extensions::functions::{
+    BuiltinName, FunctionName, RdfFusionFunctionRegistry,
+};
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::collections::HashSet;
 use std::sync::Arc;

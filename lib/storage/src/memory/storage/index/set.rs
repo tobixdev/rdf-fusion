@@ -189,7 +189,7 @@ impl Iterator for MemQuadIndexSetScanIterator {
         let reordered = reorder_result(&self.schema, next.columns);
         Some(
             RecordBatch::try_new_with_options(
-                self.schema.clone(),
+                Arc::clone(&self.schema),
                 reordered,
                 &RecordBatchOptions::new().with_row_count(Some(next.num_rows)),
             )
@@ -258,10 +258,11 @@ fn reorder_result(
         .fields()
         .iter()
         .map(|field| {
-            columns
-                .get(field.name())
-                .expect("Column must exist for scan")
-                .clone()
+            Arc::clone(
+                columns
+                    .get(field.name())
+                    .expect("Column must exist for scan"),
+            )
         })
         .collect()
 }

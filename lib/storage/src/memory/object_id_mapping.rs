@@ -4,7 +4,6 @@ use crate::memory::encoding::{EncodedQuad, EncodedTerm, EncodedTypedValue};
 use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
-use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::object_id::{
     ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncoding, ObjectIdMapping,
     ObjectIdMappingError, ObjectIdScalar,
@@ -15,6 +14,7 @@ use rdf_fusion_encoding::plain_term::{
 };
 use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{EncodingArray, TermDecoder};
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
     BlankNodeRef, GraphName, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNode,
     QuadRef, Term, TermRef, TypedValueRef,
@@ -291,7 +291,7 @@ impl MemObjectIdMapping {
         match found {
             None => {
                 let result = Arc::<str>::from(value);
-                self.str_interning.insert(result.clone());
+                self.str_interning.insert(Arc::clone(&result));
                 result
             }
             Some(entry) => entry.clone(),
@@ -418,9 +418,9 @@ impl ObjectIdMapping for MemObjectIdMapping {
 mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
-    use rdf_fusion_model::ObjectId;
     use rdf_fusion_encoding::EncodingArray;
     use rdf_fusion_encoding::plain_term::PlainTermArrayElementBuilder;
+    use rdf_fusion_model::ObjectId;
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 

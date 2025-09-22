@@ -2,9 +2,9 @@ use crate::active_graph::ActiveGraph;
 use crate::patterns::compute_schema_for_triple_pattern;
 use datafusion::common::{DFSchemaRef, plan_err};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::{BlankNodeMatchingMode, DFResult};
-use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_model::{
     NamedNodePattern, TermPattern, TriplePattern, Variable, VariableRef,
 };

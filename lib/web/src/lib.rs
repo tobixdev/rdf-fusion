@@ -13,12 +13,12 @@ use axum::extract::DefaultBodyLimit;
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
-use axum::{middleware, routing::get, Router};
+use axum::{Router, middleware, routing::get};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use tower_http::trace::{HttpMakeClassifier, TraceLayer};
-use tracing::{error, Level};
+use tracing::{Level, error};
 
 mod app;
 mod config;

@@ -4,8 +4,6 @@ use datafusion::common::exec_datafusion_err;
 use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use rdf_fusion_extensions::functions::BuiltinName;
-use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::{
@@ -15,6 +13,8 @@ use rdf_fusion_encoding::typed_value::encoders::{
 use rdf_fusion_encoding::{
     EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
 };
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Decimal, Integer, Numeric, NumericPair, ThinError, ThinResult};
 use std::ops::Div;
 use std::sync::Arc;

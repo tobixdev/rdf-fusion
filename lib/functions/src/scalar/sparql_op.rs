@@ -6,12 +6,12 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, TypeSignature,
     Volatility,
 };
-use rdf_fusion_extensions::functions::FunctionName;
-use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
+use rdf_fusion_extensions::functions::FunctionName;
+use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::collections::HashSet;
 use std::fmt::Debug;

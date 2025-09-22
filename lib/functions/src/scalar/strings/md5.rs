@@ -2,9 +2,9 @@ use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
 use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
 use md5::{Digest, Md5};
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{SimpleLiteral, ThinError, TypedValue, TypedValueRef};
 
 #[derive(Debug, Hash, PartialEq, Eq)]

@@ -3,10 +3,10 @@ use datafusion::arrow::array::RecordBatch;
 use datafusion::common::exec_err;
 use datafusion::execution::SendableRecordBatchStream;
 use futures::{Stream, StreamExt};
-use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::Variable;
 pub use sparesults::QuerySolution;
 use std::pin::Pin;
@@ -185,8 +185,7 @@ fn to_query_solution(
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
-    use crate::results::query_result_for_iterator;
-    use crate::sparql::QueryResults;
+    use crate::results::{QueryResults, query_result_for_iterator};
     use rdf_fusion_model::{BlankNode, Literal, NamedNode};
     use sparesults::QueryResultsFormat;
     use std::error::Error;

@@ -32,10 +32,10 @@ impl From<&EncodedTerm> for EncodedTypedValue {
         match typed_value {
             Ok(typed_value) => match typed_value {
                 TypedValueRef::NamedNode(_) => {
-                    EncodedTypedValue::NamedNode(term.first_str().clone())
+                    EncodedTypedValue::NamedNode(Arc::clone(term.first_str()))
                 }
                 TypedValueRef::BlankNode(_) => {
-                    EncodedTypedValue::BlankNode(term.first_str().clone())
+                    EncodedTypedValue::BlankNode(Arc::clone(term.first_str()))
                 }
                 TypedValueRef::BooleanLiteral(lit) => {
                     EncodedTypedValue::BooleanLiteral(lit)
@@ -44,14 +44,15 @@ impl From<&EncodedTerm> for EncodedTypedValue {
                     EncodedTypedValue::NumericLiteral(lit)
                 }
                 TypedValueRef::SimpleLiteral(_) => {
-                    EncodedTypedValue::SimpleLiteral(term.first_str().clone())
+                    EncodedTypedValue::SimpleLiteral(Arc::clone(term.first_str()))
                 }
                 TypedValueRef::LanguageStringLiteral(_) => {
                     EncodedTypedValue::LanguageStringLiteral(
-                        term.first_str().clone(),
-                        term.second_str()
-                            .expect("Language strings have two strings")
-                            .clone(),
+                        Arc::clone(term.first_str()),
+                        Arc::clone(
+                            term.second_str()
+                                .expect("Language strings have two strings"),
+                        ),
                     )
                 }
                 TypedValueRef::DateTimeLiteral(lit) => {
@@ -69,10 +70,11 @@ impl From<&EncodedTerm> for EncodedTypedValue {
                     EncodedTypedValue::DayTimeDurationLiteral(lit)
                 }
                 TypedValueRef::OtherLiteral(_) => EncodedTypedValue::OtherLiteral(
-                    term.first_str().clone(),
-                    term.second_str()
-                        .expect("Other typed literals have two strings")
-                        .clone(),
+                    Arc::clone(term.first_str()),
+                    Arc::clone(
+                        term.second_str()
+                            .expect("Other typed literals have two strings"),
+                    ),
                 ),
             },
             Err(_) => Self::Invalid,

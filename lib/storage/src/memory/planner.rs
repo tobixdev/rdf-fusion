@@ -44,7 +44,7 @@ impl ExtensionPlanner for MemQuadStorePlanner {
                 .await?;
 
             Ok(Some(Arc::new(MemQuadPatternExec::new(
-                UserDefinedLogicalNode::schema(node).inner().clone(),
+                Arc::clone(UserDefinedLogicalNode::schema(node).inner()),
                 plan,
             ))))
         } else {

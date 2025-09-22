@@ -6,14 +6,14 @@ use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
 use datafusion::arrow::array::{Array, StringArray, UInt8Array};
 use datafusion::logical_expr::ColumnarValue;
 use itertools::repeat_n;
-use rdf_fusion_extensions::functions::BuiltinName;
-use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_encoding::plain_term::{
     PlainTermArray, PlainTermArrayBuilder, PlainTermEncoding, PlainTermEncodingField,
     PlainTermType,
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::ThinError;
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{SimpleLiteral, TypedValue, TypedValueRef};
@@ -100,10 +100,11 @@ impl ScalarSparqlOp for StrSparqlOp {
 fn impl_str_plain_term(array: &PlainTermArray) -> PlainTermArray {
     let parts = array.as_parts();
 
-    let value = parts
-        .struct_array
-        .column(PlainTermEncodingField::Value.index())
-        .clone();
+    let value = Arc::clone(
+        parts
+            .struct_array
+            .column(PlainTermEncodingField::Value.index()),
+    );
 
     let term_types_data =
         UInt8Array::from_iter(repeat_n(u8::from(PlainTermType::Literal), value.len()))

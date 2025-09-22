@@ -12,18 +12,18 @@ use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::{SessionConfig, SessionContext};
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
+use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
 use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_extensions::functions::{
     RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
 };
 use rdf_fusion_extensions::storage::QuadStorage;
-use rdf_fusion_model::DFResult;
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
-use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
     GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef,
 };

@@ -3,9 +3,9 @@ use crate::scalar::dispatch::{
 };
 use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_model::{
     Integer, LanguageStringRef, SimpleLiteralRef, StringLiteralRef, ThinError,
     ThinResult, TypedValueRef,

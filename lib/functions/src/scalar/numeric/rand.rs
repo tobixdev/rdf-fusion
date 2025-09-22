@@ -2,11 +2,11 @@ use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_i
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rand::Rng;
-use rdf_fusion_extensions::functions::BuiltinName;
-use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::{EncodingArray, TermEncoder};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{Numeric, TypedValueRef};
 
 #[derive(Debug, Hash, PartialEq, Eq)]

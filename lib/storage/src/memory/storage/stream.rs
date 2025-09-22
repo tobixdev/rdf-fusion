@@ -6,6 +6,7 @@ use datafusion::physical_plan::metrics::BaselineMetrics;
 use futures::Stream;
 use rdf_fusion_model::DFResult;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 pub struct MemIndexScanStream {
@@ -59,6 +60,6 @@ impl Stream for MemIndexScanStream {
 
 impl RecordBatchStream for MemIndexScanStream {
     fn schema(&self) -> SchemaRef {
-        self.schema.clone()
+        Arc::clone(&self.schema)
     }
 }

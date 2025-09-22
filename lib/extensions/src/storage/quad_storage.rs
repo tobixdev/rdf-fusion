@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
-use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::QuadStorageEncoding;
+use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_model::StorageError;
 use rdf_fusion_model::{
     GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,

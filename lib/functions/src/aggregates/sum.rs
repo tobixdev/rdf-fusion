@@ -2,12 +2,12 @@ use datafusion::arrow::array::ArrayRef;
 use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use rdf_fusion_extensions::functions::BuiltinName;
-use rdf_fusion_model::DFResult;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Integer, Numeric, NumericPair, ThinResult};
 use std::sync::Arc;
 

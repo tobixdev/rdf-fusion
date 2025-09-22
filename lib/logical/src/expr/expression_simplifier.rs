@@ -166,14 +166,14 @@ mod tests {
     use datafusion::logical_expr::{EmptyRelation, LogicalPlan, LogicalPlanBuilder, col};
     use datafusion::optimizer::OptimizerContext;
     use insta::assert_snapshot;
-    use rdf_fusion_extensions::RdfFusionContextView;
-    use rdf_fusion_extensions::functions::{FunctionName, RdfFusionFunctionArgs};
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
     use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
     use rdf_fusion_encoding::{
         EncodingName, QuadStorageEncoding, RdfFusionEncodings, TermEncoding,
     };
+    use rdf_fusion_extensions::RdfFusionContextView;
+    use rdf_fusion_extensions::functions::FunctionName;
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 
     #[test]
@@ -239,10 +239,7 @@ mod tests {
         let expr = Expr::ScalarFunction(ScalarFunction {
             func: registry
                 .functions()
-                .udf(
-                    FunctionName::Builtin(builtin),
-                    RdfFusionFunctionArgs::empty(),
-                )
+                .udf(&FunctionName::Builtin(builtin))
                 .unwrap(),
             args,
         });
