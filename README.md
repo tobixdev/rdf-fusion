@@ -128,6 +128,10 @@ under Apache 2.0.
 
 The license files of Oxigraph at the moment of the fork can be found in [oxigraph_license](./misc/oxigraph_license).
 
+## Minimum Supported Rust Version Policy
+
+Our policy is to adopt the Minimum Supported Rust Version (MSRV) of DataFusion.
+
 ## Acknowledgements
 
 The project started as a fork from [Oxigraph](https://github.com/oxigraph/oxigraph), a graph database written in Rust

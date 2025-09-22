@@ -90,7 +90,10 @@ impl UserDefinedLogicalNodeCore for PatternNode {
         let patterns = self
             .patterns
             .iter()
-            .map(|opt| opt.as_ref().map_or("-".to_owned(), ToString::to_string))
+            .map(|opt| {
+                opt.as_ref()
+                    .map_or_else(|| "-".to_owned(), ToString::to_string)
+            })
             .collect::<Vec<_>>()
             .join(" ");
         write!(f, "Pattern: {patterns}",)
