@@ -1,7 +1,7 @@
 #![cfg(test)]
 #![allow(clippy::panic_in_result_fn)]
 
-use oxrdfio::RdfFormat;
+use rdf_fusion::io::RdfFormat;
 use rdf_fusion::model::vocab::{rdf, xsd};
 use rdf_fusion::model::{GraphNameRef, LiteralRef, NamedNodeRef, QuadRef};
 use rdf_fusion::store::Store;

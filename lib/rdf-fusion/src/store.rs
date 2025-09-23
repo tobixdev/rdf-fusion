@@ -445,7 +445,7 @@ impl Store {
     /// ```
     /// use rdf_fusion::store::Store;
     /// use rdf_fusion::model::*;
-    /// use oxrdfio::{RdfParser, RdfFormat};
+    /// use rdf_fusion::io::{RdfParser, RdfFormat};
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::default();
@@ -565,7 +565,7 @@ impl Store {
     ///
     /// ```
     /// use rdf_fusion::store::Store;
-    /// use oxrdfio::RdfFormat;
+    /// use rdf_fusion::io::RdfFormat;
     ///
     /// let file =
     ///     "<http://example.com> <http://example.com> <http://example.com> <http://example.com> .\n"
@@ -601,7 +601,7 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxrdfio::{RdfParser, RdfFormat};
+    /// use rdf_fusion::io::{RdfParser, RdfFormat};
     /// use rdf_fusion::model::*;
     /// use rdf_fusion::store::Store;
     ///

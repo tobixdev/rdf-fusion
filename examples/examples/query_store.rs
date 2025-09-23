@@ -1,6 +1,6 @@
 use anyhow::Context;
-use oxrdfio::{RdfFormat, RdfParser};
 use rdf_fusion::execution::results::QueryResultsFormat;
+use rdf_fusion::io::{RdfFormat, RdfParser};
 use rdf_fusion::store::Store;
 
 /// This example shows how to query RDF Fusion with SPARQL.

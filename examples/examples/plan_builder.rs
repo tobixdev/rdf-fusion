@@ -1,8 +1,8 @@
 use anyhow::Context;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::prelude::SessionConfig;
-use oxrdfio::{RdfFormat, RdfParser};
 use rdf_fusion::execution::RdfFusionContext;
+use rdf_fusion::io::{RdfFormat, RdfParser};
 use rdf_fusion::logical::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
 use rdf_fusion::model::{
     NamedNode, NamedNodePattern, TermPattern, TriplePattern, Variable,

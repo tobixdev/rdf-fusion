@@ -1,8 +1,8 @@
 use axum::http::StatusCode;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
-use oxrdfio::{RdfFormat, RdfSerializer};
 use rdf_fusion::execution::results::QueryResultsFormat;
+use rdf_fusion::io::{RdfFormat, RdfSerializer};
 use rdf_fusion::model::vocab::rdf;
 use rdf_fusion::model::{BlankNode, NamedNodeRef, TripleRef};
 

@@ -7,8 +7,8 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use axum_extra::TypedHeader;
 use headers::ContentType;
-use oxrdfio::{RdfFormat, RdfParser};
 use rdf_fusion::error::LoaderError;
+use rdf_fusion::io::{RdfFormat, RdfParser};
 
 pub async fn handle_data_post(
     content_type: TypedHeader<ContentType>,

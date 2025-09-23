@@ -313,6 +313,10 @@ pub mod functions {
     pub use rdf_fusion_functions::*;
 }
 
+pub mod io {
+    pub use oxrdfio::*;
+}
+
 pub mod model {
     pub use rdf_fusion_model::*;
 }

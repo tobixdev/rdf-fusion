@@ -60,6 +60,8 @@ use std::sync::Arc;
 ///     .unwrap()
 ///     .build()
 ///     .unwrap();
+///
+/// # drop(plan)
 /// ```
 #[derive(Debug, Clone)]
 pub struct RdfFusionLogicalPlanBuilder {

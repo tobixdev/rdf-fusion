@@ -4,7 +4,7 @@ use anyhow::{Context, bail};
 use clap::Parser;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::prelude::SessionConfig;
-use oxrdfio::{RdfFormat, RdfParser, RdfSerializer};
+use rdf_fusion::io::{RdfFormat, RdfParser, RdfSerializer};
 use rdf_fusion::model::{GraphName, NamedNode};
 use rdf_fusion::store::Store;
 use rdf_fusion_web::ServerConfig;
