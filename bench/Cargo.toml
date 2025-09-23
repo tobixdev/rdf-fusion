@@ -25,6 +25,7 @@ clap = { workspace = true, features = ["derive"] }
 csv.workspace = true
 datafusion.workspace = true
 futures.workspace = true
+oxrdfio.workspace = true
 prettytable-rs.workspace = true
 rand.workspace = true
 rand_distr.workspace = true

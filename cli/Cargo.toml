@@ -22,6 +22,7 @@ doc = false
 anyhow.workspace = true
 clap = { workspace = true, features = ["derive"] }
 datafusion.workspace = true
+oxrdfio.workspace = true
 rdf-fusion.workspace = true
 rdf-fusion-web.workspace = true
 snmalloc-rs.workspace = true

@@ -1,8 +1,8 @@
 use futures::StreamExt;
+use oxrdfio::{RdfFormat, RdfSerializer};
 use rdf_fusion::execution::results::{
     QueryResults, QueryResultsFormat, QueryResultsSerializer,
 };
-use rdf_fusion::io::{RdfFormat, RdfSerializer};
 use rdf_fusion::store::Store;
 use serde_json::Value;
 

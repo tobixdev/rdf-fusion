@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
+use oxrdfio::{RdfFormat, RdfParser};
 use oxttl::N3Parser;
 use oxttl::n3::N3Quad;
-use rdf_fusion::io::{RdfFormat, RdfParser};
 use rdf_fusion::model::{Dataset, Graph};
 use std::fs::File;
 use std::io::Read;

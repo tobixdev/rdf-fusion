@@ -1,5 +1,6 @@
 use anyhow::Context;
 use datafusion::logical_expr::ScalarUDF;
+use oxrdfio::{RdfFormat, RdfParser};
 use rdf_fusion::api::functions::FunctionName;
 use rdf_fusion::encoding::typed_value::TypedValueEncoding;
 use rdf_fusion::execution::results::QueryResultsFormat;
@@ -8,7 +9,6 @@ use rdf_fusion::functions::scalar::{
     ScalarSparqlOp, ScalarSparqlOpAdapter, ScalarSparqlOpDetails, SparqlOpArity,
     SparqlOpImpl, create_typed_value_sparql_op_impl,
 };
-use rdf_fusion::io::{RdfFormat, RdfParser};
 use rdf_fusion::model::{NamedNode, ThinError, TypedValueRef};
 use rdf_fusion::store::Store;
 

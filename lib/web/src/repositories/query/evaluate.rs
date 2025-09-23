@@ -3,9 +3,9 @@ use crate::repositories::query::HandleQueryResponse;
 use crate::repositories::query::results::serialize_query_result;
 use crate::repositories::sparql_query_params::SparqlQueryParams;
 use anyhow::anyhow;
+use oxrdfio::RdfFormat;
 use rdf_fusion::execution::results::QueryResultsFormat;
 use rdf_fusion::execution::sparql::Query;
-use rdf_fusion::io::RdfFormat;
 use rdf_fusion::model::{GraphName, IriParseError, NamedNode, NamedOrBlankNode};
 use rdf_fusion::store::Store;
 

@@ -14,7 +14,7 @@ use crate::sparql_evaluator::{
 };
 use anyhow::{Result, anyhow};
 use datafusion::common::runtime::SpawnedTask;
-use rdf_fusion::io::RdfFormat;
+use oxrdfio::RdfFormat;
 use sparesults::QueryResultsFormat;
 use time::OffsetDateTime;
 

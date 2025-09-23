@@ -299,7 +299,6 @@
 //! - [rdf-fusion-web](../web): The web server for RDF Fusion.
 
 pub mod error;
-pub mod io;
 pub mod store;
 
 pub mod api {

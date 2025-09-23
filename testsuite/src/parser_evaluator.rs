@@ -2,8 +2,8 @@ use crate::files::{guess_rdf_format, load_dataset, load_n3, read_file_to_string}
 use crate::manifest::Test;
 use crate::report::{dataset_diff, format_diff};
 use anyhow::{Context, Result, bail, ensure};
+use oxrdfio::RdfFormat;
 use oxttl::n3::{N3Quad, N3Term};
-use rdf_fusion::io::RdfFormat;
 use rdf_fusion::model::dataset::CanonicalizationAlgorithm;
 use rdf_fusion::model::{BlankNode, Dataset, Quad};
 

@@ -16,6 +16,7 @@ clap = { workspace = true, features = ["derive"] }
 datafusion.workspace = true
 futures.workspace = true
 rdf-fusion.workspace = true
+oxrdfio.workspace = true
 oxttl.workspace = true
 sparesults.workspace = true
 text-diff.workspace = true

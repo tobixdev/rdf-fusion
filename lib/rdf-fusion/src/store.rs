@@ -5,8 +5,8 @@
 //! Usage example:
 //! ```
 //! use rdf_fusion::model::*;
-//! use rdf_fusion::sparql::QueryResults;
 //! use rdf_fusion::store::Store;
+//! use rdf_fusion::execution::results::QueryResults;
 //! use futures::StreamExt;
 //!
 //! # tokio_test::block_on(async {
@@ -66,7 +66,7 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// Usage example:
 /// ```
 /// use rdf_fusion::model::*;
-/// use rdf_fusion::sparql::QueryResults;
+/// use rdf_fusion::execution::results::QueryResults;
 /// use rdf_fusion::store::Store;
 /// use futures::StreamExt;
 ///
@@ -144,7 +144,7 @@ impl Store {
     /// Usage example:
     /// ```
     /// use rdf_fusion::model::*;
-    /// use rdf_fusion::sparql::QueryResults;
+    /// use rdf_fusion::execution::results::QueryResults;
     /// use rdf_fusion::store::Store;
     /// use futures::StreamExt;
     ///
@@ -177,7 +177,8 @@ impl Store {
     /// Usage example with a custom function serializing terms to N-Triples:
     /// ```
     /// use rdf_fusion::model::*;
-    /// use rdf_fusion::sparql::{QueryOptions, QueryResults};
+    /// use rdf_fusion::execution::results::QueryResults;
+    /// use rdf_fusion::execution::sparql::QueryOptions;
     /// use rdf_fusion::store::Store;
     /// use futures::StreamExt;
     ///
@@ -210,8 +211,9 @@ impl Store {
     ///
     /// Usage example serialising the explanation with statistics in JSON:
     /// ```
-    /// use rdf_fusion::sparql::{QueryOptions, QueryResults};
     /// use rdf_fusion::store::Store;
+    /// use rdf_fusion::execution::sparql::QueryOptions;
+    /// use rdf_fusion::execution::results::QueryResults;
     /// use futures::StreamExt;
     ///
     /// # tokio_test::block_on(async {
@@ -442,9 +444,8 @@ impl Store {
     /// Usage example:
     /// ```
     /// use rdf_fusion::store::Store;
-    /// use rdf_fusion::io::RdfFormat;
     /// use rdf_fusion::model::*;
-    /// use oxrdfio::RdfParser;
+    /// use oxrdfio::{RdfParser, RdfFormat};
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::default();
@@ -563,8 +564,8 @@ impl Store {
     /// Dumps the store into a file.
     ///
     /// ```
-    /// use rdf_fusion::io::RdfFormat;
     /// use rdf_fusion::store::Store;
+    /// use oxrdfio::RdfFormat;
     ///
     /// let file =
     ///     "<http://example.com> <http://example.com> <http://example.com> <http://example.com> .\n"
@@ -600,8 +601,7 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxrdfio::RdfParser;
-    /// use rdf_fusion::io::RdfFormat;
+    /// use oxrdfio::{RdfParser, RdfFormat};
     /// use rdf_fusion::model::*;
     /// use rdf_fusion::store::Store;
     ///
