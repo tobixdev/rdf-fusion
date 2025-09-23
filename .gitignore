@@ -6,7 +6,7 @@ Cargo.lock
 js/node_modules
 venv
 .env
-data/
+bench/data/
 .htpasswd
 **/docs/_build
 **/docs/build
