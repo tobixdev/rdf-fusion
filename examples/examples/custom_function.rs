@@ -96,7 +96,7 @@ impl ScalarSparqlOp for ContainsSpidermanSparqlOp {
         Some(create_typed_value_sparql_op_impl(|args| {
             // We provide some helper functions that allow you to "iterate" over the content of the
             // arrays. Note that directly operating on the array data usually can be more
-            // performant.
+            // performant. Furthermore, we may remove this API in the future.
             dispatch_unary_typed_value(
                 &args.args[0],
                 |value| {
