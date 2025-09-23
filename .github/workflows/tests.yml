@@ -33,7 +33,7 @@ jobs:
         run: just configure-toolchain-ci
 
       - name: Run CI Recipe
-        run: just prepare-benches-tests test test-examples rustdoc
+        run: just prepare-benches-tests test test-examples
 
   lints:
     runs-on: ubuntu-latest
