@@ -23,13 +23,13 @@ Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) 
                                     Projection: lhs.product AS product, rhs.review AS review
                                       Inner Join: lhs.product = rhs.product
                                         SubqueryAlias: lhs
-                                          QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>), active_graph: Union of [DefaultGraph] 
+                                          QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>)
                                         SubqueryAlias: rhs
-                                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product), active_graph: Union of [DefaultGraph] 
+                                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product)
                                   SubqueryAlias: rhs
-                                    QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer), active_graph: Union of [DefaultGraph] 
+                                    QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer)
                             SubqueryAlias: rhs
-                              QuadPattern (?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country), active_graph: Union of [DefaultGraph] 
+                              QuadPattern (?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country)
               SubqueryAlias: rhs
                 Projection: Struct({term_type:,value:,data_type:,language_tag:}) AS country, product, 00000000000000000000000000000003 AS avgPrice
                   Aggregate: groupBy=[[product AS product]], aggr=[[AVG(xsd:float(xsd:string(ENC_TV(price)))) AS 00000000000000000000000000000003]]
@@ -39,11 +39,11 @@ Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) 
                           Projection: lhs.product AS product, rhs.offer AS offer
                             Inner Join: lhs.product = rhs.product
                               SubqueryAlias: lhs
-                                QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>), active_graph: Union of [DefaultGraph] 
+                                QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>)
                               SubqueryAlias: rhs
-                                QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product), active_graph: Union of [DefaultGraph] 
+                                QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product> ?product)
                         SubqueryAlias: rhs
-                          QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price), active_graph: Union of [DefaultGraph] 
+                          QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price)
         SubqueryAlias: rhs
           Projection: ENC_PT(country) AS country, product, INT64_AS_TERM(00000000000000000000000000000004) AS nrOfReviews
             Aggregate: groupBy=[[country AS country, product AS product]], aggr=[[count(review) AS 00000000000000000000000000000004]]
@@ -56,10 +56,10 @@ Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) 
                           Projection: lhs.product AS product, rhs.review AS review
                             Inner Join: lhs.product = rhs.product
                               SubqueryAlias: lhs
-                                QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>), active_graph: Union of [DefaultGraph] 
+                                QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>)
                               SubqueryAlias: rhs
-                                QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product), active_graph: Union of [DefaultGraph] 
+                                QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product)
                         SubqueryAlias: rhs
-                          QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer), active_graph: Union of [DefaultGraph] 
+                          QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer)
                   SubqueryAlias: rhs
-                    QuadPattern (?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country), active_graph: Union of [DefaultGraph]
+                    QuadPattern (?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country)

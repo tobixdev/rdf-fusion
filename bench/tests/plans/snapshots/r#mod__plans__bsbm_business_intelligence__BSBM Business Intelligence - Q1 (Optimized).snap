@@ -24,16 +24,16 @@ Projection: ENC_PT(productType) AS productType, ENC_PT(reviewCount) AS reviewCou
                                       Projection: lhs.productType AS productType, rhs.product AS product
                                         Inner Join: lhs.productType = rhs.productType
                                           SubqueryAlias: lhs
-                                            QuadPattern (?productType <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/ProductType>), active_graph: Union of [DefaultGraph] 
+                                            QuadPattern (?productType <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/ProductType>)
                                           SubqueryAlias: rhs
-                                            QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?productType), active_graph: Union of [DefaultGraph] 
+                                            QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?productType)
                                     SubqueryAlias: rhs
-                                      QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> ?producer), active_graph: Union of [DefaultGraph] 
+                                      QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> ?producer)
                               SubqueryAlias: rhs
-                                QuadPattern (?producer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#AT>), active_graph: Union of [DefaultGraph] 
+                                QuadPattern (?producer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#AT>)
                         SubqueryAlias: rhs
-                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product), active_graph: Union of [DefaultGraph] 
+                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> ?product)
                   SubqueryAlias: rhs
-                    QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer)
             SubqueryAlias: rhs
-              QuadPattern (?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#US>), active_graph: Union of [DefaultGraph]
+              QuadPattern (?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> <http://downlode.org/rdf/iso-3166/countries#US>)
