@@ -22,5 +22,6 @@ cargo run --example use_store # Run the `use_store` example. Replace `use_store`
 
 ## Advanced Usage
 
+* **[custom-storage](./examples/custom_storage.rs)**: Use a custom storage implementation.
 * **[plan-builder](./examples/plan_builder.rs)**: Use RDF Fusion's plan builder to create a custom query plan.
 

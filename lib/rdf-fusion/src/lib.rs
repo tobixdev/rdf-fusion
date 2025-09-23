@@ -42,15 +42,96 @@
 //!
 //! See the [examples](../../examples) directory for more details.
 //!
-//! As this documentation aims to be somewhat self-sufficient for users coming from the Semantic Web
-//! *and* for users coming from DataFusion, we will introduce the basic concepts in the following
-//! sections.
+//! # Background
 //!
-//! # A Brief Introduction to DataFusion
+//! This documentation is intended to be somewhat self-sufficient for both users coming from the
+//! Semantic Web and those coming from DataFusion.
+//! To that end, the following sections introduce the basic concepts.
+//! If you are already familiar with them, feel free to skip ahead.
 //!
-//! TODO: Introduce basics, relational model, logical plans, execution plans, rewriting rules
+//! ## A Brief Introduction to DataFusion
 //!
-//! # A Brief Introduction to RDF and SPARQL
+//! For readers who want an in-depth understanding of DataFusion, we recommend the official
+//! [architecture documentation](https://docs.rs/datafusion/latest/datafusion/index.html#architecture).
+//! For those who prefer to learn by doing, the following brief overview should be enough to get started.
+//!
+//! DataFusion is an extensible relational query engine built on top of Apache Arrow.
+//! Let’s break this down:
+//!
+//! **Extensible** means that DataFusion can be customized in many ways, including adding new
+//! operators, optimizations, and data sources. Much of this introduction will focus on these
+//! aspects as otherwise RDF Fusion could not be built on top of DataFusion.
+//!
+//! **Relational** means that DataFusion is based on a variant of the
+//! [relational model](https://en.wikipedia.org/wiki/Relational_model).
+//! We won’t dive into the theory here: if you know the ideas of relations (tables), attributes
+//! (columns), tuples (rows), and attribute domains (column data types), you’re in good shape.
+//! Otherwise, you may want to skim through the linked resource first.
+//!
+//! [**Apache Arrow**](https://arrow.apache.org/) is an in-memory data format for high-performance analytics.
+//! DataFusion stores intermediate results in Arrow arrays. An array is a contiguous sequence of
+//! values with a certain type and known length. Arrow defines how arrays of various
+//! (including complex) data types are represented in memory. This standardization:
+//! 1. enables sharing data between different libraries and systems,
+//! 2. provides a memory layout well-suited for efficient vectorized operations, and
+//! 3. includes efficient compute kernels that extensions (such as RDF Fusion) can directly use.
+//!
+//! The high-level process of executing a query in DataFusion is shown below:
+//!
+//! ```text
+//!                  rewrite               rewrite
+//!                  ┌───◄──┐              ┌───◄──┐
+//!                  ▼      │              ▼      │
+//! ┌───────┐    ┌───────────────┐    ┌────────────────┐    ┌─────────┐
+//! │ Query ├───►│ Logical PLan  ├───►│ Execution Plan ├───►│ Streams │   <--- Computes the results
+//! └───────┘    └───────────────┘    └────────────────┘    └─────────┘
+//! ```
+//!
+//! 1. A query is parsed by a front-end (most often SQL) and transformed into a **logical plan**.
+//! 2. The logical plan is transformed using rewriting rules (e.g., optimizations).
+//! 3. The optimized logical plan is translated into an **execution plan**.
+//! 4. The execution plan is further transformed by rewriting rules (e.g., optimizations).
+//! 5. Finally, the execution plan is executed, producing streams of results that can be lazily
+//!    iterated.
+//!
+//! Usually, users do not interact with these APIs directly.
+//! Instead, queries are typically executed via the DataFrame API or the SQL interface.
+//! Internally, however, these APIs rely on the same mechanisms.
+//! For example, when you use the `collect` method of the DataFrame API, it gathers all results
+//! from the top-level stream to populate a DataFrame.
+//!
+//! ### Logical Plans vs. Execution Plans
+//!
+//! If you have never worked with query engines before, you might wonder why there are two different
+//! types of plans.
+//! The distinction is:
+//! - The **logical plan** specifies *what* operation to perform (e.g., `Join`).
+//! - The **execution plan** specifies *how* the operation should be performed
+//!   (e.g., `HashJoin`, number of partitions to use, etc.).
+//!
+//! ### Rewriting Rules
+//!
+//! Rewriting rules serve multiple purposes. Their role is to take a plan (e.g., a logical plan)
+//! and transform it into another plan.
+//!
+//! Often, the goal is to produce an equivalent plan that is more efficient (i.e., an optimization).
+//! However, rewriting rules can also be used for tasks such as mapping custom operators onto
+//! built-in operators.
+//!
+//! ### Extending DataFusion
+//!
+//! DataFusion provides extension points at all stages of query processing.
+//! You can create custom front-ends, define new logical and execution plan nodes, and implement new streams.
+//!
+//! To implement a SPARQL operator entirely on our own, the process generally involves:
+//! 1. Transforming it into a **custom logical plan**, possibly with custom optimization rules.
+//! 2. Transforming that logical plan into a **custom execution plan**, again potentially with optimizations.
+//! 3. Implementing a **custom stream** capable of executing the SPARQL operator.
+//!
+//! While this may sound complex, most SPARQL features can already be mapped to built-in DataFusion
+//! operators, allowing us to replace steps 2. and 3. with an often simple rewriting rule.
+//!
+//! ## A Brief Introduction to RDF and SPARQL
 //!
 //! If you're familiar with relational databases, you might wonder how SPARQL queries can be implemented on a relational
 //! query engine.
@@ -68,7 +149,7 @@
 //! For example, we will completely ignore [blank nodes](https://www.w3.org/TR/rdf11-concepts/#dfn-blank-node).
 //! For a detailed specification, please refer to the official RDF and SPARQL standards.
 //!
-//! ## The Resource Description Framework
+//! ### The Resource Description Framework
 //!
 //! The [Resource Description Framework (RDF)](https://www.w3.org/TR/rdf11-concepts/) is the data model that underpins
 //! SPARQL.
@@ -113,7 +194,7 @@
 //! In an RDF graph, subjects and objects correspond to **nodes**, while predicates label the **edges** connecting them.
 //! It is important that the same IRI always corresponds to the same node, even across multiple triples.
 //!
-//! ## Graph Patterns
+//! ### Graph Patterns
 //!
 //! Given an RDF graph, we can ask questions about the data.
 //! For example: *"Who are the enemies of Spiderman?"*
@@ -145,7 +226,7 @@
 //! |-----------------|
 //! | <#green-goblin> |
 //!
-//! ## SPARQL
+//! ### SPARQL
 //!
 //! Some relevant fundamental concepts of SPARQL were already covered in the previous section.
 //! Here, we will dive a bit deeper to try to understand the connection between SPARQL and relational query engines.
@@ -214,9 +295,8 @@
 //!
 //! # SPARQL on top of DataFusion
 //!
-//! Before diving into the details of RDF Fusion, it makes sense to have a high-level
-//! overview [DataFusion's architecture](https://docs.rs/datafusion/latest/datafusion/index.html#architecture).
-//! As RDF Fusion is built on top of DataFusion, it shares the same architecture of the query engine.
+//! As RDF Fusion is built on top of DataFusion, it shares the same architecture of the query engine
+//! which we have quickly covered in the previous section.
 //! Nevertheless, there are interesting aspects of how we extend DataFusion to support SPARQL.
 //! Here, we will briefly discuss various aspects of RDF Fusion and then link to the more detailed documentation.
 //!
@@ -271,15 +351,24 @@
 //! For further details, please refer to
 //! the [rdf-fusion-encoding](../encoding) crate.
 //!
-//! # How RDF Fusion uses DataFusion's Extension Points
+//! ## Using DataFusion's Extension Points
 //!
-//! TODO:
+//! As mentioned earlier, RDF Fusion leverages many of DataFusion’s extension points to implement SPARQL.
 //!
-//! - How we use it (link to the crates)
-//!     - Logical & Physical Plan
-//!     - Scalar & Aggregate Functions
-//!     - Rewriting rules
-//! - How you can use it
+//! First, we define **custom logical operators** for various graph patterns (e.g., pattern matching, filters).
+//! These custom logical operators and their rewriting rules are detailed in the [rdf-fusion-logical](../../logical) crate.
+//!
+//! Next, we provide **custom execution operators** for operations that cannot be mapped to built-in operators
+//! or for those where we want to preserve SPARQL semantics during the planning step.
+//! The custom execution operators and their rewriting rules are detailed in the [rdf-fusion-physical](../../physical) crate,
+//! which also contains the implementations of the streams.
+//!
+//! One of the most important operators that integrates these components is the `QuadPattern`.
+//! Its execution plan is defined in the [rdf-fusion-storage](../../storage) crate.
+//! This operator is special because the storage layer implementation is responsible for planning it.
+//!
+//! Additionally, RDF Fusion uses the `ScalarFunction` and `AggregateFunction` traits to implement SPARQL functions.
+//! Implementations of these functions are detailed in the [rdf-fusion-functions](../../functions) crate.
 //!
 //! # Crates
 //!
