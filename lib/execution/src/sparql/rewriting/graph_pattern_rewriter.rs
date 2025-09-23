@@ -453,7 +453,13 @@ impl RewritingState {
 fn compute_default_active_graph(dataset: &QueryDataset) -> ActiveGraph {
     match dataset.default_graph_graphs() {
         None => ActiveGraph::DefaultGraph,
-        Some(graphs) => ActiveGraph::Union(graphs.to_vec()),
+        Some(graphs) => {
+            if matches!(graphs, [GraphName::DefaultGraph]) {
+                ActiveGraph::DefaultGraph
+            } else {
+                ActiveGraph::Union(graphs.to_vec())
+            }
+        }
     }
 }
 
