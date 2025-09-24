@@ -4,7 +4,7 @@ use crate::sortable_term::encoders::TypedValueRefSortableTermEncoder;
 use crate::typed_value::TypedValueArrayBuilder;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::{EncodingArray, TermDecoder, TermEncoding};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
 
 #[derive(Debug)]

@@ -1,5 +1,4 @@
 use datafusion::logical_expr::ColumnarValue;
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::TermEncoder;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
@@ -12,6 +11,7 @@ use rdf_fusion_encoding::typed_value::{
     TypedValueArray, TypedValueEncoding, TypedValueScalar,
 };
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermDecoder};
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
 
 pub fn dispatch_binary_typed_value<'data>(

@@ -1,7 +1,7 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::QueryEvaluationError;
 use futures::{Stream, StreamExt, ready};
-use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject, Term, Variable};
 use sparesults::QuerySolution;
 use std::collections::HashSet;

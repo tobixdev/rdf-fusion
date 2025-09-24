@@ -1,7 +1,7 @@
 use crate::TermEncoding;
 use crate::object_id::{ObjectIdArray, ObjectIdEncoding};
 use datafusion::arrow::array::UInt32Builder;
-use rdf_fusion_common::ObjectId;
+use rdf_fusion_model::ObjectId;
 use std::sync::Arc;
 
 /// Provides a convenient API for building arrays of RDF terms with the [ObjectIdEncoding]. The

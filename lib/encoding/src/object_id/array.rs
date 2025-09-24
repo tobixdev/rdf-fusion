@@ -3,7 +3,7 @@ use crate::encoding::EncodingArray;
 use crate::object_id::ObjectIdEncoding;
 use datafusion::arrow::array::{Array, ArrayRef, UInt32Array};
 use datafusion::common::exec_err;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 
 /// Represents an Arrow array with an [ObjectIdEncoding].
 #[derive(Debug, Clone)]

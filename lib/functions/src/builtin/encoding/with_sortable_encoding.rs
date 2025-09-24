@@ -5,8 +5,6 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
@@ -19,13 +17,14 @@ use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
     TermEncoder, TermEncoding,
 };
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 
-pub fn with_sortable_term_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF> {
+pub fn with_sortable_term_encoding(encodings: RdfFusionEncodings) -> ScalarUDF {
     let udf_impl = WithSortableEncoding::new(encodings);
-    Arc::new(ScalarUDF::new_from_impl(udf_impl))
+    ScalarUDF::new_from_impl(udf_impl)
 }
 
 /// Transforms RDF Terms into the [SortableTermEncoding](rdf_fusion_encoding::sortable_term::SortableTermEncoding).

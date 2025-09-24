@@ -5,11 +5,11 @@ use crate::memory::encoding::{
 use crate::memory::storage::index::{
     IndexScanInstruction, IndexScanInstructions, IndexSet, PlannedPatternScan,
 };
-use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
+use rdf_fusion_model::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_model::{
     NamedOrBlankNode, NamedOrBlankNodeRef, TermPattern, TriplePattern, Variable,
 };
@@ -91,7 +91,7 @@ impl MemQuadStorageSnapshot {
         let index = self.index_set.choose_index(&scan_instructions);
         Ok(PlannedPatternScan::IndexScan {
             schema,
-            index_set: self.index_set.clone(),
+            index_set: Arc::clone(&self.index_set),
             index,
             instructions: Box::new(scan_instructions),
             graph_variable,

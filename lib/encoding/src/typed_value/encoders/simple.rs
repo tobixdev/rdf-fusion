@@ -3,7 +3,7 @@ use crate::typed_value::TypedValueArrayBuilder;
 use crate::TermEncoder;
 use crate::TermEncoding;
 use crate::TypedValueEncoding;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{BlankNode, Double, NamedNode, TypedValueRef};
 use rdf_fusion_model::{
     BlankNodeRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef,

@@ -6,7 +6,7 @@ use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_plan::display::DisplayableExecutionPlan;
 use prettytable::{Table, row};
-use rdf_fusion::QueryExplanation;
+use rdf_fusion::execution::sparql::QueryExplanation;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;

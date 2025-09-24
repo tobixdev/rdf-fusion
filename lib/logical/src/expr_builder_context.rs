@@ -10,15 +10,15 @@ use datafusion::logical_expr::{
     Expr, ExprSchemable, LogicalPlan, LogicalPlanBuilder, ScalarUDF, Subquery, and,
     exists, lit, not_exists,
 };
-use rdf_fusion_api::RdfFusionContextView;
-use rdf_fusion_api::functions::{
-    BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
-};
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
     EncodingName, EncodingScalar, RdfFusionEncodings, TermEncoder,
 };
+use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_extensions::functions::{
+    BuiltinName, FunctionName, RdfFusionFunctionRegistry,
+};
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -77,6 +77,28 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         expr: Expr,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
         RdfFusionExprBuilder::try_new_from_context(*self, expr)
+    }
+
+    /// Creates a new [RdfFusionExprBuilder] from an existing [Expr].
+    pub fn try_create_builder_for_udf(
+        &self,
+        name: &FunctionName,
+        args: Vec<Expr>,
+    ) -> DFResult<RdfFusionExprBuilder<'context>> {
+        let udf = self.rdf_fusion_context.functions().udf(name)?;
+
+        if args.is_empty() {
+            return self.try_create_builder(udf.call(vec![]));
+        }
+
+        // The function might only accept constant arguments which don't have to be an RDF term.
+        let first_arg_encoding = self.get_encodings(&args[..1]);
+        if first_arg_encoding.is_err() {
+            return self.try_create_builder(udf.call(args));
+        }
+
+        let expr = self.apply_with_args_no_builder(name, args)?;
+        self.try_create_builder(expr)
     }
 
     /// Creates a new expression that evaluates to the first argument that does not produce an
@@ -404,22 +426,24 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     pub(crate) fn apply_builtin_udaf(
         &self,
         name: BuiltinName,
-        arg: Expr,
+        args: Vec<Expr>,
         distinct: bool,
-        args: RdfFusionFunctionArgs,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let udaf = self
-            .registry()
-            .create_udaf(FunctionName::Builtin(name), args)?;
+        let udaf = self.registry().udaf(&FunctionName::Builtin(name))?;
 
         // Currently, UDAFs are only supported for typed values
-        let arg = self
-            .try_create_builder(arg)?
-            .with_encoding(EncodingName::TypedValue)?
-            .build()?;
+        let args = args
+            .into_iter()
+            .map(|e| {
+                self.try_create_builder(e)?
+                    .with_encoding(EncodingName::TypedValue)?
+                    .build()
+            })
+            .collect::<DFResult<Vec<_>>>()?;
+
         let expr = Expr::AggregateFunction(AggregateFunction::new_udf(
             udaf,
-            vec![arg],
+            args,
             distinct,
             None,
             Vec::new(),
@@ -435,7 +459,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         name: BuiltinName,
         further_args: Vec<Expr>,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        self.apply_builtin_with_args(name, further_args, RdfFusionFunctionArgs::empty())
+        self.apply_builtin_with_args(name, further_args)
     }
 
     /// Applies a built-in SPARQL function to a list of arguments, with additional arguments
@@ -446,25 +470,21 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         name: BuiltinName,
         args: Vec<Expr>,
-        udf_args: RdfFusionFunctionArgs,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let expr = self.apply_builtin_with_args_no_builder(name, args, udf_args)?;
+        let expr = self.apply_with_args_no_builder(&FunctionName::Builtin(name), args)?;
         self.try_create_builder(expr)
     }
 
     /// Similar to [Self::apply_builtin_with_args] but does not wrap the resulting expression
     /// in a builder. Therefore, this method can be used to create expressions that do not evaluate
     /// to an RDF term.
-    pub(crate) fn apply_builtin_with_args_no_builder(
+    pub(crate) fn apply_with_args_no_builder(
         &self,
-        name: BuiltinName,
+        name: &FunctionName,
         args: Vec<Expr>,
-        udf_args: RdfFusionFunctionArgs,
     ) -> DFResult<Expr> {
-        let udf = self.create_builtin_udf_with_args(name, udf_args)?;
-        let supported_encodings = self
-            .registry()
-            .supported_encodings(FunctionName::Builtin(name))?;
+        let udf = self.rdf_fusion_context.functions().udf(name)?;
+        let supported_encodings = self.registry().udf_supported_encodings(name)?;
 
         if supported_encodings.is_empty() {
             return plan_err!("No supported encodings for builtin '{}'", name);
@@ -493,17 +513,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         name: BuiltinName,
     ) -> DFResult<Arc<ScalarUDF>> {
-        self.registry()
-            .create_udf(FunctionName::Builtin(name), RdfFusionFunctionArgs::empty())
-    }
-
-    pub(crate) fn create_builtin_udf_with_args(
-        &self,
-        name: BuiltinName,
-        args: RdfFusionFunctionArgs,
-    ) -> DFResult<Arc<ScalarUDF>> {
-        self.registry()
-            .create_udf(FunctionName::Builtin(name), args)
+        self.registry().udf(&FunctionName::Builtin(name))
     }
 
     /// TODO
@@ -540,5 +550,13 @@ fn decide_input_encoding(
     }
 
     // Otherwise we currently return the first encoding.
-    Ok(supported_encodings[0])
+    supported_encodings
+        .iter()
+        .filter_map(|enc| match enc {
+            // We cannot convert to the object ID encoding
+            EncodingName::ObjectId => None,
+            enc => Some(*enc),
+        })
+        .next()
+        .ok_or_else(|| plan_datafusion_err!("No supported encodings"))
 }

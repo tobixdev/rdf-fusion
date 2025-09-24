@@ -31,23 +31,23 @@ Projection: ENC_PT(title) AS title, ENC_PT(text) AS text, ENC_PT(reviewDate) AS 
                                                     Projection: lhs.review AS review, rhs.title AS title
                                                       Inner Join: lhs.review = rhs.review
                                                         SubqueryAlias: lhs
-                                                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer12/Product578>), active_graph: Union of [DefaultGraph] 
+                                                          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer12/Product578>)
                                                         SubqueryAlias: rhs
-                                                          QuadPattern (?review <http://purl.org/dc/elements/1.1/title> ?title), active_graph: Union of [DefaultGraph] 
+                                                          QuadPattern (?review <http://purl.org/dc/elements/1.1/title> ?title)
                                                   SubqueryAlias: rhs
                                                     Filter: EBV(LANGMATCHES(LANG(ENC_TV(text)), Union 3:{value:EN,language:}))
-                                                      QuadPattern (?review <http://purl.org/stuff/rev#text> ?text), active_graph: Union of [DefaultGraph] 
+                                                      QuadPattern (?review <http://purl.org/stuff/rev#text> ?text)
                                             SubqueryAlias: rhs
-                                              QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewDate> ?reviewDate), active_graph: Union of [DefaultGraph] 
+                                              QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewDate> ?reviewDate)
                                       SubqueryAlias: rhs
-                                        QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer), active_graph: Union of [DefaultGraph] 
+                                        QuadPattern (?review <http://purl.org/stuff/rev#reviewer> ?reviewer)
                                 SubqueryAlias: rhs
-                                  QuadPattern (?reviewer <http://xmlns.com/foaf/0.1/name> ?reviewerName), active_graph: Union of [DefaultGraph] 
+                                  QuadPattern (?reviewer <http://xmlns.com/foaf/0.1/name> ?reviewerName)
                           SubqueryAlias: rhs
-                            QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?rating1), active_graph: Union of [DefaultGraph] 
+                            QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1> ?rating1)
                     SubqueryAlias: rhs
-                      QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?rating2), active_graph: Union of [DefaultGraph] 
+                      QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2> ?rating2)
               SubqueryAlias: rhs
-                QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3> ?rating3), active_graph: Union of [DefaultGraph] 
+                QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3> ?rating3)
         SubqueryAlias: rhs
-          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4> ?rating4), active_graph: Union of [DefaultGraph]
+          QuadPattern (?review <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4> ?rating4)

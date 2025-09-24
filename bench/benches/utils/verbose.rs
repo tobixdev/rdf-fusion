@@ -1,5 +1,5 @@
 use datafusion::physical_plan::displayable;
-use rdf_fusion::QueryOptions;
+use rdf_fusion::execution::sparql::QueryOptions;
 use rdf_fusion::store::Store;
 
 pub fn is_verbose() -> bool {

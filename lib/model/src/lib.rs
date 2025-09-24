@@ -1,10 +1,28 @@
+#![doc(test(attr(deny(warnings))))]
+#![doc(
+    html_favicon_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
+)]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
+)]
+
+//! This crate contains the RDF Fusion model, including types for RDF terms, quads, and RDF graphs.
+//! Note that the data representation based on Arrow arrays is *not* part of this crate.
+//!
+//! Large portions of the available types are re-exported from [Oxigraph](https://github.com/oxigraph/oxigraph).
+
+mod blank_node_mode;
 mod error;
+mod object_id;
+pub mod quads;
 mod rdf;
 mod typed_value;
 pub mod vocab;
 mod xsd;
 
+pub use blank_node_mode::BlankNodeMatchingMode;
 pub use error::*;
+pub use object_id::ObjectId;
 pub use rdf::*;
 pub use typed_value::*;
 pub use xsd::*;
@@ -19,3 +37,8 @@ pub use oxrdf::{
 };
 pub use spargebra::algebra::PropertyPathExpression;
 pub use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
+
+use datafusion::arrow::error::ArrowError;
+
+pub type AResult<T> = Result<T, ArrowError>;
+pub type DFResult<T> = datafusion::error::Result<T>;

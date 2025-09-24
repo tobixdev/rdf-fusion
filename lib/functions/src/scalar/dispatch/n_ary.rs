@@ -1,5 +1,4 @@
 use datafusion::logical_expr::ColumnarValue;
-use rdf_fusion_common::{DFResult, ObjectId};
 use rdf_fusion_encoding::object_id::{
     DefaultObjectIdDecoder, ObjectIdArrayBuilder, ObjectIdEncoding,
 };
@@ -10,6 +9,7 @@ use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
+use rdf_fusion_model::{DFResult, ObjectId};
 use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
 
 pub fn dispatch_n_ary_plain_term(

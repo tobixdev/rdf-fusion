@@ -15,6 +15,7 @@ oxrdf.workspace = true
 spargebra.workspace = true
 
 # Regular Dependencies
+datafusion.workspace = true
 thiserror.workspace = true
 
 [lints]

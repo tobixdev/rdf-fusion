@@ -113,7 +113,7 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 .filter_map(|(data, instruction)| match instruction {
                                     Some(IndexScanInstruction::Scan(name, _)) => Some((
                                         name.as_str().to_owned(),
-                                        data.clone() as Arc<dyn Array>,
+                                        Arc::clone(data) as Arc<dyn Array>,
                                     )),
                                     _ => None,
                                 })
@@ -279,7 +279,7 @@ impl PlannedPatternScan {
                 ..
             } => {
                 let iterator = MemQuadIndexSetScanIterator::new(
-                    schema.clone(),
+                    Arc::clone(&schema),
                     index_set,
                     index,
                     instructions,

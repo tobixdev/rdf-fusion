@@ -20,7 +20,6 @@ jobs:
         uses: moonrepo/setup-rust@v1
         with:
           channel: 1.90.0
-          cache-target: release
 
       - name: Install just
         uses: extractions/setup-just@v3
@@ -34,7 +33,7 @@ jobs:
         run: just configure-toolchain-ci
 
       - name: Run CI Recipe
-        run: just prepare-benches-tests test rustdoc
+        run: just prepare-benches-tests test test-examples
 
   lints:
     runs-on: ubuntu-latest
@@ -43,7 +42,6 @@ jobs:
         uses: moonrepo/setup-rust@v1
         with:
           channel: 1.90.0
-          cache-target: release
 
       - name: Install just
         uses: extractions/setup-just@v3
@@ -58,3 +56,25 @@ jobs:
 
       - name: Run Lints
         run: just lint
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup rust toolchain
+        uses: moonrepo/setup-rust@v1
+        with:
+          channel: 1.90.0
+
+      - name: Install just
+        uses: extractions/setup-just@v3
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Run CI Setup
+        run: just configure-toolchain-ci
+
+      - name: Check Docs
+        run: just rustdoc

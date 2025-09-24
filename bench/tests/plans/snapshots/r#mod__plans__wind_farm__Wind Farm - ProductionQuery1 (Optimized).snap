@@ -50,38 +50,38 @@ Projection: ENC_PT(lhs.site_label) AS site_label, ENC_PT(lhs.wtur_label) AS wtur
                                                                                           Projection: lhs.site AS site, rhs.site_label AS site_label
                                                                                             Inner Join: lhs.site = rhs.site
                                                                                               SubqueryAlias: lhs
-                                                                                                QuadPattern (?site <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#Site>), active_graph: Union of [DefaultGraph] 
+                                                                                                QuadPattern (?site <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#Site>)
                                                                                               SubqueryAlias: rhs
                                                                                                 Filter: EBV(EQ(ENC_TV(site_label), Union 3:{value:Wind Mountain,language:}))
-                                                                                                  QuadPattern (?site <http://www.w3.org/2000/01/rdf-schema#label> ?site_label), active_graph: Union of [DefaultGraph] 
+                                                                                                  QuadPattern (?site <http://www.w3.org/2000/01/rdf-schema#label> ?site_label)
                                                                                         SubqueryAlias: rhs
-                                                                                          QuadPattern (?site <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?wtur_asp), active_graph: Union of [DefaultGraph] 
+                                                                                          QuadPattern (?site <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?wtur_asp)
                                                                                   SubqueryAlias: rhs
                                                                                     Filter: EBV(EQ(ENC_TV(wtur_label), Union 3:{value:A1,language:}))
-                                                                                      QuadPattern (?wtur_asp <http://www.w3.org/2000/01/rdf-schema#label> ?wtur_label), active_graph: Union of [DefaultGraph] 
+                                                                                      QuadPattern (?wtur_asp <http://www.w3.org/2000/01/rdf-schema#label> ?wtur_label)
                                                                             SubqueryAlias: rhs
-                                                                              QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?wtur_asp), active_graph: Union of [DefaultGraph] 
+                                                                              QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?wtur_asp)
                                                                       SubqueryAlias: rhs
-                                                                        QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?gensys_asp), active_graph: Union of [DefaultGraph] 
+                                                                        QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?gensys_asp)
                                                                 SubqueryAlias: rhs
-                                                                  QuadPattern (?wtur <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#A>), active_graph: Union of [DefaultGraph] 
+                                                                  QuadPattern (?wtur <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#A>)
                                                           SubqueryAlias: rhs
-                                                            QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?gensys_asp), active_graph: Union of [DefaultGraph] 
+                                                            QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?gensys_asp)
                                                     SubqueryAlias: rhs
-                                                      QuadPattern (?gensys <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#RA>), active_graph: Union of [DefaultGraph] 
+                                                      QuadPattern (?gensys <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#RA>)
                                               SubqueryAlias: rhs
-                                                QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?generator_asp), active_graph: Union of [DefaultGraph] 
+                                                QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?generator_asp)
                                         SubqueryAlias: rhs
-                                          QuadPattern (?generator <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?generator_asp), active_graph: Union of [DefaultGraph] 
+                                          QuadPattern (?generator <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?generator_asp)
                                   SubqueryAlias: rhs
-                                    QuadPattern (?generator <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#GAA>), active_graph: Union of [DefaultGraph] 
+                                    QuadPattern (?generator <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#GAA>)
                             SubqueryAlias: rhs
-                              QuadPattern (?generator <https://github.com/magbak/chrontext#hasTimeseries> ?ts), active_graph: Union of [DefaultGraph] 
+                              QuadPattern (?generator <https://github.com/magbak/chrontext#hasTimeseries> ?ts)
                       SubqueryAlias: rhs
-                        QuadPattern (?ts <http://www.w3.org/2000/01/rdf-schema#label> "Production"), active_graph: Union of [DefaultGraph] 
+                        QuadPattern (?ts <http://www.w3.org/2000/01/rdf-schema#label> "Production")
                 SubqueryAlias: rhs
-                  QuadPattern (?ts <https://github.com/magbak/chrontext#hasDataPoint> ?dp), active_graph: Union of [DefaultGraph] 
+                  QuadPattern (?ts <https://github.com/magbak/chrontext#hasDataPoint> ?dp)
           SubqueryAlias: rhs
-            QuadPattern (?dp <https://github.com/magbak/chrontext#hasValue> ?val), active_graph: Union of [DefaultGraph] 
+            QuadPattern (?dp <https://github.com/magbak/chrontext#hasValue> ?val)
     SubqueryAlias: rhs
-      QuadPattern (?dp <https://github.com/magbak/chrontext#hasTimestamp> ?t), active_graph: Union of [DefaultGraph]
+      QuadPattern (?dp <https://github.com/magbak/chrontext#hasTimestamp> ?t)

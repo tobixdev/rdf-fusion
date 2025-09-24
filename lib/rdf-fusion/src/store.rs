@@ -5,8 +5,8 @@
 //! Usage example:
 //! ```
 //! use rdf_fusion::model::*;
-//! use rdf_fusion::sparql::QueryResults;
 //! use rdf_fusion::store::Store;
+//! use rdf_fusion::execution::results::QueryResults;
 //! use futures::StreamExt;
 //!
 //! # tokio_test::block_on(async {
@@ -31,17 +31,17 @@
 //! ```
 
 use crate::error::{LoaderError, SerializerError};
-use crate::sparql::error::QueryEvaluationError;
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
 use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
-use rdf_fusion_common::error::StorageError;
 use rdf_fusion_execution::RdfFusionContext;
-use rdf_fusion_execution::results::{QuadStream, QuerySolutionStream};
+use rdf_fusion_execution::results::{QuadStream, QueryResults, QuerySolutionStream};
+use rdf_fusion_execution::sparql::error::QueryEvaluationError;
 use rdf_fusion_execution::sparql::{
-    Query, QueryExplanation, QueryOptions, QueryResults, Update, UpdateOptions,
+    Query, QueryExplanation, QueryOptions, Update, UpdateOptions,
 };
+use rdf_fusion_model::StorageError;
 use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
     SubjectRef, TermRef, Variable,
@@ -66,7 +66,7 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// Usage example:
 /// ```
 /// use rdf_fusion::model::*;
-/// use rdf_fusion::sparql::QueryResults;
+/// use rdf_fusion::execution::results::QueryResults;
 /// use rdf_fusion::store::Store;
 /// use futures::StreamExt;
 ///
@@ -92,7 +92,7 @@ static QUAD_VARIABLES: LazyLock<Arc<[Variable]>> = LazyLock::new(|| {
 /// ```
 #[derive(Clone)]
 pub struct Store {
-    engine: RdfFusionContext,
+    context: RdfFusionContext,
 }
 
 impl Default for Store {
@@ -107,19 +107,14 @@ impl Default for Store {
             RuntimeEnvBuilder::default().build_arc().unwrap(),
             Arc::new(storage),
         );
-        Self { engine }
+        Self { context: engine }
     }
 }
 
 impl Store {
-    /// Creates a [Store] with a [MemQuadStorage] as backing storage.
-    ///
-    /// Equivalent to calling [Self::new_with_datafusion_config] with the default settings.
-    pub fn new() -> Store {
-        Self::new_with_datafusion_config(
-            SessionConfig::new(),
-            Arc::new(RuntimeEnv::default()),
-        )
+    /// Creates a [Store] with the given [RdfFusionContext].
+    pub fn new(context: RdfFusionContext) -> Store {
+        Self { context }
     }
 
     /// Creates a [Store] with a [MemQuadStorage] as backing storage using the given `config` and
@@ -130,8 +125,13 @@ impl Store {
     ) -> Store {
         let storage =
             MemQuadStorage::new(Arc::new(MemObjectIdMapping::new()), config.batch_size());
-        let engine = RdfFusionContext::new(config, runtime_env, Arc::new(storage));
-        Self { engine }
+        let context = RdfFusionContext::new(config, runtime_env, Arc::new(storage));
+        Self { context }
+    }
+
+    /// Returns a reference to the underlying [RdfFusionContext].
+    pub fn context(&self) -> &RdfFusionContext {
+        &self.context
     }
 
     /// Executes a [SPARQL](https://www.w3.org/TR/sparql11-query/) query.
@@ -139,7 +139,7 @@ impl Store {
     /// Usage example:
     /// ```
     /// use rdf_fusion::model::*;
-    /// use rdf_fusion::sparql::QueryResults;
+    /// use rdf_fusion::execution::results::QueryResults;
     /// use rdf_fusion::store::Store;
     /// use futures::StreamExt;
     ///
@@ -172,7 +172,8 @@ impl Store {
     /// Usage example with a custom function serializing terms to N-Triples:
     /// ```
     /// use rdf_fusion::model::*;
-    /// use rdf_fusion::sparql::{QueryOptions, QueryResults};
+    /// use rdf_fusion::execution::results::QueryResults;
+    /// use rdf_fusion::execution::sparql::QueryOptions;
     /// use rdf_fusion::store::Store;
     /// use futures::StreamExt;
     ///
@@ -205,8 +206,9 @@ impl Store {
     ///
     /// Usage example serialising the explanation with statistics in JSON:
     /// ```
-    /// use rdf_fusion::sparql::{QueryOptions, QueryResults};
     /// use rdf_fusion::store::Store;
+    /// use rdf_fusion::execution::sparql::QueryOptions;
+    /// use rdf_fusion::execution::results::QueryResults;
     /// use futures::StreamExt;
     ///
     /// # tokio_test::block_on(async {
@@ -231,7 +233,7 @@ impl Store {
     ) -> Result<(QueryResults, QueryExplanation), QueryEvaluationError> {
         let query = query.try_into();
         match query {
-            Ok(query) => self.engine.execute_query(&query, options).await,
+            Ok(query) => self.context.execute_query(&query, options).await,
             Err(err) => Err(err.into()),
         }
     }
@@ -267,7 +269,7 @@ impl Store {
         graph_name: Option<GraphNameRef<'_>>,
     ) -> Result<QuadStream, QueryEvaluationError> {
         let record_batch_stream = self
-            .engine
+            .context
             .quads_for_pattern(graph_name, subject, predicate, object)
             .await?;
         let solution_stream =
@@ -324,7 +326,7 @@ impl Store {
         quad: impl Into<QuadRef<'a>>,
     ) -> Result<bool, QueryEvaluationError> {
         let quad = quad.into();
-        self.engine
+        self.context
             .contains(&quad)
             .await
             .map_err(QueryEvaluationError::from)
@@ -349,7 +351,7 @@ impl Store {
     /// # }).unwrap();
     /// ```
     pub async fn len(&self) -> Result<usize, QueryEvaluationError> {
-        self.engine.len().await.map_err(QueryEvaluationError::from)
+        self.context.len().await.map_err(QueryEvaluationError::from)
     }
 
     /// Returns if the store is empty.
@@ -437,9 +439,8 @@ impl Store {
     /// Usage example:
     /// ```
     /// use rdf_fusion::store::Store;
-    /// use rdf_fusion::io::RdfFormat;
     /// use rdf_fusion::model::*;
-    /// use oxrdfio::RdfParser;
+    /// use rdf_fusion::io::{RdfParser, RdfFormat};
     ///
     /// # tokio_test::block_on(async {
     /// let store = Store::default();
@@ -475,9 +476,9 @@ impl Store {
             .rename_blank_nodes()
             .for_reader(reader)
             .collect::<Result<Vec<_>, _>>()?;
-        self.engine
+        self.context
             .storage()
-            .insert(quads)
+            .extend(quads)
             .await
             .map(|_| ())
             .map_err(LoaderError::from)
@@ -509,9 +510,9 @@ impl Store {
         quad: impl Into<QuadRef<'a>>,
     ) -> Result<bool, StorageError> {
         let quad = vec![quad.into().into_owned()];
-        self.engine
+        self.context
             .storage()
-            .insert(quad)
+            .extend(quad)
             .await
             .map(|inserted| inserted > 0)
     }
@@ -522,7 +523,7 @@ impl Store {
         quads: impl IntoIterator<Item = impl Into<Quad>>,
     ) -> Result<(), StorageError> {
         let quads = quads.into_iter().map(Into::into).collect::<Vec<_>>();
-        self.engine.storage().insert(quads).await?;
+        self.context.storage().extend(quads).await?;
         Ok(())
     }
 
@@ -552,14 +553,14 @@ impl Store {
         &self,
         quad: impl Into<QuadRef<'a>>,
     ) -> Result<bool, StorageError> {
-        self.engine.storage().remove(quad.into()).await
+        self.context.storage().remove(quad.into()).await
     }
 
     /// Dumps the store into a file.
     ///
     /// ```
-    /// use rdf_fusion::io::RdfFormat;
     /// use rdf_fusion::store::Store;
+    /// use rdf_fusion::io::RdfFormat;
     ///
     /// let file =
     ///     "<http://example.com> <http://example.com> <http://example.com> <http://example.com> .\n"
@@ -595,8 +596,7 @@ impl Store {
     ///
     /// Usage example:
     /// ```
-    /// use oxrdfio::RdfParser;
-    /// use rdf_fusion::io::RdfFormat;
+    /// use rdf_fusion::io::{RdfParser, RdfFormat};
     /// use rdf_fusion::model::*;
     /// use rdf_fusion::store::Store;
     ///
@@ -649,7 +649,7 @@ impl Store {
     /// # }).unwrap();
     /// ```
     pub async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        self.engine.storage().named_graphs().await
+        self.context.storage().named_graphs().await
     }
 
     /// Checks if the store contains a given graph
@@ -671,7 +671,7 @@ impl Store {
         &self,
         graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
     ) -> Result<bool, QueryEvaluationError> {
-        self.engine
+        self.context
             .storage()
             .contains_named_graph(graph_name.into())
             .await
@@ -703,7 +703,7 @@ impl Store {
         &self,
         graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
     ) -> Result<bool, StorageError> {
-        self.engine
+        self.context
             .storage()
             .insert_named_graph(graph_name.into())
             .await
@@ -733,7 +733,7 @@ impl Store {
         &self,
         graph_name: impl Into<GraphNameRef<'a>>,
     ) -> Result<(), StorageError> {
-        self.engine.storage().clear_graph(graph_name.into()).await
+        self.context.storage().clear_graph(graph_name.into()).await
     }
 
     /// Removes a graph from this store.
@@ -762,7 +762,7 @@ impl Store {
         &self,
         graph_name: impl Into<NamedOrBlankNodeRef<'a>>,
     ) -> Result<bool, StorageError> {
-        self.engine
+        self.context
             .storage()
             .drop_named_graph(graph_name.into())
             .await
@@ -788,19 +788,19 @@ impl Store {
     /// # }).unwrap();
     /// ```
     pub async fn clear(&self) -> Result<(), StorageError> {
-        self.engine.storage().clear().await
+        self.context.storage().clear().await
     }
 
     /// Optimizes the database for future workload.
     ///
     /// Useful to call after a batch upload or another similar operation. Usually
     pub async fn optimize(&self) -> Result<(), StorageError> {
-        self.engine.storage().optimize().await
+        self.context.storage().optimize().await
     }
 
     /// Validates that all the store invariants hold in the data storage
     pub async fn validate(&self) -> Result<(), StorageError> {
-        self.engine.storage().validate().await
+        self.context.storage().validate().await
     }
 }
 

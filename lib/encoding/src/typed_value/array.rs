@@ -13,6 +13,7 @@ use datafusion::arrow::datatypes::{
 use datafusion::common::{DataFusionError, exec_err};
 
 /// Represents an Arrow array with a [TypedValueEncoding].
+#[derive(Clone)]
 pub struct TypedValueArray {
     inner: ArrayRef,
 }

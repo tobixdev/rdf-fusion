@@ -3,7 +3,7 @@ use crate::error::RdfFusionServerError;
 use axum::RequestPartsExt;
 use axum::extract::{FromRequestParts, Query};
 use axum::http::request::Parts;
-use rdf_fusion::QueryOptions;
+use rdf_fusion::execution::sparql::QueryOptions;
 use serde::Deserialize;
 
 #[derive(Deserialize)]

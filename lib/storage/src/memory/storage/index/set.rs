@@ -7,8 +7,8 @@ use crate::memory::storage::index::{
 };
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
-use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_model::StorageError;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::OwnedRwLockReadGuard;
@@ -189,7 +189,7 @@ impl Iterator for MemQuadIndexSetScanIterator {
         let reordered = reorder_result(&self.schema, next.columns);
         Some(
             RecordBatch::try_new_with_options(
-                self.schema.clone(),
+                Arc::clone(&self.schema),
                 reordered,
                 &RecordBatchOptions::new().with_row_count(Some(next.num_rows)),
             )
@@ -258,10 +258,11 @@ fn reorder_result(
         .fields()
         .iter()
         .map(|field| {
-            columns
-                .get(field.name())
-                .expect("Column must exist for scan")
-                .clone()
+            Arc::clone(
+                columns
+                    .get(field.name())
+                    .expect("Column must exist for scan"),
+            )
         })
         .collect()
 }

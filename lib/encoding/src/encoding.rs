@@ -3,7 +3,7 @@ use datafusion::arrow::array::{Array, ArrayRef};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{ScalarValue, exec_err};
 use datafusion::logical_expr::ColumnarValue;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::ThinResult;
 use std::fmt::Debug;
 
@@ -11,7 +11,7 @@ use std::fmt::Debug;
 ///
 /// The constructors of types that implement [EncodingArray] are meant to ensure that the
 /// [ArrayRef] upholds all invariants of the encoding.
-pub trait EncodingArray {
+pub trait EncodingArray: Clone {
     /// The encoding used by this array.
     type Encoding: TermEncoding;
 
@@ -78,10 +78,10 @@ pub trait EncodingScalar {
 pub trait TermEncoding: Debug + Send + Sync {
     /// Represents a wrapper for Arrow arrays of this encoding. This can be used in
     /// conjunction with [TermDecoder] to obtain the values from an Arrow array.
-    type Array: EncodingArray;
+    type Array: EncodingArray<Encoding = Self>;
     /// Represents a wrapper for Arrow scalars of this encoding. This can be used in
     /// conjunction with [TermDecoder] to obtain the values from an Arrow scalar.
-    type Scalar: EncodingScalar;
+    type Scalar: EncodingScalar<Encoding = Self>;
 
     /// Returns the name of the encoding.
     fn name(&self) -> EncodingName;
@@ -233,6 +233,16 @@ impl<TEncoding: TermEncoding + ?Sized> EncodingDatum<TEncoding> {
             ),
             EncodingDatum::Scalar(scalar, n) => {
                 Box::new((0..*n).map(|_| TDecoder::decode_term(scalar)))
+            }
+        }
+    }
+
+    /// Creates an array for this datum.
+    pub fn to_array(&self) -> TEncoding::Array {
+        match self {
+            EncodingDatum::Array(array) => array.clone(),
+            EncodingDatum::Scalar(scalar, number_rows) => {
+                scalar.to_array(*number_rows).unwrap()
             }
         }
     }

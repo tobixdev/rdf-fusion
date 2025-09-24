@@ -12,7 +12,7 @@ use datafusion::physical_plan::metrics::{
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::fmt::Formatter;
 use std::sync::Arc;

@@ -1,36 +1,166 @@
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
+use datafusion::common::plan_err;
+use datafusion::logical_expr::expr::AggregateFunction;
+use datafusion::logical_expr::function::{
+    AccumulatorArgs, AggregateFunctionSimplification,
+};
+use datafusion::logical_expr::{
+    AggregateUDF, AggregateUDFImpl, Expr, Signature, Volatility,
+};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::typed_value::decoders::StringLiteralRefTermValueDecoder;
+use rdf_fusion_encoding::typed_value::decoders::{
+    DefaultTypedValueDecoder, StringLiteralRefTermValueDecoder,
+};
 use rdf_fusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
 use rdf_fusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
-use rdf_fusion_model::{StringLiteralRef, ThinError};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
+use rdf_fusion_model::{StringLiteralRef, ThinError, TypedValueRef};
+use std::any::Any;
 use std::sync::Arc;
 
-pub fn group_concat_typed_value(separator: Option<String>) -> Arc<AggregateUDF> {
-    let separator = separator.unwrap_or_else(|| " ".to_owned());
-    let udaf = create_udaf(
-        "group_concat",
-        vec![TYPED_VALUE_ENCODING.data_type()],
-        Arc::new(TYPED_VALUE_ENCODING.data_type()),
-        Volatility::Immutable,
-        Arc::new(move |_| Ok(Box::new(SparqlGroupConcat::new(separator.clone())))),
-        Arc::new(vec![
-            DataType::Boolean,
-            DataType::Utf8,
-            DataType::Boolean,
-            DataType::Utf8,
-        ]),
-    );
-    Arc::new(udaf)
+pub fn group_concat_typed_value() -> AggregateUDF {
+    AggregateUDF::new_from_impl(SparqlGroupConcat::new())
+}
+
+/// Concatenates the strings in a set with a given separator.
+///
+/// Relevant Resources:
+/// - [SPARQL 1.1 - GROUP CONCAT](https://www.w3.org/TR/sparql11-query/#defn_aggGroupConcat)
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct SparqlGroupConcat {
+    name: String,
+    signature: Signature,
+}
+
+impl SparqlGroupConcat {
+    /// Creates a new [SparqlGroupConcat] aggregate UDF.
+    pub fn new() -> Self {
+        let name = BuiltinName::GroupConcat.to_string();
+        let signature = Signature::uniform(
+            2,
+            vec![TYPED_VALUE_ENCODING.data_type()],
+            Volatility::Stable,
+        );
+        SparqlGroupConcat { name, signature }
+    }
+}
+
+impl Default for SparqlGroupConcat {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AggregateUDFImpl for SparqlGroupConcat {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+        Ok(TYPED_VALUE_ENCODING.data_type())
+    }
+
+    fn accumulator(&self, _acc_args: AccumulatorArgs) -> Result<Box<dyn Accumulator>> {
+        unreachable!("GROUP_CONCAT should have been simplified by the optimizer")
+    }
+
+    fn simplify(&self) -> Option<AggregateFunctionSimplification> {
+        Some(Box::new(|function, _info| {
+            debug_assert!(
+                function.params.args.len() == 2,
+                "Separator should be the second argument"
+            );
+
+            let separator_expr = &function.params.args[1];
+            let separator = match separator_expr {
+                Expr::Literal(value, _) => {
+                    let scalar = TYPED_VALUE_ENCODING.try_new_scalar(value.clone())?;
+                    let term = DefaultTypedValueDecoder::decode_term(&scalar);
+                    match term {
+                        Ok(TypedValueRef::SimpleLiteral(literal)) => {
+                            literal.value.to_owned()
+                        }
+                        Err(_) => " ".to_owned(),
+                        _ => return plan_err!("Separator should be a simple literal"),
+                    }
+                }
+                _ => return plan_err!("Separator should be a literal"),
+            };
+
+            Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
+                AggregateUDF::new_from_impl(SparqlGroupConcatWithSeparator::new(
+                    separator,
+                ))
+                .into(),
+                vec![function.params.args[0].clone()],
+                function.params.distinct,
+                function.params.filter.clone(),
+                function.params.order_by.clone(),
+                function.params.null_treatment,
+            )))
+        }))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct SparqlGroupConcatWithSeparator {
+    name: String,
+    signature: Signature,
+    separator: String,
+}
+
+impl SparqlGroupConcatWithSeparator {
+    /// Creates a new [SparqlGroupConcatWithSeparator] aggregate UDF.
+    pub fn new(separator: String) -> Self {
+        let name = BuiltinName::GroupConcat.to_string();
+        let signature =
+            Signature::exact(vec![TYPED_VALUE_ENCODING.data_type()], Volatility::Stable);
+        SparqlGroupConcatWithSeparator {
+            name,
+            signature,
+            separator,
+        }
+    }
+}
+
+impl AggregateUDFImpl for SparqlGroupConcatWithSeparator {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn signature(&self) -> &Signature {
+        &self.signature
+    }
+
+    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
+        Ok(TYPED_VALUE_ENCODING.data_type())
+    }
+
+    fn accumulator(&self, _acc_args: AccumulatorArgs) -> Result<Box<dyn Accumulator>> {
+        Ok(Box::new(SparqlGroupConcatAccumulator::new(
+            self.separator.clone(),
+        )))
+    }
 }
 
 #[derive(Debug)]
-struct SparqlGroupConcat {
+struct SparqlGroupConcatAccumulator {
     separator: String,
     error: bool,
     value: Option<String>,
@@ -38,9 +168,9 @@ struct SparqlGroupConcat {
     language: Option<String>,
 }
 
-impl SparqlGroupConcat {
+impl SparqlGroupConcatAccumulator {
     pub fn new(separator: String) -> Self {
-        SparqlGroupConcat {
+        SparqlGroupConcatAccumulator {
             separator,
             error: false,
             value: None,
@@ -50,7 +180,7 @@ impl SparqlGroupConcat {
     }
 }
 
-impl Accumulator for SparqlGroupConcat {
+impl Accumulator for SparqlGroupConcatAccumulator {
     fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
         if self.error || values.is_empty() {
             return Ok(());

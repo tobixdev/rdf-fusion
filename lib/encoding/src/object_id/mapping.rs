@@ -4,7 +4,7 @@ use crate::typed_value::{TypedValueArray, TypedValueScalar};
 use crate::{EncodingArray, EncodingScalar};
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
-use rdf_fusion_common::error::{CorruptionError, StorageError};
+use rdf_fusion_model::{CorruptionError, StorageError};
 use std::fmt::Debug;
 use thiserror::Error;
 

@@ -7,7 +7,6 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-rdf-fusion-common.workspace = true
 rdf-fusion-model.workspace = true
 datafusion.workspace = true
 thiserror.workspace = true

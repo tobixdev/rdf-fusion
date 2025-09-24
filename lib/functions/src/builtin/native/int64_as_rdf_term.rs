@@ -6,26 +6,28 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 
-pub fn native_int64_as_term() -> Arc<ScalarUDF> {
+pub fn native_int64_as_term() -> ScalarUDF {
     let udf_impl = NativeInt64AsTerm::new();
-    Arc::new(ScalarUDF::new_from_impl(udf_impl))
+    ScalarUDF::new_from_impl(udf_impl)
 }
 
 #[derive(Debug, Eq)]
 pub struct NativeInt64AsTerm {
+    name: String,
     signature: Signature,
 }
 
 impl NativeInt64AsTerm {
     pub fn new() -> Self {
         Self {
+            name: BuiltinName::NativeInt64AsTerm.to_string(),
             signature: Signature::new(
                 TypeSignature::Exact(vec![DataType::Int64]),
                 Volatility::Immutable,
@@ -46,7 +48,7 @@ impl ScalarUDFImpl for NativeInt64AsTerm {
     }
 
     fn name(&self) -> &str {
-        "enc_int64_as_rdf_term"
+        &self.name
     }
 
     fn signature(&self) -> &Signature {

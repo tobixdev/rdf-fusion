@@ -1,12 +1,12 @@
 use anyhow::Context;
 use datafusion::arrow::array::RecordBatch;
 use futures::StreamExt;
-use rdf_fusion::model::{TermRef, ThinResult};
-use rdf_fusion::results::{
-    QueryResultsFormat, QueryResultsSerializer, WriterSolutionsSerializer,
+use rdf_fusion::execution::results::{
+    QueryResultsFormat, QueryResultsSerializer, QuerySolutionStream,
+    WriterSolutionsSerializer,
 };
-use rdf_fusion::sparql::error::QueryEvaluationError;
-use rdf_fusion::{QuerySolutionStream, Variable};
+use rdf_fusion::execution::sparql::error::QueryEvaluationError;
+use rdf_fusion::model::{TermRef, ThinResult, Variable};
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArray};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};

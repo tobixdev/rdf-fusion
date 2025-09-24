@@ -2,7 +2,7 @@ use crate::encoding::TermDecoder;
 use crate::object_id::ObjectIdEncoding;
 use crate::{EncodingScalar, TermEncoding};
 use datafusion::common::ScalarValue;
-use rdf_fusion_common::ObjectId;
+use rdf_fusion_model::ObjectId;
 use rdf_fusion_model::{ThinError, ThinResult};
 
 #[derive(Debug)]

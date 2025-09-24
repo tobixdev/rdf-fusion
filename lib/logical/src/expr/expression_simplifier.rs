@@ -5,8 +5,8 @@ use datafusion::logical_expr::utils::merge_schema;
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan};
 use datafusion::optimizer::utils::NamePreserver;
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
 use std::sync::Arc;
 
 /// An optimizer rule that tries to optimize SPARQL expressions.
@@ -166,14 +166,14 @@ mod tests {
     use datafusion::logical_expr::{EmptyRelation, LogicalPlan, LogicalPlanBuilder, col};
     use datafusion::optimizer::OptimizerContext;
     use insta::assert_snapshot;
-    use rdf_fusion_api::RdfFusionContextView;
-    use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionArgs};
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
     use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
     use rdf_fusion_encoding::{
         EncodingName, QuadStorageEncoding, RdfFusionEncodings, TermEncoding,
     };
+    use rdf_fusion_extensions::RdfFusionContextView;
+    use rdf_fusion_extensions::functions::FunctionName;
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 
     #[test]
@@ -239,10 +239,7 @@ mod tests {
         let expr = Expr::ScalarFunction(ScalarFunction {
             func: registry
                 .functions()
-                .create_udf(
-                    FunctionName::Builtin(builtin),
-                    RdfFusionFunctionArgs::empty(),
-                )
+                .udf(&FunctionName::Builtin(builtin))
                 .unwrap(),
             args,
         });

@@ -6,13 +6,14 @@ use crate::plain_term::encoders::DefaultPlainTermEncoder;
 use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use crate::{TermDecoder, TermEncoder};
 use datafusion::common::{DataFusionError, ScalarValue, exec_err};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
     BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef,
     SubjectRef, Term, TermRef, ThinError, ThinResult,
 };
 
 /// Represents an Arrow scalar with a [PlainTermEncoding].
+#[derive(Clone)]
 pub struct PlainTermScalar {
     inner: ScalarValue,
 }

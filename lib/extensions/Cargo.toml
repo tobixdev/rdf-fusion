@@ -1,13 +1,17 @@
 [package]
-name = "rdf-fusion-common"
+name = "rdf-fusion-extensions"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
+async-trait.workspace = true
 datafusion.workspace = true
+rdf-fusion-encoding.workspace = true
+rdf-fusion-model.workspace = true
 thiserror.workspace = true
 
 [lints]

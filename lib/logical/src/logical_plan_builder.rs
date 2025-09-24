@@ -9,8 +9,8 @@ use datafusion::logical_expr::{
     Expr, ExprSchemable, Extension, LogicalPlan, LogicalPlanBuilder, Sort, SortExpr,
     UserDefinedLogicalNode, col,
 };
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::EncodingName;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::Variable;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -22,7 +22,7 @@ use std::sync::Arc;
 /// ```
 /// # use std::sync::Arc;
 /// # use datafusion::logical_expr::LogicalPlan;
-/// # use rdf_fusion_api::RdfFusionContextView;
+/// # use rdf_fusion_extensions::RdfFusionContextView;
 /// # use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 /// # use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
 /// # use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
@@ -60,6 +60,8 @@ use std::sync::Arc;
 ///     .unwrap()
 ///     .build()
 ///     .unwrap();
+///
+/// # drop(plan)
 /// ```
 #[derive(Debug, Clone)]
 pub struct RdfFusionLogicalPlanBuilder {

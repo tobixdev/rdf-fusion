@@ -11,7 +11,7 @@ use crate::utils::verbose::{is_verbose, print_query_details};
 use crate::utils::{consume_results, create_runtime};
 use anyhow::Context;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
-use rdf_fusion::QueryOptions;
+use rdf_fusion::execution::sparql::QueryOptions;
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
     BsbmBenchmark, BsbmExploreQueryName, ExploreUseCase, NumProducts,
