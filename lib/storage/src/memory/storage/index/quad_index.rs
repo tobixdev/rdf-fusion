@@ -6,7 +6,24 @@ use crate::memory::storage::index::{
 };
 use std::collections::BTreeSet;
 
-/// TODO
+/// Represents a single permutation of a quad index held in-memory. The index is sorted from left
+/// to right.
+///
+/// Given the [IndexConfiguration] GPOS, the index could look like this:
+/// ```text
+/// ?graph   ?predicate  ?object  ?subject
+/// ┌─────┐    ┌─────┐   ┌─────┐   ┌─────┐
+/// │   0 │    │   1 │   │   4 │   │   4 │
+/// ├─────┤    ├─────┤   ├─────┤   ├─────┤
+/// │   0 │    │   1 │   │   7 │   │   7 │
+/// ├─────┤    ├─────┤   ├─────┤   ├─────┤
+/// │   0 │    │   2 │   │   1 │   │   1 │
+/// ├─────┤    ├─────┤   ├─────┤   ├─────┤
+/// │ ... │    │ ... │   │ ... │   │ ... │
+/// └─────┘    └─────┘   └─────┘   └─────┘
+/// ```
+///
+/// The physical representation of the index in detaield in [IndexData].
 #[derive(Debug)]
 pub struct MemQuadIndex {
     /// The index content.
@@ -71,20 +88,20 @@ impl MemQuadIndex {
         self.data.remove(&to_insert)
     }
 
-    /// TODO
+    /// Clears the entire index
     pub fn clear(&mut self) {
         self.data =
             IndexData::new(self.configuration.batch_size, self.data.nullable_position());
     }
 
-    /// TODO
+    /// Clears the given `graph_name`.
     pub fn clear_graph(&mut self, graph_name: EncodedGraphObjectId) {
         let index = self.data.nullable_position();
         self.data
             .clear_all_with_value_in_column(graph_name.0, index);
     }
 
-    /// TODO
+    /// Creates a new iterator give the given scan `instructions`.
     pub fn scan_quads(
         &self,
         instructions: IndexScanInstructions,

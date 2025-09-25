@@ -2,10 +2,10 @@ use crate::scalar::dispatch::{
     dispatch_n_ary_object_id, dispatch_n_ary_plain_term, dispatch_n_ary_typed_value,
 };
 use crate::scalar::sparql_op_impl::{
-    SparqlOpImpl, create_object_id_sparql_op_impl, create_plain_term_sparql_op_impl,
-    create_typed_value_sparql_op_impl,
+    ScalarSparqlOpImpl, create_object_id_sparql_op_impl,
+    create_plain_term_sparql_op_impl, create_typed_value_sparql_op_impl,
 };
-use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
@@ -35,13 +35,13 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
         &Self::NAME
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Variadic)
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Variadic)
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(|args| {
             dispatch_n_ary_typed_value(
                 args.args.as_slice(),
@@ -56,7 +56,9 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
         }))
     }
 
-    fn plain_term_encoding_op(&self) -> Option<Box<dyn SparqlOpImpl<PlainTermEncoding>>> {
+    fn plain_term_encoding_op(
+        &self,
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         Some(create_plain_term_sparql_op_impl(|args| {
             dispatch_n_ary_plain_term(
                 args.args.as_slice(),
@@ -74,7 +76,7 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
     fn object_id_encoding_op(
         &self,
         object_id_encoding: &ObjectIdEncoding,
-    ) -> Option<Box<dyn SparqlOpImpl<ObjectIdEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>>> {
         let object_id_encoding = object_id_encoding.clone();
         Some(create_object_id_sparql_op_impl(
             &object_id_encoding.clone(),

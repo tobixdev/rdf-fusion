@@ -1,8 +1,9 @@
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
 use crate::scalar::sparql_op_impl::{
-    SparqlOpImpl, create_plain_term_sparql_op_impl, create_typed_value_sparql_op_impl,
+    ScalarSparqlOpImpl, create_plain_term_sparql_op_impl,
+    create_typed_value_sparql_op_impl,
 };
-use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use datafusion::arrow::array::{Array, StringArray, UInt8Array};
 use datafusion::logical_expr::ColumnarValue;
 use itertools::repeat_n;
@@ -41,13 +42,13 @@ impl ScalarSparqlOp for StrSparqlOp {
         &Self::NAME
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Fixed(1))
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Fixed(1))
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(|args| {
             dispatch_unary_owned_typed_value(
                 &args.args[0],
@@ -80,7 +81,9 @@ impl ScalarSparqlOp for StrSparqlOp {
         }))
     }
 
-    fn plain_term_encoding_op(&self) -> Option<Box<dyn SparqlOpImpl<PlainTermEncoding>>> {
+    fn plain_term_encoding_op(
+        &self,
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         Some(create_plain_term_sparql_op_impl(|args| {
             match &args.args[0] {
                 EncodingDatum::Array(array) => Ok(ColumnarValue::Array(

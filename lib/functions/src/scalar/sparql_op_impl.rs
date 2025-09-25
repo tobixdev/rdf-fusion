@@ -7,11 +7,11 @@ use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
 use rdf_fusion_model::DFResult;
 
-pub trait SparqlOpImpl<TEncoding: TermEncoding> {
-    /// TODO
+pub trait ScalarSparqlOpImpl<TEncoding: TermEncoding> {
+    /// Returns the return type of this operation.
     fn return_type(&self) -> DataType;
 
-    /// TODO
+    /// Invokes the operation on the given `args`.
     fn invoke(&self, args: ScalarSparqlOpArgs<TEncoding>) -> DFResult<ColumnarValue>;
 }
 
@@ -33,7 +33,9 @@ impl<TEncoding: TermEncoding> ClosureSparqlOpImpl<TEncoding> {
     }
 }
 
-impl<TEncoding: TermEncoding> SparqlOpImpl<TEncoding> for ClosureSparqlOpImpl<TEncoding> {
+impl<TEncoding: TermEncoding> ScalarSparqlOpImpl<TEncoding>
+    for ClosureSparqlOpImpl<TEncoding>
+{
     fn return_type(&self) -> DataType {
         self.return_type.clone()
     }
@@ -46,7 +48,7 @@ impl<TEncoding: TermEncoding> SparqlOpImpl<TEncoding> for ClosureSparqlOpImpl<TE
 pub fn create_plain_term_sparql_op_impl(
     closure: impl Fn(ScalarSparqlOpArgs<PlainTermEncoding>) -> DFResult<ColumnarValue>
     + 'static,
-) -> Box<dyn SparqlOpImpl<PlainTermEncoding>> {
+) -> Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>> {
     Box::new(ClosureSparqlOpImpl {
         return_type: PlainTermEncoding::data_type(),
         closure: Box::new(closure),
@@ -56,7 +58,7 @@ pub fn create_plain_term_sparql_op_impl(
 pub fn create_typed_value_sparql_op_impl(
     closure: impl Fn(ScalarSparqlOpArgs<TypedValueEncoding>) -> DFResult<ColumnarValue>
     + 'static,
-) -> Box<dyn SparqlOpImpl<TypedValueEncoding>> {
+) -> Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>> {
     Box::new(ClosureSparqlOpImpl {
         return_type: TYPED_VALUE_ENCODING.data_type(),
         closure: Box::new(closure),
@@ -67,7 +69,7 @@ pub fn create_object_id_sparql_op_impl(
     object_id_encoding: &ObjectIdEncoding,
     closure: impl Fn(ScalarSparqlOpArgs<ObjectIdEncoding>) -> DFResult<ColumnarValue>
     + 'static,
-) -> Box<dyn SparqlOpImpl<ObjectIdEncoding>> {
+) -> Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>> {
     Box::new(ClosureSparqlOpImpl {
         return_type: object_id_encoding.data_type(),
         closure: Box::new(closure),

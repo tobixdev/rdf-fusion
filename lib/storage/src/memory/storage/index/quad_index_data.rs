@@ -216,7 +216,10 @@ impl IndexData {
         count
     }
 
-    /// TODO
+    /// Removes the `to_remove` set of quads from the index.
+    ///
+    /// The method assumes that the [IndexedQuads](IndexedQuad) are ordered according to the
+    /// components of the index.
     pub fn remove(&mut self, to_remove: &BTreeSet<IndexedQuad>) -> usize {
         let mut count = 0;
         let mut row_group_idx = 0;

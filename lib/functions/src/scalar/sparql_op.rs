@@ -1,5 +1,5 @@
 use crate::scalar::ScalarSparqlOpArgs;
-use crate::scalar::sparql_op_impl::SparqlOpImpl;
+use crate::scalar::sparql_op_impl::ScalarSparqlOpImpl;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
 use datafusion::logical_expr::{
@@ -17,12 +17,19 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 
-/// TODO
+/// Defines the arity of a SPARQL operation. In other words, the number of arguments that the
+/// [ScalarSparqlOp] has.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum SparqlOpArity {
+    /// No arguments.
     Nullary,
+    /// A fixed number of arguments.
+    ///
+    /// `SparqlOpArity::Fixed(0)` is equivalent to [SparqlOpArity::Nullary].
     Fixed(usize),
+    /// One of the given [SparqlOpArity].
     OneOf(Vec<SparqlOpArity>),
+    /// Any number of arguments (including zero).
     Variadic,
 }
 
@@ -52,13 +59,16 @@ impl SparqlOpArity {
     }
 }
 
-/// TODO
-pub struct ScalarSparqlOpDetails {
+/// Defines further details about a [ScalarSparqlOp].
+pub struct ScalarSparqlOpSignature {
+    /// Whether the [ScalarSparqlOp] is volatile. See [Volatility] for more information.
     pub volatility: Volatility,
+    /// The [SparqlOpArity] of the [ScalarSparqlOp].
     pub arity: SparqlOpArity,
 }
 
-impl ScalarSparqlOpDetails {
+impl ScalarSparqlOpSignature {
+    /// Returns a [ScalarSparqlOpSignature] with the given arity and [Volatility::Immutable].
     pub fn default_with_arity(arity: SparqlOpArity) -> Self {
         Self {
             volatility: Volatility::Immutable,
@@ -67,48 +77,74 @@ impl ScalarSparqlOpDetails {
     }
 }
 
-/// TODO
+/// A [ScalarSparqlOp] is a function that operates on RDF terms. The function may return a different
+/// type of value. For example, a function that takes two RDF terms and outputs an integer can be
+/// implemented using this trait.
+///
+/// The goal is to make it easier for users to implement custom SPARQL functions. The different
+/// encodings of RDF Fusion are handled by providing a [ScalarSparqlOpImpl] for any given encoding.
+///
+/// To install a [ScalarSparqlOp] in DataFusion, use the [ScalarSparqlOpAdapter]. The adapter will
+/// mediate between DataFusion's API and the given [ScalarSparqlOpImpl].
 pub trait ScalarSparqlOp: Debug + Hash + Eq + Send + Sync {
-    /// TODO
+    /// Returns the name of the operation.
     fn name(&self) -> &FunctionName;
 
-    /// TODO
-    fn details(&self) -> ScalarSparqlOpDetails;
+    /// Returns the signature of this operation.
+    fn signature(&self) -> ScalarSparqlOpSignature;
 
-    /// TODO
+    /// Returns the [ScalarSparqlOpImpl] for the [TypedValueEncoding].
+    ///
+    /// If [None] is returned, the operation does not support the [TypedValueEncoding].
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         None
     }
 
-    /// TODO
-    fn plain_term_encoding_op(&self) -> Option<Box<dyn SparqlOpImpl<PlainTermEncoding>>> {
+    /// Returns the [ScalarSparqlOpImpl] for the [PlainTermEncoding].
+    ///
+    /// If [None] is returned, the operation does not support the [PlainTermEncoding].
+    fn plain_term_encoding_op(
+        &self,
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         None
     }
 
-    /// TODO
+    /// Returns the [ScalarSparqlOpImpl] for the [ObjectIdEncoding].
+    ///
+    /// If [None] is returned, the operation does not support the [ObjectIdEncoding].
     fn object_id_encoding_op(
         &self,
         _object_id_encoding: &ObjectIdEncoding,
-    ) -> Option<Box<dyn SparqlOpImpl<ObjectIdEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>>> {
         None
     }
 }
 
+/// Mediates between DataFusion's API and a [ScalarSparqlOp].
+///
+/// This includes the following tasks:
+/// - Set up the argument types of the UDFs depending on the supported encodings
+/// - Set up the argument types of the UDFs depending on the configured encodings in the engine
+/// - Detecting the used input encoding and calling the correct [ScalarSparqlOpImpl].
 #[derive(Debug, Eq)]
 pub struct ScalarSparqlOpAdapter<TScalarSparqlOp: ScalarSparqlOp> {
+    /// The stringified name of the [ScalarSparqlOp].
     name: String,
+    /// The DataFusion [Signature] of the [ScalarSparqlOp].
     signature: Signature,
+    /// The instance of the [ScalarSparqlOp].
     op: TScalarSparqlOp,
+    /// The configured [RdfFusionEncodings] in the engine.
     encodings: RdfFusionEncodings,
 }
 
 impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
-    /// TODO
+    /// Creates a new adapter for the given `op`.
     pub fn new(encodings: RdfFusionEncodings, op: TScalarSparqlOp) -> Self {
         let name = op.name().to_string();
-        let details = op.details();
+        let details = op.signature();
 
         let mut type_signatures = Vec::new();
         if op.plain_term_encoding_op().is_some() {

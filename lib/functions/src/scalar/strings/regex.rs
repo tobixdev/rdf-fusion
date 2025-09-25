@@ -1,8 +1,10 @@
 use crate::scalar::dispatch::{
     dispatch_binary_typed_value, dispatch_ternary_typed_value,
 };
-use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use crate::scalar::sparql_op_impl::{
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
+};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -34,8 +36,8 @@ impl ScalarSparqlOp for RegexSparqlOp {
         &Self::NAME
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::OneOf(vec![
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::OneOf(vec![
             SparqlOpArity::Fixed(2),
             SparqlOpArity::Fixed(3),
         ]))
@@ -43,7 +45,7 @@ impl ScalarSparqlOp for RegexSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(|args| {
             match args.args.len() {
                 2 => dispatch_binary_typed_value(

@@ -1,5 +1,5 @@
-use crate::scalar::sparql_op_impl::{ClosureSparqlOpImpl, SparqlOpImpl};
-use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use crate::scalar::sparql_op_impl::{ClosureSparqlOpImpl, ScalarSparqlOpImpl};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use datafusion::arrow::array::Array;
 use datafusion::arrow::compute::is_not_null;
 use datafusion::logical_expr::ColumnarValue;
@@ -35,11 +35,13 @@ impl ScalarSparqlOp for BoundSparqlOp {
         &Self::NAME
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Fixed(1))
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Fixed(1))
     }
 
-    fn plain_term_encoding_op(&self) -> Option<Box<dyn SparqlOpImpl<PlainTermEncoding>>> {
+    fn plain_term_encoding_op(
+        &self,
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         Some(Box::new(ClosureSparqlOpImpl::new(
             TYPED_VALUE_ENCODING.data_type(),
             |args| impl_bound_plain_term(&args.args[0]),
@@ -48,7 +50,7 @@ impl ScalarSparqlOp for BoundSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(Box::new(ClosureSparqlOpImpl::new(
             TYPED_VALUE_ENCODING.data_type(),
             |args| impl_bound_typed_value(&args.args[0]),
@@ -58,7 +60,7 @@ impl ScalarSparqlOp for BoundSparqlOp {
     fn object_id_encoding_op(
         &self,
         _object_id_encoding: &ObjectIdEncoding,
-    ) -> Option<Box<dyn SparqlOpImpl<ObjectIdEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>>> {
         Some(Box::new(ClosureSparqlOpImpl::<ObjectIdEncoding>::new(
             TYPED_VALUE_ENCODING.data_type(),
             |args| impl_bound_object_id(&args.args[0]),

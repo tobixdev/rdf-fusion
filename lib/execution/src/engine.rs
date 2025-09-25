@@ -79,12 +79,15 @@ impl RdfFusionContext {
         );
 
         let optimizer_rules =
-            create_optimizer_rules(context_view, OptimizationLevel::Full);
+            create_optimizer_rules(context_view.clone(), OptimizationLevel::Full);
         let physical_optimizer_rules =
             create_pyhsical_optimizer_rules(OptimizationLevel::Full);
 
         let state = SessionStateBuilder::new()
-            .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
+            .with_query_planner(Arc::new(RdfFusionPlanner::new(
+                context_view,
+                Arc::clone(&storage),
+            )))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
             .with_optimizer_rules(optimizer_rules)
             .with_physical_optimizer_rules(physical_optimizer_rules)

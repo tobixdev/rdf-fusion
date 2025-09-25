@@ -100,7 +100,7 @@ impl MemObjectIdMapping {
         self.obtain_object_id(&term)
     }
 
-    /// TODO
+    /// Encodes the entire `quad`.
     pub fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedQuad> {
         Ok(EncodedQuad {
             graph_name: self.encode_graph_name_intern(quad.graph_name),
@@ -110,18 +110,27 @@ impl MemObjectIdMapping {
         })
     }
 
-    /// TODO
+    /// Decodes the given `object_id`.
+    ///
+    /// # Error
+    ///
+    /// Returns an error if the object id is unknown.
     pub fn decode_term(
         &self,
-        term: EncodedObjectId,
+        object_id: EncodedObjectId,
     ) -> Result<Term, ObjectIdMappingError> {
         let term = self
-            .try_get_encoded_term_from_object_id(term)
+            .try_get_encoded_term_from_object_id(object_id)
             .ok_or(ObjectIdMappingError::UnknownObjectId)?;
         Ok(TermRef::from(&term).into_owned())
     }
 
-    /// TODO
+    /// Decodes the given `object_id`.
+    ///
+    /// # Error
+    ///
+    /// Returns an error if the object id is unknown or if `object_id` referred to the default
+    /// graph or a literal.
     pub fn decode_named_graph(
         &self,
         term: EncodedObjectId,
@@ -133,7 +142,11 @@ impl MemObjectIdMapping {
         }
     }
 
-    /// TODO
+    /// Decodes the given `object_id`.
+    ///
+    /// # Error
+    ///
+    /// Returns an error if the object id is unknown or if `object_id` referred to a literal.
     pub fn decode_graph_name(
         &self,
         term: EncodedGraphObjectId,
@@ -148,7 +161,7 @@ impl MemObjectIdMapping {
         }
     }
 
-    /// TODO
+    /// Try to get an [EncodedQuad] from the given `quad`.
     pub fn try_get_encoded_quad(&self, quad: QuadRef<'_>) -> Option<EncodedQuad> {
         Some(EncodedQuad {
             graph_name: self
@@ -159,6 +172,7 @@ impl MemObjectIdMapping {
         })
     }
 
+    /// Tries to get an [EncodedTerm] from the given `term`.
     pub fn try_get_encoded_term(&self, term: TermRef<'_>) -> Option<EncodedTerm> {
         match term {
             TermRef::NamedNode(nn) => self

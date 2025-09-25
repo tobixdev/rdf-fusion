@@ -194,7 +194,12 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         self.try_create_builder(lit(scalar.into_scalar_value()))
     }
 
-    /// TODO
+    /// Creates a new exists filter operator. This operator takes another graph pattern (as a
+    /// [LogicalPLan]) that is checked against the current graph pattern. Only solutions that have
+    /// at least one compatible solution in the `EXISTS` graph pattern pass this filter.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - NOT EXISTS and EXISTS](https://www.w3.org/TR/sparql11-query/#func-filter-exists)
     pub fn exists(
         self,
         exists_plan: LogicalPlan,
@@ -202,7 +207,12 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         self.exists_impl(exists_plan, false)
     }
 
-    /// TODO
+    /// Creates a new not exists filter operator. This operator takes another graph pattern (as a
+    /// [LogicalPLan]) that is checked against the current graph pattern. Only solutions that have
+    /// no compatible solution in the `EXISTS` graph pattern pass this filter.
+    ///
+    /// # Relevant Resources
+    /// - [SPARQL 1.1 - NOT EXISTS and EXISTS](https://www.w3.org/TR/sparql11-query/#func-filter-exists)
     pub fn not_exists(
         self,
         exists_plan: LogicalPlan,
@@ -516,7 +526,11 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         self.registry().udf(&FunctionName::Builtin(name))
     }
 
-    /// TODO
+    /// Gets all encodings of the given `args`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any [Expr] does not evaluate to an RDF term.
     pub(crate) fn get_encodings(&self, args: &[Expr]) -> DFResult<Vec<EncodingName>> {
         args.iter()
             .map(|e| {

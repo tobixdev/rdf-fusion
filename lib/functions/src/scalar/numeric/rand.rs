@@ -1,5 +1,7 @@
-use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use crate::scalar::sparql_op_impl::{
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
+};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rand::Rng;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
@@ -31,8 +33,8 @@ impl ScalarSparqlOp for RandSparqlOp {
         &Self::NAME
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails {
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature {
             volatility: Volatility::Volatile,
             arity: SparqlOpArity::Nullary,
         }
@@ -40,7 +42,7 @@ impl ScalarSparqlOp for RandSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(|args| {
             let mut rng = rand::rng();
             let values = (0..args.number_rows).map(|_| {
