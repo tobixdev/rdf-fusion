@@ -7,13 +7,57 @@ use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-/// Contains the data of the index.
+/// Contains the data of a [MemQuadIndex](super::MemQuadIndex). This is the physical layout of the
+/// index. Analogous to the [MemQuadIndex](super::MemQuadIndex), a single [IndexData] represents
+/// exactly one permutation of the quad components. Furthermore, all RDF terms are represented as
+/// [EncodedObjectId]s.
 ///
-/// TODO
+/// The physical layout of the [IndexData] is inspired by [Apache Parquet](https://parquet.apache.org/).
+/// Therefore, we also adopt its terminology for row groups and column chunks.
+///
+/// The physical layout consists of four columns, one for each quad component. The entire index is
+/// sorted from the left to the right. Furthermore, the index is partitioned into N row groups, each
+/// of which should hold ideal [Self::row_group_size] elements. The batch size is usually set to the
+/// default batch size of DataFusion. The part of a column within a row group is called a column
+/// chunk.
+///
+/// The following illustration shows the physical layout of the index. Here we assume that the index
+/// represents the GPOS permutation (any other permutation would be fine as well).
+///
+/// ```text
+///              ?graph   ?predicate  ?object  ?subject
+///               ┌─────┐    ┌─────┐   ┌─────┐   ┌─────┐
+///               │   0 │    │   1 │   │   4 │   │  10 │
+///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   0 │    │   1 │   │   7 │   │  10 │
+/// Row Group 0   ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   0 │    │   2 │   │   1 │   │  10 │
+///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   0 │    │   2 │   │   3 │   │  10 │
+///               └─────┘    └─────┘   └─────┘   └─────┘
+///
+///               ┌─────┐    ┌─────┐   ┌─────┐   ┌─────┐
+///               │   0 │    │   2 │   │   4 │   │  10 │
+///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   0 │    │   2 │   │   4 │   │  20 │
+/// Row Group 1   ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   1 │    │   4 │   │   1 │   │  20 │
+///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │ ... │    │ ... │   │ ... │   │ ... │
+///               └─────┘    └─────┘   └─────┘   └─────┘
+/// ```
+///
+/// The sorted nature of the index allows us to:
+/// - relatively quickly check whether a quad is contained in the index
+/// - efficiently scan the index for predicates that select a slice of the index (see [MemQuadIndexScanIterator](super::MemQuadIndexScanIterator)
+///   for further details)
 #[derive(Debug)]
 pub(super) struct IndexData {
+    /// Indicates which column is allowed to contain nullable data (i.e., the graph name)
     nullable_position: usize,
+    /// The target row group size
     row_group_size: usize,
+    /// The vector of [MemRowGroup].
     row_groups: Vec<MemRowGroup>,
 }
 
@@ -27,6 +71,10 @@ pub(super) struct RowGroupPruningResult {
     /// The row groups that may contain quads that match the given instructions.
     pub row_groups: Vec<MemRowGroup>,
     /// The new instructions that should be applied to the index.
+    ///
+    /// It could be possible that the pruning step can already guarantee that a filter will match
+    /// every row in the result. These instructions are then removed from the result to avoid
+    /// redundant applications of the filter.
     pub new_instructions: Option<IndexScanInstructions>,
 }
 
