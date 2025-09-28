@@ -11,10 +11,9 @@ mod scan;
 mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
 pub use components::IndexComponents;
 pub use error::*;
-use quad_index::MemQuadIndex;
 use rdf_fusion_model::Variable;
 pub use scan::{
     DirectIndexRef, IndexRefInSet, MemQuadIndexScanIterator, PlannedPatternScan,

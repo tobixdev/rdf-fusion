@@ -152,16 +152,16 @@ impl IndexSet {
     }
 }
 
-/// TODO
+/// A [MemQuadIndexScanIterator] that uses an [IndexSet] to choose the index for scanning.
 pub struct MemQuadIndexSetScanIterator {
-    /// TODO
+    /// The schema of the result.
     schema: SchemaRef,
-    /// TODO
+    /// The inner iterator.
     inner: MemQuadIndexScanIterator<IndexRefInSet>,
 }
 
 impl MemQuadIndexSetScanIterator {
-    /// TODO
+    /// Creates a new [MemQuadIndexSetScanIterator].
     pub fn new(
         schema: SchemaRef,
         index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,

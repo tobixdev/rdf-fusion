@@ -4,6 +4,7 @@ use datafusion::error::Result as DFResult;
 use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
 use datafusion::physical_plan::ExecutionPlan;
+use datafusion::physical_plan::empty::EmptyExec;
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
 use std::sync::Arc;
@@ -42,11 +43,13 @@ impl ExtensionPlanner for MemQuadStorePlanner {
                     node.blank_node_mode(),
                 )
                 .await?;
+            let schema = Arc::clone(node.schema().inner());
 
-            Ok(Some(Arc::new(MemQuadPatternExec::new(
-                Arc::clone(UserDefinedLogicalNode::schema(node).inner()),
-                plan,
-            ))))
+            if plan.is_guaranteed_empty() {
+                return Ok(Some(Arc::new(EmptyExec::new(schema))));
+            }
+
+            Ok(Some(Arc::new(MemQuadPatternExec::new(schema, plan))))
         } else {
             Ok(None)
         }
