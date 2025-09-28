@@ -50,3 +50,15 @@ serve-dbg:
 # Starts a webserver that can answer SPARQL queries (profiling)
 serve:
     RUSTFLAGS="-C target-cpu=native" cargo run --profile profiling --bin rdf-fusion -- serve --bind 0.0.0.0:7878
+
+#
+# Releases
+#
+
+prepare-release:
+    #!/usr/bin/env bash
+    if git status --porcelain; then \
+        echo "The working directory is not clean. Commit ongoing work before creating a release archive."; \
+        exit 1; \
+    fi
+    git archive --format=tar.gz -o target/rdf-fusion-source-0.1.0.tar.gz HEAD
