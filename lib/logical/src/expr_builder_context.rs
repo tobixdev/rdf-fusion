@@ -195,7 +195,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     }
 
     /// Creates a new exists filter operator. This operator takes another graph pattern (as a
-    /// [LogicalPLan]) that is checked against the current graph pattern. Only solutions that have
+    /// [LogicalPlan]) that is checked against the current graph pattern. Only solutions that have
     /// at least one compatible solution in the `EXISTS` graph pattern pass this filter.
     ///
     /// # Relevant Resources
@@ -208,7 +208,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     }
 
     /// Creates a new not exists filter operator. This operator takes another graph pattern (as a
-    /// [LogicalPLan]) that is checked against the current graph pattern. Only solutions that have
+    /// [LogicalPlan]) that is checked against the current graph pattern. Only solutions that have
     /// no compatible solution in the `EXISTS` graph pattern pass this filter.
     ///
     /// # Relevant Resources

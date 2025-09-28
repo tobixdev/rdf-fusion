@@ -1,6 +1,6 @@
 use rdf_fusion_encoding::{EncodingDatum, TermEncoding};
 
-/// The arguments of invoking a [ScalarSparqlOp].
+/// The arguments of invoking a [ScalarSparqlOp](crate::scalar::ScalarSparqlOp).
 pub struct ScalarSparqlOpArgs<TEncoding: TermEncoding> {
     /// The number of rows.
     ///
