@@ -12,7 +12,7 @@ use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 
-/// TODO
+/// This rule is responsible for lowering a [PatternNode] into a set of filters and projections.
 #[derive(Debug)]
 pub struct PatternLoweringRule {
     /// The RDF Fusion configuration.

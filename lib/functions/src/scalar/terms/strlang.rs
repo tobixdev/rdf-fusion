@@ -1,12 +1,17 @@
 use crate::scalar::dispatch::dispatch_binary_owned_typed_value;
-use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use crate::scalar::sparql_op_impl::{
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
+};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{LanguageString, ThinError, TypedValue, TypedValueRef};
 
-/// TODO
+/// Creates a new RDF literal from a plain literal and a language tag.
+///
+/// # Relevant Resources
+/// - [SPARQL 1.1 - STRLANG](https://www.w3.org/TR/sparql11-query/#func-strlang)
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct StrLangSparqlOp;
 
@@ -30,12 +35,12 @@ impl ScalarSparqlOp for StrLangSparqlOp {
         &Self::NAME
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Fixed(2))
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Fixed(2))
     }
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(|args| {
             dispatch_binary_owned_typed_value(
                 &args.args[0],

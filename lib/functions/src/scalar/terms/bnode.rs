@@ -1,6 +1,8 @@
 use crate::scalar::dispatch::dispatch_unary_typed_value;
-use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use crate::scalar::sparql_op_impl::{
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
+};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_encoding::EncodingArray;
 use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
@@ -30,8 +32,8 @@ impl ScalarSparqlOp for BNodeSparqlOp {
         &Self::NAME
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails {
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature {
             volatility: Volatility::Volatile,
             arity: SparqlOpArity::OneOf(vec![
                 SparqlOpArity::Nullary,
@@ -42,7 +44,7 @@ impl ScalarSparqlOp for BNodeSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(|args| {
             match args.args.len() {
                 0 => {

@@ -16,8 +16,8 @@ use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueArrayBuilder};
 use rdf_fusion_encoding::{EncodingArray, TermDecoder};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
-    BlankNodeRef, GraphName, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNode,
-    QuadRef, Term, TermRef, TypedValueRef,
+    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNode, QuadRef,
+    Term, TermRef, TypedValueRef,
 };
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
@@ -76,7 +76,7 @@ impl MemObjectIdMapping {
         }
     }
 
-    pub fn encode_graph_name_intern(
+    pub(super) fn encode_graph_name_intern(
         &self,
         scalar: GraphNameRef<'_>,
     ) -> EncodedGraphObjectId {
@@ -91,7 +91,7 @@ impl MemObjectIdMapping {
         }
     }
 
-    pub fn encode_term_intern<'term>(
+    pub(super) fn encode_term_intern<'term>(
         &self,
         scalar: impl Into<TermRef<'term>>,
     ) -> EncodedObjectId {
@@ -100,8 +100,8 @@ impl MemObjectIdMapping {
         self.obtain_object_id(&term)
     }
 
-    /// TODO
-    pub fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedQuad> {
+    /// Encodes the entire `quad`.
+    pub(super) fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedQuad> {
         Ok(EncodedQuad {
             graph_name: self.encode_graph_name_intern(quad.graph_name),
             subject: self.encode_term_intern(quad.subject),
@@ -110,19 +110,28 @@ impl MemObjectIdMapping {
         })
     }
 
-    /// TODO
-    pub fn decode_term(
+    /// Decodes the given `object_id`.
+    ///
+    /// # Error
+    ///
+    /// Returns an error if the object id is unknown.
+    pub(super) fn decode_term(
         &self,
-        term: EncodedObjectId,
+        object_id: EncodedObjectId,
     ) -> Result<Term, ObjectIdMappingError> {
         let term = self
-            .try_get_encoded_term_from_object_id(term)
+            .try_get_encoded_term_from_object_id(object_id)
             .ok_or(ObjectIdMappingError::UnknownObjectId)?;
         Ok(TermRef::from(&term).into_owned())
     }
 
-    /// TODO
-    pub fn decode_named_graph(
+    /// Decodes the given `object_id`.
+    ///
+    /// # Error
+    ///
+    /// Returns an error if the object id is unknown or if `object_id` referred to the default
+    /// graph or a literal.
+    pub(super) fn decode_named_graph(
         &self,
         term: EncodedObjectId,
     ) -> Result<NamedOrBlankNode, ObjectIdMappingError> {
@@ -133,33 +142,8 @@ impl MemObjectIdMapping {
         }
     }
 
-    /// TODO
-    pub fn decode_graph_name(
-        &self,
-        term: EncodedGraphObjectId,
-    ) -> Result<GraphName, ObjectIdMappingError> {
-        match term {
-            DEFAULT_GRAPH_ID => Ok(GraphName::DefaultGraph),
-            term => match self.decode_term(term.0)? {
-                Term::NamedNode(nn) => Ok(GraphName::NamedNode(nn)),
-                Term::BlankNode(bnode) => Ok(GraphName::BlankNode(bnode)),
-                Term::Literal(_) => Err(ObjectIdMappingError::LiteralAsGraphName),
-            },
-        }
-    }
-
-    /// TODO
-    pub fn try_get_encoded_quad(&self, quad: QuadRef<'_>) -> Option<EncodedQuad> {
-        Some(EncodedQuad {
-            graph_name: self
-                .try_get_encoded_object_id_from_graph_name(quad.graph_name)?,
-            subject: self.try_get_encoded_object_id_from_term(quad.subject)?,
-            predicate: self.try_get_encoded_object_id_from_term(quad.predicate)?,
-            object: self.try_get_encoded_object_id_from_term(quad.object)?,
-        })
-    }
-
-    pub fn try_get_encoded_term(&self, term: TermRef<'_>) -> Option<EncodedTerm> {
+    /// Tries to get an [EncodedTerm] from the given `term`.
+    pub(super) fn try_get_encoded_term(&self, term: TermRef<'_>) -> Option<EncodedTerm> {
         match term {
             TermRef::NamedNode(nn) => self
                 .str_interning
@@ -195,7 +179,7 @@ impl MemObjectIdMapping {
         }
     }
 
-    pub fn obtain_encoded_term(&self, term: TermRef<'_>) -> EncodedTerm {
+    pub(super) fn obtain_encoded_term(&self, term: TermRef<'_>) -> EncodedTerm {
         match term {
             TermRef::NamedNode(nn) => {
                 let arc = self.intern_str(nn.as_str());
@@ -219,7 +203,7 @@ impl MemObjectIdMapping {
         }
     }
 
-    pub fn try_get_encoded_object_id_from_term<'term>(
+    pub(super) fn try_get_encoded_object_id_from_term<'term>(
         &self,
         encoded_term: impl Into<TermRef<'term>>,
     ) -> Option<EncodedObjectId> {
@@ -228,7 +212,7 @@ impl MemObjectIdMapping {
             .and_then(|term| self.try_get_encoded_object_id(&term))
     }
 
-    pub fn try_get_encoded_object_id_from_graph_name(
+    pub(super) fn try_get_encoded_object_id_from_graph_name(
         &self,
         encoded_term: GraphNameRef<'_>,
     ) -> Option<EncodedGraphObjectId> {
@@ -243,14 +227,14 @@ impl MemObjectIdMapping {
         }
     }
 
-    pub fn try_get_encoded_object_id(
+    pub(super) fn try_get_encoded_object_id(
         &self,
         encoded_term: &EncodedTerm,
     ) -> Option<EncodedObjectId> {
         self.term2id.get(encoded_term).map(|entry| *entry)
     }
 
-    pub fn try_get_encoded_term_from_object_id(
+    pub(super) fn try_get_encoded_term_from_object_id(
         &self,
         object_id: EncodedObjectId,
     ) -> Option<EncodedTerm> {
@@ -260,7 +244,7 @@ impl MemObjectIdMapping {
         })
     }
 
-    pub fn try_get_encoded_typed_value_from_object_id(
+    pub(super) fn try_get_encoded_typed_value_from_object_id(
         &self,
         object_id: EncodedObjectId,
     ) -> Option<EncodedTypedValue> {
@@ -270,7 +254,7 @@ impl MemObjectIdMapping {
         })
     }
 
-    pub fn obtain_object_id(&self, encoded_term: &EncodedTerm) -> EncodedObjectId {
+    pub(super) fn obtain_object_id(&self, encoded_term: &EncodedTerm) -> EncodedObjectId {
         let found = self.term2id.get(encoded_term);
         match found {
             None => {

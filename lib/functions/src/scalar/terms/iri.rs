@@ -1,7 +1,9 @@
 use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
-use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
+use crate::scalar::sparql_op_impl::{
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
+};
 use crate::scalar::{
-    ScalarSparqlOp, ScalarSparqlOpArgs, ScalarSparqlOpDetails, SparqlOpArity,
+    ScalarSparqlOp, ScalarSparqlOpArgs, ScalarSparqlOpSignature, SparqlOpArity,
 };
 use datafusion::common::{exec_datafusion_err, exec_err};
 use datafusion::logical_expr::Volatility;
@@ -44,8 +46,8 @@ impl ScalarSparqlOp for IriSparqlOp {
         &Self::NAME
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails {
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature {
             volatility: Volatility::Immutable,
             arity: SparqlOpArity::Fixed(2),
         }
@@ -53,7 +55,7 @@ impl ScalarSparqlOp for IriSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(move |args| {
             let base_iri = Self::get_base_iri(&args)?;
             dispatch_unary_owned_typed_value(

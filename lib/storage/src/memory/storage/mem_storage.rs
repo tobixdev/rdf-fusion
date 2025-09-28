@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::StorageError;
@@ -61,7 +62,10 @@ impl QuadStorage for MemQuadStorage {
         Some(Arc::clone(&self.object_id_mapping) as Arc<dyn ObjectIdMapping>)
     }
 
-    async fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
+    async fn planners(
+        &self,
+        _context: &RdfFusionContextView,
+    ) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
         let snapshot = self.snapshot().await;
         vec![Arc::new(MemQuadStorePlanner::new(snapshot))]
     }

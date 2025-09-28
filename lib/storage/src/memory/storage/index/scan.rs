@@ -7,7 +7,7 @@ use crate::memory::storage::index::{
 use crate::memory::storage::stream::MemIndexScanStream;
 use datafusion::arrow::array::{Array, BooleanArray, UInt32Array};
 use datafusion::arrow::compute::kernels::cmp::{eq, neq};
-use datafusion::arrow::compute::{and, filter, is_null, or};
+use datafusion::arrow::compute::{and, filter, or};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::ScalarValue;
 use datafusion::execution::SendableRecordBatchStream;
@@ -19,34 +19,41 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::OwnedRwLockReadGuard;
 
+/// The results emitted by the [MemQuadIndexScanIterator].
 pub struct QuadIndexBatch {
+    /// The number of rows in the batch.
     pub num_rows: usize,
+    /// A mapping from column name to column data.
     pub columns: HashMap<String, Arc<dyn Array>>,
 }
 
+/// Matches a given pattern against a [MemQuadIndex]. The matches are returned as [QuadIndexBatch].
 pub struct MemQuadIndexScanIterator<TIndexRef: IndexRef> {
     /// A reference to the index.
     state: ScanState<TIndexRef>,
 }
 
 impl<'index> MemQuadIndexScanIterator<DirectIndexRef<'index>> {
-    /// TODO
+    /// Creates a new [MemQuadIndexScanIterator].
     pub fn new(index: &'index MemQuadIndex, instructions: IndexScanInstructions) -> Self {
         Self {
-            state: ScanState::CollectRelevantBatches(DirectIndexRef(index), instructions),
+            state: ScanState::CollectRelevantRowGroups(
+                DirectIndexRef(index),
+                instructions,
+            ),
         }
     }
 }
 
 impl MemQuadIndexScanIterator<IndexRefInSet> {
-    /// TODO
+    /// Creates a new [MemQuadIndexScanIterator].
     pub fn new_from_index_set(
         index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
         index: IndexConfiguration,
         instructions: IndexScanInstructions,
     ) -> Self {
         Self {
-            state: ScanState::CollectRelevantBatches(
+            state: ScanState::CollectRelevantRowGroups(
                 IndexRefInSet(index_set, index),
                 instructions,
             ),
@@ -54,8 +61,12 @@ impl MemQuadIndexScanIterator<IndexRefInSet> {
     }
 }
 
+/// The state of the [MemQuadIndexScanIterator].
 enum ScanState<TIndexRef: IndexRef> {
-    CollectRelevantBatches(TIndexRef, IndexScanInstructions),
+    /// Collecting all relevant [MemRowGroup]s in the index. This will copy a reference to all
+    /// arrays and can thus drop the [TIndexRef] once this step is done.
+    CollectRelevantRowGroups(TIndexRef, IndexScanInstructions),
+    /// Applying the filters and projections to every identified
     Scanning {
         /// The data to scan.
         data: Vec<MemRowGroup>,
@@ -66,6 +77,7 @@ enum ScanState<TIndexRef: IndexRef> {
         /// result, the iterator can simply copy the batches without any more filtering.
         instructions: [Option<IndexScanInstruction>; 4],
     },
+    /// The scan is fined.
     Finished,
 }
 
@@ -75,7 +87,7 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match &mut self.state {
-                ScanState::CollectRelevantBatches(index_ref, instructions) => {
+                ScanState::CollectRelevantRowGroups(index_ref, instructions) => {
                     let index = index_ref.get_index();
                     let index_data = index.data();
                     let pruning_result =
@@ -192,7 +204,11 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
             .reduce(|lhs, rhs| and(&lhs, &rhs).expect("Array length must match"))
     }
 
-    /// TODO
+    /// Applies the `predicate` to the `data`, returning a boolean array that indicates which
+    /// elements match the predicate. This array can then be passed into a filter function.
+    ///
+    /// If [None] is returned, no predicates need to be applied and the entire data array can be
+    /// considered as matching.
     ///
     /// We assume that the number of elements in the sets is relatively small. Therefore, doing
     /// vectorized comparisons and merging the resulting arrays is more performant as iterating
@@ -208,16 +224,11 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
             ObjectIdScanPredicate::In(ids) => ids
                 .iter()
                 .map(|id| {
-                    // TODO make handling default graph better. (const generic in impl)
-                    if id.as_u32() == 0 {
-                        is_null(&data).expect("null never errors")
-                    } else {
-                        eq(
-                            data,
-                            &ScalarValue::UInt32(Some(id.as_u32())).to_scalar().unwrap(),
-                        )
-                        .expect("Array length must match, Data Types match")
-                    }
+                    eq(
+                        data,
+                        &ScalarValue::UInt32(Some(id.as_u32())).to_scalar().unwrap(),
+                    )
+                    .expect("Array length must match, Data Types match")
                 })
                 .reduce(|lhs, rhs| or(&lhs, &rhs).expect("Array length must match")),
             ObjectIdScanPredicate::Except(ids) => ids
@@ -244,13 +255,16 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     }
 }
 
-/// TODO
+/// Encapsulates the state necessary for executing a pattern scan on a [MemQuadIndex].
 #[derive(Clone, Debug)]
 pub enum PlannedPatternScan {
-    /// TODO
+    /// It is guaranteed that the scan will return an empty result.
+    ///
+    /// This can happen if, for example, an object id cannot be found for a bound term.
     Empty(SchemaRef),
-    /// TODO
+    /// A planned pattern scan that can be executed.
     IndexScan {
+        /// The result schema.
         schema: SchemaRef,
         /// Holds a read lock on the index set.
         index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
@@ -266,6 +280,13 @@ pub enum PlannedPatternScan {
 }
 
 impl PlannedPatternScan {
+    /// Checks whether this pattern scan will always return an empty stream.
+    pub fn is_guaranteed_empty(&self) -> bool {
+        matches!(self, Self::Empty(_))
+    }
+
+    /// Executes the pattern scan an return the [SendableRecordBatchStream] that implements the
+    /// scan.
     pub fn create_stream(self, metrics: BaselineMetrics) -> SendableRecordBatchStream {
         match self {
             PlannedPatternScan::Empty(schema) => {
@@ -292,13 +313,14 @@ impl PlannedPatternScan {
     }
 }
 
-/// TODO
+/// A reference to a [MemQuadIndex].
 pub trait IndexRef {
-    /// TODO
+    /// Returns a reference to the index.
     fn get_index(&self) -> &MemQuadIndex;
 }
 
-/// TODO
+/// Reference to an index in a locked [IndexSet] with its [IndexConfiguration]. The
+/// [IndexConfiguration] uniquely identifier an index within an [IndexSet].
 pub struct IndexRefInSet(Arc<OwnedRwLockReadGuard<IndexSet>>, IndexConfiguration);
 
 impl IndexRef for IndexRefInSet {
@@ -307,7 +329,7 @@ impl IndexRef for IndexRefInSet {
     }
 }
 
-/// TODO
+/// Directly references a [MemQuadIndex].
 pub struct DirectIndexRef<'index>(&'index MemQuadIndex);
 
 impl IndexRef for DirectIndexRef<'_> {

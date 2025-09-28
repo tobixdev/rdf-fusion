@@ -2,6 +2,7 @@ use crate::extend::ExtendNode;
 use crate::join::{SparqlJoinNode, SparqlJoinType, compute_sparql_join_columns};
 use crate::logical_plan_builder_context::RdfFusionLogicalPlanBuilderContext;
 use crate::minus::MinusNode;
+use crate::patterns::PatternNode;
 use crate::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{Column, DFSchemaRef};
@@ -10,8 +11,8 @@ use datafusion::logical_expr::{
     UserDefinedLogicalNode, col,
 };
 use rdf_fusion_encoding::EncodingName;
-use rdf_fusion_model::DFResult;
 use rdf_fusion_model::Variable;
+use rdf_fusion_model::{DFResult, TermPattern};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -284,6 +285,20 @@ impl RdfFusionLogicalPlanBuilder {
         })
     }
 
+    /// Removes duplicate solutions from the current plan.
+    pub fn pattern(
+        self,
+        pattern: Vec<Option<TermPattern>>,
+    ) -> DFResult<RdfFusionLogicalPlanBuilder> {
+        let pattern_node = PatternNode::try_new(self.plan_builder.build()?, pattern)?;
+        Ok(Self {
+            context: self.context,
+            plan_builder: LogicalPlanBuilder::from(LogicalPlan::Extension(Extension {
+                node: Arc::new(pattern_node),
+            })),
+        })
+    }
+
     /// Ensures all columns are encoded as plain terms.
     pub fn with_plain_terms(self) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let with_correct_encoding = self
@@ -337,7 +352,8 @@ impl RdfFusionLogicalPlanBuilder {
         self.expr_builder_root().try_create_builder(expr)
     }
 
-    /// TODO
+    /// Aligns all the encodings of the overlapping column (i.e., join columns) of the current
+    /// graph pattern and `rhs`.
     fn align_encodings_of_common_columns(
         self,
         rhs: LogicalPlan,
@@ -378,7 +394,9 @@ impl RdfFusionLogicalPlanBuilder {
     }
 }
 
-/// TODO
+/// Creates new [Expr] that ensures that the encodings of the `join_column` align. If a join column
+/// does not align, both columns in the left and right side are converted into the
+/// [PlainTermEncoding].
 fn build_projections_for_encoding_alignment(
     expr_builder_root: RdfFusionExprBuilderContext<'_>,
     join_columns: &HashMap<String, HashSet<EncodingName>>,

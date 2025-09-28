@@ -5,8 +5,8 @@ use rdf_fusion::encoding::typed_value::TypedValueEncoding;
 use rdf_fusion::execution::results::QueryResultsFormat;
 use rdf_fusion::functions::scalar::dispatch::dispatch_unary_typed_value;
 use rdf_fusion::functions::scalar::{
-    ScalarSparqlOp, ScalarSparqlOpAdapter, ScalarSparqlOpDetails, SparqlOpArity,
-    SparqlOpImpl, create_typed_value_sparql_op_impl,
+    ScalarSparqlOp, ScalarSparqlOpAdapter, ScalarSparqlOpImpl, ScalarSparqlOpSignature,
+    SparqlOpArity, create_typed_value_sparql_op_impl,
 };
 use rdf_fusion::io::{RdfFormat, RdfParser};
 use rdf_fusion::model::{NamedNode, ThinError, TypedValueRef};
@@ -86,13 +86,13 @@ impl ScalarSparqlOp for ContainsSpidermanSparqlOp {
         &self.name
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Fixed(1))
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Fixed(1))
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<TypedValueEncoding>>> {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(|args| {
             // We provide some helper functions that allow you to "iterate" over the content of the
             // arrays. Note that directly operating on the array data usually can be more

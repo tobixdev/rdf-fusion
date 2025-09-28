@@ -29,9 +29,30 @@ These strengths include:
   We refer to [DataFusion's documentation](https://datafusion.apache.org/contributor-guide/architecture.html) for this
   purpose.
 
-## Using RDF Fusion
+## Getting Started
 
-Documentation for using can be found in the main crate's [README](./lib/rdf-fusion/README.md).
+You can use `cargo` to interact with the codebase or use [Just](https://github.com/casey/just) to run the pre-defined
+commands, also used for continuous integration builds.
+
+```bash
+git clone --recursive https://github.com/tobixdev/graphfusion.git # Clone Repository
+git submodule update --init # Initialize submodules
+just test # Run tests 
+```
+
+### Using RDF Fusion's CLI
+
+Use `cargo` to install the CLI.
+
+```bash
+cargo install rdf-fusion-cli
+```
+
+Once installed, you can use the CLI to run a SPARQL engine. See `rdf-fusion-cli --help` for more information.
+
+### Using RDF Fusion in your Project
+
+Documentation for using RDF Fusion from another Rust project can be found in the main crate's [README](./lib/rdf-fusion/README.md).
 Examples of using RDF Fusion can be found in the [examples](./examples) directory.
 
 ## Comparison with Some Other SPARQL Engines
@@ -65,20 +86,10 @@ Here is a short comparison with other open-source SPARQL engines.
 - [QLever](https://github.com/ad-freiburg/qlever) is a SPARQL engine written in C++ that is designed to perform well,
   especially on large datasets.
   It is based on a custom-built query engine tailored for SPARQL workloads.
-  While their "from-scratch approach" certainly has benefits, it cannot easily interact with the Arrow and DataFusion ecosystem.
+  While their "from-scratch approach" certainly has benefits, it cannot easily interact with the Arrow and DataFusion
+  ecosystem.
   Furthermore, RDF Fusion has a stronger focus on extensibility, especially if you want to interact with non-graph data
   in your queries.
-
-## Getting Started
-
-You can use `cargo` to interact with the codebase or use [Just](https://github.com/casey/just) to run the pre-defined
-commands, also used for continuous integration builds.
-
-```bash
-git clone --recursive https://github.com/tobixdev/graphfusion.git # Clone Repository
-git submodule update --init # Initialize submodules
-just test # Run tests 
-```
 
 ## Missing Feature?
 

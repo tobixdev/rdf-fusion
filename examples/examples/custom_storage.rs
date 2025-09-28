@@ -1,31 +1,30 @@
 use async_trait::async_trait;
 use datafusion::arrow::array::RecordBatch;
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
-use datafusion::common::{DFSchema, HashSet};
-use datafusion::datasource::MemTable;
+use datafusion::common::HashSet;
 use datafusion::datasource::TableProvider;
+use datafusion::datasource::{DefaultTableSource, MemTable};
 use datafusion::execution::SessionState;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
-use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNode, col, lit};
+use datafusion::logical_expr::{LogicalPlan, LogicalPlanBuilder, UserDefinedLogicalNode};
+use datafusion::optimizer::OptimizerRule;
 use datafusion::physical_plan::ExecutionPlan;
-use datafusion::physical_plan::filter::FilterExec;
-use datafusion::physical_plan::projection::{ProjectionExec, ProjectionExpr};
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
-use datafusion::prelude::{SessionConfig, and};
+use datafusion::prelude::SessionConfig;
+use rdf_fusion::api::RdfFusionContextView;
 use rdf_fusion::api::storage::QuadStorage;
 use rdf_fusion::encoding::object_id::ObjectIdMapping;
-use rdf_fusion::encoding::plain_term::{
-    PLAIN_TERM_ENCODING, PlainTermArrayElementBuilder, PlainTermEncoding,
-};
-use rdf_fusion::encoding::{EncodingArray, EncodingScalar, QuadStorageEncoding};
+use rdf_fusion::encoding::plain_term::{PlainTermArrayElementBuilder, PlainTermEncoding};
+use rdf_fusion::encoding::{EncodingArray, QuadStorageEncoding};
 use rdf_fusion::execution::RdfFusionContext;
 use rdf_fusion::execution::results::QueryResultsFormat;
-use rdf_fusion::logical::ActiveGraph;
+use rdf_fusion::logical::RdfFusionLogicalPlanBuilderContext;
+use rdf_fusion::logical::patterns::PatternLoweringRule;
 use rdf_fusion::logical::quad_pattern::QuadPatternNode;
 use rdf_fusion::model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion::model::{
     GraphName, GraphNameRef, NamedNode, NamedOrBlankNode, NamedOrBlankNodeRef, Quad,
-    QuadRef, StorageError, TermPattern, Variable,
+    QuadRef, StorageError, TermPattern,
 };
 use rdf_fusion::store::Store;
 use std::sync::Arc;
@@ -151,11 +150,17 @@ impl QuadStorage for VecQuadStorage {
         None
     }
 
-    async fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
+    async fn planners(
+        &self,
+        context: &RdfFusionContextView,
+    ) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
         // One important thing is that the storage layer is responsible for planning the quad nodes.
         // This is why we need to register a custom planner.
         let mem_table = self.create_mem_table();
-        vec![Arc::new(VecQuadStoragePlanner(mem_table))]
+        vec![Arc::new(VecQuadStoragePlanner(
+            context.clone(),
+            Arc::new(mem_table),
+        ))]
     }
 
     async fn extend(&self, _quads: Vec<Quad>) -> Result<usize, StorageError> {
@@ -219,12 +224,12 @@ impl QuadStorage for VecQuadStorage {
 /// the table has the following schema: (graph, subject, predicate, object).
 ///
 /// Evaluating a pattern will be done in three steps:
-/// 1. Full scan over the [MemTable].
-/// 2. Apply filters (e.g., if an element is a constant `foaf:Person`)
-/// 3. Apply projections (e.g., subject -> ?person)
+/// 1. Create a new logical plan that scans the entire quads table
+/// 2. Apply a pattern node
+/// 3. PLan the new logical plan and return the result.
 ///
 /// Usually, implementation will tightly couple these three steps to improve performance.
-struct VecQuadStoragePlanner(MemTable);
+struct VecQuadStoragePlanner(RdfFusionContextView, Arc<MemTable>);
 
 #[async_trait]
 impl ExtensionPlanner for VecQuadStoragePlanner {
@@ -242,104 +247,36 @@ impl ExtensionPlanner for VecQuadStoragePlanner {
         };
 
         // 1. Full Scan
-        let scan = self.0.scan(session_state, None, &[], None).await?;
-        let dfschema = DFSchema::try_from(scan.schema())?;
+        let scan = LogicalPlanBuilder::scan(
+            "quads",
+            Arc::new(DefaultTableSource::new(
+                Arc::clone(&self.1) as Arc<dyn TableProvider>
+            )),
+            None,
+        )?;
 
-        // 2. Apply filters
-        let filter_expr = create_filter(&node)?
-            .map(|e| planner.create_physical_expr(&e, &dfschema, session_state))
-            .transpose()?;
-        let plan = match filter_expr {
-            None => scan,
-            Some(filter) => Arc::new(FilterExec::try_new(filter, scan)?),
-        };
+        // 2. Apply the pattern
+        let builder_context = RdfFusionLogicalPlanBuilderContext::new(self.0.clone());
+        let pattern = builder_context
+            .create(Arc::new(scan.build()?))
+            .pattern(vec![
+                node.graph_variable()
+                    .map(|v| TermPattern::Variable(v.into())),
+                Some(node.pattern().subject.clone()),
+                Some(node.pattern().predicate.clone().into()),
+                Some(node.pattern().object.clone()),
+            ])?
+            .build()?;
 
-        // 3. Apply projections
-        let projections = create_projections(&node)
-            .into_iter()
-            .map(|(var, column_name)| {
-                let expr = planner.create_physical_expr(
-                    &col(column_name),
-                    &dfschema,
-                    session_state,
-                )?;
-                Ok::<ProjectionExpr, datafusion::common::DataFusionError>(
-                    ProjectionExpr::new(expr, var.to_string()),
-                )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let projection = ProjectionExec::try_new(projections, plan)?;
+        // 2.2 Lower pattern (Implementing the pattern is not trivial, therefore, we use existing
+        // machinery).
+        let pattern_rewriting_rule = PatternLoweringRule::new(self.0.clone());
+        let pattern = pattern_rewriting_rule.rewrite(pattern, session_state)?.data;
 
-        Ok(Some(Arc::new(projection)))
-    }
-}
-
-/// Create the filters stemming from the pattern.
-fn create_filter(node: &QuadPatternNode) -> datafusion::common::Result<Option<Expr>> {
-    let mut exprs = Vec::new();
-
-    match node.active_graph() {
-        ActiveGraph::DefaultGraph => {
-            exprs.push(col(COL_GRAPH).is_null());
-        }
-        _ => unimplemented!("Currently, only the default graph is supported"),
-    }
-
-    let predicate = TermPattern::from(node.pattern().predicate.clone());
-    let patterns = [
-        (&node.pattern().subject, COL_SUBJECT),
-        (&predicate, COL_PREDICATE),
-        (&node.pattern().object, COL_OBJECT),
-    ];
-
-    for (pattern, col_name) in patterns {
-        match pattern {
-            TermPattern::NamedNode(nn) => {
-                let scalar = PLAIN_TERM_ENCODING.encode_term(Ok(nn.as_ref().into()))?;
-                exprs.push(col(col_name).eq(lit(scalar.into_scalar_value())));
-            }
-            TermPattern::BlankNode(node) => {
-                let scalar = PLAIN_TERM_ENCODING.encode_term(Ok(node.as_ref().into()))?;
-                exprs.push(col(col_name).eq(lit(scalar.into_scalar_value())));
-            }
-            TermPattern::Literal(node) => {
-                let scalar = PLAIN_TERM_ENCODING.encode_term(Ok(node.as_ref().into()))?;
-                exprs.push(col(col_name).eq(lit(scalar.into_scalar_value())));
-            }
-            TermPattern::Variable(_) => {}
-        }
-    }
-
-    // Actually, we would also need to check if two elements have the same variable :)
-
-    Ok(exprs.into_iter().reduce(|a, b| and(a, b)))
-}
-
-/// Creates the projections for the pattern.
-fn create_projections(node: &QuadPatternNode) -> Vec<(String, String)> {
-    let mut projections = Vec::new();
-
-    let pairs = [
-        (node.graph_variable().map(|v| v.into_owned()), COL_GRAPH),
-        (var(node.pattern().subject.clone()), COL_SUBJECT),
-        (var(node.pattern().predicate.clone()), COL_PREDICATE),
-        (var(node.pattern().object.clone()), COL_OBJECT),
-    ];
-
-    for (var, column_name) in pairs {
-        if let Some(var) = var {
-            projections.push((var.as_str().to_owned(), column_name.to_owned()))
-        }
-    }
-
-    projections
-}
-
-/// Helper function to extract a variable from a pattern.
-fn var(pattern: impl Into<TermPattern>) -> Option<Variable> {
-    let pattern = pattern.into();
-    match pattern {
-        TermPattern::Variable(v) => Some(v),
-        _ => None,
+        // 3. Plan new logical plan
+        planner
+            .create_physical_plan(&pattern, session_state)
+            .await
+            .map(Some)
     }
 }

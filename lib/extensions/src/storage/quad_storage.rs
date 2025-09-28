@@ -1,3 +1,4 @@
+use crate::RdfFusionContextView;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_encoding::QuadStorageEncoding;
@@ -25,7 +26,10 @@ pub trait QuadStorage: Send + Sync {
     /// A query plan must often evaluate multiple quad patterns that have access to the same
     /// storage. It is the responsibility of the storage layer to ensure that the quad patterns use
     /// the same snapshot of the storage layer.
-    async fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
+    async fn planners(
+        &self,
+        context: &RdfFusionContextView,
+    ) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>>;
 
     /// Loads the given quads into the storage.
     async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError>;

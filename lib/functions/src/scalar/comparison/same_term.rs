@@ -1,6 +1,8 @@
 use crate::scalar::dispatch::dispatch_binary_plain_term;
-use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_plain_term_sparql_op_impl};
-use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpDetails, SparqlOpArity};
+use crate::scalar::sparql_op_impl::{
+    ScalarSparqlOpImpl, create_plain_term_sparql_op_impl,
+};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -31,11 +33,13 @@ impl ScalarSparqlOp for SameTermSparqlOp {
         &Self::NAME
     }
 
-    fn details(&self) -> ScalarSparqlOpDetails {
-        ScalarSparqlOpDetails::default_with_arity(SparqlOpArity::Fixed(2))
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Fixed(2))
     }
 
-    fn plain_term_encoding_op(&self) -> Option<Box<dyn SparqlOpImpl<PlainTermEncoding>>> {
+    fn plain_term_encoding_op(
+        &self,
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         Some(create_plain_term_sparql_op_impl(|args| {
             dispatch_binary_plain_term(
                 &args.args[0],
