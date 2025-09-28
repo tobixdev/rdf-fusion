@@ -16,6 +16,11 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
       - name: Clean-up Disk Space
         uses: ./.github/actions/cleanup-disk-space
 
@@ -26,11 +31,6 @@ jobs:
 
       - name: Install just
         uses: extractions/setup-just@v3
-
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          submodules: true
 
       - name: Run CI Setup
         run: just configure-toolchain-ci
@@ -41,6 +41,11 @@ jobs:
   lints:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
       - name: Clean-up Disk Space
         uses: ./.github/actions/cleanup-disk-space
 
@@ -51,11 +56,6 @@ jobs:
 
       - name: Install just
         uses: extractions/setup-just@v3
-
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          submodules: true
 
       - name: Run CI Setup
         run: just configure-toolchain-ci
@@ -66,6 +66,11 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
       - name: Clean-up Disk Space
         uses: ./.github/actions/cleanup-disk-space
 
@@ -76,11 +81,6 @@ jobs:
 
       - name: Install just
         uses: extractions/setup-just@v3
-
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          submodules: true
 
       - name: Run CI Setup
         run: just configure-toolchain-ci
