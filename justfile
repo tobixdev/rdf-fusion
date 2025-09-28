@@ -55,10 +55,28 @@ serve:
 # Releases
 #
 
+# Creates a tarball from the current version of the repository
 prepare-release:
     #!/usr/bin/env bash
-    if git status --porcelain; then \
+    if [[ `git status --porcelain` ]]; then \
         echo "The working directory is not clean. Commit ongoing work before creating a release archive."; \
         exit 1; \
     fi
-    git archive --format=tar.gz -o target/rdf-fusion-source-0.1.0.tar.gz HEAD
+    git archive --format=tar.gz -o target/rdf-fusion-source.tar.gz HEAD;
+    echo "Source archive created. Move the archive to a new folder and extract it. Then run just release.";
+
+# Runs all checks and releases all crates to crates.io
+release: lint prepare-benches-tests test test-examples rustdoc
+    (cd lib/rdf-fusion-model && cargo publish)
+    (cd lib/rdf-fusion-encoding && cargo publish)
+    (cd lib/rdf-fusion-extensions && cargo publish)
+    (cd lib/rdf-fusion-functions && cargo publish)
+    (cd lib/rdf-fusion-logical && cargo publish)
+    (cd lib/rdf-fusion-physical && cargo publish)
+    (cd lib/rdf-fusion-storage && cargo publish)
+    (cd lib/rdf-fusion-execution && cargo publish)
+    (cd lib/rdf-fusion && cargo publish)
+    (cd lib/rdf-fusion-web && cargo publish)
+    (cd cli && cargo publish)
+    (cd bench && cargo publish)
+    echo "All crates release. Please rename the archive, upload the tarball to GitHub, and create a Git tag."

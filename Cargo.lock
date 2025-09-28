@@ -3783,7 +3783,6 @@ dependencies = [
  "headers-accept",
  "mediatype",
  "rdf-fusion",
- "rdf-fusion-encoding",
  "serde",
  "thiserror 2.0.16",
  "tokio",
