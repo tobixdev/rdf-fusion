@@ -18,11 +18,11 @@ use rdf_fusion_encoding::{
 };
 use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_extensions::functions::RdfFusionFunctionRegistryRef;
-use rdf_fusion_model::DFResult;
 use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_model::{DFResult, NamedOrBlankNode};
 use rdf_fusion_model::{
-    GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Subject, Term,
-    TermPattern, TermRef, ThinError, TriplePattern, Variable,
+    GroundTerm, NamedNode, NamedNodePattern, PropertyPathExpression, Term, TermPattern,
+    TermRef, ThinError, TriplePattern, Variable,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -81,7 +81,7 @@ impl RdfFusionLogicalPlanBuilderContext {
     pub fn create_matching_quads(
         &self,
         active_graph: ActiveGraph,
-        subject: Option<Subject>,
+        subject: Option<NamedOrBlankNode>,
         predicate: Option<NamedNode>,
         object: Option<Term>,
     ) -> RdfFusionLogicalPlanBuilder {
@@ -105,7 +105,7 @@ impl RdfFusionLogicalPlanBuilderContext {
     fn create_pattern_node_from_constants(
         &self,
         active_graph: ActiveGraph,
-        subject: Option<Subject>,
+        subject: Option<NamedOrBlankNode>,
         predicate: Option<NamedNode>,
         object: Option<Term>,
     ) -> QuadPatternNode {
@@ -135,7 +135,7 @@ impl RdfFusionLogicalPlanBuilderContext {
     /// Fills missing columns in the quads with the constants.
     fn fill_quads_with_constants(
         inner: QuadPatternNode,
-        subject: Option<Subject>,
+        subject: Option<NamedOrBlankNode>,
         predicate: Option<NamedNode>,
         object: Option<Term>,
     ) -> DFResult<LogicalPlan> {

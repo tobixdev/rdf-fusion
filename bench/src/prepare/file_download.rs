@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::{fs, path};
+use zip::ZipArchive;
 
 pub fn ensure_file_download(
     env: &BenchmarkContext,
@@ -79,7 +80,9 @@ pub async fn prepare_file_download(
                     let archive = fs::read(&file_path).context("Cannot read zip file")?;
                     fs::remove_file(&file_path)
                         .context("Cannot remove existing .zip file")?;
-                    zip_extract::extract(Cursor::new(archive), &file_path, true)
+                    ZipArchive::new(Cursor::new(archive))
+                        .context("Invalid .zip file")?
+                        .extract_unwrapped_root_dir(&file_path, |_| true)
                         .context("Cannot extract zip file")?;
                 }
             }

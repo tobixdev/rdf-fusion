@@ -44,7 +44,7 @@ use rdf_fusion_execution::sparql::{
 use rdf_fusion_model::StorageError;
 use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
-    SubjectRef, TermRef, Variable,
+    TermRef, Variable,
 };
 use rdf_fusion_storage::memory::{MemObjectIdMapping, MemQuadStorage};
 use std::io::{Read, Write};
@@ -263,7 +263,7 @@ impl Store {
     /// ```
     pub async fn quads_for_pattern(
         &self,
-        subject: Option<SubjectRef<'_>>,
+        subject: Option<NamedOrBlankNodeRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
         graph_name: Option<GraphNameRef<'_>>,
@@ -808,7 +808,9 @@ impl Store {
 #[allow(clippy::panic_in_result_fn)]
 mod tests {
     use super::*;
-    use rdf_fusion_model::{BlankNode, GraphName, Literal, NamedNode, Subject, Term};
+    use rdf_fusion_model::{
+        BlankNode, GraphName, Literal, NamedNode, NamedOrBlankNode, Term,
+    };
     use std::collections::HashSet;
 
     #[test]
@@ -850,7 +852,7 @@ mod tests {
 
     #[tokio::test]
     async fn store() -> Result<(), QueryEvaluationError> {
-        let main_s = Subject::from(BlankNode::default());
+        let main_s = NamedOrBlankNode::from(BlankNode::default());
         let main_p = NamedNode::new("http://example.com").unwrap();
         let main_o = Term::from(Literal::from(1));
         let main_g = GraphName::from(BlankNode::default());

@@ -2,7 +2,7 @@ use axum_test::TestServer;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use datafusion::execution::runtime_env::RuntimeEnv;
 use datafusion::prelude::SessionConfig;
-use rdf_fusion::model::{GraphName, NamedNode, Quad, Subject, Term};
+use rdf_fusion::model::{GraphName, NamedNode, NamedOrBlankNode, Quad, Term};
 use rdf_fusion::store::Store;
 use rdf_fusion_web::{AppState, create_router};
 use std::sync::Arc;
@@ -48,7 +48,7 @@ fn generate_quads(count: usize) -> impl Iterator<Item = Quad> {
         let predicate = format!("http://example.com/predicate{}", i);
         let object = format!("http://example.com/object{}", i);
         Quad::new(
-            Subject::NamedNode(NamedNode::new_unchecked(subject)),
+            NamedOrBlankNode::NamedNode(NamedNode::new_unchecked(subject)),
             NamedNode::new_unchecked(predicate),
             Term::NamedNode(NamedNode::new_unchecked(object)),
             GraphName::DefaultGraph,

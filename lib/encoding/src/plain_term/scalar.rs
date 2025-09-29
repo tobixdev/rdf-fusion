@@ -8,8 +8,8 @@ use crate::{TermDecoder, TermEncoder};
 use datafusion::common::{DataFusionError, ScalarValue, exec_err};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
-    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef,
-    SubjectRef, Term, TermRef, ThinError, ThinResult,
+    BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef, Term,
+    TermRef, ThinError, ThinResult,
 };
 
 /// Represents an Arrow scalar with a [PlainTermEncoding].
@@ -78,15 +78,6 @@ impl TryFrom<ScalarValue> for PlainTermScalar {
 impl From<TermRef<'_>> for PlainTermScalar {
     fn from(term: TermRef<'_>) -> Self {
         DefaultPlainTermEncoder::encode_term(Ok(term)).expect("Always Ok given")
-    }
-}
-
-impl From<SubjectRef<'_>> for PlainTermScalar {
-    fn from(term: SubjectRef<'_>) -> Self {
-        match term {
-            SubjectRef::NamedNode(nn) => Self::from(nn),
-            SubjectRef::BlankNode(bnode) => Self::from(bnode),
-        }
     }
 }
 
