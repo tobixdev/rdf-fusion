@@ -6,6 +6,9 @@ license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 readme = "README.md"
+description = """
+RDF Fusion Extensions API
+"""
 
 [dependencies]
 async-trait.workspace = true
