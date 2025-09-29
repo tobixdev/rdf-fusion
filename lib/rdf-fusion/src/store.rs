@@ -1,4 +1,4 @@
-//! API to access an on-disk [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
+//! API to access an [RDF dataset](https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-dataset).
 //!
 //! The entry point of the module is the [`Store`] struct.
 //!
