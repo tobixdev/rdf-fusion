@@ -5,6 +5,9 @@ authors.workspace = true
 license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+description = """
+RDF Fusion Model
+"""
 
 [dependencies]
 # Dependencies to oxigraph's data model. We re-export them in this crate if we rely on it. To avoid any other crates

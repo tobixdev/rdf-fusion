@@ -5,6 +5,9 @@ authors.workspace = true
 license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+description = """
+RDF Fusion Physical Operators and Rewriting Rules
+"""
 
 [dependencies]
 async-trait.workspace = true
