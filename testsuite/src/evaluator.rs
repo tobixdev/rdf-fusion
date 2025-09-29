@@ -28,7 +28,7 @@ impl TestEvaluator {
                 SpawnedTask::spawn(handle_test(test))
                     .await
                     .unwrap_or_else(|err| {
-                        Err(anyhow!("Could not join on test tasks. {}", err))
+                        Err(anyhow!("Could not join on test tasks. {err}"))
                     });
             results.push(TestResult {
                 test: test_id,
