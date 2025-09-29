@@ -23,10 +23,8 @@ use rdf_fusion_extensions::functions::{
 use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
-use rdf_fusion_model::DFResult;
-use rdf_fusion_model::{
-    GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef,
-};
+use rdf_fusion_model::{DFResult, NamedOrBlankNodeRef};
+use rdf_fusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, TermRef};
 use std::sync::Arc;
 
 /// Represents a connection to an instance of an RDF Fusion engine.
@@ -173,7 +171,7 @@ impl RdfFusionContext {
     pub async fn quads_for_pattern(
         &self,
         graph_name: Option<GraphNameRef<'_>>,
-        subject: Option<SubjectRef<'_>>,
+        subject: Option<NamedOrBlankNodeRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
@@ -182,7 +180,7 @@ impl RdfFusionContext {
             .plan_builder_context()
             .create_matching_quads(
                 active_graph_info,
-                subject.map(SubjectRef::into_owned),
+                subject.map(NamedOrBlankNodeRef::into_owned),
                 predicate.map(NamedNodeRef::into_owned),
                 object.map(TermRef::into_owned),
             )

@@ -6,7 +6,7 @@ use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::BlankNodeMatchingMode;
 use rdf_fusion_model::{
     GraphName, GraphNameRef, Literal, NamedNode, NamedNodePattern, NamedOrBlankNode,
-    Quad, Subject, Term, TermPattern, TriplePattern, Variable,
+    Quad, Term, TermPattern, TriplePattern, Variable,
 };
 use rdf_fusion_storage::memory::{MemObjectIdMapping, MemQuadStorage};
 use std::sync::Arc;
@@ -271,7 +271,9 @@ fn create_storage() -> MemQuadStorage {
 
 fn example_quad() -> Quad {
     Quad::new(
-        Subject::NamedNode(NamedNode::new("http://example.com/subject").unwrap()),
+        NamedOrBlankNode::NamedNode(
+            NamedNode::new("http://example.com/subject").unwrap(),
+        ),
         NamedNode::new("http://example.com/predicate").unwrap(),
         Term::Literal(Literal::new_simple_literal("value")),
         GraphName::DefaultGraph,
@@ -280,7 +282,9 @@ fn example_quad() -> Quad {
 
 fn example_quad_in_graph(graph: &str) -> Quad {
     Quad::new(
-        Subject::NamedNode(NamedNode::new("http://example.com/subject").unwrap()),
+        NamedOrBlankNode::NamedNode(
+            NamedNode::new("http://example.com/subject").unwrap(),
+        ),
         NamedNode::new("http://example.com/predicate").unwrap(),
         Term::Literal(Literal::new_simple_literal("value")),
         GraphName::NamedNode(NamedNode::new(graph).unwrap()),

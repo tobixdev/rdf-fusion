@@ -33,7 +33,7 @@ reqwest.workspace = true
 serde_json.workspace = true
 snmalloc-rs.workspace = true
 tokio.workspace = true
-zip-extract.workspace = true
+zip.workspace = true
 
 [dev-dependencies]
 codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }

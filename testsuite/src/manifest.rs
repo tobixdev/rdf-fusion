@@ -2,7 +2,9 @@ use crate::files::{guess_rdf_format, load_to_graph};
 use crate::vocab::*;
 use anyhow::{Context, Result, bail};
 use rdf_fusion::model::vocab::{rdf, rdfs};
-use rdf_fusion::model::{Graph, NamedNode, SubjectRef, Term, TermRef, TripleRef};
+use rdf_fusion::model::{
+    Graph, NamedNode, NamedOrBlankNodeRef, Term, TermRef, TripleRef,
+};
 use std::collections::VecDeque;
 use std::fmt;
 
@@ -207,7 +209,7 @@ impl TestManifest {
                             TermRef::BlankNode(g) => Some(g.into()),
                             TermRef::Literal(_) => None,
                         })
-                        .filter_map(|g: SubjectRef<'_>| {
+                        .filter_map(|g: NamedOrBlankNodeRef<'_>| {
                             if let (
                                 Some(TermRef::NamedNode(endpoint)),
                                 Some(TermRef::NamedNode(data)),
@@ -378,11 +380,11 @@ impl TestManifest {
 
 struct RdfListIterator<'a> {
     graph: &'a Graph,
-    current_node: Option<SubjectRef<'a>>,
+    current_node: Option<NamedOrBlankNodeRef<'a>>,
 }
 
 impl<'a> RdfListIterator<'a> {
-    fn iter(graph: &'a Graph, root: SubjectRef<'a>) -> RdfListIterator<'a> {
+    fn iter(graph: &'a Graph, root: NamedOrBlankNodeRef<'a>) -> RdfListIterator<'a> {
         RdfListIterator {
             graph,
             current_node: Some(root),

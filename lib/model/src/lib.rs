@@ -32,8 +32,8 @@ pub use oxiri::Iri;
 pub use oxrdf::{
     BlankNode, BlankNodeRef, Dataset, Graph, GraphName, GraphNameRef, IriParseError,
     Literal, LiteralRef, NamedNode, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef,
-    Quad, QuadRef, Subject, SubjectRef, Term, TermParseError, TermRef, Triple, TripleRef,
-    Variable, VariableNameParseError, VariableRef, dataset,
+    Quad, QuadRef, Term, TermParseError, TermRef, Triple, TripleRef, Variable,
+    VariableNameParseError, VariableRef, dataset,
 };
 pub use spargebra::algebra::PropertyPathExpression;
 pub use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};
