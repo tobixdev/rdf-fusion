@@ -5,7 +5,9 @@ use crate::scalar::sparql_op_impl::{
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_encoding::EncodingArray;
-use rdf_fusion_encoding::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
+use rdf_fusion_encoding::typed_value::{
+    TypedValueArrayElementBuilder, TypedValueEncoding,
+};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{BlankNode, BlankNodeRef, ThinError, TypedValueRef};
@@ -48,7 +50,7 @@ impl ScalarSparqlOp for BNodeSparqlOp {
         Some(create_typed_value_sparql_op_impl(|args| {
             match args.args.len() {
                 0 => {
-                    let mut builder = TypedValueArrayBuilder::default();
+                    let mut builder = TypedValueArrayElementBuilder::default();
                     for _ in 0..args.number_rows {
                         builder.append_blank_node(BlankNode::default().as_ref())?;
                     }

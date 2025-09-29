@@ -4,7 +4,9 @@ use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
+use rdf_fusion_encoding::typed_value::{
+    TYPED_VALUE_ENCODING, TypedValueArrayElementBuilder,
+};
 use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoding};
 use rdf_fusion_extensions::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionRegistry,
@@ -23,8 +25,8 @@ impl BinaryScenario {
     fn create_args(&self) -> Vec<ColumnarValue> {
         match self {
             BinaryScenario::AllInt => {
-                let mut left_builder = TypedValueArrayBuilder::default();
-                let mut right_builder = TypedValueArrayBuilder::default();
+                let mut left_builder = TypedValueArrayElementBuilder::default();
+                let mut right_builder = TypedValueArrayElementBuilder::default();
                 for i in 0..8192 {
                     match i % 3 {
                         1 => {

@@ -12,7 +12,7 @@ use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{
     PlainTermArray, PlainTermArrayElementBuilder, PlainTermScalar,
 };
-use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueArrayBuilder};
+use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueArrayElementBuilder};
 use rdf_fusion_encoding::{EncodingArray, TermDecoder};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
@@ -384,7 +384,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
         });
 
         // TODO: can we remove the clone?
-        let mut builder = TypedValueArrayBuilder::default();
+        let mut builder = TypedValueArrayElementBuilder::default();
         for typed_value in typed_values {
             let typed_value =
                 typed_value.as_ref().and_then(Option::<TypedValueRef>::from);
