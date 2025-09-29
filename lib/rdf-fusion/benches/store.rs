@@ -6,10 +6,10 @@ use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
 use rand::SeedableRng;
 use rand::prelude::{SliceRandom, SmallRng};
-use rdf_fusion::model::Term;
+use rdf_fusion::model::{NamedOrBlankNode, Term};
 use rdf_fusion::store::Store;
 use rdf_fusion_execution::results::QueryResults;
-use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject};
+use rdf_fusion_model::{GraphName, NamedNode, Quad};
 use tokio::runtime::Builder;
 
 /// This benchmark measures transactionally inserting synthetic quads into the store.
@@ -150,7 +150,7 @@ fn generate_quads(count: usize) -> impl Iterator<Item = Quad> {
         let predicate = format!("http://example.com/predicate{i}");
         let object = format!("http://example.com/object{i}");
         Quad::new(
-            Subject::NamedNode(NamedNode::new_unchecked(subject)),
+            NamedOrBlankNode::NamedNode(NamedNode::new_unchecked(subject)),
             NamedNode::new_unchecked(predicate),
             Term::NamedNode(NamedNode::new_unchecked(object)),
             GraphName::DefaultGraph,
