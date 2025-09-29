@@ -6,9 +6,8 @@ license.workspace = true
 readme = "README.md"
 keywords = ["RDF", "SPARQL", "graph-database", "database"]
 categories = ["database-implementations"]
-repository = "https://github.com/oxigraph/oxigraph/tree/main/lib/oxigraph"
-homepage = "https://oxigraph.org/"
-documentation = "https://docs.rs/oxigraph"
+repository = "https://github.com/tobixdev/rdf-fusion"
+documentation = "https://docs.rs/rdf-fusion"
 description = """
 a SPARQL database and RDF toolkit
 """
