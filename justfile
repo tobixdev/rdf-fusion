@@ -67,16 +67,16 @@ prepare-release:
 
 # Runs all checks and releases all crates to crates.io
 release: lint prepare-benches-tests test test-examples rustdoc
-    (cd lib/rdf-fusion-model && cargo publish)
-    (cd lib/rdf-fusion-encoding && cargo publish)
-    (cd lib/rdf-fusion-extensions && cargo publish)
-    (cd lib/rdf-fusion-functions && cargo publish)
-    (cd lib/rdf-fusion-logical && cargo publish)
-    (cd lib/rdf-fusion-physical && cargo publish)
-    (cd lib/rdf-fusion-storage && cargo publish)
-    (cd lib/rdf-fusion-execution && cargo publish)
+    (cd lib/model && cargo publish)
+    (cd lib/encoding && cargo publish)
+    (cd lib/extensions && cargo publish)
+    (cd lib/functions && cargo publish)
+    (cd lib/logical && cargo publish)
+    (cd lib/physical && cargo publish)
+    (cd lib/storage && cargo publish)
+    (cd lib/execution && cargo publish)
     (cd lib/rdf-fusion && cargo publish)
-    (cd lib/rdf-fusion-web && cargo publish)
+    (cd lib/web && cargo publish)
     (cd cli && cargo publish)
     (cd bench && cargo publish)
     echo "All crates release. Please rename the archive, upload the tarball to GitHub, and create a Git tag."
