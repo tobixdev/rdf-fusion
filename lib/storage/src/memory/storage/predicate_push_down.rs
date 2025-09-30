@@ -10,6 +10,7 @@ use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::sync::Arc;
 
+/// Represents a predicate that has been pushed down and is supported by our implementation.
 pub enum RewrittenPushedDownPredicate {
     True,
     Column(Arc<str>),
