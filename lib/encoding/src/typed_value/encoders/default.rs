@@ -1,5 +1,5 @@
 use crate::encoding::TermEncoder;
-use crate::typed_value::{TypedValueArrayBuilder, TypedValueEncoding};
+use crate::typed_value::{TypedValueArrayElementBuilder, TypedValueEncoding};
 use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Numeric, ThinResult, TypedValueRef};
@@ -13,7 +13,7 @@ impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
     fn encode_terms<'data>(
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<<TypedValueEncoding as TermEncoding>::Array> {
-        let mut value_builder = TypedValueArrayBuilder::default();
+        let mut value_builder = TypedValueArrayElementBuilder::default();
         for value in terms {
             match value {
                 Ok(TypedValueRef::NamedNode(value)) => {
