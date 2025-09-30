@@ -1,5 +1,5 @@
 use crate::memory::storage::index::PlannedPatternScan;
-use crate::memory::storage::predicate_push_down::supports_push_down;
+use crate::memory::storage::predicate_push_down::MemStoragePredicateExpr;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{exec_err, internal_err};
 use datafusion::config::ConfigOptions;
@@ -114,10 +114,11 @@ impl ExecutionPlan for MemQuadPatternExec {
             .clone()
             .into_iter()
             .map(|f| {
-                let rewritten = supports_push_down(self.schema().as_ref(), &f.filter)?;
-                Ok((f.filter, rewritten))
+                let rewritten =
+                    MemStoragePredicateExpr::try_from(self.schema().as_ref(), &f.filter);
+                (f.filter, rewritten)
             })
-            .collect::<DFResult<Vec<_>>>()?;
+            .collect::<Vec<_>>();
 
         Ok(FilterPushdownPropagation::if_all(child_pushdown_result))
     }
