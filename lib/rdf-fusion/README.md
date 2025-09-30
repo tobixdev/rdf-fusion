@@ -6,4 +6,8 @@ on [Apache DataFusion][df].
 
 This crate contains the main entry points for RDF Fusion.
 
-For more information, please see the [RDF Fusion Documentation](https://docs.rs/rdf-fusion/latest/rdf-fusion/)
+For more information, please see the [RDF Fusion Documentation](https://docs.rs/rdf-fusion/)
+
+[df]: https://crates.io/crates/datafusion
+
+[rdf-fusion]: https://crates.io/crates/rdf-fusion
