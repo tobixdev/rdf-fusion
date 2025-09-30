@@ -3,41 +3,41 @@ source: bench/tests/plans/bsbm_explore.rs
 expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
 ---
 Projection: ENC_PT(label) AS label, ENC_PT(comment) AS comment, ENC_PT(producer) AS producer, ENC_PT(productFeature) AS productFeature, ENC_PT(propertyTextual1) AS propertyTextual1, ENC_PT(propertyTextual2) AS propertyTextual2, ENC_PT(propertyTextual3) AS propertyTextual3, ENC_PT(propertyNumeric1) AS propertyNumeric1, ENC_PT(propertyNumeric2) AS propertyNumeric2, ENC_PT(propertyTextual4) AS propertyTextual4, ENC_PT(propertyTextual5) AS propertyTextual5, ENC_PT(propertyNumeric4) AS propertyNumeric4
-  Cross Join: 
-    Cross Join: 
-      Cross Join: 
+  Left Join: 
+    Left Join: 
+      Left Join: 
         Cross Join: 
           Cross Join: 
             Cross Join: 
               Cross Join: 
                 Cross Join: 
-                  Cross Join: 
-                    Cross Join: 
-                      Cross Join: 
-                        QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www.w3.org/2000/01/rdf-schema#label> ?label), active_graph: Union of [DefaultGraph] 
-                        QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www.w3.org/2000/01/rdf-schema#comment> ?comment), active_graph: Union of [DefaultGraph] 
-                      Projection: rhs.producer AS producer
-                        Inner Join: lhs.p = rhs.p
-                          SubqueryAlias: lhs
-                            Projection: lhs.p AS p
-                              Inner Join: lhs.p = rhs.p
-                                SubqueryAlias: lhs
-                                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> ?p), active_graph: Union of [DefaultGraph] 
-                                SubqueryAlias: rhs
-                                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://purl.org/dc/elements/1.1/publisher> ?p), active_graph: Union of [DefaultGraph] 
-                          SubqueryAlias: rhs
-                            QuadPattern (?p <http://www.w3.org/2000/01/rdf-schema#label> ?producer), active_graph: Union of [DefaultGraph] 
-                    Projection: rhs.productFeature AS productFeature
-                      Inner Join: lhs.f = rhs.f
-                        SubqueryAlias: lhs
-                          QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?f), active_graph: Union of [DefaultGraph] 
-                        SubqueryAlias: rhs
-                          QuadPattern (?f <http://www.w3.org/2000/01/rdf-schema#label> ?productFeature), active_graph: Union of [DefaultGraph] 
-                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual1> ?propertyTextual1), active_graph: Union of [DefaultGraph] 
-                QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual2> ?propertyTextual2), active_graph: Union of [DefaultGraph] 
-              QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual3> ?propertyTextual3), active_graph: Union of [DefaultGraph] 
-            QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?propertyNumeric1), active_graph: Union of [DefaultGraph] 
-          QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?propertyNumeric2), active_graph: Union of [DefaultGraph] 
-        QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual4> ?propertyTextual4), active_graph: Union of [DefaultGraph] 
-      QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual5> ?propertyTextual5), active_graph: Union of [DefaultGraph] 
-    QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric4> ?propertyNumeric4), active_graph: Union of [DefaultGraph]
+                  Projection: lhs.label AS label, lhs.comment AS comment, lhs.producer AS producer, rhs.productFeature AS productFeature
+                    Inner Join: lhs.f = rhs.f
+                      SubqueryAlias: lhs
+                        Cross Join: 
+                          Projection: lhs.label AS label, lhs.comment AS comment, lhs.producer AS producer
+                            Inner Join: lhs.p = rhs.p
+                              SubqueryAlias: lhs
+                                Projection: lhs.label AS label, lhs.comment AS comment, lhs.p AS p, rhs.producer AS producer
+                                  Inner Join: lhs.p = rhs.p
+                                    SubqueryAlias: lhs
+                                      Cross Join: 
+                                        Cross Join: 
+                                          QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www.w3.org/2000/01/rdf-schema#label> ?label)
+                                          QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www.w3.org/2000/01/rdf-schema#comment> ?comment)
+                                        QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer> ?p)
+                                    SubqueryAlias: rhs
+                                      QuadPattern (?p <http://www.w3.org/2000/01/rdf-schema#label> ?producer)
+                              SubqueryAlias: rhs
+                                QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://purl.org/dc/elements/1.1/publisher> ?p)
+                          QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?f)
+                      SubqueryAlias: rhs
+                        QuadPattern (?f <http://www.w3.org/2000/01/rdf-schema#label> ?productFeature)
+                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual1> ?propertyTextual1)
+                QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual2> ?propertyTextual2)
+              QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual3> ?propertyTextual3)
+            QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?propertyNumeric1)
+          QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?propertyNumeric2)
+        QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual4> ?propertyTextual4)
+      QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual5> ?propertyTextual5)
+    QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric4> ?propertyNumeric4)

@@ -1,11 +1,13 @@
-use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::{NullaryArgs, ScalarSparqlOp};
-use datafusion::logical_expr::{ColumnarValue, Volatility};
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_api::functions::FunctionName;
+use crate::scalar::sparql_op_impl::{
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
+};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::{EncodingArray, TermEncoder, TermEncoding};
+use rdf_fusion_encoding::{EncodingArray, TermEncoder};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{SimpleLiteral, TypedValue};
 use uuid::Uuid;
 
@@ -27,32 +29,28 @@ impl StrUuidSparqlOp {
 }
 
 impl ScalarSparqlOp for StrUuidSparqlOp {
-    type Args<TEncoding: TermEncoding> = NullaryArgs;
-
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn volatility(&self) -> Volatility {
-        Volatility::Volatile
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Nullary)
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
-        Some(create_typed_value_sparql_op_impl(
-            |NullaryArgs { number_rows }| {
-                let values = (0..number_rows)
-                    .map(|_| {
-                        let result = Uuid::new_v4().to_string();
-                        TypedValue::SimpleLiteral(SimpleLiteral { value: result })
-                    })
-                    .collect::<Vec<_>>();
-                let array = DefaultTypedValueEncoder::encode_terms(
-                    values.iter().map(|result| Ok(result.as_ref())),
-                )?;
-                Ok(ColumnarValue::Array(array.into_array()))
-            },
-        ))
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
+        Some(create_typed_value_sparql_op_impl(|args| {
+            let values = (0..args.number_rows)
+                .map(|_| {
+                    let result = Uuid::new_v4().to_string();
+                    TypedValue::SimpleLiteral(SimpleLiteral { value: result })
+                })
+                .collect::<Vec<_>>();
+            let array = DefaultTypedValueEncoder::encode_terms(
+                values.iter().map(|result| Ok(result.as_ref())),
+            )?;
+            Ok(ColumnarValue::Array(array.into_array()))
+        }))
     }
 }

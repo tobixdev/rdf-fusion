@@ -18,18 +18,19 @@ use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
 use itertools::Itertools;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::fmt::Formatter;
 use std::sync::Arc;
 
+/// The physical operator for evaluating a quad pattern against a [MemQuadStorage](crate::memory::MemQuadStorage).
 #[derive(Debug)]
 pub struct MemQuadPatternExec {
     /// The execution properties of this operator.
     plan_properties: PlanProperties,
     /// Execution metrics
     metrics: ExecutionPlanMetricsSet,
-    /// TODO
+    /// A [PlannedPatternScan] that represents a scan that is about to be executed.
     planned_scan: PlannedPatternScan,
 }
 

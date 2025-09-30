@@ -8,13 +8,57 @@ use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-/// Contains the data of the index.
+/// Contains the data of a [MemQuadIndex](super::MemQuadIndex). This is the physical layout of the
+/// index. Analogous to the [MemQuadIndex](super::MemQuadIndex), a single [IndexData] represents
+/// exactly one permutation of the quad components. Furthermore, all RDF terms are represented as
+/// [EncodedObjectId]s.
 ///
-/// TODO
+/// The physical layout of the [IndexData] is inspired by [Apache Parquet](https://parquet.apache.org/).
+/// Therefore, we also adopt its terminology for row groups and column chunks.
+///
+/// The physical layout consists of four columns, one for each quad component. The entire index is
+/// sorted from the left to the right. Furthermore, the index is partitioned into N row groups, each
+/// of which should hold ideal [Self::row_group_size] elements. The batch size is usually set to the
+/// default batch size of DataFusion. The part of a column within a row group is called a column
+/// chunk.
+///
+/// The following illustration shows the physical layout of the index. Here we assume that the index
+/// represents the GPOS permutation (any other permutation would be fine as well).
+///
+/// ```text
+///              ?graph   ?predicate  ?object  ?subject
+///               ┌─────┐    ┌─────┐   ┌─────┐   ┌─────┐
+///               │   0 │    │   1 │   │   4 │   │  10 │
+///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   0 │    │   1 │   │   7 │   │  10 │
+/// Row Group 0   ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   0 │    │   2 │   │   1 │   │  10 │
+///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   0 │    │   2 │   │   3 │   │  10 │
+///               └─────┘    └─────┘   └─────┘   └─────┘
+///
+///               ┌─────┐    ┌─────┐   ┌─────┐   ┌─────┐
+///               │   0 │    │   2 │   │   4 │   │  10 │
+///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   0 │    │   2 │   │   4 │   │  20 │
+/// Row Group 1   ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │   1 │    │   4 │   │   1 │   │  20 │
+///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+///               │ ... │    │ ... │   │ ... │   │ ... │
+///               └─────┘    └─────┘   └─────┘   └─────┘
+/// ```
+///
+/// The sorted nature of the index allows us to:
+/// - relatively quickly check whether a quad is contained in the index
+/// - efficiently scan the index for predicates that select a slice of the index (see [MemQuadIndexScanIterator](super::MemQuadIndexScanIterator)
+///   for further details)
 #[derive(Debug)]
 pub(super) struct IndexData {
+    /// Indicates which column is allowed to contain nullable data (i.e., the graph name)
     nullable_position: usize,
+    /// The target row group size
     row_group_size: usize,
+    /// The vector of [MemRowGroup].
     row_groups: Vec<MemRowGroup>,
 }
 
@@ -30,6 +74,10 @@ pub(super) struct RowGroupPruningResult {
     /// Represents a *logically* contiguous slice of the index.
     pub row_groups: Vec<MemRowGroup>,
     /// The new instructions that should be applied to the index.
+    ///
+    /// It could be possible that the pruning step can already guarantee that a filter will match
+    /// every row in the result. These instructions are then removed from the result to avoid
+    /// redundant applications of the filter.
     pub new_instructions: Option<IndexScanInstructions>,
 }
 
@@ -62,6 +110,47 @@ impl IndexData {
     /// 1. Search all row groups that may contain quads that match the given instructions
     /// 2. If necessary, slice the first and last row group such that some filters must not be
     ///    evaluated during the actual scan.
+    ///
+    /// You can think of this approach as narrowing in two pointers that point to the start and
+    /// end of interesting quads. Here is an example:
+    ///
+    /// Suppose that the predicates `[In(0), In(2), In(4), In(10)]` are part of the scan. The
+    /// figure below shows how the pointers are narrowing. It starts by having the initial pointer
+    /// point to the first and the last pointer point to the last quad. Then, after checking the
+    /// first predicate against the data, the last pointer is narrowed to the last quad that has the
+    /// value `0`. This is possible as the quads are sorted. This step is then applied for the
+    /// remaining scan instructions. Once a column is encountered that does not have a predicate,
+    /// the pruning stops. This is fine, as the filters will be applied in another step.
+    ///
+    /// ```text
+    ///               ?graph   ?predicate  ?object  ?subject    Instructions: In(0), In(2), In(4), In(10)
+    ///
+    ///               ┌─────┐    ┌─────┐   ┌─────┐   ┌─────┐
+    ///               │   0 │    │   1 │   │   4 │   │  10 │ ◄───── initial ─ first
+    ///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+    ///               │   0 │    │   1 │   │   7 │   │  10 │
+    /// Row Group 0   ├─────┤    ├─────┤   ├─────┤   ├─────┤
+    ///               │   0 │    │   2 │   │   1 │   │  10 │                   ◄───── second
+    ///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+    ///               │   0 │    │   2 │   │   3 │   │  10 │
+    ///               └─────┘    └─────┘   └─────┘   └─────┘
+    ///
+    ///
+    ///
+    ///               ┌─────┐    ┌─────┐   ┌─────┐   ┌─────┐
+    ///               │   0 │    │   2 │   │   4 │   │  10 │                            ◄───── third ─ fourth
+    ///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+    ///               │   0 │    │   2 │   │   4 │   │  20 │           ◄───── first ─ second ─ third
+    /// Row Group 1   ├─────┤    ├─────┤   ├─────┤   ├─────┤
+    ///               │   1 │    │   4 │   │   1 │   │  20 │
+    ///               ├─────┤    ├─────┤   ├─────┤   ├─────┤
+    ///               │ ... │    │ ... │   │ ... │   │ ... │ ◄───── initial
+    ///               └─────┘    └─────┘   └─────┘   └─────┘
+    /// ```
+    ///
+    /// The result also contains the new list of scan instructions. In the example above, we can
+    /// already guarantee from the pruning steps that the predicates will match all the quads
+    /// that remain between the from and to pointer. Therefore, we can eliminate them.
     pub fn prune_relevant_row_groups(
         &self,
         instructions: &IndexScanInstructions,
@@ -237,7 +326,10 @@ impl IndexData {
         count
     }
 
-    /// TODO
+    /// Removes the `to_remove` set of quads from the index.
+    ///
+    /// The method assumes that the [IndexedQuads](IndexedQuad) are ordered according to the
+    /// components of the index.
     pub fn remove(&mut self, to_remove: &BTreeSet<IndexedQuad>) -> usize {
         let mut count = 0;
         let mut row_group_idx = 0;
@@ -278,10 +370,10 @@ impl IndexData {
         count
     }
 
-    /// TODO
+    /// Clears all quads that have the given `value` in the column `column_idx`.
     pub(crate) fn clear_all_with_value_in_column(
         &mut self,
-        p0: EncodedObjectId,
+        value: EncodedObjectId,
         column_idx: usize,
     ) {
         let mut row_group_idx = 0;
@@ -292,7 +384,7 @@ impl IndexData {
                 current_row_group
                     .quads()
                     .into_iter()
-                    .filter(|q| q.0[column_idx] == p0)
+                    .filter(|q| q.0[column_idx] == value)
                     .collect(),
             );
 
@@ -305,12 +397,19 @@ impl IndexData {
     }
 }
 
-/// TODO
+/// The result of finding a quad in a [MemRowGroup].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum QuadFindResult {
+    /// The quad is not part of the [MemRowGroup]. If this quad was inserted, its position
+    /// would be before the row group.
     Before,
+    /// The quad is contained in the [MemRowGroup].
     Contained,
+    /// The quad is not contained in the [MemRowGroup]. If this quad was inserted, its position
+    /// would be within the row group.
     NotContained,
+    /// The quad is not part of the [MemRowGroup]. If this quad was inserted, its position
+    /// would be after the row group.
     After,
 }
 
@@ -372,7 +471,9 @@ impl MemRowGroup {
         self.column_chunks = new_data.column_chunks;
     }
 
-    /// TODO
+    /// Tries to find the given quad in this [MemRowGroup].
+    ///
+    /// See [QuadFindResult] for a list of possible outcomes.
     pub fn find(&self, quads: &IndexedQuad) -> QuadFindResult {
         let mut from = 0;
         let mut to = self.len();
@@ -410,7 +511,7 @@ impl MemRowGroup {
         QuadFindResult::Contained
     }
 
-    /// TODO
+    /// Returns a [BTreeSet] of all quads in this [MemRowGroup].
     fn quads(&self) -> BTreeSet<IndexedQuad> {
         let n = self.len();
         (0..n)
@@ -425,7 +526,10 @@ impl MemRowGroup {
             .collect()
     }
 
-    /// TODO
+    /// Returns a new [MemRowGroup] that is a slice of this row group. The `to` index is exclusive.
+    ///
+    /// This is a low-cost operation. The buffers for the individual column chunks will not be
+    /// copied.
     fn slice(&self, from: usize, to: usize) -> MemRowGroup {
         MemRowGroup {
             column_chunks: [
@@ -437,18 +541,26 @@ impl MemRowGroup {
         }
     }
 
-    /// TODO
+    /// Returns the [MemColumnChunk] arrays of this row group.
     pub fn into_arrays(self) -> [Arc<UInt32Array>; 4] {
         self.column_chunks.map(|c| c.data)
     }
 }
 
-/// TODO
+/// Returns a range of indices that have the same value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) enum FindRangeResult {
+    /// No element with the given value was found. If there had been an element with this value,
+    /// it would be before this [ColumnChunk].
     Before,
+    /// No element with the given value was found. If there had been an element with this value,
+    /// it would be at the given index.
     NotContained(usize),
+    /// There was at least one element with the given value. The entire range between the two
+    /// indices has this value.
     Contained(usize, usize),
+    /// No element with the given value was found. If there had been an element with this value,
+    /// it would be after this [ColumnChunk].
     After,
 }
 
@@ -470,7 +582,9 @@ impl MemColumnChunk {
         self.data.len()
     }
 
-    /// TODO
+    /// Checks whether the given `value` is part of this [MemColumnChunk].
+    ///
+    /// See [FindRangeResult] for a list of possible results.
     pub fn find_range(&self, object_id: EncodedObjectId) -> FindRangeResult {
         self.find_range_between(object_id, object_id)
     }
@@ -528,7 +642,10 @@ impl MemColumnChunk {
         )
     }
 
-    /// TODO
+    /// Returns a new [MemColumnChunk] starting at index `from` and ending at index `to`
+    /// (exclusive).
+    ///
+    /// This is an inexpensive operation. The buffer is not copied.
     fn slice(&self, from: usize, to: usize) -> MemColumnChunk {
         debug_assert!(from < to, "From must be smaller than to");
         let len = to - from;

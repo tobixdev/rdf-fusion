@@ -7,12 +7,12 @@ use datafusion::logical_expr::{
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::Expr;
-use rdf_fusion_api::RdfFusionContextView;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Term, TermPattern};
 use std::collections::{HashMap, HashSet};
 
-/// TODO
+/// This rule is responsible for lowering a [PatternNode] into a set of filters and projections.
 #[derive(Debug)]
 pub struct PatternLoweringRule {
     /// The RDF Fusion configuration.

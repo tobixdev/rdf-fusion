@@ -1,7 +1,8 @@
 use crate::runs::BenchmarkRun;
 use futures::StreamExt;
+use rdf_fusion::execution::results::QueryResults;
+use rdf_fusion::execution::sparql::{Query, QueryExplanation, QueryOptions};
 use rdf_fusion::store::Store;
-use rdf_fusion::{Query, QueryExplanation, QueryOptions, QueryResults};
 
 #[derive(Clone)]
 pub enum SparqlRawOperation<QueryName> {

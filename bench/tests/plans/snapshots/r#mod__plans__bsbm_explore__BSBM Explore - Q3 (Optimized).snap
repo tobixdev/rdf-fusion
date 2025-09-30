@@ -5,35 +5,39 @@ expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
 Projection: ENC_PT(product) AS product, ENC_PT(label) AS label
   Sort: ENC_SORT(ENC_PT(label)) ASC NULLS FIRST, fetch=10
     Projection: lhs.product AS product, lhs.label AS label
-      Filter: NOT EBV(ENC_TV(BOUND(rhs.testVar)))
+      Filter: NOT EBV(BOUND(rhs.testVar))
         Projection: lhs.product, lhs.label, rhs.testVar
           Left Join: lhs.product = rhs.product
             SubqueryAlias: lhs
               Projection: lhs.product AS product, lhs.label AS label
-                Inner Join: lhs.product = rhs.product Filter: coalesce(coalesce(EBV(GT(ENC_TV(lhs.p1), Union 9:156)), Boolean(false)) AND coalesce(EBV(LT(ENC_TV(rhs.p3), Union 9:152)), Boolean(false)), Boolean(false))
+                Inner Join: lhs.product = rhs.product
                   SubqueryAlias: lhs
-                    Projection: lhs.product AS product, lhs.label AS label, rhs.p1 AS p1
+                    Projection: lhs.product AS product, lhs.label AS label
                       Inner Join: lhs.product = rhs.product
                         SubqueryAlias: lhs
-                          Projection: lhs.product AS product, rhs.label AS label
+                          Projection: lhs.product AS product, lhs.label AS label
                             Inner Join: lhs.product = rhs.product
                               SubqueryAlias: lhs
-                                Projection: lhs.product AS product
+                                Projection: lhs.product AS product, lhs.label AS label
                                   Inner Join: lhs.product = rhs.product
                                     SubqueryAlias: lhs
-                                      QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType87>), active_graph: Union of [DefaultGraph] 
+                                      QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?label)
                                     SubqueryAlias: rhs
-                                      QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature541>), active_graph: Union of [DefaultGraph] 
+                                      QuadPattern (?product <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType87>)
                               SubqueryAlias: rhs
-                                QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?label), active_graph: Union of [DefaultGraph] 
+                                QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature541>)
                         SubqueryAlias: rhs
-                          QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?p1), active_graph: Union of [DefaultGraph] 
+                          Projection: product
+                            Filter: EBV(GT(ENC_TV(p1), Union 9:156))
+                              QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?p1)
                   SubqueryAlias: rhs
-                    QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric3> ?p3), active_graph: Union of [DefaultGraph] 
+                    Projection: product
+                      Filter: EBV(LT(ENC_TV(p3), Union 9:152))
+                        QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric3> ?p3)
             SubqueryAlias: rhs
               Projection: lhs.product AS product, rhs.testVar AS testVar
                 Inner Join: lhs.product = rhs.product
                   SubqueryAlias: lhs
-                    QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature553>), active_graph: Union of [DefaultGraph] 
+                    QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature553>)
                   SubqueryAlias: rhs
-                    QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?testVar), active_graph: Union of [DefaultGraph]
+                    QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?testVar)

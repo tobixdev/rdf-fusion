@@ -1,9 +1,9 @@
-use crate::typed_value::TypedValueArrayBuilder;
+use crate::typed_value::TypedValueArrayElementBuilder;
 
 use crate::TermEncoder;
 use crate::TermEncoding;
 use crate::TypedValueEncoding;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{BlankNode, Double, NamedNode, TypedValueRef};
 use rdf_fusion_model::{
     BlankNodeRef, LiteralRef, NamedNodeRef, Numeric, SimpleLiteralRef, StringLiteralRef,
@@ -25,7 +25,7 @@ macro_rules! make_simple_term_value_encoder {
             fn encode_terms<'data>(
                 terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
             ) -> DFResult<<TypedValueEncoding as TermEncoding>::Array> {
-                let mut builder = TypedValueArrayBuilder::default();
+                let mut builder = TypedValueArrayElementBuilder::default();
                 for term_result in terms {
                     match term_result {
                         Ok(value) => $BUILDER_INVOCATION(&mut builder, value)?,
@@ -50,115 +50,119 @@ macro_rules! make_simple_term_value_encoder {
 make_simple_term_value_encoder!(
     NamedNodeTermValueEncoder,
     NamedNode,
-    |builder: &mut TypedValueArrayBuilder, value: NamedNode| {
+    |builder: &mut TypedValueArrayElementBuilder, value: NamedNode| {
         builder.append_named_node(value.as_ref())
     }
 );
 make_simple_term_value_encoder!(
     NamedNodeRefTermValueEncoder,
     NamedNodeRef<'data>,
-    |builder: &mut TypedValueArrayBuilder, value: NamedNodeRef<'data>| {
+    |builder: &mut TypedValueArrayElementBuilder, value: NamedNodeRef<'data>| {
         builder.append_named_node(value)
     }
 );
 make_simple_term_value_encoder!(
     BlankNodeTermValueEncoder,
     BlankNode,
-    |builder: &mut TypedValueArrayBuilder, value: BlankNode| {
+    |builder: &mut TypedValueArrayElementBuilder, value: BlankNode| {
         builder.append_blank_node(value.as_ref())
     }
 );
 make_simple_term_value_encoder!(
     BlankNodeRefTermValueEncoder,
     BlankNodeRef<'data>,
-    |builder: &mut TypedValueArrayBuilder, value: BlankNodeRef<'data>| {
+    |builder: &mut TypedValueArrayElementBuilder, value: BlankNodeRef<'data>| {
         builder.append_blank_node(value)
     }
 );
 make_simple_term_value_encoder!(
     BooleanTermValueEncoder,
     Boolean,
-    |builder: &mut TypedValueArrayBuilder, value: Boolean| {
+    |builder: &mut TypedValueArrayElementBuilder, value: Boolean| {
         builder.append_boolean(value)
     }
 );
 make_simple_term_value_encoder!(
     SimpleLiteralRefTermValueEncoder,
     SimpleLiteralRef<'data>,
-    |builder: &mut TypedValueArrayBuilder, value: SimpleLiteralRef<'data>| {
+    |builder: &mut TypedValueArrayElementBuilder, value: SimpleLiteralRef<'data>| {
         builder.append_string(value.value, None)
     }
 );
 make_simple_term_value_encoder!(
     StringLiteralRefTermValueEncoder,
     StringLiteralRef<'data>,
-    |builder: &mut TypedValueArrayBuilder, value: StringLiteralRef<'data>| {
+    |builder: &mut TypedValueArrayElementBuilder, value: StringLiteralRef<'data>| {
         builder.append_string(value.0, value.1)
     }
 );
 make_simple_term_value_encoder!(
     OwnedStringLiteralTermValueEncoder,
     OwnedStringLiteral,
-    |builder: &mut TypedValueArrayBuilder, value: OwnedStringLiteral| {
+    |builder: &mut TypedValueArrayElementBuilder, value: OwnedStringLiteral| {
         builder.append_string(value.0.as_str(), value.1.as_deref())
     }
 );
 make_simple_term_value_encoder!(
     IntTermValueEncoder,
     Int,
-    |builder: &mut TypedValueArrayBuilder, value: Int| { builder.append_int(value) }
+    |builder: &mut TypedValueArrayElementBuilder, value: Int| {
+        builder.append_int(value)
+    }
 );
 make_simple_term_value_encoder!(
     IntegerTermValueEncoder,
     Integer,
-    |builder: &mut TypedValueArrayBuilder, value: Integer| {
+    |builder: &mut TypedValueArrayElementBuilder, value: Integer| {
         builder.append_integer(value)
     }
 );
 make_simple_term_value_encoder!(
     FloatTermValueEncoder,
     Float,
-    |builder: &mut TypedValueArrayBuilder, value: Float| { builder.append_float(value) }
+    |builder: &mut TypedValueArrayElementBuilder, value: Float| {
+        builder.append_float(value)
+    }
 );
 make_simple_term_value_encoder!(
     DoubleTermValueEncoder,
     Double,
-    |builder: &mut TypedValueArrayBuilder, value: Double| {
+    |builder: &mut TypedValueArrayElementBuilder, value: Double| {
         builder.append_double(value)
     }
 );
 make_simple_term_value_encoder!(
     DecimalTermValueEncoder,
     Decimal,
-    |builder: &mut TypedValueArrayBuilder, value: Decimal| {
+    |builder: &mut TypedValueArrayElementBuilder, value: Decimal| {
         builder.append_decimal(value)
     }
 );
 make_simple_term_value_encoder!(
     NumericTypedValueEncoder,
     Numeric,
-    |builder: &mut TypedValueArrayBuilder, value: Numeric| {
+    |builder: &mut TypedValueArrayElementBuilder, value: Numeric| {
         builder.append_numeric(value)
     }
 );
 make_simple_term_value_encoder!(
     DateTimeTermValueEncoder,
     DateTime,
-    |builder: &mut TypedValueArrayBuilder, value: DateTime| {
+    |builder: &mut TypedValueArrayElementBuilder, value: DateTime| {
         builder.append_date_time(value)
     }
 );
 make_simple_term_value_encoder!(
     DayTimeDurationTermValueEncoder,
     DayTimeDuration,
-    |builder: &mut TypedValueArrayBuilder, value: DayTimeDuration| {
+    |builder: &mut TypedValueArrayElementBuilder, value: DayTimeDuration| {
         builder.append_duration(None, Some(value))
     }
 );
 make_simple_term_value_encoder!(
     LiteralRefTermValueEncoder,
     LiteralRef<'data>,
-    |builder: &mut TypedValueArrayBuilder, value: LiteralRef<'data>| {
+    |builder: &mut TypedValueArrayElementBuilder, value: LiteralRef<'data>| {
         match TryInto::<TypedValueRef<'_>>::try_into(value) {
             Ok(value) => builder.append_typed_value(value),
             Err(_) => builder.append_null(),

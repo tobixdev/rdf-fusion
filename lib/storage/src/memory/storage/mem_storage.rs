@@ -4,11 +4,12 @@ use crate::memory::storage::index::{IndexComponents, IndexSet};
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
-use rdf_fusion_api::storage::QuadStorage;
-use rdf_fusion_common::DFResult;
-use rdf_fusion_common::error::StorageError;
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_extensions::storage::QuadStorage;
+use rdf_fusion_model::DFResult;
+use rdf_fusion_model::StorageError;
 use rdf_fusion_model::{
     GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
 };
@@ -44,8 +45,8 @@ impl MemQuadStorage {
     pub async fn snapshot(&self) -> MemQuadStorageSnapshot {
         MemQuadStorageSnapshot::new(
             self.encoding(),
-            self.object_id_mapping.clone(),
-            Arc::new(self.indices.clone().read_owned().await),
+            Arc::clone(&self.object_id_mapping),
+            Arc::new(Arc::clone(&self.indices).read_owned().await),
         )
     }
 }
@@ -58,15 +59,18 @@ impl QuadStorage for MemQuadStorage {
     }
 
     fn object_id_mapping(&self) -> Option<Arc<dyn ObjectIdMapping>> {
-        Some(self.object_id_mapping.clone())
+        Some(Arc::clone(&self.object_id_mapping) as Arc<dyn ObjectIdMapping>)
     }
 
-    async fn planners(&self) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
+    async fn planners(
+        &self,
+        _context: &RdfFusionContextView,
+    ) -> Vec<Arc<dyn ExtensionPlanner + Send + Sync>> {
         let snapshot = self.snapshot().await;
         vec![Arc::new(MemQuadStorePlanner::new(snapshot))]
     }
 
-    async fn insert(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
+    async fn extend(&self, quads: Vec<Quad>) -> Result<usize, StorageError> {
         let encoded = quads
             .iter()
             .map(|q| self.object_id_mapping.encode_quad(q.as_ref()))

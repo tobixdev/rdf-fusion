@@ -19,7 +19,7 @@ pub fn prepare_run_command(
 
     if !status.success() {
         let exit_code = status.code().unwrap_or(-1);
-        bail!("Command `{}` failed with exit code {}", program, exit_code);
+        bail!("Command `{program}` failed with exit code {exit_code}");
     }
 
     println!("Command executed successfully.");

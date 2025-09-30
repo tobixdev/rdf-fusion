@@ -3,14 +3,22 @@ use crate::object_id::ObjectIdEncoding;
 use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use datafusion::arrow::datatypes::{DataType, Field, Fields, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
-use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
-/// TODO
+/// Defines which encoding is used for retrieving quads from the storage.
+///
+/// Defining this is necessary such that the query planner knows what type should be assigned to the
+/// schema of quad pattern logical nodes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum QuadStorageEncoding {
+    /// Uses the plain term encoding.
+    ///
+    /// Currently, the plain term encoding is not parameterizable. Therefore, this variant has no
+    /// further information.
     PlainTerm,
+    /// Uses the provided object id encoding.
     ObjectId(ObjectIdEncoding),
 }
 
@@ -28,7 +36,7 @@ static PLAIN_TERM_QUAD_DFSCHEMA: LazyLock<DFSchemaRef> = LazyLock::new(|| {
 });
 
 impl QuadStorageEncoding {
-    /// TODO
+    /// Returns the data type of a single term column, given the current encoding.
     pub fn term_type(&self) -> DataType {
         match self {
             QuadStorageEncoding::PlainTerm => PLAIN_TERM_ENCODING.data_type(),
@@ -36,7 +44,7 @@ impl QuadStorageEncoding {
         }
     }
 
-    /// TODO
+    /// Returns the schema of an entire quad, given the current encoding.
     pub fn quad_schema(&self) -> DFSchemaRef {
         match self {
             QuadStorageEncoding::PlainTerm => PLAIN_TERM_QUAD_DFSCHEMA.clone(),
@@ -44,7 +52,9 @@ impl QuadStorageEncoding {
         }
     }
 
-    /// TODO
+    /// Returns an optional reference to the contained [ObjectIdEncoding].
+    ///
+    /// Returns [None] otherwise.
     pub fn object_id_encoding(&self) -> Option<&ObjectIdEncoding> {
         match &self {
             QuadStorageEncoding::ObjectId(encoding) => Some(encoding),
@@ -53,7 +63,7 @@ impl QuadStorageEncoding {
     }
 }
 
-#[allow(clippy::expect_used)]
+/// Computes the quad schema based on the given [ObjectIdEncoding].
 fn object_id_quad_schema(encoding: &ObjectIdEncoding) -> DFSchemaRef {
     let data_type = encoding.data_type();
     Arc::new(

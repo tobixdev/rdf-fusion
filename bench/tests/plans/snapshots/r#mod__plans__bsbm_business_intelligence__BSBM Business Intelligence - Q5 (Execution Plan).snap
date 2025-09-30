@@ -10,7 +10,7 @@ ProjectionExec: expr=[country@0 as country, ENC_PT(product@1) as product, ENC_PT
           NestedLoopJoinExec: join_type=Inner, filter=IS_COMPATIBLE(country@0, country@1)
             ProjectionExec: expr=[ENC_PT(country@0) as country, 00000000000000000000000000000001@1 as maxReviews]
               AggregateExec: mode=Single, gby=[country@0 as country], aggr=[00000000000000000000000000000001]
-                ProjectionExec: expr=[country@0 as country, enc_int64_as_rdf_term(00000000000000000000000000000002@2) as nrOfReviews]
+                ProjectionExec: expr=[country@0 as country, INT64_AS_TERM(00000000000000000000000000000002@2) as nrOfReviews]
                   AggregateExec: mode=Single, gby=[country@2 as country, product@0 as product], aggr=[00000000000000000000000000000002]
                     CoalesceBatchesExec: target_batch_size=8192
                       HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(reviewer@2, reviewer@0)], projection=[product@0, review@1, country@4]
@@ -31,7 +31,7 @@ ProjectionExec: expr=[country@0 as country, ENC_PT(product@1) as product, ENC_PT
                         MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>
                         MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
                     MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
-        ProjectionExec: expr=[ENC_PT(country@0) as country, product@1 as product, enc_int64_as_rdf_term(00000000000000000000000000000004@2) as nrOfReviews]
+        ProjectionExec: expr=[ENC_PT(country@0) as country, product@1 as product, INT64_AS_TERM(00000000000000000000000000000004@2) as nrOfReviews]
           AggregateExec: mode=Single, gby=[country@2 as country, product@0 as product], aggr=[00000000000000000000000000000004]
             CoalesceBatchesExec: target_batch_size=8192
               HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(reviewer@2, reviewer@0)], projection=[product@0, review@1, country@4]

@@ -65,8 +65,7 @@ impl TryFrom<u8> for BsbmBusinessIntelligenceQueryName {
             7 => Ok(BsbmBusinessIntelligenceQueryName::Q7),
             8 => Ok(BsbmBusinessIntelligenceQueryName::Q8),
             _ => Err(anyhow::anyhow!(
-                "Invalid BSBM Business Intelligence query name: {}",
-                value
+                "Invalid BSBM Business Intelligence query name: {value}"
             )),
         }
     }

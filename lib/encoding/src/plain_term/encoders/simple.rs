@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use crate::plain_term::{PlainTermArrayElementBuilder, PlainTermEncoding};
 use crate::{EncodingArray, TermEncoding};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{Boolean, LiteralRef, SimpleLiteralRef, ThinResult};
 
@@ -16,7 +16,7 @@ impl TermEncoder<PlainTermEncoding> for BooleanPlainTermEncoder {
     ) -> DFResult<<PlainTermEncoding as TermEncoding>::Array> {
         let iter = terms.into_iter();
         let (min, _) = iter.size_hint();
-        let mut builder = PlainTermArrayBuilder::new(min);
+        let mut builder = PlainTermArrayElementBuilder::new(min);
 
         for value in iter {
             if let Ok(value) = value {
@@ -50,7 +50,7 @@ impl TermEncoder<PlainTermEncoding> for SimpleLiteralRefPlainTermEncoder {
     ) -> DFResult<<PlainTermEncoding as TermEncoding>::Array> {
         let iter = terms.into_iter();
         let (min, _) = iter.size_hint();
-        let mut builder = PlainTermArrayBuilder::new(min);
+        let mut builder = PlainTermArrayElementBuilder::new(min);
 
         for value in iter {
             if let Ok(value) = value {

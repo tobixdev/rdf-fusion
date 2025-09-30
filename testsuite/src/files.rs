@@ -75,7 +75,7 @@ pub fn load_to_dataset(
 ) -> Result<()> {
     let mut parser = RdfParser::from_format(format).with_base_iri(url)?;
     if unchecked {
-        parser = parser.unchecked();
+        parser = parser.lenient();
     }
     for q in parser.for_reader(read_file(url)?) {
         match q {

@@ -7,21 +7,23 @@ ProjectionExec: expr=[ENC_PT(product@0) as product, ENC_PT(ratio@3) as ratio]
     ProjectionExec: expr=[product@0 as product, monthCount@1 as monthCount, monthBeforeCount@2 as monthBeforeCount, DIV(xsd:float(monthCount@1), monthBeforeCount@2) as ratio]
       CoalesceBatchesExec: target_batch_size=8192
         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, monthCount@1, monthBeforeCount@3]
-          ProjectionExec: expr=[product@0 as product, enc_int64_as_rdf_term(00000000000000000000000000000001@1) as monthCount]
+          ProjectionExec: expr=[product@0 as product, INT64_AS_TERM(00000000000000000000000000000001@1) as monthCount]
             AggregateExec: mode=Single, gby=[product@1 as product], aggr=[00000000000000000000000000000001]
               CoalesceBatchesExec: target_batch_size=8192
                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[review@0, product@1]
                   MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product
                   CoalesceBatchesExec: target_batch_size=8192
-                    FilterExec: coalesce(EBV(GEQ(ENC_TV(date@1), 12:{value:6332757120000.0000000000000000,offset:})), false) AND coalesce(EBV(LT(ENC_TV(date@1), 12:{value:6332999040000.0000000000000000,offset:})), false), projection=[review@0]
-                      MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://purl.org/dc/elements/1.1/date>, object=?date
-          ProjectionExec: expr=[product@0 as product, enc_int64_as_rdf_term(00000000000000000000000000000002@1) as monthBeforeCount]
+                    FilterExec: EBV(GEQ(__common_expr_5@0, 12:{value:6332757120000.0000000000000000,offset:})) AND EBV(LT(__common_expr_5@0, 12:{value:6332999040000.0000000000000000,offset:})), projection=[review@1]
+                      ProjectionExec: expr=[ENC_TV(date@1) as __common_expr_5, review@0 as review]
+                        MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://purl.org/dc/elements/1.1/date>, object=?date
+          ProjectionExec: expr=[product@0 as product, INT64_AS_TERM(00000000000000000000000000000002@1) as monthBeforeCount]
             CoalesceBatchesExec: target_batch_size=8192
-              FilterExec: EBV(GT(enc_int64_as_rdf_term(00000000000000000000000000000002@1), 9:0))
+              FilterExec: EBV(GT(INT64_AS_TERM(00000000000000000000000000000002@1), 9:0))
                 AggregateExec: mode=Single, gby=[product@1 as product], aggr=[00000000000000000000000000000002]
                   CoalesceBatchesExec: target_batch_size=8192
                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[review@0, product@1]
                       MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product
                       CoalesceBatchesExec: target_batch_size=8192
-                        FilterExec: coalesce(EBV(GEQ(ENC_TV(date@1), 12:{value:6332515200000.0000000000000000,offset:})), false) AND coalesce(EBV(LT(ENC_TV(date@1), 12:{value:6332757120000.0000000000000000,offset:})), false), projection=[review@0]
-                          MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://purl.org/dc/elements/1.1/date>, object=?date
+                        FilterExec: EBV(GEQ(__common_expr_6@0, 12:{value:6332515200000.0000000000000000,offset:})) AND EBV(LT(__common_expr_6@0, 12:{value:6332757120000.0000000000000000,offset:})), projection=[review@1]
+                          ProjectionExec: expr=[ENC_TV(date@1) as __common_expr_6, review@0 as review]
+                            MemQuadPatternExec: [GPOS] subject=?review, predicate=<http://purl.org/dc/elements/1.1/date>, object=?date

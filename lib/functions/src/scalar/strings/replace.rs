@@ -1,16 +1,14 @@
 use crate::scalar::dispatch::{
     dispatch_quaternary_owned_typed_value, dispatch_ternary_owned_typed_value,
 };
-use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::strings::regex::compile_pattern;
-use crate::scalar::{
-    QuaternaryArgs, ScalarSparqlOp, TernaryArgs, TernaryOrQuaternaryArgs,
+use crate::scalar::sparql_op_impl::{
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
-use datafusion::logical_expr::Volatility;
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_api::functions::FunctionName;
-use rdf_fusion_encoding::TermEncoding;
+use crate::scalar::strings::regex::compile_pattern;
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{
     LanguageString, SimpleLiteral, SimpleLiteralRef, StringLiteralRef, ThinError,
     TypedValue, TypedValueRef,
@@ -37,42 +35,41 @@ impl ReplaceSparqlOp {
 }
 
 impl ScalarSparqlOp for ReplaceSparqlOp {
-    type Args<TEncoding: TermEncoding> = TernaryOrQuaternaryArgs<TEncoding>;
-
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn volatility(&self) -> Volatility {
-        Volatility::Immutable
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::OneOf(vec![
+            SparqlOpArity::Fixed(3),
+            SparqlOpArity::Fixed(4),
+        ]))
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
-        Some(create_typed_value_sparql_op_impl(|args| match args {
-            TernaryOrQuaternaryArgs::Ternary(TernaryArgs(arg0, arg1, arg2)) => {
-                dispatch_ternary_owned_typed_value(
-                    &arg0,
-                    &arg1,
-                    &arg2,
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
+        Some(create_typed_value_sparql_op_impl(|args| {
+            match args.args.len() {
+                3 => dispatch_ternary_owned_typed_value(
+                    &args.args[0],
+                    &args.args[1],
+                    &args.args[2],
                     |arg0, arg1, arg2| evaluate_replace(arg0, arg1, arg2, None)?,
                     |_, _, _| ThinError::expected(),
-                )
+                ),
+                4 => dispatch_quaternary_owned_typed_value(
+                    &args.args[0],
+                    &args.args[1],
+                    &args.args[2],
+                    &args.args[3],
+                    |arg0, arg1, arg2, arg3| {
+                        evaluate_replace(arg0, arg1, arg2, Some(arg3))?
+                    },
+                    |_, _, _, _| ThinError::expected(),
+                ),
+                _ => unreachable!("Invalid number of arguments"),
             }
-            TernaryOrQuaternaryArgs::Quaternary(QuaternaryArgs(
-                arg0,
-                arg1,
-                arg2,
-                arg3,
-            )) => dispatch_quaternary_owned_typed_value(
-                &arg0,
-                &arg1,
-                &arg2,
-                &arg3,
-                |arg0, arg1, arg2, arg3| evaluate_replace(arg0, arg1, arg2, Some(arg3))?,
-                |_, _, _, _| ThinError::expected(),
-            ),
         }))
     }
 }

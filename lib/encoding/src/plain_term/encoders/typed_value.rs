@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use crate::plain_term::{PlainTermArrayElementBuilder, PlainTermEncoding};
 use crate::{EncodingArray, TermEncoding};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Term, ThinResult, TypedValueRef};
 
 #[derive(Debug)]
@@ -15,7 +15,7 @@ impl TermEncoder<PlainTermEncoding> for TypedValueRefPlainTermEncoder {
     ) -> DFResult<<PlainTermEncoding as TermEncoding>::Array> {
         let iter = terms.into_iter();
         let (min, _) = iter.size_hint();
-        let mut builder = PlainTermArrayBuilder::new(min);
+        let mut builder = PlainTermArrayElementBuilder::new(min);
 
         for term in iter {
             if let Ok(term) = term {

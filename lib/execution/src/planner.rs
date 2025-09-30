@@ -6,20 +6,23 @@ use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::{
     DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner,
 };
-use rdf_fusion_api::storage::QuadStorage;
+use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_physical::paths::KleenePlusPathPlanner;
 use std::fmt::Debug;
 use std::sync::Arc;
 
 pub struct RdfFusionPlanner {
+    /// The RdfFusion context.
+    context: RdfFusionContextView,
     /// The storage layer that is used to execute the query.
     storage: Arc<dyn QuadStorage>,
 }
 
 impl RdfFusionPlanner {
     /// Creates a new [RdfFusionPlanner].
-    pub fn new(storage: Arc<dyn QuadStorage>) -> Self {
-        Self { storage }
+    pub fn new(context: RdfFusionContextView, storage: Arc<dyn QuadStorage>) -> Self {
+        Self { context, storage }
     }
 }
 
@@ -38,7 +41,7 @@ impl QueryPlanner for RdfFusionPlanner {
     ) -> datafusion::common::Result<Arc<dyn ExecutionPlan>> {
         let mut planners: Vec<Arc<dyn ExtensionPlanner + Send + Sync>> =
             vec![Arc::new(KleenePlusPathPlanner)];
-        planners.extend(self.storage.planners().await);
+        planners.extend(self.storage.planners(&self.context).await);
 
         let planner = DefaultPhysicalPlanner::with_extension_planners(planners);
         planner

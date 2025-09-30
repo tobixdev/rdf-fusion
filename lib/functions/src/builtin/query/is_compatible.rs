@@ -7,17 +7,17 @@ use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-pub fn is_compatible(encodings: &RdfFusionEncodings) -> Arc<ScalarUDF> {
+pub fn is_compatible(encodings: &RdfFusionEncodings) -> ScalarUDF {
     let udf_impl = IsCompatible::new(encodings);
-    Arc::new(ScalarUDF::new_from_impl(udf_impl))
+    ScalarUDF::new_from_impl(udf_impl)
 }
 
 #[derive(Debug, Eq)]

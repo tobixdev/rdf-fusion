@@ -1,10 +1,10 @@
 use datafusion::logical_expr::ColumnarValue;
 use itertools::izip;
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{ThinResult, TypedValue, TypedValueRef};
 
 pub fn dispatch_ternary_typed_value<'data>(

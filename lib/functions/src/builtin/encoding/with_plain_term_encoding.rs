@@ -5,8 +5,6 @@ use datafusion::logical_expr::{
     ColumnarValue, ReturnFieldArgs, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl,
     Signature, TypeSignature, Volatility,
 };
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::plain_term::encoders::TypedValueRefPlainTermEncoder;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
@@ -15,17 +13,18 @@ use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
     TermEncoder, TermEncoding,
 };
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
 use std::any::Any;
-use std::hash::Hash;
-use std::sync::Arc;
+use std::hash::{Hash, Hasher};
 
-pub fn with_plain_term_encoding(encodings: RdfFusionEncodings) -> Arc<ScalarUDF> {
+pub fn with_plain_term_encoding(encodings: RdfFusionEncodings) -> ScalarUDF {
     let udf_impl = WithPlainTermEncoding::new(encodings);
-    Arc::new(ScalarUDF::new_from_impl(udf_impl))
+    ScalarUDF::new_from_impl(udf_impl)
 }
 
 /// Transforms RDF Terms into the [PlainTermEncoding](rdf_fusion_encoding::plain_term::PlainTermEncoding).
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq)]
 struct WithPlainTermEncoding {
     /// The name of the UDF
     name: String,
@@ -155,5 +154,11 @@ impl ScalarUDFImpl for WithPlainTermEncoding {
             [ColumnarValue::Array(array)] => self.convert_array(encoding_name, array),
             [ColumnarValue::Scalar(scalar)] => self.convert_scalar(encoding_name, scalar),
         }
+    }
+}
+
+impl Hash for WithPlainTermEncoding {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_any().type_id().hash(state);
     }
 }

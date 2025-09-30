@@ -3,7 +3,7 @@
 //! The root type for SPARQL queries is [`Query`] and the root type for updates is [`Update`].
 
 use rdf_fusion_model::{GraphName, NamedOrBlankNode};
-use spargebra::GraphUpdateOperation;
+use spargebra::{GraphUpdateOperation, SparqlSyntaxError};
 use std::fmt;
 use std::str::FromStr;
 
@@ -36,10 +36,8 @@ pub struct Query {
 
 impl Query {
     /// Parses a SPARQL query with an optional base IRI to resolve relative IRIs in the query.
-    pub fn parse(
-        query: &str,
-        base_iri: Option<&str>,
-    ) -> Result<Self, spargebra::SparqlSyntaxError> {
+    pub fn parse(query: &str, base_iri: Option<&str>) -> Result<Self, SparqlSyntaxError> {
+        #[allow(deprecated, reason = "Converting to SparqlSyntaxError")]
         let query = Self::from(spargebra::Query::parse(query, base_iri)?);
         Ok(Self {
             dataset: query.dataset,
@@ -65,7 +63,7 @@ impl fmt::Display for Query {
 }
 
 impl FromStr for Query {
-    type Err = spargebra::SparqlSyntaxError;
+    type Err = SparqlSyntaxError;
 
     fn from_str(query: &str) -> Result<Self, Self::Err> {
         Self::parse(query, None)
@@ -73,7 +71,7 @@ impl FromStr for Query {
 }
 
 impl TryFrom<&str> for Query {
-    type Error = spargebra::SparqlSyntaxError;
+    type Error = SparqlSyntaxError;
 
     fn try_from(query: &str) -> Result<Self, Self::Error> {
         Self::from_str(query)
@@ -81,7 +79,7 @@ impl TryFrom<&str> for Query {
 }
 
 impl TryFrom<&String> for Query {
-    type Error = spargebra::SparqlSyntaxError;
+    type Error = SparqlSyntaxError;
 
     fn try_from(query: &String) -> Result<Self, Self::Error> {
         Self::from_str(query)
@@ -126,7 +124,8 @@ impl Update {
     pub fn parse(
         update: &str,
         base_iri: Option<&str>,
-    ) -> Result<Self, spargebra::SparqlSyntaxError> {
+    ) -> Result<Self, SparqlSyntaxError> {
+        #[allow(deprecated, reason = "Converting to SparqlSyntaxError")]
         Ok(spargebra::Update::parse(update, base_iri)?.into())
     }
 
@@ -148,7 +147,7 @@ impl fmt::Display for Update {
 }
 
 impl FromStr for Update {
-    type Err = spargebra::SparqlSyntaxError;
+    type Err = SparqlSyntaxError;
 
     fn from_str(update: &str) -> Result<Self, Self::Err> {
         Self::parse(update, None)
@@ -156,7 +155,7 @@ impl FromStr for Update {
 }
 
 impl TryFrom<&str> for Update {
-    type Error = spargebra::SparqlSyntaxError;
+    type Error = SparqlSyntaxError;
 
     fn try_from(update: &str) -> Result<Self, Self::Error> {
         Self::from_str(update)
@@ -164,7 +163,7 @@ impl TryFrom<&str> for Update {
 }
 
 impl TryFrom<&String> for Update {
-    type Error = spargebra::SparqlSyntaxError;
+    type Error = SparqlSyntaxError;
 
     fn try_from(update: &String) -> Result<Self, Self::Error> {
         Self::from_str(update)

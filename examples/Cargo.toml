@@ -1,0 +1,22 @@
+[package]
+name = "rdf-fusion-examples"
+description = "RDF Fusion usage examples"
+publish = false
+readme = "README.md"
+version = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
+rust-version = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+anyhow = { workspace = true }
+async-trait.workspace = true
+datafusion = { workspace = true }
+futures = { workspace = true }
+rdf-fusion = { workspace = true }
+tokio = { workspace = true }

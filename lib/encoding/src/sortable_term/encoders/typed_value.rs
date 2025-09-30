@@ -3,7 +3,7 @@ use crate::sortable_term::{
     SORTABLE_TERM_ENCODING, SortableTermArrayBuilder, SortableTermEncoding,
 };
 use crate::{EncodingArray, TermEncoding};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{ThinResult, TypedValueRef};
 
 #[derive(Debug)]

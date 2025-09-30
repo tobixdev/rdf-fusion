@@ -6,10 +6,6 @@ use datafusion::physical_plan::memory::MemoryStream;
 use futures::StreamExt;
 use oxrdfio::{RdfFormat, RdfSerializer};
 use rdf_fusion_model::{Variable, VariableRef};
-use sparesults::{
-    QueryResultsFormat, QueryResultsParseError, QueryResultsParser,
-    QueryResultsSerializer, ReaderQueryResultsParserOutput,
-};
 use std::error::Error;
 use std::io::{Read, Write};
 use std::sync::Arc;
@@ -23,9 +19,15 @@ use crate::sparql::error::QueryEvaluationError;
 pub use graph_name::GraphNameStream;
 pub use quads::QuadStream;
 pub use query_solution::QuerySolutionStream;
-use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermArrayBuilder};
+use rdf_fusion_encoding::plain_term::{
+    PLAIN_TERM_ENCODING, PlainTermArrayElementBuilder,
+};
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
-pub use sparesults::QuerySolution;
+pub use sparesults::{
+    QueryResultsFormat, QueryResultsParseError, QueryResultsParser,
+    QueryResultsSerializer, QuerySolution, ReaderQueryResultsParserOutput,
+    WriterSolutionsSerializer,
+};
 pub use triples::QueryTripleStream;
 
 /// Results of a [SPARQL query](https://www.w3.org/TR/sparql11-query/).
@@ -168,7 +170,7 @@ pub fn query_result_for_iterator(
     let mut builders = Vec::new();
     for _ in 0..variables.len() {
         // For now we assume that all outputs have a plain term encoding.
-        builders.push(PlainTermArrayBuilder::default())
+        builders.push(PlainTermArrayElementBuilder::default())
     }
 
     let mut count = 0;

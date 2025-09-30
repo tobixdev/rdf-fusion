@@ -1,8 +1,9 @@
 use crate::sparql::rewriting::GraphPatternRewriter;
 use datafusion::common::{internal_err, plan_err};
 use datafusion::logical_expr::{Expr, Operator, lit, or};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_logical::{RdfFusionExprBuilder, RdfFusionExprBuilderContext};
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::Iri;
 use rdf_fusion_model::vocab::xsd;
 use rdf_fusion_model::{DateTime, TermRef};
@@ -287,7 +288,8 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
             return self.unary_args(args)?.cast_string();
         }
 
-        plan_err!("Custom Function {} is not supported.", function.as_str())
+        self.expr_builder_root
+            .try_create_builder_for_udf(&FunctionName::Custom(function.clone()), args)
     }
 
     /// Rewrites an IN expression to a list of equality checks. As the IN operation is equal to

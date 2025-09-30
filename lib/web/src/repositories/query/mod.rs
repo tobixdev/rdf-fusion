@@ -10,8 +10,8 @@ use crate::repositories::service_description::{
 };
 use crate::repositories::sparql_query_params::SparqlQueryParams;
 use axum::extract::State;
+use rdf_fusion::execution::results::QueryResultsFormat;
 use rdf_fusion::io::RdfFormat;
-use rdf_fusion::results::QueryResultsFormat;
 
 pub async fn handle_query_get(
     State(state): State<AppState>,

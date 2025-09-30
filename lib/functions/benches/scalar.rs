@@ -2,14 +2,15 @@ use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
 use datafusion::arrow::datatypes::Field;
 use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
-use md5::digest::typenum::op;
-use rdf_fusion_api::functions::{
-    BuiltinName, FunctionName, RdfFusionFunctionArgs, RdfFusionFunctionRegistry,
-};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
+use rdf_fusion_encoding::typed_value::{
+    TYPED_VALUE_ENCODING, TypedValueArrayElementBuilder,
+};
 use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoding};
+use rdf_fusion_extensions::functions::{
+    BuiltinName, FunctionName, RdfFusionFunctionRegistry,
+};
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_model::{BlankNode, Float, Integer, NamedNodeRef};
 use std::collections::HashMap;
@@ -19,13 +20,14 @@ use std::sync::Arc;
 enum UnaryScenario {
     AllNamedNodes,
     Mixed,
+    AllBlank,
 }
 
 impl UnaryScenario {
     fn create_args(&self) -> Vec<ColumnarValue> {
         match self {
             UnaryScenario::AllNamedNodes => {
-                let mut payload_builder = TypedValueArrayBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::default();
                 for i in 0..8192 {
                     payload_builder
                         .append_named_node(NamedNodeRef::new_unchecked(
@@ -36,7 +38,7 @@ impl UnaryScenario {
                 vec![ColumnarValue::Array(payload_builder.finish().into_array())]
             }
             UnaryScenario::Mixed => {
-                let mut payload_builder = TypedValueArrayBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::default();
                 for i in 0..8192 {
                     match i % 4 {
                         0 => {
@@ -61,6 +63,15 @@ impl UnaryScenario {
                 }
                 vec![ColumnarValue::Array(payload_builder.finish().into_array())]
             }
+            UnaryScenario::AllBlank => {
+                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                for _ in 0..8192 {
+                    payload_builder
+                        .append_blank_node(BlankNode::default().as_ref())
+                        .unwrap();
+                }
+                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+            }
         }
     }
 }
@@ -74,18 +85,21 @@ fn bench_all(c: &mut Criterion) {
     );
     let registry = DefaultRdfFusionFunctionRegistry::new(encodings);
 
-    let runs = HashMap::from([(
-        BuiltinName::IsIri,
-        [UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
-    )]);
+    let runs = HashMap::from([
+        (
+            BuiltinName::IsIri,
+            vec![UnaryScenario::AllNamedNodes, UnaryScenario::Mixed],
+        ),
+        (BuiltinName::IsLiteral, vec![UnaryScenario::Mixed]),
+        (BuiltinName::IsNumeric, vec![UnaryScenario::Mixed]),
+        (
+            BuiltinName::IsBlank,
+            vec![UnaryScenario::Mixed, UnaryScenario::AllBlank],
+        ),
+    ]);
 
     for (my_built_in, scenarios) in runs {
-        let implementation = registry
-            .create_udf(
-                FunctionName::Builtin(my_built_in),
-                RdfFusionFunctionArgs::empty(),
-            )
-            .unwrap();
+        let implementation = registry.udf(&FunctionName::Builtin(my_built_in)).unwrap();
 
         for scenario in scenarios {
             bench_unary_function(c, &implementation, scenario);

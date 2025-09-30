@@ -1,8 +1,8 @@
 use crate::patterns::compute_schema_for_pattern;
 use datafusion::common::{DFSchemaRef, plan_err};
 use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
-use rdf_fusion_common::{BlankNodeMatchingMode, DFResult};
 use rdf_fusion_model::TermPattern;
+use rdf_fusion_model::{BlankNodeMatchingMode, DFResult};
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -90,7 +90,10 @@ impl UserDefinedLogicalNodeCore for PatternNode {
         let patterns = self
             .patterns
             .iter()
-            .map(|opt| opt.as_ref().map_or("-".to_owned(), ToString::to_string))
+            .map(|opt| {
+                opt.as_ref()
+                    .map_or_else(|| "-".to_owned(), ToString::to_string)
+            })
             .collect::<Vec<_>>()
             .join(" ");
         write!(f, "Pattern: {patterns}",)

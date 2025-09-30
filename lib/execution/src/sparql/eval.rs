@@ -1,11 +1,9 @@
 use crate::RdfFusionContext;
+use crate::results::{QueryResults, QuerySolutionStream, QueryTripleStream};
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::optimizer::{create_optimizer_rules, create_pyhsical_optimizer_rules};
 use crate::sparql::rewriting::GraphPatternRewriter;
-use crate::sparql::{
-    Query, QueryDataset, QueryExplanation, QueryOptions, QueryResults,
-    QuerySolutionStream, QueryTripleStream,
-};
+use crate::sparql::{Query, QueryDataset, QueryExplanation, QueryOptions};
 use datafusion::arrow::datatypes::Schema;
 use datafusion::common::instant::Instant;
 use datafusion::execution::{SessionState, SessionStateBuilder};

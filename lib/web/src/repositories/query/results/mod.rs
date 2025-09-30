@@ -7,9 +7,10 @@ use anyhow::Context;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use futures::StreamExt;
-use rdf_fusion::QueryResults;
+use rdf_fusion::execution::results::{
+    QueryResults, QueryResultsFormat, QueryResultsSerializer,
+};
 use rdf_fusion::io::{RdfFormat, RdfSerializer};
-use rdf_fusion::results::{QueryResultsFormat, QueryResultsSerializer};
 
 pub async fn serialize_query_result(
     query_result: QueryResults,

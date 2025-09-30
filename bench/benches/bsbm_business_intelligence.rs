@@ -11,7 +11,7 @@ use crate::utils::verbose::{is_verbose, print_query_details};
 use crate::utils::{consume_results, create_runtime};
 use anyhow::Context;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
-use rdf_fusion::QueryOptions;
+use rdf_fusion::execution::sparql::QueryOptions;
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
     BsbmBenchmark, BsbmBusinessIntelligenceQueryName, BusinessIntelligenceUseCase,
@@ -24,12 +24,6 @@ use std::path::PathBuf;
 fn bsbm_business_intelligence_10000_1_partition(c: &mut Criterion) {
     let benchmarking_context =
         RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
-    bsbm_business_intelligence_10000(c, benchmarking_context);
-}
-
-fn bsbm_business_intelligence_10000_4_partitions(c: &mut Criterion) {
-    let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 4);
     bsbm_business_intelligence_10000(c, benchmarking_context);
 }
 
@@ -71,7 +65,7 @@ fn bsbm_business_intelligence_10000(
 criterion_group!(
     name = bsbm_business_intelligence;
     config = Criterion::default().sample_size(10);
-    targets =  bsbm_business_intelligence_10000_1_partition, bsbm_business_intelligence_10000_4_partitions
+    targets =  bsbm_business_intelligence_10000_1_partition
 );
 criterion_main!(bsbm_business_intelligence);
 

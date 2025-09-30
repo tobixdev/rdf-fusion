@@ -1,7 +1,9 @@
 use crate::planner::RdfFusionPlanner;
+use crate::results::QueryResults;
 use crate::sparql::error::QueryEvaluationError;
 use crate::sparql::{
-    Query, QueryExplanation, QueryOptions, QueryResults, evaluate_query,
+    OptimizationLevel, Query, QueryExplanation, QueryOptions, create_optimizer_rules,
+    create_pyhsical_optimizer_rules, evaluate_query,
 };
 use datafusion::dataframe::DataFrame;
 use datafusion::error::DataFusionError;
@@ -10,21 +12,19 @@ use datafusion::execution::{SendableRecordBatchStream, SessionStateBuilder};
 use datafusion::functions_aggregate::first_last::FirstValue;
 use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::{SessionConfig, SessionContext};
-use rdf_fusion_api::RdfFusionContextView;
-use rdf_fusion_api::functions::{
-    RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
-};
-use rdf_fusion_api::storage::QuadStorage;
-use rdf_fusion_common::DFResult;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
+use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_extensions::functions::{
+    RdfFusionFunctionRegistry, RdfFusionFunctionRegistryRef,
+};
+use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_logical::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
-use rdf_fusion_model::{
-    GraphName, GraphNameRef, NamedNodeRef, QuadRef, SubjectRef, TermRef,
-};
+use rdf_fusion_model::{DFResult, NamedOrBlankNodeRef};
+use rdf_fusion_model::{GraphName, GraphNameRef, NamedNodeRef, QuadRef, TermRef};
 use std::sync::Arc;
 
 /// Represents a connection to an instance of an RDF Fusion engine.
@@ -70,9 +70,25 @@ impl RdfFusionContext {
         let registry: Arc<dyn RdfFusionFunctionRegistry> =
             Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
 
+        let context_view = RdfFusionContextView::new(
+            Arc::clone(&registry),
+            encodings.clone(),
+            storage.encoding(),
+        );
+
+        let optimizer_rules =
+            create_optimizer_rules(context_view.clone(), OptimizationLevel::Full);
+        let physical_optimizer_rules =
+            create_pyhsical_optimizer_rules(OptimizationLevel::Full);
+
         let state = SessionStateBuilder::new()
-            .with_query_planner(Arc::new(RdfFusionPlanner::new(Arc::clone(&storage))))
+            .with_query_planner(Arc::new(RdfFusionPlanner::new(
+                context_view,
+                Arc::clone(&storage),
+            )))
             .with_aggregate_functions(vec![AggregateUDF::from(FirstValue::new()).into()])
+            .with_optimizer_rules(optimizer_rules)
+            .with_physical_optimizer_rules(physical_optimizer_rules)
             .with_runtime_env(runtime_env)
             .with_config(config)
             .build();
@@ -102,9 +118,19 @@ impl RdfFusionContext {
         &self.ctx
     }
 
+    /// Returns a reference to the used [RdfFusionFunctionRegistry].
+    pub fn functions(&self) -> &RdfFusionFunctionRegistryRef {
+        &self.functions
+    }
+
+    /// Returns a reference to the used [RdfFusionEncodings].
+    pub fn encodings(&self) -> &RdfFusionEncodings {
+        &self.encodings
+    }
+
     /// Provides access to the [QuadStorage] of this instance for writing operations.
-    pub fn storage(&self) -> &dyn QuadStorage {
-        self.storage.as_ref()
+    pub fn storage(&self) -> &Arc<dyn QuadStorage> {
+        &self.storage
     }
 
     //
@@ -145,7 +171,7 @@ impl RdfFusionContext {
     pub async fn quads_for_pattern(
         &self,
         graph_name: Option<GraphNameRef<'_>>,
-        subject: Option<SubjectRef<'_>>,
+        subject: Option<NamedOrBlankNodeRef<'_>>,
         predicate: Option<NamedNodeRef<'_>>,
         object: Option<TermRef<'_>>,
     ) -> DFResult<SendableRecordBatchStream> {
@@ -154,7 +180,7 @@ impl RdfFusionContext {
             .plan_builder_context()
             .create_matching_quads(
                 active_graph_info,
-                subject.map(SubjectRef::into_owned),
+                subject.map(NamedOrBlankNodeRef::into_owned),
                 predicate.map(NamedNodeRef::into_owned),
                 object.map(TermRef::into_owned),
             )

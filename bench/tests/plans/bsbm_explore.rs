@@ -2,7 +2,7 @@ use crate::plans::canonicalize_uuids;
 use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
-use rdf_fusion::{QueryExplanation, QueryOptions};
+use rdf_fusion::execution::sparql::{QueryExplanation, QueryOptions};
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::bsbm::{
     BsbmBenchmark, BsbmExploreQueryName, ExploreUseCase, NumProducts,

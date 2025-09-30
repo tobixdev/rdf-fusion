@@ -1,19 +1,24 @@
-use rdf_fusion_model::{LiteralRef, TermRef, ThinError};
-use rdf_fusion_model::{SimpleLiteral, TypedValue, TypedValueRef};
-
-use crate::scalar::dispatch::{
-    dispatch_unary_owned_typed_value, dispatch_unary_plain_term,
-};
+use crate::scalar::dispatch::dispatch_unary_owned_typed_value;
 use crate::scalar::sparql_op_impl::{
-    SparqlOpImpl, create_plain_term_sparql_op_impl, create_typed_value_sparql_op_impl,
+    ScalarSparqlOpImpl, create_plain_term_sparql_op_impl,
+    create_typed_value_sparql_op_impl,
 };
-use crate::scalar::{ScalarSparqlOp, UnaryArgs};
-use datafusion::logical_expr::Volatility;
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_api::functions::FunctionName;
-use rdf_fusion_encoding::TermEncoding;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use datafusion::arrow::array::{Array, StringArray, UInt8Array};
+use datafusion::logical_expr::ColumnarValue;
+use itertools::repeat_n;
+use rdf_fusion_encoding::plain_term::{
+    PlainTermArray, PlainTermArrayBuilder, PlainTermEncoding, PlainTermEncodingField,
+    PlainTermType,
+};
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_extensions::functions::FunctionName;
+use rdf_fusion_model::ThinError;
+use rdf_fusion_model::vocab::xsd;
+use rdf_fusion_model::{SimpleLiteral, TypedValue, TypedValueRef};
+use std::sync::Arc;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct StrSparqlOp;
@@ -33,22 +38,20 @@ impl StrSparqlOp {
 }
 
 impl ScalarSparqlOp for StrSparqlOp {
-    type Args<TEncoding: TermEncoding> = UnaryArgs<TEncoding>;
-
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn volatility(&self) -> Volatility {
-        Volatility::Immutable
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Fixed(1))
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
-        Some(create_typed_value_sparql_op_impl(|UnaryArgs(arg)| {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
+        Some(create_typed_value_sparql_op_impl(|args| {
             dispatch_unary_owned_typed_value(
-                &arg,
+                &args.args[0],
                 |value| {
                     let converted = match value {
                         TypedValueRef::NamedNode(value) => value.as_str().to_owned(),
@@ -80,20 +83,51 @@ impl ScalarSparqlOp for StrSparqlOp {
 
     fn plain_term_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<PlainTermEncoding>>>> {
-        Some(create_plain_term_sparql_op_impl(|UnaryArgs(arg)| {
-            dispatch_unary_plain_term(
-                &arg,
-                |value| {
-                    let converted = match value {
-                        TermRef::NamedNode(value) => value.as_str(),
-                        TermRef::BlankNode(value) => value.as_str(),
-                        TermRef::Literal(value) => value.value(),
-                    };
-                    Ok(TermRef::Literal(LiteralRef::new_simple_literal(converted)))
-                },
-                ThinError::expected,
-            )
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
+        Some(create_plain_term_sparql_op_impl(|args| {
+            match &args.args[0] {
+                EncodingDatum::Array(array) => Ok(ColumnarValue::Array(
+                    impl_str_plain_term(array).into_array(),
+                )),
+                EncodingDatum::Scalar(scalar, _) => {
+                    let array = scalar.to_array(1)?;
+                    impl_str_plain_term(&array)
+                        .try_as_scalar(0)
+                        .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))
+                }
+            }
         }))
     }
+}
+
+fn impl_str_plain_term(array: &PlainTermArray) -> PlainTermArray {
+    let parts = array.as_parts();
+
+    let value = Arc::clone(
+        parts
+            .struct_array
+            .column(PlainTermEncodingField::Value.index()),
+    );
+
+    let term_types_data =
+        UInt8Array::from_iter(repeat_n(u8::from(PlainTermType::Literal), value.len()))
+            .to_data()
+            .into_builder()
+            .nulls(value.nulls().cloned())
+            .build()
+            .unwrap();
+    let term_types = UInt8Array::from(term_types_data);
+
+    let data_types_data =
+        StringArray::from_iter_values(repeat_n(xsd::STRING.as_str(), value.len()))
+            .to_data()
+            .into_builder()
+            .nulls(value.nulls().cloned())
+            .build()
+            .unwrap();
+    let data_types = StringArray::from(data_types_data);
+
+    PlainTermArrayBuilder::new(Arc::new(term_types), value)
+        .with_data_types(Arc::new(data_types))
+        .finish()
 }

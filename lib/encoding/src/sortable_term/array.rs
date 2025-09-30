@@ -6,6 +6,7 @@ use datafusion::common::exec_err;
 use datafusion::error::DataFusionError;
 
 /// Represents an Arrow array with a [SortableTermArray].
+#[derive(Clone)]
 pub struct SortableTermArray {
     inner: ArrayRef,
 }

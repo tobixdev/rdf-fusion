@@ -6,7 +6,7 @@ use crate::utils::verbose::{is_verbose, print_query_details};
 use crate::utils::{consume_results, create_runtime};
 use anyhow::Context;
 use codspeed_criterion_compat::{Criterion, criterion_group, criterion_main};
-use rdf_fusion::QueryOptions;
+use rdf_fusion::execution::sparql::QueryOptions;
 use rdf_fusion_bench::benchmarks::Benchmark;
 use rdf_fusion_bench::benchmarks::windfarm::{
     NumTurbines, WindFarmBenchmark, WindFarmQueryName, get_wind_farm_raw_sparql_operation,
@@ -17,12 +17,6 @@ use std::path::PathBuf;
 fn wind_farm_16_1_partition(c: &mut Criterion) {
     let benchmarking_context =
         RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 1);
-    wind_farm_16(c, &benchmarking_context);
-}
-
-fn wind_farm_16_4_partitions(c: &mut Criterion) {
-    let benchmarking_context =
-        RdfFusionBenchContext::new_for_criterion(PathBuf::from("./data"), 4);
     wind_farm_16(c, &benchmarking_context);
 }
 
@@ -90,6 +84,6 @@ fn wind_farm_16(c: &mut Criterion, benchmarking_context: &RdfFusionBenchContext)
 criterion_group!(
     name = wind_farm;
     config = Criterion::default().sample_size(10);
-    targets = wind_farm_16_1_partition, wind_farm_16_4_partitions
+    targets = wind_farm_16_1_partition
 );
 criterion_main!(wind_farm);

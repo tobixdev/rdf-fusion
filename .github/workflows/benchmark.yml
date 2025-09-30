@@ -20,56 +20,22 @@ jobs:
     name: Run Benchmarks
     runs-on: ubuntu-latest
     steps:
-      # See https://dev.to/mathio/squeezing-disk-space-from-github-actions-runners-an-engineers-guide-3pjg
-      - name: Aggressive cleanup
-        run: |
-          # Remove .NET SDKs
-          sudo rm -rf /usr/share/dotnet
-          
-          # Remove Swift toolchain
-          sudo rm -rf /usr/share/swift
-          
-          # Remove Haskell (GHC)
-          sudo rm -rf /usr/local/.ghcup
-          
-          # Remove Julia
-          sudo rm -rf /usr/local/julia*
-          
-          # Remove Android SDKs
-          sudo rm -rf /usr/local/lib/android
-          
-          # Remove Chromium (optional if not using for browser tests)
-          sudo rm -rf /usr/local/share/chromium
-          
-          # Remove Microsoft/Edge and Google Chrome builds
-          sudo rm -rf /opt/microsoft /opt/google
-          
-          # Remove Azure CLI
-          sudo rm -rf /opt/az
-          
-          # Remove PowerShell
-          sudo rm -rf /usr/local/share/powershell
-          
-          # Remove CodeQL and other toolcaches
-          sudo rm -rf /opt/hostedtoolcache
-          
-          docker system prune -af || true
-          docker builder prune -af || true
-          df -h
-
-      - name: Setup rust toolchain
-        uses: moonrepo/setup-rust@v1
-        with:
-          channel: 1.89
-          cache-target: release
-
-      - name: Install just
-        uses: extractions/setup-just@v3
-
       - name: Checkout code
         uses: actions/checkout@v5
         with:
           submodules: true
+
+      - name: Clean-up Disk Space
+        uses: ./.github/actions/cleanup-disk-space
+
+      - name: Setup rust toolchain
+        uses: moonrepo/setup-rust@v1
+        with:
+          channel: 1.90.0
+          cache-target: release
+
+      - name: Install just
+        uses: extractions/setup-just@v3
 
       - name: Run CI Setup
         run: just configure-toolchain-ci
@@ -89,7 +55,10 @@ jobs:
           ../target/profiling-nonlto/rdf-fusion-bench prepare wind-farm --num-turbines 16
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@v4
+        env:
+          RDF_FUSION_SINGLE_THREAD_BENCH: "true"
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
           run: cargo codspeed run
+          mode: 'instrumentation'

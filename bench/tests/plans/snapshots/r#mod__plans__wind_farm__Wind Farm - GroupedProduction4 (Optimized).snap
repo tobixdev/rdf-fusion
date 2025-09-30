@@ -4,10 +4,10 @@ expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
 ---
 Projection: ENC_PT(site_label) AS site_label, ENC_PT(wtur_label) AS wtur_label, year AS year, month AS month, day AS day, hour AS hour, minute_10 AS minute_10, ENC_PT(00000000000000000000000000000001) AS avg_val
   Aggregate: groupBy=[[site_label AS site_label, wtur_label AS wtur_label, ENC_PT(year) AS year, ENC_PT(month) AS month, ENC_PT(day) AS day, ENC_PT(hour) AS hour, ENC_PT(minute_10) AS minute_10]], aggr=[[AVG(ENC_TV(val)) AS 00000000000000000000000000000001]]
-    Projection: site_label, wtur_label, val, minute_10, hour, day, MONTH(__common_expr_1) AS month, YEAR(__common_expr_1) AS year
-      Projection: ENC_TV(t) AS __common_expr_1, site_label, wtur_label, val, minute_10, HOURS(__common_expr_2) AS hour, DAY(__common_expr_2) AS day
-        Projection: __common_expr_3 AS __common_expr_2, site_label, wtur_label, val, t, MUL(Union 9:10, FLOOR(DIV(MINUTES(__common_expr_3), Union 7:Some(00000000000000000000000000000002),36,16))) AS minute_10
-          Projection: ENC_TV(t) AS __common_expr_3, site_label, wtur_label, val, t
+    Projection: site_label, wtur_label, val, minute_10, hour, day, MONTH(__common_expr_2) AS month, YEAR(__common_expr_2) AS year
+      Projection: ENC_TV(t) AS __common_expr_2, site_label, wtur_label, val, minute_10, HOURS(__common_expr_3) AS hour, DAY(__common_expr_3) AS day
+        Projection: __common_expr_5 AS __common_expr_3, site_label, wtur_label, val, t, MUL(Union 9:10, FLOOR(DIV(MINUTES(__common_expr_5), Union 7:Some(00000000000000000000000000000002),36,16))) AS minute_10
+          Projection: ENC_TV(t) AS __common_expr_5, site_label, wtur_label, val, t
             Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.val AS val, rhs.t AS t
               Inner Join: lhs.dp = rhs.dp
                 SubqueryAlias: lhs
@@ -38,10 +38,10 @@ Projection: ENC_PT(site_label) AS site_label, ENC_PT(wtur_label) AS wtur_label, 
                                                                   Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, rhs.gensys AS gensys
                                                                     Inner Join: lhs.gensys_asp = rhs.gensys_asp
                                                                       SubqueryAlias: lhs
-                                                                        Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, rhs.gensys_asp AS gensys_asp
+                                                                        Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.gensys_asp AS gensys_asp
                                                                           Inner Join: lhs.wtur = rhs.wtur
                                                                             SubqueryAlias: lhs
-                                                                              Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.wtur AS wtur
+                                                                              Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.wtur AS wtur, rhs.gensys_asp AS gensys_asp
                                                                                 Inner Join: lhs.wtur = rhs.wtur
                                                                                   SubqueryAlias: lhs
                                                                                     Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, rhs.wtur AS wtur
@@ -56,37 +56,39 @@ Projection: ENC_PT(site_label) AS site_label, ENC_PT(wtur_label) AS wtur_label, 
                                                                                                       Projection: lhs.site AS site, rhs.site_label AS site_label
                                                                                                         Inner Join: lhs.site = rhs.site
                                                                                                           SubqueryAlias: lhs
-                                                                                                            QuadPattern (?site <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#Site>), active_graph: Union of [DefaultGraph] 
+                                                                                                            QuadPattern (?site <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#Site>)
                                                                                                           SubqueryAlias: rhs
-                                                                                                            QuadPattern (?site <http://www.w3.org/2000/01/rdf-schema#label> ?site_label), active_graph: Union of [DefaultGraph] 
+                                                                                                            QuadPattern (?site <http://www.w3.org/2000/01/rdf-schema#label> ?site_label)
                                                                                                     SubqueryAlias: rhs
-                                                                                                      QuadPattern (?site <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?wtur_asp), active_graph: Union of [DefaultGraph] 
+                                                                                                      QuadPattern (?site <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?wtur_asp)
                                                                                               SubqueryAlias: rhs
-                                                                                                QuadPattern (?wtur_asp <http://www.w3.org/2000/01/rdf-schema#label> ?wtur_label), active_graph: Union of [DefaultGraph] 
+                                                                                                QuadPattern (?wtur_asp <http://www.w3.org/2000/01/rdf-schema#label> ?wtur_label)
                                                                                         SubqueryAlias: rhs
-                                                                                          QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?wtur_asp), active_graph: Union of [DefaultGraph] 
+                                                                                          QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?wtur_asp)
                                                                                   SubqueryAlias: rhs
-                                                                                    QuadPattern (?wtur <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#A>), active_graph: Union of [DefaultGraph] 
+                                                                                    QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?gensys_asp)
                                                                             SubqueryAlias: rhs
-                                                                              QuadPattern (?wtur <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?gensys_asp), active_graph: Union of [DefaultGraph] 
+                                                                              QuadPattern (?wtur <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#A>)
                                                                       SubqueryAlias: rhs
-                                                                        QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?gensys_asp), active_graph: Union of [DefaultGraph] 
+                                                                        QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?gensys_asp)
                                                                 SubqueryAlias: rhs
-                                                                  QuadPattern (?gensys <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#RA>), active_graph: Union of [DefaultGraph] 
+                                                                  QuadPattern (?gensys <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#RA>)
                                                           SubqueryAlias: rhs
-                                                            QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?generator_asp), active_graph: Union of [DefaultGraph] 
+                                                            QuadPattern (?gensys <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect> ?generator_asp)
                                                     SubqueryAlias: rhs
-                                                      QuadPattern (?generator <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?generator_asp), active_graph: Union of [DefaultGraph] 
+                                                      QuadPattern (?generator <https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode> ?generator_asp)
                                               SubqueryAlias: rhs
-                                                QuadPattern (?generator <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#GAA>), active_graph: Union of [DefaultGraph] 
+                                                QuadPattern (?generator <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://github.com/magbak/chrontext/rds_power#GAA>)
                                         SubqueryAlias: rhs
-                                          QuadPattern (?generator <https://github.com/magbak/chrontext#hasTimeseries> ?ts), active_graph: Union of [DefaultGraph] 
+                                          QuadPattern (?generator <https://github.com/magbak/chrontext#hasTimeseries> ?ts)
                                   SubqueryAlias: rhs
-                                    QuadPattern (?ts <http://www.w3.org/2000/01/rdf-schema#label> "Production"), active_graph: Union of [DefaultGraph] 
+                                    QuadPattern (?ts <http://www.w3.org/2000/01/rdf-schema#label> "Production")
                             SubqueryAlias: rhs
-                              QuadPattern (?ts <https://github.com/magbak/chrontext#hasDataPoint> ?dp), active_graph: Union of [DefaultGraph] 
+                              QuadPattern (?ts <https://github.com/magbak/chrontext#hasDataPoint> ?dp)
                       SubqueryAlias: rhs
-                        QuadPattern (?dp <https://github.com/magbak/chrontext#hasValue> ?val), active_graph: Union of [DefaultGraph] 
+                        QuadPattern (?dp <https://github.com/magbak/chrontext#hasValue> ?val)
                 SubqueryAlias: rhs
-                  Filter: coalesce(EBV(GEQ(ENC_TV(t), Union 10:{value:6379744601300.0000000000000000,offset:})), Boolean(false)) AND coalesce(EBV(LEQ(ENC_TV(t), Union 10:{value:6379749281300.0000000000000000,offset:})), Boolean(false))
-                    QuadPattern (?dp <https://github.com/magbak/chrontext#hasTimestamp> ?t), active_graph: Union of [DefaultGraph]
+                  Projection: dp, t
+                    Filter: EBV(GEQ(__common_expr_6, Union 10:{value:6379744601300.0000000000000000,offset:})) AND EBV(LEQ(__common_expr_6, Union 10:{value:6379749281300.0000000000000000,offset:}))
+                      Projection: ENC_TV(t) AS __common_expr_6, dp, t
+                        QuadPattern (?dp <https://github.com/magbak/chrontext#hasTimestamp> ?t)

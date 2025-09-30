@@ -75,10 +75,7 @@ impl TryFrom<u8> for BsbmExploreQueryName {
             10 => Ok(BsbmExploreQueryName::Q10),
             11 => Ok(BsbmExploreQueryName::Q11),
             12 => Ok(BsbmExploreQueryName::Q12),
-            _ => Err(anyhow::anyhow!(
-                "Invalid BSBM explore query name: {}",
-                value
-            )),
+            _ => Err(anyhow::anyhow!("Invalid BSBM explore query name: {value}",)),
         }
     }
 }

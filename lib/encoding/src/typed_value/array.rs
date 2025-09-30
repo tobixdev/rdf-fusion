@@ -13,6 +13,7 @@ use datafusion::arrow::datatypes::{
 use datafusion::common::{DataFusionError, exec_err};
 
 /// Represents an Arrow array with a [TypedValueEncoding].
+#[derive(Clone)]
 pub struct TypedValueArray {
     inner: ArrayRef,
 }
@@ -54,9 +55,7 @@ impl TypedValueArray {
 
         TypedValueArrayParts {
             array,
-            null_count: array
-                .child(TypedValueEncodingField::Null.type_id())
-                .null_count(),
+            null_count: array.child(TypedValueEncodingField::Null.type_id()).len(),
             named_nodes: array
                 .child(TypedValueEncodingField::NamedNode.type_id())
                 .as_string::<i32>(),

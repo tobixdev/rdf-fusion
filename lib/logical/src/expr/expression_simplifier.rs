@@ -1,12 +1,12 @@
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{DFSchema, DFSchemaRef, ScalarValue, plan_datafusion_err};
+use datafusion::common::{DFSchema, DFSchemaRef, plan_datafusion_err};
 use datafusion::logical_expr::expr::ScalarFunction;
 use datafusion::logical_expr::utils::merge_schema;
-use datafusion::logical_expr::{Expr, ExprSchemable, Filter, LogicalPlan};
+use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan};
 use datafusion::optimizer::utils::NamePreserver;
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_common::DFResult;
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_model::DFResult;
 use std::sync::Arc;
 
 /// An optimizer rule that tries to optimize SPARQL expressions.
@@ -62,15 +62,6 @@ impl OptimizerRule for SimplifySparqlExpressionsRule {
                 name.restore(expr.data),
                 expr.transformed,
             ))
-        })?
-        .transform_data(|plan| {
-            if let LogicalPlan::Filter(filter) = plan {
-                try_rewrite_top_level_filter_expression(filter.predicate)?.map_data(
-                    |expr| Ok(LogicalPlan::Filter(Filter::try_new(expr, filter.input)?)),
-                )
-            } else {
-                Ok(Transformed::no(plan))
-            }
         })
     }
 }
@@ -166,71 +157,23 @@ fn try_replace_boolean_round_trip(
     }
 }
 
-/// Rewrites top-level filter expressions.
-fn try_rewrite_top_level_filter_expression(expr: Expr) -> DFResult<Transformed<Expr>> {
-    match expr {
-        Expr::ScalarFunction(scalar_function) => {
-            try_rewrite_top_level_filter_function(scalar_function)
-        }
-        _ => Ok(Transformed::no(expr)),
-    }
-}
-
-/// Tries to rewrite functions in the form coalesce(/* Boolean Filter*/, false). We create such
-/// expressions to implement the SPARQL error-handling for the logical connectives.
-///
-/// Filter pushdown can lead to a situation where `coalesce` is then at the top-level of the filter
-/// expression. They are not needed at the top-level of the filter, as NULL will lead to a
-/// non-matching row. However, the `coalesce` could prevent further optimizations, and therefore
-/// we are removing it.
-fn try_rewrite_top_level_filter_function(
-    function: ScalarFunction,
-) -> DFResult<Transformed<Expr>> {
-    match function.func.name() {
-        "coalesce" => {
-            if function.args.len() != 2 {
-                return Ok(Transformed::no(Expr::ScalarFunction(function)));
-            }
-
-            match &function.args[1] {
-                Expr::Literal(ScalarValue::Boolean(Some(false)), _) => {
-                    // Recurse as now this is the new top-level function. Maybe further rewritings
-                    // are possible.
-                    let result = try_rewrite_top_level_filter_expression(
-                        function.args[0].clone(),
-                    )?;
-                    // It will always be `Transformed::yes` as we have eliminated the top-level
-                    // function
-                    Ok(Transformed::yes(result.data))
-                }
-                // If the rhs is not `false` return the original
-                _ => Ok(Transformed::no(Expr::ScalarFunction(function))),
-            }
-        }
-        _ => Ok(Transformed::no(Expr::ScalarFunction(function))),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::RdfFusionExprBuilderContext;
     use datafusion::arrow::datatypes::{Field, Schema};
     use datafusion::common::{DFSchema, DFSchemaRef};
-    use datafusion::functions::core::coalesce;
-    use datafusion::logical_expr::{
-        EmptyRelation, LogicalPlan, LogicalPlanBuilder, col, lit,
-    };
+    use datafusion::logical_expr::{EmptyRelation, LogicalPlan, LogicalPlanBuilder, col};
     use datafusion::optimizer::OptimizerContext;
     use insta::assert_snapshot;
-    use rdf_fusion_api::RdfFusionContextView;
-    use rdf_fusion_api::functions::{FunctionName, RdfFusionFunctionArgs};
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
     use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
     use rdf_fusion_encoding::{
         EncodingName, QuadStorageEncoding, RdfFusionEncodings, TermEncoding,
     };
+    use rdf_fusion_extensions::RdfFusionContextView;
+    use rdf_fusion_extensions::functions::FunctionName;
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 
     #[test]
@@ -276,35 +219,6 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_boolean_eliminates_coalesce_in_filter() -> DFResult<()> {
-        let context = create_context();
-        let schema = make_schema(EncodingName::PlainTerm, false, true);
-        let expr = RdfFusionExprBuilderContext::new(&context, &schema)
-            .try_create_builder(col("column1"))?
-            .bound()?
-            .build_effective_boolean_value()?;
-        let expr = Expr::ScalarFunction(ScalarFunction {
-            func: coalesce(),
-            args: vec![expr, lit(ScalarValue::Boolean(Some(false)))],
-        });
-
-        // Ensure the builder is not optimizing
-        assert_eq!(
-            expr.to_string(),
-            "coalesce(EBV(BOUND(column1)), Boolean(false))"
-        );
-
-        let plan = create_plan(&schema).filter(expr)?.build()?;
-        let rule = SimplifySparqlExpressionsRule::new();
-        let rewritten = rule.rewrite(plan, &OptimizerContext::new()).unwrap();
-        assert_snapshot!(rewritten.data, @r"
-        Filter: EBV(BOUND(column1))
-          EmptyRelation: rows=0
-        ");
-        Ok(())
-    }
-
     fn execute_test_for_builtin(
         schema: &DFSchemaRef,
         builtin: BuiltinName,
@@ -325,10 +239,7 @@ mod tests {
         let expr = Expr::ScalarFunction(ScalarFunction {
             func: registry
                 .functions()
-                .create_udf(
-                    FunctionName::Builtin(builtin),
-                    RdfFusionFunctionArgs::empty(),
-                )
+                .udf(&FunctionName::Builtin(builtin))
                 .unwrap(),
             args,
         });

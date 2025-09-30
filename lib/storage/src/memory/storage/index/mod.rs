@@ -55,12 +55,12 @@ impl IndexScanInstructions {
         for instruction in instructions {
             match instruction {
                 IndexScanInstruction::Scan(var, predicate) => {
-                    let inserted = seen.insert(var.clone());
+                    let inserted = seen.insert(Arc::clone(&var));
                     if inserted {
                         new_instructions.push(IndexScanInstruction::Scan(var, predicate))
                     } else {
                         new_instructions.push(IndexScanInstruction::Traverse(Some(
-                            ObjectIdScanPredicate::EqualTo(var.clone()),
+                            ObjectIdScanPredicate::EqualTo(Arc::clone(&var)),
                         )));
                     }
                 }
@@ -123,7 +123,7 @@ impl IndexScanInstruction {
         match self {
             IndexScanInstruction::Traverse(_) => IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Scan(variable, _) => {
-                IndexScanInstruction::Scan(variable.clone(), None)
+                IndexScanInstruction::Scan(Arc::clone(variable), None)
             }
         }
     }

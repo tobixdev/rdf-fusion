@@ -7,30 +7,29 @@ Projection: ENC_PT(first_value(product) ORDER BY [ENC_SORT(ENC_PT(productLabel))
     Aggregate: groupBy=[[__common_expr_1 AS ENC_SORT(ENC_PT(productLabel)), product]], aggr=[[first_value(product) ORDER BY [__common_expr_1 AS ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST] AS first_value(product) ORDER BY [ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST], first_value(productLabel) ORDER BY [__common_expr_1 AS ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST] AS first_value(productLabel) ORDER BY [ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST]]]
       Projection: ENC_SORT(ENC_PT(productLabel)) AS __common_expr_1, product, productLabel
         Sort: ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST
-          Projection: product, productLabel
-            Inner Join:  Filter: coalesce(coalesce(EBV(LT(ENC_TV(simProperty2), ADD(ENC_TV(origProperty2), Union 9:170))), Boolean(false)) AND coalesce(EBV(GT(ENC_TV(simProperty2), SUB(ENC_TV(origProperty2), Union 9:170))), Boolean(false)), Boolean(false))
-              Projection: product, productLabel, simProperty2
-                Inner Join:  Filter: coalesce(coalesce(NOT EBV(EQ(Union 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890, ENC_TV(product))), Boolean(false)) AND coalesce(coalesce(EBV(LT(ENC_TV(simProperty1), ADD(ENC_TV(origProperty1), Union 9:120))), Boolean(false)) AND coalesce(EBV(GT(ENC_TV(simProperty1), SUB(ENC_TV(origProperty1), Union 9:120))), Boolean(false)), Boolean(false)), Boolean(false))
-                  Projection: lhs.product AS product, lhs.productLabel AS productLabel, lhs.simProperty1 AS simProperty1, rhs.simProperty2 AS simProperty2
-                    Inner Join: lhs.product = rhs.product
+          Projection: lhs.product AS product, lhs.productLabel AS productLabel
+            Inner Join: lhs.product = rhs.product Filter: EBV(LT(ENC_TV(rhs.simProperty2), ADD(ENC_TV(lhs.origProperty2), Union 9:170))) AND EBV(GT(ENC_TV(rhs.simProperty2), SUB(ENC_TV(lhs.origProperty2), Union 9:170)))
+              SubqueryAlias: lhs
+                Cross Join: 
+                  Projection: lhs.product AS product, lhs.productLabel AS productLabel
+                    Inner Join: lhs.product = rhs.product Filter: EBV(LT(ENC_TV(rhs.simProperty1), ADD(ENC_TV(lhs.origProperty1), Union 9:120))) AND EBV(GT(ENC_TV(rhs.simProperty1), SUB(ENC_TV(lhs.origProperty1), Union 9:120)))
                       SubqueryAlias: lhs
-                        Projection: lhs.product AS product, lhs.productLabel AS productLabel, rhs.simProperty1 AS simProperty1
-                          Inner Join: lhs.product = rhs.product
-                            SubqueryAlias: lhs
-                              Projection: lhs.product AS product, rhs.productLabel AS productLabel
-                                Inner Join: lhs.product = rhs.product
-                                  SubqueryAlias: lhs
-                                    Projection: rhs.product AS product
-                                      Inner Join: lhs.prodFeature = rhs.prodFeature
-                                        SubqueryAlias: lhs
-                                          QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?prodFeature), active_graph: Union of [DefaultGraph] 
-                                        SubqueryAlias: rhs
-                                          QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?prodFeature), active_graph: Union of [DefaultGraph] 
-                                  SubqueryAlias: rhs
-                                    QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?productLabel), active_graph: Union of [DefaultGraph] 
-                            SubqueryAlias: rhs
-                              QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?simProperty1), active_graph: Union of [DefaultGraph] 
+                        Cross Join: 
+                          Projection: lhs.product AS product, lhs.productLabel AS productLabel
+                            Inner Join: lhs.prodFeature = rhs.prodFeature, lhs.product = rhs.product
+                              SubqueryAlias: lhs
+                                Cross Join: 
+                                  Filter: NOT EBV(EQ(Union 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890, ENC_TV(product)))
+                                    QuadPattern (?product <http://www.w3.org/2000/01/rdf-schema#label> ?productLabel)
+                                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?prodFeature)
+                              SubqueryAlias: rhs
+                                Filter: NOT EBV(EQ(Union 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890, ENC_TV(product)))
+                                  QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?prodFeature)
+                          QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?origProperty1)
                       SubqueryAlias: rhs
-                        QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?simProperty2), active_graph: Union of [DefaultGraph] 
-                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?origProperty1), active_graph: Union of [DefaultGraph] 
-              QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?origProperty2), active_graph: Union of [DefaultGraph]
+                        Filter: NOT EBV(EQ(Union 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890, ENC_TV(product)))
+                          QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1> ?simProperty1)
+                  QuadPattern (<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?origProperty2)
+              SubqueryAlias: rhs
+                Filter: NOT EBV(EQ(Union 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890, ENC_TV(product)))
+                  QuadPattern (?product <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2> ?simProperty2)

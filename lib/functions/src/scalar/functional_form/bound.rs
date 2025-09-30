@@ -1,17 +1,18 @@
-use crate::scalar::sparql_op_impl::{ClosureSparqlOpImpl, SparqlOpImpl};
-use crate::scalar::{ScalarSparqlOp, UnaryArgs};
+use crate::scalar::sparql_op_impl::{ClosureSparqlOpImpl, ScalarSparqlOpImpl};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use datafusion::arrow::array::Array;
 use datafusion::arrow::compute::is_not_null;
-use datafusion::logical_expr::{ColumnarValue, Volatility};
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_api::functions::FunctionName;
-use rdf_fusion_common::DFResult;
+use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArray, TypedValueArrayBuilder, TypedValueEncoding,
+    TYPED_VALUE_ENCODING, TypedValueArray, TypedValueArrayElementBuilder,
+    TypedValueEncoding,
 };
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermEncoding};
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_extensions::functions::FunctionName;
+use rdf_fusion_model::DFResult;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct BoundSparqlOp;
@@ -31,48 +32,40 @@ impl BoundSparqlOp {
 }
 
 impl ScalarSparqlOp for BoundSparqlOp {
-    type Args<TEncoding: TermEncoding> = UnaryArgs<TEncoding>;
-
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn volatility(&self) -> Volatility {
-        Volatility::Immutable
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Fixed(1))
     }
 
     fn plain_term_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<PlainTermEncoding>>>> {
-        Some(Box::new(
-            ClosureSparqlOpImpl::<UnaryArgs<PlainTermEncoding>>::new(
-                TYPED_VALUE_ENCODING.data_type(),
-                Box::new(|UnaryArgs(args)| impl_bound_plain_term(&args)),
-            ),
-        ))
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
+        Some(Box::new(ClosureSparqlOpImpl::new(
+            TYPED_VALUE_ENCODING.data_type(),
+            |args| impl_bound_plain_term(&args.args[0]),
+        )))
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
-        Some(Box::new(
-            ClosureSparqlOpImpl::<UnaryArgs<TypedValueEncoding>>::new(
-                TYPED_VALUE_ENCODING.data_type(),
-                Box::new(|UnaryArgs(args)| impl_bound_typed_value(&args)),
-            ),
-        ))
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
+        Some(Box::new(ClosureSparqlOpImpl::new(
+            TYPED_VALUE_ENCODING.data_type(),
+            |args| impl_bound_typed_value(&args.args[0]),
+        )))
     }
 
     fn object_id_encoding_op(
         &self,
-        object_id_encoding: &ObjectIdEncoding,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<ObjectIdEncoding>>>> {
-        Some(Box::new(
-            ClosureSparqlOpImpl::<UnaryArgs<ObjectIdEncoding>>::new(
-                object_id_encoding.data_type(),
-                Box::new(|UnaryArgs(args)| impl_bound_object_id(&args)),
-            ),
-        ))
+        _object_id_encoding: &ObjectIdEncoding,
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>>> {
+        Some(Box::new(ClosureSparqlOpImpl::<ObjectIdEncoding>::new(
+            TYPED_VALUE_ENCODING.data_type(),
+            |args| impl_bound_object_id(&args.args[0]),
+        )))
     }
 }
 
@@ -129,7 +122,7 @@ fn impl_bound_array(array: &dyn Array) -> DFResult<TypedValueArray> {
         "is_not_null should never return null"
     );
 
-    let mut builder = TypedValueArrayBuilder::default();
+    let mut builder = TypedValueArrayElementBuilder::default();
     for value in result.values() {
         builder.append_boolean(value.into())?;
     }

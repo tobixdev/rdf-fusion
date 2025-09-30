@@ -1,14 +1,17 @@
 use crate::scalar::dispatch::dispatch_unary_typed_value;
-use crate::scalar::sparql_op_impl::{SparqlOpImpl, create_typed_value_sparql_op_impl};
-use crate::scalar::{ScalarSparqlOp, UnaryArgs};
-use datafusion::logical_expr::Volatility;
-use rdf_fusion_api::functions::BuiltinName;
-use rdf_fusion_api::functions::FunctionName;
-use rdf_fusion_encoding::TermEncoding;
+use crate::scalar::sparql_op_impl::{
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
+};
+use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_extensions::functions::BuiltinName;
+use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{ThinError, TypedValueRef};
 
-/// TODO
+/// Checks whether a given RDF term is an IRI.
+///
+/// # Relevant Resources
+/// - [SPARQL 1.1 - isIRI](https://www.w3.org/TR/sparql11-query/#func-isIRI)
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct IsIriSparqlOp;
 
@@ -28,22 +31,20 @@ impl IsIriSparqlOp {
 }
 
 impl ScalarSparqlOp for IsIriSparqlOp {
-    type Args<TEncoding: TermEncoding> = UnaryArgs<TEncoding>;
-
     fn name(&self) -> &FunctionName {
         &Self::NAME
     }
 
-    fn volatility(&self) -> Volatility {
-        Volatility::Immutable
+    fn signature(&self) -> ScalarSparqlOpSignature {
+        ScalarSparqlOpSignature::default_with_arity(SparqlOpArity::Fixed(1))
     }
 
     fn typed_value_encoding_op(
         &self,
-    ) -> Option<Box<dyn SparqlOpImpl<Self::Args<TypedValueEncoding>>>> {
-        Some(create_typed_value_sparql_op_impl(|UnaryArgs(arg)| {
+    ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
+        Some(create_typed_value_sparql_op_impl(|args| {
             dispatch_unary_typed_value(
-                &arg,
+                &args.args[0],
                 |value| {
                     Ok(TypedValueRef::BooleanLiteral(
                         matches!(value, TypedValueRef::NamedNode(_)).into(),

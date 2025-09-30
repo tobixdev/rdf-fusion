@@ -1,7 +1,7 @@
 #![allow(clippy::unreadable_literal)]
 
 use datafusion::parquet::data_type::AsBytes;
-use rdf_fusion_common::ObjectId;
+use rdf_fusion_model::ObjectId;
 use std::fmt::Debug;
 use std::hash::Hash;
 use thiserror::Error;

@@ -1,8 +1,8 @@
 use crate::results::QuerySolutionStream;
 use crate::sparql::error::QueryEvaluationError;
 use futures::{Stream, StreamExt, ready};
-use rdf_fusion_common::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
-use rdf_fusion_model::{GraphName, NamedNode, Quad, Subject, Term, Variable};
+use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_model::{GraphName, NamedNode, NamedOrBlankNode, Quad, Term, Variable};
 use sparesults::QuerySolution;
 use std::collections::HashSet;
 use std::pin::Pin;
@@ -98,10 +98,10 @@ fn to_graph_name(term: Option<&Term>) -> Result<GraphName, QueryEvaluationError>
     }
 }
 
-fn to_subject(term: Term) -> Result<Subject, QueryEvaluationError> {
+fn to_subject(term: Term) -> Result<NamedOrBlankNode, QueryEvaluationError> {
     match term {
-        Term::NamedNode(n) => Ok(Subject::from(n)),
-        Term::BlankNode(n) => Ok(Subject::from(n)),
+        Term::NamedNode(n) => Ok(NamedOrBlankNode::from(n)),
+        Term::BlankNode(n) => Ok(NamedOrBlankNode::from(n)),
         Term::Literal(_) => {
             QueryEvaluationError::internal("Predicate has invalid value in quads.".into())
         }

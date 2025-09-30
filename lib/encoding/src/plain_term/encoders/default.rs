@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoder;
-use crate::plain_term::{PlainTermArrayBuilder, PlainTermEncoding};
+use crate::plain_term::{PlainTermArrayElementBuilder, PlainTermEncoding};
 use crate::{EncodingArray, TermEncoding};
-use rdf_fusion_common::DFResult;
+use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
 
 #[derive(Debug)]
@@ -13,7 +13,7 @@ impl TermEncoder<PlainTermEncoding> for DefaultPlainTermEncoder {
     fn encode_terms<'data>(
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<<PlainTermEncoding as TermEncoding>::Array> {
-        let mut value_builder = PlainTermArrayBuilder::default();
+        let mut value_builder = PlainTermArrayElementBuilder::default();
         for value in terms {
             match value {
                 Ok(TermRef::NamedNode(value)) => value_builder.append_named_node(value),
