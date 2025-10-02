@@ -6,7 +6,8 @@ use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArray, TypedValueArrayBuilder, TypedValueEncoding,
+    TYPED_VALUE_ENCODING, TypedValueArray, TypedValueArrayElementBuilder,
+    TypedValueEncoding,
 };
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermEncoding};
 use rdf_fusion_extensions::functions::BuiltinName;
@@ -121,7 +122,7 @@ fn impl_bound_array(array: &dyn Array) -> DFResult<TypedValueArray> {
         "is_not_null should never return null"
     );
 
-    let mut builder = TypedValueArrayBuilder::default();
+    let mut builder = TypedValueArrayElementBuilder::default();
     for value in result.values() {
         builder.append_boolean(value.into())?;
     }

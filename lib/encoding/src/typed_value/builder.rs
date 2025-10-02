@@ -1,388 +1,280 @@
-use crate::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueEncodingField};
+use crate::TermEncoding;
+use crate::typed_value::{
+    TYPED_VALUE_ENCODING, TypedValueArray, TypedValueEncoding, TypedValueEncodingField,
+};
 use datafusion::arrow::array::{
-    ArrayBuilder, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
-    Int16Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder,
-    UnionArray,
+    Array, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int32Array,
+    Int64Array, NullArray, StringArray, StructArray, UnionArray,
 };
-use datafusion::arrow::buffer::ScalarBuffer;
-use datafusion::arrow::error::ArrowError;
-use rdf_fusion_model::{
-    AResult, BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, LiteralRef,
-    NamedNodeRef, Numeric, Time, Timestamp, TypedValueRef, YearMonthDuration,
-};
-use rdf_fusion_model::{Decimal, Double, Float, Int, Integer};
+use datafusion::arrow::buffer::{NullBuffer, ScalarBuffer};
+use datafusion::common::{exec_datafusion_err, exec_err};
+use rdf_fusion_model::DFResult;
 use std::sync::Arc;
 
+/// Allows creating a [TypedValueArray] from its array parts.
+///
+/// If you aim to build an array element-by-element, see [TypedValueArrayElementBuilder](super::TypedValueArrayElementBuilder).
 pub struct TypedValueArrayBuilder {
     type_ids: Vec<i8>,
     offsets: Vec<i32>,
-    named_node_builder: StringBuilder,
-    blank_node_builder: StringBuilder,
-    string_builder: StructBuilder,
-    boolean_builder: BooleanBuilder,
-    float_builder: Float32Builder,
-    double_builder: Float64Builder,
-    decimal_builder: Decimal128Builder,
-    int32_builder: Int32Builder,
-    integer_builder: Int64Builder,
-    date_time_builder: StructBuilder,
-    time_builder: StructBuilder,
-    date_builder: StructBuilder,
-    duration_builder: StructBuilder,
-    typed_literal_builder: StructBuilder,
-    null_builder: NullBuilder,
-}
-
-impl Default for TypedValueArrayBuilder {
-    fn default() -> Self {
-        Self {
-            type_ids: Vec::new(),
-            offsets: Vec::new(),
-            named_node_builder: StringBuilder::with_capacity(0, 0),
-            blank_node_builder: StringBuilder::with_capacity(0, 0),
-            string_builder: StructBuilder::from_fields(
-                TypedValueEncoding::string_fields(),
-                0,
-            ),
-            boolean_builder: BooleanBuilder::with_capacity(0),
-            float_builder: Float32Builder::with_capacity(0),
-            double_builder: Float64Builder::with_capacity(0),
-            #[allow(clippy::expect_used, reason = "PRECISION and SCALE are fixed")]
-            decimal_builder: Decimal128Builder::with_capacity(0)
-                .with_precision_and_scale(Decimal::PRECISION, Decimal::SCALE)
-                .expect("PRECISION and SCALE fixed"),
-            int32_builder: Int32Builder::with_capacity(0),
-            integer_builder: Int64Builder::with_capacity(0),
-            date_time_builder: StructBuilder::from_fields(
-                TypedValueEncoding::timestamp_fields(),
-                0,
-            ),
-            time_builder: StructBuilder::from_fields(
-                TypedValueEncoding::timestamp_fields(),
-                0,
-            ),
-            date_builder: StructBuilder::from_fields(
-                TypedValueEncoding::timestamp_fields(),
-                0,
-            ),
-            duration_builder: StructBuilder::from_fields(
-                TypedValueEncoding::duration_fields(),
-                0,
-            ),
-            typed_literal_builder: StructBuilder::from_fields(
-                TypedValueEncoding::typed_literal_fields(),
-                0,
-            ),
-            null_builder: NullBuilder::new(),
-        }
-    }
+    named_nodes: Option<Arc<dyn Array>>,
+    blank_nodes: Option<Arc<dyn Array>>,
+    strings: Option<Arc<dyn Array>>,
+    booleans: Option<Arc<dyn Array>>,
+    floats: Option<Arc<dyn Array>>,
+    doubles: Option<Arc<dyn Array>>,
+    decimals: Option<Arc<dyn Array>>,
+    ints: Option<Arc<dyn Array>>,
+    integers: Option<Arc<dyn Array>>,
+    date_times: Option<Arc<dyn Array>>,
+    times: Option<Arc<dyn Array>>,
+    dates: Option<Arc<dyn Array>>,
+    durations: Option<Arc<dyn Array>>,
+    typed_literals: Option<Arc<dyn Array>>,
+    nulls: Option<Arc<dyn Array>>,
 }
 
 impl TypedValueArrayBuilder {
-    pub fn append_typed_value(&mut self, value: TypedValueRef<'_>) -> AResult<()> {
-        match value {
-            TypedValueRef::NamedNode(v) => self.append_named_node(v),
-            TypedValueRef::BlankNode(v) => self.append_blank_node(v),
-            TypedValueRef::BooleanLiteral(v) => self.append_boolean(v),
-            TypedValueRef::NumericLiteral(v) => self.append_numeric(v),
-            TypedValueRef::SimpleLiteral(v) => self.append_string(v.value, None),
-            TypedValueRef::LanguageStringLiteral(v) => {
-                self.append_string(v.value, Some(v.language))
-            }
-            TypedValueRef::DateTimeLiteral(v) => self.append_date_time(v),
-            TypedValueRef::TimeLiteral(v) => self.append_time(v),
-            TypedValueRef::DateLiteral(v) => self.append_date(v),
-            TypedValueRef::DurationLiteral(v) => {
-                self.append_duration(Some(v.year_month()), Some(v.day_time()))
-            }
-            TypedValueRef::YearMonthDurationLiteral(v) => {
-                self.append_duration(Some(v), None)
-            }
-            TypedValueRef::DayTimeDurationLiteral(v) => {
-                self.append_duration(None, Some(v))
-            }
-            TypedValueRef::OtherLiteral(v) => self.append_other_literal(v),
-        }
-    }
-
-    pub fn append_boolean(&mut self, value: Boolean) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Boolean,
-            self.boolean_builder.len(),
-        )?;
-        self.boolean_builder.append_value(value.as_bool());
-        Ok(())
-    }
-
-    pub fn append_named_node(&mut self, value: NamedNodeRef<'_>) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::NamedNode,
-            self.named_node_builder.len(),
-        )?;
-        self.named_node_builder.append_value(value.as_str());
-        Ok(())
-    }
-
-    pub fn append_blank_node(&mut self, value: BlankNodeRef<'_>) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::BlankNode,
-            self.blank_node_builder.len(),
-        )?;
-        self.blank_node_builder.append_value(value.as_str());
-        Ok(())
-    }
-
-    pub fn append_string(&mut self, value: &str, language: Option<&str>) -> AResult<()> {
-        if language == Some("") {
-            return Err(ArrowError::InvalidArgumentError(String::from(
-                "Empty language.",
-            )));
-        }
-
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::String,
-            self.string_builder.len(),
-        )?;
-
-        self.string_builder
-            .field_builder::<StringBuilder>(0)
-            .ok_or(ArrowError::ComputeError(
-                "Invalid builder access".to_owned(),
-            ))?
-            .append_value(value);
-
-        let language_builder = self
-            .string_builder
-            .field_builder::<StringBuilder>(1)
-            .ok_or(ArrowError::ComputeError(
-                "Invalid builder access".to_owned(),
-            ))?;
-        if let Some(language) = language {
-            language_builder.append_value(language);
-        } else {
-            language_builder.append_null();
-        }
-        self.string_builder.append(true);
-
-        Ok(())
-    }
-
-    pub fn append_date_time(&mut self, value: DateTime) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::DateTime,
-            self.date_time_builder.len(),
-        )?;
-        append_timestamp(&mut self.date_time_builder, value.timestamp());
-        Ok(())
-    }
-
-    pub fn append_time(&mut self, value: Time) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Time,
-            self.time_builder.len(),
-        )?;
-        append_timestamp(&mut self.time_builder, value.timestamp());
-        Ok(())
-    }
-
-    pub fn append_date(&mut self, value: Date) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Date,
-            self.date_builder.len(),
-        )?;
-        append_timestamp(&mut self.date_builder, value.timestamp());
-        Ok(())
-    }
-
-    pub fn append_int(&mut self, int: Int) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Int,
-            self.int32_builder.len(),
-        )?;
-        self.int32_builder.append_value(int.into());
-        Ok(())
-    }
-
-    pub fn append_integer(&mut self, integer: Integer) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Integer,
-            self.integer_builder.len(),
-        )?;
-        self.integer_builder.append_value(integer.into());
-        Ok(())
-    }
-
-    pub fn append_float(&mut self, value: Float) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Float,
-            self.float_builder.len(),
-        )?;
-        self.float_builder.append_value(value.into());
-        Ok(())
-    }
-
-    pub fn append_double(&mut self, value: Double) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Double,
-            self.double_builder.len(),
-        )?;
-        self.double_builder.append_value(value.into());
-        Ok(())
-    }
-
-    pub fn append_decimal(&mut self, value: Decimal) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Decimal,
-            self.decimal_builder.len(),
-        )?;
-        self.decimal_builder
-            .append_value(i128::from_be_bytes(value.to_be_bytes()));
-        Ok(())
-    }
-
-    pub fn append_numeric(&mut self, value: Numeric) -> AResult<()> {
-        match value {
-            Numeric::Int(value) => self.append_int(value),
-            Numeric::Integer(value) => self.append_integer(value),
-            Numeric::Float(value) => self.append_float(value),
-            Numeric::Double(value) => self.append_double(value),
-            Numeric::Decimal(value) => self.append_decimal(value),
-        }
-    }
-
-    pub fn append_duration(
-        &mut self,
-        year_month: Option<YearMonthDuration>,
-        day_time: Option<DayTimeDuration>,
-    ) -> AResult<()> {
-        if year_month.is_none() && day_time.is_none() {
-            return Err(ArrowError::InvalidArgumentError(String::from(
-                "One duration component required",
-            )));
-        }
-
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Duration,
-            self.duration_builder.len(),
-        )?;
-        let year_month_builder = self
-            .duration_builder
-            .field_builder::<Int64Builder>(0)
-            .ok_or(ArrowError::ComputeError(
-            "Invalid builder access".to_owned(),
-        ))?;
-        if let Some(year_month) = year_month {
-            year_month_builder.append_value(year_month.as_i64());
-        } else {
-            year_month_builder.append_null();
-        }
-
-        let day_time_builder = self
-            .duration_builder
-            .field_builder::<Decimal128Builder>(1)
-            .ok_or(ArrowError::ComputeError(
-                "Invalid builder access".to_owned(),
-            ))?;
-        if let Some(day_time) = day_time {
-            let day_time = i128::from_be_bytes(day_time.as_seconds().to_be_bytes());
-            day_time_builder.append_value(day_time);
-        } else {
-            day_time_builder.append_null();
-        }
-
-        self.duration_builder.append(true);
-
-        Ok(())
-    }
-
-    /// Appends a `literal` that is encoded in the [TypedValueEncodingField::OtherLiteral].
+    /// Creates a new [TypedValueArrayBuilder] with the given `type_ids` and `offsets`.
     ///
-    /// *CAVEAT*: Only call this function if you're positive that there is no specialized encoding
-    /// for the data type of the `literal`. Otherwise, call [Self::append_typed_value] instead.
-    pub fn append_other_literal(&mut self, literal: LiteralRef<'_>) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::OtherLiteral,
-            self.typed_literal_builder.len(),
-        )?;
-        self.typed_literal_builder
-            .field_builder::<StringBuilder>(0)
-            .ok_or(ArrowError::ComputeError(
-                "Invalid builder access".to_owned(),
-            ))?
-            .append_value(literal.value());
-        self.typed_literal_builder
-            .field_builder::<StringBuilder>(1)
-            .ok_or(ArrowError::ComputeError(
-                "Invalid builder access".to_owned(),
-            ))?
-            .append_value(literal.datatype().as_str());
-        self.typed_literal_builder.append(true);
-        Ok(())
+    /// Use the `with_` methods to assemble the rest of the array.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the length of the given arrays does not match.
+    pub fn new(type_ids: Vec<i8>, offsets: Vec<i32>) -> DFResult<Self> {
+        if type_ids.len() != offsets.len() {
+            return exec_err!(
+                "Length of type_ids and offsets do not match: {} != {}",
+                type_ids.len(),
+                offsets.len()
+            );
+        }
+
+        Ok(Self {
+            type_ids,
+            offsets,
+            named_nodes: None,
+            blank_nodes: None,
+            strings: None,
+            booleans: None,
+            floats: None,
+            doubles: None,
+            decimals: None,
+            ints: None,
+            integers: None,
+            date_times: None,
+            times: None,
+            dates: None,
+            durations: None,
+            typed_literals: None,
+            nulls: None,
+        })
     }
 
-    pub fn append_null(&mut self) -> AResult<()> {
-        self.append_type_id_and_offset(
-            TypedValueEncodingField::Null,
-            self.null_builder.len(),
-        )?;
-        self.null_builder.append_null();
-        Ok(())
+    /// Creates a new [TypedValueArrayBuilder] that will only have a single sub array with values.
+    pub fn new_with_single_type(type_id: i8, len: usize) -> DFResult<Self> {
+        let type_ids = vec![type_id; len];
+
+        let len = i32::try_from(len)
+            .map_err(|_| exec_datafusion_err!("Length out of bounds"))?;
+        let offsets = (0..len).collect();
+
+        Self::new(type_ids, offsets)
     }
 
-    #[allow(clippy::expect_used, reason = "Fields must match type.")]
-    pub fn finish(mut self) -> TypedValueArray {
-        TypedValueArray::new_unchecked(Arc::new(
-            UnionArray::try_new(
-                TypedValueEncoding::fields(),
-                ScalarBuffer::from(self.type_ids),
-                Some(ScalarBuffer::from(self.offsets)),
-                vec![
-                    Arc::new(self.null_builder.finish()),
-                    Arc::new(self.named_node_builder.finish()),
-                    Arc::new(self.blank_node_builder.finish()),
-                    Arc::new(self.string_builder.finish()),
-                    Arc::new(self.boolean_builder.finish()),
-                    Arc::new(self.float_builder.finish()),
-                    Arc::new(self.double_builder.finish()),
-                    Arc::new(self.decimal_builder.finish()),
-                    Arc::new(self.int32_builder.finish()),
-                    Arc::new(self.integer_builder.finish()),
-                    Arc::new(self.date_time_builder.finish()),
-                    Arc::new(self.time_builder.finish()),
-                    Arc::new(self.date_builder.finish()),
-                    Arc::new(self.duration_builder.finish()),
-                    Arc::new(self.typed_literal_builder.finish()),
-                ],
-            )
-            .expect("Fields and type match"),
-        ))
+    /// Creates a new [TypedValueArrayBuilder] that will only have a single sub array with values
+    /// or null.
+    pub fn new_with_nullable_single_type(
+        type_id: i8,
+        null_buffer: &NullBuffer,
+    ) -> DFResult<Self> {
+        if null_buffer.null_count() == 0 {
+            return Self::new_with_single_type(type_id, null_buffer.len());
+        }
+
+        let type_ids = null_buffer
+            .iter()
+            .map(|is_null| {
+                if is_null {
+                    type_id
+                } else {
+                    TypedValueEncodingField::Null.type_id()
+                }
+            })
+            .collect();
+
+        let mut offsets = Vec::with_capacity(null_buffer.len());
+        let mut nulls = 0;
+        let mut non_nulls = 0;
+        for is_null in null_buffer.iter() {
+            if is_null {
+                offsets.push(nulls);
+                nulls += 1;
+            } else {
+                offsets.push(non_nulls);
+                non_nulls += 1;
+            }
+        }
+
+        let result = Self::new(type_ids, offsets)?
+            .with_nulls(Arc::new(NullArray::new(null_buffer.null_count())));
+        Ok(result)
     }
 
-    fn append_type_id_and_offset(
-        &mut self,
-        field: TypedValueEncodingField,
-        offset: usize,
-    ) -> AResult<()> {
-        let offset = i32::try_from(offset).map_err(|_| {
-            ArrowError::ArithmeticOverflow("Field {} of union got too large.".to_owned())
-        })?;
-        self.type_ids.push(field.type_id());
-        self.offsets.push(offset);
-        Ok(())
+    /// Sets the null array.
+    pub fn with_nulls(mut self, array: Arc<dyn Array>) -> Self {
+        self.nulls = Some(array);
+        self
     }
-}
 
-fn append_timestamp(builder: &mut StructBuilder, value: Timestamp) {
-    builder
-        .field_builder::<Decimal128Builder>(0)
-        .unwrap()
-        .append_value(i128::from_be_bytes(value.value().to_be_bytes()));
-
-    let offset_builder = builder.field_builder::<Int16Builder>(1).unwrap();
-    if let Some(offset) = value.offset() {
-        offset_builder.append_value(offset.in_minutes());
-    } else {
-        offset_builder.append_null();
+    /// Sets the named nodes array.
+    pub fn with_named_nodes(mut self, array: Arc<dyn Array>) -> Self {
+        self.named_nodes = Some(array);
+        self
     }
-    builder.append(true);
+
+    /// Sets the blank nodes array.
+    pub fn with_blank_nodes(mut self, array: Arc<dyn Array>) -> Self {
+        self.blank_nodes = Some(array);
+        self
+    }
+
+    /// Sets the string array
+    pub fn with_strings(mut self, array: Arc<dyn Array>) -> Self {
+        self.strings = Some(array);
+        self
+    }
+
+    /// Sets the boolean array.
+    pub fn with_booleans(mut self, array: Arc<dyn Array>) -> Self {
+        self.booleans = Some(array);
+        self
+    }
+
+    /// Sets the float array.
+    pub fn with_floats(mut self, array: Arc<dyn Array>) -> Self {
+        self.floats = Some(array);
+        self
+    }
+
+    /// Sets the double array.
+    pub fn with_doubles(mut self, array: Arc<dyn Array>) -> Self {
+        self.doubles = Some(array);
+        self
+    }
+
+    /// Sets the decimal array.
+    pub fn with_decimals(mut self, array: Arc<dyn Array>) -> Self {
+        self.decimals = Some(array);
+        self
+    }
+
+    /// Sets the int32 array.
+    pub fn with_ints(mut self, array: Arc<dyn Array>) -> Self {
+        self.ints = Some(array);
+        self
+    }
+
+    /// Sets the integer array.
+    pub fn with_integers(mut self, array: Arc<dyn Array>) -> Self {
+        self.integers = Some(array);
+        self
+    }
+
+    /// Sets the date times array.
+    pub fn with_date_times(mut self, array: Arc<dyn Array>) -> Self {
+        self.date_times = Some(array);
+        self
+    }
+
+    /// Sets the times array.
+    pub fn with_times(mut self, array: Arc<dyn Array>) -> Self {
+        self.times = Some(array);
+        self
+    }
+
+    /// Sets the dates array.
+    pub fn with_dates(mut self, array: Arc<dyn Array>) -> Self {
+        self.dates = Some(array);
+        self
+    }
+
+    /// Sets the durations array.
+    pub fn with_durations(mut self, array: Arc<dyn Array>) -> Self {
+        self.durations = Some(array);
+        self
+    }
+
+    /// Sets the typed literals array.
+    pub fn with_typed_literals(mut self, array: Arc<dyn Array>) -> Self {
+        self.typed_literals = Some(array);
+        self
+    }
+
+    /// Tries to create a new [TypedValueArray] and validates the given arrays.
+    ///
+    /// For a list of invariants that must be upheld, see [UnionArray::try_new].
+    pub fn finish(self) -> DFResult<TypedValueArray> {
+        TYPED_VALUE_ENCODING.try_new_array(Arc::new(UnionArray::try_new(
+            TypedValueEncoding::fields(),
+            ScalarBuffer::from(self.type_ids),
+            Some(ScalarBuffer::from(self.offsets)),
+            vec![
+                self.nulls.unwrap_or_else(|| Arc::new(NullArray::new(0))),
+                self.named_nodes
+                    .unwrap_or_else(|| Arc::new(StringArray::new_null(0))),
+                self.blank_nodes
+                    .unwrap_or_else(|| Arc::new(StringArray::new_null(0))),
+                self.strings.unwrap_or_else(|| {
+                    Arc::new(StructArray::new_null(
+                        TypedValueEncoding::string_fields(),
+                        0,
+                    ))
+                }),
+                self.booleans
+                    .unwrap_or_else(|| Arc::new(BooleanArray::new_null(0))),
+                self.floats
+                    .unwrap_or_else(|| Arc::new(Float32Array::new_null(0))),
+                self.doubles
+                    .unwrap_or_else(|| Arc::new(Float64Array::new_null(0))),
+                self.decimals
+                    .unwrap_or_else(|| Arc::new(Decimal128Array::new_null(0))),
+                self.ints
+                    .unwrap_or_else(|| Arc::new(Int32Array::new_null(0))),
+                self.integers
+                    .unwrap_or_else(|| Arc::new(Int64Array::new_null(0))),
+                self.date_times.unwrap_or_else(|| {
+                    Arc::new(StructArray::new_null(
+                        TypedValueEncoding::timestamp_fields(),
+                        0,
+                    ))
+                }),
+                self.times.unwrap_or_else(|| {
+                    Arc::new(StructArray::new_null(
+                        TypedValueEncoding::timestamp_fields(),
+                        0,
+                    ))
+                }),
+                self.dates.unwrap_or_else(|| {
+                    Arc::new(StructArray::new_null(
+                        TypedValueEncoding::timestamp_fields(),
+                        0,
+                    ))
+                }),
+                self.durations.unwrap_or_else(|| {
+                    Arc::new(StructArray::new_null(
+                        TypedValueEncoding::duration_fields(),
+                        0,
+                    ))
+                }),
+                self.typed_literals.unwrap_or_else(|| {
+                    Arc::new(StructArray::new_null(
+                        TypedValueEncoding::typed_literal_fields(),
+                        0,
+                    ))
+                }),
+            ],
+        )?))
+    }
 }

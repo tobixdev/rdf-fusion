@@ -4,7 +4,9 @@ use datafusion::config::ConfigOptions;
 use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArrayBuilder};
+use rdf_fusion_encoding::typed_value::{
+    TYPED_VALUE_ENCODING, TypedValueArrayElementBuilder,
+};
 use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoding};
 use rdf_fusion_extensions::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionRegistry,
@@ -25,7 +27,7 @@ impl UnaryScenario {
     fn create_args(&self) -> Vec<ColumnarValue> {
         match self {
             UnaryScenario::AllNamedNodes => {
-                let mut payload_builder = TypedValueArrayBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::default();
                 for i in 0..8192 {
                     payload_builder
                         .append_named_node(NamedNodeRef::new_unchecked(
@@ -36,7 +38,7 @@ impl UnaryScenario {
                 vec![ColumnarValue::Array(payload_builder.finish().into_array())]
             }
             UnaryScenario::Mixed => {
-                let mut payload_builder = TypedValueArrayBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::default();
                 for i in 0..8192 {
                     match i % 4 {
                         0 => {
@@ -62,7 +64,7 @@ impl UnaryScenario {
                 vec![ColumnarValue::Array(payload_builder.finish().into_array())]
             }
             UnaryScenario::AllBlank => {
-                let mut payload_builder = TypedValueArrayBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::default();
                 for _ in 0..8192 {
                     payload_builder
                         .append_blank_node(BlankNode::default().as_ref())

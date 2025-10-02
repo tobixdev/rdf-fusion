@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoder;
 use crate::sortable_term::SortableTermEncoding;
 use crate::sortable_term::encoders::TypedValueRefSortableTermEncoder;
-use crate::typed_value::TypedValueArrayBuilder;
+use crate::typed_value::TypedValueArrayElementBuilder;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::{EncodingArray, TermDecoder, TermEncoding};
 use rdf_fusion_model::DFResult;
@@ -16,7 +16,7 @@ impl TermEncoder<SortableTermEncoding> for TermRefSortableTermEncoder {
     fn encode_terms<'data>(
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<<SortableTermEncoding as TermEncoding>::Array> {
-        let mut typed_values_array = TypedValueArrayBuilder::default();
+        let mut typed_values_array = TypedValueArrayElementBuilder::default();
         for term in terms {
             let value: ThinResult<TypedValueRef<'_>> =
                 term.and_then(|t| t.try_into().map_err(|_| ThinError::ExpectedError));

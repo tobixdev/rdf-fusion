@@ -1,13 +1,13 @@
 mod array;
 mod builder;
 pub mod decoders;
+mod element_builder;
 pub mod encoders;
 mod encoding;
-mod row_builder;
 mod scalar;
 
 pub use array::*;
 pub use builder::*;
+pub use element_builder::*;
 pub use encoding::*;
-pub use row_builder::*;
 pub use scalar::*;
