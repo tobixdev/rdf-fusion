@@ -16,11 +16,11 @@ use std::sync::Arc;
 
 /// Tries to push down projections from join filters that only depend on one side of the join.
 ///
-/// This can be a crucial optimization for nested loop joins. By pushing these projections
-/// down, even functions that only depend on one side of the join must be done for all row
-/// combinations.
+/// This optimization is currently only applied to nested loop joins. By pushing these projections
+/// down, functions that only depend on one side of the join must be done for the cartesian product
+/// of the two sides.
 #[derive(Debug)]
-pub struct NestedLoopJoinProjectionPushDown {}
+pub struct NestedLoopJoinProjectionPushDown;
 
 impl NestedLoopJoinProjectionPushDown {
     /// Creates a new [NestedLoopJoinProjectionPushDown].
@@ -53,7 +53,7 @@ impl PhysicalOptimizerRule for NestedLoopJoinProjectionPushDown {
                 ),
             }
         })
-        .map(|t| t.data)
+            .map(|t| t.data)
     }
     fn name(&self) -> &str {
         "nl-join-projection-push-down"
@@ -232,6 +232,10 @@ fn ensure_batch_size(
 }
 
 /// Creates a new [JoinFilter] and tries to minimize the internal schema.
+///
+/// This could eliminate some columns that were only part of a computation that has been pushed
+/// down. As this computation is now materialized on one side of the join, the original input
+/// columns are not needed anymore.
 fn minimize_join_filter(
     expr: Arc<dyn PhysicalExpr>,
     old_column_indices: Vec<ColumnIndex>,
@@ -245,7 +249,7 @@ fn minimize_join_filter(
         }
         Ok(TreeNodeRecursion::Continue)
     })
-    .expect("Closure cannot fail");
+        .expect("Closure cannot fail");
 
     let new_column_indices = old_column_indices
         .iter()
@@ -345,7 +349,7 @@ impl<'a> JoinFilterRewriter<'a> {
         // Recurse if there is a dependency to both sides or if the entire expression is volatile.
         let depends_on_other_side =
             self.depends_on_join_side(&expr, self.join_side.negate())?;
-        let is_volatile = is_volatile(expr.as_ref());
+        let is_volatile = is_volatile_expression_tree(expr.as_ref());
         if depends_on_other_side || is_volatile {
             return expr.map_children(|expr| self.rewrite(expr));
         }
@@ -427,12 +431,16 @@ impl<'a> JoinFilterRewriter<'a> {
     }
 }
 
-fn is_volatile(expr: &dyn PhysicalExpr) -> bool {
-    expr.is_volatile_node()
-        || expr
-            .children()
-            .iter()
-            .any(|expr| is_volatile(expr.as_ref()))
+fn is_volatile_expression_tree(expr: &dyn PhysicalExpr) -> bool {
+    if expr.is_volatile_node() {
+        return true;
+    }
+
+    expr.children()
+        .iter()
+        .map(|expr| is_volatile_expression_tree(expr.as_ref()))
+        .reduce(|lhs, rhs| lhs || rhs)
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
