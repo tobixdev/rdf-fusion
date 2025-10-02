@@ -53,7 +53,7 @@ impl PhysicalOptimizerRule for NestedLoopJoinProjectionPushDown {
                 ),
             }
         })
-            .map(|t| t.data)
+        .map(|t| t.data)
     }
     fn name(&self) -> &str {
         "nl-join-projection-push-down"
@@ -249,7 +249,7 @@ fn minimize_join_filter(
         }
         Ok(TreeNodeRecursion::Continue)
     })
-        .expect("Closure cannot fail");
+    .expect("Closure cannot fail");
 
     let new_column_indices = old_column_indices
         .iter()
