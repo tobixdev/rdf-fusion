@@ -1,7 +1,7 @@
 mod index;
 mod mem_storage;
 mod pattern_exec;
-mod predicate_push_down;
+mod predicate_pushdown;
 mod snapshot;
 mod stream;
 

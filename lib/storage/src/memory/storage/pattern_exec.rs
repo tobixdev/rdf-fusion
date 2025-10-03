@@ -1,15 +1,15 @@
 use crate::memory::storage::index::PlannedPatternScan;
-use crate::memory::storage::predicate_push_down::MemStoragePredicateExpr;
+use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{exec_err, internal_err};
 use datafusion::config::ConfigOptions;
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
-use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
+use datafusion::physical_expr::{EquivalenceProperties, Partitioning, PhysicalExpr};
 use datafusion::physical_plan::execution_plan::{
     Boundedness, EmissionType, SchedulingType,
 };
 use datafusion::physical_plan::filter_pushdown::{
-    ChildPushdownResult, FilterPushdownPhase, FilterPushdownPropagation,
+    ChildPushdownResult, FilterPushdownPhase, FilterPushdownPropagation, PushedDown,
 };
 use datafusion::physical_plan::metrics::{
     BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet,
@@ -105,10 +105,14 @@ impl ExecutionPlan for MemQuadPatternExec {
 
     fn handle_child_pushdown_result(
         &self,
-        _phase: FilterPushdownPhase,
+        phase: FilterPushdownPhase,
         child_pushdown_result: ChildPushdownResult,
         _config: &ConfigOptions,
     ) -> DFResult<FilterPushdownPropagation<Arc<dyn ExecutionPlan>>> {
+        if !matches!(phase, FilterPushdownPhase::Pre) {
+            return Ok(FilterPushdownPropagation::if_all(child_pushdown_result));
+        }
+
         let parent_filters = child_pushdown_result
             .parent_filters
             .clone()
@@ -120,7 +124,28 @@ impl ExecutionPlan for MemQuadPatternExec {
             })
             .collect::<Vec<_>>();
 
-        Ok(FilterPushdownPropagation::if_all(child_pushdown_result))
+        let results = parent_filters
+            .iter()
+            .map(|(_, rewritten)| match rewritten {
+                None => PushedDown::No,
+                Some(_) => PushedDown::Yes,
+            })
+            .collect::<Vec<_>>();
+
+        // Don't create a new node if no filters were pushed down
+        if results.iter().all(|r| matches!(r, PushedDown::No)) {
+            return Ok(FilterPushdownPropagation {
+                filters: results,
+                updated_node: None,
+            });
+        }
+
+        // TODO: Create new node
+
+        Ok(FilterPushdownPropagation {
+            filters: results,
+            updated_node: None,
+        })
     }
 }
 
@@ -147,5 +172,103 @@ impl DisplayAs for MemQuadPatternExec {
                 write!(f, ", object={}", &pattern.object)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::memory::storage::MemQuadPatternExec;
+    use crate::memory::{MemObjectIdMapping, MemQuadStorage};
+    use datafusion::arrow::datatypes::{DataType, Field, Schema};
+    use datafusion::config::ConfigOptions;
+    use datafusion::logical_expr::Operator;
+    use datafusion::physical_expr::expressions::{BinaryExpr, Column, Literal};
+    use datafusion::physical_plan::filter_pushdown::{
+        ChildFilterPushdownResult, ChildPushdownResult, FilterPushdownPhase,
+        FilterPushdownPropagation, PushedDown,
+    };
+    use datafusion::physical_plan::{displayable, ExecutionPlan, PhysicalExpr};
+    use datafusion::scalar::ScalarValue;
+    use insta::assert_snapshot;
+    use rdf_fusion_logical::ActiveGraph;
+    use rdf_fusion_model::{
+        BlankNodeMatchingMode, NamedNode, NamedNodePattern, TermPattern, TriplePattern,
+        Variable,
+    };
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_filter_pushdown_binds_variable() {
+        let exec = create_test_pattern().await;
+        let filter_expr = create_object_filter_expr(Operator::Eq, 1);
+        let result = execute_filter_pushdown(exec, filter_expr);
+
+        assert!(result.filters.iter().all(|f| matches!(f, PushedDown::Yes)));
+        assert!(result.updated_node.is_some());
+        assert_snapshot!(displayable(result.updated_node.unwrap().as_ref()).indent(false), @r"TODO")
+    }
+
+    /// Creates a new [MemQuadPatternExec] for the pattern (?subject <...> ?object) and no graph
+    /// variable.
+    async fn create_test_pattern() -> MemQuadPatternExec {
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("subject", DataType::UInt32, false),
+            Field::new("object", DataType::UInt32, false),
+        ]));
+        let pattern = TriplePattern {
+            subject: TermPattern::Variable(Variable::new_unchecked("subject")),
+            predicate: NamedNodePattern::NamedNode(NamedNode::new_unchecked(
+                "http://example.com/test",
+            )),
+            object: TermPattern::Variable(Variable::new_unchecked("object")),
+        };
+
+        let index = MemQuadStorage::new(Arc::new(MemObjectIdMapping::default()), 10);
+        let planned_scan = index
+            .snapshot()
+            .await
+            .plan_pattern_evaluation(
+                ActiveGraph::DefaultGraph,
+                None,
+                pattern,
+                BlankNodeMatchingMode::Filter,
+            )
+            .await
+            .unwrap();
+
+        MemQuadPatternExec::new(Arc::new(schema.as_ref().clone()), planned_scan)
+    }
+
+    /// Creates a filter operation on the `object` column with the given `operator` and `value`.
+    fn create_object_filter_expr(
+        operator: Operator,
+        value: u32,
+    ) -> Arc<dyn PhysicalExpr> {
+        Arc::new(BinaryExpr::new(
+            Arc::new(Column::new("object", 1)),
+            operator,
+            Arc::new(Literal::new(ScalarValue::UInt32(Some(value)))),
+        ))
+    }
+
+    /// Runs the filter push down on `exec` with the given `filter_expr`.
+    fn execute_filter_pushdown(
+        exec: MemQuadPatternExec,
+        filter_expr: Arc<dyn PhysicalExpr>,
+    ) -> FilterPushdownPropagation<Arc<dyn ExecutionPlan>> {
+        let result = exec
+            .handle_child_pushdown_result(
+                FilterPushdownPhase::Pre,
+                ChildPushdownResult {
+                    parent_filters: vec![ChildFilterPushdownResult {
+                        filter: filter_expr,
+                        child_results: vec![],
+                    }],
+                    self_filters: vec![],
+                },
+                &ConfigOptions::default(),
+            )
+            .unwrap();
+        result
     }
 }
