@@ -1,4 +1,3 @@
-use crate::AResult;
 use crate::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueEncodingField};
 use datafusion::arrow::array::{
     ArrayBuilder, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
@@ -8,8 +7,8 @@ use datafusion::arrow::array::{
 use datafusion::arrow::buffer::ScalarBuffer;
 use datafusion::arrow::error::ArrowError;
 use rdf_fusion_model::{
-    BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, LiteralRef, NamedNodeRef,
-    Numeric, Time, Timestamp, TypedValueRef, YearMonthDuration,
+    AResult, BlankNodeRef, Boolean, Date, DateTime, DayTimeDuration, LiteralRef,
+    NamedNodeRef, Numeric, Time, Timestamp, TypedValueRef, YearMonthDuration,
 };
 use rdf_fusion_model::{Decimal, Double, Float, Int, Integer};
 use std::sync::Arc;

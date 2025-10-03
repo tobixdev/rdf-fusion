@@ -6,7 +6,7 @@
     html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
 )]
 
-//! This crate implements the SPARQL scalar and aggregate functions for [RDF Fusion](../../rdf-fusion).
+//! This crate implements the SPARQL scalar and aggregate functions for [RDF Fusion](https://docs.rs/rdf-fusion/).
 //!
 //! While all SPARQL functions are implemented as DataFusion user-defined functions (UDFs),
 //! we also provide additional support to simplify SPARQL function implementation.

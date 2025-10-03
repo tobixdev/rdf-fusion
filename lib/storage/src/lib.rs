@@ -6,6 +6,6 @@
     html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
 )]
 
-//! Contains storage layer implementations for [RDF Fusion](../../rdf-fusion).
+//! Contains storage layer implementations for [RDF Fusion](https://docs.rs/rdf-fusion/).
 
 pub mod memory;

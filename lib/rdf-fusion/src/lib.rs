@@ -28,7 +28,8 @@
 //! For instance, users can register custom SPARQL functions, similar to those found in other SPARQL engines.
 //! Additional extension points are planned for future releases.
 //!
-//! See the [examples](../../examples) directory for demonstrations of the `Store` API in action.
+//! See the [examples](https://github.com/tobixdev/rdf-fusion/tree/main/examples) directory for
+//! demonstrations of the `Store` API in action.
 //!
 //! ## Library Use
 //!
@@ -40,7 +41,8 @@
 //! a single query.
 //! Users who want to *build new systems* using RDF Fusion's SPARQL implementation are encouraged to use this API.
 //!
-//! See the [examples](../../examples) directory for more details.
+//! See the [examples](https://github.com/tobixdev/rdf-fusion/tree/main/examples) directory for more
+//! details.
 //!
 //! # Background
 //!
@@ -349,43 +351,47 @@
 //! One of the encodings retains the lexical value of the literal, while the other one retains the typed value.
 //! Then there are additional encodings that we use to improve the performance of certain operations.
 //! For further details, please refer to
-//! the [rdf-fusion-encoding](../encoding) crate.
+//! the [rdf-fusion-encoding](https://docs.rs/rdf-fusion-encoding/) crate.
 //!
 //! ## Using DataFusion's Extension Points
 //!
 //! As mentioned earlier, RDF Fusion leverages many of DataFusion’s extension points to implement SPARQL.
 //!
 //! First, we define **custom logical operators** for various graph patterns (e.g., pattern matching, filters).
-//! These custom logical operators and their rewriting rules are detailed in the [rdf-fusion-logical](../../logical) crate.
+//! These custom logical operators and their rewriting rules are detailed in the [rdf-fusion-logical](https://docs.rs/rdf-fusion-logical/) crate.
 //!
 //! Next, we provide **custom execution operators** for operations that cannot be mapped to built-in operators
 //! or for those where we want to preserve SPARQL semantics during the planning step.
-//! The custom execution operators and their rewriting rules are detailed in the [rdf-fusion-physical](../../physical) crate,
+//! The custom execution operators and their rewriting rules are detailed in the [rdf-fusion-physical](https://docs.rs/rdf-fusion-physical/) crate,
 //! which also contains the implementations of the streams.
 //!
 //! One of the most important operators that integrates these components is the `QuadPattern`.
-//! Its execution plan is defined in the [rdf-fusion-storage](../../storage) crate.
+//! Its execution plan is defined in the [rdf-fusion-storage](https://docs.rs/rdf-fusion-storage/) crate.
 //! This operator is special because the storage layer implementation is responsible for planning it.
 //!
 //! Additionally, RDF Fusion uses the `ScalarFunction` and `AggregateFunction` traits to implement SPARQL functions.
-//! Implementations of these functions are detailed in the [rdf-fusion-functions](../../functions) crate.
+//! Implementations of these functions are detailed in the [rdf-fusion-functions](https://docs.rs/rdf-fusion-functions/) crate.
 //!
 //! # Crates
 //!
 //! To conclude, here is a list of the creates that constitute RDF Fusion with a quick description of each one.
 //! You can find more details in their respective documentation.
 //!
-//! - [rdf-fusion-encoding](../encoding): The RDF term encodings used by RDF Fusion.
-//! - [rdf-fusion-extensions](../extensions): Contains a set of traits and core data types used to extend RDF Fusion (e.g.,
-//!   custom storage layer).
-//! - [rdf-fusion-functions](../functions): Scalar and aggregate functions for RDF Fusion.
-//! - [rdf-fusion-logical](../logical): The logical plan operators and rewriting rules used by RDF Fusion.
-//! - [rdf-fusion-model](../model): Provides a model for RDF and SPARQL. This is not part of common as it does not have a
-//!   dependency on DataFusion.
-//! - [rdf-fusion-physical](../physical): The physical plan operators and rewriting rules used by RDF Fusion.
-//! - [rdf-fusion](../rdf-fusion): This crate. The primary entry point for RDF Fusion.
-//! - [rdf-fusion-storage](../storage): The storage layer implementations for RDF Fusion.
-//! - [rdf-fusion-web](../web): The web server for RDF Fusion.
+//! - [rdf-fusion-encoding](https://docs.rs/rdf-fusion-encoding/): The RDF term encodings used by
+//!   RDF Fusion.
+//! - [rdf-fusion-extensions](https://docs.rs/rdf-fusion-extensions/): Contains a set of traits and
+//!   core data types used to extend RDF Fusion (e.g., custom storage layer).
+//! - [rdf-fusion-functions](https://docs.rs/rdf-fusion-functions/): Scalar and aggregate functions
+//!   for RDF Fusion.
+//! - [rdf-fusion-logical](https://docs.rs/rdf-fusion-logical/): The logical plan operators and
+//!   rewriting rules used by RDF Fusion.
+//! - [rdf-fusion-model](https://docs.rs/rdf-fusion-model/): Provides a model for RDF and SPARQL.
+//! - [rdf-fusion-physical](https://docs.rs/rdf-fusion-physical/): The physical plan operators and
+//!   rewriting rules used by RDF Fusion.
+//! - [rdf-fusion](https://docs.rs/rdf-fusion/): This crate. The primary entry point for RDF Fusion.
+//! - [rdf-fusion-storage](https://docs.rs/rdf-fusion-storage/): The storage layer implementations
+//!   for RDF Fusion.
+//! - [rdf-fusion-web](https://docs.rs/rdf-fusion-web/): The web server for RDF Fusion.
 
 pub mod error;
 pub mod store;

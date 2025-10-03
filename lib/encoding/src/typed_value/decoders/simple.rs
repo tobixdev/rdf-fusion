@@ -1,6 +1,6 @@
 use crate::TermDecoder;
 use crate::TermEncoding;
-use crate::TypedValueEncoding;
+use crate::typed_value::TypedValueEncoding;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_model::{
     Boolean, DateTime, Integer, NamedNodeRef, Numeric, SimpleLiteralRef,

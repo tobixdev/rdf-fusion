@@ -52,7 +52,7 @@ Once installed, you can use the CLI to run a SPARQL engine. See `rdf-fusion-cli 
 
 ### Using RDF Fusion in your Project
 
-Documentation for using RDF Fusion from another Rust project can be found in the main crate's [README](./lib/rdf-fusion/README.md).
+Documentation for using RDF Fusion from another Rust project can be found in the main crate's [documentation](https://docs.rs/rdf-fusion).
 Examples of using RDF Fusion can be found in the [examples](./examples) directory.
 
 ## Comparison with Some Other SPARQL Engines
