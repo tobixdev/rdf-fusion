@@ -1,15 +1,18 @@
 use crate::memory::object_id::EncodedObjectId;
-use datafusion::arrow::datatypes::Schema;
-use datafusion::common::ScalarValue;
+use crate::memory::storage::index::IndexScanPredicate;
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::logical_expr::Operator;
 use datafusion::physical_expr::PhysicalExpr;
 use datafusion::physical_expr::expressions::{
     BinaryExpr, Column, DynamicFilterPhysicalExpr, Literal,
 };
+use rdf_fusion_model::DFResult;
 use std::any::Any;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 /// Represents the set of supported operations for [MemStoragePredicateExpr]s.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PredicateExprOperator {
     Gt,
     Geq,
@@ -19,6 +22,7 @@ pub enum PredicateExprOperator {
 }
 
 /// Represents a predicate that has been pushed down and is supported by our implementation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MemStoragePredicateExpr {
     /// The filter is always true.
     True,
@@ -30,28 +34,79 @@ pub enum MemStoragePredicateExpr {
     Binary(Arc<str>, PredicateExprOperator, EncodedObjectId),
     /// Checks that a column is between two object ids.
     Between(Arc<str>, EncodedObjectId, EncodedObjectId),
-    /// A reference to a dynamic filter that can be updated during execution.
-    DynamicFilter(Arc<DynamicFilterPhysicalExpr>),
 }
 
 impl MemStoragePredicateExpr {
     /// Tries to create a [MemStoragePredicateExpr] from an arbitrary [PhysicalExpr].
     ///
     /// If [None] is returned, the expression was not supported.
-    pub fn try_from(schema: &Schema, expr: &Arc<dyn PhysicalExpr>) -> Option<Self> {
+    pub fn try_from(expr: &Arc<dyn PhysicalExpr>) -> Option<Self> {
         let any_expr = Arc::clone(expr) as Arc<dyn Any + Send + Sync>;
-        if let Ok(expr) = any_expr.downcast::<DynamicFilterPhysicalExpr>() {
-            return Some(MemStoragePredicateExpr::DynamicFilter(expr));
+        if let Ok(_expr) = any_expr.downcast::<DynamicFilterPhysicalExpr>() {
+            // TODO 79: Support dynamic filters
+            return None;
         }
 
-        try_rewrite_data_fusion_expr(schema, expr)
+        try_rewrite_data_fusion_expr(expr)
+    }
+
+    /// Returns the name of the column that this predicate operates on.
+    ///
+    /// Will be [None] for expressions that do not have a column name.
+    pub fn column(&self) -> Option<&str> {
+        match self {
+            Self::Column(column) => Some(column.as_ref()),
+            Self::Binary(column, _, _) => Some(column.as_ref()),
+            Self::Between(column, _, _) => Some(column.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Returns the [IndexScanPredicate] that implements this expression.
+    ///
+    /// Returns [None] if the expression always evaluates to true.
+    /// Returns [Err] if the expression is not a predicate.
+    pub fn to_scan_predicate(&self) -> DFResult<Option<IndexScanPredicate>> {
+        Ok(match self {
+            MemStoragePredicateExpr::True => None,
+
+            MemStoragePredicateExpr::Binary(_, operator, value) => Some(match operator {
+                PredicateExprOperator::Gt => {
+                    let Some(next) = value.next() else {
+                        return Ok(Some(IndexScanPredicate::False));
+                    };
+                    IndexScanPredicate::Between(next, EncodedObjectId::MAX)
+                }
+                PredicateExprOperator::Geq => {
+                    IndexScanPredicate::Between(*value, EncodedObjectId::MAX)
+                }
+                PredicateExprOperator::Lt => {
+                    let Some(previous) = value.previous() else {
+                        return Ok(Some(IndexScanPredicate::False));
+                    };
+                    IndexScanPredicate::Between(EncodedObjectId::MIN, previous)
+                }
+                PredicateExprOperator::Leq => {
+                    IndexScanPredicate::Between(EncodedObjectId::MIN, *value)
+                }
+                PredicateExprOperator::Eq => {
+                    IndexScanPredicate::In(BTreeSet::from([*value]))
+                }
+            }),
+            MemStoragePredicateExpr::Between(_, from, to) => {
+                Some(IndexScanPredicate::Between(*from, *to))
+            }
+
+            MemStoragePredicateExpr::Column(_) | MemStoragePredicateExpr::ObjectId(_) => {
+                return exec_err!("Expression is not a predicate.");
+            }
+        })
     }
 }
 
 /// Tries to rewrite an arbitrary DataFusion [PhysicalExpr] into a supported
 /// [MemStoragePredicateExpr].
 pub fn try_rewrite_data_fusion_expr(
-    schema: &Schema,
     expr: &Arc<dyn PhysicalExpr>,
 ) -> Option<MemStoragePredicateExpr> {
     if let Some(column) = expr.as_any().downcast_ref::<Column>() {
@@ -73,8 +128,8 @@ pub fn try_rewrite_data_fusion_expr(
     if let Some(binary) = expr.as_any().downcast_ref::<BinaryExpr>() {
         return match binary.op() {
             Operator::Eq => {
-                let left = try_rewrite_data_fusion_expr(schema, binary.left())?;
-                let right = try_rewrite_data_fusion_expr(schema, binary.right())?;
+                let left = try_rewrite_data_fusion_expr(binary.left())?;
+                let right = try_rewrite_data_fusion_expr(binary.right())?;
 
                 match (left, right) {
                     (
@@ -102,44 +157,39 @@ pub fn try_rewrite_data_fusion_expr(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datafusion::arrow::datatypes::{DataType, Field};
 
     #[test]
     fn test_column_predicate() {
-        let schema = test_schema();
         let expr = column_expr("subject");
-        let result = try_rewrite_data_fusion_expr(&schema, &expr);
+        let result = try_rewrite_data_fusion_expr(&expr);
 
         assert!(matches!(result, Some(MemStoragePredicateExpr::Column(_))));
     }
 
     #[test]
     fn test_literal_object_id() {
-        let schema = test_schema();
         let expr = literal_uint(42);
-        let result = try_rewrite_data_fusion_expr(&schema, &expr);
+        let result = try_rewrite_data_fusion_expr(&expr);
 
         assert!(matches!(result, Some(MemStoragePredicateExpr::ObjectId(_))));
     }
 
     #[test]
     fn test_true_literal() {
-        let schema = test_schema();
         let expr = literal_bool(true);
-        let result = try_rewrite_data_fusion_expr(&schema, &expr);
+        let result = try_rewrite_data_fusion_expr(&expr);
 
         assert!(matches!(result, Some(MemStoragePredicateExpr::True)));
     }
 
     #[test]
     fn test_equal_predicate() {
-        let schema = test_schema();
         let left = column_expr("subject");
         let right = literal_uint(123);
         let expr =
             Arc::new(BinaryExpr::new(left, Operator::Eq, right)) as Arc<dyn PhysicalExpr>;
 
-        let result = try_rewrite_data_fusion_expr(&schema, &expr);
+        let result = try_rewrite_data_fusion_expr(&expr);
 
         assert!(matches!(
             result,
@@ -153,7 +203,6 @@ mod tests {
 
     #[test]
     fn test_between_predicate() {
-        let schema = test_schema();
         let gt_expr = Arc::new(BinaryExpr::new(
             column_expr("subject"),
             Operator::Gt,
@@ -167,7 +216,7 @@ mod tests {
         let expr = Arc::new(BinaryExpr::new(gt_expr, Operator::And, lt_expr))
             as Arc<dyn PhysicalExpr>;
 
-        let result = try_rewrite_data_fusion_expr(&schema, &expr).unwrap();
+        let result = try_rewrite_data_fusion_expr(&expr).unwrap();
         let MemStoragePredicateExpr::Between(column, from, to) = result else {
             panic!("Unexpected expr.")
         };
@@ -179,7 +228,6 @@ mod tests {
 
     #[test]
     fn test_between_predicate_wrong_column_name() {
-        let schema = test_schema();
         let gt_expr = Arc::new(BinaryExpr::new(
             column_expr("subject"),
             Operator::Gt,
@@ -193,30 +241,175 @@ mod tests {
         let expr = Arc::new(BinaryExpr::new(gt_expr, Operator::And, lt_expr))
             as Arc<dyn PhysicalExpr>;
 
-        let result = try_rewrite_data_fusion_expr(&schema, &expr);
+        let result = try_rewrite_data_fusion_expr(&expr);
 
         assert!(matches!(result, None));
     }
 
     #[test]
     fn test_unsupported_operator() {
-        let schema = test_schema();
         let left = column_expr("subject");
         let right = literal_uint(123);
         let expr =
             Arc::new(BinaryExpr::new(left, Operator::Gt, right)) as Arc<dyn PhysicalExpr>;
 
-        let result = try_rewrite_data_fusion_expr(&schema, &expr);
+        let result = try_rewrite_data_fusion_expr(&expr);
 
         assert!(result.is_none());
     }
 
-    fn test_schema() -> Schema {
-        Schema::new(vec![
-            Field::new("subject", DataType::UInt32, false),
-            Field::new("predicate", DataType::UInt32, false),
-            Field::new("object", DataType::UInt32, false),
-        ])
+    #[test]
+    fn test_to_scan_predicate_true_returns_none() {
+        let result = MemStoragePredicateExpr::True.to_scan_predicate().unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_to_scan_predicate_eq_produces_in_predicate() {
+        let obj_id = EncodedObjectId::from(100);
+        let expr = MemStoragePredicateExpr::Binary(
+            Arc::from("col"),
+            PredicateExprOperator::Eq,
+            obj_id,
+        );
+
+        assert_eq!(
+            expr.to_scan_predicate().unwrap(),
+            Some(IndexScanPredicate::In(BTreeSet::from([obj_id])))
+        );
+    }
+
+    #[test]
+    fn test_to_scan_predicate_gt_produces_between() {
+        let obj_id = EncodedObjectId::from(100);
+        let expr = MemStoragePredicateExpr::Binary(
+            Arc::from("col"),
+            PredicateExprOperator::Gt,
+            obj_id,
+        );
+
+        assert_eq!(
+            expr.to_scan_predicate().unwrap(),
+            Some(IndexScanPredicate::Between(
+                EncodedObjectId::from(101),
+                EncodedObjectId::MAX
+            ))
+        );
+    }
+
+    #[test]
+    fn test_to_scan_predicate_geq_produces_between() {
+        let obj_id = EncodedObjectId::from(100);
+        let expr = MemStoragePredicateExpr::Binary(
+            Arc::from("col"),
+            PredicateExprOperator::Geq,
+            obj_id,
+        );
+
+        assert_eq!(
+            expr.to_scan_predicate().unwrap(),
+            Some(IndexScanPredicate::Between(
+                EncodedObjectId::from(100),
+                EncodedObjectId::MAX
+            ))
+        );
+    }
+
+    #[test]
+    fn test_to_scan_predicate_lt_produces_between() {
+        let value = EncodedObjectId::from(100);
+        let expr = MemStoragePredicateExpr::Binary(
+            Arc::from("col"),
+            PredicateExprOperator::Lt,
+            value,
+        );
+
+        assert_eq!(
+            expr.to_scan_predicate().unwrap(),
+            Some(IndexScanPredicate::Between(
+                EncodedObjectId::MIN,
+                EncodedObjectId::from(99)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_to_scan_predicate_leq_produces_between() {
+        use crate::memory::object_id::EncodedObjectId;
+        let value = EncodedObjectId::from(100);
+        let expr = MemStoragePredicateExpr::Binary(
+            Arc::from("col"),
+            PredicateExprOperator::Leq,
+            value,
+        );
+
+        assert_eq!(
+            expr.to_scan_predicate().unwrap(),
+            Some(IndexScanPredicate::Between(
+                EncodedObjectId::MIN,
+                EncodedObjectId::from(100)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_to_scan_predicate_between_expr_produces_between() {
+        use crate::memory::object_id::EncodedObjectId;
+        let from = EncodedObjectId::from(10);
+        let to = EncodedObjectId::from(20);
+        let expr = MemStoragePredicateExpr::Between(Arc::from("col"), from, to);
+
+        assert_eq!(
+            expr.to_scan_predicate().unwrap(),
+            Some(IndexScanPredicate::Between(from, to))
+        );
+    }
+
+    #[test]
+    fn test_to_scan_predicate_gt_with_max_value_returns_false() {
+        use crate::memory::object_id::EncodedObjectId;
+        let max_id = EncodedObjectId::MAX;
+        let expr = MemStoragePredicateExpr::Binary(
+            Arc::from("col"),
+            PredicateExprOperator::Gt,
+            max_id,
+        );
+
+        assert_eq!(
+            expr.to_scan_predicate().unwrap(),
+            Some(IndexScanPredicate::False)
+        );
+    }
+
+    #[test]
+    fn test_to_scan_predicate_lt_with_min_value_returns_false() {
+        use crate::memory::object_id::EncodedObjectId;
+        let min_id = EncodedObjectId::MIN;
+        let expr = MemStoragePredicateExpr::Binary(
+            Arc::from("col"),
+            PredicateExprOperator::Lt,
+            min_id,
+        );
+
+        assert_eq!(
+            expr.to_scan_predicate().unwrap(),
+            Some(IndexScanPredicate::False)
+        );
+    }
+
+    #[test]
+    fn test_to_scan_predicate_column_is_err() {
+        let expr = MemStoragePredicateExpr::Column(Arc::from("col"));
+        let result = expr.to_scan_predicate();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_scan_predicate_objectid_is_err() {
+        use crate::memory::object_id::EncodedObjectId;
+        let expr = MemStoragePredicateExpr::ObjectId(EncodedObjectId::from(1));
+        let result = expr.to_scan_predicate();
+        assert!(result.is_err());
     }
 
     fn column_expr(name: &str) -> Arc<dyn PhysicalExpr> {

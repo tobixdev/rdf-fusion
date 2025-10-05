@@ -1,4 +1,6 @@
-use crate::memory::storage::{MemQuadPatternExec, MemQuadStorageSnapshot};
+use crate::memory::storage::{
+    MemQuadPatternExec, MemQuadStorageSnapshot, PlanPatternScanResult,
+};
 use async_trait::async_trait;
 use datafusion::error::Result as DFResult;
 use datafusion::execution::context::SessionState;
@@ -45,11 +47,14 @@ impl ExtensionPlanner for MemQuadStorePlanner {
                 .await?;
             let schema = Arc::clone(node.schema().inner());
 
-            if plan.is_guaranteed_empty() {
-                return Ok(Some(Arc::new(EmptyExec::new(schema))));
+            match plan {
+                PlanPatternScanResult::Empty(schema) => {
+                    Ok(Some(Arc::new(EmptyExec::new(schema))))
+                }
+                PlanPatternScanResult::PatternScan(plan) => {
+                    Ok(Some(Arc::new(MemQuadPatternExec::new(schema, plan))))
+                }
             }
-
-            Ok(Some(Arc::new(MemQuadPatternExec::new(schema, plan))))
         } else {
             Ok(None)
         }

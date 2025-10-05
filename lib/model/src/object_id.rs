@@ -1,7 +1,7 @@
 /// An object id uniquely identifies an RDF Term. As a result, two object ids with a = b imply that
 /// this is the same RDF term. No further checks are necessary.
 ///
-/// # Future Plans
+/// # Plans
 ///
 /// Currently, the object id machinery only supports `u32`. However, in the future we plan to
 /// support arbitrary length ids to enable experimentation (e.g., inlining small strings).

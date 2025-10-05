@@ -7,4 +7,4 @@ mod stream;
 
 pub use mem_storage::MemQuadStorage;
 pub use pattern_exec::MemQuadPatternExec;
-pub use snapshot::MemQuadStorageSnapshot;
+pub use snapshot::{MemQuadStorageSnapshot, PlanPatternScanResult};

@@ -60,7 +60,7 @@ impl IndexScanInstructions {
                         new_instructions.push(IndexScanInstruction::Scan(var, predicate))
                     } else {
                         new_instructions.push(IndexScanInstruction::Traverse(Some(
-                            ObjectIdScanPredicate::EqualTo(Arc::clone(&var)),
+                            IndexScanPredicate::EqualTo(Arc::clone(&var)),
                         )));
                     }
                 }
@@ -73,31 +73,115 @@ impl IndexScanInstructions {
         Self(new_instructions.try_into().unwrap())
     }
 
+    /// Returns the inner [IndexScanInstruction]s.
     pub fn instructions(&self) -> &[IndexScanInstruction; 4] {
         &self.0
+    }
+
+    /// Tries to find the [IndexScanInstruction] for a given column name.
+    ///
+    /// It should not be possible for two instructions to have the same name, as the second
+    /// instruction should have been turned into a predicate.
+    pub fn instructions_for_column(
+        &self,
+        column: &str,
+    ) -> Option<(usize, &IndexScanInstruction)> {
+        self.0
+            .iter()
+            .enumerate()
+            .find(|(_, i)| i.scan_variable() == Some(column))
+    }
+
+    /// Returns new [IndexScanInstructions] with the given `instruction` at the given `index`.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the index is out-of-range.
+    pub fn with_new_instruction_at(
+        self,
+        index: usize,
+        instruction: IndexScanInstruction,
+    ) -> Self {
+        let mut new_instructions = self.0;
+        new_instructions[index] = instruction;
+        Self(new_instructions)
     }
 }
 
 /// A predicate for filtering object ids.
 #[derive(Eq, PartialEq, Debug, Clone)]
-pub enum ObjectIdScanPredicate {
+pub enum IndexScanPredicate {
+    /// Always returns false.
+    False,
     /// Checks whether the object id is in the given set.
     In(BTreeSet<EncodedObjectId>),
     /// Checks whether the object id is *not* in the given set.
     Except(BTreeSet<EncodedObjectId>),
-    /// Checks whether the object id is equal to the scan instruction with the given variable.
-    EqualTo(Arc<String>),
     /// Checks whether the object id is between the given object ids (end is inclusive).
     Between(EncodedObjectId, EncodedObjectId),
+    /// Checks whether the object id is equal to the scan instruction with the given variable.
+    EqualTo(Arc<String>),
+}
+
+impl IndexScanPredicate {
+    /// Combines this predicate with `other` using a logical and.
+    pub fn and_with(&self, other: &IndexScanPredicate) -> IndexScanPredicate {
+        match (self, other) {
+            (_, IndexScanPredicate::False) | (IndexScanPredicate::False, _) => {
+                IndexScanPredicate::False
+            }
+            _ => todo!("Not all combinations yet implemented"),
+        }
+    }
+}
+
+impl Display for IndexScanPredicate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IndexScanPredicate::False => f.write_str("false"),
+            IndexScanPredicate::In(set) => {
+                if set.len() == 1 {
+                    write!(f, "== {}", set.iter().next().unwrap())
+                } else {
+                    write!(
+                        f,
+                        "in ({})",
+                        set.iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                }
+            }
+            IndexScanPredicate::Except(set) => {
+                if set.len() == 1 {
+                    write!(f, "!= {}", set.iter().next().unwrap())
+                } else {
+                    write!(
+                        f,
+                        "not in ({})",
+                        set.iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                }
+            }
+            IndexScanPredicate::Between(from, to) => {
+                write!(f, "in ({from}..{to})")
+            }
+            IndexScanPredicate::EqualTo(column) => write!(f, "== {column}"),
+        }
+    }
 }
 
 /// An encoded version of a triple pattern.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum IndexScanInstruction {
     /// Traverses the index level, not binding the elements at this level.
-    Traverse(Option<ObjectIdScanPredicate>),
+    Traverse(Option<IndexScanPredicate>),
     /// Scans the index level, binding the elements at this level.
-    Scan(Arc<String>, Option<ObjectIdScanPredicate>),
+    Scan(Arc<String>, Option<IndexScanPredicate>),
 }
 
 impl IndexScanInstruction {
@@ -110,7 +194,7 @@ impl IndexScanInstruction {
     }
 
     /// Returns the predicate for this instruction.
-    pub fn predicate(&self) -> Option<&ObjectIdScanPredicate> {
+    pub fn predicate(&self) -> Option<&IndexScanPredicate> {
         match self {
             IndexScanInstruction::Traverse(predicate) => predicate.as_ref(),
             IndexScanInstruction::Scan(_, predicate) => predicate.as_ref(),
@@ -119,11 +203,23 @@ impl IndexScanInstruction {
 
     /// Creates a new [IndexScanInstruction] that has no predicate, even if the original instruction
     /// contained a predicate.
-    pub fn without_predicate(&self) -> Self {
+    pub fn without_predicate(self) -> Self {
         match self {
             IndexScanInstruction::Traverse(_) => IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Scan(variable, _) => {
-                IndexScanInstruction::Scan(Arc::clone(variable), None)
+                IndexScanInstruction::Scan(variable, None)
+            }
+        }
+    }
+
+    /// Creates a new [IndexScanInstruction] with the given new predicate.
+    pub fn with_predicate(self, predicate: IndexScanPredicate) -> Self {
+        match self {
+            IndexScanInstruction::Traverse(_) => {
+                IndexScanInstruction::Traverse(Some(predicate))
+            }
+            IndexScanInstruction::Scan(variable, _) => {
+                IndexScanInstruction::Scan(variable, Some(predicate))
             }
         }
     }
@@ -136,7 +232,7 @@ impl IndexScanInstruction {
         active_graph: &EncodedActiveGraph,
         variable: Option<&Variable>,
     ) -> IndexScanInstruction {
-        let instruction_with_predicate = |predicate: Option<ObjectIdScanPredicate>| {
+        let instruction_with_predicate = |predicate: Option<IndexScanPredicate>| {
             if let Some(variable) = variable {
                 IndexScanInstruction::Scan(
                     Arc::new(variable.as_str().to_owned()),
@@ -150,18 +246,16 @@ impl IndexScanInstruction {
         match active_graph {
             EncodedActiveGraph::DefaultGraph => {
                 let object_ids = BTreeSet::from([DEFAULT_GRAPH_ID.0]);
-                instruction_with_predicate(Some(ObjectIdScanPredicate::In(object_ids)))
+                instruction_with_predicate(Some(IndexScanPredicate::In(object_ids)))
             }
             EncodedActiveGraph::AllGraphs => instruction_with_predicate(None),
             EncodedActiveGraph::Union(graphs) => {
                 let object_ids = BTreeSet::from_iter(graphs.iter().map(|g| g.0));
-                instruction_with_predicate(Some(ObjectIdScanPredicate::In(object_ids)))
+                instruction_with_predicate(Some(IndexScanPredicate::In(object_ids)))
             }
             EncodedActiveGraph::AnyNamedGraph => {
                 let object_ids = BTreeSet::from([DEFAULT_GRAPH_ID.0]);
-                instruction_with_predicate(Some(ObjectIdScanPredicate::Except(
-                    object_ids,
-                )))
+                instruction_with_predicate(Some(IndexScanPredicate::Except(object_ids)))
             }
         }
     }
@@ -171,7 +265,7 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
     fn from(value: EncodedTermPattern) -> Self {
         match value {
             EncodedTermPattern::ObjectId(object_id) => IndexScanInstruction::Traverse(
-                Some(ObjectIdScanPredicate::In(BTreeSet::from([object_id]))),
+                Some(IndexScanPredicate::In(BTreeSet::from([object_id]))),
             ),
             EncodedTermPattern::Variable(var) => {
                 IndexScanInstruction::Scan(Arc::new(var), None)
@@ -204,10 +298,10 @@ enum PruningPredicate {
     Between(EncodedObjectId, EncodedObjectId),
 }
 
-impl From<&ObjectIdScanPredicate> for Option<PruningPredicate> {
-    fn from(value: &ObjectIdScanPredicate) -> Self {
+impl From<&IndexScanPredicate> for Option<PruningPredicate> {
+    fn from(value: &IndexScanPredicate) -> Self {
         match value {
-            ObjectIdScanPredicate::In(ids) => {
+            IndexScanPredicate::In(ids) => {
                 let predicate = if ids.len() == 1 {
                     PruningPredicate::EqualTo(*ids.first().unwrap())
                 } else {
@@ -215,7 +309,7 @@ impl From<&ObjectIdScanPredicate> for Option<PruningPredicate> {
                 };
                 Some(predicate)
             }
-            ObjectIdScanPredicate::Between(from, to) => {
+            IndexScanPredicate::Between(from, to) => {
                 Some(PruningPredicate::Between(*from, *to))
             }
             _ => None,
@@ -461,7 +555,7 @@ mod tests {
             IndexScanInstructions::new([
                 IndexScanInstruction::Scan(
                     Arc::new("a".to_owned()),
-                    Some(ObjectIdScanPredicate::In([eid(1), eid(3)].into())),
+                    Some(IndexScanPredicate::In([eid(1), eid(3)].into())),
                 ),
                 scan("b"),
                 scan("c"),
@@ -564,7 +658,7 @@ mod tests {
     }
 
     fn traverse(id: u32) -> IndexScanInstruction {
-        IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
+        IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
             [EncodedObjectId::from(id)].into(),
         )))
     }

@@ -4,7 +4,7 @@ use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{exec_err, internal_err};
 use datafusion::config::ConfigOptions;
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
-use datafusion::physical_expr::{EquivalenceProperties, Partitioning, PhysicalExpr};
+use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
 use datafusion::physical_plan::execution_plan::{
     Boundedness, EmissionType, SchedulingType,
 };
@@ -17,14 +17,13 @@ use datafusion::physical_plan::metrics::{
 use datafusion::physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
-use itertools::Itertools;
 use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::fmt::Formatter;
 use std::sync::Arc;
 
 /// The physical operator for evaluating a quad pattern against a [MemQuadStorage](crate::memory::MemQuadStorage).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemQuadPatternExec {
     /// The execution properties of this operator.
     plan_properties: PlanProperties,
@@ -118,13 +117,12 @@ impl ExecutionPlan for MemQuadPatternExec {
             .clone()
             .into_iter()
             .map(|f| {
-                let rewritten =
-                    MemStoragePredicateExpr::try_from(self.schema().as_ref(), &f.filter);
+                let rewritten = MemStoragePredicateExpr::try_from(&f.filter);
                 (f.filter, rewritten)
             })
             .collect::<Vec<_>>();
 
-        let results = parent_filters
+        let filter_pushdowns = parent_filters
             .iter()
             .map(|(_, rewritten)| match rewritten {
                 None => PushedDown::No,
@@ -133,50 +131,49 @@ impl ExecutionPlan for MemQuadPatternExec {
             .collect::<Vec<_>>();
 
         // Don't create a new node if no filters were pushed down
-        if results.iter().all(|r| matches!(r, PushedDown::No)) {
+        if filter_pushdowns.iter().all(|r| matches!(r, PushedDown::No)) {
             return Ok(FilterPushdownPropagation {
-                filters: results,
+                filters: filter_pushdowns,
                 updated_node: None,
             });
         }
 
-        // TODO: Create new node
+        let filters = parent_filters
+            .iter()
+            .filter_map(|(_, f)| f.clone())
+            .collect::<Vec<_>>();
+        let updated_scan = apply_pushdown_filters(&self.planned_scan, &filters)?;
+        let updated_node = Arc::new(MemQuadPatternExec::new(self.schema(), updated_scan));
 
         Ok(FilterPushdownPropagation {
-            filters: results,
-            updated_node: None,
+            filters: filter_pushdowns,
+            updated_node: Some(updated_node),
         })
     }
 }
 
+/// Applies the given filters to the given pattern by extending the filters
+fn apply_pushdown_filters(
+    original: &PlannedPatternScan,
+    filters: &[MemStoragePredicateExpr],
+) -> DFResult<PlannedPatternScan> {
+    let mut scan = original.clone();
+    for filter in filters {
+        scan = scan.apply_filter(filter)?;
+    }
+
+    Ok(scan.try_find_better_index())
+}
+
 impl DisplayAs for MemQuadPatternExec {
     fn fmt_as(&self, _: DisplayFormatType, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "MemQuadPatternExec: ",)?;
-
-        match &self.planned_scan {
-            PlannedPatternScan::Empty(_) => write!(f, "[EMPTY]"),
-            PlannedPatternScan::IndexScan {
-                index,
-                graph_variable,
-                pattern,
-                ..
-            } => {
-                write!(f, "[{index}] ")?;
-
-                if let Some(graph_variable) = &graph_variable {
-                    write!(f, "graph={graph_variable}, ")?;
-                }
-
-                write!(f, "subject={}", &pattern.subject)?;
-                write!(f, ", predicate={}", &pattern.predicate)?;
-                write!(f, ", object={}", &pattern.object)
-            }
-        }
+        write!(f, "MemQuadPatternExec: {}", self.planned_scan)
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::memory::storage::snapshot::PlanPatternScanResult;
     use crate::memory::storage::MemQuadPatternExec;
     use crate::memory::{MemObjectIdMapping, MemQuadStorage};
     use datafusion::arrow::datatypes::{DataType, Field, Schema};
@@ -192,20 +189,53 @@ mod test {
     use insta::assert_snapshot;
     use rdf_fusion_logical::ActiveGraph;
     use rdf_fusion_model::{
-        BlankNodeMatchingMode, NamedNode, NamedNodePattern, TermPattern, TriplePattern,
-        Variable,
+        BlankNodeMatchingMode, NamedNode, NamedNodePattern, NamedNodeRef, TermPattern,
+        TermRef, TriplePattern, Variable,
     };
     use std::sync::Arc;
 
     #[tokio::test]
-    async fn test_filter_pushdown_binds_variable() {
+    async fn test_filter_pushdown_binds_variable_eq() {
         let exec = create_test_pattern().await;
         let filter_expr = create_object_filter_expr(Operator::Eq, 1);
         let result = execute_filter_pushdown(exec, filter_expr);
 
         assert!(result.filters.iter().all(|f| matches!(f, PushedDown::Yes)));
         assert!(result.updated_node.is_some());
-        assert_snapshot!(displayable(result.updated_node.unwrap().as_ref()).indent(false), @r"TODO")
+        assert_snapshot!(
+            displayable(result.updated_node.unwrap().as_ref()).indent(false),
+            @"MemQuadPatternExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object == 1]"
+        )
+    }
+
+    #[tokio::test]
+    async fn test_filter_pushdown_binds_variable_comparison() {
+        let exec = create_test_pattern().await;
+        let filter_expr = create_object_filter_expr(Operator::Gt, 1);
+        let result = execute_filter_pushdown(exec, filter_expr);
+
+        assert!(result.filters.iter().all(|f| matches!(f, PushedDown::Yes)));
+        assert!(result.updated_node.is_some());
+        assert_snapshot!(
+            displayable(result.updated_node.unwrap().as_ref()).indent(false),
+            @"TODO"
+        )
+    }
+
+    #[tokio::test]
+    async fn test_filter_pushdown_binds_variable_between() {
+        let exec = create_test_pattern().await;
+        let gt = create_object_filter_expr(Operator::Gt, 1);
+        let lt = create_object_filter_expr(Operator::Lt, 10);
+        let filter_expr = Arc::new(BinaryExpr::new(gt, Operator::And, lt));
+        let result = execute_filter_pushdown(exec, filter_expr);
+
+        assert!(result.filters.iter().all(|f| matches!(f, PushedDown::Yes)));
+        assert!(result.updated_node.is_some());
+        assert_snapshot!(
+            displayable(result.updated_node.unwrap().as_ref()).indent(false),
+            @"TIODO"
+        )
     }
 
     /// Creates a new [MemQuadPatternExec] for the pattern (?subject <...> ?object) and no graph
@@ -223,7 +253,12 @@ mod test {
             object: TermPattern::Variable(Variable::new_unchecked("object")),
         };
 
-        let index = MemQuadStorage::new(Arc::new(MemObjectIdMapping::default()), 10);
+        let object_id_mapping = MemObjectIdMapping::default();
+        object_id_mapping.encode_term_intern(TermRef::NamedNode(
+            NamedNodeRef::new_unchecked("http://example.com/test"),
+        ));
+
+        let index = MemQuadStorage::new(Arc::new(object_id_mapping), 10);
         let planned_scan = index
             .snapshot()
             .await
@@ -236,7 +271,12 @@ mod test {
             .await
             .unwrap();
 
-        MemQuadPatternExec::new(Arc::new(schema.as_ref().clone()), planned_scan)
+        match planned_scan {
+            PlanPatternScanResult::Empty(_) => unreachable!("Unexpected empty result"),
+            PlanPatternScanResult::PatternScan(planned_scan) => {
+                MemQuadPatternExec::new(Arc::new(schema.as_ref().clone()), planned_scan)
+            }
+        }
     }
 
     /// Creates a filter operation on the `object` column with the given `operator` and `value`.

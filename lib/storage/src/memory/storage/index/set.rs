@@ -247,7 +247,7 @@ fn reorder_result(
 mod tests {
     use super::*;
     use crate::memory::storage::index::{
-        IndexScanInstruction, IndexScanInstructions, ObjectIdScanPredicate,
+        IndexScanInstruction, IndexScanInstructions, IndexScanPredicate,
     };
     use datafusion::arrow::datatypes::{DataType, Field, Fields};
     use insta::assert_debug_snapshot;
@@ -441,7 +441,7 @@ mod tests {
     }
 
     fn traverse_and_filter(id: u32) -> IndexScanInstruction {
-        IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In([oid(id)].into())))
+        IndexScanInstruction::Traverse(Some(IndexScanPredicate::In([oid(id)].into())))
     }
 
     fn oid(id: u32) -> EncodedObjectId {

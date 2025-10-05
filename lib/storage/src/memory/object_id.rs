@@ -2,7 +2,7 @@
 
 use datafusion::parquet::data_type::AsBytes;
 use rdf_fusion_model::ObjectId;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use thiserror::Error;
 
@@ -16,18 +16,14 @@ const SIZE: u8 = 4;
 /// indicate that an id may represent the default graph. If the id is not a [EncodedGraphObjectId],
 /// the system assumes that the id cannot represent the default graph and errors may be thrown
 /// during decoding.
-///
-/// # Why a Byte Array?
-///
-/// While the regular [ObjectId] is fixed to `u32` ids, this id is composed of a statically sized
-/// byte array. The idea is to support arbitrary byte-arrays for object ids in the future. These are
-/// the remains of one such experiment and should be furthered in the future.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct EncodedObjectId(u32);
 
 impl EncodedObjectId {
     pub const SIZE: u8 = 4;
     pub const SIZE_I32: i32 = SIZE as i32;
+    pub const MIN: EncodedObjectId = EncodedObjectId(0);
+    pub const MAX: EncodedObjectId = EncodedObjectId(u32::MAX);
 
     pub fn as_object_id(&self) -> ObjectId {
         ObjectId::from(self.0)
@@ -36,11 +32,25 @@ impl EncodedObjectId {
     pub fn as_u32(&self) -> u32 {
         self.0
     }
+
+    pub fn next(&self) -> Option<EncodedObjectId> {
+        self.0.checked_add(1).map(EncodedObjectId)
+    }
+
+    pub fn previous(&self) -> Option<EncodedObjectId> {
+        self.0.checked_sub(1).map(EncodedObjectId)
+    }
 }
 
 impl From<u32> for EncodedObjectId {
     fn from(value: u32) -> Self {
         Self(value)
+    }
+}
+
+impl Display for EncodedObjectId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
