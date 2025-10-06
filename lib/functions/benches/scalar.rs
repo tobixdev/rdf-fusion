@@ -96,6 +96,15 @@ fn bench_all(c: &mut Criterion) {
             BuiltinName::IsBlank,
             vec![UnaryScenario::Mixed, UnaryScenario::AllBlank],
         ),
+        (
+            BuiltinName::Str,
+            vec![UnaryScenario::Mixed, UnaryScenario::AllBlank, UnaryScenario::AllNamedNodes],
+        ),
+        (BuiltinName::CastFloat, vec![UnaryScenario::Mixed]),
+        (BuiltinName::CastBoolean, vec![UnaryScenario::Mixed]),
+        (BuiltinName::CastInteger, vec![UnaryScenario::Mixed]),
+        (BuiltinName::CastString, vec![UnaryScenario::Mixed]),
+        (BuiltinName::CastDateTime, vec![UnaryScenario::Mixed]),
     ]);
 
     for (my_built_in, scenarios) in runs {
