@@ -32,15 +32,13 @@ Projection: ENC_PT(feature) AS feature, ENC_PT(priceRatio) AS priceRatio
                 Projection: feature, price
                   LeftAnti Join: feature = __correlated_sq_1.__inner__feature, product = __correlated_sq_1.__inner__product
                     Cross Join: 
-                      Projection: first_value(feature) ORDER BY [feature ASC NULLS FIRST] AS feature
-                        Sort: feature ASC NULLS FIRST
-                          Aggregate: groupBy=[[feature]], aggr=[[first_value(feature) ORDER BY [feature ASC NULLS FIRST]]]
-                            Projection: rhs.feature AS feature
-                              Inner Join: lhs.p = rhs.p
-                                SubqueryAlias: lhs
-                                  QuadPattern (?p <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>)
-                                SubqueryAlias: rhs
-                                  QuadPattern (?p <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?feature)
+                      Aggregate: groupBy=[[feature]], aggr=[[]]
+                        Projection: rhs.feature AS feature
+                          Inner Join: lhs.p = rhs.p
+                            SubqueryAlias: lhs
+                              QuadPattern (?p <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>)
+                            SubqueryAlias: rhs
+                              QuadPattern (?p <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature> ?feature)
                       Projection: lhs.product AS product, rhs.price AS price
                         Inner Join: lhs.offer = rhs.offer
                           SubqueryAlias: lhs
