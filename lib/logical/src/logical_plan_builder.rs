@@ -273,6 +273,13 @@ impl RdfFusionLogicalPlanBuilder {
         self,
         sorts: Vec<SortExpr>,
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
+        if sorts.is_empty() {
+            return Ok(Self {
+                context: self.context,
+                plan_builder: self.plan_builder.distinct()?,
+            });
+        }
+
         let schema = self.plan_builder.schema();
         let (on_expr, sorts) =
             create_distinct_on_expressions(self.expr_builder_root(), sorts)?;
