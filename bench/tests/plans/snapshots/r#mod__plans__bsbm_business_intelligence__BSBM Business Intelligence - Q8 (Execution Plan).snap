@@ -17,10 +17,10 @@ ProjectionExec: expr=[ENC_PT(vendor@0) as vendor, ENC_PT(cheapExpensiveRatio@3) 
                         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@1, offer@0)], projection=[product@0, offer@1, vendor@3]
                           CoalesceBatchesExec: target_batch_size=8192
                             HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, offer@1]
-                              MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>
-                              MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
-                          MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
-                      MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+                              DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>
+                              DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
+                          DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
+                      DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
                   ProjectionExec: expr=[product@0 as product, 00000000000000000000000000000002@1 as avgPrice]
                     AggregateExec: mode=Single, gby=[product@0 as product], aggr=[00000000000000000000000000000002]
                       CoalesceBatchesExec: target_batch_size=8192
@@ -29,17 +29,17 @@ ProjectionExec: expr=[ENC_PT(vendor@0) as vendor, ENC_PT(cheapExpensiveRatio@3) 
                             HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@1, offer@0)], projection=[product@0, offer@1]
                               CoalesceBatchesExec: target_batch_size=8192
                                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, offer@1]
-                                  MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>
-                                  MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
+                                  DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>
+                                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
                               ProjectionExec: expr=[offer@0 as offer]
-                                MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
-                          MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+                                DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
+                          DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
           ProjectionExec: expr=[vendor@0 as vendor, INT64_AS_TERM(00000000000000000000000000000003@1) as offerCount]
             AggregateExec: mode=Single, gby=[vendor@1 as vendor], aggr=[00000000000000000000000000000003]
               CoalesceBatchesExec: target_batch_size=8192
                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, vendor@2]
                   CoalesceBatchesExec: target_batch_size=8192
                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[offer@1]
-                      MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>
-                      MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
-                  MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
+                      DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>
+                      DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
+                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor

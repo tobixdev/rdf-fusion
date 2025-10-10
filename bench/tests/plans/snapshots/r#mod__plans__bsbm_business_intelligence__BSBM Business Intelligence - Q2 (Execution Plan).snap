@@ -8,7 +8,7 @@ ProjectionExec: expr=[ENC_PT(otherProduct@0) as otherProduct, ENC_PT(sameFeature
       HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(otherProduct@0, otherProduct@0)], projection=[otherProduct@0, sameFeatures@2]
         CoalesceBatchesExec: target_batch_size=8192
           FilterExec: NOT EBV(EQ(ENC_TV(otherProduct@0), 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636))
-            MemQuadPatternExec: [GPOS] subject=?otherProduct, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/Product>
+            DataSourceExec: [GPOS] subject=?otherProduct, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/Product>
         ProjectionExec: expr=[otherProduct@0 as otherProduct, INT64_AS_TERM(00000000000000000000000000000001@1) as sameFeatures]
           CoalesceBatchesExec: target_batch_size=8192
             FilterExec: NOT EBV(EQ(ENC_TV(otherProduct@0), 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636))
@@ -16,7 +16,7 @@ ProjectionExec: expr=[ENC_PT(otherProduct@0) as otherProduct, ENC_PT(sameFeature
                 NestedLoopJoinExec: join_type=Inner, filter=EBV(EQ(join_proj_push_down_1@0, join_proj_push_down_2@1)), projection=[otherProduct@2, otherFeature@3]
                   ProjectionExec: expr=[feature@0 as feature, ENC_TV(feature@0) as join_proj_push_down_1]
                     CoalesceBatchesExec: target_batch_size=8192
-                      MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
+                      DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
                   ProjectionExec: expr=[otherProduct@0 as otherProduct, otherFeature@1 as otherFeature, ENC_TV(otherFeature@1) as join_proj_push_down_2]
                     CoalesceBatchesExec: target_batch_size=8192
-                      MemQuadPatternExec: [GPOS] subject=?otherProduct, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?otherFeature
+                      DataSourceExec: [GPOS] subject=?otherProduct, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?otherFeature

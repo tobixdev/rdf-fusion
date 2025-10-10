@@ -354,8 +354,8 @@ impl PlannedPatternScan {
         Self { index, ..self }
     }
 
-    /// Executes the pattern scan an return the [SendableRecordBatchStream] that implements the
-    /// scan.
+    /// Executes the pattern scan and return the [SendableRecordBatchStream] that implements the
+    /// scan. The resulting stream will be cooperative.
     pub fn create_stream(self, metrics: BaselineMetrics) -> SendableRecordBatchStream {
         let iterator = MemQuadIndexSetScanIterator::new(
             Arc::clone(&self.schema),

@@ -15,10 +15,10 @@ ProjectionExec: expr=[ENC_PT(feature@0) as feature, ENC_PT(priceRatio@3) as pric
                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[feature@1, offer@2]
                       CoalesceBatchesExec: target_batch_size=8192
                         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, feature@2]
-                          MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
-                          MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
-                      MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
-                  MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+                          DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
+                          DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
+                      DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
+                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
           ProjectionExec: expr=[feature@0 as feature, 00000000000000000000000000000002@1 as withoutFeaturePrice]
             AggregateExec: mode=Single, gby=[feature@0 as feature], aggr=[00000000000000000000000000000002]
               CoalesceBatchesExec: target_batch_size=8192
@@ -28,14 +28,14 @@ ProjectionExec: expr=[ENC_PT(feature@0) as feature, ENC_PT(priceRatio@3) as pric
                       AggregateExec: mode=Single, gby=[feature@0 as feature], aggr=[first_value(feature) ORDER BY [feature ASC NULLS FIRST]]
                         CoalesceBatchesExec: target_batch_size=8192
                           HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@0, p@0)], projection=[feature@2]
-                            MemQuadPatternExec: [GPOS] subject=?p, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
-                            MemQuadPatternExec: [GPOS] subject=?p, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
+                            DataSourceExec: [GPOS] subject=?p, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
+                            DataSourceExec: [GPOS] subject=?p, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
                     CoalesceBatchesExec: target_batch_size=8192
                       HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@1, offer@0)], projection=[product@0, price@3]
                         CoalesceBatchesExec: target_batch_size=8192
                           HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, offer@1]
-                            MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
-                            MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
-                        MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+                            DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType48>
+                            DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
+                        DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
                   ProjectionExec: expr=[product@0 as __inner__product, feature@1 as __inner__feature]
-                    MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
+                    DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature

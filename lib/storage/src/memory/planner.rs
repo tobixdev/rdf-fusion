@@ -1,12 +1,13 @@
 use crate::memory::storage::{
-    MemQuadPatternExec, MemQuadStorageSnapshot, PlanPatternScanResult,
+    MemQuadPatternDataSource, MemQuadStorageSnapshot, PlanPatternScanResult,
 };
 use async_trait::async_trait;
+use datafusion::datasource::source::DataSourceExec;
 use datafusion::error::Result as DFResult;
 use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{LogicalPlan, UserDefinedLogicalNode};
-use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_plan::empty::EmptyExec;
+use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::{ExtensionPlanner, PhysicalPlanner};
 use rdf_fusion_logical::quad_pattern::QuadPatternNode;
 use std::sync::Arc;
@@ -52,7 +53,9 @@ impl ExtensionPlanner for MemQuadStorePlanner {
                     Ok(Some(Arc::new(EmptyExec::new(schema))))
                 }
                 PlanPatternScanResult::PatternScan(plan) => {
-                    Ok(Some(Arc::new(MemQuadPatternExec::new(schema, plan))))
+                    Ok(Some(DataSourceExec::from_data_source(
+                        MemQuadPatternDataSource::new(schema, plan),
+                    )))
                 }
             }
         } else {

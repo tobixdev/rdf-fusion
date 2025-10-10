@@ -1,22 +1,16 @@
 use crate::memory::storage::index::PlannedPatternScan;
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::common::{exec_err, internal_err};
+use datafusion::common::{exec_err, Statistics};
 use datafusion::config::ConfigOptions;
+use datafusion::datasource::source::DataSource;
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
-use datafusion::physical_expr::{EquivalenceProperties, Partitioning};
-use datafusion::physical_plan::execution_plan::{
-    Boundedness, EmissionType, SchedulingType,
-};
-use datafusion::physical_plan::filter_pushdown::{
-    ChildPushdownResult, FilterPushdownPhase, FilterPushdownPropagation, PushedDown,
-};
-use datafusion::physical_plan::metrics::{
-    BaselineMetrics, ExecutionPlanMetricsSet, MetricsSet,
-};
-use datafusion::physical_plan::{
-    DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
-};
+use datafusion::physical_expr::{EquivalenceProperties, Partitioning, PhysicalExpr};
+use datafusion::physical_plan::execution_plan::SchedulingType;
+use datafusion::physical_plan::filter_pushdown::{FilterPushdownPropagation, PushedDown};
+use datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet};
+use datafusion::physical_plan::projection::ProjectionExpr;
+use datafusion::physical_plan::DisplayFormatType;
 use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::fmt::Formatter;
@@ -24,63 +18,28 @@ use std::sync::Arc;
 
 /// The physical operator for evaluating a quad pattern against a [MemQuadStorage](crate::memory::MemQuadStorage).
 #[derive(Debug, Clone)]
-pub struct MemQuadPatternExec {
-    /// The execution properties of this operator.
-    plan_properties: PlanProperties,
+pub struct MemQuadPatternDataSource {
+    /// The schema of the data source.
+    schema: SchemaRef,
     /// Execution metrics
     metrics: ExecutionPlanMetricsSet,
     /// A [PlannedPatternScan] that represents a scan that is about to be executed.
     planned_scan: PlannedPatternScan,
 }
 
-impl MemQuadPatternExec {
-    /// Creates a new [MemQuadPatternExec].
+impl MemQuadPatternDataSource {
+    /// Creates a new [MemQuadPatternDataSource].
     pub fn new(schema: SchemaRef, stream: PlannedPatternScan) -> Self {
-        let plan_properties = PlanProperties::new(
-            EquivalenceProperties::new(schema),
-            Partitioning::UnknownPartitioning(1),
-            EmissionType::Incremental,
-            Boundedness::Bounded,
-        )
-        .with_scheduling_type(SchedulingType::Cooperative); // We wrap our stream in `cooperative`
-
         Self {
-            plan_properties,
+            schema,
             planned_scan: stream,
             metrics: ExecutionPlanMetricsSet::default(),
         }
     }
 }
 
-impl ExecutionPlan for MemQuadPatternExec {
-    fn name(&self) -> &str {
-        "MemQuadPatternExec"
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn properties(&self) -> &PlanProperties {
-        &self.plan_properties
-    }
-
-    fn children(&self) -> Vec<&Arc<dyn ExecutionPlan>> {
-        Vec::new()
-    }
-
-    fn with_new_children(
-        self: Arc<Self>,
-        children: Vec<Arc<dyn ExecutionPlan>>,
-    ) -> DFResult<Arc<dyn ExecutionPlan>> {
-        if children.is_empty() {
-            return Ok(self);
-        }
-
-        internal_err!("QuadPatternExec does not have children")
-    }
-
-    fn execute(
+impl DataSource for MemQuadPatternDataSource {
+    fn open(
         &self,
         partition: usize,
         _context: Arc<TaskContext>,
@@ -91,34 +50,67 @@ impl ExecutionPlan for MemQuadPatternExec {
 
         let baseline_metrics = BaselineMetrics::new(&self.metrics, partition);
         let result = self.planned_scan.clone().create_stream(baseline_metrics);
-        if result.schema() != self.schema() {
+        if result.schema() != self.schema {
             return exec_err!("Unexpected schema for quad pattern stream.");
         }
 
         Ok(result)
     }
 
-    fn metrics(&self) -> Option<MetricsSet> {
-        Some(self.metrics.clone_inner())
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 
-    fn handle_child_pushdown_result(
-        &self,
-        phase: FilterPushdownPhase,
-        child_pushdown_result: ChildPushdownResult,
-        _config: &ConfigOptions,
-    ) -> DFResult<FilterPushdownPropagation<Arc<dyn ExecutionPlan>>> {
-        if !matches!(phase, FilterPushdownPhase::Pre) {
-            return Ok(FilterPushdownPropagation::if_all(child_pushdown_result));
-        }
+    fn fmt_as(&self, _t: DisplayFormatType, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.planned_scan)
+    }
 
-        let parent_filters = child_pushdown_result
-            .parent_filters
+    fn output_partitioning(&self) -> Partitioning {
+        Partitioning::UnknownPartitioning(1)
+    }
+
+    fn eq_properties(&self) -> EquivalenceProperties {
+        EquivalenceProperties::new(self.schema.clone())
+    }
+
+    fn scheduling_type(&self) -> SchedulingType {
+        SchedulingType::Cooperative
+    }
+
+    fn statistics(&self) -> DFResult<Statistics> {
+        Ok(Statistics::new_unknown(&self.schema))
+    }
+
+    fn with_fetch(&self, _limit: Option<usize>) -> Option<Arc<dyn DataSource>> {
+        None
+    }
+
+    fn fetch(&self) -> Option<usize> {
+        None
+    }
+
+    fn metrics(&self) -> ExecutionPlanMetricsSet {
+        self.metrics.clone()
+    }
+
+    fn try_swapping_with_projection(
+        &self,
+        _projection: &[ProjectionExpr],
+    ) -> DFResult<Option<Arc<dyn DataSource>>> {
+        Ok(None)
+    }
+
+    fn try_pushdown_filters(
+        &self,
+        filters: Vec<Arc<dyn PhysicalExpr>>,
+        _config: &ConfigOptions,
+    ) -> DFResult<FilterPushdownPropagation<Arc<dyn DataSource>>> {
+        let parent_filters = filters
             .clone()
             .into_iter()
             .map(|f| {
-                let rewritten = MemStoragePredicateExpr::try_from(&f.filter);
-                (f.filter, rewritten)
+                let rewritten = MemStoragePredicateExpr::try_from(&f);
+                (f, rewritten)
             })
             .collect::<Vec<_>>();
 
@@ -143,7 +135,10 @@ impl ExecutionPlan for MemQuadPatternExec {
             .filter_map(|(_, f)| f.clone())
             .collect::<Vec<_>>();
         let updated_scan = apply_pushdown_filters(&self.planned_scan, &filters)?;
-        let updated_node = Arc::new(MemQuadPatternExec::new(self.schema(), updated_scan));
+        let updated_node = Arc::new(MemQuadPatternDataSource::new(
+            self.schema.clone(),
+            updated_scan,
+        ));
 
         Ok(FilterPushdownPropagation {
             filters: filter_pushdowns,
@@ -165,26 +160,21 @@ fn apply_pushdown_filters(
     Ok(scan.try_find_better_index())
 }
 
-impl DisplayAs for MemQuadPatternExec {
-    fn fmt_as(&self, _: DisplayFormatType, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "MemQuadPatternExec: {}", self.planned_scan)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use crate::memory::storage::snapshot::PlanPatternScanResult;
-    use crate::memory::storage::MemQuadPatternExec;
+    use crate::memory::storage::MemQuadPatternDataSource;
     use crate::memory::{MemObjectIdMapping, MemQuadStorage};
     use datafusion::arrow::datatypes::{DataType, Field, Schema};
+    use datafusion::catalog::memory::DataSourceExec;
     use datafusion::config::ConfigOptions;
+    use datafusion::datasource::source::DataSource;
     use datafusion::logical_expr::Operator;
     use datafusion::physical_expr::expressions::{BinaryExpr, Column, Literal};
     use datafusion::physical_plan::filter_pushdown::{
-        ChildFilterPushdownResult, ChildPushdownResult, FilterPushdownPhase,
         FilterPushdownPropagation, PushedDown,
     };
-    use datafusion::physical_plan::{displayable, ExecutionPlan, PhysicalExpr};
+    use datafusion::physical_plan::{displayable, PhysicalExpr};
     use datafusion::scalar::ScalarValue;
     use insta::assert_snapshot;
     use rdf_fusion_logical::ActiveGraph;
@@ -203,8 +193,8 @@ mod test {
         assert!(result.filters.iter().all(|f| matches!(f, PushedDown::Yes)));
         assert!(result.updated_node.is_some());
         assert_snapshot!(
-            displayable(result.updated_node.unwrap().as_ref()).indent(false),
-            @"MemQuadPatternExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object == 1]"
+            format_quad_pattern(result.updated_node.unwrap()),
+            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object == 1]"
         )
     }
 
@@ -217,7 +207,7 @@ mod test {
         assert!(result.filters.iter().all(|f| matches!(f, PushedDown::Yes)));
         assert!(result.updated_node.is_some());
         assert_snapshot!(
-            displayable(result.updated_node.unwrap().as_ref()).indent(false),
+            format_quad_pattern(result.updated_node.unwrap()),
             @"TODO"
         )
     }
@@ -233,14 +223,14 @@ mod test {
         assert!(result.filters.iter().all(|f| matches!(f, PushedDown::Yes)));
         assert!(result.updated_node.is_some());
         assert_snapshot!(
-            displayable(result.updated_node.unwrap().as_ref()).indent(false),
+            format_quad_pattern(result.updated_node.unwrap()),
             @"TIODO"
         )
     }
 
-    /// Creates a new [MemQuadPatternExec] for the pattern (?subject <...> ?object) and no graph
+    /// Creates a new [MemQuadPatternDataSource] for the pattern (?subject <...> ?object) and no graph
     /// variable.
-    async fn create_test_pattern() -> MemQuadPatternExec {
+    async fn create_test_pattern() -> MemQuadPatternDataSource {
         let schema = Arc::new(Schema::new(vec![
             Field::new("subject", DataType::UInt32, false),
             Field::new("object", DataType::UInt32, false),
@@ -274,7 +264,10 @@ mod test {
         match planned_scan {
             PlanPatternScanResult::Empty(_) => unreachable!("Unexpected empty result"),
             PlanPatternScanResult::PatternScan(planned_scan) => {
-                MemQuadPatternExec::new(Arc::new(schema.as_ref().clone()), planned_scan)
+                MemQuadPatternDataSource::new(
+                    Arc::new(schema.as_ref().clone()),
+                    planned_scan,
+                )
             }
         }
     }
@@ -293,22 +286,17 @@ mod test {
 
     /// Runs the filter push down on `exec` with the given `filter_expr`.
     fn execute_filter_pushdown(
-        exec: MemQuadPatternExec,
+        exec: MemQuadPatternDataSource,
         filter_expr: Arc<dyn PhysicalExpr>,
-    ) -> FilterPushdownPropagation<Arc<dyn ExecutionPlan>> {
-        let result = exec
-            .handle_child_pushdown_result(
-                FilterPushdownPhase::Pre,
-                ChildPushdownResult {
-                    parent_filters: vec![ChildFilterPushdownResult {
-                        filter: filter_expr,
-                        child_results: vec![],
-                    }],
-                    self_filters: vec![],
-                },
-                &ConfigOptions::default(),
-            )
-            .unwrap();
-        result
+    ) -> FilterPushdownPropagation<Arc<dyn DataSource>> {
+        exec.try_pushdown_filters(vec![filter_expr], &ConfigOptions::default())
+            .unwrap()
+    }
+
+    /// Formats `data_source` as a string.
+    fn format_quad_pattern(data_source: Arc<dyn DataSource>) -> String {
+        displayable(&DataSourceExec::new(data_source))
+            .indent(false)
+            .to_string()
     }
 }
