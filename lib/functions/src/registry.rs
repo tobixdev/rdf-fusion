@@ -11,7 +11,7 @@ use crate::builtin::native::{
 use crate::builtin::query::is_compatible;
 use crate::scalar::comparison::{
     EqualSparqlOp, GreaterOrEqualSparqlOp, GreaterThanSparqlOp, LessOrEqualSparqlOp,
-    LessThanSparqlOp, SameTermSparqlOp,
+    LessThanSparqlOp,
 };
 use crate::scalar::conversion::CastBooleanSparqlOp;
 use crate::scalar::conversion::CastDateTimeSparqlOp;
@@ -242,7 +242,6 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         create_scalar_udf::<BoundSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<CoalesceSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<IfSparqlOp>(registry.encodings.clone()),
-        create_scalar_udf::<SameTermSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<EqualSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<GreaterThanSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<GreaterOrEqualSparqlOp>(registry.encodings.clone()),

@@ -75,6 +75,11 @@ pub trait EncodingScalar {
 /// will outperform the [PlainTermEncoding](crate::plain_term::PlainTermEncoding) for nested
 /// numerical operations as the parsing and validation of numeric literals is only done once.
 /// It is up to the user to ensure the correct use.
+///
+/// # Invariants
+///
+/// RDF Fusion assumes some invariants on any encoding:
+/// - Regular equality (with null being equal to nothing) implements [sameTerm](https://www.w3.org/TR/sparql11-query/#func-sameTerm).
 pub trait TermEncoding: Debug + Send + Sync {
     /// Represents a wrapper for Arrow arrays of this encoding. This can be used in
     /// conjunction with [TermDecoder] to obtain the values from an Arrow array.

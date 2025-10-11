@@ -7,11 +7,11 @@ Projection: ENC_PT(otherProduct) AS otherProduct, ENC_PT(sameFeatures) AS sameFe
     Projection: lhs.otherProduct AS otherProduct, rhs.sameFeatures AS sameFeatures
       Inner Join: lhs.otherProduct = rhs.otherProduct
         SubqueryAlias: lhs
-          Filter: NOT EBV(EQ(ENC_TV(otherProduct), Union 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636))
+          Filter: otherProduct != UInt32(21293)
             QuadPattern (?otherProduct <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/Product>)
         SubqueryAlias: rhs
           Projection: otherProduct, INT64_AS_TERM(00000000000000000000000000000001) AS sameFeatures
-            Filter: NOT EBV(EQ(ENC_TV(otherProduct), Union 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636))
+            Filter: otherProduct != UInt32(21293)
               Aggregate: groupBy=[[otherProduct AS otherProduct]], aggr=[[count(otherFeature) AS 00000000000000000000000000000001]]
                 Projection: otherProduct, otherFeature
                   Inner Join:  Filter: EBV(EQ(ENC_TV(feature), ENC_TV(otherFeature)))

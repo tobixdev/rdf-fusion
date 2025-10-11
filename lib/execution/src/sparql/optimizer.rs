@@ -38,30 +38,38 @@ pub fn create_optimizer_rules(
         }
         OptimizationLevel::Default => {
             let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = Vec::new();
-            // rules.push(Arc::new(SparqlJoinReorderingRule::new(
-            //     context.encodings().clone(),
-            // )));
+
             rules.extend(lowering_rules);
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.encodings().clone(),
+                Arc::clone(context.functions()),
+            )));
 
             // DataFusion Optimizers
             // TODO: Replace with a good subset
             rules.extend(create_essential_datafusion_optimizers());
 
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.encodings().clone(),
+                Arc::clone(context.functions()),
+            )));
             rules
         }
         OptimizationLevel::Full => {
             let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = Vec::new();
-            // rules.push(Arc::new(SparqlJoinReorderingRule::new(
-            //     context.encodings().clone(),
-            // )));
+
             rules.extend(lowering_rules);
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.encodings().clone(),
+                Arc::clone(context.functions()),
+            )));
 
             rules.extend(Optimizer::default().rules);
 
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.encodings().clone(),
+                Arc::clone(context.functions()),
+            )));
             rules
         }
     }

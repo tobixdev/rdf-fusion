@@ -21,5 +21,5 @@ ProjectionExec: expr=[ENC_PT(product@0) as product]
                 MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
                 MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
             CoalesceBatchesExec: target_batch_size=8192
-              FilterExec: EBV(EQ(ENC_TV(country@1), 1:http://downlode.org/rdf/iso-3166/countries#US)), projection=[vendor@0]
+              FilterExec: country@1 = 15444, projection=[vendor@0]
                 MemQuadPatternExec: [GPOS] subject=?vendor, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=?country

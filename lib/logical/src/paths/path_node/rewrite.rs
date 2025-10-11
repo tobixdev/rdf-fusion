@@ -10,6 +10,7 @@ use datafusion::logical_expr::{
 };
 use datafusion::optimizer::{OptimizerConfig, OptimizerRule};
 use datafusion::prelude::{not, or};
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
@@ -124,7 +125,7 @@ impl PropertyPathLoweringRule {
     ) -> DFResult<LogicalPlanBuilder> {
         let filter = RdfFusionExprBuilderContext::new(
             &self.context,
-            &self.context.storage_encoding().quad_schema(),
+            &QuadStorageEncoding::PlainTerm.quad_schema(),
         )
         .try_create_builder(col(COL_PREDICATE))?
         .build_same_term_scalar(TermRef::from(node.as_ref()))?;
@@ -138,7 +139,7 @@ impl PropertyPathLoweringRule {
         inf: &PropertyPathLoweringInformation,
         nodes: &[NamedNode],
     ) -> DFResult<LogicalPlanBuilder> {
-        let schema = self.context.storage_encoding().quad_schema();
+        let schema = QuadStorageEncoding::PlainTerm.quad_schema();
         let predicate_builder = RdfFusionExprBuilderContext::new(&self.context, &schema)
             .try_create_builder(col(COL_PREDICATE))?;
 
