@@ -3637,10 +3637,8 @@ dependencies = [
 name = "rdf-fusion-encoding"
 version = "0.1.0"
 dependencies = [
- "dashmap",
  "datafusion",
  "rdf-fusion-model",
- "rustc-hash",
  "thiserror 2.0.17",
 ]
 

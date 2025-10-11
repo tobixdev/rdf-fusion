@@ -11,9 +11,7 @@ RDF Fusion Term Encodings
 
 [dependencies]
 rdf-fusion-model.workspace = true
-dashmap.workspace = true
 datafusion.workspace = true
-rustc-hash.workspace = true
 thiserror.workspace = true
 
 [lints]
