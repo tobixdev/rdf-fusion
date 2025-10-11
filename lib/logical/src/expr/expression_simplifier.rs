@@ -1,10 +1,10 @@
 use crate::expr::scalars::try_extract_scalar_term;
 use crate::expr::unwrap_encoding_changes;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_datafusion_err, plan_err, DFSchema, DFSchemaRef};
+use datafusion::common::{DFSchema, DFSchemaRef, plan_datafusion_err, plan_err};
 use datafusion::logical_expr::expr::ScalarFunction;
 use datafusion::logical_expr::utils::merge_schema;
-use datafusion::logical_expr::{lit, Expr, ExprSchemable, LogicalPlan};
+use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, lit};
 use datafusion::optimizer::utils::NamePreserver;
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use rdf_fusion_encoding::object_id::ObjectIdMappingError;
@@ -158,7 +158,7 @@ fn try_replace_is_compatible_with_equality(
 /// Some examples:
 /// - `?country = <Austria>` -> `sameTerm(?country, <Austria>)`
 /// - `?value = "1"^^xsd:integer`, no optimization opportunity, as, for example, `"01"^^xsd:integer`
-///    is also equal to the literal
+///   is also equal to the literal
 fn try_replace_equality_with_same_term(
     encodings: &RdfFusionEncodings,
     registry: &dyn RdfFusionFunctionRegistry,
@@ -205,7 +205,7 @@ fn replace_equality_with_same_term(
     term: Term,
     other_expression: &Expr,
 ) -> DFResult<Transformed<Expr>> {
-    let other_expression = unwrap_encoding_changes(&other_expression);
+    let other_expression = unwrap_encoding_changes(other_expression);
     let (data_type, _) = other_expression.data_type_and_nullable(schema)?;
     let encoding = encodings
         .try_get_encoding_name(&data_type)
@@ -289,7 +289,7 @@ mod tests {
     use crate::RdfFusionExprBuilderContext;
     use datafusion::arrow::datatypes::{Field, Schema};
     use datafusion::common::{DFSchema, DFSchemaRef};
-    use datafusion::logical_expr::{col, EmptyRelation, LogicalPlan, LogicalPlanBuilder};
+    use datafusion::logical_expr::{EmptyRelation, LogicalPlan, LogicalPlanBuilder, col};
     use datafusion::optimizer::OptimizerContext;
     use insta::assert_snapshot;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
@@ -298,8 +298,8 @@ mod tests {
     use rdf_fusion_encoding::{
         EncodingName, QuadStorageEncoding, RdfFusionEncodings, TermEncoding,
     };
-    use rdf_fusion_extensions::functions::FunctionName;
     use rdf_fusion_extensions::RdfFusionContextView;
+    use rdf_fusion_extensions::functions::FunctionName;
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
     use rdf_fusion_model::{BlankNodeRef, Literal, NamedNodeRef, TermRef, VariableRef};
 

@@ -51,10 +51,10 @@ mod tests {
     use super::*;
     use datafusion::common::ScalarValue;
     use datafusion::logical_expr::expr::ScalarFunction;
+    use rdf_fusion_encoding::EncodingScalar;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
     use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-    use rdf_fusion_encoding::EncodingScalar;
     use rdf_fusion_extensions::functions::{
         BuiltinName, FunctionName, RdfFusionFunctionRegistry,
     };

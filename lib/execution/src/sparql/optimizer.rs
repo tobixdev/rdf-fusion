@@ -4,8 +4,8 @@ use datafusion::optimizer::eliminate_limit::EliminateLimit;
 use datafusion::optimizer::replace_distinct_aggregate::ReplaceDistinctWithAggregate;
 use datafusion::optimizer::scalar_subquery_to_join::ScalarSubqueryToJoin;
 use datafusion::optimizer::{Optimizer, OptimizerRule};
-use datafusion::physical_optimizer::optimizer::PhysicalOptimizer;
 use datafusion::physical_optimizer::PhysicalOptimizerRule;
+use datafusion::physical_optimizer::optimizer::PhysicalOptimizer;
 use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_logical::expr::SimplifySparqlExpressionsRule;
 use rdf_fusion_logical::extend::ExtendLoweringRule;
@@ -42,7 +42,7 @@ pub fn create_optimizer_rules(
             rules.extend(lowering_rules);
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
                 context.encodings().clone(),
-                context.functions().clone(),
+                Arc::clone(context.functions()),
             )));
 
             // DataFusion Optimizers
@@ -51,7 +51,7 @@ pub fn create_optimizer_rules(
 
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
                 context.encodings().clone(),
-                context.functions().clone(),
+                Arc::clone(context.functions()),
             )));
             rules
         }
@@ -61,14 +61,14 @@ pub fn create_optimizer_rules(
             rules.extend(lowering_rules);
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
                 context.encodings().clone(),
-                context.functions().clone(),
+                Arc::clone(context.functions()),
             )));
 
             rules.extend(Optimizer::default().rules);
 
             rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
                 context.encodings().clone(),
-                context.functions().clone(),
+                Arc::clone(context.functions()),
             )));
             rules
         }
