@@ -1,5 +1,5 @@
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{DFSchema, DFSchemaRef, plan_datafusion_err};
+use datafusion::common::{plan_datafusion_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::expr::ScalarFunction;
 use datafusion::logical_expr::utils::merge_schema;
 use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan};
@@ -12,8 +12,9 @@ use std::sync::Arc;
 /// An optimizer rule that tries to optimize SPARQL expressions.
 ///
 /// Currently, the following transformations are implemented:
-/// - IS_COMPATIBLE(A, B) => A = B, if A and B are not nullable
-/// - EFFECTIVE_BOOLEAN_VALUE(BOOLEAN_AS_TERM(X)) -> X
+/// - `IS_COMPATIBLE(A, B)` => `sameTerm(A, B)`, if A and B are not nullable
+/// - `A = B` => `sameTerm(A, B)`, if possible
+/// - `EFFECTIVE_BOOLEAN_VALUE(BOOLEAN_AS_TERM(X))` => `X`
 #[derive(Debug)]
 pub struct SimplifySparqlExpressionsRule;
 
@@ -94,6 +95,7 @@ fn try_rewrite_scalar_function(
         BuiltinName::IsCompatible => {
             try_replace_is_compatible_with_equality(scalar_function, input_schema)
         }
+        BuiltinName::Equal => try_replace_equality_with_same_term(scalar_function),
         BuiltinName::EffectiveBooleanValue => {
             try_replace_boolean_round_trip(scalar_function)
         }
@@ -125,6 +127,23 @@ fn try_replace_is_compatible_with_equality(
             plan_datafusion_err!("Unexpected number of args for IS_COMPATIBLE")
         })?;
     Ok(Transformed::yes(lhs.eq(rhs)))
+}
+
+/// In certain cases, an equality comparison can be changed to a `sameTerm` comparison.
+/// This is only performed if we know that both sides can only be equal if they are the same
+/// term.
+///
+/// For example, comparing to a known IRI literal allows replacing equality with `sameTerm`.
+/// The rule is not applied if RDF lexical representation could differ.
+///
+/// Some examples:
+/// - `?country = <Austria>` -> `sameTerm(?country, <Austria>)`
+/// - `?value = "1"^^xsd:integer`, no optimization opportunity, as, for example, `"01"^^xsd:integer`
+///    is also equal to the literal
+fn try_replace_equality_with_same_term(
+    scalar_function: ScalarFunction,
+) -> DFResult<Transformed<Expr>> {
+    todo!()
 }
 
 /// Tries to replace EBV(BOOLEAN_AS_TERM(X)) with X. This can be a crucial optimization in query
@@ -163,7 +182,7 @@ mod tests {
     use crate::RdfFusionExprBuilderContext;
     use datafusion::arrow::datatypes::{Field, Schema};
     use datafusion::common::{DFSchema, DFSchemaRef};
-    use datafusion::logical_expr::{EmptyRelation, LogicalPlan, LogicalPlanBuilder, col};
+    use datafusion::logical_expr::{col, EmptyRelation, LogicalPlan, LogicalPlanBuilder};
     use datafusion::optimizer::OptimizerContext;
     use insta::assert_snapshot;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
@@ -172,8 +191,8 @@ mod tests {
     use rdf_fusion_encoding::{
         EncodingName, QuadStorageEncoding, RdfFusionEncodings, TermEncoding,
     };
-    use rdf_fusion_extensions::RdfFusionContextView;
     use rdf_fusion_extensions::functions::FunctionName;
+    use rdf_fusion_extensions::RdfFusionContextView;
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 
     #[test]
@@ -192,6 +211,26 @@ mod tests {
         let rewritten = execute_test_for_builtin(&schema, BuiltinName::IsCompatible);
         assert_snapshot!(rewritten.data, @r"
         Projection: IS_COMPATIBLE(column1, column2)
+          EmptyRelation: rows=0
+        ");
+    }
+
+    #[test]
+    fn test_equality_rewrite_to_same_term() {
+        let schema = make_schema(EncodingName::TypedValue, false, false);
+        let rewritten = execute_test_for_builtin(&schema, BuiltinName::Equal);
+        assert_snapshot!(rewritten.data, @r"
+        Projection: sameTerm(column1,column2) AS column1 = column2
+          EmptyRelation: rows=0
+        ");
+    }
+
+    #[test]
+    fn test_equality_does_not_rewrite_when_not_applicable() {
+        let schema = make_schema(EncodingName::TypedValue, false, false);
+        let rewritten = execute_test_for_builtin(&schema, BuiltinName::Equal);
+        assert_snapshot!(rewritten.data, @r"
+        Projection: column1 = column2
           EmptyRelation: rows=0
         ");
     }
