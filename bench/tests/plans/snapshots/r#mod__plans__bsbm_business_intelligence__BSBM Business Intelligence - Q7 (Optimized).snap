@@ -26,5 +26,5 @@ Projection: ENC_PT(product) AS product
                   QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor> ?vendor)
           SubqueryAlias: rhs
             Projection: vendor
-              Filter: EBV(EQ(ENC_TV(country), Union 1:http://downlode.org/rdf/iso-3166/countries#US))
+              Filter: country = UInt32(15444)
                 QuadPattern (?vendor <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country)
