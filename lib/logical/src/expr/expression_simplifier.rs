@@ -1,12 +1,21 @@
+use crate::expr::scalars::try_extract_scalar_term;
+use crate::expr::unwrap_encoding_changes;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{plan_datafusion_err, DFSchema, DFSchemaRef};
+use datafusion::common::{plan_datafusion_err, plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::expr::ScalarFunction;
 use datafusion::logical_expr::utils::merge_schema;
-use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan};
+use datafusion::logical_expr::{lit, Expr, ExprSchemable, LogicalPlan};
 use datafusion::optimizer::utils::NamePreserver;
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
-use rdf_fusion_extensions::functions::BuiltinName;
-use rdf_fusion_model::DFResult;
+use rdf_fusion_encoding::object_id::ObjectIdMappingError;
+use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
+use rdf_fusion_encoding::{
+    EncodingName, EncodingScalar, RdfFusionEncodings, TermEncoder,
+};
+use rdf_fusion_extensions::functions::{
+    BuiltinName, FunctionName, RdfFusionFunctionRegistry,
+};
+use rdf_fusion_model::{DFResult, Term};
 use std::sync::Arc;
 
 /// An optimizer rule that tries to optimize SPARQL expressions.
@@ -16,18 +25,64 @@ use std::sync::Arc;
 /// - `A = B` => `sameTerm(A, B)`, if possible
 /// - `EFFECTIVE_BOOLEAN_VALUE(BOOLEAN_AS_TERM(X))` => `X`
 #[derive(Debug)]
-pub struct SimplifySparqlExpressionsRule;
+pub struct SimplifySparqlExpressionsRule {
+    encodings: RdfFusionEncodings,
+    function_registry: Arc<dyn RdfFusionFunctionRegistry>,
+}
 
 impl SimplifySparqlExpressionsRule {
     /// Creates a new [SimplifySparqlExpressionsRule].
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(
+        encodings: RdfFusionEncodings,
+        function_registry: Arc<dyn RdfFusionFunctionRegistry>,
+    ) -> Self {
+        Self {
+            encodings,
+            function_registry,
+        }
     }
-}
 
-impl Default for SimplifySparqlExpressionsRule {
-    fn default() -> Self {
-        Self::new()
+    /// Rewrites the RDF Fusion built-ins in an [Expr].
+    fn try_rewrite_expression(
+        &self,
+        expr: Expr,
+        input_schema: &DFSchema,
+    ) -> DFResult<Transformed<Expr>> {
+        expr.transform_up(|expr| match expr {
+            Expr::ScalarFunction(scalar_function) => {
+                self.try_rewrite_scalar_function(scalar_function, input_schema)
+            }
+            _ => Ok(Transformed::no(expr)),
+        })
+    }
+
+    /// Rewrites the RDF Fusion UDFs.
+    fn try_rewrite_scalar_function(
+        &self,
+        scalar_function: ScalarFunction,
+        input_schema: &DFSchema,
+    ) -> DFResult<Transformed<Expr>> {
+        let function_name = scalar_function.func.name();
+        let builtin = BuiltinName::try_from(function_name);
+        let Ok(builtin) = builtin else {
+            return Ok(Transformed::no(Expr::ScalarFunction(scalar_function)));
+        };
+
+        match builtin {
+            BuiltinName::IsCompatible => {
+                try_replace_is_compatible_with_equality(scalar_function, input_schema)
+            }
+            BuiltinName::Equal => try_replace_equality_with_same_term(
+                &self.encodings,
+                self.function_registry.as_ref(),
+                input_schema,
+                scalar_function,
+            ),
+            BuiltinName::EffectiveBooleanValue => {
+                try_replace_boolean_round_trip(scalar_function)
+            }
+            _ => Ok(Transformed::no(Expr::ScalarFunction(scalar_function))),
+        }
     }
 }
 
@@ -58,48 +113,12 @@ impl OptimizerRule for SimplifySparqlExpressionsRule {
         let name_preserver = NamePreserver::new(&plan);
         plan.map_expressions(|expr| {
             let name = name_preserver.save(&expr);
-            let expr = try_rewrite_expression(expr, &schema)?;
+            let expr = self.try_rewrite_expression(expr, &schema)?;
             Ok(Transformed::new_transformed(
                 name.restore(expr.data),
                 expr.transformed,
             ))
         })
-    }
-}
-
-/// Rewrites the RDF Fusion built-ins in an [Expr].
-fn try_rewrite_expression(
-    expr: Expr,
-    input_schema: &DFSchema,
-) -> DFResult<Transformed<Expr>> {
-    expr.transform_up(|expr| match expr {
-        Expr::ScalarFunction(scalar_function) => {
-            try_rewrite_scalar_function(scalar_function, input_schema)
-        }
-        _ => Ok(Transformed::no(expr)),
-    })
-}
-
-/// Rewrites the RDF Fusion UDFs.
-fn try_rewrite_scalar_function(
-    scalar_function: ScalarFunction,
-    input_schema: &DFSchema,
-) -> DFResult<Transformed<Expr>> {
-    let function_name = scalar_function.func.name();
-    let builtin = BuiltinName::try_from(function_name);
-    let Ok(builtin) = builtin else {
-        return Ok(Transformed::no(Expr::ScalarFunction(scalar_function)));
-    };
-
-    match builtin {
-        BuiltinName::IsCompatible => {
-            try_replace_is_compatible_with_equality(scalar_function, input_schema)
-        }
-        BuiltinName::Equal => try_replace_equality_with_same_term(scalar_function),
-        BuiltinName::EffectiveBooleanValue => {
-            try_replace_boolean_round_trip(scalar_function)
-        }
-        _ => Ok(Transformed::no(Expr::ScalarFunction(scalar_function))),
     }
 }
 
@@ -141,9 +160,97 @@ fn try_replace_is_compatible_with_equality(
 /// - `?value = "1"^^xsd:integer`, no optimization opportunity, as, for example, `"01"^^xsd:integer`
 ///    is also equal to the literal
 fn try_replace_equality_with_same_term(
+    encodings: &RdfFusionEncodings,
+    registry: &dyn RdfFusionFunctionRegistry,
+    schema: &DFSchema,
     scalar_function: ScalarFunction,
 ) -> DFResult<Transformed<Expr>> {
-    todo!()
+    let lhs_term = try_extract_scalar_term(encodings, &scalar_function.args[0]);
+    let rhs_term = try_extract_scalar_term(encodings, &scalar_function.args[1]);
+
+    match (lhs_term, rhs_term) {
+        (Some(lhs_term), None)
+            if lhs_term.is_named_node() || lhs_term.is_blank_node() =>
+        {
+            replace_equality_with_same_term(
+                encodings,
+                registry,
+                schema,
+                lhs_term,
+                &scalar_function.args[1],
+            )
+        }
+        (None, Some(rhs_term))
+            if rhs_term.is_named_node() || rhs_term.is_blank_node() =>
+        {
+            replace_equality_with_same_term(
+                encodings,
+                registry,
+                schema,
+                rhs_term,
+                &scalar_function.args[0],
+            )
+        }
+        _ => Ok(Transformed::no(Expr::ScalarFunction(scalar_function))),
+    }
+}
+
+/// Execute the replacement for [try_replace_equality_with_same_term] when all preconditions are
+/// met. May swap the order of the arguments, but this is fine due to the commutativity of `=` and
+/// `sameTerm`.
+fn replace_equality_with_same_term(
+    encodings: &RdfFusionEncodings,
+    registry: &dyn RdfFusionFunctionRegistry,
+    schema: &DFSchema,
+    term: Term,
+    other_expression: &Expr,
+) -> DFResult<Transformed<Expr>> {
+    let other_expression = unwrap_encoding_changes(&other_expression);
+    let (data_type, _) = other_expression.data_type_and_nullable(schema)?;
+    let encoding = encodings
+        .try_get_encoding_name(&data_type)
+        .ok_or_else(|| plan_datafusion_err!("Expected comparison with RDF terms"))?;
+    let scalar = match encoding {
+        EncodingName::PlainTerm => encodings
+            .plain_term()
+            .encode_term(Ok(term.as_ref()))?
+            .into_scalar_value(),
+        EncodingName::ObjectId => {
+            let Some(mapping) = encodings.object_id_mapping() else {
+                return plan_err!("No Object ID mapping registerd.");
+            };
+
+            let scalar = DefaultPlainTermEncoder::encode_term(Ok(term.as_ref()))?;
+            match mapping.encode_scalar(&scalar) {
+                Ok(scalar) => scalar.into_scalar_value(),
+                Err(ObjectIdMappingError::UnknownObjectId) => {
+                    return Ok(Transformed::yes(lit(false)));
+                }
+                Err(err) => plan_err!("Failed to encode term: {}", err)?,
+            }
+        }
+        EncodingName::TypedValue => {
+            // Currently, we cannot use = to compare union arrays. Therefore, we omit this
+            // optimization if the typed value encoding should be used.
+            let equality = registry.udf(&FunctionName::Builtin(BuiltinName::Equal))?;
+            let scalar = encodings
+                .typed_value()
+                .encode_term(Ok(term.as_ref()))?
+                .into_scalar_value();
+            return Ok(Transformed::no(
+                equality.call(vec![lit(scalar), other_expression.clone()]),
+            ));
+        }
+        EncodingName::Sortable => {
+            unreachable!("Sortable encoding should not be encountered.")
+        }
+    };
+
+    let boolean_as_term =
+        registry.udf(&FunctionName::Builtin(BuiltinName::NativeBooleanAsTerm))?;
+    Ok(Transformed::yes(
+        boolean_as_term.call(vec![lit(scalar).eq(other_expression.clone())]),
+    ))
 }
 
 /// Tries to replace EBV(BOOLEAN_AS_TERM(X)) with X. This can be a crucial optimization in query
@@ -194,6 +301,7 @@ mod tests {
     use rdf_fusion_extensions::functions::FunctionName;
     use rdf_fusion_extensions::RdfFusionContextView;
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
+    use rdf_fusion_model::{BlankNodeRef, Literal, NamedNodeRef, TermRef, VariableRef};
 
     #[test]
     fn test_is_compatible_rewrite_when_not_nullable() {
@@ -216,11 +324,33 @@ mod tests {
     }
 
     #[test]
-    fn test_equality_rewrite_to_same_term() {
-        let schema = make_schema(EncodingName::TypedValue, false, false);
-        let rewritten = execute_test_for_builtin(&schema, BuiltinName::Equal);
+    fn test_equality_rewrite_to_same_term_iri() {
+        let rewritten = run_literal_equality_test(TermRef::NamedNode(
+            NamedNodeRef::new_unchecked("http://example.com/term"),
+        ));
         assert_snapshot!(rewritten.data, @r"
-        Projection: sameTerm(column1,column2) AS column1 = column2
+        Projection: BOOLEAN_AS_TERM(Struct({term_type:0,value:http://example.com/term,data_type:,language_tag:}) = column1) AS EQ(ENC_TV(column1),ENC_TV(Struct({term_type:0,value:http://example.com/term,data_type:,language_tag:})))
+          EmptyRelation: rows=0
+        ");
+    }
+
+    #[test]
+    fn test_equality_rewrite_to_same_term_blank_node() {
+        let rewritten = run_literal_equality_test(TermRef::BlankNode(
+            BlankNodeRef::new_unchecked("abc"),
+        ));
+        assert_snapshot!(rewritten.data, @r"
+        Projection: BOOLEAN_AS_TERM(Struct({term_type:1,value:abc,data_type:,language_tag:}) = column1) AS EQ(ENC_TV(column1),ENC_TV(Struct({term_type:1,value:abc,data_type:,language_tag:})))
+          EmptyRelation: rows=0
+        ");
+    }
+
+    #[test]
+    fn test_equality_rewrite_to_same_term_literal() {
+        let rewritten =
+            run_literal_equality_test(TermRef::Literal(Literal::from(1).as_ref()));
+        assert_snapshot!(rewritten.data, @r"
+        Projection: EQ(ENC_TV(column1), ENC_TV(Struct({term_type:2,value:1,data_type:http://www.w3.org/2001/XMLSchema#integer,language_tag:})))
           EmptyRelation: rows=0
         ");
     }
@@ -230,7 +360,7 @@ mod tests {
         let schema = make_schema(EncodingName::TypedValue, false, false);
         let rewritten = execute_test_for_builtin(&schema, BuiltinName::Equal);
         assert_snapshot!(rewritten.data, @r"
-        Projection: column1 = column2
+        Projection: EQ(column1, column2)
           EmptyRelation: rows=0
         ");
     }
@@ -256,6 +386,25 @@ mod tests {
           EmptyRelation: rows=0
         ");
         Ok(())
+    }
+
+    fn run_literal_equality_test(term: TermRef<'_>) -> Transformed<LogicalPlan> {
+        let context = create_context();
+        let schema = make_schema(EncodingName::PlainTerm, false, false);
+        let builder_context = RdfFusionExprBuilderContext::new(&context, &schema);
+
+        let literal = builder_context.literal(term).unwrap().build().unwrap();
+
+        let expression = builder_context
+            .variable(VariableRef::new_unchecked("column1"))
+            .unwrap()
+            .equal(literal)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let rewritten = execute_test_for_expr(&schema, expression);
+        rewritten
     }
 
     fn execute_test_for_builtin(
@@ -289,12 +438,16 @@ mod tests {
         schema: &DFSchemaRef,
         expr: Expr,
     ) -> Transformed<LogicalPlan> {
+        let registry = create_context();
         let plan = create_plan(&schema)
             .project(vec![expr])
             .unwrap()
             .build()
             .unwrap();
-        let rule = SimplifySparqlExpressionsRule::new();
+        let rule = SimplifySparqlExpressionsRule::new(
+            registry.encodings().clone(),
+            registry.functions().clone(),
+        );
         let rewritten = rule.rewrite(plan, &OptimizerContext::new()).unwrap();
         rewritten
     }

@@ -1,8 +1,9 @@
-use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
-use crate::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
-use datafusion::common::{DataFusionError, ScalarValue, exec_err};
-use rdf_fusion_model::DFResult;
+use crate::typed_value::decoders::DefaultTypedValueDecoder;
+use crate::typed_value::{TypedValueEncoding, TYPED_VALUE_ENCODING};
+use crate::{TermDecoder, TermEncoding};
+use datafusion::common::{exec_err, DataFusionError, ScalarValue};
+use rdf_fusion_model::{DFResult, ThinResult, TypedValueRef};
 
 /// Represents an Arrow scalar with a [TypedValueEncoding].
 #[derive(Clone)]
@@ -30,6 +31,11 @@ impl TypedValueScalar {
     /// Creates a new [TypedValueScalar] without checking invariants.
     pub fn new_unchecked(inner: ScalarValue) -> Self {
         Self { inner }
+    }
+
+    /// Returns a [TypedValueRef] to the underlying scalar.
+    pub fn as_typed_value(&self) -> ThinResult<TypedValueRef<'_>> {
+        DefaultTypedValueDecoder::decode_term(self)
     }
 }
 

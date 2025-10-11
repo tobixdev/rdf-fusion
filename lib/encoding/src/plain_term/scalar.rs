@@ -3,9 +3,9 @@ use crate::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
 use crate::plain_term::encoders::DefaultPlainTermEncoder;
-use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
+use crate::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
 use crate::{TermDecoder, TermEncoder};
-use datafusion::common::{DataFusionError, ScalarValue, exec_err};
+use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
     BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef, Term,
@@ -48,6 +48,11 @@ impl PlainTermScalar {
     /// Creates a new [PlainTermScalar] without checking invariants.
     pub fn new_unchecked(inner: ScalarValue) -> Self {
         Self { inner }
+    }
+
+    /// Returns a [TermRef] to the underlying scalar.
+    pub fn as_term(&self) -> ThinResult<TermRef<'_>> {
+        DefaultPlainTermDecoder::decode_term(self)
     }
 }
 

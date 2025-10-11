@@ -4,8 +4,8 @@ use datafusion::optimizer::eliminate_limit::EliminateLimit;
 use datafusion::optimizer::replace_distinct_aggregate::ReplaceDistinctWithAggregate;
 use datafusion::optimizer::scalar_subquery_to_join::ScalarSubqueryToJoin;
 use datafusion::optimizer::{Optimizer, OptimizerRule};
-use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use datafusion::physical_optimizer::optimizer::PhysicalOptimizer;
+use datafusion::physical_optimizer::PhysicalOptimizerRule;
 use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_logical::expr::SimplifySparqlExpressionsRule;
 use rdf_fusion_logical::extend::ExtendLoweringRule;
@@ -38,30 +38,38 @@ pub fn create_optimizer_rules(
         }
         OptimizationLevel::Default => {
             let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = Vec::new();
-            // rules.push(Arc::new(SparqlJoinReorderingRule::new(
-            //     context.encodings().clone(),
-            // )));
+
             rules.extend(lowering_rules);
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.encodings().clone(),
+                context.functions().clone(),
+            )));
 
             // DataFusion Optimizers
             // TODO: Replace with a good subset
             rules.extend(create_essential_datafusion_optimizers());
 
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.encodings().clone(),
+                context.functions().clone(),
+            )));
             rules
         }
         OptimizationLevel::Full => {
             let mut rules: Vec<Arc<dyn OptimizerRule + Send + Sync>> = Vec::new();
-            // rules.push(Arc::new(SparqlJoinReorderingRule::new(
-            //     context.encodings().clone(),
-            // )));
+
             rules.extend(lowering_rules);
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.encodings().clone(),
+                context.functions().clone(),
+            )));
 
             rules.extend(Optimizer::default().rules);
 
-            rules.push(Arc::new(SimplifySparqlExpressionsRule::new()));
+            rules.push(Arc::new(SimplifySparqlExpressionsRule::new(
+                context.encodings().clone(),
+                context.functions().clone(),
+            )));
             rules
         }
     }
