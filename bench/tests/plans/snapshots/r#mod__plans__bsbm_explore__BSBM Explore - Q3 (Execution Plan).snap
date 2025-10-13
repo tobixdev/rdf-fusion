@@ -1,6 +1,6 @@
 ---
 source: bench/tests/plans/bsbm_explore.rs
-expression: canonicalize_uuids(&string)
+expression: "&string"
 ---
 ProjectionExec: expr=[ENC_PT(product@0) as product, ENC_PT(label@1) as label]
   SortExec: TopK(fetch=10), expr=[ENC_SORT(ENC_PT(label@1)) ASC], preserve_partitioning=[false]

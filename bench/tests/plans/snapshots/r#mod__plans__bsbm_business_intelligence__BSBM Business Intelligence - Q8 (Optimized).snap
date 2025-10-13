@@ -1,6 +1,6 @@
 ---
 source: bench/tests/plans/bsbm_business_intelligence.rs
-expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+expression: "&explanation.optimized_logical_plan.to_string()"
 ---
 Projection: ENC_PT(vendor) AS vendor, ENC_PT(cheapExpensiveRatio) AS cheapExpensiveRatio
   Sort: ENC_SORT(DIV(xsd:float(belowAvg), offerCount)) DESC NULLS FIRST, ENC_SORT(ENC_PT(vendor)) ASC NULLS FIRST, fetch=10
@@ -8,8 +8,8 @@ Projection: ENC_PT(vendor) AS vendor, ENC_PT(cheapExpensiveRatio) AS cheapExpens
       Projection: lhs.vendor AS vendor, lhs.belowAvg AS belowAvg, rhs.offerCount AS offerCount
         Inner Join: lhs.vendor = rhs.vendor
           SubqueryAlias: lhs
-            Projection: vendor, INT64_AS_TERM(00000000000000000000000000000001) AS belowAvg
-              Aggregate: groupBy=[[vendor AS vendor]], aggr=[[count(offer) AS 00000000000000000000000000000001]]
+            Projection: vendor, INT64_AS_TERM(<uuid>) AS belowAvg
+              Aggregate: groupBy=[[vendor AS vendor]], aggr=[[count(offer) AS <uuid>]]
                 Projection: lhs.offer AS offer, lhs.vendor AS vendor
                   Inner Join: lhs.product = rhs.product Filter: EBV(LT(xsd:float(xsd:string(ENC_TV(lhs.price))), rhs.avgPrice))
                     SubqueryAlias: lhs
@@ -30,8 +30,8 @@ Projection: ENC_PT(vendor) AS vendor, ENC_PT(cheapExpensiveRatio) AS cheapExpens
                           SubqueryAlias: rhs
                             QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price)
                     SubqueryAlias: rhs
-                      Projection: product, 00000000000000000000000000000002 AS avgPrice
-                        Aggregate: groupBy=[[product AS product]], aggr=[[AVG(xsd:float(xsd:string(ENC_TV(price)))) AS 00000000000000000000000000000002]]
+                      Projection: product, <uuid> AS avgPrice
+                        Aggregate: groupBy=[[product AS product]], aggr=[[AVG(xsd:float(xsd:string(ENC_TV(price)))) AS <uuid>]]
                           Projection: lhs.product AS product, rhs.price AS price
                             Inner Join: lhs.offer = rhs.offer
                               SubqueryAlias: lhs
@@ -50,8 +50,8 @@ Projection: ENC_PT(vendor) AS vendor, ENC_PT(cheapExpensiveRatio) AS cheapExpens
                               SubqueryAlias: rhs
                                 QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price)
           SubqueryAlias: rhs
-            Projection: vendor, INT64_AS_TERM(00000000000000000000000000000003) AS offerCount
-              Aggregate: groupBy=[[vendor AS vendor]], aggr=[[count(offer) AS 00000000000000000000000000000003]]
+            Projection: vendor, INT64_AS_TERM(<uuid>) AS offerCount
+              Aggregate: groupBy=[[vendor AS vendor]], aggr=[[count(offer) AS <uuid>]]
                 Projection: lhs.offer AS offer, rhs.vendor AS vendor
                   Inner Join: lhs.offer = rhs.offer
                     SubqueryAlias: lhs

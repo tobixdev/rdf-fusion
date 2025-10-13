@@ -1,12 +1,12 @@
 ---
 source: bench/tests/plans/wind_farm.rs
-expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+expression: "&explanation.optimized_logical_plan.to_string()"
 ---
-Projection: ENC_PT(site_label) AS site_label, ENC_PT(wtur_label) AS wtur_label, year AS year, month AS month, day AS day, hour AS hour, minute_10 AS minute_10, ENC_PT(00000000000000000000000000000001) AS val_prod_avg, ENC_PT(00000000000000000000000000000002) AS val_dir_avg, ENC_PT(00000000000000000000000000000003) AS val_speed_avg
-  Aggregate: groupBy=[[site_label AS site_label, wtur_label AS wtur_label, ENC_PT(year) AS year, ENC_PT(month) AS month, ENC_PT(day) AS day, ENC_PT(hour) AS hour, ENC_PT(minute_10) AS minute_10]], aggr=[[AVG(ENC_TV(val_prod)) AS 00000000000000000000000000000001, AVG(ENC_TV(val_dir)) AS 00000000000000000000000000000002, AVG(ENC_TV(val_speed)) AS 00000000000000000000000000000003]]
+Projection: ENC_PT(site_label) AS site_label, ENC_PT(wtur_label) AS wtur_label, year AS year, month AS month, day AS day, hour AS hour, minute_10 AS minute_10, ENC_PT(<uuid>) AS val_prod_avg, ENC_PT(<uuid>) AS val_dir_avg, ENC_PT(<uuid>) AS val_speed_avg
+  Aggregate: groupBy=[[site_label AS site_label, wtur_label AS wtur_label, ENC_PT(year) AS year, ENC_PT(month) AS month, ENC_PT(day) AS day, ENC_PT(hour) AS hour, ENC_PT(minute_10) AS minute_10]], aggr=[[AVG(ENC_TV(val_prod)) AS <uuid>, AVG(ENC_TV(val_dir)) AS <uuid>, AVG(ENC_TV(val_speed)) AS <uuid>]]
     Projection: site_label, wtur_label, val_speed, val_dir, val_prod, minute_10, hour, day, MONTH(__common_expr_5) AS month, YEAR(__common_expr_5) AS year
       Projection: ENC_TV(t) AS __common_expr_5, site_label, wtur_label, val_speed, val_dir, val_prod, minute_10, HOURS(__common_expr_6) AS hour, DAY(__common_expr_6) AS day
-        Projection: __common_expr_11 AS __common_expr_6, site_label, wtur_label, val_speed, t, val_dir, val_prod, MUL(Union 9:10, FLOOR(DIV(MINUTES(__common_expr_11), Union 7:Some(00000000000000000000000000000004),36,16))) AS minute_10
+        Projection: __common_expr_11 AS __common_expr_6, site_label, wtur_label, val_speed, t, val_dir, val_prod, MUL(Union 9:10, FLOOR(DIV(MINUTES(__common_expr_11), Union 7:Some(<uuid>),36,16))) AS minute_10
           Projection: ENC_TV(t) AS __common_expr_11, site_label, wtur_label, val_speed, t, val_dir, val_prod
             Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.val_speed AS val_speed, lhs.t AS t, lhs.val_dir AS val_dir, lhs.val_prod AS val_prod
               Inner Join: lhs.dp_prod = rhs.dp_prod, lhs.t = rhs.t

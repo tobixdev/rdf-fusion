@@ -62,7 +62,6 @@ pub enum BuiltinName {
     GroupConcat,
 
     // Comparison functions
-    SameTerm,
     Equal,
     GreaterThan,
     GreaterOrEqual,
@@ -148,7 +147,6 @@ impl fmt::Display for BuiltinName {
             Self::IsNumeric => "isNUMERIC",
             Self::Regex => "REGEX",
             Self::If => "IF",
-            Self::SameTerm => "SAMETERM",
             Self::Equal => "EQ",
             Self::GreaterThan => "GT",
             Self::GreaterOrEqual => "GEQ",
@@ -242,7 +240,6 @@ impl TryFrom<&str> for BuiltinName {
             "isNUMERIC" => Self::IsNumeric,
             "REGEX" => Self::Regex,
             "IF" => Self::If,
-            "SAMETERM" => Self::SameTerm,
             "EQ" => Self::Equal,
             "GT" => Self::GreaterThan,
             "GEQ" => Self::GreaterOrEqual,

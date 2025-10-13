@@ -1,18 +1,18 @@
 ---
 source: bench/tests/plans/bsbm_business_intelligence.rs
-expression: canonicalize_uuids(&string)
+expression: "&string"
 ---
 ProjectionExec: expr=[ENC_PT(otherProduct@0) as otherProduct, ENC_PT(sameFeatures@1) as sameFeatures]
   SortExec: TopK(fetch=10), expr=[ENC_SORT(sameFeatures@1) DESC, ENC_SORT(ENC_PT(otherProduct@0)) ASC], preserve_partitioning=[false]
     CoalesceBatchesExec: target_batch_size=8192
       HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(otherProduct@0, otherProduct@0)], projection=[otherProduct@0, sameFeatures@2]
         CoalesceBatchesExec: target_batch_size=8192
-          FilterExec: NOT EBV(EQ(ENC_TV(otherProduct@0), 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636))
+          FilterExec: otherProduct@0 != <object id>
             MemQuadPatternExec: [GPOS] subject=?otherProduct, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/Product>
-        ProjectionExec: expr=[otherProduct@0 as otherProduct, INT64_AS_TERM(00000000000000000000000000000001@1) as sameFeatures]
+        ProjectionExec: expr=[otherProduct@0 as otherProduct, INT64_AS_TERM(<uuid>@1) as sameFeatures]
           CoalesceBatchesExec: target_batch_size=8192
-            FilterExec: NOT EBV(EQ(ENC_TV(otherProduct@0), 1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636))
-              AggregateExec: mode=Single, gby=[otherProduct@0 as otherProduct], aggr=[00000000000000000000000000000001]
+            FilterExec: otherProduct@0 != <object id>
+              AggregateExec: mode=Single, gby=[otherProduct@0 as otherProduct], aggr=[<uuid>]
                 NestedLoopJoinExec: join_type=Inner, filter=EBV(EQ(join_proj_push_down_1@0, join_proj_push_down_2@1)), projection=[otherProduct@2, otherFeature@3]
                   ProjectionExec: expr=[feature@0 as feature, ENC_TV(feature@0) as join_proj_push_down_1]
                     CoalesceBatchesExec: target_batch_size=8192
