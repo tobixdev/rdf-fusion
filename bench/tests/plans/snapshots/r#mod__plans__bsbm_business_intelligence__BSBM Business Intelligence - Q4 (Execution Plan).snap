@@ -1,14 +1,14 @@
 ---
 source: bench/tests/plans/bsbm_business_intelligence.rs
-expression: canonicalize_uuids(&string)
+expression: "&string"
 ---
 ProjectionExec: expr=[ENC_PT(feature@0) as feature, ENC_PT(priceRatio@3) as priceRatio]
   SortExec: TopK(fetch=10), expr=[ENC_SORT(DIV(withFeaturePrice@1, withoutFeaturePrice@2)) DESC, ENC_SORT(ENC_PT(feature@0)) ASC], preserve_partitioning=[false]
     ProjectionExec: expr=[feature@0 as feature, withFeaturePrice@1 as withFeaturePrice, withoutFeaturePrice@2 as withoutFeaturePrice, DIV(withFeaturePrice@1, withoutFeaturePrice@2) as priceRatio]
       CoalesceBatchesExec: target_batch_size=8192
         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(feature@0, feature@0)], projection=[feature@0, withFeaturePrice@1, withoutFeaturePrice@3]
-          ProjectionExec: expr=[feature@0 as feature, 00000000000000000000000000000001@1 as withFeaturePrice]
-            AggregateExec: mode=Single, gby=[feature@0 as feature], aggr=[00000000000000000000000000000001]
+          ProjectionExec: expr=[feature@0 as feature, <uuid>@1 as withFeaturePrice]
+            AggregateExec: mode=Single, gby=[feature@0 as feature], aggr=[<uuid>]
               CoalesceBatchesExec: target_batch_size=8192
                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@1, offer@0)], projection=[feature@0, price@3]
                   CoalesceBatchesExec: target_batch_size=8192
@@ -19,8 +19,8 @@ ProjectionExec: expr=[ENC_PT(feature@0) as feature, ENC_PT(priceRatio@3) as pric
                           MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
                       MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product
                   MemQuadPatternExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
-          ProjectionExec: expr=[feature@0 as feature, 00000000000000000000000000000002@1 as withoutFeaturePrice]
-            AggregateExec: mode=Single, gby=[feature@0 as feature], aggr=[00000000000000000000000000000002]
+          ProjectionExec: expr=[feature@0 as feature, <uuid>@1 as withoutFeaturePrice]
+            AggregateExec: mode=Single, gby=[feature@0 as feature], aggr=[<uuid>]
               CoalesceBatchesExec: target_batch_size=8192
                 HashJoinExec: mode=CollectLeft, join_type=LeftAnti, on=[(feature@0, __inner__feature@1), (product@1, __inner__product@0)], projection=[feature@0, price@2]
                   CrossJoinExec

@@ -1,6 +1,6 @@
 ---
 source: bench/tests/plans/bsbm_explore.rs
-expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+expression: "&explanation.optimized_logical_plan.to_string()"
 ---
 Projection: ENC_PT(productLabel) AS productLabel, ENC_PT(offer) AS offer, ENC_PT(price) AS price, ENC_PT(vendor) AS vendor, ENC_PT(vendorTitle) AS vendorTitle, ENC_PT(review) AS review, ENC_PT(revTitle) AS revTitle, ENC_PT(reviewer) AS reviewer, ENC_PT(revName) AS revName, ENC_PT(rating1) AS rating1, ENC_PT(rating2) AS rating2
   Left Join: 

@@ -1,12 +1,12 @@
 ---
 source: bench/tests/plans/wind_farm.rs
-expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+expression: "&explanation.optimized_logical_plan.to_string()"
 ---
-Projection: ENC_PT(site_label) AS site_label, ENC_PT(wtur_label) AS wtur_label, year AS year, month AS month, day AS day, hour AS hour, minute_10 AS minute_10, ENC_PT(00000000000000000000000000000001) AS avg_val
-  Aggregate: groupBy=[[site_label AS site_label, wtur_label AS wtur_label, ENC_PT(year) AS year, ENC_PT(month) AS month, ENC_PT(day) AS day, ENC_PT(hour) AS hour, ENC_PT(minute_10) AS minute_10]], aggr=[[AVG(ENC_TV(val)) AS 00000000000000000000000000000001]]
+Projection: ENC_PT(site_label) AS site_label, ENC_PT(wtur_label) AS wtur_label, year AS year, month AS month, day AS day, hour AS hour, minute_10 AS minute_10, ENC_PT(<uuid>) AS avg_val
+  Aggregate: groupBy=[[site_label AS site_label, wtur_label AS wtur_label, ENC_PT(year) AS year, ENC_PT(month) AS month, ENC_PT(day) AS day, ENC_PT(hour) AS hour, ENC_PT(minute_10) AS minute_10]], aggr=[[AVG(ENC_TV(val)) AS <uuid>]]
     Projection: site_label, wtur_label, val, minute_10, hour, day, MONTH(__common_expr_2) AS month, YEAR(__common_expr_2) AS year
       Projection: ENC_TV(t) AS __common_expr_2, site_label, wtur_label, val, minute_10, HOURS(__common_expr_3) AS hour, DAY(__common_expr_3) AS day
-        Projection: __common_expr_5 AS __common_expr_3, site_label, wtur_label, val, t, MUL(Union 9:10, FLOOR(DIV(MINUTES(__common_expr_5), Union 7:Some(00000000000000000000000000000002),36,16))) AS minute_10
+        Projection: __common_expr_5 AS __common_expr_3, site_label, wtur_label, val, t, MUL(Union 9:10, FLOOR(DIV(MINUTES(__common_expr_5), Union 7:Some(<uuid>),36,16))) AS minute_10
           Projection: ENC_TV(t) AS __common_expr_5, site_label, wtur_label, val, t
             Projection: lhs.site_label AS site_label, lhs.wtur_label AS wtur_label, lhs.val AS val, rhs.t AS t
               Inner Join: lhs.dp = rhs.dp
