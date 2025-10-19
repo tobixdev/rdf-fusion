@@ -7,7 +7,7 @@ use crate::memory::storage::index::{
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use crate::memory::storage::stream::MemIndexScanStream;
 use datafusion::arrow::array::{Array, BooleanArray, UInt32Array};
-use datafusion::arrow::compute::kernels::cmp::{eq, gt_eq, lt_eq, neq};
+use datafusion::arrow::compute::kernels::cmp::{eq, gt_eq, lt_eq};
 use datafusion::arrow::compute::{and, filter, or};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{ScalarValue, exec_datafusion_err, plan_datafusion_err};
@@ -233,16 +233,6 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                     .expect("Array length must match, Data Types match")
                 })
                 .reduce(|lhs, rhs| or(&lhs, &rhs).expect("Array length must match")),
-            IndexScanPredicate::Except(ids) => ids
-                .iter()
-                .map(|id| {
-                    neq(
-                        data,
-                        &ScalarValue::UInt32(Some(id.as_u32())).to_scalar().unwrap(),
-                    )
-                    .expect("Array length must match, Data Types match")
-                })
-                .reduce(|lhs, rhs| and(&lhs, &rhs).expect("Array length must match")),
             IndexScanPredicate::EqualTo(name) => {
                 let index = instructions.iter().position(|i| match i {
                     Some(IndexScanInstruction::Scan(var, _)) => var == name,

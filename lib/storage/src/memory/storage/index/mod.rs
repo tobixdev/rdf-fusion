@@ -11,7 +11,7 @@ mod scan;
 mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
@@ -115,8 +115,6 @@ pub enum IndexScanPredicate {
     False,
     /// Checks whether the object id is in the given set.
     In(BTreeSet<EncodedObjectId>),
-    /// Checks whether the object id is *not* in the given set.
-    Except(BTreeSet<EncodedObjectId>),
     /// Checks whether the object id is between the given object ids (end is inclusive).
     Between(EncodedObjectId, EncodedObjectId),
     /// Checks whether the object id is equal to the scan instruction with the given variable.
@@ -176,20 +174,6 @@ impl Display for IndexScanPredicate {
                     write!(
                         f,
                         "in ({})",
-                        set.iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    )
-                }
-            }
-            IndexScanPredicate::Except(set) => {
-                if set.len() == 1 {
-                    write!(f, "!= {}", set.iter().next().unwrap())
-                } else {
-                    write!(
-                        f,
-                        "not in ({})",
                         set.iter()
                             .map(ToString::to_string)
                             .collect::<Vec<_>>()
@@ -284,8 +268,10 @@ impl IndexScanInstruction {
                 instruction_with_predicate(Some(IndexScanPredicate::In(object_ids)))
             }
             EncodedActiveGraph::AnyNamedGraph => {
-                let object_ids = BTreeSet::from([DEFAULT_GRAPH_ID.0]);
-                instruction_with_predicate(Some(IndexScanPredicate::Except(object_ids)))
+                instruction_with_predicate(Some(IndexScanPredicate::Between(
+                    DEFAULT_GRAPH_ID.0.next().unwrap(),
+                    EncodedObjectId::MAX,
+                )))
             }
         }
     }
@@ -746,11 +732,8 @@ mod tests {
     #[test]
     fn try_and_with_incompatible_returns_none() {
         let a = IndexScanPredicate::In([eid(1)].into());
-        let b = IndexScanPredicate::Except([eid(1)].into());
-        let eq = IndexScanPredicate::EqualTo(Arc::new("x".to_string()));
+        let b = IndexScanPredicate::EqualTo(Arc::new("x".to_string()));
         assert_eq!(a.try_and_with(&b), None);
-        assert_eq!(a.try_and_with(&eq), None);
-        assert_eq!(b.try_and_with(&eq), None);
     }
 
     fn create_index() -> MemQuadIndex {

@@ -244,7 +244,7 @@ impl IndexData {
         let mut new_instructions = Vec::new();
         for instruction in &instructions.0 {
             match instruction.predicate() {
-                None | Some(IndexScanPredicate::Except(_)) => {
+                None => {
                     break;
                 }
                 Some(IndexScanPredicate::In(ids)) => {

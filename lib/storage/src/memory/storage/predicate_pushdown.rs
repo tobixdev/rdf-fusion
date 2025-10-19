@@ -1,11 +1,11 @@
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::IndexScanPredicate;
-use datafusion::common::{exec_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_err};
 use datafusion::logical_expr::Operator;
+use datafusion::physical_expr::PhysicalExpr;
 use datafusion::physical_expr::expressions::{
     BinaryExpr, Column, DynamicFilterPhysicalExpr, Literal,
 };
-use datafusion::physical_expr::PhysicalExpr;
 use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::collections::BTreeSet;
@@ -199,9 +199,13 @@ pub fn try_rewrite_datafusion_expr(
                 let left = left.to_scan_predicate().ok().flatten()?;
                 let right = right.to_scan_predicate().ok().flatten()?;
                 return match left.try_and_with(&right)? {
-                    IndexScanPredicate::Between(from, to) => Some(
-                        MemStoragePredicateExpr::Between(lhs_column.clone(), from, to),
-                    ),
+                    IndexScanPredicate::Between(from, to) => {
+                        Some(MemStoragePredicateExpr::Between(
+                            Arc::clone(lhs_column),
+                            from,
+                            to,
+                        ))
+                    }
                     _ => None,
                 };
             }
