@@ -425,16 +425,21 @@ impl Display for PlannedPatternScan {
         write!(f, ", predicate={}", pattern.predicate)?;
         write!(f, ", object={}", pattern.object)?;
 
-        let additional_filters = self
+        let mut additional_filters = self
             .instructions
             .instructions()
             .iter()
             .filter(|i| i.scan_variable().is_some() && i.predicate().is_some())
             .map(|i| format!("{} {}", i.scan_variable().unwrap(), i.predicate().unwrap()))
-            .collect::<Vec<String>>()
-            .join(", ");
+            .collect::<Vec<String>>();
+        additional_filters.extend(self.dynamic_filters.iter().map(|f| f.to_string()));
+
         if !additional_filters.is_empty() {
-            write!(f, ", additional_filters=[{additional_filters}]")?;
+            write!(
+                f,
+                ", additional_filters=[{}]",
+                additional_filters.join(", ")
+            )?;
         }
 
         Ok(())
