@@ -659,7 +659,9 @@ impl MemColumnChunk {
 mod tests {
     use super::*;
     use crate::memory::object_id::EncodedObjectId;
-    use crate::memory::storage::index::IndexScanPredicate;
+    use crate::memory::storage::index::{
+        IndexScanInstructionSnapshot, IndexScanPredicate,
+    };
     use insta::assert_debug_snapshot;
 
     #[test]

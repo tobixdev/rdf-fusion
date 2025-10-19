@@ -1,8 +1,8 @@
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::{
-    IndexScanPredicate, PossiblyDynamicIndexScanPredicate,
+    IndexScanPredicate, IndexScanPredicateSource, PossiblyDynamicIndexScanPredicate,
 };
-use datafusion::common::{ScalarValue, exec_err};
+use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
 use datafusion::logical_expr::Operator;
 use datafusion::physical_expr::PhysicalExpr;
 use datafusion::physical_expr::expressions::{
@@ -135,7 +135,9 @@ impl MemStoragePredicateExpr {
             MemStoragePredicateExpr::Between(_, from, to) => {
                 Some(Static(Between(*from, *to)))
             }
-            MemStoragePredicateExpr::Dynamic(expr) => todo!(),
+            MemStoragePredicateExpr::Dynamic(expr) => Some(Dynamic(
+                Arc::clone(expr) as Arc<dyn IndexScanPredicateSource>
+            )),
 
             MemStoragePredicateExpr::Column(_) | MemStoragePredicateExpr::ObjectId(_) => {
                 return exec_err!("Expression is not a predicate.");
@@ -221,6 +223,21 @@ pub fn try_rewrite_datafusion_expr(
     }
 
     None
+}
+
+impl IndexScanPredicateSource for DynamicFilterPhysicalExpr {
+    fn current_predicate(&self) -> DFResult<Option<IndexScanPredicate>> {
+        let expr = self.current()?;
+        let expr = try_rewrite_datafusion_expr(&expr)
+            .ok_or_else(|| exec_datafusion_err!("Unsupported predicate."))?;
+        match expr.to_scan_predicate()? {
+            None => Ok(None),
+            Some(PossiblyDynamicIndexScanPredicate::Static(predicate)) => {
+                Ok(Some(predicate))
+            }
+            _ => exec_err!("Unsupported predicate."),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -14,7 +14,7 @@ use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
 use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
 pub use components::IndexComponents;
 pub use error::*;
-use rdf_fusion_model::Variable;
+use rdf_fusion_model::{DFResult, Variable};
 pub use scan::{
     DirectIndexRef, IndexRefInSet, MemQuadIndexScanIterator, PlannedPatternScan,
 };
@@ -108,8 +108,16 @@ impl IndexScanInstructions {
         Self(new_instructions)
     }
 
-    pub fn snapshot(&self) -> IndexScanInstructionsSnapshot {
-        IndexScanInstructionsSnapshot(self.0.clone().map(|i| i.snapshot()))
+    pub fn snapshot(&self) -> DFResult<IndexScanInstructionsSnapshot> {
+        let instructions = self
+            .0
+            .iter()
+            .map(|i| i.snapshot())
+            .collect::<DFResult<Vec<_>>>()?;
+        let instructions =
+            TryInto::<[IndexScanInstructionSnapshot; 4]>::try_into(instructions)
+                .expect("Should yield 4 instructions");
+        Ok(IndexScanInstructionsSnapshot(instructions))
     }
 }
 
@@ -208,7 +216,7 @@ impl Display for IndexScanPredicate {
 /// TODO
 pub trait IndexScanPredicateSource: Debug + Send + Sync + Display {
     /// TODO
-    fn current_predicate(&self) -> IndexScanPredicate;
+    fn current_predicate(&self) -> DFResult<Option<IndexScanPredicate>>;
 }
 
 /// TODO
@@ -237,9 +245,11 @@ impl PossiblyDynamicIndexScanPredicate {
     }
 
     /// TODO
-    pub fn snapshot(&self) -> IndexScanPredicate {
+    pub fn snapshot(&self) -> DFResult<Option<IndexScanPredicate>> {
         match self {
-            PossiblyDynamicIndexScanPredicate::Static(predicate) => predicate.clone(),
+            PossiblyDynamicIndexScanPredicate::Static(predicate) => {
+                Ok(Some(predicate.clone()))
+            }
             PossiblyDynamicIndexScanPredicate::Dynamic(predicate) => {
                 predicate.current_predicate()
             }
@@ -353,15 +363,26 @@ impl IndexScanInstruction {
     }
 
     /// Creates an [IndexScanInstructionSnapshot] from this instruction.
-    pub fn snapshot(&self) -> IndexScanInstructionSnapshot {
+    pub fn snapshot(&self) -> DFResult<IndexScanInstructionSnapshot> {
         match self {
             IndexScanInstruction::Traverse(predicate) => {
-                let predicate = predicate.as_ref().map(|p| p.snapshot());
-                IndexScanInstructionSnapshot::Traverse(predicate)
+                let predicate = predicate
+                    .as_ref()
+                    .map(|p| p.snapshot())
+                    .transpose()?
+                    .flatten();
+                Ok(IndexScanInstructionSnapshot::Traverse(predicate))
             }
             IndexScanInstruction::Scan(name, predicate) => {
-                let predicate = predicate.as_ref().map(|p| p.snapshot());
-                IndexScanInstructionSnapshot::Scan(Arc::clone(name), predicate)
+                let predicate = predicate
+                    .as_ref()
+                    .map(|p| p.snapshot())
+                    .transpose()?
+                    .flatten();
+                Ok(IndexScanInstructionSnapshot::Scan(
+                    Arc::clone(name),
+                    predicate,
+                ))
             }
         }
     }
@@ -522,10 +543,9 @@ mod tests {
             traverse(3),
             traverse(4),
         ]));
-        let result = iter.next();
+        let result = iter.next().unwrap().unwrap();
 
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().num_rows, 1);
+        assert_eq!(result.num_rows, 1);
     }
 
     #[tokio::test]
@@ -542,10 +562,9 @@ mod tests {
             traverse(3),
             scan("d"),
         ]));
-        let result = iter.next();
+        let result = iter.next().unwrap().unwrap();
 
-        assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().columns, @r#"
+        assert_debug_snapshot!(result.columns, @r#"
         {
             "d": PrimitiveArray<UInt32>
             [
@@ -570,10 +589,9 @@ mod tests {
             scan("c"),
             traverse(4),
         ]));
-        let result = iter.next();
+        let result = iter.next().unwrap().unwrap();
 
-        assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().columns, @r#"
+        assert_debug_snapshot!(result.columns, @r#"
         {
             "c": PrimitiveArray<UInt32>
             [
@@ -949,7 +967,7 @@ mod tests {
         expected_columns: usize,
         expected_rows: usize,
     ) {
-        let results = index.scan_quads(instructions).next().unwrap();
+        let results = index.scan_quads(instructions).next().unwrap().unwrap();
 
         assert_eq!(results.num_rows, expected_rows);
         assert_eq!(results.columns.len(), expected_columns);
@@ -966,7 +984,7 @@ mod tests {
     ) {
         let mut batch_sizes: Vec<_> = index
             .scan_quads(instructions)
-            .map(|arr| arr.num_rows)
+            .map(|arr| arr.unwrap().num_rows)
             .collect();
 
         if ordered {

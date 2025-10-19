@@ -2,8 +2,8 @@ use crate::memory::object_id::EncodedGraphObjectId;
 use crate::memory::storage::index::quad_index_data::IndexData;
 use crate::memory::storage::index::scan::MemQuadIndexScanIterator;
 use crate::memory::storage::index::{
-    DirectIndexRef, IndexConfiguration, IndexScanInstructions, IndexedQuad,
-    PruningPredicate, PruningPredicates,
+    DirectIndexRef, IndexConfiguration, IndexScanInstructions,
+    IndexScanInstructionsSnapshot, IndexedQuad, PruningPredicate, PruningPredicates,
 };
 use std::collections::BTreeSet;
 
@@ -115,8 +115,11 @@ impl MemQuadIndex {
     /// The higher the scan score, the better is the index suited for scanning a particular pattern.
     /// Basically, this boils down to how many levels can be traversed by looking up bound
     /// object ids.
-    pub fn compute_scan_score(&self, instructions: &IndexScanInstructions) -> usize {
-        let pruning_predicates = PruningPredicates::from(&instructions.snapshot());
+    pub fn compute_scan_score(
+        &self,
+        instructions: &IndexScanInstructionsSnapshot,
+    ) -> usize {
+        let pruning_predicates = PruningPredicates::from(instructions);
         let mut score = 0;
 
         for (i, predicate) in pruning_predicates.0.iter().enumerate() {
@@ -175,8 +178,8 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let eq_score = idx.compute_scan_score(&eq);
-        let nothing_score = idx.compute_scan_score(&nothing);
+        let eq_score = idx.compute_scan_score(&eq.snapshot().unwrap());
+        let nothing_score = idx.compute_scan_score(&nothing.snapshot().unwrap());
 
         assert!(
             eq_score > nothing_score,
@@ -205,8 +208,8 @@ mod tests {
             IndexScanInstruction::Traverse(None),
         ]);
 
-        let eq_score = idx.compute_scan_score(&eq);
-        let nothing_score = idx.compute_scan_score(&nothing);
+        let eq_score = idx.compute_scan_score(&eq.snapshot().unwrap());
+        let nothing_score = idx.compute_scan_score(&nothing.snapshot().unwrap());
 
         assert_eq!(
             eq_score, nothing_score,
@@ -249,8 +252,8 @@ mod tests {
             IndexScanInstruction::Scan(Arc::new("o".to_string()), None),
         ]);
 
-        let eq_score = idx.compute_scan_score(&instructions_eq);
-        let mixed_score = idx.compute_scan_score(&instructions_mixed);
+        let eq_score = idx.compute_scan_score(&instructions_eq.snapshot().unwrap());
+        let mixed_score = idx.compute_scan_score(&instructions_mixed.snapshot().unwrap());
 
         assert!(
             eq_score > mixed_score,

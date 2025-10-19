@@ -84,13 +84,16 @@ enum ScanState<TIndexRef: IndexRef> {
 }
 
 impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
-    type Item = QuadIndexBatch;
+    type Item = DFResult<QuadIndexBatch>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match &mut self.state {
                 ScanState::CollectRelevantRowGroups(index_ref, instructions) => {
-                    let instructions = instructions.clone().snapshot();
+                    let instructions = match instructions.clone().snapshot() {
+                        Ok(instructions) => instructions,
+                        Err(e) => return Some(Err(e)),
+                    };
 
                     let index = index_ref.get_index();
                     let index_data = index.data();
@@ -142,10 +145,10 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 self.state = ScanState::Finished;
                             }
 
-                            return Some(QuadIndexBatch {
+                            return Some(Ok(QuadIndexBatch {
                                 num_rows: batch_size,
                                 columns,
-                            });
+                            }));
                         }
                         Some(selection_vector) => {
                             let columns = batch
@@ -176,10 +179,10 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 continue;
                             }
 
-                            return Some(QuadIndexBatch {
+                            return Some(Ok(QuadIndexBatch {
                                 num_rows: selection_vector.true_count(),
                                 columns,
-                            });
+                            }));
                         }
                     }
                 }
@@ -362,9 +365,9 @@ impl PlannedPatternScan {
     }
 
     /// Chooses the new index to scan based on the current instructions.
-    pub fn try_find_better_index(self) -> Self {
-        let index = self.index_set.choose_index(&self.instructions);
-        Self { index, ..self }
+    pub fn try_find_better_index(self) -> DFResult<Self> {
+        let index = self.index_set.choose_index(&self.instructions.snapshot()?);
+        Ok(Self { index, ..self })
     }
 
     /// Executes the pattern scan and return the [SendableRecordBatchStream] that implements the
