@@ -1,24 +1,57 @@
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::IndexScanPredicate;
-use datafusion::common::{ScalarValue, exec_err};
+use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::Operator;
-use datafusion::physical_expr::PhysicalExpr;
 use datafusion::physical_expr::expressions::{
     BinaryExpr, Column, DynamicFilterPhysicalExpr, Literal,
 };
+use datafusion::physical_expr::PhysicalExpr;
 use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::collections::BTreeSet;
 use std::sync::Arc;
+use thiserror::Error;
 
 /// Represents the set of supported operations for [MemStoragePredicateExpr]s.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PredicateExprOperator {
     Gt,
-    Geq,
+    GtEq,
     Lt,
-    Leq,
+    LtEq,
     Eq,
+}
+
+impl PredicateExprOperator {
+    /// Flips the operator. For example, `>` becomes ´<`.
+    pub fn flip(self) -> Self {
+        match self {
+            Self::Gt => Self::Lt,
+            Self::GtEq => Self::LtEq,
+            Self::Lt => Self::Gt,
+            Self::LtEq => Self::GtEq,
+            Self::Eq => Self::Eq,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
+#[error("Unsupported operator.")]
+pub struct UnsupportedOperatorError;
+
+impl TryFrom<Operator> for PredicateExprOperator {
+    type Error = UnsupportedOperatorError;
+
+    fn try_from(value: Operator) -> Result<Self, Self::Error> {
+        Ok(match value {
+            Operator::Lt => PredicateExprOperator::Lt,
+            Operator::LtEq => PredicateExprOperator::LtEq,
+            Operator::Gt => PredicateExprOperator::Gt,
+            Operator::GtEq => PredicateExprOperator::GtEq,
+            Operator::Eq => PredicateExprOperator::Eq,
+            _ => return Err(UnsupportedOperatorError),
+        })
+    }
 }
 
 /// Represents a predicate that has been pushed down and is supported by our implementation.
@@ -47,7 +80,7 @@ impl MemStoragePredicateExpr {
             return None;
         }
 
-        try_rewrite_data_fusion_expr(expr)
+        try_rewrite_datafusion_expr(expr)
     }
 
     /// Returns the name of the column that this predicate operates on.
@@ -77,7 +110,7 @@ impl MemStoragePredicateExpr {
                     };
                     IndexScanPredicate::Between(next, EncodedObjectId::MAX)
                 }
-                PredicateExprOperator::Geq => {
+                PredicateExprOperator::GtEq => {
                     IndexScanPredicate::Between(*value, EncodedObjectId::MAX)
                 }
                 PredicateExprOperator::Lt => {
@@ -86,7 +119,7 @@ impl MemStoragePredicateExpr {
                     };
                     IndexScanPredicate::Between(EncodedObjectId::MIN, previous)
                 }
-                PredicateExprOperator::Leq => {
+                PredicateExprOperator::LtEq => {
                     IndexScanPredicate::Between(EncodedObjectId::MIN, *value)
                 }
                 PredicateExprOperator::Eq => {
@@ -106,7 +139,7 @@ impl MemStoragePredicateExpr {
 
 /// Tries to rewrite an arbitrary DataFusion [PhysicalExpr] into a supported
 /// [MemStoragePredicateExpr].
-pub fn try_rewrite_data_fusion_expr(
+pub fn try_rewrite_datafusion_expr(
     expr: &Arc<dyn PhysicalExpr>,
 ) -> Option<MemStoragePredicateExpr> {
     if let Some(column) = expr.as_any().downcast_ref::<Column>() {
@@ -126,26 +159,51 @@ pub fn try_rewrite_data_fusion_expr(
     }
 
     if let Some(binary) = expr.as_any().downcast_ref::<BinaryExpr>() {
-        return match binary.op() {
-            Operator::Eq => {
-                let left = try_rewrite_data_fusion_expr(binary.left())?;
-                let right = try_rewrite_data_fusion_expr(binary.right())?;
+        let left = try_rewrite_datafusion_expr(binary.left())?;
+        let right = try_rewrite_datafusion_expr(binary.right())?;
 
-                match (left, right) {
+        return match binary.op() {
+            Operator::Eq
+            | Operator::Gt
+            | Operator::GtEq
+            | Operator::Lt
+            | Operator::LtEq => {
+                let op = PredicateExprOperator::try_from(*binary.op()).ok()?;
+
+                let (column, literal, op) = match (left, right) {
                     (
                         MemStoragePredicateExpr::Column(left),
                         MemStoragePredicateExpr::ObjectId(right),
-                    )
-                    | (
+                    ) => (left, right, op),
+                    (
                         MemStoragePredicateExpr::ObjectId(right),
                         MemStoragePredicateExpr::Column(left),
-                    ) => Some(MemStoragePredicateExpr::Binary(
-                        left,
-                        PredicateExprOperator::Eq,
-                        right,
-                    )),
+                    ) => (left, right, op.flip()),
                     _ => return None,
+                };
+
+                Some(MemStoragePredicateExpr::Binary(column, op, literal))
+            }
+            Operator::And => {
+                let MemStoragePredicateExpr::Binary(lhs_column, _, _) = &left else {
+                    return None;
+                };
+                let MemStoragePredicateExpr::Binary(rhs_column, _, _) = &right else {
+                    return None;
+                };
+
+                if lhs_column != rhs_column {
+                    return None;
                 }
+
+                let left = left.to_scan_predicate().ok().flatten()?;
+                let right = right.to_scan_predicate().ok().flatten()?;
+                return match left.try_and_with(&right)? {
+                    IndexScanPredicate::Between(from, to) => Some(
+                        MemStoragePredicateExpr::Between(lhs_column.clone(), from, to),
+                    ),
+                    _ => None,
+                };
             }
             _ => return None,
         };
@@ -161,7 +219,7 @@ mod tests {
     #[test]
     fn test_column_predicate() {
         let expr = column_expr("subject");
-        let result = try_rewrite_data_fusion_expr(&expr);
+        let result = try_rewrite_datafusion_expr(&expr);
 
         assert!(matches!(result, Some(MemStoragePredicateExpr::Column(_))));
     }
@@ -169,7 +227,7 @@ mod tests {
     #[test]
     fn test_literal_object_id() {
         let expr = literal_uint(42);
-        let result = try_rewrite_data_fusion_expr(&expr);
+        let result = try_rewrite_datafusion_expr(&expr);
 
         assert!(matches!(result, Some(MemStoragePredicateExpr::ObjectId(_))));
     }
@@ -177,7 +235,7 @@ mod tests {
     #[test]
     fn test_true_literal() {
         let expr = literal_bool(true);
-        let result = try_rewrite_data_fusion_expr(&expr);
+        let result = try_rewrite_datafusion_expr(&expr);
 
         assert!(matches!(result, Some(MemStoragePredicateExpr::True)));
     }
@@ -189,7 +247,7 @@ mod tests {
         let expr =
             Arc::new(BinaryExpr::new(left, Operator::Eq, right)) as Arc<dyn PhysicalExpr>;
 
-        let result = try_rewrite_data_fusion_expr(&expr);
+        let result = try_rewrite_datafusion_expr(&expr);
 
         assert!(matches!(
             result,
@@ -210,19 +268,19 @@ mod tests {
         )) as Arc<dyn PhysicalExpr>;
         let lt_expr = Arc::new(BinaryExpr::new(
             column_expr("subject"),
-            Operator::Lt,
+            Operator::LtEq,
             literal_uint(456),
         )) as Arc<dyn PhysicalExpr>;
         let expr = Arc::new(BinaryExpr::new(gt_expr, Operator::And, lt_expr))
             as Arc<dyn PhysicalExpr>;
 
-        let result = try_rewrite_data_fusion_expr(&expr).unwrap();
+        let result = try_rewrite_datafusion_expr(&expr).unwrap();
         let MemStoragePredicateExpr::Between(column, from, to) = result else {
             panic!("Unexpected expr.")
         };
 
         assert_eq!(column.as_ref(), "subject");
-        assert_eq!(from.as_u32(), 123);
+        assert_eq!(from.as_u32(), 124);
         assert_eq!(to.as_u32(), 456);
     }
 
@@ -241,7 +299,7 @@ mod tests {
         let expr = Arc::new(BinaryExpr::new(gt_expr, Operator::And, lt_expr))
             as Arc<dyn PhysicalExpr>;
 
-        let result = try_rewrite_data_fusion_expr(&expr);
+        let result = try_rewrite_datafusion_expr(&expr);
 
         assert!(matches!(result, None));
     }
@@ -250,10 +308,10 @@ mod tests {
     fn test_unsupported_operator() {
         let left = column_expr("subject");
         let right = literal_uint(123);
-        let expr =
-            Arc::new(BinaryExpr::new(left, Operator::Gt, right)) as Arc<dyn PhysicalExpr>;
+        let expr = Arc::new(BinaryExpr::new(left, Operator::Plus, right))
+            as Arc<dyn PhysicalExpr>;
 
-        let result = try_rewrite_data_fusion_expr(&expr);
+        let result = try_rewrite_datafusion_expr(&expr);
 
         assert!(result.is_none());
     }
@@ -302,7 +360,7 @@ mod tests {
         let obj_id = EncodedObjectId::from(100);
         let expr = MemStoragePredicateExpr::Binary(
             Arc::from("col"),
-            PredicateExprOperator::Geq,
+            PredicateExprOperator::GtEq,
             obj_id,
         );
 
@@ -339,7 +397,7 @@ mod tests {
         let value = EncodedObjectId::from(100);
         let expr = MemStoragePredicateExpr::Binary(
             Arc::from("col"),
-            PredicateExprOperator::Leq,
+            PredicateExprOperator::LtEq,
             value,
         );
 

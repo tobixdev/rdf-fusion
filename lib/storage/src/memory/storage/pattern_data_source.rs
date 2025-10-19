@@ -70,7 +70,7 @@ impl DataSource for MemQuadPatternDataSource {
     }
 
     fn eq_properties(&self) -> EquivalenceProperties {
-        EquivalenceProperties::new(self.schema.clone())
+        EquivalenceProperties::new(Arc::clone(&self.schema))
     }
 
     fn scheduling_type(&self) -> SchedulingType {
@@ -136,7 +136,7 @@ impl DataSource for MemQuadPatternDataSource {
             .collect::<Vec<_>>();
         let updated_scan = apply_pushdown_filters(&self.planned_scan, &filters)?;
         let updated_node = Arc::new(MemQuadPatternDataSource::new(
-            self.schema.clone(),
+            Arc::clone(&self.schema),
             updated_scan,
         ));
 
@@ -208,7 +208,7 @@ mod test {
         assert!(result.updated_node.is_some());
         assert_snapshot!(
             format_quad_pattern(result.updated_node.unwrap()),
-            @"TODO"
+            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in (2..4294967295)]"
         )
     }
 
@@ -224,7 +224,7 @@ mod test {
         assert!(result.updated_node.is_some());
         assert_snapshot!(
             format_quad_pattern(result.updated_node.unwrap()),
-            @"TIODO"
+            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in (2..9)]"
         )
     }
 

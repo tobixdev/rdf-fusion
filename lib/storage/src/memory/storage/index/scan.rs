@@ -7,7 +7,7 @@ use crate::memory::storage::index::{
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use crate::memory::storage::stream::MemIndexScanStream;
 use datafusion::arrow::array::{Array, BooleanArray, UInt32Array};
-use datafusion::arrow::compute::kernels::cmp::{eq, neq};
+use datafusion::arrow::compute::kernels::cmp::{eq, gt_eq, lt_eq, neq};
 use datafusion::arrow::compute::{and, filter, or};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{ScalarValue, exec_datafusion_err, plan_datafusion_err};
@@ -253,7 +253,23 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                         .expect("Array length must match, Data Types match"),
                 )
             }
-            IndexScanPredicate::Between(_, _) => todo!(),
+            IndexScanPredicate::Between(from, to) => {
+                let ge = gt_eq(
+                    data,
+                    &ScalarValue::UInt32(Some(from.as_u32()))
+                        .to_scalar()
+                        .expect("UInt32 can be converted to a Scalar"),
+                )
+                .expect("gt_eq supports UInt32");
+                let le = lt_eq(
+                    data,
+                    &ScalarValue::UInt32(Some(to.as_u32()))
+                        .to_scalar()
+                        .expect("UInt32 can be converted to a Scalar"),
+                )
+                .expect("lt_eq supports UInt32");
+                Some(and(&ge, &le).expect("Inputs are bools and of same length"))
+            }
             IndexScanPredicate::False => {
                 Some(repeat_n(Some(false), data.len()).collect())
             }
@@ -334,8 +350,11 @@ impl PlannedPatternScan {
 
         let new_predicate = scan_instruction
             .predicate()
-            .map(|existing_predicate| existing_predicate.and_with(&predicate))
-            .unwrap_or(predicate);
+            .map(|existing_predicate| existing_predicate.try_and_with(&predicate))
+            .unwrap_or(Some(predicate))
+            .ok_or(plan_datafusion_err!(
+                "Could not apply predicate to scan instruction."
+            ))?;
         let new_instruction = scan_instruction.clone().with_predicate(new_predicate);
 
         let new_instructions = self

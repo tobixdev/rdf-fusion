@@ -11,7 +11,7 @@ mod scan;
 mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
+use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
@@ -125,13 +125,43 @@ pub enum IndexScanPredicate {
 
 impl IndexScanPredicate {
     /// Combines this predicate with `other` using a logical and.
-    pub fn and_with(&self, other: &IndexScanPredicate) -> IndexScanPredicate {
-        match (self, other) {
-            (_, IndexScanPredicate::False) | (IndexScanPredicate::False, _) => {
-                IndexScanPredicate::False
+    pub fn try_and_with(&self, other: &IndexScanPredicate) -> Option<IndexScanPredicate> {
+        use IndexScanPredicate::*;
+        let result = match (self, other) {
+            // False with any predicate is false.
+            (_, False) | (False, _) => False,
+
+            // Intersect the sets.
+            (In(a), In(b)) => {
+                let inter: BTreeSet<_> = a.intersection(b).cloned().collect();
+                if inter.is_empty() { False } else { In(inter) }
             }
-            _ => todo!("Not all combinations yet implemented"),
-        }
+
+            // For In, we can simply filter based on the other predicate.
+            (In(a), Between(f, t)) | (Between(f, t), In(a)) => {
+                let filtered: BTreeSet<_> = a
+                    .iter()
+                    .filter(|v| **v >= *f && **v <= *t)
+                    .cloned()
+                    .collect();
+                if filtered.is_empty() {
+                    False
+                } else {
+                    In(filtered)
+                }
+            }
+
+            // Intersect between ranges
+            (Between(from_1, to_1), Between(from_2, to_2)) => {
+                let from = (*from_1).max(*from_2);
+                let to = (*to_1).min(*to_2);
+                if from > to { False } else { Between(from, to) }
+            }
+
+            // Otherwise, return None to indicate that the predicates cannot be combined.
+            _ => return None,
+        };
+        Some(result)
     }
 }
 
@@ -636,6 +666,91 @@ mod tests {
         let quads = vec![IndexedQuad([eid(1), eid(2), eid(3), eid(4)])];
         let result = index.remove(quads);
         assert_eq!(result, 0);
+    }
+
+    #[test]
+    fn try_and_with_false_predicate_returns_false() {
+        let in_pred = IndexScanPredicate::In([eid(1), eid(2)].into());
+        let between_pred = IndexScanPredicate::Between(eid(1), eid(5));
+        let false_pred = IndexScanPredicate::False;
+
+        // False with anything is False
+        assert_eq!(
+            in_pred.try_and_with(&false_pred),
+            Some(IndexScanPredicate::False)
+        );
+        assert_eq!(
+            false_pred.try_and_with(&between_pred),
+            Some(IndexScanPredicate::False)
+        );
+    }
+
+    #[test]
+    fn try_and_with_in_and_in_intersects() {
+        let a = IndexScanPredicate::In([eid(1), eid(2), eid(3)].into());
+        let b = IndexScanPredicate::In([eid(2), eid(3), eid(4)].into());
+        assert_eq!(
+            a.try_and_with(&b),
+            Some(IndexScanPredicate::In([eid(2), eid(3)].into()))
+        );
+    }
+
+    #[test]
+    fn try_and_with_in_and_in_disjoint_returns_false() {
+        let a = IndexScanPredicate::In([eid(1)].into());
+        let b = IndexScanPredicate::In([eid(2)].into());
+        assert_eq!(a.try_and_with(&b), Some(IndexScanPredicate::False));
+    }
+
+    #[test]
+    fn try_and_with_in_and_between_filters_in_set() {
+        let a = IndexScanPredicate::In([eid(1), eid(2), eid(3)].into());
+        let b = IndexScanPredicate::Between(eid(2), eid(3));
+        // Only 2 and 3 fall into the range
+        assert_eq!(
+            a.try_and_with(&b),
+            Some(IndexScanPredicate::In([eid(2), eid(3)].into()))
+        );
+    }
+
+    #[test]
+    fn try_and_with_between_and_in_filters_in_set() {
+        let a = IndexScanPredicate::Between(eid(2), eid(4));
+        let b = IndexScanPredicate::In([eid(3), eid(4), eid(5)].into());
+        // Only 3 and 4 fall into both
+        assert_eq!(
+            a.try_and_with(&b),
+            Some(IndexScanPredicate::In([eid(3), eid(4)].into()))
+        );
+    }
+
+    #[test]
+    fn try_and_with_between_and_between_intersects() {
+        let a = IndexScanPredicate::Between(eid(2), eid(5));
+        let b = IndexScanPredicate::Between(eid(3), eid(4));
+        // Intersection is 3 to 4
+        assert_eq!(
+            a.try_and_with(&b),
+            Some(IndexScanPredicate::Between(eid(3), eid(4)))
+        );
+    }
+
+    #[test]
+    fn try_and_with_between_and_between_disjoint_returns_false() {
+        let a = IndexScanPredicate::Between(eid(1), eid(2));
+        let b = IndexScanPredicate::Between(eid(3), eid(4));
+        // Disjoint
+        assert_eq!(a.try_and_with(&b), Some(IndexScanPredicate::False));
+    }
+
+    #[test]
+    fn try_and_with_incompatible_returns_none() {
+        let a = IndexScanPredicate::In([eid(1)].into());
+        let b = IndexScanPredicate::Except([eid(1)].into());
+        let eq = IndexScanPredicate::EqualTo(Arc::new("x".to_string()));
+        assert_eq!(a.try_and_with(&b), None);
+        assert_eq!(a.try_and_with(&eq), None);
+        assert_eq!(b.try_and_with(&eq), None);
     }
 
     fn create_index() -> MemQuadIndex {
