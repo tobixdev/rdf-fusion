@@ -6,7 +6,7 @@
     html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
 )]
 
-//! Contains physical operators for [RDF Fusion](../../rdf-fusion).
+//! Contains physical operators for [RDF Fusion](https://docs.rs/rdf-fusion/).
 
 extern crate core;
 

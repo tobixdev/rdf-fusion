@@ -6,7 +6,7 @@
     html_logo_url = "https://raw.githubusercontent.com/tobixdev/rdf-fusion/main/misc/logo/logo.png"
 )]
 
-//! Contains the Web API for [RDF Fusion](../../rdf-fusion).
+//! Contains the Web API for [RDF Fusion](https://docs.rs/rdf-fusion/).
 
 use axum::body::Body;
 use axum::extract::DefaultBodyLimit;

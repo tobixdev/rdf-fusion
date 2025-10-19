@@ -1,4 +1,4 @@
-use crate::plans::canonicalize_uuids;
+use crate::plans::run_plan_assertions;
 use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
@@ -16,7 +16,7 @@ pub async fn optimized_logical_plan_bsbm_explore() {
     for_all_explanations(|name, explanation| {
         assert_snapshot!(
             format!("{name} (Optimized)"),
-            canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+            &explanation.optimized_logical_plan.to_string()
         )
     })
     .await;
@@ -28,10 +28,7 @@ pub async fn execution_plan_bsbm_explore() {
         let string = displayable(explanation.execution_plan.as_ref())
             .indent(false)
             .to_string();
-        assert_snapshot!(
-            format!("{name} (Execution Plan)"),
-            canonicalize_uuids(&string)
-        )
+        assert_snapshot!(format!("{name} (Execution Plan)"), &string)
     })
     .await;
 }
@@ -59,7 +56,7 @@ async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()
             .await
             .unwrap();
 
-        assertion(benchmark_name, explanation);
+        run_plan_assertions(|| assertion(benchmark_name, explanation));
     }
 }
 

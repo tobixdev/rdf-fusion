@@ -67,6 +67,13 @@ fn bsbm_explore_10000(c: &mut Criterion, benchmarking_context: &RdfFusionBenchCo
                 .unwrap();
         }
 
+        c.bench_function(&format!("Planning: {benchmark_name}"), |b| {
+            b.to_async(&runtime).iter(|| async {
+                let result = store.query_opt(query.text(), QueryOptions::default()).await;
+                assert!(result.is_ok());
+            });
+        });
+
         c.bench_function(&benchmark_name, |b| {
             b.to_async(&runtime).iter(|| async {
                 let result = store
