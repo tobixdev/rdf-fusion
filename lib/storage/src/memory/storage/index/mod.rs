@@ -1,6 +1,6 @@
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use std::collections::{BTreeSet, HashSet};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 mod components;
@@ -11,7 +11,7 @@ mod scan;
 mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
+use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
@@ -60,7 +60,7 @@ impl IndexScanInstructions {
                         new_instructions.push(IndexScanInstruction::Scan(var, predicate))
                     } else {
                         new_instructions.push(IndexScanInstruction::Traverse(Some(
-                            IndexScanPredicate::EqualTo(Arc::clone(&var)),
+                            IndexScanPredicate::EqualTo(Arc::clone(&var)).into(),
                         )));
                     }
                 }
@@ -189,16 +189,101 @@ impl Display for IndexScanPredicate {
     }
 }
 
+/// TODO
+pub trait IndexScanPredicateSource: Debug + Send + Sync + Display {
+    /// TODO
+    fn current_predicate(&self) -> IndexScanPredicate;
+}
+
+/// TODO
+#[derive(Debug, Clone)]
+pub enum PossiblyDynamicIndexScanPredicate {
+    /// TODO
+    Static(IndexScanPredicate),
+    /// TODO
+    Dynamic(Arc<dyn IndexScanPredicateSource>),
+}
+
+impl PossiblyDynamicIndexScanPredicate {
+    /// Combines this predicate with `other` using a logical and.
+    ///
+    /// Currently, only static predicates will be combined.
+    pub fn try_and_with(
+        &self,
+        other: &PossiblyDynamicIndexScanPredicate,
+    ) -> Option<Self> {
+        use PossiblyDynamicIndexScanPredicate::*;
+
+        match (self, other) {
+            (Static(left), Static(right)) => Some(Static(left.try_and_with(&right)?)),
+            _ => None,
+        }
+    }
+
+    /// TODO
+    pub fn snapshot(&self) -> IndexScanPredicate {
+        match self {
+            PossiblyDynamicIndexScanPredicate::Static(predicate) => predicate.clone(),
+            PossiblyDynamicIndexScanPredicate::Dynamic(predicate) => {
+                predicate.current_predicate()
+            }
+        }
+    }
+}
+
+impl From<IndexScanPredicate> for PossiblyDynamicIndexScanPredicate {
+    fn from(value: IndexScanPredicate) -> Self {
+        Self::Static(value)
+    }
+}
+
+impl PartialEq for PossiblyDynamicIndexScanPredicate {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Static(left), Self::Static(right)) => left == right,
+            (Self::Dynamic(left), Self::Dynamic(right)) => Arc::ptr_eq(left, right),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for PossiblyDynamicIndexScanPredicate {}
+
 /// An encoded version of a triple pattern.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum IndexScanInstruction {
     /// Traverses the index level, not binding the elements at this level.
-    Traverse(Option<IndexScanPredicate>),
+    Traverse(Option<PossiblyDynamicIndexScanPredicate>),
     /// Scans the index level, binding the elements at this level.
-    Scan(Arc<String>, Option<IndexScanPredicate>),
+    Scan(Arc<String>, Option<PossiblyDynamicIndexScanPredicate>),
 }
 
 impl IndexScanInstruction {
+    /// Creates a new [IndexScanInstruction::Traverse].
+    pub fn traverse() -> Self {
+        IndexScanInstruction::Traverse(None)
+    }
+
+    /// Creates a new [IndexScanInstruction::Traverse] with the given predicate.
+    pub fn traverse_with_predicate(
+        predicate: impl Into<PossiblyDynamicIndexScanPredicate>,
+    ) -> Self {
+        IndexScanInstruction::Traverse(Some(predicate.into()))
+    }
+
+    /// Creates a new [IndexScanInstruction::Scan].
+    pub fn scan(variable: impl Into<Arc<String>>) -> Self {
+        IndexScanInstruction::Scan(variable.into(), None)
+    }
+
+    /// Creates a new [IndexScanInstruction::Scan] with the given predicate.
+    pub fn scan_with_predicate(
+        variable: impl Into<Arc<String>>,
+        predicate: impl Into<PossiblyDynamicIndexScanPredicate>,
+    ) -> Self {
+        IndexScanInstruction::Scan(variable.into(), Some(predicate.into()))
+    }
+
     /// Returns the scan variable (i.e., the variable to bind the results to) for this instruction.
     pub fn scan_variable(&self) -> Option<&str> {
         match self {
@@ -208,7 +293,7 @@ impl IndexScanInstruction {
     }
 
     /// Returns the predicate for this instruction.
-    pub fn predicate(&self) -> Option<&IndexScanPredicate> {
+    pub fn predicate(&self) -> Option<&PossiblyDynamicIndexScanPredicate> {
         match self {
             IndexScanInstruction::Traverse(predicate) => predicate.as_ref(),
             IndexScanInstruction::Scan(_, predicate) => predicate.as_ref(),
@@ -227,7 +312,7 @@ impl IndexScanInstruction {
     }
 
     /// Creates a new [IndexScanInstruction] with the given new predicate.
-    pub fn with_predicate(self, predicate: IndexScanPredicate) -> Self {
+    pub fn with_predicate(self, predicate: PossiblyDynamicIndexScanPredicate) -> Self {
         match self {
             IndexScanInstruction::Traverse(_) => {
                 IndexScanInstruction::Traverse(Some(predicate))
@@ -246,33 +331,39 @@ impl IndexScanInstruction {
         active_graph: &EncodedActiveGraph,
         variable: Option<&Variable>,
     ) -> IndexScanInstruction {
-        let instruction_with_predicate = |predicate: Option<IndexScanPredicate>| {
-            if let Some(variable) = variable {
-                IndexScanInstruction::Scan(
-                    Arc::new(variable.as_str().to_owned()),
-                    predicate,
-                )
-            } else {
-                IndexScanInstruction::Traverse(predicate)
-            }
-        };
+        let instruction_with_predicate =
+            |predicate: Option<PossiblyDynamicIndexScanPredicate>| {
+                if let Some(variable) = variable {
+                    IndexScanInstruction::Scan(
+                        Arc::new(variable.as_str().to_owned()),
+                        predicate.into(),
+                    )
+                } else {
+                    IndexScanInstruction::Traverse(predicate.into())
+                }
+            };
 
         match active_graph {
             EncodedActiveGraph::DefaultGraph => {
                 let object_ids = BTreeSet::from([DEFAULT_GRAPH_ID.0]);
-                instruction_with_predicate(Some(IndexScanPredicate::In(object_ids)))
+                instruction_with_predicate(Some(
+                    IndexScanPredicate::In(object_ids).into(),
+                ))
             }
             EncodedActiveGraph::AllGraphs => instruction_with_predicate(None),
             EncodedActiveGraph::Union(graphs) => {
                 let object_ids = BTreeSet::from_iter(graphs.iter().map(|g| g.0));
-                instruction_with_predicate(Some(IndexScanPredicate::In(object_ids)))
+                instruction_with_predicate(Some(
+                    IndexScanPredicate::In(object_ids).into(),
+                ))
             }
-            EncodedActiveGraph::AnyNamedGraph => {
-                instruction_with_predicate(Some(IndexScanPredicate::Between(
+            EncodedActiveGraph::AnyNamedGraph => instruction_with_predicate(Some(
+                IndexScanPredicate::Between(
                     DEFAULT_GRAPH_ID.0.next().unwrap(),
                     EncodedObjectId::MAX,
-                )))
-            }
+                )
+                .into(),
+            )),
         }
     }
 }
@@ -281,7 +372,7 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
     fn from(value: EncodedTermPattern) -> Self {
         match value {
             EncodedTermPattern::ObjectId(object_id) => IndexScanInstruction::Traverse(
-                Some(IndexScanPredicate::In(BTreeSet::from([object_id]))),
+                Some(IndexScanPredicate::In(BTreeSet::from([object_id])).into()),
             ),
             EncodedTermPattern::Variable(var) => {
                 IndexScanInstruction::Scan(Arc::new(var), None)
@@ -299,7 +390,11 @@ impl From<&IndexScanInstructions> for PruningPredicates {
         let predicates = value
             .0
             .iter()
-            .map(|i| i.predicate().and_then(Option::<PruningPredicate>::from))
+            .map(|i| {
+                i.predicate()
+                    .snapshot()
+                    .and_then(Option::<PruningPredicate>::from)
+            })
             .collect::<Vec<_>>();
         Self(predicates.try_into().expect("Should yield 4 predicates"))
     }
@@ -571,7 +666,7 @@ mod tests {
             IndexScanInstructions::new([
                 IndexScanInstruction::Scan(
                     Arc::new("a".to_owned()),
-                    Some(IndexScanPredicate::In([eid(1), eid(3)].into())),
+                    Some(IndexScanPredicate::In([eid(1), eid(3)].into()).into()),
                 ),
                 scan("b"),
                 scan("c"),
@@ -756,9 +851,9 @@ mod tests {
     }
 
     fn traverse(id: u32) -> IndexScanInstruction {
-        IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
-            [EncodedObjectId::from(id)].into(),
-        )))
+        IndexScanInstruction::Traverse(Some(
+            IndexScanPredicate::In([EncodedObjectId::from(id)].into()).into(),
+        ))
     }
 
     fn scan(name: impl Into<String>) -> IndexScanInstruction {

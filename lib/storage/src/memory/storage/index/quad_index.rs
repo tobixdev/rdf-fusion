@@ -161,7 +161,7 @@ mod tests {
         let eq = IndexScanInstructions::new([
             IndexScanInstruction::Scan(
                 Arc::new("g".to_string()),
-                Some(IndexScanPredicate::In([EncodedObjectId::from(10)].into())),
+                Some(IndexScanPredicate::In([EncodedObjectId::from(10)].into()).into()),
             ),
             IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Traverse(None),
@@ -192,7 +192,7 @@ mod tests {
             IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Scan(
                 Arc::new("g".to_string()),
-                Some(IndexScanPredicate::In([EncodedObjectId::from(10)].into())),
+                Some(IndexScanPredicate::In([EncodedObjectId::from(10)].into()).into()),
             ),
             IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Traverse(None),
@@ -220,11 +220,11 @@ mod tests {
         let instructions_eq = IndexScanInstructions::new([
             IndexScanInstruction::Scan(
                 Arc::new("g".to_string()),
-                Some(IndexScanPredicate::In([EncodedObjectId::from(10)].into())),
+                Some(IndexScanPredicate::In([EncodedObjectId::from(10)].into()).into()),
             ),
             IndexScanInstruction::Scan(
                 Arc::new("s".to_string()),
-                Some(IndexScanPredicate::In([EncodedObjectId::from(10)].into())),
+                Some(IndexScanPredicate::In([EncodedObjectId::from(10)].into()).into()),
             ),
             IndexScanInstruction::Scan(Arc::new("p".to_string()), None),
             IndexScanInstruction::Scan(Arc::new("o".to_string()), None),
@@ -233,14 +233,17 @@ mod tests {
         let instructions_mixed = IndexScanInstructions::new([
             IndexScanInstruction::Scan(
                 Arc::new("g".to_string()),
-                Some(IndexScanPredicate::EqualTo(Arc::new("x".to_string()))),
+                Some(IndexScanPredicate::EqualTo(Arc::new("x".to_string())).into()),
             ),
             IndexScanInstruction::Scan(
                 Arc::new("s".to_string()),
-                Some(IndexScanPredicate::Between(
-                    EncodedObjectId::from(1),
-                    EncodedObjectId::from(10),
-                )),
+                Some(
+                    IndexScanPredicate::Between(
+                        EncodedObjectId::from(1),
+                        EncodedObjectId::from(10),
+                    )
+                    .into(),
+                ),
             ),
             IndexScanInstruction::Scan(Arc::new("p".to_string()), None),
             IndexScanInstruction::Scan(Arc::new("o".to_string()), None),

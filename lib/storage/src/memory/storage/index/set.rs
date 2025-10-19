@@ -441,7 +441,9 @@ mod tests {
     }
 
     fn traverse_and_filter(id: u32) -> IndexScanInstruction {
-        IndexScanInstruction::Traverse(Some(IndexScanPredicate::In([oid(id)].into())))
+        IndexScanInstruction::Traverse(Some(
+            IndexScanPredicate::In([oid(id)].into()).into(),
+        ))
     }
 
     fn oid(id: u32) -> EncodedObjectId {

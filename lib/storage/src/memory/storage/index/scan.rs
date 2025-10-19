@@ -10,7 +10,7 @@ use datafusion::arrow::array::{Array, BooleanArray, UInt32Array};
 use datafusion::arrow::compute::kernels::cmp::{eq, gt_eq, lt_eq};
 use datafusion::arrow::compute::{and, filter, or};
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::common::{ScalarValue, exec_datafusion_err, plan_datafusion_err};
+use datafusion::common::{exec_datafusion_err, plan_datafusion_err, ScalarValue};
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
