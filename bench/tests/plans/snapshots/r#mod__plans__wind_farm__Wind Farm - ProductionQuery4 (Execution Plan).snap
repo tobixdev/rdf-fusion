@@ -35,20 +35,20 @@ ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) a
                                                             HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(site@0, site@0)], projection=[site_label@1, wtur_asp@3]
                                                               CoalesceBatchesExec: target_batch_size=8192
                                                                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(site@0, site@0)], projection=[site@0, site_label@2]
-                                                                  MemQuadPatternExec: [GPOS] subject=?site, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#Site>
-                                                                  MemQuadPatternExec: [GPOS] subject=?site, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?site_label
-                                                              MemQuadPatternExec: [GPOS] subject=?site, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?wtur_asp
-                                                          MemQuadPatternExec: [GPOS] subject=?wtur_asp, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?wtur_label
-                                                      MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?wtur_asp
-                                                  MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?gensys_asp
-                                              MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#A>
-                                          MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?gensys_asp
-                                      MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#RA>
-                                  MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?generator_asp
-                              MemQuadPatternExec: [GPOS] subject=?generator, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?generator_asp
-                          MemQuadPatternExec: [GPOS] subject=?generator, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#GAA>
-                      MemQuadPatternExec: [GPOS] subject=?generator, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts
-                  MemQuadPatternExec: [GPOS] subject=?ts, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="Production"
-              MemQuadPatternExec: [GPOS] subject=?ts, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp
-          MemQuadPatternExec: [GPOS] subject=?dp, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val
-      MemQuadPatternExec: [GPOS] subject=?dp, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t
+                                                                  DataSourceExec: [GPOS] subject=?site, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#Site>
+                                                                  DataSourceExec: [GPOS] subject=?site, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?site_label
+                                                              DataSourceExec: [GPOS] subject=?site, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?wtur_asp
+                                                          DataSourceExec: [GPOS] subject=?wtur_asp, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?wtur_label
+                                                      DataSourceExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?wtur_asp
+                                                  DataSourceExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?gensys_asp
+                                              DataSourceExec: [GPOS] subject=?wtur, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#A>
+                                          DataSourceExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?gensys_asp
+                                      DataSourceExec: [GPOS] subject=?gensys, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#RA>
+                                  DataSourceExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?generator_asp
+                              DataSourceExec: [GPOS] subject=?generator, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?generator_asp
+                          DataSourceExec: [GPOS] subject=?generator, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#GAA>
+                      DataSourceExec: [GPOS] subject=?generator, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts
+                  DataSourceExec: [GPOS] subject=?ts, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="Production"
+              DataSourceExec: [GPOS] subject=?ts, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp
+          DataSourceExec: [GPOS] subject=?dp, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val
+      DataSourceExec: [GPOS] subject=?dp, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t

@@ -97,9 +97,13 @@ pub struct Store {
 
 impl Default for Store {
     fn default() -> Self {
-        let config = SessionConfig::new()
+        let mut config = SessionConfig::new()
             .with_batch_size(8192)
             .with_target_partitions(1);
+
+        let options = config.options_mut();
+        options.optimizer.enable_dynamic_filter_pushdown = true;
+
         let object_id_mapping = MemObjectIdMapping::new();
         let storage = MemQuadStorage::new(Arc::new(object_id_mapping), 8192);
         let engine = RdfFusionContext::new(

@@ -1,21 +1,23 @@
 use crate::memory::storage::index::quad_index::MemQuadIndex;
 use crate::memory::storage::index::quad_index_data::MemRowGroup;
 use crate::memory::storage::index::{
-    IndexConfiguration, IndexScanInstruction, IndexScanInstructions, IndexSet,
-    MemQuadIndexSetScanIterator, ObjectIdScanPredicate,
+    IndexConfiguration, IndexScanInstruction, IndexScanInstructions, IndexScanPredicate,
+    IndexSet, MemQuadIndexSetScanIterator,
 };
+use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use crate::memory::storage::stream::MemIndexScanStream;
 use datafusion::arrow::array::{Array, BooleanArray, UInt32Array};
-use datafusion::arrow::compute::kernels::cmp::{eq, neq};
+use datafusion::arrow::compute::kernels::cmp::{eq, gt_eq, lt_eq};
 use datafusion::arrow::compute::{and, filter, or};
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::common::ScalarValue;
+use datafusion::common::{ScalarValue, exec_datafusion_err, plan_datafusion_err};
 use datafusion::execution::SendableRecordBatchStream;
-use datafusion::physical_plan::EmptyRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use rdf_fusion_model::{TriplePattern, Variable};
+use itertools::repeat_n;
+use rdf_fusion_model::{DFResult, TriplePattern, Variable};
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use tokio::sync::OwnedRwLockReadGuard;
 
@@ -218,10 +220,10 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
         all_data: &[Arc<UInt32Array>; 4],
         instructions: &[Option<IndexScanInstruction>; 4],
         data: &UInt32Array,
-        predicate: &ObjectIdScanPredicate,
+        predicate: &IndexScanPredicate,
     ) -> Option<BooleanArray> {
         match predicate {
-            ObjectIdScanPredicate::In(ids) => ids
+            IndexScanPredicate::In(ids) => ids
                 .iter()
                 .map(|id| {
                     eq(
@@ -231,17 +233,7 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                     .expect("Array length must match, Data Types match")
                 })
                 .reduce(|lhs, rhs| or(&lhs, &rhs).expect("Array length must match")),
-            ObjectIdScanPredicate::Except(ids) => ids
-                .iter()
-                .map(|id| {
-                    neq(
-                        data,
-                        &ScalarValue::UInt32(Some(id.as_u32())).to_scalar().unwrap(),
-                    )
-                    .expect("Array length must match, Data Types match")
-                })
-                .reduce(|lhs, rhs| and(&lhs, &rhs).expect("Array length must match")),
-            ObjectIdScanPredicate::EqualTo(name) => {
+            IndexScanPredicate::EqualTo(name) => {
                 let index = instructions.iter().position(|i| match i {
                     Some(IndexScanInstruction::Scan(var, _)) => var == name,
                     _ => false,
@@ -251,65 +243,169 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                         .expect("Array length must match, Data Types match"),
                 )
             }
+            IndexScanPredicate::Between(from, to) => {
+                let ge = gt_eq(
+                    data,
+                    &ScalarValue::UInt32(Some(from.as_u32()))
+                        .to_scalar()
+                        .expect("UInt32 can be converted to a Scalar"),
+                )
+                .expect("gt_eq supports UInt32");
+                let le = lt_eq(
+                    data,
+                    &ScalarValue::UInt32(Some(to.as_u32()))
+                        .to_scalar()
+                        .expect("UInt32 can be converted to a Scalar"),
+                )
+                .expect("lt_eq supports UInt32");
+                Some(and(&ge, &le).expect("Inputs are bools and of same length"))
+            }
+            IndexScanPredicate::False => {
+                Some(repeat_n(Some(false), data.len()).collect())
+            }
         }
     }
 }
 
 /// Encapsulates the state necessary for executing a pattern scan on a [MemQuadIndex].
+///
+/// See [PlannedIndexScan].
 #[derive(Clone, Debug)]
-pub enum PlannedPatternScan {
-    /// It is guaranteed that the scan will return an empty result.
-    ///
-    /// This can happen if, for example, an object id cannot be found for a bound term.
-    Empty(SchemaRef),
-    /// A planned pattern scan that can be executed.
-    IndexScan {
-        /// The result schema.
-        schema: SchemaRef,
-        /// Holds a read lock on the index set.
-        index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
-        /// Which index to scan.
-        index: IndexConfiguration,
-        /// The instructions to scan the index.
-        instructions: Box<IndexScanInstructions>,
-        /// The graph variable. Used for printing the query plan.
-        graph_variable: Option<Variable>,
-        /// The triple pattern. Used for printing the query plan.
-        pattern: Box<TriplePattern>,
-    },
+pub struct PlannedPatternScan {
+    /// The result schema.
+    schema: SchemaRef,
+    /// Holds a read lock on the index set.
+    index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
+    /// Which index to scan.
+    index: IndexConfiguration,
+    /// The instructions to scan the index.
+    instructions: Box<IndexScanInstructions>,
+    /// The graph variable. Used for printing the query plan.
+    graph_variable: Option<Variable>,
+    /// The triple pattern. Used for printing the query plan.
+    pattern: Box<TriplePattern>,
 }
 
 impl PlannedPatternScan {
-    /// Checks whether this pattern scan will always return an empty stream.
-    pub fn is_guaranteed_empty(&self) -> bool {
-        matches!(self, Self::Empty(_))
+    /// Creates a new [PlannedPatternScan].
+    pub fn new(
+        schema: SchemaRef,
+        index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
+        index: IndexConfiguration,
+        instructions: Box<IndexScanInstructions>,
+        graph_variable: Option<Variable>,
+        pattern: Box<TriplePattern>,
+    ) -> Self {
+        Self {
+            schema,
+            index_set,
+            index,
+            instructions,
+            graph_variable,
+            pattern,
+        }
     }
 
-    /// Executes the pattern scan an return the [SendableRecordBatchStream] that implements the
-    /// scan.
+    /// Returns a reference to the graph variable.
+    pub fn graph_variable(&self) -> Option<&Variable> {
+        self.graph_variable.as_ref()
+    }
+
+    /// Returns a reference to the [TriplePattern].
+    pub fn pattern(&self) -> &TriplePattern {
+        self.pattern.as_ref()
+    }
+
+    /// Returns a reference to the [IndexConfiguration] that is used to scan the index.
+    pub fn selected_index(&self) -> &IndexConfiguration {
+        &self.index
+    }
+
+    /// Applies the given `filter` to the scan.
+    pub fn apply_filter(self, filter: &MemStoragePredicateExpr) -> DFResult<Self> {
+        // If the filter is not a predicate, we can simply return the current scan.
+        let Some(predicate) = filter.to_scan_predicate()? else {
+            return Ok(self);
+        };
+
+        let column = filter.column().ok_or_else(|| {
+            plan_datafusion_err!("Invalid Predicate: Filter must have a column")
+        })?;
+        let (idx, scan_instruction) = self
+            .instructions
+            .instructions_for_column(column)
+            .ok_or_else(|| {
+            exec_datafusion_err!("Could not find scan instruction for column: {}", column)
+        })?;
+
+        let new_predicate = scan_instruction
+            .predicate()
+            .map(|existing_predicate| existing_predicate.try_and_with(&predicate))
+            .unwrap_or(Some(predicate))
+            .ok_or(plan_datafusion_err!(
+                "Could not apply predicate to scan instruction."
+            ))?;
+        let new_instruction = scan_instruction.clone().with_predicate(new_predicate);
+
+        let new_instructions = self
+            .instructions
+            .with_new_instruction_at(idx, new_instruction);
+
+        Ok(Self {
+            instructions: Box::new(new_instructions),
+            ..self
+        })
+    }
+
+    /// Chooses the new index to scan based on the current instructions.
+    pub fn try_find_better_index(self) -> Self {
+        let index = self.index_set.choose_index(&self.instructions);
+        Self { index, ..self }
+    }
+
+    /// Executes the pattern scan and return the [SendableRecordBatchStream] that implements the
+    /// scan. The resulting stream will be cooperative.
     pub fn create_stream(self, metrics: BaselineMetrics) -> SendableRecordBatchStream {
-        match self {
-            PlannedPatternScan::Empty(schema) => {
-                Box::pin(EmptyRecordBatchStream::new(schema))
-            }
-            PlannedPatternScan::IndexScan {
-                schema,
-                index_set,
-                index,
-                instructions,
-                ..
-            } => {
-                let iterator = MemQuadIndexSetScanIterator::new(
-                    Arc::clone(&schema),
-                    index_set,
-                    index,
-                    instructions,
-                );
-                Box::pin(cooperative(MemIndexScanStream::new(
-                    schema, iterator, metrics,
-                )))
-            }
+        let iterator = MemQuadIndexSetScanIterator::new(
+            Arc::clone(&self.schema),
+            self.index_set,
+            self.index,
+            self.instructions,
+        );
+        Box::pin(cooperative(MemIndexScanStream::new(
+            self.schema,
+            iterator,
+            metrics,
+        )))
+    }
+}
+
+impl Display for PlannedPatternScan {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}] ", self.index)?;
+
+        if let Some(graph_variable) = &self.graph_variable {
+            write!(f, "graph={graph_variable}, ")?;
         }
+
+        let pattern = &self.pattern;
+        write!(f, "subject={}", pattern.subject)?;
+        write!(f, ", predicate={}", pattern.predicate)?;
+        write!(f, ", object={}", pattern.object)?;
+
+        let additional_filters = self
+            .instructions
+            .instructions()
+            .iter()
+            .filter(|i| i.scan_variable().is_some() && i.predicate().is_some())
+            .map(|i| format!("{} {}", i.scan_variable().unwrap(), i.predicate().unwrap()))
+            .collect::<Vec<String>>()
+            .join(", ");
+        if !additional_filters.is_empty() {
+            write!(f, ", additional_filters=[{additional_filters}]")?;
+        }
+
+        Ok(())
     }
 }
 
