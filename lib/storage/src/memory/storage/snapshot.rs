@@ -115,7 +115,7 @@ impl MemQuadStorageSnapshot {
             IndexScanInstruction::from(enc_pattern.object.clone()),
         ]);
 
-        let index = self.index_set.choose_index(&scan_instructions.snapshot()?);
+        let index = self.index_set.choose_index(&scan_instructions);
         Ok(PlanPatternScanResult::PatternScan(PlannedPatternScan::new(
             schema,
             Arc::clone(&self.index_set),

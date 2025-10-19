@@ -1,6 +1,6 @@
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::{
-    IndexScanInstructionsSnapshot, IndexScanPredicate, IndexedQuad, PruningPredicate,
+    IndexScanInstructions, IndexScanPredicate, IndexedQuad, PruningPredicate,
     PruningPredicates,
 };
 use datafusion::arrow::array::{Array, UInt32Array};
@@ -78,7 +78,7 @@ pub(super) struct RowGroupPruningResult {
     /// It could be possible that the pruning step can already guarantee that a filter will match
     /// every row in the result. These instructions are then removed from the result to avoid
     /// redundant applications of the filter.
-    pub new_instructions: Option<IndexScanInstructionsSnapshot>,
+    pub new_instructions: Option<IndexScanInstructions>,
 }
 
 impl IndexData {
@@ -153,7 +153,7 @@ impl IndexData {
     /// that remain between the from and to pointer. Therefore, we can eliminate them.
     pub fn prune_relevant_row_groups(
         &self,
-        instructions: &IndexScanInstructionsSnapshot,
+        instructions: &IndexScanInstructions,
     ) -> RowGroupPruningResult {
         let pruning_predicates = PruningPredicates::from(instructions);
         let mut relevant_row_groups = self.row_groups.clone();
@@ -265,7 +265,7 @@ impl IndexData {
         } else {
             let missing_instructions = &instructions.0[new_instructions.len()..];
             new_instructions.extend_from_slice(missing_instructions);
-            Some(IndexScanInstructionsSnapshot::new(
+            Some(IndexScanInstructions::new(
                 new_instructions
                     .try_into()
                     .expect("Should yield 4 instructions"),
@@ -659,9 +659,7 @@ impl MemColumnChunk {
 mod tests {
     use super::*;
     use crate::memory::object_id::EncodedObjectId;
-    use crate::memory::storage::index::{
-        IndexScanInstructionSnapshot, IndexScanPredicate,
-    };
+    use crate::memory::storage::index::{IndexScanInstruction, IndexScanPredicate};
     use insta::assert_debug_snapshot;
 
     #[test]
@@ -809,11 +807,11 @@ mod tests {
     #[test]
     fn test_prune_empty_index() {
         let index = IndexData::new(2, 0);
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let relevant = index.prune_relevant_row_groups(&instructions);
@@ -827,11 +825,11 @@ mod tests {
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -846,11 +844,11 @@ mod tests {
 
         // Only filter first column, look for value 30 which should be in second row group
         let predicate = IndexScanPredicate::In([EncodedObjectId::from(30u32)].into());
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(Some(predicate)),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate)),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -922,11 +920,11 @@ mod tests {
         );
 
         let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(Some(predicate.clone())),
-            IndexScanInstructionSnapshot::Traverse(Some(predicate.clone())),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -966,11 +964,11 @@ mod tests {
         );
 
         let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(Some(predicate.clone())),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1006,17 +1004,17 @@ mod tests {
             .collect(),
         );
 
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(Some(IndexScanPredicate::In(
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
                 [EncodedObjectId::from(0)].into(),
             ))),
-            IndexScanInstructionSnapshot::Traverse(Some(IndexScanPredicate::In(
+            IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
                 [EncodedObjectId::from(11)].into(),
             ))),
-            IndexScanInstructionSnapshot::Traverse(Some(IndexScanPredicate::In(
+            IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
                 [EncodedObjectId::from(10)].into(),
             ))),
-            IndexScanInstructionSnapshot::Traverse(None),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1043,11 +1041,11 @@ mod tests {
         );
 
         let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(Some(predicate.clone())),
-            IndexScanInstructionSnapshot::Traverse(Some(predicate.clone())),
-            IndexScanInstructionSnapshot::Traverse(Some(predicate.clone())),
-            IndexScanInstructionSnapshot::Traverse(None),
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1072,11 +1070,11 @@ mod tests {
         );
 
         let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(Some(predicate.clone())),
-            IndexScanInstructionSnapshot::Traverse(Some(predicate.clone())),
-            IndexScanInstructionSnapshot::Traverse(Some(predicate.clone())),
-            IndexScanInstructionSnapshot::Traverse(None),
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1092,11 +1090,11 @@ mod tests {
         index.insert(&items);
 
         let predicate = IndexScanPredicate::In([EncodedObjectId::from(99u32)].into());
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(Some(predicate)),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate)),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1112,11 +1110,11 @@ mod tests {
 
         let set = [EncodedObjectId::from(2u32), EncodedObjectId::from(3u32)];
         let predicate = IndexScanPredicate::In(set.into());
-        let instructions = IndexScanInstructionsSnapshot([
-            IndexScanInstructionSnapshot::Traverse(Some(predicate)),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
-            IndexScanInstructionSnapshot::Traverse(None),
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate)),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);

@@ -3,7 +3,7 @@ use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId};
 use crate::memory::storage::index::quad_index::MemQuadIndex;
 use crate::memory::storage::index::{
     IndexComponents, IndexConfiguration, IndexRefInSet, IndexScanInstructions,
-    IndexScanInstructionsSnapshot, IndexedQuad, MemQuadIndexScanIterator,
+    IndexScanPredicateSource, IndexedQuad, MemQuadIndexScanIterator,
 };
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
@@ -67,18 +67,15 @@ impl IndexSet {
     ///
     /// This returns an [IndexConfiguration] that identifies the chosen index. Use
     /// [MemQuadIndexSetScanIterator] for executing the scan operation.
-    pub fn choose_index(
-        &self,
-        pattern: &IndexScanInstructionsSnapshot,
-    ) -> IndexConfiguration {
+    pub fn choose_index(&self, pattern: &IndexScanInstructions) -> IndexConfiguration {
         self.indexes
             .iter()
             .rev() // Prefer SPO (max by uses the last on equality)
             .max_by(|lhs, rhs| {
                 let lhs_pattern =
-                    reorder_pattern_snapshot(pattern, &lhs.configuration().components);
+                    reorder_pattern(pattern, &lhs.configuration().components);
                 let rhs_pattern =
-                    reorder_pattern_snapshot(pattern, &rhs.configuration().components);
+                    reorder_pattern(pattern, &rhs.configuration().components);
 
                 let lhs_score = lhs.compute_scan_score(&lhs_pattern);
                 let rhs_score = rhs.compute_scan_score(&rhs_pattern);
@@ -174,12 +171,14 @@ impl MemQuadIndexSetScanIterator {
         index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
         index: IndexConfiguration,
         instructions: Box<IndexScanInstructions>,
+        dynamic_filters: Vec<Arc<dyn IndexScanPredicateSource>>,
     ) -> Self {
         let instructions = reorder_pattern(&instructions, &index.components);
         let iterator = MemQuadIndexScanIterator::new_from_index_set(
             index_set,
             index,
             instructions.clone(),
+            dynamic_filters,
         );
         MemQuadIndexSetScanIterator {
             schema,
@@ -231,19 +230,6 @@ fn reorder_pattern(
 }
 
 /// Re-orders the given `pattern` for the given `components`.
-fn reorder_pattern_snapshot(
-    pattern: &IndexScanInstructionsSnapshot,
-    components: &IndexComponents,
-) -> IndexScanInstructionsSnapshot {
-    IndexScanInstructionsSnapshot([
-        pattern.0[components.inner()[0].gspo_index()].clone(),
-        pattern.0[components.inner()[1].gspo_index()].clone(),
-        pattern.0[components.inner()[2].gspo_index()].clone(),
-        pattern.0[components.inner()[3].gspo_index()].clone(),
-    ])
-}
-
-/// Re-orders the given `pattern` for the given `components`.
 fn reorder_result(
     schema: &Schema,
     columns: HashMap<String, Arc<dyn Array>>,
@@ -265,8 +251,7 @@ fn reorder_result(
 mod tests {
     use super::*;
     use crate::memory::storage::index::{
-        IndexScanInstruction, IndexScanInstructionSnapshot, IndexScanInstructions,
-        IndexScanPredicate,
+        IndexScanInstruction, IndexScanInstructions, IndexScanPredicate,
     };
     use datafusion::arrow::datatypes::{DataType, Field, Fields};
     use insta::assert_debug_snapshot;
@@ -284,7 +269,7 @@ mod tests {
             traverse_and_filter(4),
         ]);
 
-        let result = set.choose_index(&pattern.snapshot().unwrap());
+        let result = set.choose_index(&pattern);
 
         assert_eq!(result.components, IndexComponents::GSPO);
     }
@@ -300,7 +285,7 @@ mod tests {
             traverse_and_filter(3),
         ]);
 
-        let result = set.choose_index(&pattern.snapshot().unwrap());
+        let result = set.choose_index(&pattern);
         assert_eq!(result.components, IndexComponents::GOSP);
     }
 
@@ -315,7 +300,7 @@ mod tests {
             IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
         ]);
 
-        let result = set.choose_index(&pattern.snapshot().unwrap());
+        let result = set.choose_index(&pattern);
 
         assert_eq!(result.components, IndexComponents::GPOS);
     }
@@ -341,10 +326,8 @@ mod tests {
             IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Scan(Arc::new("object".to_string()), None),
-        ])
-        .snapshot()
-        .unwrap();
-        let reordered = reorder_pattern_snapshot(&pattern, &IndexComponents::GSPO);
+        ]);
+        let reordered = reorder_pattern(&pattern, &IndexComponents::GSPO);
         assert_eq!(reordered.0, pattern.0);
     }
 
@@ -355,19 +338,17 @@ mod tests {
             IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Scan(Arc::new("O".to_string()), None),
-        ])
-        .snapshot()
-        .unwrap();
+        ]);
 
-        let reordered = reorder_pattern_snapshot(&pattern, &IndexComponents::GPOS);
+        let reordered = reorder_pattern(&pattern, &IndexComponents::GPOS);
 
         assert_eq!(
             reordered.0,
             [
-                IndexScanInstructionSnapshot::Traverse(None),
-                IndexScanInstructionSnapshot::Traverse(None),
-                IndexScanInstructionSnapshot::Scan(Arc::new("O".to_string()), None),
-                IndexScanInstructionSnapshot::Traverse(None),
+                IndexScanInstruction::Traverse(None),
+                IndexScanInstruction::Traverse(None),
+                IndexScanInstruction::Scan(Arc::new("O".to_string()), None),
+                IndexScanInstruction::Traverse(None),
             ]
         );
     }
@@ -398,13 +379,14 @@ mod tests {
         ])));
 
         let set_lock = Arc::new(Arc::new(set).read_owned().await);
-        let configuration = set_lock.choose_index(&pattern.snapshot().unwrap());
+        let configuration = set_lock.choose_index(&pattern);
 
         let mut scan = MemQuadIndexSetScanIterator::new(
             schema,
             set_lock,
             configuration.clone(),
             pattern,
+            vec![],
         );
 
         let batch = scan.next().unwrap();

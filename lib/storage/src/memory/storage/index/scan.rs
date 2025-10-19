@@ -1,8 +1,8 @@
 use crate::memory::storage::index::quad_index::MemQuadIndex;
 use crate::memory::storage::index::quad_index_data::MemRowGroup;
 use crate::memory::storage::index::{
-    IndexConfiguration, IndexScanInstructionSnapshot, IndexScanInstructions,
-    IndexScanPredicate, IndexSet, MemQuadIndexSetScanIterator,
+    IndexConfiguration, IndexScanInstruction, IndexScanInstructions, IndexScanPredicate,
+    IndexScanPredicateSource, IndexSet, MemQuadIndexSetScanIterator,
 };
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use crate::memory::storage::stream::MemIndexScanStream;
@@ -10,7 +10,7 @@ use datafusion::arrow::array::{Array, BooleanArray, UInt32Array};
 use datafusion::arrow::compute::kernels::cmp::{eq, gt_eq, lt_eq};
 use datafusion::arrow::compute::{and, filter, or};
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::common::{ScalarValue, exec_datafusion_err, plan_datafusion_err};
+use datafusion::common::ScalarValue;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
@@ -42,6 +42,7 @@ impl<'index> MemQuadIndexScanIterator<DirectIndexRef<'index>> {
             state: ScanState::CollectRelevantRowGroups(
                 DirectIndexRef(index),
                 instructions,
+                Vec::new(),
             ),
         }
     }
@@ -53,11 +54,13 @@ impl MemQuadIndexScanIterator<IndexRefInSet> {
         index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
         index: IndexConfiguration,
         instructions: IndexScanInstructions,
+        dynamic_filters: Vec<Arc<dyn IndexScanPredicateSource>>,
     ) -> Self {
         Self {
             state: ScanState::CollectRelevantRowGroups(
                 IndexRefInSet(index_set, index),
                 instructions,
+                dynamic_filters,
             ),
         }
     }
@@ -67,7 +70,11 @@ impl MemQuadIndexScanIterator<IndexRefInSet> {
 enum ScanState<TIndexRef: IndexRef> {
     /// Collecting all relevant [MemRowGroup]s in the index. This will copy a reference to all
     /// arrays and can thus drop the [TIndexRef] once this step is done.
-    CollectRelevantRowGroups(TIndexRef, IndexScanInstructions),
+    CollectRelevantRowGroups(
+        TIndexRef,
+        IndexScanInstructions,
+        Vec<Arc<dyn IndexScanPredicateSource>>,
+    ),
     /// Applying the filters and projections to every identified
     Scanning {
         /// The data to scan.
@@ -77,7 +84,7 @@ enum ScanState<TIndexRef: IndexRef> {
         /// the filters. These filters become [None] and ideally, the index should only be scanned
         /// after identifying the batches (we prune the first and last batch if necessary). As a
         /// result, the iterator can simply copy the batches without any more filtering.
-        instructions: [Option<IndexScanInstructionSnapshot>; 4],
+        instructions: [Option<IndexScanInstruction>; 4],
     },
     /// The scan is fined.
     Finished,
@@ -89,10 +96,17 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match &mut self.state {
-                ScanState::CollectRelevantRowGroups(index_ref, instructions) => {
-                    let instructions = match instructions.clone().snapshot() {
+                ScanState::CollectRelevantRowGroups(
+                    index_ref,
+                    instructions,
+                    dynamic_filters,
+                ) => {
+                    let instructions = match combine_instructions_with_dynamic_filters(
+                        instructions,
+                        dynamic_filters,
+                    ) {
                         Ok(instructions) => instructions,
-                        Err(e) => return Some(Err(e)),
+                        Err(err) => return Some(Err(err)),
                     };
 
                     let index = index_ref.get_index();
@@ -130,12 +144,10 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
-                                    Some(IndexScanInstructionSnapshot::Scan(name, _)) => {
-                                        Some((
-                                            name.as_str().to_owned(),
-                                            Arc::clone(data) as Arc<dyn Array>,
-                                        ))
-                                    }
+                                    Some(IndexScanInstruction::Scan(name, _)) => Some((
+                                        name.as_str().to_owned(),
+                                        Arc::clone(data) as Arc<dyn Array>,
+                                    )),
                                     _ => None,
                                 })
                                 .collect();
@@ -155,7 +167,7 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
-                                    Some(IndexScanInstructionSnapshot::Scan(name, _)) => {
+                                    Some(IndexScanInstruction::Scan(name, _)) => {
                                         Some((name.as_str().to_owned(), data))
                                     }
                                     _ => None,
@@ -194,10 +206,31 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
     }
 }
 
+fn combine_instructions_with_dynamic_filters(
+    instructions: &IndexScanInstructions,
+    dynamic_filters: &Vec<Arc<dyn IndexScanPredicateSource>>,
+) -> DFResult<IndexScanInstructions> {
+    let filters = dynamic_filters
+        .iter()
+        .map(|s| s.current_predicate())
+        .collect::<DFResult<Vec<_>>>()?;
+
+    if filters.is_empty() {
+        return Ok(instructions.clone());
+    }
+
+    let mut new_instructions = instructions.clone();
+    for predicate in filters {
+        new_instructions = new_instructions.apply_filter(&predicate)?;
+    }
+
+    Ok(new_instructions)
+}
+
 impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     fn compute_selection_vector(
         data: &[Arc<UInt32Array>; 4],
-        instructions: &[Option<IndexScanInstructionSnapshot>; 4],
+        instructions: &[Option<IndexScanInstruction>; 4],
     ) -> Option<BooleanArray> {
         data.iter()
             .zip(instructions.iter())
@@ -225,7 +258,7 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     /// set and switch to the different strategy for large predicates.
     fn apply_predicate(
         all_data: &[Arc<UInt32Array>; 4],
-        instructions: &[Option<IndexScanInstructionSnapshot>; 4],
+        instructions: &[Option<IndexScanInstruction>; 4],
         data: &UInt32Array,
         predicate: &IndexScanPredicate,
     ) -> Option<BooleanArray> {
@@ -242,7 +275,7 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                 .reduce(|lhs, rhs| or(&lhs, &rhs).expect("Array length must match")),
             IndexScanPredicate::EqualTo(name) => {
                 let index = instructions.iter().position(|i| match i {
-                    Some(IndexScanInstructionSnapshot::Scan(var, _)) => var == name,
+                    Some(IndexScanInstruction::Scan(var, _)) => var == name,
                     _ => false,
                 })?;
                 Some(
@@ -291,6 +324,8 @@ pub struct PlannedPatternScan {
     graph_variable: Option<Variable>,
     /// The triple pattern. Used for printing the query plan.
     pattern: Box<TriplePattern>,
+    /// A list of dynamic filters that are applied to the scan.
+    dynamic_filters: Vec<Arc<dyn IndexScanPredicateSource>>,
 }
 
 impl PlannedPatternScan {
@@ -310,6 +345,7 @@ impl PlannedPatternScan {
             instructions,
             graph_variable,
             pattern,
+            dynamic_filters: vec![],
         }
     }
 
@@ -330,34 +366,13 @@ impl PlannedPatternScan {
 
     /// Applies the given `filter` to the scan.
     pub fn apply_filter(self, filter: &MemStoragePredicateExpr) -> DFResult<Self> {
-        // If the filter is not a predicate, we can simply return the current scan.
-        let Some(predicate) = filter.to_scan_predicate()? else {
-            return Ok(self);
-        };
+        if let MemStoragePredicateExpr::Dynamic(filter) = filter {
+            return Ok(self.with_dynamic_filter(
+                Arc::clone(filter) as Arc<dyn IndexScanPredicateSource>
+            ));
+        }
 
-        let column = filter.column().ok_or_else(|| {
-            plan_datafusion_err!("Invalid Predicate: Filter must have a column")
-        })?;
-        let (idx, scan_instruction) = self
-            .instructions
-            .instructions_for_column(column)
-            .ok_or_else(|| {
-            exec_datafusion_err!("Could not find scan instruction for column: {}", column)
-        })?;
-
-        let new_predicate = scan_instruction
-            .predicate()
-            .map(|existing_predicate| existing_predicate.try_and_with(&predicate))
-            .unwrap_or(Some(predicate))
-            .ok_or(plan_datafusion_err!(
-                "Could not apply predicate to scan instruction."
-            ))?;
-        let new_instruction = scan_instruction.clone().with_predicate(new_predicate);
-
-        let new_instructions = self
-            .instructions
-            .with_new_instruction_at(idx, new_instruction);
-
+        let new_instructions = self.instructions.apply_filter(filter)?;
         Ok(Self {
             instructions: Box::new(new_instructions),
             ..self
@@ -366,7 +381,7 @@ impl PlannedPatternScan {
 
     /// Chooses the new index to scan based on the current instructions.
     pub fn try_find_better_index(self) -> DFResult<Self> {
-        let index = self.index_set.choose_index(&self.instructions.snapshot()?);
+        let index = self.index_set.choose_index(&self.instructions);
         Ok(Self { index, ..self })
     }
 
@@ -378,12 +393,22 @@ impl PlannedPatternScan {
             self.index_set,
             self.index,
             self.instructions,
+            self.dynamic_filters,
         );
         Box::pin(cooperative(MemIndexScanStream::new(
             self.schema,
             iterator,
             metrics,
         )))
+    }
+
+    /// Returns a new [PlannedPatternScan] with the given `filter`.
+    fn with_dynamic_filter(
+        mut self,
+        filter: Arc<dyn IndexScanPredicateSource>,
+    ) -> PlannedPatternScan {
+        self.dynamic_filters.push(filter);
+        self
     }
 }
 
@@ -438,5 +463,13 @@ pub struct DirectIndexRef<'index>(&'index MemQuadIndex);
 impl IndexRef for DirectIndexRef<'_> {
     fn get_index(&self) -> &MemQuadIndex {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_dynamic_filters() {
+        todo!("Implement")
     }
 }
