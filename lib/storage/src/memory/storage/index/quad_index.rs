@@ -116,7 +116,7 @@ impl MemQuadIndex {
     /// Basically, this boils down to how many levels can be traversed by looking up bound
     /// object ids.
     pub fn compute_scan_score(&self, instructions: &IndexScanInstructions) -> usize {
-        let pruning_predicates = PruningPredicates::from(instructions);
+        let pruning_predicates = PruningPredicates::from(&instructions.snapshot());
         let mut score = 0;
 
         for (i, predicate) in pruning_predicates.0.iter().enumerate() {

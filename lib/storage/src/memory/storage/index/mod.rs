@@ -11,7 +11,7 @@ mod scan;
 mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
 pub use components::IndexComponents;
 pub use error::*;
 use rdf_fusion_model::Variable;
@@ -41,6 +41,7 @@ impl Display for IndexConfiguration {
     }
 }
 
+/// A list of [IndexScanInstruction]s for querying a quad index.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexScanInstructions([IndexScanInstruction; 4]);
 
@@ -105,6 +106,21 @@ impl IndexScanInstructions {
         let mut new_instructions = self.0;
         new_instructions[index] = instruction;
         Self(new_instructions)
+    }
+
+    pub fn snapshot(&self) -> IndexScanInstructionsSnapshot {
+        IndexScanInstructionsSnapshot(self.0.clone().map(|i| i.snapshot()))
+    }
+}
+
+/// A snapshot of an [IndexScanInstructions].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexScanInstructionsSnapshot([IndexScanInstructionSnapshot; 4]);
+
+impl IndexScanInstructionsSnapshot {
+    /// Create a new [IndexScanInstructionsSnapshot].
+    pub fn new(instructions: [IndexScanInstructionSnapshot; 4]) -> Self {
+        Self(instructions)
     }
 }
 
@@ -215,7 +231,7 @@ impl PossiblyDynamicIndexScanPredicate {
         use PossiblyDynamicIndexScanPredicate::*;
 
         match (self, other) {
-            (Static(left), Static(right)) => Some(Static(left.try_and_with(&right)?)),
+            (Static(left), Static(right)) => Some(Static(left.try_and_with(right)?)),
             _ => None,
         }
     }
@@ -248,6 +264,19 @@ impl PartialEq for PossiblyDynamicIndexScanPredicate {
 }
 
 impl Eq for PossiblyDynamicIndexScanPredicate {}
+
+impl Display for PossiblyDynamicIndexScanPredicate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PossiblyDynamicIndexScanPredicate::Static(predicate) => {
+                write!(f, "{predicate}")
+            }
+            PossiblyDynamicIndexScanPredicate::Dynamic(predicate) => {
+                write!(f, "dynamic<{predicate}>")
+            }
+        }
+    }
+}
 
 /// An encoded version of a triple pattern.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -322,6 +351,20 @@ impl IndexScanInstruction {
             }
         }
     }
+
+    /// Creates an [IndexScanInstructionSnapshot] from this instruction.
+    pub fn snapshot(&self) -> IndexScanInstructionSnapshot {
+        match self {
+            IndexScanInstruction::Traverse(predicate) => {
+                let predicate = predicate.as_ref().map(|p| p.snapshot());
+                IndexScanInstructionSnapshot::Traverse(predicate)
+            }
+            IndexScanInstruction::Scan(name, predicate) => {
+                let predicate = predicate.as_ref().map(|p| p.snapshot());
+                IndexScanInstructionSnapshot::Scan(Arc::clone(name), predicate)
+            }
+        }
+    }
 }
 
 impl IndexScanInstruction {
@@ -336,10 +379,10 @@ impl IndexScanInstruction {
                 if let Some(variable) = variable {
                     IndexScanInstruction::Scan(
                         Arc::new(variable.as_str().to_owned()),
-                        predicate.into(),
+                        predicate,
                     )
                 } else {
-                    IndexScanInstruction::Traverse(predicate.into())
+                    IndexScanInstruction::Traverse(predicate)
                 }
             };
 
@@ -368,6 +411,38 @@ impl IndexScanInstruction {
     }
 }
 
+/// A snapshot of an [IndexScanInstruction].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IndexScanInstructionSnapshot {
+    /// Traverses the index level, not binding the elements at this level.
+    Traverse(Option<IndexScanPredicate>),
+    /// Scans the index level, binding the elements at this level.
+    Scan(Arc<String>, Option<IndexScanPredicate>),
+}
+
+impl IndexScanInstructionSnapshot {
+    /// Returns a reference to the predicate for this instruction.
+    pub fn predicate(&self) -> Option<&IndexScanPredicate> {
+        match self {
+            IndexScanInstructionSnapshot::Traverse(predicate) => predicate.as_ref(),
+            IndexScanInstructionSnapshot::Scan(_, predicate) => predicate.as_ref(),
+        }
+    }
+
+    /// Creates a new [IndexScanInstructionSnapshot] that has no predicate, even if the original
+    /// instruction contained a predicate.
+    pub fn without_predicate(self) -> Self {
+        match self {
+            IndexScanInstructionSnapshot::Traverse(_) => {
+                IndexScanInstructionSnapshot::Traverse(None)
+            }
+            IndexScanInstructionSnapshot::Scan(variable, _) => {
+                IndexScanInstructionSnapshot::Scan(variable, None)
+            }
+        }
+    }
+}
+
 impl From<EncodedTermPattern> for IndexScanInstruction {
     fn from(value: EncodedTermPattern) -> Self {
         match value {
@@ -385,16 +460,12 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct PruningPredicates([Option<PruningPredicate>; 4]);
 
-impl From<&IndexScanInstructions> for PruningPredicates {
-    fn from(value: &IndexScanInstructions) -> Self {
+impl From<&IndexScanInstructionsSnapshot> for PruningPredicates {
+    fn from(value: &IndexScanInstructionsSnapshot) -> Self {
         let predicates = value
             .0
             .iter()
-            .map(|i| {
-                i.predicate()
-                    .snapshot()
-                    .and_then(Option::<PruningPredicate>::from)
-            })
+            .map(|i| i.predicate().and_then(Option::<PruningPredicate>::from))
             .collect::<Vec<_>>();
         Self(predicates.try_into().expect("Should yield 4 predicates"))
     }

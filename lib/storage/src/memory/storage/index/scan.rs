@@ -1,8 +1,8 @@
 use crate::memory::storage::index::quad_index::MemQuadIndex;
 use crate::memory::storage::index::quad_index_data::MemRowGroup;
 use crate::memory::storage::index::{
-    IndexConfiguration, IndexScanInstruction, IndexScanInstructions, IndexScanPredicate,
-    IndexSet, MemQuadIndexSetScanIterator,
+    IndexConfiguration, IndexScanInstructionSnapshot, IndexScanInstructions,
+    IndexScanPredicate, IndexSet, MemQuadIndexSetScanIterator,
 };
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use crate::memory::storage::stream::MemIndexScanStream;
@@ -10,7 +10,7 @@ use datafusion::arrow::array::{Array, BooleanArray, UInt32Array};
 use datafusion::arrow::compute::kernels::cmp::{eq, gt_eq, lt_eq};
 use datafusion::arrow::compute::{and, filter, or};
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::common::{exec_datafusion_err, plan_datafusion_err, ScalarValue};
+use datafusion::common::{ScalarValue, exec_datafusion_err, plan_datafusion_err};
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
@@ -77,7 +77,7 @@ enum ScanState<TIndexRef: IndexRef> {
         /// the filters. These filters become [None] and ideally, the index should only be scanned
         /// after identifying the batches (we prune the first and last batch if necessary). As a
         /// result, the iterator can simply copy the batches without any more filtering.
-        instructions: [Option<IndexScanInstruction>; 4],
+        instructions: [Option<IndexScanInstructionSnapshot>; 4],
     },
     /// The scan is fined.
     Finished,
@@ -90,10 +90,12 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
         loop {
             match &mut self.state {
                 ScanState::CollectRelevantRowGroups(index_ref, instructions) => {
+                    let instructions = instructions.clone().snapshot();
+
                     let index = index_ref.get_index();
                     let index_data = index.data();
                     let pruning_result =
-                        index_data.prune_relevant_row_groups(instructions);
+                        index_data.prune_relevant_row_groups(&instructions);
 
                     let instructions = match pruning_result.new_instructions {
                         None => instructions.0.clone(),
@@ -125,10 +127,12 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
-                                    Some(IndexScanInstruction::Scan(name, _)) => Some((
-                                        name.as_str().to_owned(),
-                                        Arc::clone(data) as Arc<dyn Array>,
-                                    )),
+                                    Some(IndexScanInstructionSnapshot::Scan(name, _)) => {
+                                        Some((
+                                            name.as_str().to_owned(),
+                                            Arc::clone(data) as Arc<dyn Array>,
+                                        ))
+                                    }
                                     _ => None,
                                 })
                                 .collect();
@@ -148,7 +152,7 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
-                                    Some(IndexScanInstruction::Scan(name, _)) => {
+                                    Some(IndexScanInstructionSnapshot::Scan(name, _)) => {
                                         Some((name.as_str().to_owned(), data))
                                     }
                                     _ => None,
@@ -190,7 +194,7 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
 impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     fn compute_selection_vector(
         data: &[Arc<UInt32Array>; 4],
-        instructions: &[Option<IndexScanInstruction>; 4],
+        instructions: &[Option<IndexScanInstructionSnapshot>; 4],
     ) -> Option<BooleanArray> {
         data.iter()
             .zip(instructions.iter())
@@ -218,7 +222,7 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     /// set and switch to the different strategy for large predicates.
     fn apply_predicate(
         all_data: &[Arc<UInt32Array>; 4],
-        instructions: &[Option<IndexScanInstruction>; 4],
+        instructions: &[Option<IndexScanInstructionSnapshot>; 4],
         data: &UInt32Array,
         predicate: &IndexScanPredicate,
     ) -> Option<BooleanArray> {
@@ -235,7 +239,7 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                 .reduce(|lhs, rhs| or(&lhs, &rhs).expect("Array length must match")),
             IndexScanPredicate::EqualTo(name) => {
                 let index = instructions.iter().position(|i| match i {
-                    Some(IndexScanInstruction::Scan(var, _)) => var == name,
+                    Some(IndexScanInstructionSnapshot::Scan(var, _)) => var == name,
                     _ => false,
                 })?;
                 Some(
