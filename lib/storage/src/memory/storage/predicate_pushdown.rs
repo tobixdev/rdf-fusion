@@ -395,7 +395,6 @@ mod tests {
 
     #[test]
     fn test_to_scan_predicate_leq_produces_between() {
-        use crate::memory::object_id::EncodedObjectId;
         let value = EncodedObjectId::from(100);
         let expr = MemStoragePredicateExpr::Binary(
             Arc::from("col"),

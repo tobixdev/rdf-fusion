@@ -14,7 +14,7 @@ use datafusion::common::ScalarValue;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use itertools::{repeat_n, Itertools};
+use itertools::{Itertools, repeat_n};
 use rdf_fusion_model::{DFResult, TriplePattern, Variable};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
