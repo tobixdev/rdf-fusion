@@ -473,8 +473,101 @@ impl IndexRef for DirectIndexRef<'_> {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_dynamic_filters() {
-        todo!("Implement")
+    use super::*;
+    use crate::memory::encoding::EncodedQuad;
+    use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId};
+    use crate::memory::storage::index::{
+        IndexComponents, IndexConfiguration, IndexScanInstruction, IndexScanInstructions,
+    };
+    use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
+    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+    use std::collections::BTreeSet;
+    use std::sync::Mutex;
+    use tokio::sync::RwLock;
+
+    #[tokio::test]
+    async fn test_dynamic_filters() {
+        // Create an index and insert test data
+        let mut index =
+            IndexSet::new(ObjectIdEncoding::new(4), 100, &[IndexComponents::GSPO]);
+        index
+            .insert(&[
+                quad(0, 1, 10, 100),
+                quad(0, 2, 10, 100),
+                quad(0, 3, 10, 100),
+            ])
+            .unwrap();
+        let index = Arc::new(RwLock::new(index));
+
+        // Create a dynamic filter that starts with "True" (matches everything)
+        let dynamic_filter = MockDynamicFilter::new(MemStoragePredicateExpr::Between(
+            Arc::from("subject"),
+            eid(1),
+            eid(2),
+        ));
+
+        // Create scan instructions: traverse graph, scan subject, traverse predicate and object
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::traverse_with_predicate(IndexScanPredicate::In(
+                BTreeSet::from([eid(0)]),
+            )),
+            IndexScanInstruction::scan("subject".to_owned()),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        // Create iterator with the dynamic filter
+        let mut iterator = MemQuadIndexScanIterator::new_from_index_set(
+            Arc::new(index.read_owned().await),
+            IndexConfiguration {
+                object_id_encoding: ObjectIdEncoding::new(4),
+                batch_size: 100,
+                components: IndexComponents::GSPO,
+            },
+            instructions.clone(),
+            vec![Arc::clone(&dynamic_filter) as Arc<dyn IndexScanPredicateSource>],
+        );
+
+        let batch = iterator.next().unwrap().unwrap();
+        assert_eq!(batch.num_rows, 2);
+    }
+
+    /// A mock implementation of IndexScanPredicateSource for testing.
+    #[derive(Debug)]
+    struct MockDynamicFilter {
+        predicate: Mutex<MemStoragePredicateExpr>,
+    }
+
+    impl MockDynamicFilter {
+        fn new(predicate: MemStoragePredicateExpr) -> Arc<Self> {
+            Arc::new(Self {
+                predicate: Mutex::new(predicate),
+            })
+        }
+    }
+
+    impl Display for MockDynamicFilter {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MockDynamicFilter")
+        }
+    }
+
+    impl IndexScanPredicateSource for MockDynamicFilter {
+        fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr> {
+            Ok(self.predicate.lock().unwrap().clone())
+        }
+    }
+
+    fn quad(graph_name: u32, subject: u32, predicate: u32, object: u32) -> EncodedQuad {
+        EncodedQuad {
+            graph_name: EncodedGraphObjectId(eid(graph_name)),
+            subject: eid(subject),
+            predicate: eid(predicate),
+            object: eid(object),
+        }
+    }
+
+    fn eid(id: u32) -> EncodedObjectId {
+        EncodedObjectId::from(id)
     }
 }

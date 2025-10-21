@@ -389,7 +389,7 @@ mod tests {
             vec![],
         );
 
-        let batch = scan.next().unwrap();
+        let batch = scan.next().unwrap().unwrap();
         assert_eq!(configuration.components, IndexComponents::GPOS);
         assert_debug_snapshot!(batch, @r#"
         RecordBatch {
