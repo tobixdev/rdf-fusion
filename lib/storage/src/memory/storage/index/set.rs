@@ -72,10 +72,14 @@ impl IndexSet {
             .iter()
             .rev() // Prefer SPO (max by uses the last on equality)
             .max_by(|lhs, rhs| {
-                let lhs_score =
-                    compute_scan_score(&lhs.configuration().components, pattern);
-                let rhs_score =
-                    compute_scan_score(&rhs.configuration().components, pattern);
+                let lhs_pattern =
+                    reorder_pattern(pattern, &lhs.configuration().components);
+                let rhs_pattern =
+                    reorder_pattern(pattern, &rhs.configuration().components);
+
+                let lhs_score = lhs.compute_scan_score(&lhs_pattern);
+                let rhs_score = rhs.compute_scan_score(&rhs_pattern);
+
                 lhs_score.cmp(&rhs_score)
             })
             .expect("At least one index must be available")
@@ -198,34 +202,6 @@ impl Iterator for MemQuadIndexSetScanIterator {
     }
 }
 
-/// Computes the "scan score" for the given `index_components` and `pattern`.
-///
-/// The higher the scan score, the better is the index suited for scanning a particular pattern.
-/// Basically, this boils down to how many levels can be traversed by looking up bound
-/// object ids, prioritizing hits in the "first" levels of the index. The following enumeration
-/// shows how the score is computed.
-///
-/// - 8: The index hits on the first level
-/// - 4: The index hits on the second level
-/// - 2: The index hits on the third level
-/// - 1: The index hits on the fourth level
-fn compute_scan_score(
-    index_components: &IndexComponents,
-    pattern: &IndexScanInstructions,
-) -> usize {
-    let mut score = 0;
-
-    for (i, index_component) in index_components.inner().iter().enumerate() {
-        let idx = index_component.gspo_index();
-        let reward = 1 << (index_components.inner().len() - i - 1);
-        if pattern.0[idx].predicate().is_some() {
-            score += reward
-        }
-    }
-
-    score as usize
-}
-
 /// Re-orders the given `pattern` for the given `components`.
 fn reorder_quad(pattern: &IndexedQuad, components: &IndexComponents) -> IndexedQuad {
     IndexedQuad([
@@ -271,12 +247,11 @@ fn reorder_result(
 mod tests {
     use super::*;
     use crate::memory::storage::index::{
-        IndexScanInstruction, IndexScanInstructions, ObjectIdScanPredicate,
+        IndexScanInstruction, IndexScanInstructions, IndexScanPredicate,
     };
     use datafusion::arrow::datatypes::{DataType, Field, Fields};
     use insta::assert_debug_snapshot;
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-    use std::collections::HashSet;
     use tokio::sync::RwLock;
 
     #[test]
@@ -293,7 +268,6 @@ mod tests {
         let result = set.choose_index(&pattern);
 
         assert_eq!(result.components, IndexComponents::GSPO);
-        assert_eq!(compute_scan_score(&result.components, &pattern), 15);
     }
 
     #[test]
@@ -309,7 +283,6 @@ mod tests {
 
         let result = set.choose_index(&pattern);
         assert_eq!(result.components, IndexComponents::GOSP);
-        assert_eq!(compute_scan_score(&result.components, &pattern), 14);
     }
 
     #[test]
@@ -326,7 +299,6 @@ mod tests {
         let result = set.choose_index(&pattern);
 
         assert_eq!(result.components, IndexComponents::GPOS);
-        assert_eq!(compute_scan_score(&result.components, &pattern), 12);
     }
 
     #[test]
@@ -469,9 +441,7 @@ mod tests {
     }
 
     fn traverse_and_filter(id: u32) -> IndexScanInstruction {
-        IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(HashSet::from([
-            oid(id),
-        ]))))
+        IndexScanInstruction::Traverse(Some(IndexScanPredicate::In([oid(id)].into())))
     }
 
     fn oid(id: u32) -> EncodedObjectId {

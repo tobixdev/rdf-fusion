@@ -1,11 +1,11 @@
 ---
 source: bench/tests/plans/wind_farm.rs
-expression: canonicalize_uuids(&string)
+expression: "&string"
 ---
-ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) as wtur_label, year@2 as year, month@3 as month, day@4 as day, hour@5 as hour, minute_10@6 as minute_10, ENC_PT(00000000000000000000000000000001@7) as avg_val]
-  AggregateExec: mode=Single, gby=[site_label@0 as site_label, wtur_label@1 as wtur_label, ENC_PT(year@7) as year, ENC_PT(month@6) as month, ENC_PT(day@5) as day, ENC_PT(hour@4) as hour, ENC_PT(minute_10@3) as minute_10], aggr=[00000000000000000000000000000001]
+ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) as wtur_label, year@2 as year, month@3 as month, day@4 as day, hour@5 as hour, minute_10@6 as minute_10, ENC_PT(<uuid>@7) as avg_val]
+  AggregateExec: mode=Single, gby=[site_label@0 as site_label, wtur_label@1 as wtur_label, ENC_PT(year@7) as year, ENC_PT(month@6) as month, ENC_PT(day@5) as day, ENC_PT(hour@4) as hour, ENC_PT(minute_10@3) as minute_10], aggr=[<uuid>]
     ProjectionExec: expr=[site_label@1 as site_label, wtur_label@2 as wtur_label, val@3 as val, minute_10@4 as minute_10, hour@5 as hour, day@6 as day, MONTH(__common_expr_2@0) as month, YEAR(__common_expr_2@0) as year]
-      ProjectionExec: expr=[ENC_TV(t@4) as __common_expr_2, site_label@1 as site_label, wtur_label@2 as wtur_label, val@3 as val, MUL(9:10, FLOOR(DIV(MINUTES(__common_expr_5@0), 7:Some(00000000000000000000000000000002),36,16))) as minute_10, HOURS(__common_expr_5@0) as hour, DAY(__common_expr_5@0) as day]
+      ProjectionExec: expr=[ENC_TV(t@4) as __common_expr_2, site_label@1 as site_label, wtur_label@2 as wtur_label, val@3 as val, MUL(9:10, FLOOR(DIV(MINUTES(__common_expr_5@0), 7:Some(<uuid>),36,16))) as minute_10, HOURS(__common_expr_5@0) as hour, DAY(__common_expr_5@0) as day]
         ProjectionExec: expr=[ENC_TV(t@3) as __common_expr_5, site_label@0 as site_label, wtur_label@1 as wtur_label, val@2 as val, t@3 as t]
           CoalesceBatchesExec: target_batch_size=8192
             HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(dp@2, dp@0)], projection=[site_label@0, wtur_label@1, val@3, t@5]
@@ -39,27 +39,27 @@ ProjectionExec: expr=[ENC_PT(site_label@0) as site_label, ENC_PT(wtur_label@1) a
                                                                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(site@0, site@0)], projection=[site_label@1, wtur_asp@3]
                                                                       CoalesceBatchesExec: target_batch_size=8192
                                                                         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(site@0, site@0)], projection=[site@0, site_label@2]
-                                                                          MemQuadPatternExec: [GPOS] subject=?site, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#Site>
+                                                                          DataSourceExec: [GPOS] subject=?site, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#Site>
                                                                           CoalesceBatchesExec: target_batch_size=8192
                                                                             FilterExec: EBV(EQ(ENC_TV(site_label@1), 3:{value:Wind Mountain,language:}))
-                                                                              MemQuadPatternExec: [GPOS] subject=?site, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?site_label
-                                                                      MemQuadPatternExec: [GPOS] subject=?site, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?wtur_asp
+                                                                              DataSourceExec: [GPOS] subject=?site, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?site_label
+                                                                      DataSourceExec: [GPOS] subject=?site, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?wtur_asp
                                                                   CoalesceBatchesExec: target_batch_size=8192
                                                                     FilterExec: EBV(EQ(ENC_TV(wtur_label@1), 3:{value:A1,language:}))
-                                                                      MemQuadPatternExec: [GPOS] subject=?wtur_asp, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?wtur_label
-                                                              MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?wtur_asp
-                                                          MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?gensys_asp
-                                                      MemQuadPatternExec: [GPOS] subject=?wtur, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#A>
-                                                  MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?gensys_asp
-                                              MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#RA>
-                                          MemQuadPatternExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?generator_asp
-                                      MemQuadPatternExec: [GPOS] subject=?generator, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?generator_asp
-                                  MemQuadPatternExec: [GPOS] subject=?generator, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#GAA>
-                              MemQuadPatternExec: [GPOS] subject=?generator, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts
-                          MemQuadPatternExec: [GPOS] subject=?ts, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="Production"
-                      MemQuadPatternExec: [GPOS] subject=?ts, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp
-                  MemQuadPatternExec: [GPOS] subject=?dp, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val
+                                                                      DataSourceExec: [GPOS] subject=?wtur_asp, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?wtur_label
+                                                              DataSourceExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?wtur_asp
+                                                          DataSourceExec: [GPOS] subject=?wtur, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?gensys_asp
+                                                      DataSourceExec: [GPOS] subject=?wtur, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#A>
+                                                  DataSourceExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?gensys_asp
+                                              DataSourceExec: [GPOS] subject=?gensys, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#RA>
+                                          DataSourceExec: [GPOS] subject=?gensys, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspect>, object=?generator_asp
+                                      DataSourceExec: [GPOS] subject=?generator, predicate=<https://github.com/magbak/chrontext/rds_power#hasFunctionalAspectNode>, object=?generator_asp
+                                  DataSourceExec: [GPOS] subject=?generator, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<https://github.com/magbak/chrontext/rds_power#GAA>
+                              DataSourceExec: [GPOS] subject=?generator, predicate=<https://github.com/magbak/chrontext#hasTimeseries>, object=?ts
+                          DataSourceExec: [GPOS] subject=?ts, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object="Production"
+                      DataSourceExec: [GPOS] subject=?ts, predicate=<https://github.com/magbak/chrontext#hasDataPoint>, object=?dp
+                  DataSourceExec: [GPOS] subject=?dp, predicate=<https://github.com/magbak/chrontext#hasValue>, object=?val
               CoalesceBatchesExec: target_batch_size=8192
                 FilterExec: EBV(GEQ(__common_expr_6@0, 10:{value:6379744601300.0000000000000000,offset:})) AND EBV(LEQ(__common_expr_6@0, 10:{value:6379749281300.0000000000000000,offset:})), projection=[dp@1, t@2]
                   ProjectionExec: expr=[ENC_TV(t@1) as __common_expr_6, dp@0 as dp, t@1 as t]
-                    MemQuadPatternExec: [GPOS] subject=?dp, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t
+                    DataSourceExec: [GPOS] subject=?dp, predicate=<https://github.com/magbak/chrontext#hasTimestamp>, object=?t

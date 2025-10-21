@@ -49,6 +49,11 @@ impl PlainTermScalar {
     pub fn new_unchecked(inner: ScalarValue) -> Self {
         Self { inner }
     }
+
+    /// Returns a [TermRef] to the underlying scalar.
+    pub fn as_term(&self) -> ThinResult<TermRef<'_>> {
+        DefaultPlainTermDecoder::decode_term(self)
+    }
 }
 
 impl EncodingScalar for PlainTermScalar {

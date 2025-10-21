@@ -1,6 +1,6 @@
 ---
 source: bench/tests/plans/bsbm_business_intelligence.rs
-expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+expression: "&explanation.optimized_logical_plan.to_string()"
 ---
 Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) AS nrOfReviews, ENC_PT(avgPrice) AS avgPrice
   Sort: ENC_SORT(nrOfReviews) DESC NULLS FIRST, ENC_SORT(country) ASC NULLS FIRST, ENC_SORT(ENC_PT(product)) ASC NULLS FIRST
@@ -10,10 +10,10 @@ Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) 
           Projection: COALESCE(lhs.country, rhs.country) AS country, lhs.maxReviews AS maxReviews, rhs.product AS product, rhs.avgPrice AS avgPrice
             Inner Join:  Filter: IS_COMPATIBLE(lhs.country, rhs.country)
               SubqueryAlias: lhs
-                Projection: ENC_PT(country) AS country, 00000000000000000000000000000001 AS maxReviews
-                  Aggregate: groupBy=[[country AS country]], aggr=[[MAX(nrOfReviews) AS 00000000000000000000000000000001]]
-                    Projection: country, INT64_AS_TERM(00000000000000000000000000000002) AS nrOfReviews
-                      Aggregate: groupBy=[[country AS country, product AS product]], aggr=[[count(review) AS 00000000000000000000000000000002]]
+                Projection: ENC_PT(country) AS country, <uuid> AS maxReviews
+                  Aggregate: groupBy=[[country AS country]], aggr=[[MAX(nrOfReviews) AS <uuid>]]
+                    Projection: country, INT64_AS_TERM(<uuid>) AS nrOfReviews
+                      Aggregate: groupBy=[[country AS country, product AS product]], aggr=[[count(review) AS <uuid>]]
                         Projection: lhs.product AS product, lhs.review AS review, rhs.country AS country
                           Inner Join: lhs.reviewer = rhs.reviewer
                             SubqueryAlias: lhs
@@ -31,8 +31,8 @@ Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) 
                             SubqueryAlias: rhs
                               QuadPattern (?reviewer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country> ?country)
               SubqueryAlias: rhs
-                Projection: Struct({term_type:,value:,data_type:,language_tag:}) AS country, product, 00000000000000000000000000000003 AS avgPrice
-                  Aggregate: groupBy=[[product AS product]], aggr=[[AVG(xsd:float(xsd:string(ENC_TV(price)))) AS 00000000000000000000000000000003]]
+                Projection: Struct({term_type:,value:,data_type:,language_tag:}) AS country, product, <uuid> AS avgPrice
+                  Aggregate: groupBy=[[product AS product]], aggr=[[AVG(xsd:float(xsd:string(ENC_TV(price)))) AS <uuid>]]
                     Projection: lhs.product AS product, rhs.price AS price
                       Inner Join: lhs.offer = rhs.offer
                         SubqueryAlias: lhs
@@ -45,8 +45,8 @@ Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) 
                         SubqueryAlias: rhs
                           QuadPattern (?offer <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price> ?price)
         SubqueryAlias: rhs
-          Projection: ENC_PT(country) AS country, product, INT64_AS_TERM(00000000000000000000000000000004) AS nrOfReviews
-            Aggregate: groupBy=[[country AS country, product AS product]], aggr=[[count(review) AS 00000000000000000000000000000004]]
+          Projection: ENC_PT(country) AS country, product, INT64_AS_TERM(<uuid>) AS nrOfReviews
+            Aggregate: groupBy=[[country AS country, product AS product]], aggr=[[count(review) AS <uuid>]]
               Projection: lhs.product AS product, lhs.review AS review, rhs.country AS country
                 Inner Join: lhs.reviewer = rhs.reviewer
                   SubqueryAlias: lhs
