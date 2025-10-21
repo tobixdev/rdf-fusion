@@ -112,6 +112,10 @@ impl IndexScanInstructions {
 
     /// TODO
     pub fn apply_filter(self, predicate: &MemStoragePredicateExpr) -> DFResult<Self> {
+        if *predicate == MemStoragePredicateExpr::True {
+            return Ok(self);
+        }
+
         let column = predicate.column().ok_or_else(|| {
             plan_datafusion_err!("Invalid Predicate: Filter must have a column")
         })?;

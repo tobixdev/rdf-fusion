@@ -14,7 +14,7 @@ use datafusion::common::ScalarValue;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use itertools::repeat_n;
+use itertools::{repeat_n, Itertools};
 use rdf_fusion_model::{DFResult, TriplePattern, Variable};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -210,17 +210,18 @@ fn combine_instructions_with_dynamic_filters(
     instructions: &IndexScanInstructions,
     dynamic_filters: &Vec<Arc<dyn IndexScanPredicateSource>>,
 ) -> DFResult<IndexScanInstructions> {
-    let filters = dynamic_filters
+    // Filter out any dynamic filters that are not supported by the index.
+    let supported_filters = dynamic_filters
         .iter()
-        .map(|s| s.current_predicate())
-        .collect::<DFResult<Vec<_>>>()?;
+        .flat_map(|s| s.current_predicate().ok())
+        .collect_vec();
 
-    if filters.is_empty() {
+    if supported_filters.is_empty() {
         return Ok(instructions.clone());
     }
 
     let mut new_instructions = instructions.clone();
-    for predicate in filters {
+    for predicate in supported_filters {
         new_instructions = new_instructions.apply_filter(&predicate)?;
     }
 
