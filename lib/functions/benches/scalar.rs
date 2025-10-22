@@ -98,7 +98,11 @@ fn bench_all(c: &mut Criterion) {
         ),
         (
             BuiltinName::Str,
-            vec![UnaryScenario::Mixed, UnaryScenario::AllBlank, UnaryScenario::AllNamedNodes],
+            vec![
+                UnaryScenario::Mixed,
+                UnaryScenario::AllBlank,
+                UnaryScenario::AllNamedNodes,
+            ],
         ),
         (BuiltinName::CastFloat, vec![UnaryScenario::Mixed]),
         (BuiltinName::CastBoolean, vec![UnaryScenario::Mixed]),
