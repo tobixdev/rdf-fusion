@@ -21,6 +21,9 @@ enum UnaryScenario {
     AllNamedNodes,
     Mixed,
     AllBlank,
+    AllInt,
+    AllFloat,
+    AllString,
 }
 
 impl UnaryScenario {
@@ -72,6 +75,29 @@ impl UnaryScenario {
                 }
                 vec![ColumnarValue::Array(payload_builder.finish().into_array())]
             }
+            UnaryScenario::AllInt => {
+                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                for i in 0..8192 {
+                    payload_builder.append_integer(Integer::from(i)).unwrap();
+                }
+                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+            }
+            UnaryScenario::AllFloat => {
+                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                for i in 0..8192 {
+                    payload_builder.append_float(Float::from(i as i16)).unwrap();
+                }
+                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+            }
+            UnaryScenario::AllString => {
+                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                for i in 0..8192 {
+                    payload_builder
+                        .append_string(format!("String number {i}").as_str(), None)
+                        .unwrap();
+                }
+                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+            }
         }
     }
 }
@@ -96,6 +122,26 @@ fn bench_all(c: &mut Criterion) {
             BuiltinName::IsBlank,
             vec![UnaryScenario::Mixed, UnaryScenario::AllBlank],
         ),
+        (
+            BuiltinName::Str,
+            vec![
+                UnaryScenario::Mixed,
+                UnaryScenario::AllBlank,
+                UnaryScenario::AllNamedNodes,
+                UnaryScenario::AllString,
+            ],
+        ),
+        (
+            BuiltinName::CastFloat,
+            vec![UnaryScenario::Mixed, UnaryScenario::AllInt],
+        ),
+        (BuiltinName::CastBoolean, vec![UnaryScenario::Mixed]),
+        (
+            BuiltinName::CastInteger,
+            vec![UnaryScenario::Mixed, UnaryScenario::AllFloat],
+        ),
+        (BuiltinName::CastString, vec![UnaryScenario::Mixed]),
+        (BuiltinName::CastDateTime, vec![UnaryScenario::Mixed]),
     ]);
 
     for (my_built_in, scenarios) in runs {
