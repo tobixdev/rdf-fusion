@@ -1,6 +1,7 @@
+use datafusion::common::{exec_datafusion_err, plan_datafusion_err};
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use std::collections::{BTreeSet, HashSet};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 mod components;
@@ -12,9 +13,10 @@ mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
 use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
+use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 pub use components::IndexComponents;
 pub use error::*;
-use rdf_fusion_model::Variable;
+use rdf_fusion_model::{DFResult, Variable};
 pub use scan::{
     DirectIndexRef, IndexRefInSet, MemQuadIndexScanIterator, PlannedPatternScan,
 };
@@ -41,6 +43,7 @@ impl Display for IndexConfiguration {
     }
 }
 
+/// A list of [IndexScanInstruction]s for querying a quad index.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexScanInstructions([IndexScanInstruction; 4]);
 
@@ -105,6 +108,44 @@ impl IndexScanInstructions {
         let mut new_instructions = self.0;
         new_instructions[index] = instruction;
         Self(new_instructions)
+    }
+
+    /// Applies a new `predicate` expression to the instructions.
+    ///
+    /// This will find the corresponding "scan" instruction that scans the column of the `predicate` and logically
+    /// combine `predicate` with any existing predicate on that column.
+    pub fn apply_filter(self, predicate: &MemStoragePredicateExpr) -> DFResult<Self> {
+        if *predicate == MemStoragePredicateExpr::True {
+            return Ok(self);
+        }
+
+        let column = predicate.column().ok_or_else(|| {
+            plan_datafusion_err!("Invalid Predicate: Filter must have a column")
+        })?;
+
+        // If the filter is not a predicate, we can simply return the current scan.
+        let Some(predicate) = predicate.to_scan_predicate()? else {
+            return Ok(self);
+        };
+
+        let (idx, scan_instruction) =
+            self.instructions_for_column(column).ok_or_else(|| {
+                exec_datafusion_err!(
+                    "Could not find scan instruction for column: {}",
+                    column
+                )
+            })?;
+
+        let new_predicate = scan_instruction
+            .predicate()
+            .map(|existing_predicate| existing_predicate.try_and_with(&predicate))
+            .unwrap_or(Some(predicate))
+            .ok_or(plan_datafusion_err!(
+                "Could not apply predicate to scan instruction."
+            ))?;
+        let new_instruction = scan_instruction.clone().with_predicate(new_predicate);
+
+        Ok(self.with_new_instruction_at(idx, new_instruction))
     }
 }
 
@@ -189,6 +230,12 @@ impl Display for IndexScanPredicate {
     }
 }
 
+/// A trait for obtaining a [MemStoragePredicateExpr] which is still unknown at planning time (dynamic filter).
+pub trait IndexScanPredicateSource: Debug + Send + Sync + Display {
+    /// Returns the current predicate.
+    fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr>;
+}
+
 /// An encoded version of a triple pattern.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum IndexScanInstruction {
@@ -199,6 +246,29 @@ pub enum IndexScanInstruction {
 }
 
 impl IndexScanInstruction {
+    /// Creates a new [IndexScanInstruction::Traverse].
+    pub fn traverse() -> Self {
+        IndexScanInstruction::Traverse(None)
+    }
+
+    /// Creates a new [IndexScanInstruction::Traverse] with the given predicate.
+    pub fn traverse_with_predicate(predicate: impl Into<IndexScanPredicate>) -> Self {
+        IndexScanInstruction::Traverse(Some(predicate.into()))
+    }
+
+    /// Creates a new [IndexScanInstruction::Scan].
+    pub fn scan(variable: impl Into<Arc<String>>) -> Self {
+        IndexScanInstruction::Scan(variable.into(), None)
+    }
+
+    /// Creates a new [IndexScanInstruction::Scan] with the given predicate.
+    pub fn scan_with_predicate(
+        variable: impl Into<Arc<String>>,
+        predicate: impl Into<IndexScanPredicate>,
+    ) -> Self {
+        IndexScanInstruction::Scan(variable.into(), Some(predicate.into()))
+    }
+
     /// Returns the scan variable (i.e., the variable to bind the results to) for this instruction.
     pub fn scan_variable(&self) -> Option<&str> {
         match self {
@@ -290,7 +360,7 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
     }
 }
 
-/// TODO
+/// A list of [PruningPredicate], one for each element of a quad index.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct PruningPredicates([Option<PruningPredicate>; 4]);
 
@@ -305,7 +375,8 @@ impl From<&IndexScanInstructions> for PruningPredicates {
     }
 }
 
-/// TODO
+/// A pruning predicate is a simpler version of [IndexScanPredicate] that can be used for quickly pruning relevant
+/// row groups.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum PruningPredicate {
     /// Checks whether the object id is in the given set.
@@ -356,10 +427,9 @@ mod tests {
             traverse(3),
             traverse(4),
         ]));
-        let result = iter.next();
+        let result = iter.next().unwrap().unwrap();
 
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().num_rows, 1);
+        assert_eq!(result.num_rows, 1);
     }
 
     #[tokio::test]
@@ -376,10 +446,9 @@ mod tests {
             traverse(3),
             scan("d"),
         ]));
-        let result = iter.next();
+        let result = iter.next().unwrap().unwrap();
 
-        assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().columns, @r#"
+        assert_debug_snapshot!(result.columns, @r#"
         {
             "d": PrimitiveArray<UInt32>
             [
@@ -404,10 +473,9 @@ mod tests {
             scan("c"),
             traverse(4),
         ]));
-        let result = iter.next();
+        let result = iter.next().unwrap().unwrap();
 
-        assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().columns, @r#"
+        assert_debug_snapshot!(result.columns, @r#"
         {
             "c": PrimitiveArray<UInt32>
             [
@@ -571,7 +639,7 @@ mod tests {
             IndexScanInstructions::new([
                 IndexScanInstruction::Scan(
                     Arc::new("a".to_owned()),
-                    Some(IndexScanPredicate::In([eid(1), eid(3)].into())),
+                    Some(IndexScanPredicate::In([eid(1), eid(3)].into()).into()),
                 ),
                 scan("b"),
                 scan("c"),
@@ -756,9 +824,9 @@ mod tests {
     }
 
     fn traverse(id: u32) -> IndexScanInstruction {
-        IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
-            [EncodedObjectId::from(id)].into(),
-        )))
+        IndexScanInstruction::Traverse(Some(
+            IndexScanPredicate::In([EncodedObjectId::from(id)].into()).into(),
+        ))
     }
 
     fn scan(name: impl Into<String>) -> IndexScanInstruction {
@@ -783,7 +851,7 @@ mod tests {
         expected_columns: usize,
         expected_rows: usize,
     ) {
-        let results = index.scan_quads(instructions).next().unwrap();
+        let results = index.scan_quads(instructions).next().unwrap().unwrap();
 
         assert_eq!(results.num_rows, expected_rows);
         assert_eq!(results.columns.len(), expected_columns);
@@ -800,7 +868,7 @@ mod tests {
     ) {
         let mut batch_sizes: Vec<_> = index
             .scan_quads(instructions)
-            .map(|arr| arr.num_rows)
+            .map(|arr| arr.unwrap().num_rows)
             .collect();
 
         if ordered {

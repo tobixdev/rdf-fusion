@@ -49,8 +49,13 @@ impl Stream for MemIndexScanStream {
         let batch = iterator.next();
 
         if let Some(batch) = batch {
-            metrics.record_output(batch.num_rows());
-            Poll::Ready(Some(Ok(batch)))
+            match batch {
+                Ok(batch) => {
+                    metrics.record_output(batch.num_rows());
+                    Poll::Ready(Some(Ok(batch)))
+                }
+                Err(err) => Poll::Ready(Some(Err(err))),
+            }
         } else {
             timer.done();
             Poll::Ready(None)

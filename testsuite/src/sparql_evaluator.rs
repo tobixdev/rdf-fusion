@@ -3,6 +3,7 @@ use crate::manifest::*;
 use crate::report::{dataset_diff, format_diff};
 use crate::vocab::*;
 use anyhow::{Context, Error, Result, bail, ensure};
+use datafusion::physical_plan::displayable;
 use futures::StreamExt;
 use rdf_fusion::execution::results::QueryResults;
 use rdf_fusion::execution::sparql::{Query, QueryOptions, Update};
@@ -121,8 +122,8 @@ pub async fn sparql_evaluate_evaluation_test(test: &Test) -> Result<()> {
         };
 
     let options = options.clone();
-    let actual_results = store
-        .query_opt(query.clone(), options)
+    let (actual_results, explanation) = store
+        .explain_query_opt(query.clone(), options)
         .await
         .context("Failure to execute query")?;
     let actual_results =
@@ -130,10 +131,11 @@ pub async fn sparql_evaluate_evaluation_test(test: &Test) -> Result<()> {
 
     ensure!(
         are_query_results_isomorphic(&expected_results, &actual_results),
-        "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{:?}\n",
+        "Not isomorphic results.\n{}\nParsed query:\n{}\nData:\n{:?}\n\nExecution Plan:\n{}\n",
         results_diff(expected_results, actual_results),
         Query::parse(&read_file_to_string(query_file)?, Some(query_file))?,
-        store.stream().await?.try_collect_to_vec().await?
+        store.stream().await?.try_collect_to_vec().await?,
+        displayable(explanation.execution_plan.as_ref()).indent(false),
     );
     Ok(())
 }

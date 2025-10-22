@@ -1,6 +1,6 @@
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::index::IndexScanPredicate;
-use datafusion::common::{ScalarValue, exec_err};
+use crate::memory::storage::index::{IndexScanPredicate, IndexScanPredicateSource};
+use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
 use datafusion::logical_expr::Operator;
 use datafusion::physical_expr::PhysicalExpr;
 use datafusion::physical_expr::expressions::{
@@ -67,6 +67,8 @@ pub enum MemStoragePredicateExpr {
     Binary(Arc<str>, PredicateExprOperator, EncodedObjectId),
     /// Checks that a column is between two object ids.
     Between(Arc<str>, EncodedObjectId, EncodedObjectId),
+    /// Holds a dynamic filter that will be evaluated during query execution.
+    Dynamic(Arc<DynamicFilterPhysicalExpr>),
 }
 
 impl MemStoragePredicateExpr {
@@ -75,9 +77,8 @@ impl MemStoragePredicateExpr {
     /// If [None] is returned, the expression was not supported.
     pub fn try_from(expr: &Arc<dyn PhysicalExpr>) -> Option<Self> {
         let any_expr = Arc::clone(expr) as Arc<dyn Any + Send + Sync>;
-        if let Ok(_expr) = any_expr.downcast::<DynamicFilterPhysicalExpr>() {
-            // TODO 79: Support dynamic filters
-            return None;
+        if let Ok(expr) = any_expr.downcast::<DynamicFilterPhysicalExpr>() {
+            return Some(MemStoragePredicateExpr::Dynamic(expr));
         }
 
         try_rewrite_datafusion_expr(expr)
@@ -100,35 +101,32 @@ impl MemStoragePredicateExpr {
     /// Returns [None] if the expression always evaluates to true.
     /// Returns [Err] if the expression is not a predicate.
     pub fn to_scan_predicate(&self) -> DFResult<Option<IndexScanPredicate>> {
+        use IndexScanPredicate::*;
+
         Ok(match self {
             MemStoragePredicateExpr::True => None,
 
             MemStoragePredicateExpr::Binary(_, operator, value) => Some(match operator {
                 PredicateExprOperator::Gt => {
                     let Some(next) = value.next() else {
-                        return Ok(Some(IndexScanPredicate::False));
+                        return Ok(Some(False));
                     };
-                    IndexScanPredicate::Between(next, EncodedObjectId::MAX)
+                    Between(next, EncodedObjectId::MAX)
                 }
-                PredicateExprOperator::GtEq => {
-                    IndexScanPredicate::Between(*value, EncodedObjectId::MAX)
-                }
+                PredicateExprOperator::GtEq => Between(*value, EncodedObjectId::MAX),
                 PredicateExprOperator::Lt => {
                     let Some(previous) = value.previous() else {
-                        return Ok(Some(IndexScanPredicate::False));
+                        return Ok(Some(False));
                     };
-                    IndexScanPredicate::Between(EncodedObjectId::MIN, previous)
+                    Between(EncodedObjectId::MIN, previous)
                 }
-                PredicateExprOperator::LtEq => {
-                    IndexScanPredicate::Between(EncodedObjectId::MIN, *value)
-                }
-                PredicateExprOperator::Eq => {
-                    IndexScanPredicate::In(BTreeSet::from([*value]))
-                }
+                PredicateExprOperator::LtEq => Between(EncodedObjectId::MIN, *value),
+                PredicateExprOperator::Eq => In(BTreeSet::from([*value])),
             }),
-            MemStoragePredicateExpr::Between(_, from, to) => {
-                Some(IndexScanPredicate::Between(*from, *to))
-            }
+            MemStoragePredicateExpr::Between(_, from, to) => Some(Between(*from, *to)),
+
+            // Handled differently
+            MemStoragePredicateExpr::Dynamic(_) => None,
 
             MemStoragePredicateExpr::Column(_) | MemStoragePredicateExpr::ObjectId(_) => {
                 return exec_err!("Expression is not a predicate.");
@@ -216,9 +214,18 @@ pub fn try_rewrite_datafusion_expr(
     None
 }
 
+impl IndexScanPredicateSource for DynamicFilterPhysicalExpr {
+    fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr> {
+        let expr = self.current()?;
+        try_rewrite_datafusion_expr(&expr)
+            .ok_or_else(|| exec_datafusion_err!("Unsupported predicate."))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use IndexScanPredicate::*;
 
     #[test]
     fn test_column_predicate() {
@@ -337,7 +344,7 @@ mod tests {
 
         assert_eq!(
             expr.to_scan_predicate().unwrap(),
-            Some(IndexScanPredicate::In(BTreeSet::from([obj_id])))
+            Some(In(BTreeSet::from([obj_id])))
         );
     }
 
@@ -352,10 +359,7 @@ mod tests {
 
         assert_eq!(
             expr.to_scan_predicate().unwrap(),
-            Some(IndexScanPredicate::Between(
-                EncodedObjectId::from(101),
-                EncodedObjectId::MAX
-            ))
+            Some(Between(EncodedObjectId::from(101), EncodedObjectId::MAX))
         );
     }
 
@@ -370,10 +374,7 @@ mod tests {
 
         assert_eq!(
             expr.to_scan_predicate().unwrap(),
-            Some(IndexScanPredicate::Between(
-                EncodedObjectId::from(100),
-                EncodedObjectId::MAX
-            ))
+            Some(Between(EncodedObjectId::from(100), EncodedObjectId::MAX))
         );
     }
 
@@ -388,16 +389,12 @@ mod tests {
 
         assert_eq!(
             expr.to_scan_predicate().unwrap(),
-            Some(IndexScanPredicate::Between(
-                EncodedObjectId::MIN,
-                EncodedObjectId::from(99)
-            ))
+            Some(Between(EncodedObjectId::MIN, EncodedObjectId::from(99)))
         );
     }
 
     #[test]
     fn test_to_scan_predicate_leq_produces_between() {
-        use crate::memory::object_id::EncodedObjectId;
         let value = EncodedObjectId::from(100);
         let expr = MemStoragePredicateExpr::Binary(
             Arc::from("col"),
@@ -407,10 +404,7 @@ mod tests {
 
         assert_eq!(
             expr.to_scan_predicate().unwrap(),
-            Some(IndexScanPredicate::Between(
-                EncodedObjectId::MIN,
-                EncodedObjectId::from(100)
-            ))
+            Some(Between(EncodedObjectId::MIN, EncodedObjectId::from(100)))
         );
     }
 
@@ -421,10 +415,7 @@ mod tests {
         let to = EncodedObjectId::from(20);
         let expr = MemStoragePredicateExpr::Between(Arc::from("col"), from, to);
 
-        assert_eq!(
-            expr.to_scan_predicate().unwrap(),
-            Some(IndexScanPredicate::Between(from, to))
-        );
+        assert_eq!(expr.to_scan_predicate().unwrap(), Some(Between(from, to)));
     }
 
     #[test]
@@ -437,10 +428,7 @@ mod tests {
             max_id,
         );
 
-        assert_eq!(
-            expr.to_scan_predicate().unwrap(),
-            Some(IndexScanPredicate::False)
-        );
+        assert_eq!(expr.to_scan_predicate().unwrap(), Some(False));
     }
 
     #[test]
@@ -453,10 +441,7 @@ mod tests {
             min_id,
         );
 
-        assert_eq!(
-            expr.to_scan_predicate().unwrap(),
-            Some(IndexScanPredicate::False)
-        );
+        assert_eq!(expr.to_scan_predicate().unwrap(), Some(False));
     }
 
     #[test]

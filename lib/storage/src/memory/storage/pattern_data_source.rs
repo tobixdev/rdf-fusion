@@ -157,7 +157,7 @@ fn apply_pushdown_filters(
         scan = scan.apply_filter(filter)?;
     }
 
-    Ok(scan.try_find_better_index())
+    scan.try_find_better_index()
 }
 
 #[cfg(test)]

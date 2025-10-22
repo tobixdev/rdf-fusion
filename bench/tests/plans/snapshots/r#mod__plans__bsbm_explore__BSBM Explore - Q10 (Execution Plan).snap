@@ -20,13 +20,13 @@ ProjectionExec: expr=[ENC_PT(first_value(offer) ORDER BY [ENC_SORT(xsd:double(EN
                               CoalesceBatchesExec: target_batch_size=8192
                                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@0, offer@0)], projection=[offer@0, vendor@2]
                                   DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer7/Product296>
-                                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor
-                              DataSourceExec: [GPOS] subject=?offer, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?vendor
-                          DataSourceExec: [GPOS] subject=?vendor, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=<http://downlode.org/rdf/iso-3166/countries#US>
+                                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor, additional_filters=[DynamicFilterPhysicalExpr [ true ]]
+                              DataSourceExec: [GPOS] subject=?offer, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?vendor, additional_filters=[DynamicFilterPhysicalExpr [ true ]]
+                          DataSourceExec: [GPOS] subject=?vendor, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=<http://downlode.org/rdf/iso-3166/countries#US>, additional_filters=[DynamicFilterPhysicalExpr [ true ]]
                       CoalesceBatchesExec: target_batch_size=8192
                         FilterExec: EBV(LEQ(ENC_TV(deliveryDays@1), 9:3)), projection=[offer@0]
-                          DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays>, object=?deliveryDays
-                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price
+                          DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/deliveryDays>, object=?deliveryDays, additional_filters=[DynamicFilterPhysicalExpr [ true ]]
+                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price, additional_filters=[DynamicFilterPhysicalExpr [ true ]]
               CoalesceBatchesExec: target_batch_size=8192
                 FilterExec: EBV(GT(ENC_TV(date@1), 10:{value:6334951680000.0000000000000000,offset:})), projection=[offer@0]
-                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo>, object=?date
+                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/validTo>, object=?date, additional_filters=[DynamicFilterPhysicalExpr [ true ]]
