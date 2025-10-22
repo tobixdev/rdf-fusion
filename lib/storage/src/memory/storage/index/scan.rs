@@ -495,6 +495,7 @@ mod tests {
             .insert(&[
                 quad(0, 1, 10, 100),
                 quad(0, 2, 10, 100),
+                quad(0, 2, 10, 200),
                 quad(0, 3, 10, 100),
             ])
             .unwrap();
@@ -507,14 +508,19 @@ mod tests {
             eid(2),
         ));
 
-        // Create scan instructions: traverse graph, scan subject, traverse predicate and object
+        // Create scan instructions
         let instructions = IndexScanInstructions([
             IndexScanInstruction::traverse_with_predicate(IndexScanPredicate::In(
                 BTreeSet::from([eid(0)]),
             )),
-            IndexScanInstruction::scan("subject".to_owned()),
+            IndexScanInstruction::scan_with_predicate(
+                "subject".to_owned(),
+                IndexScanPredicate::Between(eid(2), eid(3)),
+            ),
             IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::traverse_with_predicate(IndexScanPredicate::In(
+                BTreeSet::from([eid(200)]),
+            )),
         ]);
 
         // Create iterator with the dynamic filter
@@ -530,7 +536,7 @@ mod tests {
         );
 
         let batch = iterator.next().unwrap().unwrap();
-        assert_eq!(batch.num_rows, 2);
+        assert_eq!(batch.num_rows, 1);
     }
 
     /// A mock implementation of IndexScanPredicateSource for testing.

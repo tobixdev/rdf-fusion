@@ -244,9 +244,6 @@ impl IndexData {
         let mut new_instructions = Vec::new();
         for instruction in &instructions.0 {
             match &instruction.predicate() {
-                None => {
-                    break;
-                }
                 Some(IndexScanPredicate::In(ids)) => {
                     if ids.len() == 1 {
                         new_instructions.push(instruction.clone().without_predicate());
@@ -254,9 +251,15 @@ impl IndexData {
                         break;
                     }
                 }
-                _ => {
+                Some(IndexScanPredicate::Between(from, to)) => {
                     new_instructions.push(instruction.clone().without_predicate());
+                    if from != to {
+                        // The between can be fully applied, but not the following predicates as
+                        // they are multiple sorted regions.
+                        break;
+                    }
                 }
+                _ => break,
             }
         }
 
@@ -1100,6 +1103,57 @@ mod tests {
         let result = index.prune_relevant_row_groups(&instructions);
 
         assert!(result.row_groups.is_empty());
+    }
+
+    #[test]
+    fn test_prune_filter_between_removes_current_instructions_but_retains_rest() {
+        let mut index = IndexData::new(2, 0);
+        let items = quad_set([1, 2, 3, 4]);
+        index.insert(&items);
+
+        let predicate = IndexScanPredicate::Between(
+            EncodedObjectId::from(1),
+            EncodedObjectId::from(2),
+        );
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate)),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        let result = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(result.row_groups.len(), 1);
+        let new_instructions = result.new_instructions.unwrap();
+        assert!(new_instructions.0[0].predicate().is_none());
+        assert!(new_instructions.0[1].predicate().is_some());
+    }
+
+    #[test]
+    fn test_prune_filter_between_with_single_element_also_prunes_following_instructions()
+    {
+        let mut index = IndexData::new(2, 0);
+        let items = quad_set([1, 2, 3, 4]);
+        index.insert(&items);
+
+        let predicate = IndexScanPredicate::Between(
+            EncodedObjectId::from(1),
+            EncodedObjectId::from(1),
+        );
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate)),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        let result = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(result.row_groups.len(), 1);
+        let new_instructions = result.new_instructions.unwrap();
+        assert!(new_instructions.0[0].predicate().is_none());
+        assert!(new_instructions.0[1].predicate().is_none());
     }
 
     #[test]
