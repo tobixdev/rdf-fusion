@@ -3,12 +3,12 @@ use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId};
 use crate::memory::storage::index::quad_index::MemQuadIndex;
 use crate::memory::storage::index::{
     IndexComponents, IndexConfiguration, IndexRefInSet, IndexScanInstructions,
-    IndexedQuad, MemQuadIndexScanIterator,
+    IndexScanPredicateSource, IndexedQuad, MemQuadIndexScanIterator,
 };
 use datafusion::arrow::array::{Array, RecordBatch, RecordBatchOptions};
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use rdf_fusion_model::StorageError;
+use rdf_fusion_model::{DFResult, StorageError};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::OwnedRwLockReadGuard;
@@ -171,12 +171,14 @@ impl MemQuadIndexSetScanIterator {
         index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
         index: IndexConfiguration,
         instructions: Box<IndexScanInstructions>,
+        dynamic_filters: Vec<Arc<dyn IndexScanPredicateSource>>,
     ) -> Self {
         let instructions = reorder_pattern(&instructions, &index.components);
         let iterator = MemQuadIndexScanIterator::new_from_index_set(
             index_set,
             index,
             instructions.clone(),
+            dynamic_filters,
         );
         MemQuadIndexSetScanIterator {
             schema,
@@ -186,19 +188,21 @@ impl MemQuadIndexSetScanIterator {
 }
 
 impl Iterator for MemQuadIndexSetScanIterator {
-    type Item = RecordBatch;
+    type Item = DFResult<RecordBatch>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let next = self.inner.next()?;
+        let next = match self.inner.next()? {
+            Ok(next) => next,
+            Err(err) => return Some(Err(err)),
+        };
+
         let reordered = reorder_result(&self.schema, next.columns);
-        Some(
-            RecordBatch::try_new_with_options(
-                Arc::clone(&self.schema),
-                reordered,
-                &RecordBatchOptions::new().with_row_count(Some(next.num_rows)),
-            )
-            .expect("Creates valid record batches"),
+        Some(Ok(RecordBatch::try_new_with_options(
+            Arc::clone(&self.schema),
+            reordered,
+            &RecordBatchOptions::new().with_row_count(Some(next.num_rows)),
         )
+        .expect("Creates valid record batches")))
     }
 }
 
@@ -382,9 +386,10 @@ mod tests {
             set_lock,
             configuration.clone(),
             pattern,
+            vec![],
         );
 
-        let batch = scan.next().unwrap();
+        let batch = scan.next().unwrap().unwrap();
         assert_eq!(configuration.components, IndexComponents::GPOS);
         assert_debug_snapshot!(batch, @r#"
         RecordBatch {
@@ -441,7 +446,9 @@ mod tests {
     }
 
     fn traverse_and_filter(id: u32) -> IndexScanInstruction {
-        IndexScanInstruction::Traverse(Some(IndexScanPredicate::In([oid(id)].into())))
+        IndexScanInstruction::Traverse(Some(
+            IndexScanPredicate::In([oid(id)].into()).into(),
+        ))
     }
 
     fn oid(id: u32) -> EncodedObjectId {
