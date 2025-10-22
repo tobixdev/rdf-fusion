@@ -114,7 +114,6 @@ impl DataSource for MemQuadPatternDataSource {
             })
             .collect::<Vec<_>>();
 
-        // TODO: Should we return PushedDown::No for dynamic filters?
         let filter_pushdowns = parent_filters
             .iter()
             .map(|(_, rewritten)| match rewritten {

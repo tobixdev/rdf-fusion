@@ -110,7 +110,10 @@ impl IndexScanInstructions {
         Self(new_instructions)
     }
 
-    /// TODO
+    /// Applies a new `predicate` expression to the instructions.
+    ///
+    /// This will find the corresponding "scan" instruction that scans the column of the `predicate` and logically
+    /// combine `predicate` with any existing predicate on that column.
     pub fn apply_filter(self, predicate: &MemStoragePredicateExpr) -> DFResult<Self> {
         if *predicate == MemStoragePredicateExpr::True {
             return Ok(self);
@@ -227,9 +230,9 @@ impl Display for IndexScanPredicate {
     }
 }
 
-/// TODO
+/// A trait for obtaining a [MemStoragePredicateExpr] which is still unknown at planning time (dynamic filter).
 pub trait IndexScanPredicateSource: Debug + Send + Sync + Display {
-    /// TODO
+    /// Returns the current predicate.
     fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr>;
 }
 
@@ -357,7 +360,7 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
     }
 }
 
-/// TODO
+/// A list of [PruningPredicate], one for each element of a quad index.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct PruningPredicates([Option<PruningPredicate>; 4]);
 
@@ -372,7 +375,8 @@ impl From<&IndexScanInstructions> for PruningPredicates {
     }
 }
 
-/// TODO
+/// A pruning predicate is a simpler version of [IndexScanPredicate] that can be used for quickly pruning relevant
+/// row groups.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum PruningPredicate {
     /// Checks whether the object id is in the given set.

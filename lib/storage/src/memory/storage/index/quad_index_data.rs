@@ -592,7 +592,9 @@ impl MemColumnChunk {
         self.find_range_between(object_id, object_id)
     }
 
-    /// TODO
+    /// Checks whether any values in this [MemColumnChunk] fall between `from` and `to`.
+    ///
+    /// See [FindRangeResult] for a list of possible results.
     pub fn find_range_between(
         &self,
         from: EncodedObjectId,
