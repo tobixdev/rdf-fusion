@@ -175,21 +175,3 @@ async fn test_dump_dataset() -> Result<(), Box<dyn Error>> {
     );
     Ok(())
 }
-
-#[tokio::test]
-#[ignore = "Currently we lock the entire storage for snapshotting, so this test dead locks."]
-async fn test_snapshot_isolation_iterator() -> Result<(), Box<dyn Error>> {
-    let quad = QuadRef::new(
-        NamedNodeRef::new("http://example.com/s")?,
-        NamedNodeRef::new("http://example.com/p")?,
-        NamedNodeRef::new("http://example.com/o")?,
-        NamedNodeRef::new("http://www.wikidata.org/wiki/Special:EntityData/Q90")?,
-    );
-    let store = Store::default();
-    store.insert(quad).await?;
-    let iter = store.stream().await.unwrap();
-    store.remove(quad).await?;
-    assert_eq!(iter.try_collect_to_vec().await?, vec![quad.into_owned()]);
-    store.validate().await?;
-    Ok(())
-}

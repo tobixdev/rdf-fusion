@@ -61,8 +61,13 @@ impl RdfFusionBenchContext {
     }
 
     pub fn create_store(&self) -> Store {
-        let config = SessionConfig::new()
+        let mut config = SessionConfig::new()
+            .with_batch_size(8192)
             .with_target_partitions(self.options.target_partitions.unwrap_or(1));
+
+        let options = config.options_mut();
+        options.optimizer.enable_dynamic_filter_pushdown = true;
+
         let runtime_enc = match self.options.memory_size {
             None => Arc::new(RuntimeEnv::default()),
             Some(memory_size) => RuntimeEnvBuilder::new()

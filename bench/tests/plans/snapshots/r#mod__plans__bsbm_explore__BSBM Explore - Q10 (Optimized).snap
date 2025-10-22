@@ -1,6 +1,6 @@
 ---
 source: bench/tests/plans/bsbm_explore.rs
-expression: canonicalize_uuids(&explanation.optimized_logical_plan.to_string())
+expression: "&explanation.optimized_logical_plan.to_string()"
 ---
 Projection: ENC_PT(first_value(offer) ORDER BY [ENC_SORT(xsd:double(ENC_TV(STR(ENC_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST]) AS offer, ENC_PT(first_value(price) ORDER BY [ENC_SORT(xsd:double(ENC_TV(STR(ENC_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST]) AS price
   Sort: ENC_SORT(xsd:double(ENC_TV(STR(ENC_PT(price))))) ASC NULLS FIRST, offer ASC NULLS FIRST, price ASC NULLS FIRST, fetch=10

@@ -1,6 +1,6 @@
 ---
 source: bench/tests/plans/bsbm_explore.rs
-expression: canonicalize_uuids(&string)
+expression: "&string"
 ---
 ProjectionExec: expr=[ENC_PT(first_value(product) ORDER BY [ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST]@2) as product, ENC_PT(first_value(productLabel) ORDER BY [ENC_SORT(ENC_PT(productLabel)) ASC NULLS FIRST, product ASC NULLS FIRST]@3) as productLabel]
   SortExec: TopK(fetch=5), expr=[ENC_SORT(ENC_PT(productLabel))@0 ASC, product@1 ASC], preserve_partitioning=[false], sort_prefix=[ENC_SORT(ENC_PT(productLabel))@0 ASC]
@@ -17,17 +17,17 @@ ProjectionExec: expr=[ENC_PT(first_value(product) ORDER BY [ENC_SORT(ENC_PT(prod
                         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(prodFeature@2, prodFeature@1), (product@0, product@0)], projection=[product@0, productLabel@1]
                           CrossJoinExec
                             CoalesceBatchesExec: target_batch_size=8192
-                              FilterExec: NOT EBV(EQ(1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890, ENC_TV(product@0)))
-                                MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?productLabel
-                            MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature
+                              FilterExec: product@0 != <object id>
+                                DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?productLabel
+                            DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature
                           CoalesceBatchesExec: target_batch_size=8192
-                            FilterExec: NOT EBV(EQ(1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890, ENC_TV(product@0)))
-                              MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature
-                      MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?origProperty1
+                            FilterExec: product@0 != <object id>
+                              DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature, additional_filters=[DynamicFilterPhysicalExpr [ true ]]
+                      DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?origProperty1
                     CoalesceBatchesExec: target_batch_size=8192
-                      FilterExec: NOT EBV(EQ(1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890, ENC_TV(product@0)))
-                        MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?simProperty1
-                MemQuadPatternExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?origProperty2
+                      FilterExec: product@0 != <object id>
+                        DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?simProperty1, additional_filters=[DynamicFilterPhysicalExpr [ true ]]
+                DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?origProperty2
               CoalesceBatchesExec: target_batch_size=8192
-                FilterExec: NOT EBV(EQ(1:http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890, ENC_TV(product@0)))
-                  MemQuadPatternExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?simProperty2
+                FilterExec: product@0 != <object id>
+                  DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?simProperty2, additional_filters=[DynamicFilterPhysicalExpr [ true ]]

@@ -12,6 +12,7 @@ use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
     Iri, LiteralRef, SimpleLiteralRef, TermRef, ThinError, TypedValueRef,
 };
+use std::collections::HashSet;
 use std::ops::Not;
 
 /// A builder for expressions that make use of RDF Fusion built-ins.
@@ -923,20 +924,30 @@ impl<'root> RdfFusionExprBuilder<'root> {
     ///
     /// This is a terminating builder function as it no longer produces an RDF term as output.
     pub fn build_same_term(self, rhs: Expr) -> DFResult<Expr> {
-        let args = vec![self.expr.clone(), rhs]
+        let encodings: HashSet<EncodingName> = self
+            .context
+            .get_encodings(&[self.expr.clone(), rhs.clone()])?
             .into_iter()
-            .map(|e| {
-                self.context
-                    .try_create_builder(e)?
-                    .with_encoding(EncodingName::PlainTerm)?
-                    .build()
-            })
-            .collect::<DFResult<Vec<_>>>()?;
+            .collect();
 
-        let udf = self.context.create_builtin_udf(BuiltinName::SameTerm)?;
-        self.context
-            .try_create_builder(udf.call(args))?
-            .build_effective_boolean_value()
+        if encodings.len() == 1 {
+            return Ok(self.expr.eq(rhs));
+        }
+
+        let encoding = encodings
+            .iter()
+            .find(|e| **e == EncodingName::TypedValue || **e == EncodingName::PlainTerm)
+            .ok_or(plan_datafusion_err!(
+                "Cannot determine fitting encoding for sameTerm."
+            ))?;
+
+        let lhs = self.clone().with_encoding(*encoding)?.build()?;
+        let rhs = self
+            .context
+            .try_create_builder(rhs)?
+            .with_encoding(*encoding)?
+            .build()?;
+        Ok(lhs.eq(rhs))
     }
 
     /// Builds an expression that computes the effective boolean value of the inner expression.

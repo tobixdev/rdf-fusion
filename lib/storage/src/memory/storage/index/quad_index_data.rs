@@ -1,6 +1,7 @@
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::index::{
-    IndexScanInstructions, IndexedQuad, ObjectIdScanPredicate,
+    IndexScanInstructions, IndexScanPredicate, IndexedQuad, PruningPredicate,
+    PruningPredicates,
 };
 use datafusion::arrow::array::{Array, UInt32Array};
 use itertools::Itertools;
@@ -69,6 +70,8 @@ pub(super) struct IndexData {
 /// correct.
 pub(super) struct RowGroupPruningResult {
     /// The row groups that may contain quads that match the given instructions.
+    ///
+    /// Represents a *logically* contiguous slice of the index.
     pub row_groups: Vec<MemRowGroup>,
     /// The new instructions that should be applied to the index.
     ///
@@ -152,22 +155,19 @@ impl IndexData {
         &self,
         instructions: &IndexScanInstructions,
     ) -> RowGroupPruningResult {
-        let mut new_instructions = Vec::new();
+        let pruning_predicates = PruningPredicates::from(instructions);
         let mut relevant_row_groups = self.row_groups.clone();
 
-        for (column_idx, instruction) in instructions.0.iter().enumerate() {
-            // If there is no filter (we only support In for now) we must abort and do the scan
-            // over the current row group set.
-            let Some(ObjectIdScanPredicate::In(set)) = instruction.predicate() else {
+        for (column_idx, predicate) in pruning_predicates.0.iter().enumerate() {
+            // If there is no filter we abort and do the scan over the current row group set.
+            let Some(predicate) = predicate else {
                 break;
             };
 
-            // If there are multiple values in the set, the pruning stops as these may result in a
-            // non-contiguous range which is not supported for the pruning
-            if set.len() != 1 {
-                break;
-            }
-            let id = *set.iter().next().unwrap();
+            let (from_oid, to_oid) = match predicate {
+                PruningPredicate::EqualTo(oid) => (*oid, *oid),
+                PruningPredicate::Between(from, to) => (*from, *to),
+            };
 
             // Find the first row group for which the given id is not before the first value of the
             // row group.
@@ -176,7 +176,7 @@ impl IndexData {
                 .enumerate()
                 .filter_map(|(row_group_idx, row_group)| {
                     let column_chunk = &row_group.column_chunks[column_idx];
-                    match column_chunk.find_range(id) {
+                    match column_chunk.find_range_between(from_oid, to_oid) {
                         FindRangeResult::After => None,
                         result => Some((row_group_idx, result)),
                     }
@@ -186,29 +186,29 @@ impl IndexData {
             // No batch contains any relevant data
             let Some((first_row_group, first_range_result)) = first_relevant else {
                 return RowGroupPruningResult {
-                    row_groups: vec![],
+                    row_groups: Vec::new(),
                     new_instructions: None,
                 };
             };
 
             // All other results (e.g., NotContained) indicate that the given id is not contained
             // in the first batch. As a result, it won't be contained in any other batch.
-            let FindRangeResult::Contained(from, to) = first_range_result else {
+            let FindRangeResult::Contained(from_idx, to_idx) = first_range_result else {
                 return RowGroupPruningResult {
-                    row_groups: vec![],
+                    row_groups: Vec::new(),
                     new_instructions: None,
                 };
             };
 
             let mut new_relevant_row_groups =
-                vec![relevant_row_groups[first_row_group].slice(from, to)];
+                vec![relevant_row_groups[first_row_group].slice(from_idx, to_idx)];
 
             // Find the end of relevant row groups. Can be skipped if the end of the first check
             // was before the end of the row group.
-            if to == relevant_row_groups[first_row_group].len() {
+            if to_idx == relevant_row_groups[first_row_group].len() {
                 for row_group in &relevant_row_groups[first_row_group + 1..] {
                     let column_chunk = &row_group.column_chunks[column_idx];
-                    match column_chunk.find_range(id) {
+                    match column_chunk.find_range_between(from_oid, to_oid) {
                         FindRangeResult::Before => {
                             break;
                         }
@@ -236,7 +236,31 @@ impl IndexData {
 
             relevant_row_groups = new_relevant_row_groups;
 
-            new_instructions.push(instruction.without_predicate())
+            if from_oid != to_oid {
+                break;
+            }
+        }
+
+        let mut new_instructions = Vec::new();
+        for instruction in &instructions.0 {
+            match &instruction.predicate() {
+                Some(IndexScanPredicate::In(ids)) => {
+                    if ids.len() == 1 {
+                        new_instructions.push(instruction.clone().without_predicate());
+                    } else {
+                        break;
+                    }
+                }
+                Some(IndexScanPredicate::Between(from, to)) => {
+                    new_instructions.push(instruction.clone().without_predicate());
+                    if from != to {
+                        // The between can be fully applied, but not the following predicates as
+                        // they are multiple sorted regions.
+                        break;
+                    }
+                }
+                _ => break,
+            }
         }
 
         let new_instructions = if new_instructions.is_empty() {
@@ -564,35 +588,47 @@ impl MemColumnChunk {
     /// Checks whether the given `value` is part of this [MemColumnChunk].
     ///
     /// See [FindRangeResult] for a list of possible results.
-    pub fn find_range(&self, value: EncodedObjectId) -> FindRangeResult {
+    pub fn find_range(&self, object_id: EncodedObjectId) -> FindRangeResult {
+        self.find_range_between(object_id, object_id)
+    }
+
+    /// Checks whether any values in this [MemColumnChunk] fall between `from` and `to`.
+    ///
+    /// See [FindRangeResult] for a list of possible results.
+    pub fn find_range_between(
+        &self,
+        from: EncodedObjectId,
+        to: EncodedObjectId,
+    ) -> FindRangeResult {
         let values = self.data.values();
 
         // Fast path for before check
-        if value.as_u32() < *values.first().expect("Chunks are never empty") {
+        if to.as_u32() < *values.first().expect("Chunks are never empty") {
             return FindRangeResult::Before;
         }
 
         // Fast path for after check
-        if values.last().expect("Chunks are never empty") < &value.as_u32() {
+        if values.last().expect("Chunks are never empty") < &from.as_u32() {
             return FindRangeResult::After;
         }
 
         // Fast path for null handling
         let null_count = self.data.null_count();
-        if value.as_u32() == 0 {
+        if from.as_u32() == 0 && to.as_u32() == 0 {
             if null_count == 0 {
                 return FindRangeResult::Before;
             }
             return FindRangeResult::Contained(0, null_count);
         }
 
-        let find_result = self.data.values().iter().position(|v| *v >= value.as_u32());
+        let values = self.data.values();
+        let find_result = values.iter().position(|v| *v >= from.as_u32());
         let count_first_larger_value = match find_result {
             None => unreachable!("Should have been caught by fast path"),
             Some(position) => {
-                if position == 0 && self.data.values()[0] != value.as_u32() {
+                if position == 0 && values[0] > to.as_u32() {
                     unreachable!("Should have been caught by fast path");
-                } else if self.data.values()[position] != value.as_u32() {
+                } else if values[position] > to.as_u32() {
                     return FindRangeResult::NotContained(position);
                 } else {
                     position
@@ -600,14 +636,14 @@ impl MemColumnChunk {
             }
         };
 
-        let equal_count = self.data.values()[count_first_larger_value..]
+        let contained_count = values[count_first_larger_value..]
             .iter()
-            .take_while(|v| **v == value.as_u32())
+            .take_while(|v| **v <= to.as_u32())
             .count();
 
         FindRangeResult::Contained(
             count_first_larger_value,
-            count_first_larger_value + equal_count,
+            count_first_larger_value + contained_count,
         )
     }
 
@@ -628,9 +664,8 @@ impl MemColumnChunk {
 mod tests {
     use super::*;
     use crate::memory::object_id::EncodedObjectId;
-    use crate::memory::storage::index::IndexScanInstruction;
+    use crate::memory::storage::index::{IndexScanInstruction, IndexScanPredicate};
     use insta::assert_debug_snapshot;
-    use std::collections::HashSet;
 
     #[test]
     fn test_memcolumnchunk_slice_simple() {
@@ -813,8 +848,7 @@ mod tests {
         index.insert(&items);
 
         // Only filter first column, look for value 30 which should be in second row group
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(30u32)]));
+        let predicate = IndexScanPredicate::In([EncodedObjectId::from(30u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate)),
             IndexScanInstruction::Traverse(None),
@@ -890,8 +924,7 @@ mod tests {
             .collect(),
         );
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate.clone())),
             IndexScanInstruction::Traverse(Some(predicate.clone())),
@@ -935,8 +968,7 @@ mod tests {
             .collect(),
         );
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate.clone())),
             IndexScanInstruction::Traverse(None),
@@ -978,14 +1010,14 @@ mod tests {
         );
 
         let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
-                HashSet::from([EncodedObjectId::from(0)]),
+            IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
+                [EncodedObjectId::from(0)].into(),
             ))),
-            IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
-                HashSet::from([EncodedObjectId::from(11)]),
+            IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
+                [EncodedObjectId::from(11)].into(),
             ))),
-            IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(
-                HashSet::from([EncodedObjectId::from(10)]),
+            IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
+                [EncodedObjectId::from(10)].into(),
             ))),
             IndexScanInstruction::Traverse(None),
         ]);
@@ -1013,8 +1045,7 @@ mod tests {
             .collect(),
         );
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate.clone())),
             IndexScanInstruction::Traverse(Some(predicate.clone())),
@@ -1043,8 +1074,7 @@ mod tests {
             .collect(),
         );
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(10u32)]));
+        let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate.clone())),
             IndexScanInstruction::Traverse(Some(predicate.clone())),
@@ -1064,8 +1094,7 @@ mod tests {
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
-        let predicate =
-            ObjectIdScanPredicate::In(HashSet::from([EncodedObjectId::from(99u32)]));
+        let predicate = IndexScanPredicate::In([EncodedObjectId::from(99u32)].into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate)),
             IndexScanInstruction::Traverse(None),
@@ -1079,14 +1108,64 @@ mod tests {
     }
 
     #[test]
+    fn test_prune_filter_between_removes_current_instructions_but_retains_rest() {
+        let mut index = IndexData::new(2, 0);
+        let items = quad_set([1, 2, 3, 4]);
+        index.insert(&items);
+
+        let predicate = IndexScanPredicate::Between(
+            EncodedObjectId::from(1),
+            EncodedObjectId::from(2),
+        );
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate)),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        let result = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(result.row_groups.len(), 1);
+        let new_instructions = result.new_instructions.unwrap();
+        assert!(new_instructions.0[0].predicate().is_none());
+        assert!(new_instructions.0[1].predicate().is_some());
+    }
+
+    #[test]
+    fn test_prune_filter_between_with_single_element_also_prunes_following_instructions()
+    {
+        let mut index = IndexData::new(2, 0);
+        let items = quad_set([1, 2, 3, 4]);
+        index.insert(&items);
+
+        let predicate = IndexScanPredicate::Between(
+            EncodedObjectId::from(1),
+            EncodedObjectId::from(1),
+        );
+        let instructions = IndexScanInstructions([
+            IndexScanInstruction::Traverse(Some(predicate.clone())),
+            IndexScanInstruction::Traverse(Some(predicate)),
+            IndexScanInstruction::Traverse(None),
+            IndexScanInstruction::Traverse(None),
+        ]);
+
+        let result = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(result.row_groups.len(), 1);
+        let new_instructions = result.new_instructions.unwrap();
+        assert!(new_instructions.0[0].predicate().is_none());
+        assert!(new_instructions.0[1].predicate().is_none());
+    }
+
+    #[test]
     fn test_prune_relevant_row_groups_in_predicate_multiple_values_no_pruning() {
         let mut index = IndexData::new(2, 0);
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
-        let set =
-            HashSet::from([EncodedObjectId::from(2u32), EncodedObjectId::from(3u32)]);
-        let predicate = ObjectIdScanPredicate::In(set);
+        let set = [EncodedObjectId::from(2u32), EncodedObjectId::from(3u32)];
+        let predicate = IndexScanPredicate::In(set.into());
         let instructions = IndexScanInstructions([
             IndexScanInstruction::Traverse(Some(predicate)),
             IndexScanInstruction::Traverse(None),

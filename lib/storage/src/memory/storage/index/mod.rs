@@ -1,6 +1,7 @@
+use datafusion::common::{exec_datafusion_err, plan_datafusion_err};
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use std::collections::HashSet;
-use std::fmt::{Display, Formatter};
+use std::collections::{BTreeSet, HashSet};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 mod components;
@@ -12,9 +13,10 @@ mod set;
 
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
 use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
+use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 pub use components::IndexComponents;
 pub use error::*;
-use rdf_fusion_model::Variable;
+use rdf_fusion_model::{DFResult, Variable};
 pub use scan::{
     DirectIndexRef, IndexRefInSet, MemQuadIndexScanIterator, PlannedPatternScan,
 };
@@ -41,6 +43,7 @@ impl Display for IndexConfiguration {
     }
 }
 
+/// A list of [IndexScanInstruction]s for querying a quad index.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexScanInstructions([IndexScanInstruction; 4]);
 
@@ -60,7 +63,7 @@ impl IndexScanInstructions {
                         new_instructions.push(IndexScanInstruction::Scan(var, predicate))
                     } else {
                         new_instructions.push(IndexScanInstruction::Traverse(Some(
-                            ObjectIdScanPredicate::EqualTo(Arc::clone(&var)),
+                            IndexScanPredicate::EqualTo(Arc::clone(&var)),
                         )));
                     }
                 }
@@ -73,32 +76,199 @@ impl IndexScanInstructions {
         Self(new_instructions.try_into().unwrap())
     }
 
+    /// Returns the inner [IndexScanInstruction]s.
     pub fn instructions(&self) -> &[IndexScanInstruction; 4] {
         &self.0
+    }
+
+    /// Tries to find the [IndexScanInstruction] for a given column name.
+    ///
+    /// It should not be possible for two instructions to have the same name, as the second
+    /// instruction should have been turned into a predicate.
+    pub fn instructions_for_column(
+        &self,
+        column: &str,
+    ) -> Option<(usize, &IndexScanInstruction)> {
+        self.0
+            .iter()
+            .enumerate()
+            .find(|(_, i)| i.scan_variable() == Some(column))
+    }
+
+    /// Returns new [IndexScanInstructions] with the given `instruction` at the given `index`.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the index is out-of-range.
+    pub fn with_new_instruction_at(
+        self,
+        index: usize,
+        instruction: IndexScanInstruction,
+    ) -> Self {
+        let mut new_instructions = self.0;
+        new_instructions[index] = instruction;
+        Self(new_instructions)
+    }
+
+    /// Applies a new `predicate` expression to the instructions.
+    ///
+    /// This will find the corresponding "scan" instruction that scans the column of the `predicate` and logically
+    /// combine `predicate` with any existing predicate on that column.
+    pub fn apply_filter(self, predicate: &MemStoragePredicateExpr) -> DFResult<Self> {
+        if *predicate == MemStoragePredicateExpr::True {
+            return Ok(self);
+        }
+
+        let column = predicate.column().ok_or_else(|| {
+            plan_datafusion_err!("Invalid Predicate: Filter must have a column")
+        })?;
+
+        // If the filter is not a predicate, we can simply return the current scan.
+        let Some(predicate) = predicate.to_scan_predicate()? else {
+            return Ok(self);
+        };
+
+        let (idx, scan_instruction) =
+            self.instructions_for_column(column).ok_or_else(|| {
+                exec_datafusion_err!(
+                    "Could not find scan instruction for column: {}",
+                    column
+                )
+            })?;
+
+        let new_predicate = scan_instruction
+            .predicate()
+            .map(|existing_predicate| existing_predicate.try_and_with(&predicate))
+            .unwrap_or(Some(predicate))
+            .ok_or(plan_datafusion_err!(
+                "Could not apply predicate to scan instruction."
+            ))?;
+        let new_instruction = scan_instruction.clone().with_predicate(new_predicate);
+
+        Ok(self.with_new_instruction_at(idx, new_instruction))
     }
 }
 
 /// A predicate for filtering object ids.
 #[derive(Eq, PartialEq, Debug, Clone)]
-pub enum ObjectIdScanPredicate {
+pub enum IndexScanPredicate {
+    /// Always returns false.
+    False,
     /// Checks whether the object id is in the given set.
-    In(HashSet<EncodedObjectId>),
-    /// Checks whether the object id is *not* in the given set.
-    Except(HashSet<EncodedObjectId>),
+    In(BTreeSet<EncodedObjectId>),
+    /// Checks whether the object id is between the given object ids (end is inclusive).
+    Between(EncodedObjectId, EncodedObjectId),
     /// Checks whether the object id is equal to the scan instruction with the given variable.
     EqualTo(Arc<String>),
+}
+
+impl IndexScanPredicate {
+    /// Combines this predicate with `other` using a logical and.
+    pub fn try_and_with(&self, other: &IndexScanPredicate) -> Option<IndexScanPredicate> {
+        use IndexScanPredicate::*;
+        let result = match (self, other) {
+            // False with any predicate is false.
+            (_, False) | (False, _) => False,
+
+            // Intersect the sets.
+            (In(a), In(b)) => {
+                let inter: BTreeSet<_> = a.intersection(b).cloned().collect();
+                if inter.is_empty() { False } else { In(inter) }
+            }
+
+            // For In, we can simply filter based on the other predicate.
+            (In(a), Between(f, t)) | (Between(f, t), In(a)) => {
+                let filtered: BTreeSet<_> = a
+                    .iter()
+                    .filter(|v| **v >= *f && **v <= *t)
+                    .cloned()
+                    .collect();
+                if filtered.is_empty() {
+                    False
+                } else {
+                    In(filtered)
+                }
+            }
+
+            // Intersect between ranges
+            (Between(from_1, to_1), Between(from_2, to_2)) => {
+                let from = (*from_1).max(*from_2);
+                let to = (*to_1).min(*to_2);
+                if from > to { False } else { Between(from, to) }
+            }
+
+            // Otherwise, return None to indicate that the predicates cannot be combined.
+            _ => return None,
+        };
+        Some(result)
+    }
+}
+
+impl Display for IndexScanPredicate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IndexScanPredicate::False => f.write_str("false"),
+            IndexScanPredicate::In(set) => {
+                if set.len() == 1 {
+                    write!(f, "== {}", set.iter().next().unwrap())
+                } else {
+                    write!(
+                        f,
+                        "in ({})",
+                        set.iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                }
+            }
+            IndexScanPredicate::Between(from, to) => {
+                write!(f, "in ({from}..{to})")
+            }
+            IndexScanPredicate::EqualTo(column) => write!(f, "== {column}"),
+        }
+    }
+}
+
+/// A trait for obtaining a [MemStoragePredicateExpr] which is still unknown at planning time (dynamic filter).
+pub trait IndexScanPredicateSource: Debug + Send + Sync + Display {
+    /// Returns the current predicate.
+    fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr>;
 }
 
 /// An encoded version of a triple pattern.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum IndexScanInstruction {
     /// Traverses the index level, not binding the elements at this level.
-    Traverse(Option<ObjectIdScanPredicate>),
+    Traverse(Option<IndexScanPredicate>),
     /// Scans the index level, binding the elements at this level.
-    Scan(Arc<String>, Option<ObjectIdScanPredicate>),
+    Scan(Arc<String>, Option<IndexScanPredicate>),
 }
 
 impl IndexScanInstruction {
+    /// Creates a new [IndexScanInstruction::Traverse].
+    pub fn traverse() -> Self {
+        IndexScanInstruction::Traverse(None)
+    }
+
+    /// Creates a new [IndexScanInstruction::Traverse] with the given predicate.
+    pub fn traverse_with_predicate(predicate: impl Into<IndexScanPredicate>) -> Self {
+        IndexScanInstruction::Traverse(Some(predicate.into()))
+    }
+
+    /// Creates a new [IndexScanInstruction::Scan].
+    pub fn scan(variable: impl Into<Arc<String>>) -> Self {
+        IndexScanInstruction::Scan(variable.into(), None)
+    }
+
+    /// Creates a new [IndexScanInstruction::Scan] with the given predicate.
+    pub fn scan_with_predicate(
+        variable: impl Into<Arc<String>>,
+        predicate: impl Into<IndexScanPredicate>,
+    ) -> Self {
+        IndexScanInstruction::Scan(variable.into(), Some(predicate.into()))
+    }
+
     /// Returns the scan variable (i.e., the variable to bind the results to) for this instruction.
     pub fn scan_variable(&self) -> Option<&str> {
         match self {
@@ -108,7 +278,7 @@ impl IndexScanInstruction {
     }
 
     /// Returns the predicate for this instruction.
-    pub fn predicate(&self) -> Option<&ObjectIdScanPredicate> {
+    pub fn predicate(&self) -> Option<&IndexScanPredicate> {
         match self {
             IndexScanInstruction::Traverse(predicate) => predicate.as_ref(),
             IndexScanInstruction::Scan(_, predicate) => predicate.as_ref(),
@@ -117,11 +287,23 @@ impl IndexScanInstruction {
 
     /// Creates a new [IndexScanInstruction] that has no predicate, even if the original instruction
     /// contained a predicate.
-    pub fn without_predicate(&self) -> Self {
+    pub fn without_predicate(self) -> Self {
         match self {
             IndexScanInstruction::Traverse(_) => IndexScanInstruction::Traverse(None),
             IndexScanInstruction::Scan(variable, _) => {
-                IndexScanInstruction::Scan(Arc::clone(variable), None)
+                IndexScanInstruction::Scan(variable, None)
+            }
+        }
+    }
+
+    /// Creates a new [IndexScanInstruction] with the given new predicate.
+    pub fn with_predicate(self, predicate: IndexScanPredicate) -> Self {
+        match self {
+            IndexScanInstruction::Traverse(_) => {
+                IndexScanInstruction::Traverse(Some(predicate))
+            }
+            IndexScanInstruction::Scan(variable, _) => {
+                IndexScanInstruction::Scan(variable, Some(predicate))
             }
         }
     }
@@ -134,7 +316,7 @@ impl IndexScanInstruction {
         active_graph: &EncodedActiveGraph,
         variable: Option<&Variable>,
     ) -> IndexScanInstruction {
-        let instruction_with_predicate = |predicate: Option<ObjectIdScanPredicate>| {
+        let instruction_with_predicate = |predicate: Option<IndexScanPredicate>| {
             if let Some(variable) = variable {
                 IndexScanInstruction::Scan(
                     Arc::new(variable.as_str().to_owned()),
@@ -147,18 +329,18 @@ impl IndexScanInstruction {
 
         match active_graph {
             EncodedActiveGraph::DefaultGraph => {
-                let object_ids = HashSet::from([DEFAULT_GRAPH_ID.0]);
-                instruction_with_predicate(Some(ObjectIdScanPredicate::In(object_ids)))
+                let object_ids = BTreeSet::from([DEFAULT_GRAPH_ID.0]);
+                instruction_with_predicate(Some(IndexScanPredicate::In(object_ids)))
             }
             EncodedActiveGraph::AllGraphs => instruction_with_predicate(None),
             EncodedActiveGraph::Union(graphs) => {
-                let object_ids = HashSet::from_iter(graphs.iter().map(|g| g.0));
-                instruction_with_predicate(Some(ObjectIdScanPredicate::In(object_ids)))
+                let object_ids = BTreeSet::from_iter(graphs.iter().map(|g| g.0));
+                instruction_with_predicate(Some(IndexScanPredicate::In(object_ids)))
             }
             EncodedActiveGraph::AnyNamedGraph => {
-                let object_ids = HashSet::from([DEFAULT_GRAPH_ID.0]);
-                instruction_with_predicate(Some(ObjectIdScanPredicate::Except(
-                    object_ids,
+                instruction_with_predicate(Some(IndexScanPredicate::Between(
+                    DEFAULT_GRAPH_ID.0.next().unwrap(),
+                    EncodedObjectId::MAX,
                 )))
             }
         }
@@ -169,11 +351,55 @@ impl From<EncodedTermPattern> for IndexScanInstruction {
     fn from(value: EncodedTermPattern) -> Self {
         match value {
             EncodedTermPattern::ObjectId(object_id) => IndexScanInstruction::Traverse(
-                Some(ObjectIdScanPredicate::In(HashSet::from([object_id]))),
+                Some(IndexScanPredicate::In(BTreeSet::from([object_id]))),
             ),
             EncodedTermPattern::Variable(var) => {
                 IndexScanInstruction::Scan(Arc::new(var), None)
             }
+        }
+    }
+}
+
+/// A list of [PruningPredicate], one for each element of a quad index.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct PruningPredicates([Option<PruningPredicate>; 4]);
+
+impl From<&IndexScanInstructions> for PruningPredicates {
+    fn from(value: &IndexScanInstructions) -> Self {
+        let predicates = value
+            .0
+            .iter()
+            .map(|i| i.predicate().and_then(Option::<PruningPredicate>::from))
+            .collect::<Vec<_>>();
+        Self(predicates.try_into().expect("Should yield 4 predicates"))
+    }
+}
+
+/// A pruning predicate is a simpler version of [IndexScanPredicate] that can be used for quickly pruning relevant
+/// row groups.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum PruningPredicate {
+    /// Checks whether the object id is in the given set.
+    EqualTo(EncodedObjectId),
+    /// Checks whether the object id is between the given object ids (end is inclusive).
+    Between(EncodedObjectId, EncodedObjectId),
+}
+
+impl From<&IndexScanPredicate> for Option<PruningPredicate> {
+    fn from(value: &IndexScanPredicate) -> Self {
+        match value {
+            IndexScanPredicate::In(ids) => {
+                let predicate = if ids.len() == 1 {
+                    PruningPredicate::EqualTo(*ids.first().unwrap())
+                } else {
+                    PruningPredicate::Between(*ids.first().unwrap(), *ids.last().unwrap())
+                };
+                Some(predicate)
+            }
+            IndexScanPredicate::Between(from, to) => {
+                Some(PruningPredicate::Between(*from, *to))
+            }
+            _ => None,
         }
     }
 }
@@ -201,10 +427,9 @@ mod tests {
             traverse(3),
             traverse(4),
         ]));
-        let result = iter.next();
+        let result = iter.next().unwrap().unwrap();
 
-        assert!(result.is_some());
-        assert_eq!(result.unwrap().num_rows, 1);
+        assert_eq!(result.num_rows, 1);
     }
 
     #[tokio::test]
@@ -221,10 +446,9 @@ mod tests {
             traverse(3),
             scan("d"),
         ]));
-        let result = iter.next();
+        let result = iter.next().unwrap().unwrap();
 
-        assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().columns, @r#"
+        assert_debug_snapshot!(result.columns, @r#"
         {
             "d": PrimitiveArray<UInt32>
             [
@@ -249,10 +473,9 @@ mod tests {
             scan("c"),
             traverse(4),
         ]));
-        let result = iter.next();
+        let result = iter.next().unwrap().unwrap();
 
-        assert!(result.is_some());
-        assert_debug_snapshot!(result.unwrap().columns, @r#"
+        assert_debug_snapshot!(result.columns, @r#"
         {
             "c": PrimitiveArray<UInt32>
             [
@@ -416,7 +639,7 @@ mod tests {
             IndexScanInstructions::new([
                 IndexScanInstruction::Scan(
                     Arc::new("a".to_owned()),
-                    Some(ObjectIdScanPredicate::In(HashSet::from([eid(1), eid(3)]))),
+                    Some(IndexScanPredicate::In([eid(1), eid(3)].into()).into()),
                 ),
                 scan("b"),
                 scan("c"),
@@ -499,6 +722,88 @@ mod tests {
         assert_eq!(result, 0);
     }
 
+    #[test]
+    fn try_and_with_false_predicate_returns_false() {
+        let in_pred = IndexScanPredicate::In([eid(1), eid(2)].into());
+        let between_pred = IndexScanPredicate::Between(eid(1), eid(5));
+        let false_pred = IndexScanPredicate::False;
+
+        // False with anything is False
+        assert_eq!(
+            in_pred.try_and_with(&false_pred),
+            Some(IndexScanPredicate::False)
+        );
+        assert_eq!(
+            false_pred.try_and_with(&between_pred),
+            Some(IndexScanPredicate::False)
+        );
+    }
+
+    #[test]
+    fn try_and_with_in_and_in_intersects() {
+        let a = IndexScanPredicate::In([eid(1), eid(2), eid(3)].into());
+        let b = IndexScanPredicate::In([eid(2), eid(3), eid(4)].into());
+        assert_eq!(
+            a.try_and_with(&b),
+            Some(IndexScanPredicate::In([eid(2), eid(3)].into()))
+        );
+    }
+
+    #[test]
+    fn try_and_with_in_and_in_disjoint_returns_false() {
+        let a = IndexScanPredicate::In([eid(1)].into());
+        let b = IndexScanPredicate::In([eid(2)].into());
+        assert_eq!(a.try_and_with(&b), Some(IndexScanPredicate::False));
+    }
+
+    #[test]
+    fn try_and_with_in_and_between_filters_in_set() {
+        let a = IndexScanPredicate::In([eid(1), eid(2), eid(3)].into());
+        let b = IndexScanPredicate::Between(eid(2), eid(3));
+        // Only 2 and 3 fall into the range
+        assert_eq!(
+            a.try_and_with(&b),
+            Some(IndexScanPredicate::In([eid(2), eid(3)].into()))
+        );
+    }
+
+    #[test]
+    fn try_and_with_between_and_in_filters_in_set() {
+        let a = IndexScanPredicate::Between(eid(2), eid(4));
+        let b = IndexScanPredicate::In([eid(3), eid(4), eid(5)].into());
+        // Only 3 and 4 fall into both
+        assert_eq!(
+            a.try_and_with(&b),
+            Some(IndexScanPredicate::In([eid(3), eid(4)].into()))
+        );
+    }
+
+    #[test]
+    fn try_and_with_between_and_between_intersects() {
+        let a = IndexScanPredicate::Between(eid(2), eid(5));
+        let b = IndexScanPredicate::Between(eid(3), eid(4));
+        // Intersection is 3 to 4
+        assert_eq!(
+            a.try_and_with(&b),
+            Some(IndexScanPredicate::Between(eid(3), eid(4)))
+        );
+    }
+
+    #[test]
+    fn try_and_with_between_and_between_disjoint_returns_false() {
+        let a = IndexScanPredicate::Between(eid(1), eid(2));
+        let b = IndexScanPredicate::Between(eid(3), eid(4));
+        // Disjoint
+        assert_eq!(a.try_and_with(&b), Some(IndexScanPredicate::False));
+    }
+
+    #[test]
+    fn try_and_with_incompatible_returns_none() {
+        let a = IndexScanPredicate::In([eid(1)].into());
+        let b = IndexScanPredicate::EqualTo(Arc::new("x".to_string()));
+        assert_eq!(a.try_and_with(&b), None);
+    }
+
     fn create_index() -> MemQuadIndex {
         create_index_with_batch_size(10)
     }
@@ -519,9 +824,9 @@ mod tests {
     }
 
     fn traverse(id: u32) -> IndexScanInstruction {
-        IndexScanInstruction::Traverse(Some(ObjectIdScanPredicate::In(HashSet::from([
-            EncodedObjectId::from(id),
-        ]))))
+        IndexScanInstruction::Traverse(Some(
+            IndexScanPredicate::In([EncodedObjectId::from(id)].into()).into(),
+        ))
     }
 
     fn scan(name: impl Into<String>) -> IndexScanInstruction {
@@ -546,7 +851,7 @@ mod tests {
         expected_columns: usize,
         expected_rows: usize,
     ) {
-        let results = index.scan_quads(instructions).next().unwrap();
+        let results = index.scan_quads(instructions).next().unwrap().unwrap();
 
         assert_eq!(results.num_rows, expected_rows);
         assert_eq!(results.columns.len(), expected_columns);
@@ -563,7 +868,7 @@ mod tests {
     ) {
         let mut batch_sizes: Vec<_> = index
             .scan_quads(instructions)
-            .map(|arr| arr.num_rows)
+            .map(|arr| arr.unwrap().num_rows)
             .collect();
 
         if ordered {
