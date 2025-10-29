@@ -41,5 +41,5 @@ pub fn dispatch_quaternary_owned_typed_value<'data>(
         Err(err) => Err(*err),
     });
     let result = DefaultTypedValueEncoder::encode_terms(results_iter)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }

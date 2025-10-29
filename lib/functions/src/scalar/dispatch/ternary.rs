@@ -33,7 +33,7 @@ pub fn dispatch_ternary_typed_value<'data>(
         })
         .collect::<Vec<_>>();
     let result = DefaultTypedValueEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 pub fn dispatch_ternary_owned_typed_value<'data>(
@@ -66,5 +66,5 @@ pub fn dispatch_ternary_owned_typed_value<'data>(
         Err(err) => Err(*err),
     });
     let result = DefaultTypedValueEncoder::encode_terms(results_iter)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }

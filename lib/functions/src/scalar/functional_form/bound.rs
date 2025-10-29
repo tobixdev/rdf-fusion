@@ -74,9 +74,9 @@ fn impl_bound_plain_term(
 ) -> DFResult<ColumnarValue> {
     match array {
         EncodingDatum::Array(array) => impl_bound_array(array.array().as_ref())
-            .map(|array| ColumnarValue::Array(array.into_array())),
+            .map(|array| ColumnarValue::Array(array.into_array_ref())),
         EncodingDatum::Scalar(scalar, _) => {
-            let array = scalar.to_array(1)?.into_array();
+            let array = scalar.to_array(1)?.into_array_ref();
             impl_bound_array(array.as_ref())?
                 .try_as_scalar(0)
                 .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))
@@ -89,9 +89,9 @@ fn impl_bound_typed_value(
 ) -> DFResult<ColumnarValue> {
     match array {
         EncodingDatum::Array(array) => impl_bound_array(array.array().as_ref())
-            .map(|array| ColumnarValue::Array(array.into_array())),
+            .map(|array| ColumnarValue::Array(array.into_array_ref())),
         EncodingDatum::Scalar(scalar, _) => {
-            let array = scalar.to_array(1)?.into_array();
+            let array = scalar.to_array(1)?.into_array_ref();
             impl_bound_array(array.as_ref())?
                 .try_as_scalar(0)
                 .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))
@@ -104,9 +104,9 @@ fn impl_bound_object_id(
 ) -> DFResult<ColumnarValue> {
     match array {
         EncodingDatum::Array(array) => impl_bound_array(array.array().as_ref())
-            .map(|array| ColumnarValue::Array(array.into_array())),
+            .map(|array| ColumnarValue::Array(array.into_array_ref())),
         EncodingDatum::Scalar(scalar, _) => {
-            let array = scalar.to_array(1)?.into_array();
+            let array = scalar.to_array(1)?.into_array_ref();
             impl_bound_array(array.as_ref())?
                 .try_as_scalar(0)
                 .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))

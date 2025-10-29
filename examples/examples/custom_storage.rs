@@ -125,10 +125,10 @@ impl VecQuadStorage {
         let record_batch = RecordBatch::try_new(
             Arc::clone(&schema),
             vec![
-                graph_name.into_array(),
-                subject.into_array(),
-                predicate.into_array(),
-                object.into_array(),
+                graph_name.into_array_ref(),
+                subject.into_array_ref(),
+                predicate.into_array_ref(),
+                object.into_array_ref(),
             ],
         )
         .expect("Schema and length always match");

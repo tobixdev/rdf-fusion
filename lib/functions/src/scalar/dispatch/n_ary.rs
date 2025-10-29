@@ -21,7 +21,7 @@ pub fn dispatch_n_ary_plain_term(
     if args.is_empty() {
         let results = (0..number_of_rows).map(|_| op(&[]));
         let result = DefaultPlainTermEncoder::encode_terms(results)?;
-        return Ok(ColumnarValue::Array(result.into_array()));
+        return Ok(ColumnarValue::Array(result.into_array_ref()));
     }
 
     let mut iters = Vec::new();
@@ -38,7 +38,7 @@ pub fn dispatch_n_ary_plain_term(
         }
     });
     let result = DefaultPlainTermEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 pub fn dispatch_n_ary_typed_value(
@@ -52,7 +52,7 @@ pub fn dispatch_n_ary_typed_value(
     if args.is_empty() {
         let results = (0..number_of_rows).map(|_| op(&[]));
         let result = DefaultTypedValueEncoder::encode_terms(results)?;
-        return Ok(ColumnarValue::Array(result.into_array()));
+        return Ok(ColumnarValue::Array(result.into_array_ref()));
     }
 
     let mut iters = Vec::new();
@@ -69,7 +69,7 @@ pub fn dispatch_n_ary_typed_value(
         }
     });
     let result = DefaultTypedValueEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 pub fn dispatch_n_ary_owned_typed_value(
@@ -85,7 +85,7 @@ pub fn dispatch_n_ary_owned_typed_value(
             Err(err) => Err(*err),
         });
         let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
-        return Ok(ColumnarValue::Array(result.into_array()));
+        return Ok(ColumnarValue::Array(result.into_array_ref()));
     }
 
     let mut iters = Vec::new();
@@ -108,7 +108,7 @@ pub fn dispatch_n_ary_owned_typed_value(
         Err(err) => Err(*err),
     });
     let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 pub fn dispatch_n_ary_object_id(
@@ -123,7 +123,7 @@ pub fn dispatch_n_ary_object_id(
         for result in (0..number_of_rows).map(|_| op(&[]).ok()) {
             builder.append_object_id_opt(result);
         }
-        return Ok(ColumnarValue::Array(builder.finish().into_array()));
+        return Ok(ColumnarValue::Array(builder.finish().into_array_ref()));
     }
 
     let mut iters = Vec::new();
@@ -146,7 +146,7 @@ pub fn dispatch_n_ary_object_id(
     for result in results {
         builder.append_object_id_opt(result);
     }
-    Ok(ColumnarValue::Array(builder.finish().into_array()))
+    Ok(ColumnarValue::Array(builder.finish().into_array_ref()))
 }
 
 fn multi_zip<I, T>(mut iterators: Vec<I>) -> impl Iterator<Item = Vec<T>>
