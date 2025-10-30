@@ -33,15 +33,15 @@ chrono = "0.4"
 clap = "4.5"
 clap_complete = "4.5"
 clap_mangen = "0.2"
-csv = "1.3"
-datafusion = "50.0"
+csv = "1.4"
+datafusion = "50.3"
 dashmap = "6.1"
 futures = "0.3"
 itertools = "0.14"
 md-5 = "0.10"
 rand = "0.9"
 rand_distr = "0.5"
-regex = "1.11"
+regex = "1.12"
 reqwest = "0.12"
 rustc-hash = "2.1"
 serde = { version = "1.0", features = ["derive"] }
@@ -51,9 +51,9 @@ sha2 = "0.10"
 snmalloc-rs = "0.3"
 thiserror = "2.0"
 time = "0.3"
-tokio = { version = "1.47", features = ["rt", "rt-multi-thread"] }
+tokio = { version = "1.48", features = ["rt", "rt-multi-thread"] }
 uuid = "1.18"
-zip = "5.1"
+zip = "6.0"
 
 # Logging / Tracing
 
@@ -64,7 +64,7 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 
 axum = "0.8"
 axum-extra = { version = "0.10", features = ["typed-header"] }
-axum-test = "18.1"
+axum-test = "18.2"
 headers = "0.4"
 headers-accept = "0.2"
 mediatype = "0.20"
@@ -72,7 +72,7 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 
 # Testing / Benchmarking dependencies
 
-codspeed-criterion-compat = "3.0"
+codspeed-criterion-compat = "4.0"
 insta = { version = "1.43", features = ["filters"] }
 prettytable-rs = "0.10"
 text-diff = "0.4"
