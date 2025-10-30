@@ -90,7 +90,7 @@ impl ScalarUDFImpl for NativeBooleanAsTerm {
             }
         };
 
-        Ok(ColumnarValue::Array(result.into_array()))
+        Ok(ColumnarValue::Array(result.into_array_ref()))
     }
 }
 

@@ -60,7 +60,7 @@ impl EncodingArray for PlainTermArray {
         &self.inner
     }
 
-    fn into_array(self) -> ArrayRef {
+    fn into_array_ref(self) -> ArrayRef {
         self.inner
     }
 }

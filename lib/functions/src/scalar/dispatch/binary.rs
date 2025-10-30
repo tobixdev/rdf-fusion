@@ -55,7 +55,7 @@ fn dispatch_binary_typed_value_array_array<'data>(
         apply_binary_op(lhs_value, rhs_value, &op, &error_op)
     });
     let result = DefaultTypedValueEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_typed_value_scalar_array<'data>(
@@ -72,7 +72,7 @@ fn dispatch_binary_typed_value_scalar_array<'data>(
         apply_binary_op(lhs_value, rhs_value, &op, &error_op)
     });
     let result = DefaultTypedValueEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_typed_value_array_scalar<'data>(
@@ -89,7 +89,7 @@ fn dispatch_binary_typed_value_array_scalar<'data>(
         apply_binary_op(lhs_value, rhs_value, &op, &error_op)
     });
     let result = DefaultTypedValueEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_typed_value_scalar_scalar<'data>(
@@ -177,7 +177,7 @@ fn dispatch_binary_owned_array_array(
         })
         .collect::<Vec<_>>();
     let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_owned_scalar_array(
@@ -204,7 +204,7 @@ fn dispatch_binary_owned_scalar_array(
         })
         .collect::<Vec<_>>();
     let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_owned_array_scalar(
@@ -231,7 +231,7 @@ fn dispatch_binary_owned_array_scalar(
         })
         .collect::<Vec<_>>();
     let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_owned_scalar_scalar(
@@ -312,7 +312,7 @@ fn dispatch_binary_plain_term_array_array<'data>(
         apply_binary_op_plain_term(lhs_value, rhs_value, &op, &error_op)
     });
     let result = DefaultPlainTermEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_plain_term_scalar_array<'data>(
@@ -329,7 +329,7 @@ fn dispatch_binary_plain_term_scalar_array<'data>(
         apply_binary_op_plain_term(lhs_value, rhs_value, &op, &error_op)
     });
     let result = DefaultPlainTermEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_plain_term_array_scalar<'data>(
@@ -346,7 +346,7 @@ fn dispatch_binary_plain_term_array_scalar<'data>(
         apply_binary_op_plain_term(lhs_value, rhs_value, &op, &error_op)
     });
     let result = DefaultPlainTermEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_plain_term_scalar_scalar<'data>(

@@ -35,3 +35,42 @@ pub mod aggregates;
 pub mod builtin;
 pub mod registry;
 pub mod scalar;
+
+#[cfg(test)]
+mod test_utils {
+    use crate::registry::DefaultRdfFusionFunctionRegistry;
+    use datafusion::logical_expr::ScalarUDF;
+    use rdf_fusion_encoding::RdfFusionEncodings;
+    use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+    use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
+    use rdf_fusion_encoding::typed_value::{
+        TYPED_VALUE_ENCODING, TypedValueArray, TypedValueArrayElementBuilder,
+    };
+    use rdf_fusion_extensions::functions::{
+        BuiltinName, FunctionName, RdfFusionFunctionRegistry,
+    };
+    use rdf_fusion_model::{Decimal, NamedNodeRef};
+    use std::sync::Arc;
+
+    /// Creates a test vector with mixed types.
+    pub(crate) fn create_mixed_test_vector() -> TypedValueArray {
+        let mut test_vector = TypedValueArrayElementBuilder::default();
+        test_vector
+            .append_named_node(NamedNodeRef::new_unchecked("http://example.com/test"))
+            .unwrap();
+        test_vector.append_decimal(Decimal::from(10)).unwrap();
+        test_vector.finish()
+    }
+
+    /// Creates an instance of the given builtin UDF.
+    pub(crate) fn create_default_builtin_udf(name: BuiltinName) -> Arc<ScalarUDF> {
+        let encodings = RdfFusionEncodings::new(
+            PLAIN_TERM_ENCODING,
+            TYPED_VALUE_ENCODING,
+            None,
+            SORTABLE_TERM_ENCODING,
+        );
+        let function_registry = DefaultRdfFusionFunctionRegistry::new(encodings);
+        function_registry.udf(&FunctionName::Builtin(name)).unwrap()
+    }
+}

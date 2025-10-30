@@ -32,7 +32,7 @@ fn test_unary_functions_plain_term() {
 
     assert_snapshot!(
         "STR(PLAIN_TERM)",
-        invoke_udf(&registry, BuiltinName::Str, test_vector.into_array()),
+        invoke_udf(&registry, BuiltinName::Str, test_vector.into_array_ref()),
     )
 }
 

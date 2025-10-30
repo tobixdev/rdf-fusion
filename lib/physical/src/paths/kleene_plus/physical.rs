@@ -412,9 +412,9 @@ impl KleenePlusClosureStream {
         RecordBatch::try_new_with_options(
             Arc::clone(&self.schema),
             vec![
-                graph_array.into_array(),
-                start_array.into_array(),
-                end_array.into_array(),
+                graph_array.into_array_ref(),
+                start_array.into_array_ref(),
+                end_array.into_array_ref(),
             ],
             &options,
         )

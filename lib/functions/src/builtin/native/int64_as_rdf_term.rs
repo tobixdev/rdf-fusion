@@ -94,7 +94,7 @@ impl ScalarUDFImpl for NativeInt64AsTerm {
             }
         };
 
-        Ok(ColumnarValue::Array(result.into_array()))
+        Ok(ColumnarValue::Array(result.into_array_ref()))
     }
 }
 

@@ -50,7 +50,7 @@ impl ScalarSparqlOp for StrUuidSparqlOp {
             let array = DefaultTypedValueEncoder::encode_terms(
                 values.iter().map(|result| Ok(result.as_ref())),
             )?;
-            Ok(ColumnarValue::Array(array.into_array()))
+            Ok(ColumnarValue::Array(array.into_array_ref()))
         }))
     }
 }
