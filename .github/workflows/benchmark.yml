@@ -55,7 +55,7 @@ jobs:
           ../target/profiling-nonlto/rdf-fusion-bench prepare wind-farm --num-turbines 16
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@c6574d0c2a990bca2842ce9af71549c5bfd7fbe0
         env:
           RDF_FUSION_SINGLE_THREAD_BENCH: "true"
         with:
