@@ -35,7 +35,7 @@ pub fn compute_schema_for_triple_pattern(
 ) -> DFSchemaRef {
     compute_schema_for_pattern(
         &storage_encoding.quad_schema(),
-        &vec![
+        &[
             graph_variable
                 .as_ref()
                 .map(|v| TermPattern::Variable(v.into_owned())),
