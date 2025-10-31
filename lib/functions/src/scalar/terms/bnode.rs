@@ -54,7 +54,7 @@ impl ScalarSparqlOp for BNodeSparqlOp {
                     for _ in 0..args.number_rows {
                         builder.append_blank_node(BlankNode::default().as_ref())?;
                     }
-                    Ok(ColumnarValue::Array(builder.finish().into_array()))
+                    Ok(ColumnarValue::Array(builder.finish().into_array_ref()))
                 }
                 1 => dispatch_unary_typed_value(
                     &args.args[0],

@@ -87,7 +87,7 @@ impl ScalarSparqlOp for StrSparqlOp {
         Some(create_plain_term_sparql_op_impl(|args| {
             match &args.args[0] {
                 EncodingDatum::Array(array) => Ok(ColumnarValue::Array(
-                    impl_str_plain_term(array).into_array(),
+                    impl_str_plain_term(array).into_array_ref(),
                 )),
                 EncodingDatum::Scalar(scalar, _) => {
                     let array = scalar.to_array(1)?;
@@ -130,4 +130,40 @@ fn impl_str_plain_term(array: &PlainTermArray) -> PlainTermArray {
     PlainTermArrayBuilder::new(Arc::new(term_types), value)
         .with_data_types(Arc::new(data_types))
         .finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::test_utils::{create_default_builtin_udf, create_mixed_test_vector};
+    use datafusion::dataframe;
+    use datafusion::logical_expr::col;
+    use insta::assert_snapshot;
+    use rdf_fusion_encoding::EncodingArray;
+    use rdf_fusion_extensions::functions::BuiltinName;
+
+    #[tokio::test]
+    async fn test_str_typed_value() {
+        let test_vector = create_mixed_test_vector();
+        let udf = create_default_builtin_udf(BuiltinName::Str);
+
+        let input = dataframe!(
+            "input" => test_vector,
+        )
+        .unwrap();
+
+        let result = input
+            .select([col("input"), udf.call(vec![col("input")])])
+            .unwrap();
+        assert_snapshot!(
+            result.to_string().await.unwrap(),
+            @r"
+        +--------------------------------------+-------------------------------------------------------+
+        | input                                | STR(?table?.input)                                    |
+        +--------------------------------------+-------------------------------------------------------+
+        | {named_node=http://example.com/test} | {string={value: http://example.com/test, language: }} |
+        | {decimal=1000.0000000000000000}      | {string={value: 10, language: }}                      |
+        +--------------------------------------+-------------------------------------------------------+
+        "
+        )
+    }
 }

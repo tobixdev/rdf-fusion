@@ -64,7 +64,7 @@ impl WithPlainTermEncoding {
                 let array = TYPED_VALUE_ENCODING.try_new_array(array)?;
                 let input = DefaultTypedValueDecoder::decode_terms(&array);
                 let result = TypedValueRefPlainTermEncoder::encode_terms(input)?;
-                Ok(ColumnarValue::Array(result.into_array()))
+                Ok(ColumnarValue::Array(result.into_array_ref()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
             EncodingName::ObjectId => match self.encodings.object_id_mapping() {
@@ -72,7 +72,7 @@ impl WithPlainTermEncoding {
                 Some(object_id_encoding) => {
                     let array = object_id_encoding.encoding().try_new_array(array)?;
                     let decoded = object_id_encoding.decode_array(&array)?;
-                    Ok(ColumnarValue::Array(decoded.into_array()))
+                    Ok(ColumnarValue::Array(decoded.into_array_ref()))
                 }
             },
         }

@@ -44,8 +44,8 @@ impl BinaryScenario {
                     }
                 }
                 vec![
-                    ColumnarValue::Array(left_builder.finish().into_array()),
-                    ColumnarValue::Array(right_builder.finish().into_array()),
+                    ColumnarValue::Array(left_builder.finish().into_array_ref()),
+                    ColumnarValue::Array(right_builder.finish().into_array_ref()),
                 ]
             }
         }

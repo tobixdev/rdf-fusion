@@ -50,7 +50,7 @@ impl ScalarSparqlOp for RandSparqlOp {
                 Ok(TypedValueRef::NumericLiteral(Numeric::Double(value.into())))
             });
             let array = DefaultTypedValueEncoder::encode_terms(values)?;
-            Ok(ColumnarValue::Array(array.into_array()))
+            Ok(ColumnarValue::Array(array.into_array_ref()))
         }))
     }
 }

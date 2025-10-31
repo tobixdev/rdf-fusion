@@ -193,7 +193,7 @@ pub fn query_result_for_iterator(
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()
-        .map(|b| b.finish().into_array())
+        .map(|b| b.finish().into_array_ref())
         .collect::<Vec<_>>();
 
     let schema = SchemaRef::new(Schema::new(fields));

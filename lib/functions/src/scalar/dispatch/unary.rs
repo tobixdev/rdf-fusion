@@ -30,7 +30,7 @@ fn dispatch_unary_array<'data>(
         Err(_) => error_op(),
     });
     let result = DefaultTypedValueEncoder::encode_terms(results)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_unary_scalar<'data>(
@@ -82,7 +82,7 @@ fn dispatch_unary_owned_typed_value_array(
         })
         .collect::<Vec<_>>();
     let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
-    Ok(ColumnarValue::Array(result.into_array()))
+    Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_unary_owned_typed_value_scalar(

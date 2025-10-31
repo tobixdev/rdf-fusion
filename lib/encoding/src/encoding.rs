@@ -22,7 +22,7 @@ pub trait EncodingArray: Clone {
     fn array(&self) -> &ArrayRef;
 
     /// Consumes `self` and returns the inner array.
-    fn into_array(self) -> ArrayRef;
+    fn into_array_ref(self) -> ArrayRef;
 
     /// Extracts a scalar from this array at `index`.
     ///

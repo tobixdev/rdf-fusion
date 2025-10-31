@@ -87,13 +87,13 @@ impl WithSortableEncoding {
                 let array = PLAIN_TERM_ENCODING.try_new_array(array)?;
                 let input = DefaultPlainTermDecoder::decode_terms(&array);
                 let result = TermRefSortableTermEncoder::encode_terms(input)?;
-                Ok(ColumnarValue::Array(result.into_array()))
+                Ok(ColumnarValue::Array(result.into_array_ref()))
             }
             EncodingName::TypedValue => {
                 let array = TYPED_VALUE_ENCODING.try_new_array(array)?;
                 let input = DefaultTypedValueDecoder::decode_terms(&array);
                 let result = TypedValueRefSortableTermEncoder::encode_terms(input)?;
-                Ok(ColumnarValue::Array(result.into_array()))
+                Ok(ColumnarValue::Array(result.into_array_ref()))
             }
             EncodingName::Sortable => Ok(ColumnarValue::Array(array)),
             EncodingName::ObjectId => exec_err!("Cannot from object id."),

@@ -38,7 +38,9 @@ impl UnaryScenario {
                         ))
                         .unwrap();
                 }
-                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+                vec![ColumnarValue::Array(
+                    payload_builder.finish().into_array_ref(),
+                )]
             }
             UnaryScenario::Mixed => {
                 let mut payload_builder = TypedValueArrayElementBuilder::default();
@@ -64,7 +66,9 @@ impl UnaryScenario {
                         }
                     }
                 }
-                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+                vec![ColumnarValue::Array(
+                    payload_builder.finish().into_array_ref(),
+                )]
             }
             UnaryScenario::AllBlank => {
                 let mut payload_builder = TypedValueArrayElementBuilder::default();
@@ -73,21 +77,27 @@ impl UnaryScenario {
                         .append_blank_node(BlankNode::default().as_ref())
                         .unwrap();
                 }
-                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+                vec![ColumnarValue::Array(
+                    payload_builder.finish().into_array_ref(),
+                )]
             }
             UnaryScenario::AllInt => {
                 let mut payload_builder = TypedValueArrayElementBuilder::default();
                 for i in 0..8192 {
                     payload_builder.append_integer(Integer::from(i)).unwrap();
                 }
-                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+                vec![ColumnarValue::Array(
+                    payload_builder.finish().into_array_ref(),
+                )]
             }
             UnaryScenario::AllFloat => {
                 let mut payload_builder = TypedValueArrayElementBuilder::default();
                 for i in 0..8192 {
                     payload_builder.append_float(Float::from(i as i16)).unwrap();
                 }
-                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+                vec![ColumnarValue::Array(
+                    payload_builder.finish().into_array_ref(),
+                )]
             }
             UnaryScenario::AllString => {
                 let mut payload_builder = TypedValueArrayElementBuilder::default();
@@ -96,7 +106,9 @@ impl UnaryScenario {
                         .append_string(format!("String number {i}").as_str(), None)
                         .unwrap();
                 }
-                vec![ColumnarValue::Array(payload_builder.finish().into_array())]
+                vec![ColumnarValue::Array(
+                    payload_builder.finish().into_array_ref(),
+                )]
             }
         }
     }

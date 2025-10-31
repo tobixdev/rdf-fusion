@@ -25,6 +25,7 @@ uuid = { workspace = true, features = ["v4"] }
 [dev-dependencies]
 codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
 insta.workspace = true
+tokio.workspace = true
 
 [lints]
 workspace = true
