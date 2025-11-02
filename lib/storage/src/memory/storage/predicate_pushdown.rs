@@ -1,5 +1,7 @@
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::index::{IndexScanPredicate, IndexScanPredicateSource};
+use crate::memory::storage::scan_instructions::{
+    MemIndexScanPredicate, MemIndexScanPredicateSource,
+};
 use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
 use datafusion::logical_expr::Operator;
 use datafusion::physical_expr::PhysicalExpr;
@@ -96,12 +98,12 @@ impl MemStoragePredicateExpr {
         }
     }
 
-    /// Returns the [IndexScanPredicate] that implements this expression.
+    /// Returns the [MemIndexScanPredicate] that implements this expression.
     ///
     /// Returns [None] if the expression always evaluates to true.
     /// Returns [Err] if the expression is not a predicate.
-    pub fn to_scan_predicate(&self) -> DFResult<Option<IndexScanPredicate>> {
-        use IndexScanPredicate::*;
+    pub fn to_scan_predicate(&self) -> DFResult<Option<MemIndexScanPredicate>> {
+        use MemIndexScanPredicate::*;
 
         Ok(match self {
             MemStoragePredicateExpr::True => None,
@@ -197,7 +199,7 @@ pub fn try_rewrite_datafusion_expr(
                 let left = left.to_scan_predicate().ok().flatten()?;
                 let right = right.to_scan_predicate().ok().flatten()?;
                 return match left.try_and_with(&right)? {
-                    IndexScanPredicate::Between(from, to) => {
+                    MemIndexScanPredicate::Between(from, to) => {
                         Some(MemStoragePredicateExpr::Between(
                             Arc::clone(lhs_column),
                             from,
@@ -214,7 +216,7 @@ pub fn try_rewrite_datafusion_expr(
     None
 }
 
-impl IndexScanPredicateSource for DynamicFilterPhysicalExpr {
+impl MemIndexScanPredicateSource for DynamicFilterPhysicalExpr {
     fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr> {
         let expr = self.current()?;
         try_rewrite_datafusion_expr(&expr)
@@ -225,7 +227,7 @@ impl IndexScanPredicateSource for DynamicFilterPhysicalExpr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use IndexScanPredicate::*;
+    use MemIndexScanPredicate::*;
 
     #[test]
     fn test_column_predicate() {

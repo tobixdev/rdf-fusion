@@ -1,6 +1,7 @@
 #![allow(clippy::unreadable_literal)]
 
-use crate::memory::encoding::{EncodedQuad, EncodedTerm, EncodedTypedValue};
+use crate::index::EncodedQuad;
+use crate::memory::encoding::{EncodedTerm, EncodedTypedValue};
 use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
@@ -101,9 +102,12 @@ impl MemObjectIdMapping {
     }
 
     /// Encodes the entire `quad`.
-    pub(super) fn encode_quad(&self, quad: QuadRef<'_>) -> DFResult<EncodedQuad> {
+    pub(super) fn encode_quad(
+        &self,
+        quad: QuadRef<'_>,
+    ) -> DFResult<EncodedQuad<EncodedObjectId>> {
         Ok(EncodedQuad {
-            graph_name: self.encode_graph_name_intern(quad.graph_name),
+            graph_name: self.encode_graph_name_intern(quad.graph_name).0,
             subject: self.encode_term_intern(quad.subject),
             predicate: self.encode_term_intern(quad.predicate),
             object: self.encode_term_intern(quad.object),

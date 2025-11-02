@@ -1,15 +1,18 @@
-use crate::memory::storage::index::quad_index::MemQuadIndex;
-use crate::memory::storage::index::quad_index_data::MemRowGroup;
-use crate::memory::storage::index::{
-    IndexConfiguration, IndexScanInstruction, IndexScanInstructions, IndexScanPredicate,
-    IndexScanPredicateSource, IndexSet, MemQuadIndexSetScanIterator,
-};
+use crate::index::{IndexComponents, IndexPermutations, ScanInstructions};
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
+use crate::memory::storage::quad_index::MemQuadIndex;
+use crate::memory::storage::quad_index_data::MemRowGroup;
+use crate::memory::storage::scan_instructions::{
+    MemIndexScanInstruction, MemIndexScanInstructions, MemIndexScanPredicate,
+    MemIndexScanPredicateSource,
+};
 use crate::memory::storage::stream::MemIndexScanStream;
-use datafusion::arrow::array::{Array, BooleanArray, UInt32Array};
+use datafusion::arrow::array::{
+    Array, BooleanArray, RecordBatch, RecordBatchOptions, UInt32Array,
+};
 use datafusion::arrow::compute::kernels::cmp::{eq, gt_eq, lt_eq};
 use datafusion::arrow::compute::{and, filter, or};
-use datafusion::arrow::datatypes::SchemaRef;
+use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use datafusion::common::ScalarValue;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
@@ -37,7 +40,10 @@ pub struct MemQuadIndexScanIterator<TIndexRef: IndexRef> {
 
 impl<'index> MemQuadIndexScanIterator<DirectIndexRef<'index>> {
     /// Creates a new [MemQuadIndexScanIterator].
-    pub fn new(index: &'index MemQuadIndex, instructions: IndexScanInstructions) -> Self {
+    pub fn new(
+        index: &'index MemQuadIndex,
+        instructions: MemIndexScanInstructions,
+    ) -> Self {
         Self {
             state: ScanState::CollectRelevantRowGroups(
                 DirectIndexRef(index),
@@ -51,10 +57,10 @@ impl<'index> MemQuadIndexScanIterator<DirectIndexRef<'index>> {
 impl MemQuadIndexScanIterator<IndexRefInSet> {
     /// Creates a new [MemQuadIndexScanIterator].
     pub fn new_from_index_set(
-        index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
-        index: IndexConfiguration,
-        instructions: IndexScanInstructions,
-        dynamic_filters: Vec<Arc<dyn IndexScanPredicateSource>>,
+        index_set: Arc<OwnedRwLockReadGuard<IndexPermutations<MemQuadIndex>>>,
+        index: IndexComponents,
+        instructions: MemIndexScanInstructions,
+        dynamic_filters: Vec<Arc<dyn MemIndexScanPredicateSource>>,
     ) -> Self {
         Self {
             state: ScanState::CollectRelevantRowGroups(
@@ -72,8 +78,8 @@ enum ScanState<TIndexRef: IndexRef> {
     /// arrays and can thus drop the [TIndexRef] once this step is done.
     CollectRelevantRowGroups(
         TIndexRef,
-        IndexScanInstructions,
-        Vec<Arc<dyn IndexScanPredicateSource>>,
+        MemIndexScanInstructions,
+        Vec<Arc<dyn MemIndexScanPredicateSource>>,
     ),
     /// Applying the filters and projections to every identified
     Scanning {
@@ -84,7 +90,7 @@ enum ScanState<TIndexRef: IndexRef> {
         /// the filters. These filters become [None] and ideally, the index should only be scanned
         /// after identifying the batches (we prune the first and last batch if necessary). As a
         /// result, the iterator can simply copy the batches without any more filtering.
-        instructions: [Option<IndexScanInstruction>; 4],
+        instructions: [Option<MemIndexScanInstruction>; 4],
     },
     /// The scan is fined.
     Finished,
@@ -115,8 +121,8 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                         index_data.prune_relevant_row_groups(&instructions);
 
                     let instructions = match pruning_result.new_instructions {
-                        None => instructions.0.clone(),
-                        Some(new_instructions) => new_instructions.0,
+                        None => instructions.inner().clone(),
+                        Some(new_instructions) => new_instructions.into_inner(),
                     };
 
                     if pruning_result.row_groups.is_empty() {
@@ -144,10 +150,12 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
-                                    Some(IndexScanInstruction::Scan(name, _)) => Some((
-                                        name.as_str().to_owned(),
-                                        Arc::clone(data) as Arc<dyn Array>,
-                                    )),
+                                    Some(MemIndexScanInstruction::Scan(name, _)) => {
+                                        Some((
+                                            name.as_str().to_owned(),
+                                            Arc::clone(data) as Arc<dyn Array>,
+                                        ))
+                                    }
                                     _ => None,
                                 })
                                 .collect();
@@ -167,7 +175,7 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                                 .iter()
                                 .zip(instructions.iter())
                                 .filter_map(|(data, instruction)| match instruction {
-                                    Some(IndexScanInstruction::Scan(name, _)) => {
+                                    Some(MemIndexScanInstruction::Scan(name, _)) => {
                                         Some((name.as_str().to_owned(), data))
                                     }
                                     _ => None,
@@ -207,9 +215,9 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
 }
 
 fn combine_instructions_with_dynamic_filters(
-    instructions: &IndexScanInstructions,
-    dynamic_filters: &Vec<Arc<dyn IndexScanPredicateSource>>,
-) -> DFResult<IndexScanInstructions> {
+    instructions: &MemIndexScanInstructions,
+    dynamic_filters: &Vec<Arc<dyn MemIndexScanPredicateSource>>,
+) -> DFResult<MemIndexScanInstructions> {
     // Filter out any dynamic filters that are not supported by the index.
     let supported_filters = dynamic_filters
         .iter()
@@ -231,7 +239,7 @@ fn combine_instructions_with_dynamic_filters(
 impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     fn compute_selection_vector(
         data: &[Arc<UInt32Array>; 4],
-        instructions: &[Option<IndexScanInstruction>; 4],
+        instructions: &[Option<MemIndexScanInstruction>; 4],
     ) -> Option<BooleanArray> {
         data.iter()
             .zip(instructions.iter())
@@ -259,12 +267,12 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     /// set and switch to the different strategy for large predicates.
     fn apply_predicate(
         all_data: &[Arc<UInt32Array>; 4],
-        instructions: &[Option<IndexScanInstruction>; 4],
+        instructions: &[Option<MemIndexScanInstruction>; 4],
         data: &UInt32Array,
-        predicate: &IndexScanPredicate,
+        predicate: &MemIndexScanPredicate,
     ) -> Option<BooleanArray> {
         match predicate {
-            IndexScanPredicate::In(ids) => ids
+            MemIndexScanPredicate::In(ids) => ids
                 .iter()
                 .map(|id| {
                     eq(
@@ -274,9 +282,9 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                     .expect("Array length must match, Data Types match")
                 })
                 .reduce(|lhs, rhs| or(&lhs, &rhs).expect("Array length must match")),
-            IndexScanPredicate::EqualTo(name) => {
+            MemIndexScanPredicate::EqualTo(name) => {
                 let index = instructions.iter().position(|i| match i {
-                    Some(IndexScanInstruction::Scan(var, _)) => var == name,
+                    Some(MemIndexScanInstruction::Scan(var, _)) => var == name,
                     _ => false,
                 })?;
                 Some(
@@ -284,7 +292,7 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                         .expect("Array length must match, Data Types match"),
                 )
             }
-            IndexScanPredicate::Between(from, to) => {
+            MemIndexScanPredicate::Between(from, to) => {
                 let ge = gt_eq(
                     data,
                     &ScalarValue::UInt32(Some(from.as_u32()))
@@ -301,11 +309,79 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                 .expect("lt_eq supports UInt32");
                 Some(and(&ge, &le).expect("Inputs are bools and of same length"))
             }
-            IndexScanPredicate::False => {
+            MemIndexScanPredicate::False => {
                 Some(repeat_n(Some(false), data.len()).collect())
             }
         }
     }
+}
+
+/// A [MemQuadIndexScanIterator] that uses an [IndexPermutations] to choose the index for scanning.
+pub struct MemQuadIndexScanRecordBatchIterator {
+    /// The schema of the result.
+    schema: SchemaRef,
+    /// The inner iterator.
+    inner: MemQuadIndexScanIterator<IndexRefInSet>,
+}
+
+impl MemQuadIndexScanRecordBatchIterator {
+    /// Creates a new [MemQuadIndexScanRecordBatchIterator].
+    pub fn new(
+        schema: SchemaRef,
+        index_set: Arc<OwnedRwLockReadGuard<IndexPermutations<MemQuadIndex>>>,
+        index: IndexComponents,
+        instructions: MemIndexScanInstructions,
+        dynamic_filters: Vec<Arc<dyn MemIndexScanPredicateSource>>,
+    ) -> Self {
+        let instructions = instructions.reorder(index);
+        let iterator = MemQuadIndexScanIterator::new_from_index_set(
+            index_set,
+            index,
+            instructions.clone(),
+            dynamic_filters,
+        );
+        MemQuadIndexScanRecordBatchIterator {
+            schema,
+            inner: iterator,
+        }
+    }
+}
+
+impl Iterator for MemQuadIndexScanRecordBatchIterator {
+    type Item = DFResult<RecordBatch>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = match self.inner.next()? {
+            Ok(next) => next,
+            Err(err) => return Some(Err(err)),
+        };
+
+        let reordered = reorder_result(&self.schema, next.columns);
+        Some(Ok(RecordBatch::try_new_with_options(
+            Arc::clone(&self.schema),
+            reordered,
+            &RecordBatchOptions::new().with_row_count(Some(next.num_rows)),
+        )
+        .expect("Creates valid record batches")))
+    }
+}
+
+/// Re-orders the given `pattern` for the given `components`.
+fn reorder_result(
+    schema: &Schema,
+    columns: HashMap<String, Arc<dyn Array>>,
+) -> Vec<Arc<dyn Array>> {
+    schema
+        .fields()
+        .iter()
+        .map(|field| {
+            Arc::clone(
+                columns
+                    .get(field.name())
+                    .expect("Column must exist for scan"),
+            )
+        })
+        .collect()
 }
 
 /// Encapsulates the state necessary for executing a pattern scan on a [MemQuadIndex].
@@ -316,26 +392,26 @@ pub struct PlannedPatternScan {
     /// The result schema.
     schema: SchemaRef,
     /// Holds a read lock on the index set.
-    index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
+    index_set: Arc<OwnedRwLockReadGuard<IndexPermutations<MemQuadIndex>>>,
     /// Which index to scan.
-    index: IndexConfiguration,
+    index: IndexComponents,
     /// The instructions to scan the index.
-    instructions: Box<IndexScanInstructions>,
+    instructions: Box<MemIndexScanInstructions>,
     /// The graph variable. Used for printing the query plan.
     graph_variable: Option<Variable>,
     /// The triple pattern. Used for printing the query plan.
     pattern: Box<TriplePattern>,
     /// A list of dynamic filters that are applied to the scan.
-    dynamic_filters: Vec<Arc<dyn IndexScanPredicateSource>>,
+    dynamic_filters: Vec<Arc<dyn MemIndexScanPredicateSource>>,
 }
 
 impl PlannedPatternScan {
     /// Creates a new [PlannedPatternScan].
     pub fn new(
         schema: SchemaRef,
-        index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
-        index: IndexConfiguration,
-        instructions: Box<IndexScanInstructions>,
+        index_set: Arc<OwnedRwLockReadGuard<IndexPermutations<MemQuadIndex>>>,
+        index: IndexComponents,
+        instructions: Box<MemIndexScanInstructions>,
         graph_variable: Option<Variable>,
         pattern: Box<TriplePattern>,
     ) -> Self {
@@ -360,8 +436,8 @@ impl PlannedPatternScan {
         self.pattern.as_ref()
     }
 
-    /// Returns a reference to the [IndexConfiguration] that is used to scan the index.
-    pub fn selected_index(&self) -> &IndexConfiguration {
+    /// Returns a reference to the [IndexComponents] that is used to scan the index.
+    pub fn selected_index(&self) -> &IndexComponents {
         &self.index
     }
 
@@ -369,7 +445,7 @@ impl PlannedPatternScan {
     pub fn apply_filter(self, filter: &MemStoragePredicateExpr) -> DFResult<Self> {
         if let MemStoragePredicateExpr::Dynamic(filter) = filter {
             return Ok(self.with_dynamic_filter(
-                Arc::clone(filter) as Arc<dyn IndexScanPredicateSource>
+                Arc::clone(filter) as Arc<dyn MemIndexScanPredicateSource>
             ));
         }
 
@@ -389,11 +465,11 @@ impl PlannedPatternScan {
     /// Executes the pattern scan and return the [SendableRecordBatchStream] that implements the
     /// scan. The resulting stream will be cooperative.
     pub fn create_stream(self, metrics: BaselineMetrics) -> SendableRecordBatchStream {
-        let iterator = MemQuadIndexSetScanIterator::new(
+        let iterator = MemQuadIndexScanRecordBatchIterator::new(
             Arc::clone(&self.schema),
             self.index_set,
             self.index,
-            self.instructions,
+            *self.instructions,
             self.dynamic_filters,
         );
         Box::pin(cooperative(MemIndexScanStream::new(
@@ -406,7 +482,7 @@ impl PlannedPatternScan {
     /// Returns a new [PlannedPatternScan] with the given `filter`.
     fn with_dynamic_filter(
         mut self,
-        filter: Arc<dyn IndexScanPredicateSource>,
+        filter: Arc<dyn MemIndexScanPredicateSource>,
     ) -> PlannedPatternScan {
         self.dynamic_filters.push(filter);
         self
@@ -428,7 +504,7 @@ impl Display for PlannedPatternScan {
 
         let mut additional_filters = self
             .instructions
-            .instructions()
+            .inner()
             .iter()
             .filter(|i| i.scan_variable().is_some() && i.predicate().is_some())
             .map(|i| format!("{} {}", i.scan_variable().unwrap(), i.predicate().unwrap()))
@@ -453,13 +529,16 @@ pub trait IndexRef {
     fn get_index(&self) -> &MemQuadIndex;
 }
 
-/// Reference to an index in a locked [IndexSet] with its [IndexConfiguration]. The
-/// [IndexConfiguration] uniquely identifier an index within an [IndexSet].
-pub struct IndexRefInSet(Arc<OwnedRwLockReadGuard<IndexSet>>, IndexConfiguration);
+/// Reference to an index in a locked [IndexSet] with its [IndexComponents]. The
+/// [IndexComponents] uniquely identifier an index within an [IndexSet].
+pub struct IndexRefInSet(
+    Arc<OwnedRwLockReadGuard<IndexPermutations<MemQuadIndex>>>,
+    IndexComponents,
+);
 
 impl IndexRef for IndexRefInSet {
     fn get_index(&self) -> &MemQuadIndex {
-        self.0.find_index(&self.1).expect("Index must exist")
+        self.0.find_index(self.1).expect("Index must exist")
     }
 }
 
@@ -475,22 +554,25 @@ impl IndexRef for DirectIndexRef<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::encoding::EncodedQuad;
-    use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId};
-    use crate::memory::storage::index::{
-        IndexComponents, IndexConfiguration, IndexScanInstruction, IndexScanInstructions,
-    };
+    use crate::index::{EncodedQuad, IndexComponents};
+    use crate::memory::object_id::EncodedObjectId;
     use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
+    use crate::memory::storage::quad_index::MemIndexConfiguration;
     use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeSet, HashSet};
     use std::sync::Mutex;
     use tokio::sync::RwLock;
 
     #[tokio::test]
     async fn test_dynamic_filters() {
         // Create an index and insert test data
-        let mut index =
-            IndexSet::new(ObjectIdEncoding::new(4), 100, &[IndexComponents::GSPO]);
+        let index = MemQuadIndex::new(MemIndexConfiguration {
+            object_id_encoding: ObjectIdEncoding::new(4),
+            batch_size: 100,
+            components: IndexComponents::GSPO,
+        });
+        let mut index = IndexPermutations::new(HashSet::new(), vec![index]);
+
         index
             .insert(&[
                 quad(0, 1, 10, 100),
@@ -509,16 +591,16 @@ mod tests {
         ));
 
         // Create scan instructions
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::traverse_with_predicate(IndexScanPredicate::In(
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::traverse_with_predicate(MemIndexScanPredicate::In(
                 BTreeSet::from([eid(0)]),
             )),
-            IndexScanInstruction::scan_with_predicate(
+            MemIndexScanInstruction::scan_with_predicate(
                 "subject".to_owned(),
-                IndexScanPredicate::Between(eid(2), eid(3)),
+                MemIndexScanPredicate::Between(eid(2), eid(3)),
             ),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::traverse_with_predicate(IndexScanPredicate::In(
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::traverse_with_predicate(MemIndexScanPredicate::In(
                 BTreeSet::from([eid(200)]),
             )),
         ]);
@@ -526,13 +608,9 @@ mod tests {
         // Create iterator with the dynamic filter
         let mut iterator = MemQuadIndexScanIterator::new_from_index_set(
             Arc::new(index.read_owned().await),
-            IndexConfiguration {
-                object_id_encoding: ObjectIdEncoding::new(4),
-                batch_size: 100,
-                components: IndexComponents::GSPO,
-            },
+            IndexComponents::GSPO,
             instructions.clone(),
-            vec![Arc::clone(&dynamic_filter) as Arc<dyn IndexScanPredicateSource>],
+            vec![Arc::clone(&dynamic_filter) as Arc<dyn MemIndexScanPredicateSource>],
         );
 
         let batch = iterator.next().unwrap().unwrap();
@@ -559,15 +637,20 @@ mod tests {
         }
     }
 
-    impl IndexScanPredicateSource for MockDynamicFilter {
+    impl MemIndexScanPredicateSource for MockDynamicFilter {
         fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr> {
             Ok(self.predicate.lock().unwrap().clone())
         }
     }
 
-    fn quad(graph_name: u32, subject: u32, predicate: u32, object: u32) -> EncodedQuad {
+    fn quad(
+        graph_name: u32,
+        subject: u32,
+        predicate: u32,
+        object: u32,
+    ) -> EncodedQuad<EncodedObjectId> {
         EncodedQuad {
-            graph_name: EncodedGraphObjectId(eid(graph_name)),
+            graph_name: eid(graph_name),
             subject: eid(subject),
             predicate: eid(predicate),
             object: eid(object),

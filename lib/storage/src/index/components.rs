@@ -1,4 +1,4 @@
-use crate::memory::storage::index::IndexComponentsCreationError;
+use crate::index::IndexComponentsCreationError;
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 
@@ -100,8 +100,7 @@ impl IndexComponents {
 
 #[cfg(test)]
 mod tests {
-    use crate::memory::storage::index::IndexComponents;
-    use crate::memory::storage::index::components::IndexComponent;
+    use crate::index::{IndexComponent, IndexComponents};
 
     #[test]
     fn index_configuration_accepts_unique_components() {
