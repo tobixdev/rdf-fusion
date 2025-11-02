@@ -1,5 +1,6 @@
 #![allow(clippy::unreadable_literal)]
 
+use crate::index::EncodedTerm;
 use datafusion::parquet::data_type::AsBytes;
 use rdf_fusion_model::ObjectId;
 use std::fmt::{Debug, Display, Formatter};
@@ -39,6 +40,12 @@ impl EncodedObjectId {
 
     pub fn previous(&self) -> Option<EncodedObjectId> {
         self.0.checked_sub(1).map(EncodedObjectId)
+    }
+}
+
+impl EncodedTerm for EncodedObjectId {
+    fn is_default_graph(&self) -> bool {
+        *self == DEFAULT_GRAPH_ID.0
     }
 }
 

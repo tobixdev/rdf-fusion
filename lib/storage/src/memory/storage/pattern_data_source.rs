@@ -1,5 +1,5 @@
-use crate::memory::storage::index::PlannedPatternScan;
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
+use crate::memory::storage::scan::PlannedPatternScan;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{Statistics, exec_err};
 use datafusion::config::ConfigOptions;
