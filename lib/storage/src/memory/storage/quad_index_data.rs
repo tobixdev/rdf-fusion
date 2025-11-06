@@ -1,7 +1,8 @@
+use crate::index::IndexQuad;
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::index::{
-    IndexScanInstructions, IndexScanPredicate, IndexedQuad, PruningPredicate,
-    PruningPredicates,
+use crate::memory::storage::scan_instructions::{
+    MemIndexPruningPredicate, MemIndexPruningPredicates, MemIndexScanInstructions,
+    MemIndexScanPredicate,
 };
 use datafusion::arrow::array::{Array, UInt32Array};
 use itertools::Itertools;
@@ -9,11 +10,11 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 /// Contains the data of a [MemQuadIndex](super::MemQuadIndex). This is the physical layout of the
-/// index. Analogous to the [MemQuadIndex](super::MemQuadIndex), a single [IndexData] represents
+/// index. Analogous to the [MemQuadIndex](super::MemQuadIndex), a single [MemIndexData] represents
 /// exactly one permutation of the quad components. Furthermore, all RDF terms are represented as
 /// [EncodedObjectId]s.
 ///
-/// The physical layout of the [IndexData] is inspired by [Apache Parquet](https://parquet.apache.org/).
+/// The physical layout of the [MemIndexData] is inspired by [Apache Parquet](https://parquet.apache.org/).
 /// Therefore, we also adopt its terminology for row groups and column chunks.
 ///
 /// The physical layout consists of four columns, one for each quad component. The entire index is
@@ -53,7 +54,7 @@ use std::sync::Arc;
 /// - efficiently scan the index for predicates that select a slice of the index (see [MemQuadIndexScanIterator](super::MemQuadIndexScanIterator)
 ///   for further details)
 #[derive(Debug)]
-pub(super) struct IndexData {
+pub(super) struct MemIndexData {
     /// Indicates which column is allowed to contain nullable data (i.e., the graph name)
     nullable_position: usize,
     /// The target row group size
@@ -62,7 +63,7 @@ pub(super) struct IndexData {
     row_groups: Vec<MemRowGroup>,
 }
 
-/// The result of [IndexData::prune_relevant_row_groups].
+/// The result of [MemIndexData::prune_relevant_row_groups].
 ///
 /// During this task, some filters are already completely applied, and re-applying them would be
 /// unnecessary overhead. Therefore, the result includes [Self::new_instructions] to signal
@@ -78,10 +79,10 @@ pub(super) struct RowGroupPruningResult {
     /// It could be possible that the pruning step can already guarantee that a filter will match
     /// every row in the result. These instructions are then removed from the result to avoid
     /// redundant applications of the filter.
-    pub new_instructions: Option<IndexScanInstructions>,
+    pub new_instructions: Option<MemIndexScanInstructions>,
 }
 
-impl IndexData {
+impl MemIndexData {
     /// Creates a new [IndexColumn].
     pub fn new(batch_size: usize, nullable_position: usize) -> Self {
         Self {
@@ -153,9 +154,9 @@ impl IndexData {
     /// that remain between the from and to pointer. Therefore, we can eliminate them.
     pub fn prune_relevant_row_groups(
         &self,
-        instructions: &IndexScanInstructions,
+        instructions: &MemIndexScanInstructions,
     ) -> RowGroupPruningResult {
-        let pruning_predicates = PruningPredicates::from(instructions);
+        let pruning_predicates = MemIndexPruningPredicates::from(instructions);
         let mut relevant_row_groups = self.row_groups.clone();
 
         for (column_idx, predicate) in pruning_predicates.0.iter().enumerate() {
@@ -165,8 +166,8 @@ impl IndexData {
             };
 
             let (from_oid, to_oid) = match predicate {
-                PruningPredicate::EqualTo(oid) => (*oid, *oid),
-                PruningPredicate::Between(from, to) => (*from, *to),
+                MemIndexPruningPredicate::EqualTo(oid) => (*oid, *oid),
+                MemIndexPruningPredicate::Between(from, to) => (*from, *to),
             };
 
             // Find the first row group for which the given id is not before the first value of the
@@ -242,16 +243,16 @@ impl IndexData {
         }
 
         let mut new_instructions = Vec::new();
-        for instruction in &instructions.0 {
+        for instruction in instructions.inner() {
             match &instruction.predicate() {
-                Some(IndexScanPredicate::In(ids)) => {
+                Some(MemIndexScanPredicate::In(ids)) => {
                     if ids.len() == 1 {
                         new_instructions.push(instruction.clone().without_predicate());
                     } else {
                         break;
                     }
                 }
-                Some(IndexScanPredicate::Between(from, to)) => {
+                Some(MemIndexScanPredicate::Between(from, to)) => {
                     new_instructions.push(instruction.clone().without_predicate());
                     if from != to {
                         // The between can be fully applied, but not the following predicates as
@@ -266,9 +267,10 @@ impl IndexData {
         let new_instructions = if new_instructions.is_empty() {
             None
         } else {
-            let missing_instructions = &instructions.0[new_instructions.len()..];
+            let missing_instructions = &instructions.inner()[new_instructions.len()..];
             new_instructions.extend_from_slice(missing_instructions);
-            Some(IndexScanInstructions::new(
+            Some(MemIndexScanInstructions::new(
+                instructions.index_components(),
                 new_instructions
                     .try_into()
                     .expect("Should yield 4 instructions"),
@@ -282,7 +284,7 @@ impl IndexData {
     }
 
     /// Insert `to_insert` into the index.
-    pub fn insert(&mut self, to_insert: &BTreeSet<IndexedQuad>) -> usize {
+    pub fn insert(&mut self, to_insert: &BTreeSet<IndexQuad<EncodedObjectId>>) -> usize {
         let mut count = 0;
         let mut row_group_idx = 0;
         let mut to_insert = to_insert.iter().peekable();
@@ -331,9 +333,9 @@ impl IndexData {
 
     /// Removes the `to_remove` set of quads from the index.
     ///
-    /// The method assumes that the [IndexedQuads](IndexedQuad) are ordered according to the
+    /// The method assumes that the [IndexQuad<EncodedObjectId>](IndexQuad<EncodedObjectId>) are ordered according to the
     /// components of the index.
-    pub fn remove(&mut self, to_remove: &BTreeSet<IndexedQuad>) -> usize {
+    pub fn remove(&mut self, to_remove: &BTreeSet<IndexQuad<EncodedObjectId>>) -> usize {
         let mut count = 0;
         let mut row_group_idx = 0;
         let mut to_insert = to_remove.iter().peekable();
@@ -427,7 +429,7 @@ impl MemRowGroup {
     /// Creates a new [MemRowGroup] with the provided `quads`.
     ///
     /// Assumes that `quads` is sorted.
-    pub fn new(quads: Vec<&IndexedQuad>) -> Self {
+    pub fn new(quads: Vec<&IndexQuad<EncodedObjectId>>) -> Self {
         let column_chunks: [MemColumnChunk; 4] = (0..4)
             .map(|idx| {
                 quads
@@ -455,7 +457,7 @@ impl MemRowGroup {
     ///
     /// This method may assume the following:
     /// - No quad is already contained in this row group
-    pub fn insert(&mut self, mut quads: BTreeSet<IndexedQuad>) {
+    pub fn insert(&mut self, mut quads: BTreeSet<IndexQuad<EncodedObjectId>>) {
         let mut new_quads = self.quads();
         new_quads.append(&mut quads);
 
@@ -467,7 +469,7 @@ impl MemRowGroup {
     ///
     /// This method may assume the following:
     /// - All quads are contained in this row group
-    pub fn remove(&mut self, quads: BTreeSet<IndexedQuad>) {
+    pub fn remove(&mut self, quads: BTreeSet<IndexQuad<EncodedObjectId>>) {
         let new_quads = self.quads();
         let difference = new_quads.difference(&quads);
         let new_data = Self::new(difference.collect());
@@ -477,7 +479,7 @@ impl MemRowGroup {
     /// Tries to find the given quad in this [MemRowGroup].
     ///
     /// See [QuadFindResult] for a list of possible outcomes.
-    pub fn find(&self, quads: &IndexedQuad) -> QuadFindResult {
+    pub fn find(&self, quads: &IndexQuad<EncodedObjectId>) -> QuadFindResult {
         let mut from = 0;
         let mut to = self.len();
 
@@ -515,11 +517,11 @@ impl MemRowGroup {
     }
 
     /// Returns a [BTreeSet] of all quads in this [MemRowGroup].
-    fn quads(&self) -> BTreeSet<IndexedQuad> {
+    fn quads(&self) -> BTreeSet<IndexQuad<EncodedObjectId>> {
         let n = self.len();
         (0..n)
             .map(|i| {
-                IndexedQuad([
+                IndexQuad([
                     self.column_chunks[0].data.value(i).into(),
                     self.column_chunks[1].data.value(i).into(),
                     self.column_chunks[2].data.value(i).into(),
@@ -663,8 +665,11 @@ impl MemColumnChunk {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::index::IndexQuad;
     use crate::memory::object_id::EncodedObjectId;
-    use crate::memory::storage::index::{IndexScanInstruction, IndexScanPredicate};
+    use crate::memory::storage::scan_instructions::{
+        MemIndexScanInstruction, MemIndexScanPredicate,
+    };
     use insta::assert_debug_snapshot;
 
     #[test]
@@ -689,14 +694,14 @@ mod tests {
 
     #[test]
     fn test_empty_indexdata() {
-        let index = IndexData::new(2, 0);
+        let index = MemIndexData::new(2, 0);
         assert_eq!(index.len(), 0);
         assert_eq!(index.row_groups.len(), 0);
     }
 
     #[test]
     fn test_insert_and_len_single_row_group() {
-        let mut index = IndexData::new(4, 0);
+        let mut index = MemIndexData::new(4, 0);
         let items = quad_set([1, 2, 3]);
         index.insert(&items);
 
@@ -707,7 +712,7 @@ mod tests {
 
     #[test]
     fn test_insert_and_len_multiple_row_groups() {
-        let mut index = IndexData::new(2, 0);
+        let mut index = MemIndexData::new(2, 0);
         let items = quad_set([10, 20, 30, 40, 50]);
         index.insert(&items);
 
@@ -720,7 +725,7 @@ mod tests {
 
     #[test]
     fn test_insert_empty_set_no_effect() {
-        let mut index = IndexData::new(2, 0);
+        let mut index = MemIndexData::new(2, 0);
         let items = quad_set([]);
         index.insert(&items);
 
@@ -730,7 +735,7 @@ mod tests {
 
     #[test]
     fn test_inserting_multiple_batches_and_content() {
-        let mut index = IndexData::new(3, 0);
+        let mut index = MemIndexData::new(3, 0);
         let items = quad_set([11, 12, 13, 14, 15, 16]);
         index.insert(&items);
 
@@ -741,7 +746,7 @@ mod tests {
 
     #[test]
     fn test_inserting_duplicate_quads() {
-        let mut index = IndexData::new(3, 0);
+        let mut index = MemIndexData::new(3, 0);
         let mut items = quad_set([1, 2, 3]);
         index.insert(&items);
         assert_eq!(index.len(), 3);
@@ -755,14 +760,15 @@ mod tests {
 
     #[test]
     fn test_nullable_indexdata_insert() {
-        let mut index = IndexData::new(2, 0);
+        let mut index = MemIndexData::new(2, 0);
         let items = quad_set([0, 1, 2]);
         index.insert(&items);
     }
 
     #[test]
     fn test_memrowgroup_insert_to_empty() {
-        let quads: Vec<IndexedQuad> = [10, 20, 30].into_iter().map(|i| quad(i)).collect();
+        let quads: Vec<IndexQuad<EncodedObjectId>> =
+            [10, 20, 30].into_iter().map(|i| quad(i)).collect();
         let mut group = MemRowGroup::new(vec![]);
 
         group.insert(quads.into_iter().collect());
@@ -774,9 +780,11 @@ mod tests {
     #[test]
     fn test_memrowgroup_insert_appends_to_existing() {
         // Insert after initial values, nothing overlaps
-        let initial: Vec<IndexedQuad> = [10, 20].into_iter().map(|i| quad(i)).collect();
+        let initial: Vec<IndexQuad<EncodedObjectId>> =
+            [10, 20].into_iter().map(|i| quad(i)).collect();
         let mut group = MemRowGroup::new(initial.iter().collect());
-        let new_quads: Vec<IndexedQuad> = [30, 40].into_iter().map(|i| quad(i)).collect();
+        let new_quads: Vec<IndexQuad<EncodedObjectId>> =
+            [30, 40].into_iter().map(|i| quad(i)).collect();
 
         group.insert(new_quads.into_iter().collect());
         let arrays = group.clone().into_arrays();
@@ -787,9 +795,11 @@ mod tests {
     #[test]
     fn test_memrowgroup_insert_inserts_in_middle() {
         // Insert in the middle
-        let initial: Vec<IndexedQuad> = [10, 30].into_iter().map(|i| quad(i)).collect();
+        let initial: Vec<IndexQuad<EncodedObjectId>> =
+            [10, 30].into_iter().map(|i| quad(i)).collect();
         let mut group = MemRowGroup::new(initial.iter().collect());
-        let new_quads: Vec<IndexedQuad> = [20].into_iter().map(|i| quad(i)).collect();
+        let new_quads: Vec<IndexQuad<EncodedObjectId>> =
+            [20].into_iter().map(|i| quad(i)).collect();
 
         group.insert(new_quads.into_iter().collect());
         let arrays = group.clone().into_arrays();
@@ -799,10 +809,12 @@ mod tests {
 
     #[test]
     fn test_memrowgroup_insert_with_nulls() {
-        let initial: Vec<IndexedQuad> = [0, 2].into_iter().map(|i| quad(i)).collect();
+        let initial: Vec<IndexQuad<EncodedObjectId>> =
+            [0, 2].into_iter().map(|i| quad(i)).collect();
         let mut group = MemRowGroup::new(initial.iter().collect());
 
-        let new_quads: Vec<IndexedQuad> = [1].into_iter().map(|i| quad(i)).collect();
+        let new_quads: Vec<IndexQuad<EncodedObjectId>> =
+            [1].into_iter().map(|i| quad(i)).collect();
         group.insert(new_quads.into_iter().collect());
 
         let arrays = group.clone().into_arrays();
@@ -811,12 +823,12 @@ mod tests {
 
     #[test]
     fn test_prune_empty_index() {
-        let index = IndexData::new(2, 0);
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+        let index = MemIndexData::new(2, 0);
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let relevant = index.prune_relevant_row_groups(&instructions);
@@ -826,15 +838,15 @@ mod tests {
 
     #[test]
     fn test_prune_no_filter_returns_all_groups() {
-        let mut index = IndexData::new(2, 0);
+        let mut index = MemIndexData::new(2, 0);
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -843,23 +855,27 @@ mod tests {
 
     #[test]
     fn test_prune_filter_single_quad_present() {
-        let mut index = IndexData::new(2, 0);
+        let mut index = MemIndexData::new(2, 0);
         let items = quad_set([10, 20, 30, 40]);
         index.insert(&items);
 
         // Only filter first column, look for value 30 which should be in second row group
-        let predicate = IndexScanPredicate::In([EncodedObjectId::from(30u32)].into());
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(predicate)),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+        let predicate = MemIndexScanPredicate::In([EncodedObjectId::from(30u32)].into());
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(predicate)),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
 
         assert_eq!(result.row_groups.len(), 1);
-        assert!(result.new_instructions.unwrap().0[0].predicate().is_none());
+        assert!(
+            result.new_instructions.unwrap().inner()[0]
+                .predicate()
+                .is_none()
+        );
         assert_debug_snapshot!(result.row_groups[0], @r"
         MemRowGroup {
             column_chunks: [
@@ -900,7 +916,7 @@ mod tests {
     /// It is important that the algorithm stops after the 2nd group (the partial match).
     #[test]
     fn test_prune_filter_partial_match_breaks_early() {
-        let mut index = IndexData::new(5, 0);
+        let mut index = MemIndexData::new(5, 0);
 
         index.insert(
             &[
@@ -924,12 +940,12 @@ mod tests {
             .collect(),
         );
 
-        let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+        let predicate = MemIndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -938,12 +954,12 @@ mod tests {
         assert_eq!(result.row_groups[0].len(), 5);
         assert_eq!(result.row_groups[1].len(), 4);
         assert!(
-            result.new_instructions.as_ref().unwrap().0[0]
+            result.new_instructions.as_ref().unwrap().inner()[0]
                 .predicate()
                 .is_none()
         );
         assert!(
-            result.new_instructions.as_ref().unwrap().0[1]
+            result.new_instructions.as_ref().unwrap().inner()[1]
                 .predicate()
                 .is_none()
         );
@@ -951,7 +967,7 @@ mod tests {
 
     #[test]
     fn test_prune_filter_breaks_early_on_last_row() {
-        let mut index = IndexData::new(5, 0);
+        let mut index = MemIndexData::new(5, 0);
 
         index.insert(
             &[
@@ -968,24 +984,28 @@ mod tests {
             .collect(),
         );
 
-        let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+        let predicate = MemIndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
 
         assert_eq!(result.row_groups.len(), 1);
         assert_eq!(result.row_groups[0].len(), 4);
-        assert!(result.new_instructions.unwrap().0[0].predicate().is_none());
+        assert!(
+            result.new_instructions.unwrap().inner()[0]
+                .predicate()
+                .is_none()
+        );
     }
 
     #[test]
     fn test_prune_filter_multi_row_groups() {
-        let mut index = IndexData::new(5, 0);
+        let mut index = MemIndexData::new(5, 0);
 
         index.insert(
             &[
@@ -1009,17 +1029,17 @@ mod tests {
             .collect(),
         );
 
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(MemIndexScanPredicate::In(
                 [EncodedObjectId::from(0)].into(),
             ))),
-            IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
+            MemIndexScanInstruction::Traverse(Some(MemIndexScanPredicate::In(
                 [EncodedObjectId::from(11)].into(),
             ))),
-            IndexScanInstruction::Traverse(Some(IndexScanPredicate::In(
+            MemIndexScanInstruction::Traverse(Some(MemIndexScanPredicate::In(
                 [EncodedObjectId::from(10)].into(),
             ))),
-            IndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1032,7 +1052,7 @@ mod tests {
 
     #[test]
     fn test_prune_multiple_filters_start_fixed() {
-        let mut index = IndexData::new(5, 0);
+        let mut index = MemIndexData::new(5, 0);
 
         index.insert(
             &[
@@ -1045,12 +1065,12 @@ mod tests {
             .collect(),
         );
 
-        let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(None),
+        let predicate = MemIndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1061,7 +1081,7 @@ mod tests {
 
     #[test]
     fn test_prune_multiple_filters_end_fixed() {
-        let mut index = IndexData::new(5, 0);
+        let mut index = MemIndexData::new(5, 0);
 
         index.insert(
             &[
@@ -1074,12 +1094,12 @@ mod tests {
             .collect(),
         );
 
-        let predicate = IndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(None),
+        let predicate = MemIndexScanPredicate::In([EncodedObjectId::from(10u32)].into());
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1090,16 +1110,16 @@ mod tests {
 
     #[test]
     fn test_prune_filter_single_quad_absent() {
-        let mut index = IndexData::new(2, 0);
+        let mut index = MemIndexData::new(2, 0);
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
-        let predicate = IndexScanPredicate::In([EncodedObjectId::from(99u32)].into());
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(predicate)),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+        let predicate = MemIndexScanPredicate::In([EncodedObjectId::from(99u32)].into());
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(predicate)),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1109,68 +1129,68 @@ mod tests {
 
     #[test]
     fn test_prune_filter_between_removes_current_instructions_but_retains_rest() {
-        let mut index = IndexData::new(2, 0);
+        let mut index = MemIndexData::new(2, 0);
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
-        let predicate = IndexScanPredicate::Between(
+        let predicate = MemIndexScanPredicate::Between(
             EncodedObjectId::from(1),
             EncodedObjectId::from(2),
         );
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(Some(predicate)),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(Some(predicate)),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
 
         assert_eq!(result.row_groups.len(), 1);
         let new_instructions = result.new_instructions.unwrap();
-        assert!(new_instructions.0[0].predicate().is_none());
-        assert!(new_instructions.0[1].predicate().is_some());
+        assert!(new_instructions.inner()[0].predicate().is_none());
+        assert!(new_instructions.inner()[1].predicate().is_some());
     }
 
     #[test]
     fn test_prune_filter_between_with_single_element_also_prunes_following_instructions()
     {
-        let mut index = IndexData::new(2, 0);
+        let mut index = MemIndexData::new(2, 0);
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
-        let predicate = IndexScanPredicate::Between(
+        let predicate = MemIndexScanPredicate::Between(
             EncodedObjectId::from(1),
             EncodedObjectId::from(1),
         );
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(predicate.clone())),
-            IndexScanInstruction::Traverse(Some(predicate)),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(predicate.clone())),
+            MemIndexScanInstruction::Traverse(Some(predicate)),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
 
         assert_eq!(result.row_groups.len(), 1);
         let new_instructions = result.new_instructions.unwrap();
-        assert!(new_instructions.0[0].predicate().is_none());
-        assert!(new_instructions.0[1].predicate().is_none());
+        assert!(new_instructions.inner()[0].predicate().is_none());
+        assert!(new_instructions.inner()[1].predicate().is_none());
     }
 
     #[test]
     fn test_prune_relevant_row_groups_in_predicate_multiple_values_no_pruning() {
-        let mut index = IndexData::new(2, 0);
+        let mut index = MemIndexData::new(2, 0);
         let items = quad_set([1, 2, 3, 4]);
         index.insert(&items);
 
         let set = [EncodedObjectId::from(2u32), EncodedObjectId::from(3u32)];
-        let predicate = IndexScanPredicate::In(set.into());
-        let instructions = IndexScanInstructions([
-            IndexScanInstruction::Traverse(Some(predicate)),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
-            IndexScanInstruction::Traverse(None),
+        let predicate = MemIndexScanPredicate::In(set.into());
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(predicate)),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
         ]);
 
         let result = index.prune_relevant_row_groups(&instructions);
@@ -1232,7 +1252,7 @@ mod tests {
 
     #[test]
     fn test_find_quad_contained_complex() {
-        let mut index = IndexData::new(5, 0);
+        let mut index = MemIndexData::new(5, 0);
 
         index.insert(
             &[
@@ -1245,7 +1265,7 @@ mod tests {
             .collect(),
         );
 
-        let result = index.row_groups[0].find(&IndexedQuad([
+        let result = index.row_groups[0].find(&IndexQuad([
             EncodedObjectId::from(1),
             EncodedObjectId::from(5),
             EncodedObjectId::from(3),
@@ -1257,7 +1277,7 @@ mod tests {
 
     #[test]
     fn test_clear_all_with_value_in_column_removes_only_matching() {
-        let mut index = IndexData::new(5, 0);
+        let mut index = MemIndexData::new(5, 0);
 
         index.insert(
             &[
@@ -1280,7 +1300,7 @@ mod tests {
 
     #[test]
     fn test_clear_all_with_value_in_column_no_match_leaves_index_unchanged() {
-        let mut index = IndexData::new(3, 0);
+        let mut index = MemIndexData::new(3, 0);
 
         index.insert(
             &[
@@ -1297,8 +1317,8 @@ mod tests {
     }
 
     /// Creates a quad where all four terms have the same u32 value
-    fn quad(val: u32) -> IndexedQuad {
-        IndexedQuad([
+    fn quad(val: u32) -> IndexQuad<EncodedObjectId> {
+        IndexQuad([
             EncodedObjectId::from(val),
             EncodedObjectId::from(val),
             EncodedObjectId::from(val),
@@ -1307,8 +1327,13 @@ mod tests {
     }
 
     /// Creates a quad where all four terms have the same u32 value
-    fn quad_from_values(val1: u32, val2: u32, val3: u32, val4: u32) -> IndexedQuad {
-        IndexedQuad([
+    fn quad_from_values(
+        val1: u32,
+        val2: u32,
+        val3: u32,
+        val4: u32,
+    ) -> IndexQuad<EncodedObjectId> {
+        IndexQuad([
             EncodedObjectId::from(val1),
             EncodedObjectId::from(val2),
             EncodedObjectId::from(val3),
@@ -1318,7 +1343,9 @@ mod tests {
 
     /// Creates a quad set from a set of u32 values. Each element in the quad will have the same
     /// value.
-    fn quad_set<I: IntoIterator<Item = u32>>(vals: I) -> BTreeSet<IndexedQuad> {
+    fn quad_set<I: IntoIterator<Item = u32>>(
+        vals: I,
+    ) -> BTreeSet<IndexQuad<EncodedObjectId>> {
         vals.into_iter().map(quad).collect()
     }
 }

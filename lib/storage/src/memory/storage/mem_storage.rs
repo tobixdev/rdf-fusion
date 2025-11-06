@@ -1,6 +1,7 @@
+use crate::index::{IndexComponents, IndexPermutations};
 use crate::memory::MemObjectIdMapping;
 use crate::memory::planner::MemQuadStorePlanner;
-use crate::memory::storage::index::{IndexComponents, IndexSet};
+use crate::memory::storage::quad_index::{MemIndexConfiguration, MemQuadIndex};
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
@@ -13,6 +14,7 @@ use rdf_fusion_model::StorageError;
 use rdf_fusion_model::{
     GraphNameRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
 };
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -21,21 +23,31 @@ pub struct MemQuadStorage {
     /// Holds the mapping between terms and object ids.
     object_id_mapping: Arc<MemObjectIdMapping>,
     /// The index set
-    indices: Arc<RwLock<IndexSet>>,
+    indexes: Arc<RwLock<IndexPermutations<MemQuadIndex>>>,
 }
 
 impl MemQuadStorage {
     /// Creates a new [MemQuadStorage] with the given `object_id_mapping`.
     pub fn new(object_id_mapping: Arc<MemObjectIdMapping>, batch_size: usize) -> Self {
+        let components = [
+            IndexComponents::GSPO,
+            IndexComponents::GPOS,
+            IndexComponents::GOSP,
+        ];
+        let indexes = components
+            .iter()
+            .map(|components| {
+                MemQuadIndex::new(MemIndexConfiguration {
+                    object_id_encoding: object_id_mapping.encoding(),
+                    batch_size,
+                    components: *components,
+                })
+            })
+            .collect();
         Self {
-            indices: Arc::new(RwLock::new(IndexSet::new(
-                object_id_mapping.encoding(),
-                batch_size,
-                &[
-                    IndexComponents::GSPO,
-                    IndexComponents::GPOS,
-                    IndexComponents::GOSP,
-                ],
+            indexes: Arc::new(RwLock::new(IndexPermutations::new(
+                HashSet::new(),
+                indexes,
             ))),
             object_id_mapping,
         }
@@ -46,7 +58,7 @@ impl MemQuadStorage {
         MemQuadStorageSnapshot::new(
             self.encoding(),
             Arc::clone(&self.object_id_mapping),
-            Arc::new(Arc::clone(&self.indices).read_owned().await),
+            Arc::new(Arc::clone(&self.indexes).read_owned().await),
         )
     }
 }
@@ -76,12 +88,12 @@ impl QuadStorage for MemQuadStorage {
             .map(|q| self.object_id_mapping.encode_quad(q.as_ref()))
             .collect::<DFResult<Vec<_>>>()
             .expect("TODO");
-        self.indices.write().await.insert(encoded.as_ref())
+        self.indexes.write().await.insert(encoded.as_ref())
     }
 
     async fn remove(&self, quad: QuadRef<'_>) -> Result<bool, StorageError> {
         let encoded = self.object_id_mapping.encode_quad(quad).expect("TODO");
-        let count = self.indices.write().await.remove(&[encoded]);
+        let count = self.indexes.write().await.remove(&[encoded]);
         Ok(count > 0)
     }
 
@@ -90,7 +102,7 @@ impl QuadStorage for MemQuadStorage {
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
         let encoded = self.object_id_mapping.encode_term_intern(graph_name);
-        Ok(self.indices.write().await.insert_named_graph(encoded))
+        Ok(self.indexes.write().await.insert_named_graph(encoded))
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
@@ -105,7 +117,7 @@ impl QuadStorage for MemQuadStorage {
     }
 
     async fn clear(&self) -> Result<(), StorageError> {
-        self.indices.write().await.clear();
+        self.indexes.write().await.clear();
         Ok(())
     }
 
@@ -119,7 +131,7 @@ impl QuadStorage for MemQuadStorage {
         else {
             return Ok(());
         };
-        self.indices.write().await.clear_graph(encoded);
+        self.indexes.write().await.clear_graph(&encoded.0);
         Ok(())
     }
 
@@ -134,7 +146,7 @@ impl QuadStorage for MemQuadStorage {
             return Ok(false);
         };
 
-        Ok(self.indices.write().await.drop_named_graph(encoded))
+        Ok(self.indexes.write().await.drop_named_graph(&encoded))
     }
 
     async fn len(&self) -> Result<usize, StorageError> {

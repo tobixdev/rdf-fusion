@@ -1,9 +1,12 @@
+use crate::index::IndexPermutations;
 use crate::memory::MemObjectIdMapping;
 use crate::memory::encoding::{
     EncodedActiveGraph, EncodedTermPattern, EncodedTriplePattern,
 };
-use crate::memory::storage::index::{
-    IndexScanInstruction, IndexScanInstructions, IndexSet, PlannedPatternScan,
+use crate::memory::storage::quad_index::MemQuadIndex;
+use crate::memory::storage::scan::PlannedPatternScan;
+use crate::memory::storage::scan_instructions::{
+    MemIndexScanInstruction, MemIndexScanInstructions,
 };
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::execution::SendableRecordBatchStream;
@@ -30,7 +33,7 @@ pub struct MemQuadStorageSnapshot {
     object_id_mapping: Arc<MemObjectIdMapping>,
     /// Holds a read lock on the index set. Holding the lock prevents concurrent modifications to
     /// the index.
-    index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
+    index_permutations: Arc<OwnedRwLockReadGuard<IndexPermutations<MemQuadIndex>>>,
 }
 
 /// The result of a [MemQuadStorageSnapshot::plan_pattern_evaluation].
@@ -61,12 +64,12 @@ impl MemQuadStorageSnapshot {
     pub fn new(
         encoding: QuadStorageEncoding,
         object_id_mapping: Arc<MemObjectIdMapping>,
-        index_set: Arc<OwnedRwLockReadGuard<IndexSet>>,
+        index_set: Arc<OwnedRwLockReadGuard<IndexPermutations<MemQuadIndex>>>,
     ) -> Self {
         Self {
             encoding,
             object_id_mapping,
-            index_set,
+            index_permutations: index_set,
         }
     }
 
@@ -105,20 +108,20 @@ impl MemQuadStorageSnapshot {
             return Ok(PlanPatternScanResult::Empty(schema));
         };
 
-        let scan_instructions = IndexScanInstructions::new([
-            IndexScanInstruction::from_active_graph(
+        let scan_instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::from_active_graph(
                 &enc_active_graph,
                 graph_variable.as_ref(),
             ),
-            IndexScanInstruction::from(enc_pattern.subject.clone()),
-            IndexScanInstruction::from(enc_pattern.predicate.clone()),
-            IndexScanInstruction::from(enc_pattern.object.clone()),
+            MemIndexScanInstruction::from(enc_pattern.subject.clone()),
+            MemIndexScanInstruction::from(enc_pattern.predicate.clone()),
+            MemIndexScanInstruction::from(enc_pattern.object.clone()),
         ]);
 
-        let index = self.index_set.choose_index(&scan_instructions);
+        let index = self.index_permutations.choose_index(&scan_instructions);
         Ok(PlanPatternScanResult::PatternScan(PlannedPatternScan::new(
             schema,
-            Arc::clone(&self.index_set),
+            Arc::clone(&self.index_permutations),
             index,
             Box::new(scan_instructions),
             graph_variable,
@@ -189,12 +192,12 @@ impl MemQuadStorageSnapshot {
 
     /// Returns the number of quads in the storage.
     pub fn len(&self) -> usize {
-        self.index_set.as_ref().len()
+        self.index_permutations.as_ref().len()
     }
 
     /// Returns the number of quads in the storage.
     pub fn named_graphs(&self) -> Vec<NamedOrBlankNode> {
-        self.index_set
+        self.index_permutations
             .as_ref()
             .named_graphs()
             .into_iter()
@@ -212,7 +215,9 @@ impl MemQuadStorageSnapshot {
             return false;
         };
 
-        self.index_set.as_ref().contains_named_graph(object_id)
+        self.index_permutations
+            .as_ref()
+            .contains_named_graph(object_id)
     }
 }
 
