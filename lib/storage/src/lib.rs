@@ -10,3 +10,4 @@
 
 pub(crate) mod index;
 pub mod memory;
+mod parquet;

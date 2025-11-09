@@ -4,6 +4,7 @@ mod object_id;
 mod object_id_mapping;
 mod planner;
 mod storage;
+mod persistence;
 
 pub use object_id_mapping::MemObjectIdMapping;
 pub use storage::MemQuadStorage;
