@@ -2,9 +2,10 @@
 mod encoding;
 mod object_id;
 mod object_id_mapping;
+mod persistence;
 mod planner;
 mod storage;
-mod persistence;
 
 pub use object_id_mapping::MemObjectIdMapping;
+pub use persistence::*;
 pub use storage::MemQuadStorage;

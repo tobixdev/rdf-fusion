@@ -5,6 +5,7 @@ use datafusion::arrow::datatypes::{DataType, Field, Fields, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
 use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::sync::{Arc, LazyLock};
 
 /// Defines which encoding is used for retrieving quads from the storage.
@@ -59,6 +60,17 @@ impl QuadStorageEncoding {
         match &self {
             QuadStorageEncoding::ObjectId(encoding) => Some(encoding),
             QuadStorageEncoding::PlainTerm => None,
+        }
+    }
+}
+
+impl Display for QuadStorageEncoding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuadStorageEncoding::PlainTerm => write!(f, "PlainTerm"),
+            QuadStorageEncoding::ObjectId(encoding) => {
+                write!(f, "ObjectId({} Bytes)", encoding.object_id_size())
+            }
         }
     }
 }
