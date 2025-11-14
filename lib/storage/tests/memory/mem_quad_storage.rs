@@ -1,3 +1,4 @@
+use crate::{example_quad, example_quad_in_graph};
 use datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet};
 use futures::StreamExt;
 use insta::assert_debug_snapshot;
@@ -267,26 +268,4 @@ async fn validate_storage() {
 fn create_storage() -> MemQuadStorage {
     let object_id_encoding = MemObjectIdMapping::new();
     MemQuadStorage::new(Arc::new(object_id_encoding), 10)
-}
-
-fn example_quad() -> Quad {
-    Quad::new(
-        NamedOrBlankNode::NamedNode(
-            NamedNode::new("http://example.com/subject").unwrap(),
-        ),
-        NamedNode::new("http://example.com/predicate").unwrap(),
-        Term::Literal(Literal::new_simple_literal("value")),
-        GraphName::DefaultGraph,
-    )
-}
-
-fn example_quad_in_graph(graph: &str) -> Quad {
-    Quad::new(
-        NamedOrBlankNode::NamedNode(
-            NamedNode::new("http://example.com/subject").unwrap(),
-        ),
-        NamedNode::new("http://example.com/predicate").unwrap(),
-        Term::Literal(Literal::new_simple_literal("value")),
-        GraphName::NamedNode(NamedNode::new(graph).unwrap()),
-    )
 }

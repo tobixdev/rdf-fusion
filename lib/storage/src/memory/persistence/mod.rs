@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use datafusion::common::DataFusionError;
 use datafusion::parquet::errors::ParquetError;
 use rdf_fusion_encoding::QuadStorageEncoding;
+use std::io::Write;
 use thiserror::Error;
 
 pub use parquet::ParquetMemQuadStoragePersistence;
@@ -36,6 +37,21 @@ pub struct MemQuadPersistenceOptions {
     encoding: Option<QuadStorageEncoding>,
 }
 
+impl MemQuadPersistenceOptions {
+    /// Overrides the encoding used for the persistence.
+    pub fn with_encoding(self, encoding: QuadStorageEncoding) -> Self {
+        Self {
+            encoding: Some(encoding),
+        }
+    }
+}
+
+impl Default for MemQuadPersistenceOptions {
+    fn default() -> Self {
+        Self { encoding: None }
+    }
+}
+
 /// Implements persistence for the in-memory storage.
 ///
 /// While there may be an implementation of [MemQuadStoragePersistence] for a particular file
@@ -43,10 +59,14 @@ pub struct MemQuadPersistenceOptions {
 /// that is directly based on the file format.
 #[async_trait]
 pub trait MemQuadStoragePersistence {
+    /// The metadata that is returned once the file has been written.
+    type Metadata;
+
     /// Exports the entire `storage` to persistent storage.
-    async fn export(
+    async fn export<TWrite: Write + Send>(
         &self,
+        write: TWrite,
         storage: &MemQuadStorageSnapshot,
         options: &MemQuadPersistenceOptions,
-    ) -> Result<(), MemStoragePersistenceError>;
+    ) -> Result<Self::Metadata, MemStoragePersistenceError>;
 }
