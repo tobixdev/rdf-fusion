@@ -31,8 +31,11 @@ impl MemQuadStorage {
     pub fn new(object_id_mapping: Arc<MemObjectIdMapping>, batch_size: usize) -> Self {
         let components = [
             IndexComponents::GSPO,
+            IndexComponents::GSOP,
+            IndexComponents::GPSO,
             IndexComponents::GPOS,
             IndexComponents::GOSP,
+            IndexComponents::GOPS,
         ];
         let indexes = components
             .iter()

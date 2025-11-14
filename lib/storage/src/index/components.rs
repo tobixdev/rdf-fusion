@@ -67,6 +67,22 @@ impl IndexComponents {
         IndexComponent::Object,
     ]);
 
+    /// A GSOP index.
+    pub const GSOP: IndexComponents = IndexComponents([
+        IndexComponent::GraphName,
+        IndexComponent::Subject,
+        IndexComponent::Object,
+        IndexComponent::Predicate,
+    ]);
+
+    /// A GPSO index.
+    pub const GPSO: IndexComponents = IndexComponents([
+        IndexComponent::GraphName,
+        IndexComponent::Predicate,
+        IndexComponent::Subject,
+        IndexComponent::Object,
+    ]);
+
     /// A GPOS index.
     pub const GPOS: IndexComponents = IndexComponents([
         IndexComponent::GraphName,
@@ -75,12 +91,20 @@ impl IndexComponents {
         IndexComponent::Subject,
     ]);
 
-    /// A GPSO index.
+    /// A GOSP index.
     pub const GOSP: IndexComponents = IndexComponents([
         IndexComponent::GraphName,
         IndexComponent::Object,
         IndexComponent::Subject,
         IndexComponent::Predicate,
+    ]);
+
+    /// A GOPS index.
+    pub const GOPS: IndexComponents = IndexComponents([
+        IndexComponent::GraphName,
+        IndexComponent::Object,
+        IndexComponent::Predicate,
+        IndexComponent::Subject,
     ]);
 
     /// Tries to create a new [IndexConfiguration].

@@ -19,4 +19,4 @@ ProjectionExec: expr=[ENC_PT(otherProduct@0) as otherProduct, ENC_PT(sameFeature
                       DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer13/Product636>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?feature
                   ProjectionExec: expr=[otherProduct@0 as otherProduct, otherFeature@1 as otherFeature, ENC_TV(otherFeature@1) as join_proj_push_down_2]
                     CoalesceBatchesExec: target_batch_size=8192
-                      DataSourceExec: [GPOS] subject=?otherProduct, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?otherFeature
+                      DataSourceExec: [GPSO] subject=?otherProduct, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?otherFeature
