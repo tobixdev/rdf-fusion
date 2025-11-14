@@ -411,7 +411,11 @@ impl From<&MemIndexScanPredicate> for Option<MemIndexPruningPredicate> {
                 Some(predicate)
             }
             MemIndexScanPredicate::Between(from, to) => {
-                Some(MemIndexPruningPredicate::Between(*from, *to))
+                if from == to {
+                    Some(MemIndexPruningPredicate::EqualTo(*from))
+                } else {
+                    Some(MemIndexPruningPredicate::Between(*from, *to))
+                }
             }
             _ => None,
         }
