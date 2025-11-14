@@ -16,7 +16,8 @@ use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::UnknownObjectIdError;
 use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
-use rdf_fusion_model::{BlankNodeMatchingMode, DFResult};
+use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
+use rdf_fusion_model::{BlankNodeMatchingMode, DFResult, NamedNodePattern};
 use rdf_fusion_model::{
     NamedOrBlankNode, NamedOrBlankNodeRef, TermPattern, TriplePattern, Variable,
 };
@@ -127,6 +128,24 @@ impl MemQuadStorageSnapshot {
             graph_variable,
             Box::new(pattern),
         )))
+    }
+
+    /// Returns a [PlanPatternScanResult] that extracts all quads from the storage from an arbitrary
+    /// index.
+    pub async fn stream_quads(&self) -> DFResult<PlanPatternScanResult> {
+        self.plan_pattern_evaluation(
+            ActiveGraph::AllGraphs,
+            Some(Variable::new_unchecked(COL_GRAPH)),
+            TriplePattern {
+                subject: TermPattern::Variable(Variable::new_unchecked(COL_SUBJECT)),
+                predicate: NamedNodePattern::Variable(Variable::new_unchecked(
+                    COL_PREDICATE,
+                )),
+                object: TermPattern::Variable(Variable::new_unchecked(COL_OBJECT)),
+            },
+            BlankNodeMatchingMode::Filter,
+        )
+        .await
     }
 
     /// Encodes the triple pattern.
