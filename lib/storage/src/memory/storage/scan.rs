@@ -220,18 +220,20 @@ fn collect_relevant_row_groups(
     let instructions =
         combine_instructions_with_dynamic_filters(instructions, dynamic_filters)?;
 
-    let instructions = match index_ref.try_choose_better_index(&instructions) {
-        None => instructions,
+    match index_ref.try_choose_better_index(&instructions) {
+        None => {
+            let index = index_ref.get_index();
+            let index_data = index.data();
+            Ok(index_data.prune_relevant_row_groups(&instructions))
+        }
         Some(new_index) => {
             let components = new_index.get_index().components();
-            instructions.reorder(components)
+            let instructions = instructions.reorder(components);
+            let index = new_index.get_index();
+            let index_data = index.data();
+            Ok(index_data.prune_relevant_row_groups(&instructions))
         }
-    };
-
-    let index = index_ref.get_index();
-    let index_data = index.data();
-
-    Ok(index_data.prune_relevant_row_groups(&instructions))
+    }
 }
 
 fn combine_instructions_with_dynamic_filters(
@@ -685,7 +687,7 @@ mod tests {
         let dynamic_filter = MockDynamicFilter::new(MemStoragePredicateExpr::Between(
             Arc::from("object"),
             eid(1),
-            eid(2),
+            eid(200),
         ));
 
         // Create scan instructions
