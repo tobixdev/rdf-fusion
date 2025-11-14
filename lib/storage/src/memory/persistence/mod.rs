@@ -50,8 +50,9 @@ impl MemQuadPersistenceOptions {
 /// Implements persistence for the in-memory storage.
 ///
 /// While there may be an implementation of [MemQuadStoragePersistence] for a particular file
-/// format, there is no guarantee that the exported files will be compatible with any [QuadStorage]
-/// that is directly based on the file format.
+/// format, there is no guarantee that the exported files will be compatible with any
+/// [QuadStorage](rdf_fusion_extensions::storage::QuadStorage) that is directly based on the file
+/// format.
 #[async_trait]
 pub trait MemQuadStoragePersistence {
     /// The metadata that is returned once the file has been written.

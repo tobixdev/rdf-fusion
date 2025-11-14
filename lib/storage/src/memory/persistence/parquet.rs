@@ -32,7 +32,7 @@ use std::task::{Context, Poll, ready};
 /// # Limitations
 ///
 /// Currently, only the [PlainTermEncoding](rdf_fusion_encoding::plain_term::PlainTermEncoding) is
-/// supported. A translation of an object id-based [MemQuadStorageSnapshot] is supported.
+/// supported. A translation between encodings is supported.
 pub struct ParquetMemQuadStoragePersistence {
     /// The function registry used to look-up conversion functions.
     registry: RdfFusionFunctionRegistryRef,

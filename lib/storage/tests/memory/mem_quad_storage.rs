@@ -6,8 +6,8 @@ use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::BlankNodeMatchingMode;
 use rdf_fusion_model::{
-    GraphName, GraphNameRef, Literal, NamedNode, NamedNodePattern, NamedOrBlankNode,
-    Quad, Term, TermPattern, TriplePattern, Variable,
+    GraphNameRef, NamedNode, NamedNodePattern, NamedOrBlankNode, TermPattern,
+    TriplePattern, Variable,
 };
 use rdf_fusion_storage::memory::{MemObjectIdMapping, MemQuadStorage};
 use std::sync::Arc;

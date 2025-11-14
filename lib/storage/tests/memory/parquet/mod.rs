@@ -4,7 +4,6 @@ use datafusion::config::ConfigOptions;
 use insta::assert_binary_snapshot;
 use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_extensions::storage::QuadStorage;
-use rdf_fusion_model::Quad;
 use rdf_fusion_storage::memory::{
     MemQuadPersistenceOptions, MemQuadStoragePersistence,
     ParquetMemQuadStoragePersistence,
