@@ -1,37 +1,40 @@
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
-use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
+use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
+use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::Arc;
 
-pub fn max_typed_value() -> AggregateUDF {
+pub fn max_typed_value(encoding: TypedValueEncodingRef) -> AggregateUDF {
+    let data_type = encoding.data_type().clone();
     create_udaf(
         "MAX",
-        vec![TYPED_VALUE_ENCODING.data_type()],
-        Arc::new(TYPED_VALUE_ENCODING.data_type()),
+        vec![data_type.clone()],
+        Arc::new(data_type.clone()),
         Volatility::Immutable,
         Arc::new(|_| Ok(Box::new(SparqlTypedValueMax::new()))),
-        Arc::new(vec![DataType::Boolean, TYPED_VALUE_ENCODING.data_type()]),
+        Arc::new(vec![DataType::Boolean, data_type]),
     )
 }
 
 #[derive(Debug)]
 struct SparqlTypedValueMax {
+    encoding: TypedValueEncodingRef,
     executed_once: bool,
     max: ThinResult<TypedValue>,
 }
 
 impl SparqlTypedValueMax {
-    pub fn new() -> Self {
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
         SparqlTypedValueMax {
+            encoding,
             executed_once: false,
             max: ThinError::expected(),
         }
@@ -62,7 +65,7 @@ impl Accumulator for SparqlTypedValueMax {
             return Ok(());
         }
 
-        let arr = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&values[0]))?;
+        let arr = self.encoding.try_new_array(Arc::clone(&values[0]))?;
 
         for value in DefaultTypedValueDecoder::decode_terms(&arr) {
             self.on_new_value(value);
@@ -73,8 +76,10 @@ impl Accumulator for SparqlTypedValueMax {
 
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         let value = match self.max.as_ref() {
-            Ok(value) => DefaultTypedValueEncoder::encode_term(Ok(value.as_ref()))?,
-            Err(_) => DefaultTypedValueEncoder::encode_term(ThinError::expected())?,
+            Ok(value) => DefaultTypedValueEncoder::new(self.encoding)
+                .encode_term(Ok(value.as_ref()))?,
+            Err(_) => DefaultTypedValueEncoder::new(self.encoding)
+                .encode_term(ThinError::expected())?,
         };
         Ok(value.into_scalar_value())
     }
@@ -85,8 +90,11 @@ impl Accumulator for SparqlTypedValueMax {
 
     fn state(&mut self) -> DFResult<Vec<ScalarValue>> {
         let value = match self.max.as_ref().map(|v| v.as_ref()) {
-            Ok(value) => DefaultTypedValueEncoder::encode_term(Ok(value))?,
-            Err(_) => DefaultTypedValueEncoder::encode_term(ThinError::expected())?,
+            Ok(value) => {
+                self.encoding.encode_term(value)?
+            }
+            Err(_) => DefaultTypedValueEncoder::new(self.encoding)
+                .encode_term(ThinError::expected())?,
         };
         Ok(vec![
             ScalarValue::Boolean(Some(self.executed_once)),

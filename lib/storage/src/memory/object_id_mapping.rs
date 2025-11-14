@@ -5,10 +5,7 @@ use crate::memory::encoding::{EncodedTerm, EncodedTypedValue};
 use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
-use rdf_fusion_encoding::object_id::{
-    ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncoding, ObjectIdMapping,
-    ObjectIdMappingError, ObjectIdScalar,
-};
+use rdf_fusion_encoding::object_id::{ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncoding, ObjectIdMapping, ObjectIdMappingError, ObjectIdScalar, ObjectIdSize};
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{
     PlainTermArray, PlainTermArrayElementBuilder, PlainTermScalar,
@@ -288,10 +285,6 @@ impl MemObjectIdMapping {
 }
 
 impl ObjectIdMapping for MemObjectIdMapping {
-    fn encoding(&self) -> ObjectIdEncoding {
-        ObjectIdEncoding::new(EncodedObjectId::SIZE)
-    }
-
     fn try_get_object_id(
         &self,
         scalar: &PlainTermScalar,

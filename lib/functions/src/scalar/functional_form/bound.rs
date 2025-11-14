@@ -6,28 +6,26 @@ use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArray, TypedValueArrayElementBuilder,
-    TypedValueEncoding,
+    TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncoding,
+    TypedValueEncodingRef,
 };
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermEncoding};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::DFResult;
+use std::sync::Arc;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
-pub struct BoundSparqlOp;
-
-impl Default for BoundSparqlOp {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct BoundSparqlOp {
+    encoding: TypedValueEncodingRef,
 }
 
 impl BoundSparqlOp {
     const NAME: FunctionName = FunctionName::Builtin(BuiltinName::Bound);
 
-    pub fn new() -> Self {
-        Self {}
+    /// Creates a new [`BoundSparqlOp`].
+    pub fn new(encodings: TypedValueEncodingRef) -> Self {
+        Self { encoding }
     }
 }
 
@@ -44,7 +42,7 @@ impl ScalarSparqlOp for BoundSparqlOp {
         &self,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         Some(Box::new(ClosureSparqlOpImpl::new(
-            TYPED_VALUE_ENCODING.data_type(),
+            self.encoding.data_type().clone(),
             |args| impl_bound_plain_term(&args.args[0]),
         )))
     }
@@ -53,7 +51,7 @@ impl ScalarSparqlOp for BoundSparqlOp {
         &self,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(Box::new(ClosureSparqlOpImpl::new(
-            TYPED_VALUE_ENCODING.data_type(),
+            self.encoding.data_type().clone(),
             |args| impl_bound_typed_value(&args.args[0]),
         )))
     }
@@ -63,7 +61,7 @@ impl ScalarSparqlOp for BoundSparqlOp {
         _object_id_encoding: &ObjectIdEncoding,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>>> {
         Some(Box::new(ClosureSparqlOpImpl::<ObjectIdEncoding>::new(
-            TYPED_VALUE_ENCODING.data_type(),
+            self.encoding.data_type().clone(),
             |args| impl_bound_object_id(&args.args[0]),
         )))
     }
@@ -114,7 +112,10 @@ fn impl_bound_object_id(
     }
 }
 
-fn impl_bound_array(array: &dyn Array) -> DFResult<TypedValueArray> {
+fn impl_bound_array(
+    encoding: &TypedValueEncodingRef,
+    array: &dyn Array,
+) -> DFResult<TypedValueArray> {
     let result = is_not_null(array)?;
     assert_eq!(
         result.null_count(),
@@ -122,7 +123,7 @@ fn impl_bound_array(array: &dyn Array) -> DFResult<TypedValueArray> {
         "is_not_null should never return null"
     );
 
-    let mut builder = TypedValueArrayElementBuilder::default();
+    let mut builder = TypedValueArrayElementBuilder::new(Arc::clone(encoding));
     for value in result.values() {
         builder.append_boolean(value.into())?;
     }

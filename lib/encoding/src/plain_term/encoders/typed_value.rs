@@ -4,7 +4,7 @@ use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Term, ThinResult, TypedValueRef};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TypedValueRefPlainTermEncoder;
 
 impl TermEncoder<PlainTermEncoding> for TypedValueRefPlainTermEncoder {

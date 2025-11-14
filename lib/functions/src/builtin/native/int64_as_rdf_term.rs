@@ -7,7 +7,7 @@ use datafusion::logical_expr::{
     TypeSignature, Volatility,
 };
 use rdf_fusion_encoding::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArrayBuilder, TypedValueEncodingField,
+    TypedValueArrayBuilder, TypedValueEncodingField, TypedValueEncodingRef,
 };
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use rdf_fusion_extensions::functions::BuiltinName;
@@ -23,13 +23,15 @@ pub fn native_int64_as_term() -> ScalarUDF {
 
 #[derive(Debug, Eq)]
 pub struct NativeInt64AsTerm {
+    encoding: TypedValueEncodingRef,
     name: String,
     signature: Signature,
 }
 
 impl NativeInt64AsTerm {
-    pub fn new() -> Self {
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
         Self {
+            encoding,
             name: BuiltinName::NativeInt64AsTerm.to_string(),
             signature: Signature::new(
                 TypeSignature::Exact(vec![DataType::Int64]),
@@ -59,7 +61,7 @@ impl ScalarUDFImpl for NativeInt64AsTerm {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(TYPED_VALUE_ENCODING.data_type())
+        Ok(self.encoding.data_type().clone())
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
@@ -73,6 +75,7 @@ impl ScalarUDFImpl for NativeInt64AsTerm {
         let result = match int_arg.nulls() {
             None => {
                 let builder = TypedValueArrayBuilder::new_with_single_type(
+                    Arc::clone(&self.encoding),
                     TypedValueEncodingField::Integer.into(),
                     int_arg.len(),
                 )?;
@@ -86,6 +89,7 @@ impl ScalarUDFImpl for NativeInt64AsTerm {
                     .collect::<Int64Array>();
 
                 let builder = TypedValueArrayBuilder::new_with_nullable_single_type(
+                    Arc::clone(&self.encoding),
                     TypedValueEncodingField::Integer.into(),
                     nulls,
                 )?;
@@ -117,14 +121,19 @@ mod tests {
     use datafusion::arrow::datatypes::{Field, FieldRef};
     use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs};
     use insta::assert_debug_snapshot;
+    use rdf_fusion_encoding::typed_value::TypedValueEncoding;
     use std::sync::Arc;
 
     #[test]
     fn test_native_int64_as_term_no_nulls() {
-        let values = Arc::new(Int64Array::from(vec![1, 2, 3])) as ArrayRef;
-        let result = invoke_native_int64_as_term(values).to_array(3).unwrap();
+        let encoding = Arc::new(TypedValueEncoding::new());
 
-        let typed_value_array = TYPED_VALUE_ENCODING.try_new_array(result).unwrap();
+        let values = Arc::new(Int64Array::from(vec![1, 2, 3])) as ArrayRef;
+        let result = invoke_native_int64_as_term(&encoding, values)
+            .to_array(3)
+            .unwrap();
+
+        let typed_value_array = encoding.try_new_array(result).unwrap();
         let parts = typed_value_array.parts_as_ref();
 
         assert_eq!(parts.array.len(), 3);
@@ -142,11 +151,15 @@ mod tests {
 
     #[test]
     fn test_native_int64_as_term_with_nulls() {
+        let encoding = Arc::new(TypedValueEncoding::new());
+
         let values = Arc::new(Int64Array::from(vec![Some(10), None, Some(-5), Some(0)]))
             as ArrayRef;
-        let result = invoke_native_int64_as_term(values).to_array(4).unwrap();
+        let result = invoke_native_int64_as_term(&encoding, values)
+            .to_array(4)
+            .unwrap();
 
-        let typed_value_array = TYPED_VALUE_ENCODING.try_new_array(result).unwrap();
+        let typed_value_array = encoding.try_new_array(result).unwrap();
         let parts = typed_value_array.parts_as_ref();
 
         assert_eq!(parts.array.len(), 4);
@@ -162,8 +175,11 @@ mod tests {
         ")
     }
 
-    fn invoke_native_int64_as_term(input: ArrayRef) -> ColumnarValue {
-        let udf = NativeInt64AsTerm::new();
+    fn invoke_native_int64_as_term(
+        encoding: &TypedValueEncodingRef,
+        input: ArrayRef,
+    ) -> ColumnarValue {
+        let udf = NativeInt64AsTerm::new(Arc::clone(encoding));
         let args = ScalarFunctionArgs {
             args: vec![ColumnarValue::Array(Arc::clone(&input))],
             arg_fields: vec![FieldRef::new(Field::new(
@@ -174,7 +190,7 @@ mod tests {
             number_rows: input.len(),
             return_field: FieldRef::new(Field::new(
                 "output",
-                TYPED_VALUE_ENCODING.data_type().clone(),
+                encoding.data_type().clone(),
                 true,
             )),
             config_options: Arc::new(Default::default()),

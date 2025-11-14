@@ -154,7 +154,7 @@ pub type TypedValueEncodingRef = Arc<TypedValueEncoding>;
 /// Currently, the TypedValue encoding has a fixed Arrow DataType. We plan to change that in the
 /// future such that users can provide custom encodings for domain-specific literals (e.g.,
 /// geospatial coordinates).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypedValueEncoding {
     /// The data type of this encoding instance.
     data_type: DataType,

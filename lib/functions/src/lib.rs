@@ -40,12 +40,12 @@ pub mod scalar;
 mod test_utils {
     use crate::registry::DefaultRdfFusionFunctionRegistry;
     use datafusion::logical_expr::ScalarUDF;
-    use rdf_fusion_encoding::RdfFusionEncodings;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
     use rdf_fusion_encoding::typed_value::{
-        TYPED_VALUE_ENCODING, TypedValueArray, TypedValueArrayElementBuilder,
+        TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncodingRef,
     };
+    use rdf_fusion_encoding::RdfFusionEncodings;
     use rdf_fusion_extensions::functions::{
         BuiltinName, FunctionName, RdfFusionFunctionRegistry,
     };
@@ -53,8 +53,10 @@ mod test_utils {
     use std::sync::Arc;
 
     /// Creates a test vector with mixed types.
-    pub(crate) fn create_mixed_test_vector() -> TypedValueArray {
-        let mut test_vector = TypedValueArrayElementBuilder::default();
+    pub(crate) fn create_mixed_test_vector(
+        encoding: &TypedValueEncodingRef,
+    ) -> TypedValueArray {
+        let mut test_vector = TypedValueArrayElementBuilder::new(Arc::clone(encoding));
         test_vector
             .append_named_node(NamedNodeRef::new_unchecked("http://example.com/test"))
             .unwrap();
@@ -63,12 +65,15 @@ mod test_utils {
     }
 
     /// Creates an instance of the given builtin UDF.
-    pub(crate) fn create_default_builtin_udf(name: BuiltinName) -> Arc<ScalarUDF> {
+    pub(crate) fn create_default_builtin_udf(
+        typed_value_encoding: TypedValueEncodingRef,
+        name: BuiltinName,
+    ) -> Arc<ScalarUDF> {
         let encodings = RdfFusionEncodings::new(
-            PLAIN_TERM_ENCODING,
-            TYPED_VALUE_ENCODING,
+            Arc::clone(&PLAIN_TERM_ENCODING),
+            typed_value_encoding,
             None,
-            SORTABLE_TERM_ENCODING,
+            Arc::clone(&SORTABLE_TERM_ENCODING),
         );
         let function_registry = DefaultRdfFusionFunctionRegistry::new(encodings);
         function_registry.udf(&FunctionName::Builtin(name)).unwrap()

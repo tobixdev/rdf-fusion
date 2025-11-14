@@ -10,11 +10,11 @@ use datafusion::logical_expr::{
 };
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::{
     DefaultTypedValueDecoder, StringLiteralRefTermValueDecoder,
 };
 use rdf_fusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
+use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
 use rdf_fusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_model::DFResult;
@@ -22,8 +22,8 @@ use rdf_fusion_model::{StringLiteralRef, ThinError, TypedValueRef};
 use std::any::Any;
 use std::sync::Arc;
 
-pub fn group_concat_typed_value() -> AggregateUDF {
-    AggregateUDF::new_from_impl(SparqlGroupConcat::new())
+pub fn group_concat_typed_value(encoding: TypedValueEncodingRef) -> AggregateUDF {
+    AggregateUDF::new_from_impl(SparqlGroupConcat::new(encoding))
 }
 
 /// Concatenates the strings in a set with a given separator.
@@ -32,26 +32,22 @@ pub fn group_concat_typed_value() -> AggregateUDF {
 /// - [SPARQL 1.1 - GROUP CONCAT](https://www.w3.org/TR/sparql11-query/#defn_aggGroupConcat)
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct SparqlGroupConcat {
+    encoding: TypedValueEncodingRef,
     name: String,
     signature: Signature,
 }
 
 impl SparqlGroupConcat {
     /// Creates a new [SparqlGroupConcat] aggregate UDF.
-    pub fn new() -> Self {
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
         let name = BuiltinName::GroupConcat.to_string();
-        let signature = Signature::uniform(
-            2,
-            vec![TYPED_VALUE_ENCODING.data_type()],
-            Volatility::Stable,
-        );
-        SparqlGroupConcat { name, signature }
-    }
-}
-
-impl Default for SparqlGroupConcat {
-    fn default() -> Self {
-        Self::new()
+        let signature =
+            Signature::uniform(2, vec![encoding.data_type().clone()], Volatility::Stable);
+        SparqlGroupConcat {
+            encoding,
+            name,
+            signature,
+        }
     }
 }
 
@@ -69,7 +65,7 @@ impl AggregateUDFImpl for SparqlGroupConcat {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
-        Ok(TYPED_VALUE_ENCODING.data_type())
+        Ok(self.encoding.data_type().clone())
     }
 
     fn accumulator(&self, _acc_args: AccumulatorArgs) -> Result<Box<dyn Accumulator>> {
@@ -86,7 +82,7 @@ impl AggregateUDFImpl for SparqlGroupConcat {
             let separator_expr = &function.params.args[1];
             let separator = match separator_expr {
                 Expr::Literal(value, _) => {
-                    let scalar = TYPED_VALUE_ENCODING.try_new_scalar(value.clone())?;
+                    let scalar = self.encoding.try_new_scalar(value.clone())?;
                     let term = DefaultTypedValueDecoder::decode_term(&scalar);
                     match term {
                         Ok(TypedValueRef::SimpleLiteral(literal)) => {
@@ -101,6 +97,7 @@ impl AggregateUDFImpl for SparqlGroupConcat {
 
             Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
                 AggregateUDF::new_from_impl(SparqlGroupConcatWithSeparator::new(
+                    Arc::clone(&self.encoding),
                     separator,
                 ))
                 .into(),
@@ -116,6 +113,7 @@ impl AggregateUDFImpl for SparqlGroupConcat {
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct SparqlGroupConcatWithSeparator {
+    encoding: TypedValueEncodingRef,
     name: String,
     signature: Signature,
     separator: String,
@@ -123,11 +121,12 @@ struct SparqlGroupConcatWithSeparator {
 
 impl SparqlGroupConcatWithSeparator {
     /// Creates a new [SparqlGroupConcatWithSeparator] aggregate UDF.
-    pub fn new(separator: String) -> Self {
+    pub fn new(encoding: TypedValueEncodingRef, separator: String) -> Self {
         let name = BuiltinName::GroupConcat.to_string();
         let signature =
-            Signature::exact(vec![TYPED_VALUE_ENCODING.data_type()], Volatility::Stable);
+            Signature::exact(vec![encoding.data_type().clone()], Volatility::Stable);
         SparqlGroupConcatWithSeparator {
+            encoding,
             name,
             signature,
             separator,
@@ -149,11 +148,12 @@ impl AggregateUDFImpl for SparqlGroupConcatWithSeparator {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
-        Ok(TYPED_VALUE_ENCODING.data_type())
+        Ok(self.encoding.data_type().clone())
     }
 
     fn accumulator(&self, _acc_args: AccumulatorArgs) -> Result<Box<dyn Accumulator>> {
         Ok(Box::new(SparqlGroupConcatAccumulator::new(
+            Arc::clone(&self.encoding),
             self.separator.clone(),
         )))
     }
@@ -161,6 +161,7 @@ impl AggregateUDFImpl for SparqlGroupConcatWithSeparator {
 
 #[derive(Debug)]
 struct SparqlGroupConcatAccumulator {
+    encoding: TypedValueEncodingRef,
     separator: String,
     error: bool,
     value: Option<String>,
@@ -169,8 +170,9 @@ struct SparqlGroupConcatAccumulator {
 }
 
 impl SparqlGroupConcatAccumulator {
-    pub fn new(separator: String) -> Self {
+    pub fn new(encoding: TypedValueEncodingRef, separator: String) -> Self {
         SparqlGroupConcatAccumulator {
+            encoding,
             separator,
             error: false,
             value: None,
@@ -189,7 +191,7 @@ impl Accumulator for SparqlGroupConcatAccumulator {
         let mut value_exists = self.value.is_some();
         let mut value = self.value.take().unwrap_or_default();
 
-        let arr = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&values[0]))?;
+        let arr = self.encoding.try_new_array(Arc::clone(&values[0]))?;
         for string in StringLiteralRefTermValueDecoder::decode_terms(&arr) {
             if let Ok(string) = string {
                 if value_exists {
@@ -218,13 +220,15 @@ impl Accumulator for SparqlGroupConcatAccumulator {
 
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         if self.error {
-            return StringLiteralRefTermValueEncoder::encode_term(ThinError::expected())
+            return StringLiteralRefTermValueEncoder::new(Arc::clone(&self.encoding))
+                .encode_term(ThinError::expected())
                 .map(rdf_fusion_encoding::EncodingScalar::into_scalar_value);
         }
 
         let value = self.value.as_deref().unwrap_or("");
         let literal = StringLiteralRef(value, self.language.as_deref());
-        StringLiteralRefTermValueEncoder::encode_term(Ok(literal))
+        StringLiteralRefTermValueEncoder::new(Arc::clone(&self.encoding))
+            .encode_term(Ok(literal))
             .map(rdf_fusion_encoding::EncodingScalar::into_scalar_value)
     }
 

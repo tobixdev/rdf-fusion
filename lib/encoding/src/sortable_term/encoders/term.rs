@@ -17,6 +17,7 @@ pub struct TermRefSortableTermEncoder {
 
 impl Default for TermRefSortableTermEncoder {
     fn default() -> Self {
+        // TODO: This should also have access to a parameter typed value instance.
         Self {
             encoding: Arc::new(TypedValueEncoding::new()),
         }

@@ -1,12 +1,12 @@
 use datafusion::arrow::array::BooleanArray;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{ScalarValue, exec_err};
+use datafusion::common::{exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueArray};
+use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueEncodingRef};
 use rdf_fusion_encoding::{TermDecoder, TermEncoding};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_model::DFResult;
@@ -24,17 +24,20 @@ pub fn effective_boolean_value() -> ScalarUDF {
 
 #[derive(Debug, Eq)]
 struct EffectiveBooleanValue {
+    encoding: TypedValueEncodingRef,
     name: String,
     signature: Signature,
 }
 
 impl EffectiveBooleanValue {
     /// Creates a new [EffectiveBooleanValue].
-    pub fn new() -> Self {
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
+        let data_type = encoding.data_type().clone();
         Self {
+            encoding,
             name: BuiltinName::EffectiveBooleanValue.to_string(),
             signature: Signature::new(
-                TypeSignature::Exact(vec![TYPED_VALUE_ENCODING.data_type()]),
+                TypeSignature::Exact(vec![data_type]),
                 Volatility::Immutable,
             ),
         }
@@ -64,12 +67,12 @@ impl ScalarUDFImpl for EffectiveBooleanValue {
     ) -> datafusion::common::Result<ColumnarValue> {
         match TryInto::<[_; 1]>::try_into(args.args) {
             Ok([ColumnarValue::Array(array)]) => {
-                let array = TYPED_VALUE_ENCODING.try_new_array(array)?;
+                let array = self.encoding.try_new_array(array)?;
                 let result = ebv(&array);
                 Ok(ColumnarValue::Array(Arc::new(result)))
             }
             Ok([ColumnarValue::Scalar(scalar)]) => {
-                let scalar = TYPED_VALUE_ENCODING.try_new_scalar(scalar)?;
+                let scalar = self.encoding.try_new_scalar(scalar)?;
                 let result = DefaultTypedValueDecoder::decode_term(&scalar)
                     .and_then(evaluate)
                     .ok();

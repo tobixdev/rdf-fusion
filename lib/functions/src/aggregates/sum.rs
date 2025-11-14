@@ -1,35 +1,38 @@
 use datafusion::arrow::array::ArrayRef;
-use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
+use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
+use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Integer, Numeric, NumericPair, ThinResult};
 use std::sync::Arc;
 
-pub fn sum_typed_value() -> AggregateUDF {
+pub fn sum_typed_value(encoding: TypedValueEncodingRef) -> AggregateUDF {
+    let data_type = encoding.data_type().clone();
     create_udaf(
         &BuiltinName::Sum.to_string(),
-        vec![TYPED_VALUE_ENCODING.data_type()],
-        Arc::new(TYPED_VALUE_ENCODING.data_type()),
+        vec![data_type.clone()],
+        Arc::new(data_type.clone()),
         Volatility::Immutable,
-        Arc::new(|_| Ok(Box::new(SparqlTypedValueSum::new()))),
-        Arc::new(vec![TYPED_VALUE_ENCODING.data_type()]),
+        Arc::new(|_| Ok(Box::new(SparqlTypedValueSum::new(encoding)))),
+        Arc::new(vec![data_type.clone()]),
     )
 }
 
 #[derive(Debug)]
 struct SparqlTypedValueSum {
+    encoding: TypedValueEncodingRef,
     sum: ThinResult<Numeric>,
 }
 
 impl SparqlTypedValueSum {
-    pub fn new() -> Self {
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
         SparqlTypedValueSum {
+            encoding,
             sum: Ok(Numeric::Integer(Integer::from(0))),
         }
     }
@@ -43,7 +46,7 @@ impl Accumulator for SparqlTypedValueSum {
 
         // TODO: Can we stop once we error?
 
-        let arr = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&values[0]))?;
+        let arr = self.encoding.try_new_array(Arc::clone(&values[0]))?;
         for value in NumericTermValueDecoder::decode_terms(&arr) {
             if let Ok(sum) = self.sum {
                 if let Ok(value) = value {
@@ -70,7 +73,8 @@ impl Accumulator for SparqlTypedValueSum {
     // DataFusion expects this function to return the final value of this aggregator.
     // in this case, this is the formula of the geometric mean
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
-        NumericTypedValueEncoder::encode_term(self.sum)
+        NumericTypedValueEncoder::new(Arc::clone(&self.encoding))
+            .encode_term(self.sum)
             .map(EncodingScalar::into_scalar_value)
     }
 
@@ -79,7 +83,8 @@ impl Accumulator for SparqlTypedValueSum {
     }
 
     fn state(&mut self) -> DFResult<Vec<ScalarValue>> {
-        let value = NumericTypedValueEncoder::encode_term(self.sum)?;
+        let value = NumericTypedValueEncoder::new(Arc::clone(&self.encoding))
+            .encode_term(self.sum)?;
         Ok(vec![value.into_scalar_value()])
     }
 

@@ -1,5 +1,5 @@
-use crate::scalar::ScalarSparqlOpArgs;
 use crate::scalar::sparql_op_impl::ScalarSparqlOpImpl;
+use crate::scalar::ScalarSparqlOpArgs;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
 use datafusion::logical_expr::{
@@ -7,8 +7,8 @@ use datafusion::logical_expr::{
     Volatility,
 };
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
-use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
+use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::DFResult;
@@ -42,7 +42,7 @@ impl SparqlOpArity {
         match self {
             SparqlOpArity::Nullary => TypeSignature::Nullary,
             SparqlOpArity::Fixed(n) => {
-                TypeSignature::Uniform(*n, vec![encoding.data_type()])
+                TypeSignature::Uniform(*n, vec![encoding.data_type().clone()])
             }
             SparqlOpArity::OneOf(ns) => {
                 let inner = ns
@@ -53,7 +53,7 @@ impl SparqlOpArity {
             }
             SparqlOpArity::Variadic => TypeSignature::OneOf(vec![
                 TypeSignature::Nullary,
-                TypeSignature::Variadic(vec![encoding.data_type()]),
+                TypeSignature::Variadic(vec![encoding.data_type().clone()]),
             ]),
         }
     }
@@ -148,18 +148,22 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
 
         let mut type_signatures = Vec::new();
         if op.plain_term_encoding_op().is_some() {
-            let type_signature = details.arity.type_signature(encodings.plain_term());
+            let type_signature = details
+                .arity
+                .type_signature(encodings.plain_term().as_ref());
             type_signatures.push(type_signature);
         }
 
         if op.typed_value_encoding_op().is_some() {
-            let type_signature = details.arity.type_signature(encodings.typed_value());
+            let type_signature = details
+                .arity
+                .type_signature(encodings.typed_value().as_ref());
             type_signatures.push(type_signature);
         }
 
         if let Some(oid_encoding) = encodings.object_id() {
             if op.object_id_encoding_op(oid_encoding).is_some() {
-                let type_signature = details.arity.type_signature(oid_encoding);
+                let type_signature = details.arity.type_signature(oid_encoding.as_ref());
                 type_signatures.push(type_signature);
             }
         }

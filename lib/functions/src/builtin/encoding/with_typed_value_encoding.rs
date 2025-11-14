@@ -1,13 +1,12 @@
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
+use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::encoders::TermRefTypedValueEncoder;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
@@ -61,7 +60,7 @@ impl WithTypedValueEncoding {
             EncodingName::PlainTerm => {
                 let array = PLAIN_TERM_ENCODING.try_new_array(array)?;
                 let input = DefaultPlainTermDecoder::decode_terms(&array);
-                let result = TermRefTypedValueEncoder::encode_terms(input)?;
+                let result = TermRefTypedValueEncoder::new(self.encodings.typed_value()).encode_terms(input)?;
                 Ok(ColumnarValue::Array(result.into_array_ref()))
             }
             EncodingName::TypedValue => Ok(ColumnarValue::Array(array)),

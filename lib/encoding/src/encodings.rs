@@ -1,7 +1,7 @@
 use crate::object_id::{ObjectIdEncoding, ObjectIdEncodingRef, ObjectIdMapping};
 use crate::plain_term::{PlainTermEncoding, PlainTermEncodingRef};
-use crate::sortable_term::SortableTermEncoding;
-use crate::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
+use crate::sortable_term::{SortableTermEncoding, SortableTermEncodingRef};
+use crate::typed_value::TypedValueEncodingRef;
 use crate::{EncodingName, TermEncoding};
 use datafusion::arrow::datatypes::DataType;
 use std::hash::{Hash, Hasher};
@@ -34,29 +34,29 @@ impl RdfFusionEncodings {
         plain_term: PlainTermEncodingRef,
         typed_value: TypedValueEncodingRef,
         object_id: Option<ObjectIdEncodingRef>,
-        sortable_term: SortableTermEncoding,
+        sortable_term: SortableTermEncodingRef,
     ) -> Self {
         Self {
             plain_term,
             typed_value,
             object_id,
-            sortable_term: Arc::new(sortable_term),
+            sortable_term,
         }
     }
 
     /// Provides a reference to the used [PlainTermEncoding].
-    pub fn plain_term(&self) -> &PlainTermEncoding {
+    pub fn plain_term(&self) -> &PlainTermEncodingRef {
         &self.plain_term
     }
 
     /// Provides a reference to the used [TypedValueEncoding].
-    pub fn typed_value(&self) -> &TypedValueEncoding {
+    pub fn typed_value(&self) -> &TypedValueEncodingRef {
         &self.typed_value
     }
 
     /// Provides a reference to the used [ObjectIdEncoding].
-    pub fn object_id(&self) -> Option<&ObjectIdEncoding> {
-        self.object_id.as_ref().map(AsRef::as_ref)
+    pub fn object_id(&self) -> Option<&ObjectIdEncodingRef> {
+        self.object_id.as_ref()
     }
 
     /// Provides a reference to the used [ObjectIdEncoding].
@@ -65,7 +65,7 @@ impl RdfFusionEncodings {
     }
 
     /// Provides a reference to the used [SortableTermEncoding].
-    pub fn sortable_term(&self) -> &SortableTermEncoding {
+    pub fn sortable_term(&self) -> &SortableTermEncodingRef {
         &self.sortable_term
     }
 

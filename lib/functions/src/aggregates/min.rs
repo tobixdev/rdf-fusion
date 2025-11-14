@@ -1,37 +1,40 @@
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
-use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
+use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
+use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
 use std::sync::Arc;
 
-pub fn min_typed_value() -> AggregateUDF {
+pub fn min_typed_value(encoding: TypedValueEncoding) -> AggregateUDF {
+    let data_type = encoding.data_type().clone();
     create_udaf(
         "MIN",
-        vec![TYPED_VALUE_ENCODING.data_type()],
-        Arc::new(TYPED_VALUE_ENCODING.data_type()),
+        vec![data_type.clone()],
+        Arc::new(data_type.clone()),
         Volatility::Immutable,
-        Arc::new(|_| Ok(Box::new(SparqlTypedValueMin::new()))),
-        Arc::new(vec![DataType::Boolean, TYPED_VALUE_ENCODING.data_type()]),
+        Arc::new(|_| Ok(Box::new(SparqlTypedValueMin::new(encoding)))),
+        Arc::new(vec![DataType::Boolean, data_type.clone()]),
     )
 }
 
 #[derive(Debug)]
 struct SparqlTypedValueMin {
+    encoding: TypedValueEncodingRef,
     executed_once: bool,
     min: ThinResult<TypedValue>,
 }
 
 impl SparqlTypedValueMin {
-    pub fn new() -> Self {
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
         SparqlTypedValueMin {
+            encoding,
             executed_once: false,
             min: ThinError::expected(),
         }
@@ -62,7 +65,7 @@ impl Accumulator for SparqlTypedValueMin {
             return Ok(());
         }
 
-        let arr = TYPED_VALUE_ENCODING.try_new_array(Arc::clone(&values[0]))?;
+        let arr = self.encoding.try_new_array(Arc::clone(&values[0]))?;
 
         for value in DefaultTypedValueDecoder::decode_terms(&arr) {
             self.on_new_value(value);
@@ -73,7 +76,8 @@ impl Accumulator for SparqlTypedValueMin {
 
     fn evaluate(&mut self) -> DFResult<ScalarValue> {
         let value = match self.min.as_ref() {
-            Ok(value) => DefaultTypedValueEncoder::encode_term(Ok(value.as_ref()))?,
+            Ok(value) => DefaultTypedValueEncoder::new(Arc::clone(&self.encoding))
+                .encode_term(Ok(value.as_ref()))?,
             Err(_) => DefaultTypedValueEncoder::encode_term(ThinError::expected())?,
         };
         Ok(value.into_scalar_value())

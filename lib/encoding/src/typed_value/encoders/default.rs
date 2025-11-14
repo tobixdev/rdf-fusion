@@ -12,6 +12,13 @@ pub struct DefaultTypedValueEncoder {
     encoding: TypedValueEncodingRef,
 }
 
+impl DefaultTypedValueEncoder {
+    /// Creates a new [`DefaultTypedValueEncoder`].
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
+        Self { encoding }
+    }
+}
+
 impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
     type Term<'data> = TypedValueRef<'data>;
 
