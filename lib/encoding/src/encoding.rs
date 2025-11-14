@@ -6,6 +6,7 @@ use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::ThinResult;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 /// Represents an Arrow [Array] with a specific [TermEncoding].
 ///
@@ -16,7 +17,7 @@ pub trait EncodingArray: Clone {
     type Encoding: TermEncoding;
 
     /// Obtains the encoding instance for this array.
-    fn encoding(&self) -> &Self::Encoding;
+    fn encoding(&self) -> &Arc<Self::Encoding>;
 
     /// Returns a reference to the inner array.
     fn array(&self) -> &ArrayRef;
@@ -45,7 +46,7 @@ pub trait EncodingScalar {
     type Encoding: TermEncoding;
 
     /// Obtains the encoding instance for this scalar.
-    fn encoding(&self) -> &Self::Encoding;
+    fn encoding(&self) -> &Arc<Self::Encoding>;
 
     /// Returns a reference to the inner scalar value.
     fn scalar_value(&self) -> &ScalarValue;
@@ -96,23 +97,23 @@ pub trait TermEncoding: Debug + Send + Sync {
     /// This function depends on the instance of an encoding, as some encodings can be configured
     /// such that the data type changes (at least in the future). Some encodings also expose a
     /// statically known data type (e.g., [PlainTermEncoding::data_type](crate::plain_term::PlainTermEncoding::data_type)).
-    fn data_type(&self) -> DataType;
+    fn data_type(&self) -> &DataType;
 
     /// Checks whether `array` contains a value with the correct encoding (i.e., type and possibly
     /// metadata checks). If yes, returns an instance of [Self::Array]. Otherwise, an error is
     /// returned.
-    fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array>;
+    fn try_new_array(self: &Arc<Self>, array: ArrayRef) -> DFResult<Self::Array>;
 
     /// Checks whether `scalar` contains a value with the correct encoding (i.e., type and possibly
     /// metadata checks). If yes, returns an instance of [Self::Scalar]. Otherwise, an error is
     /// returned.
-    fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar>;
+    fn try_new_scalar(self: &Arc<Self>, scalar: ScalarValue) -> DFResult<Self::Scalar>;
 
     /// Checks whether `value` contains a value with the correct encoding (i.e., type and possibly
     /// metadata checks). If yes, returns a datum that either wraps an array or a scalar. Otherwise,
     /// an error is returned.
     fn try_new_datum(
-        &self,
+        self: &Arc<Self>,
         value: ColumnarValue,
         number_rows: usize,
     ) -> DFResult<EncodingDatum<Self>> {
@@ -196,11 +197,15 @@ pub trait TermEncoder<TEncoding: TermEncoding + ?Sized>: Debug + Sync + Send {
 
     /// Allows encoding an iterator over RDF terms in an Arrow array.
     fn encode_terms<'data>(
+        &self,
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<TEncoding::Array>;
 
     /// Allows encoding a scalar RDF term in an Arrow scalar.
-    fn encode_term(term: ThinResult<Self::Term<'_>>) -> DFResult<TEncoding::Scalar>;
+    fn encode_term(
+        &self,
+        term: ThinResult<Self::Term<'_>>,
+    ) -> DFResult<TEncoding::Scalar>;
 }
 
 /// Represents either an array or a scalar for a given encoding.

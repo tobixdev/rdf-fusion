@@ -1,7 +1,7 @@
-use crate::object_id::{ObjectIdEncoding, ObjectIdMapping};
-use crate::plain_term::PlainTermEncoding;
+use crate::object_id::{ObjectIdEncoding, ObjectIdEncodingRef, ObjectIdMapping};
+use crate::plain_term::{PlainTermEncoding, PlainTermEncodingRef};
 use crate::sortable_term::SortableTermEncoding;
-use crate::typed_value::TypedValueEncoding;
+use crate::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
 use crate::{EncodingName, TermEncoding};
 use datafusion::arrow::datatypes::DataType;
 use std::hash::{Hash, Hasher};
@@ -19,13 +19,11 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct RdfFusionEncodings {
     /// The [PlainTermEncoding] configuration.
-    plain_term: Arc<PlainTermEncoding>,
+    plain_term: PlainTermEncodingRef,
     /// The [TypedValueEncoding] configuration.
-    typed_value: Arc<TypedValueEncoding>,
+    typed_value: TypedValueEncodingRef,
     /// The [ObjectIdEncoding] configuration.
     object_id: Option<Arc<ObjectIdEncoding>>,
-    /// The used [ObjectIdMapping]. The encoding configuration can be obtained from the mapping.
-    object_id_mapping: Option<Arc<dyn ObjectIdMapping>>,
     /// The [SortableTermEncoding] configuration.
     sortable_term: Arc<SortableTermEncoding>,
 }
@@ -33,18 +31,15 @@ pub struct RdfFusionEncodings {
 impl RdfFusionEncodings {
     /// Creates a new [RdfFusionEncodings].
     pub fn new(
-        plain_term: PlainTermEncoding,
-        typed_value: TypedValueEncoding,
-        object_id_mapping: Option<Arc<dyn ObjectIdMapping>>,
+        plain_term: PlainTermEncodingRef,
+        typed_value: TypedValueEncodingRef,
+        object_id: Option<ObjectIdEncodingRef>,
         sortable_term: SortableTermEncoding,
     ) -> Self {
         Self {
-            plain_term: Arc::new(plain_term),
-            typed_value: Arc::new(typed_value),
-            object_id: object_id_mapping
-                .as_ref()
-                .map(|mapping| Arc::new(mapping.encoding())),
-            object_id_mapping,
+            plain_term,
+            typed_value,
+            object_id,
             sortable_term: Arc::new(sortable_term),
         }
     }
@@ -66,7 +61,7 @@ impl RdfFusionEncodings {
 
     /// Provides a reference to the used [ObjectIdEncoding].
     pub fn object_id_mapping(&self) -> Option<&dyn ObjectIdMapping> {
-        self.object_id_mapping.as_ref().map(AsRef::as_ref)
+        self.object_id.as_ref().map(|enc| enc.mapping().as_ref())
     }
 
     /// Provides a reference to the used [SortableTermEncoding].
@@ -82,21 +77,21 @@ impl RdfFusionEncodings {
         let mut result = Vec::new();
 
         if names.contains(&EncodingName::PlainTerm) {
-            result.push(self.plain_term.data_type());
+            result.push(self.plain_term.data_type().clone());
         }
 
         if names.contains(&EncodingName::TypedValue) {
-            result.push(self.typed_value.data_type());
+            result.push(self.typed_value.data_type().clone());
         }
 
         if let Some(object_id) = self.object_id.as_ref()
             && names.contains(&EncodingName::ObjectId)
         {
-            result.push(object_id.as_ref().data_type());
+            result.push(object_id.as_ref().data_type().clone());
         }
 
         if names.contains(&EncodingName::Sortable) {
-            result.push(self.sortable_term.data_type());
+            result.push(self.sortable_term.data_type().clone());
         }
 
         result
@@ -107,21 +102,21 @@ impl RdfFusionEncodings {
     ///
     /// In the future we might use a field here such that we can access metadata information.
     pub fn try_get_encoding_name(&self, data_type: &DataType) -> Option<EncodingName> {
-        if data_type == &PlainTermEncoding.data_type() {
+        if data_type == PlainTermEncoding.data_type() {
             return Some(EncodingName::PlainTerm);
         }
 
-        if data_type == &self.typed_value.data_type() {
+        if data_type == self.typed_value.data_type() {
             return Some(EncodingName::TypedValue);
         }
 
         if let Some(object_id) = self.object_id.as_ref()
-            && data_type == &object_id.data_type()
+            && data_type == object_id.data_type()
         {
             return Some(EncodingName::ObjectId);
         }
 
-        if data_type == &self.sortable_term.data_type() {
+        if data_type == self.sortable_term.data_type() {
             return Some(EncodingName::Sortable);
         }
 

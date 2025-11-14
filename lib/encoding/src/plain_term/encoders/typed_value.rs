@@ -11,6 +11,7 @@ impl TermEncoder<PlainTermEncoding> for TypedValueRefPlainTermEncoder {
     type Term<'data> = TypedValueRef<'data>;
 
     fn encode_terms<'data>(
+        &self,
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<<PlainTermEncoding as TermEncoding>::Array> {
         let iter = terms.into_iter();
@@ -30,8 +31,9 @@ impl TermEncoder<PlainTermEncoding> for TypedValueRefPlainTermEncoder {
     }
 
     fn encode_term(
+        &self,
         term: ThinResult<Self::Term<'_>>,
     ) -> DFResult<<PlainTermEncoding as TermEncoding>::Scalar> {
-        Self::encode_terms([term])?.try_as_scalar(0)
+        self.encode_terms([term])?.try_as_scalar(0)
     }
 }

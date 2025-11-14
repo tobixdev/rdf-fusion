@@ -1,19 +1,26 @@
 use crate::encoding::TermEncoder;
-use crate::typed_value::{TypedValueArrayElementBuilder, TypedValueEncoding};
+use crate::typed_value::{
+    TypedValueArrayElementBuilder, TypedValueEncoding, TypedValueEncodingRef,
+};
 use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Numeric, ThinResult, TypedValueRef};
+use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct DefaultTypedValueEncoder;
+pub struct DefaultTypedValueEncoder {
+    encoding: TypedValueEncodingRef,
+}
 
 impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
     type Term<'data> = TypedValueRef<'data>;
 
     fn encode_terms<'data>(
+        &self,
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<<TypedValueEncoding as TermEncoding>::Array> {
-        let mut value_builder = TypedValueArrayElementBuilder::default();
+        let mut value_builder =
+            TypedValueArrayElementBuilder::new(Arc::clone(&self.encoding));
         for value in terms {
             match value {
                 Ok(TypedValueRef::NamedNode(value)) => {
@@ -73,8 +80,9 @@ impl TermEncoder<TypedValueEncoding> for DefaultTypedValueEncoder {
     }
 
     fn encode_term(
+        &self,
         term: ThinResult<Self::Term<'_>>,
     ) -> DFResult<<TypedValueEncoding as TermEncoding>::Scalar> {
-        Self::encode_terms([term])?.try_as_scalar(0)
+        self.encode_terms([term])?.try_as_scalar(0)
     }
 }

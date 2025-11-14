@@ -8,14 +8,14 @@ use std::sync::Arc;
 /// documentation of the encoding provides additional information.
 pub struct ObjectIdArrayBuilder {
     /// The mapping that is used for obtaining object ids.
-    encoding: ObjectIdEncoding,
+    encoding: Arc<ObjectIdEncoding>,
     /// The underlying [UInt32Builder].
     builder: UInt32Builder,
 }
 
 impl ObjectIdArrayBuilder {
     /// Create a [ObjectIdArrayBuilder] with the given `capacity`.
-    pub fn new(encoding: ObjectIdEncoding) -> Self {
+    pub fn new(encoding: Arc<ObjectIdEncoding>) -> Self {
         let builder = UInt32Builder::new();
         Self { encoding, builder }
     }

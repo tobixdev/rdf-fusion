@@ -6,13 +6,14 @@ use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{ThinResult, TypedValueRef};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TypedValueRefSortableTermEncoder;
 
 impl TermEncoder<SortableTermEncoding> for TypedValueRefSortableTermEncoder {
     type Term<'data> = TypedValueRef<'data>;
 
     fn encode_terms<'data>(
+        &self,
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<<SortableTermEncoding as TermEncoding>::Array> {
         let iter = terms.into_iter();
@@ -53,8 +54,9 @@ impl TermEncoder<SortableTermEncoding> for TypedValueRefSortableTermEncoder {
     }
 
     fn encode_term(
+        &self,
         term: ThinResult<Self::Term<'_>>,
     ) -> DFResult<<SortableTermEncoding as TermEncoding>::Scalar> {
-        Self::encode_terms([term])?.try_as_scalar(0)
+        self.encode_terms([term])?.try_as_scalar(0)
     }
 }

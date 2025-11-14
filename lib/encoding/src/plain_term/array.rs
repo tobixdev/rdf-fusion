@@ -6,6 +6,7 @@ use datafusion::arrow::array::{
 };
 use datafusion::common::exec_err;
 use datafusion::error::DataFusionError;
+use std::sync::Arc;
 
 /// Represents an Arrow array with a [PlainTermEncoding].
 #[derive(Clone)]
@@ -52,7 +53,7 @@ impl PlainTermArray {
 impl EncodingArray for PlainTermArray {
     type Encoding = PlainTermEncoding;
 
-    fn encoding(&self) -> &Self::Encoding {
+    fn encoding(&self) -> &Arc<Self::Encoding> {
         &PLAIN_TERM_ENCODING
     }
 
@@ -69,7 +70,7 @@ impl TryFrom<ArrayRef> for PlainTermArray {
     type Error = DataFusionError;
 
     fn try_from(value: ArrayRef) -> Result<Self, Self::Error> {
-        if value.data_type() != &PLAIN_TERM_ENCODING.data_type() {
+        if value.data_type() != PLAIN_TERM_ENCODING.data_type() {
             return exec_err!(
                 "Expected array with PlainTermEncoding, got: {}",
                 value.data_type()

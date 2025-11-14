@@ -1,4 +1,4 @@
-use crate::typed_value::TypedValueArrayElementBuilder;
+use crate::typed_value::{TypedValueArrayElementBuilder, TypedValueEncodingRef};
 
 use crate::TermEncoder;
 use crate::TermEncoding;
@@ -12,20 +12,31 @@ use rdf_fusion_model::{
 use rdf_fusion_model::{
     Boolean, DateTime, DayTimeDuration, Decimal, Float, Int, Integer, OwnedStringLiteral,
 };
+use std::sync::Arc;
 
 #[macro_export]
 macro_rules! make_simple_term_value_encoder {
     ($STRUCT_NAME: ident, $VALUE_TYPE: ty, $BUILDER_INVOCATION: expr) => {
         #[derive(Debug)]
-        pub struct $STRUCT_NAME;
+        pub struct $STRUCT_NAME {
+            encoding: TypedValueEncodingRef,
+        }
+
+        impl $STRUCT_NAME {
+            pub fn new(encoding: TypedValueEncodingRef) -> Self {
+                Self { encoding }
+            }
+        }
 
         impl TermEncoder<TypedValueEncoding> for $STRUCT_NAME {
             type Term<'data> = $VALUE_TYPE;
 
             fn encode_terms<'data>(
+                &self,
                 terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
             ) -> DFResult<<TypedValueEncoding as TermEncoding>::Array> {
-                let mut builder = TypedValueArrayElementBuilder::default();
+                let mut builder =
+                    TypedValueArrayElementBuilder::new(Arc::clone(&self.encoding));
                 for term_result in terms {
                     match term_result {
                         Ok(value) => $BUILDER_INVOCATION(&mut builder, value)?,
@@ -36,10 +47,11 @@ macro_rules! make_simple_term_value_encoder {
             }
 
             fn encode_term(
+                &self,
                 term: ThinResult<Self::Term<'_>>,
             ) -> DFResult<<TypedValueEncoding as TermEncoding>::Scalar> {
                 $crate::encoding::EncodingArray::try_as_scalar(
-                    &Self::encode_terms([term])?,
+                    &self.encode_terms([term])?,
                     0,
                 )
             }

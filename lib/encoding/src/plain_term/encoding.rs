@@ -9,7 +9,7 @@ use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
 use std::fmt::Display;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use thiserror::Error;
 
 /// Represents the fields of the [PlainTermEncoding].
@@ -132,7 +132,11 @@ impl From<PlainTermType> for u8 {
 ///
 /// As there is currently no way to parameterize the encoding, accessing it via this constant is
 /// the preferred way.
-pub const PLAIN_TERM_ENCODING: PlainTermEncoding = PlainTermEncoding;
+pub static PLAIN_TERM_ENCODING: LazyLock<PlainTermEncodingRef> =
+    LazyLock::new(|| Arc::new(PlainTermEncoding));
+
+/// A cheaply cloneable reference to a [PlainTermEncoding].
+pub type PlainTermEncodingRef = Arc<PlainTermEncoding>;
 
 #[derive(Debug)]
 pub struct PlainTermEncoding;
@@ -155,7 +159,7 @@ impl PlainTermEncoding {
         &self,
         term: ThinResult<TermRef<'_>>,
     ) -> DFResult<PlainTermScalar> {
-        DefaultPlainTermEncoder::encode_term(term)
+        DefaultPlainTermEncoder::default().encode_term(term)
     }
 }
 
@@ -167,15 +171,17 @@ impl TermEncoding for PlainTermEncoding {
         EncodingName::PlainTerm
     }
 
-    fn data_type(&self) -> DataType {
-        PlainTermEncoding::data_type()
+    fn data_type(&self) -> &DataType {
+        static DATA_TYPE: LazyLock<DataType> =
+            LazyLock::new(|| PlainTermEncoding::data_type());
+        &DATA_TYPE
     }
 
-    fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
+    fn try_new_array(self: &Arc<Self>, array: ArrayRef) -> DFResult<Self::Array> {
         array.try_into()
     }
 
-    fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
+    fn try_new_scalar(self: &Arc<Self>, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         scalar.try_into()
     }
 }

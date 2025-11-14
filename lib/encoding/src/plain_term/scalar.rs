@@ -11,6 +11,7 @@ use rdf_fusion_model::{
     BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef, Term,
     TermRef, ThinError, ThinResult,
 };
+use std::sync::Arc;
 
 /// Represents an Arrow scalar with a [PlainTermEncoding].
 #[derive(Clone)]
@@ -40,7 +41,7 @@ impl PlainTermScalar {
             GraphNameRef::NamedNode(nn) => Ok(Self::from(nn)),
             GraphNameRef::BlankNode(bnode) => Ok(Self::from(bnode)),
             GraphNameRef::DefaultGraph => {
-                DefaultPlainTermEncoder::encode_term(ThinError::expected())
+                DefaultPlainTermEncoder::default().encode_term(ThinError::expected())
             }
         }
     }
@@ -59,7 +60,7 @@ impl PlainTermScalar {
 impl EncodingScalar for PlainTermScalar {
     type Encoding = PlainTermEncoding;
 
-    fn encoding(&self) -> &Self::Encoding {
+    fn encoding(&self) -> &Arc<Self::Encoding> {
         &PLAIN_TERM_ENCODING
     }
 
@@ -82,7 +83,9 @@ impl TryFrom<ScalarValue> for PlainTermScalar {
 
 impl From<TermRef<'_>> for PlainTermScalar {
     fn from(term: TermRef<'_>) -> Self {
-        DefaultPlainTermEncoder::encode_term(Ok(term)).expect("Always Ok given")
+        DefaultPlainTermEncoder::default()
+            .encode_term(Ok(term))
+            .expect("Always Ok given")
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::object_id::{ObjectIdArray, ObjectIdEncoding, ObjectIdScalar};
+use crate::object_id::{ObjectIdArray, ObjectIdScalar};
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
 use crate::typed_value::{TypedValueArray, TypedValueScalar};
 use crate::{EncodingArray, EncodingScalar};
@@ -7,6 +7,7 @@ use datafusion::error::DataFusionError;
 use rdf_fusion_model::{CorruptionError, StorageError};
 use std::error::Error;
 use std::fmt::Debug;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// Indicates an error that occurred while working with the [ObjectIdMapping].
@@ -44,6 +45,9 @@ impl From<ObjectIdMappingError> for StorageError {
     }
 }
 
+/// A cheaply cloneable reference to a [`ObjectIdMapping`].
+pub type ObjectIdMappingRef = Arc<dyn ObjectIdMapping>;
+
 /// The object id mapping is responsible for mapping between object ids and RDF terms in the
 /// [ObjectIdEncoding].
 ///
@@ -64,9 +68,6 @@ impl From<ObjectIdMappingError> for StorageError {
 /// object ids is not bijective. A single typed value can map to multiple object ids. For example,
 /// this is the case for the two RDF terms `"01"^^xsd:integer` and `"1"^^xsd:integer`.
 pub trait ObjectIdMapping: Debug + Send + Sync {
-    /// Returns the encoding.
-    fn encoding(&self) -> ObjectIdEncoding;
-
     /// Try to retrieve the object id of the given `scalar`.
     ///
     /// This method *does not* automatically create a mapping. See [Self::encode_scalar] for this

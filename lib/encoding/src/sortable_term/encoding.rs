@@ -8,7 +8,7 @@ use datafusion::common::ScalarValue;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 /// Represents a sortable term encoding field.
 ///
@@ -77,11 +77,15 @@ static FIELDS: LazyLock<Fields> = LazyLock::new(|| {
     ])
 });
 
-/// The instance of the [SortableTermEncoding].
+/// The instance of the [`SortableTermEncoding`].
 ///
 /// As there is currently no way to parameterize the encoding, accessing it via this constant is
 /// the preferred way.
-pub const SORTABLE_TERM_ENCODING: SortableTermEncoding = SortableTermEncoding;
+pub static SORTABLE_TERM_ENCODING: LazyLock<SortableTermEncodingRef> =
+    LazyLock::new(|| Arc::new(SortableTermEncoding));
+
+/// A cheaply cloneable reference to the [`SortableTermEncoding`].
+pub type SortableTermEncodingRef = Arc<SortableTermEncoding>;
 
 /// The sortable term encoding allows us to represent the expected SPARQL ordering using
 /// DataFusion's built-in ordering for structs.
@@ -102,7 +106,9 @@ impl SortableTermEncoding {
         &self,
         term: ThinResult<TermRef<'_>>,
     ) -> DFResult<SortableTermScalar> {
-        TermRefSortableTermEncoder::encode_terms([term])?.try_as_scalar(0)
+        TermRefSortableTermEncoder::default()
+            .encode_terms([term])?
+            .try_as_scalar(0)
     }
 }
 
@@ -114,15 +120,17 @@ impl TermEncoding for SortableTermEncoding {
         EncodingName::Sortable
     }
 
-    fn data_type(&self) -> DataType {
-        DataType::Struct(Self::fields().clone())
+    fn data_type(&self) -> &DataType {
+        static DATA_TYPE: LazyLock<DataType> =
+            LazyLock::new(|| DataType::Struct(SortableTermEncoding::fields().clone()));
+        &DATA_TYPE
     }
 
-    fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
+    fn try_new_array(self: &Arc<Self>, array: ArrayRef) -> DFResult<Self::Array> {
         array.try_into()
     }
 
-    fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
+    fn try_new_scalar(self: &Arc<Self>, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         scalar.try_into()
     }
 }
