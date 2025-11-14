@@ -18,12 +18,12 @@ use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_extensions::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionRegistryRef,
 };
-use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::DFResult;
+use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use std::io::Write;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{ready, Context, Poll};
+use std::task::{Context, Poll, ready};
 
 /// An implementation of [MemQuadStoragePersistence] for the Parquet file format.
 ///
@@ -109,14 +109,12 @@ impl ParquetMemQuadStoragePersistence {
                         let result_field = expr
                             .return_field(&quads.schema())
                             .expect("Only mapping. Field should always be available.");
-                        let field = Field::new(
+                        Field::new(
                             field.name(),
                             result_field.data_type().clone(),
                             result_field.is_nullable(),
                         )
-                        .with_metadata(result_field.metadata().clone());
-
-                        field
+                        .with_metadata(result_field.metadata().clone())
                     })
                     .collect();
                 let schema = Arc::new(Schema::new(fields));

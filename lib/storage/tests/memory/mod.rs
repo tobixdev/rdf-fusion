@@ -1,11 +1,11 @@
 mod mem_quad_storage;
 mod parquet;
 
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::object_id::ObjectIdMapping;
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_extensions::functions::RdfFusionFunctionRegistryRef;
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_storage::memory::{MemObjectIdMapping, MemQuadStorage};

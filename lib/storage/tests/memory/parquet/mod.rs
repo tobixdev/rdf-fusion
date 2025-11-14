@@ -56,13 +56,10 @@ async fn test_object_id_storage_export_parquet_as_plain_term_encoding() {
         .with_encoding(QuadStorageEncoding::PlainTerm);
 
     let writer = TestWriter::new(Vec::<u8>::new());
-    ParquetMemQuadStoragePersistence::new(
-        registry,
-        Arc::new(ConfigOptions::default()),
-    )
-    .export(writer.clone(), &snapshot, &options)
-    .await
-    .unwrap();
+    ParquetMemQuadStoragePersistence::new(registry, Arc::new(ConfigOptions::default()))
+        .export(writer.clone(), &snapshot, &options)
+        .await
+        .unwrap();
 
     assert_binary_snapshot!(
         "test_object_id_storage_export_parquet_as_plain_term_encoding.parquet",

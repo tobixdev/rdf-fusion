@@ -31,6 +31,7 @@ impl From<ParquetError> for MemStoragePersistenceError {
 }
 
 /// Options for persisting the in-memory storage.
+#[derive(Default)]
 pub struct MemQuadPersistenceOptions {
     /// The encoding used for persisting the quad storage. If the encoding is not specified, the
     /// implementation may choose an encoding.
@@ -43,12 +44,6 @@ impl MemQuadPersistenceOptions {
         Self {
             encoding: Some(encoding),
         }
-    }
-}
-
-impl Default for MemQuadPersistenceOptions {
-    fn default() -> Self {
-        Self { encoding: None }
     }
 }
 
