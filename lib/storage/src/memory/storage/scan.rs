@@ -1,7 +1,7 @@
-use crate::index::{IndexComponents, IndexPermutations, ScanInstructions};
+use crate::index::{IndexComponents, IndexPermutations, QuadIndex, ScanInstructions};
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use crate::memory::storage::quad_index::MemQuadIndex;
-use crate::memory::storage::quad_index_data::MemRowGroup;
+use crate::memory::storage::quad_index_data::{MemRowGroup, RowGroupPruningResult};
 use crate::memory::storage::scan_instructions::{
     MemIndexScanInstruction, MemIndexScanInstructions, MemIndexScanPredicate,
     MemIndexScanPredicateSource,
@@ -107,18 +107,14 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
                     instructions,
                     dynamic_filters,
                 ) => {
-                    let instructions = match combine_instructions_with_dynamic_filters(
+                    let pruning_result = match collect_relevant_row_groups(
+                        index_ref,
                         instructions,
                         dynamic_filters,
                     ) {
-                        Ok(instructions) => instructions,
+                        Ok(result) => result,
                         Err(err) => return Some(Err(err)),
                     };
-
-                    let index = index_ref.get_index();
-                    let index_data = index.data();
-                    let pruning_result =
-                        index_data.prune_relevant_row_groups(&instructions);
 
                     let instructions = match pruning_result.new_instructions {
                         None => instructions.inner().clone(),
@@ -214,9 +210,33 @@ impl<TIndexRef: IndexRef> Iterator for MemQuadIndexScanIterator<TIndexRef> {
     }
 }
 
+/// Collects all relevant [`MemRowGroup`]s in the index, returning the
+/// [`RowGroupPruningResult`].
+fn collect_relevant_row_groups(
+    index_ref: &dyn IndexRef,
+    instructions: &MemIndexScanInstructions,
+    dynamic_filters: &[Arc<dyn MemIndexScanPredicateSource>],
+) -> DFResult<RowGroupPruningResult> {
+    let instructions =
+        combine_instructions_with_dynamic_filters(instructions, dynamic_filters)?;
+
+    let instructions = match index_ref.try_choose_better_index(&instructions) {
+        None => instructions,
+        Some(new_index) => {
+            let components = new_index.get_index().components();
+            instructions.reorder(components)
+        }
+    };
+
+    let index = index_ref.get_index();
+    let index_data = index.data();
+
+    Ok(index_data.prune_relevant_row_groups(&instructions))
+}
+
 fn combine_instructions_with_dynamic_filters(
     instructions: &MemIndexScanInstructions,
-    dynamic_filters: &Vec<Arc<dyn MemIndexScanPredicateSource>>,
+    dynamic_filters: &[Arc<dyn MemIndexScanPredicateSource>],
 ) -> DFResult<MemIndexScanInstructions> {
     // Filter out any dynamic filters that are not supported by the index.
     let supported_filters = dynamic_filters
@@ -527,6 +547,12 @@ impl Display for PlannedPatternScan {
 pub trait IndexRef {
     /// Returns a reference to the index.
     fn get_index(&self) -> &MemQuadIndex;
+
+    /// Tries to choose a better index based on the given `instructions`.
+    fn try_choose_better_index(
+        &self,
+        instructions: &MemIndexScanInstructions,
+    ) -> Option<Arc<dyn IndexRef>>;
 }
 
 /// Reference to an index in a locked [IndexSet] with its [IndexComponents]. The
@@ -540,6 +566,19 @@ impl IndexRef for IndexRefInSet {
     fn get_index(&self) -> &MemQuadIndex {
         self.0.find_index(self.1).expect("Index must exist")
     }
+
+    fn try_choose_better_index(
+        &self,
+        instructions: &MemIndexScanInstructions,
+    ) -> Option<Arc<dyn IndexRef>> {
+        let index = self.0.choose_index(instructions);
+
+        if index == self.1 {
+            None
+        } else {
+            Some(Arc::new(IndexRefInSet(Arc::clone(&self.0), index)))
+        }
+    }
 }
 
 /// Directly references a [MemQuadIndex].
@@ -548,6 +587,13 @@ pub struct DirectIndexRef<'index>(&'index MemQuadIndex);
 impl IndexRef for DirectIndexRef<'_> {
     fn get_index(&self) -> &MemQuadIndex {
         self.0
+    }
+
+    fn try_choose_better_index(
+        &self,
+        _instructions: &MemIndexScanInstructions,
+    ) -> Option<Arc<dyn IndexRef>> {
+        None
     }
 }
 
@@ -583,7 +629,6 @@ mod tests {
             .unwrap();
         let index = Arc::new(RwLock::new(index));
 
-        // Create a dynamic filter that starts with "True" (matches everything)
         let dynamic_filter = MockDynamicFilter::new(MemStoragePredicateExpr::Between(
             Arc::from("subject"),
             eid(1),
@@ -615,6 +660,57 @@ mod tests {
 
         let batch = iterator.next().unwrap().unwrap();
         assert_eq!(batch.num_rows, 1);
+    }
+
+    #[tokio::test]
+    async fn test_collect_relevant_batches_dynamic_filters_choose_better_index() {
+        // Create an index and insert test data
+        let gspo_index = MemQuadIndex::new(MemIndexConfiguration {
+            object_id_encoding: ObjectIdEncoding::new(4),
+            batch_size: 100,
+            components: IndexComponents::GSPO,
+        });
+        let gosp_index = MemQuadIndex::new(MemIndexConfiguration {
+            object_id_encoding: ObjectIdEncoding::new(4),
+            batch_size: 100,
+            components: IndexComponents::GOSP,
+        });
+        let mut index =
+            IndexPermutations::new(HashSet::new(), vec![gspo_index, gosp_index]);
+
+        index.insert(&[quad(0, 1, 10, 100)]).unwrap();
+        let index = Arc::new(RwLock::new(index));
+
+        // Create a dynamic filter that starts with "True" (matches everything)
+        let dynamic_filter = MockDynamicFilter::new(MemStoragePredicateExpr::Between(
+            Arc::from("object"),
+            eid(1),
+            eid(2),
+        ));
+
+        // Create scan instructions
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::traverse_with_predicate(MemIndexScanPredicate::In(
+                BTreeSet::from([eid(0)]),
+            )),
+            MemIndexScanInstruction::Scan(Arc::new("subject".to_owned()), None),
+            MemIndexScanInstruction::Scan(Arc::new("predicate".to_owned()), None),
+            MemIndexScanInstruction::Scan(Arc::new("object".to_owned()), None),
+        ]);
+
+        // Create iterator with the dynamic filter
+        let pruning_result = collect_relevant_row_groups(
+            &IndexRefInSet(Arc::new(index.read_owned().await), IndexComponents::GSPO),
+            &instructions,
+            &[Arc::clone(&dynamic_filter) as Arc<dyn MemIndexScanPredicateSource>],
+        )
+        .unwrap();
+
+        // Switches to GOSP because the dynamic filter filers the object component
+        assert_eq!(
+            pruning_result.new_instructions.unwrap().index_components(),
+            IndexComponents::GOSP
+        )
     }
 
     /// A mock implementation of IndexScanPredicateSource for testing.
