@@ -3,7 +3,7 @@ source: bench/tests/plans/bsbm_business_intelligence.rs
 expression: "&string"
 ---
 ProjectionExec: expr=[ENC_PT(otherProduct@0) as otherProduct, ENC_PT(sameFeatures@1) as sameFeatures]
-  SortExec: TopK(fetch=10), expr=[ENC_SORT(sameFeatures@1) DESC, ENC_SORT(ENC_PT(otherProduct@0)) ASC], preserve_partitioning=[false]
+  SortExec: TopK(fetch=10), expr=[ENC_SORT(sameFeatures@1) DESC, ENC_SORT(ENC_PT(otherProduct@0)) ASC], preserve_partitioning=[false], filter=[ENC_SORT(sameFeatures@1) IS NULL OR ENC_SORT(sameFeatures@1) > {type:4,numeric:4.0,bytes:0000000000000004} OR ENC_SORT(sameFeatures@1) = {type:4,numeric:4.0,bytes:0000000000000004} AND (ENC_SORT(ENC_PT(otherProduct@0)) IS NULL OR ENC_SORT(ENC_PT(otherProduct@0)) < {type:2,numeric:,bytes:687474703a2f2f777777342e7769776973732e66752d6265726c696e2e64652f62697a65722f6273626d2f7630312f696e7374616e6365732f6461746146726f6d50726f647563657231332f50726f64756374353938})]
     CoalesceBatchesExec: target_batch_size=8192
       HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(otherProduct@0, otherProduct@0)], projection=[otherProduct@0, sameFeatures@2]
         CoalesceBatchesExec: target_batch_size=8192

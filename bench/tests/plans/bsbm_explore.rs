@@ -1,4 +1,4 @@
-use crate::plans::run_plan_assertions;
+use crate::plans::{consume_result, run_plan_assertions};
 use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
@@ -51,10 +51,11 @@ async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()
         let query =
             get_query_to_execute(benchmark.clone(), &benchmark_context, query_name);
 
-        let (_, explanation) = store
+        let (results, explanation) = store
             .explain_query_opt(query.text(), QueryOptions::default())
             .await
             .unwrap();
+        consume_result(results).await;
 
         run_plan_assertions(|| assertion(benchmark_name, explanation));
     }

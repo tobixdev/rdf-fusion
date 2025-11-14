@@ -1,4 +1,4 @@
-use crate::plans::run_plan_assertions;
+use crate::plans::{consume_result, run_plan_assertions};
 use anyhow::Context;
 use datafusion::physical_plan::displayable;
 use insta::assert_snapshot;
@@ -45,14 +45,27 @@ async fn for_all_explanations(assertion: impl Fn(String, QueryExplanation) -> ()
         .unwrap();
 
     let store = benchmark.prepare_store(&benchmark_context).await.unwrap();
+
+    // Ignore queries that are not fast enough to be executed in reasonable time.
+    let ignored = [
+        WindFarmQueryName::MultiGrouped1,
+        WindFarmQueryName::MultiGrouped2,
+        WindFarmQueryName::MultiGrouped3,
+        WindFarmQueryName::MultiGrouped4,
+    ];
     for query_name in WindFarmQueryName::list_queries() {
+        if ignored.contains(&query_name) {
+            continue;
+        }
+
         let benchmark_name = format!("Wind Farm - {query_name}");
         let query = get_query_to_execute(&benchmark_context, query_name);
 
-        let (_, explanation) = store
+        let (query, explanation) = store
             .explain_query_opt(query.text(), QueryOptions::default())
             .await
             .unwrap();
+        consume_result(query).await;
 
         run_plan_assertions(|| assertion(benchmark_name, explanation));
     }
