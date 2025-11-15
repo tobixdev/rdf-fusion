@@ -67,11 +67,11 @@ impl WithPlainTermEncoding {
                 Ok(ColumnarValue::Array(result.into_array_ref()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => match self.encodings.object_id_mapping() {
+            EncodingName::ObjectId => match self.encodings.object_id() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
-                Some(object_id_encoding) => {
-                    let array = object_id_encoding.encoding().try_new_array(array)?;
-                    let decoded = object_id_encoding.decode_array(&array)?;
+                Some(encoding) => {
+                    let array = encoding.try_new_array(array)?;
+                    let decoded = encoding.mapping().decode_array(&array)?;
                     Ok(ColumnarValue::Array(decoded.into_array_ref()))
                 }
             },
@@ -93,11 +93,11 @@ impl WithPlainTermEncoding {
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => match self.encodings.object_id_mapping() {
+            EncodingName::ObjectId => match self.encodings.object_id() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
-                Some(object_id_encoding) => {
-                    let scalar = object_id_encoding.encoding().try_new_scalar(scalar)?;
-                    let decoded = object_id_encoding.decode_scalar(&scalar)?;
+                Some(encoding) => {
+                    let scalar = encoding.try_new_scalar(scalar)?;
+                    let decoded = encoding.mapping().decode_scalar(&scalar)?;
                     Ok(ColumnarValue::Scalar(decoded.into_scalar_value()))
                 }
             },

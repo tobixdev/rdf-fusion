@@ -3,7 +3,7 @@ use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
 use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_model::DFResult;
 
@@ -56,7 +56,7 @@ pub fn create_plain_term_sparql_op_impl(
 }
 
 pub fn create_typed_value_sparql_op_impl(
-    encoding: &TypedValueEncoding,
+    encoding: &TypedValueEncodingRef,
     closure: impl Fn(ScalarSparqlOpArgs<TypedValueEncoding>) -> DFResult<ColumnarValue>
     + 'static,
 ) -> Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>> {

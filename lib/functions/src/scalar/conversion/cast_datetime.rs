@@ -1,9 +1,10 @@
 use crate::scalar::dispatch::dispatch_unary_typed_value;
 use crate::scalar::sparql_op_impl::{
-    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
+    create_typed_value_sparql_op_impl, ScalarSparqlOpImpl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{ThinError, TypedValueRef};
@@ -36,20 +37,24 @@ impl ScalarSparqlOp for CastDateTimeSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|arg| {
-            dispatch_unary_typed_value(
-                &arg.args[0],
-                |value| {
-                    let converted = match value {
-                        TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
-                        TypedValueRef::DateTimeLiteral(v) => v,
-                        _ => return ThinError::expected(),
-                    };
-                    Ok(TypedValueRef::DateTimeLiteral(converted))
-                },
-                ThinError::expected,
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |arg| {
+                dispatch_unary_typed_value(
+                    &arg.args[0],
+                    |value| {
+                        let converted = match value {
+                            TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+                            TypedValueRef::DateTimeLiteral(v) => v,
+                            _ => return ThinError::expected(),
+                        };
+                        Ok(TypedValueRef::DateTimeLiteral(converted))
+                    },
+                    ThinError::expected,
+                )
+            },
+        ))
     }
 }

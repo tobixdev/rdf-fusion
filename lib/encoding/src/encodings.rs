@@ -1,4 +1,4 @@
-use crate::object_id::{ObjectIdEncoding, ObjectIdEncodingRef, ObjectIdMapping};
+use crate::object_id::{ObjectIdEncoding, ObjectIdEncodingRef};
 use crate::plain_term::{PlainTermEncoding, PlainTermEncodingRef};
 use crate::sortable_term::{SortableTermEncoding, SortableTermEncodingRef};
 use crate::typed_value::TypedValueEncodingRef;
@@ -23,9 +23,9 @@ pub struct RdfFusionEncodings {
     /// The [TypedValueEncoding] configuration.
     typed_value: TypedValueEncodingRef,
     /// The [ObjectIdEncoding] configuration.
-    object_id: Option<Arc<ObjectIdEncoding>>,
+    object_id: Option<ObjectIdEncodingRef>,
     /// The [SortableTermEncoding] configuration.
-    sortable_term: Arc<SortableTermEncoding>,
+    sortable_term: SortableTermEncodingRef,
 }
 
 impl RdfFusionEncodings {
@@ -57,11 +57,6 @@ impl RdfFusionEncodings {
     /// Provides a reference to the used [ObjectIdEncoding].
     pub fn object_id(&self) -> Option<&ObjectIdEncodingRef> {
         self.object_id.as_ref()
-    }
-
-    /// Provides a reference to the used [ObjectIdEncoding].
-    pub fn object_id_mapping(&self) -> Option<&dyn ObjectIdMapping> {
-        self.object_id.as_ref().map(|enc| enc.mapping().as_ref())
     }
 
     /// Provides a reference to the used [SortableTermEncoding].

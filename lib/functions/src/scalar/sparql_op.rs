@@ -7,7 +7,7 @@ use datafusion::logical_expr::{
     Volatility,
 };
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
-use rdf_fusion_encoding::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings, TermEncoding};
 use rdf_fusion_extensions::functions::FunctionName;
@@ -98,6 +98,7 @@ pub trait ScalarSparqlOp: Debug + Hash + Eq + Send + Sync {
     /// If [None] is returned, the operation does not support the [TypedValueEncoding].
     fn typed_value_encoding_op(
         &self,
+        _encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         None
     }
@@ -107,6 +108,7 @@ pub trait ScalarSparqlOp: Debug + Hash + Eq + Send + Sync {
     /// If [None] is returned, the operation does not support the [PlainTermEncoding].
     fn plain_term_encoding_op(
         &self,
+        _encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         None
     }
@@ -116,7 +118,7 @@ pub trait ScalarSparqlOp: Debug + Hash + Eq + Send + Sync {
     /// If [None] is returned, the operation does not support the [ObjectIdEncoding].
     fn object_id_encoding_op(
         &self,
-        _object_id_encoding: &ObjectIdEncoding,
+        _encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>>> {
         None
     }
@@ -208,23 +210,6 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
             return plan_err!("More than one RDF term encoding used for arguments.");
         }
         Ok(encoding_name.into_iter().next())
-    }
-
-    fn prepare_args<TEncoding: TermEncoding>(
-        &self,
-        encoding: &TEncoding,
-        args: ScalarFunctionArgs,
-    ) -> DFResult<ScalarSparqlOpArgs<TEncoding>> {
-        let sparql_args = args
-            .args
-            .into_iter()
-            .map(|cv| encoding.try_new_datum(cv, args.number_rows))
-            .collect::<DFResult<Vec<_>>>()?;
-
-        Ok(ScalarSparqlOpArgs {
-            number_rows: args.number_rows,
-            args: sparql_args,
-        })
     }
 }
 
@@ -328,14 +313,14 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
         match encoding {
             EncodingName::PlainTerm => {
                 if let Some(op) = self.op.plain_term_encoding_op() {
-                    op.invoke(self.prepare_args(&PLAIN_TERM_ENCODING, args)?)
+                    op.invoke(prepare_args(self.encodings.plain_term().as_ref(), args)?)
                 } else {
                     exec_err!("PlainTerm encoding not supported for this operation")
                 }
             }
             EncodingName::TypedValue => {
                 if let Some(op) = self.op.typed_value_encoding_op() {
-                    op.invoke(self.prepare_args(&TYPED_VALUE_ENCODING, args)?)
+                    op.invoke(prepare_args(self.encodings.typed_value().as_ref(), args)?)
                 } else {
                     exec_err!("TypedValue encoding not supported for this operation")
                 }
@@ -354,6 +339,22 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             EncodingName::Sortable => exec_err!("Not supported"),
         }
     }
+}
+
+fn prepare_args<TEncoding: TermEncoding>(
+    encoding: &TEncoding,
+    args: ScalarFunctionArgs,
+) -> DFResult<ScalarSparqlOpArgs<TEncoding>> {
+    let sparql_args = args
+        .args
+        .into_iter()
+        .map(|cv| encoding.try_new_datum(cv, args.number_rows))
+        .collect::<DFResult<Vec<_>>>()?;
+
+    Ok(ScalarSparqlOpArgs {
+        number_rows: args.number_rows,
+        args: sparql_args,
+    })
 }
 
 /// While it would be possible to create two different SparqlOpAdapters for the same

@@ -1,6 +1,6 @@
 use crate::encoding::TermEncoding;
 use crate::typed_value::array::TypedValueArray;
-use crate::typed_value::encoders::TermRefTypedValueEncoder;
+use crate::typed_value::encoders::{DefaultTypedValueEncoder, TermRefTypedValueEncoder};
 use crate::typed_value::scalar::TypedValueScalar;
 use crate::{EncodingArray, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
@@ -166,6 +166,16 @@ impl TypedValueEncoding {
         Self {
             data_type: DataType::Union(Self::fields().clone(), UnionMode::Dense),
         }
+    }
+
+    /// Creates a new [`DefaultTypedValueEncoder`].
+    pub fn default_encoder(self: &Arc<Self>) -> DefaultTypedValueEncoder {
+        DefaultTypedValueEncoder::new(Arc::clone(self))
+    }
+
+    /// Creates a new [`TermRefTypedValueEncoder`].
+    pub fn term_encoder(self: &Arc<Self>) -> TermRefTypedValueEncoder {
+        TermRefTypedValueEncoder::new(Arc::clone(self))
     }
 }
 

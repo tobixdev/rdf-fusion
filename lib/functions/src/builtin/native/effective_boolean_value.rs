@@ -17,8 +17,8 @@ use std::any::Any;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-pub fn effective_boolean_value() -> ScalarUDF {
-    let udf_impl = EffectiveBooleanValue::new();
+pub fn effective_boolean_value(encoding: TypedValueEncodingRef) -> ScalarUDF {
+    let udf_impl = EffectiveBooleanValue::new(encoding);
     ScalarUDF::new_from_impl(udf_impl)
 }
 

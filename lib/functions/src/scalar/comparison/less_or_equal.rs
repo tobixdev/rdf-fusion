@@ -1,9 +1,10 @@
 use crate::scalar::dispatch::dispatch_binary_typed_value;
 use crate::scalar::sparql_op_impl::{
-    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
+    create_typed_value_sparql_op_impl, ScalarSparqlOpImpl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{ThinError, TypedValueRef};
@@ -39,21 +40,25 @@ impl ScalarSparqlOp for LessOrEqualSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_binary_typed_value(
-                &args.args[0],
-                &args.args[1],
-                |lhs_value, rhs_value| {
-                    lhs_value
-                        .partial_cmp(&rhs_value)
-                        .map(|o| [Ordering::Equal, Ordering::Less].contains(&o))
-                        .map(Into::into)
-                        .map(TypedValueRef::BooleanLiteral)
-                        .ok_or(ThinError::ExpectedError)
-                },
-                |_, _| ThinError::expected(),
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_binary_typed_value(
+                    &args.args[0],
+                    &args.args[1],
+                    |lhs_value, rhs_value| {
+                        lhs_value
+                            .partial_cmp(&rhs_value)
+                            .map(|o| [Ordering::Equal, Ordering::Less].contains(&o))
+                            .map(Into::into)
+                            .map(TypedValueRef::BooleanLiteral)
+                            .ok_or(ThinError::ExpectedError)
+                    },
+                    |_, _| ThinError::expected(),
+                )
+            },
+        ))
     }
 }

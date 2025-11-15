@@ -16,8 +16,8 @@ use std::any::Any;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-pub fn native_int64_as_term() -> ScalarUDF {
-    let udf_impl = NativeInt64AsTerm::new();
+pub fn native_int64_as_term(encoding: TypedValueEncodingRef) -> ScalarUDF {
+    let udf_impl = NativeInt64AsTerm::new(encoding);
     ScalarUDF::new_from_impl(udf_impl)
 }
 
@@ -38,12 +38,6 @@ impl NativeInt64AsTerm {
                 Volatility::Immutable,
             ),
         }
-    }
-}
-
-impl Default for NativeInt64AsTerm {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

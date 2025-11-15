@@ -24,8 +24,75 @@ impl BoundSparqlOp {
     const NAME: FunctionName = FunctionName::Builtin(BuiltinName::Bound);
 
     /// Creates a new [`BoundSparqlOp`].
-    pub fn new(encodings: TypedValueEncodingRef) -> Self {
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
         Self { encoding }
+    }
+
+    fn impl_bound_plain_term(
+        &self,
+        array: &EncodingDatum<PlainTermEncoding>,
+    ) -> DFResult<ColumnarValue> {
+        match array {
+            EncodingDatum::Array(array) => self
+                .impl_bound_array(array.array().as_ref())
+                .map(|array| ColumnarValue::Array(array.into_array_ref())),
+            EncodingDatum::Scalar(scalar, _) => {
+                let array = scalar.to_array(1)?.into_array_ref();
+                self.impl_bound_array(array.as_ref())?
+                    .try_as_scalar(0)
+                    .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))
+            }
+        }
+    }
+
+    fn impl_bound_typed_value(
+        &self,
+        array: &EncodingDatum<TypedValueEncoding>,
+    ) -> DFResult<ColumnarValue> {
+        match array {
+            EncodingDatum::Array(array) => self
+                .impl_bound_array(array.array().as_ref())
+                .map(|array| ColumnarValue::Array(array.into_array_ref())),
+            EncodingDatum::Scalar(scalar, _) => {
+                let array = scalar.to_array(1)?.into_array_ref();
+                self.impl_bound_array(array.as_ref())?
+                    .try_as_scalar(0)
+                    .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))
+            }
+        }
+    }
+
+    fn impl_bound_object_id(
+        &self,
+        array: &EncodingDatum<ObjectIdEncoding>,
+    ) -> DFResult<ColumnarValue> {
+        match array {
+            EncodingDatum::Array(array) => self
+                .impl_bound_array(array.array().as_ref())
+                .map(|array| ColumnarValue::Array(array.into_array_ref())),
+            EncodingDatum::Scalar(scalar, _) => {
+                let array = scalar.to_array(1)?.into_array_ref();
+                self.impl_bound_array(array.as_ref())?
+                    .try_as_scalar(0)
+                    .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))
+            }
+        }
+    }
+
+    fn impl_bound_array(&self, array: &dyn Array) -> DFResult<TypedValueArray> {
+        let result = is_not_null(array)?;
+        assert_eq!(
+            result.null_count(),
+            0,
+            "is_not_null should never return null"
+        );
+
+        let mut builder = TypedValueArrayElementBuilder::new(Arc::clone(&self.encoding));
+        for value in result.values() {
+            builder.append_boolean(value.into())?;
+        }
+
+        Ok(builder.finish())
     }
 }
 
@@ -43,7 +110,7 @@ impl ScalarSparqlOp for BoundSparqlOp {
     ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         Some(Box::new(ClosureSparqlOpImpl::new(
             self.encoding.data_type().clone(),
-            |args| impl_bound_plain_term(&args.args[0]),
+            |args| self.impl_bound_plain_term(&args.args[0]),
         )))
     }
 
@@ -52,7 +119,7 @@ impl ScalarSparqlOp for BoundSparqlOp {
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(Box::new(ClosureSparqlOpImpl::new(
             self.encoding.data_type().clone(),
-            |args| impl_bound_typed_value(&args.args[0]),
+            |args| self.impl_bound_typed_value(&args.args[0]),
         )))
     }
 
@@ -62,71 +129,7 @@ impl ScalarSparqlOp for BoundSparqlOp {
     ) -> Option<Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>>> {
         Some(Box::new(ClosureSparqlOpImpl::<ObjectIdEncoding>::new(
             self.encoding.data_type().clone(),
-            |args| impl_bound_object_id(&args.args[0]),
+            |args| self.impl_bound_object_id(&args.args[0]),
         )))
     }
-}
-
-fn impl_bound_plain_term(
-    array: &EncodingDatum<PlainTermEncoding>,
-) -> DFResult<ColumnarValue> {
-    match array {
-        EncodingDatum::Array(array) => impl_bound_array(array.array().as_ref())
-            .map(|array| ColumnarValue::Array(array.into_array_ref())),
-        EncodingDatum::Scalar(scalar, _) => {
-            let array = scalar.to_array(1)?.into_array_ref();
-            impl_bound_array(array.as_ref())?
-                .try_as_scalar(0)
-                .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))
-        }
-    }
-}
-
-fn impl_bound_typed_value(
-    array: &EncodingDatum<TypedValueEncoding>,
-) -> DFResult<ColumnarValue> {
-    match array {
-        EncodingDatum::Array(array) => impl_bound_array(array.array().as_ref())
-            .map(|array| ColumnarValue::Array(array.into_array_ref())),
-        EncodingDatum::Scalar(scalar, _) => {
-            let array = scalar.to_array(1)?.into_array_ref();
-            impl_bound_array(array.as_ref())?
-                .try_as_scalar(0)
-                .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))
-        }
-    }
-}
-
-fn impl_bound_object_id(
-    array: &EncodingDatum<ObjectIdEncoding>,
-) -> DFResult<ColumnarValue> {
-    match array {
-        EncodingDatum::Array(array) => impl_bound_array(array.array().as_ref())
-            .map(|array| ColumnarValue::Array(array.into_array_ref())),
-        EncodingDatum::Scalar(scalar, _) => {
-            let array = scalar.to_array(1)?.into_array_ref();
-            impl_bound_array(array.as_ref())?
-                .try_as_scalar(0)
-                .map(|scalar| ColumnarValue::Scalar(scalar.into_scalar_value()))
-        }
-    }
-}
-
-fn impl_bound_array(
-    encoding: &TypedValueEncodingRef,
-    array: &dyn Array,
-) -> DFResult<TypedValueArray> {
-    let result = is_not_null(array)?;
-    assert_eq!(
-        result.null_count(),
-        0,
-        "is_not_null should never return null"
-    );
-
-    let mut builder = TypedValueArrayElementBuilder::new(Arc::clone(encoding));
-    for value in result.values() {
-        builder.append_boolean(value.into())?;
-    }
-
-    Ok(builder.finish())
 }
