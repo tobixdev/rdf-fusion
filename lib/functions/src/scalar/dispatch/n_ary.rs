@@ -10,6 +10,7 @@ use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TypedValueEncodingRef
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
 use rdf_fusion_model::{DFResult, ObjectId};
 use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
+use std::sync::Arc;
 
 pub fn dispatch_n_ary_plain_term(
     args: &[EncodingDatum<PlainTermEncoding>],
@@ -19,7 +20,7 @@ pub fn dispatch_n_ary_plain_term(
 ) -> DFResult<ColumnarValue> {
     if args.is_empty() {
         let results = (0..number_of_rows).map(|_| op(&[]));
-        let result = DefaultPlainTermEncoder::default().encode_terms(results)?;
+        let result = DefaultPlainTermEncoder.encode_terms(results)?;
         return Ok(ColumnarValue::Array(result.into_array_ref()));
     }
 
@@ -36,7 +37,7 @@ pub fn dispatch_n_ary_plain_term(
             error_op(args.as_slice())
         }
     });
-    let result = DefaultPlainTermEncoder::default().encode_terms(results)?;
+    let result = DefaultPlainTermEncoder.encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
@@ -120,7 +121,7 @@ pub fn dispatch_n_ary_object_id(
     error_op: impl Fn(&[ThinResult<ObjectId>]) -> ThinResult<ObjectId>,
 ) -> DFResult<ColumnarValue> {
     if args.is_empty() {
-        let mut builder = ObjectIdArrayBuilder::new(encoding.clone());
+        let mut builder = ObjectIdArrayBuilder::new(Arc::clone(encoding));
         for result in (0..number_of_rows).map(|_| op(&[]).ok()) {
             builder.append_object_id_opt(result);
         }
@@ -143,7 +144,7 @@ pub fn dispatch_n_ary_object_id(
         })
         .map(Result::ok);
 
-    let mut builder = ObjectIdArrayBuilder::new(encoding.clone());
+    let mut builder = ObjectIdArrayBuilder::new(Arc::clone(encoding));
     for result in results {
         builder.append_object_id_opt(result);
     }

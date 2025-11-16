@@ -1,7 +1,6 @@
 use datafusion::logical_expr::ColumnarValue;
 use itertools::izip;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
 use rdf_fusion_model::DFResult;

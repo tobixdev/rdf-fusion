@@ -368,7 +368,7 @@ fn prepare_args<TEncoding: TermEncoding>(
         .collect::<DFResult<Vec<_>>>()?;
 
     Ok(ScalarSparqlOpArgs {
-        encoding: Arc::clone(&encoding),
+        encoding: Arc::clone(encoding),
         encodings,
         number_rows: args.number_rows,
         args: sparql_args,

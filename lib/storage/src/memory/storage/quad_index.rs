@@ -7,7 +7,7 @@ use crate::memory::storage::scan::{DirectIndexRef, MemQuadIndexScanIterator};
 use crate::memory::storage::scan_instructions::{
     MemIndexPruningPredicate, MemIndexPruningPredicates, MemIndexScanInstructions,
 };
-use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdEncodingRef};
+use rdf_fusion_encoding::object_id::ObjectIdEncodingRef;
 use std::collections::{BTreeSet, HashSet};
 use std::fmt::{Display, Formatter};
 

@@ -65,7 +65,7 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
 
     fn plain_term_encoding_op(
         &self,
-        encodings: &RdfFusionEncodings,
+        _encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         Some(create_plain_term_sparql_op_impl(|args| {
             dispatch_n_ary_plain_term(

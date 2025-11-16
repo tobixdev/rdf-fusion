@@ -128,7 +128,7 @@ fn impl_bound_array(
         "is_not_null should never return null"
     );
 
-    let mut builder = TypedValueArrayElementBuilder::new(Arc::clone(&encoding));
+    let mut builder = TypedValueArrayElementBuilder::new(Arc::clone(encoding));
     for value in result.values() {
         builder.append_boolean(value.into())?;
     }

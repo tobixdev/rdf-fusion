@@ -183,7 +183,7 @@ impl RdfFusionLogicalPlanBuilderContext {
         let schema = DFSchema::from_unqualified_fields(fields, HashMap::new())?;
 
         if bindings.is_empty() {
-            let empty = DefaultPlainTermEncoder::default()
+            let empty = DefaultPlainTermEncoder
                 .encode_term(ThinError::expected())?
                 .into_scalar_value();
             let plan = LogicalPlanBuilder::values_with_schema(
@@ -201,7 +201,7 @@ impl RdfFusionLogicalPlanBuilderContext {
         for solution in bindings {
             let mut row = Vec::new();
             for term in solution {
-                let literal = DefaultPlainTermEncoder::default()
+                let literal = DefaultPlainTermEncoder
                     .encode_term(match term {
                         None => ThinError::expected(),
                         Some(term) => Ok(match term {

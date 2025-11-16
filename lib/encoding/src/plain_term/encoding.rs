@@ -159,7 +159,7 @@ impl PlainTermEncoding {
         &self,
         term: ThinResult<TermRef<'_>>,
     ) -> DFResult<PlainTermScalar> {
-        DefaultPlainTermEncoder::default().encode_term(term)
+        DefaultPlainTermEncoder.encode_term(term)
     }
 }
 
@@ -173,7 +173,7 @@ impl TermEncoding for PlainTermEncoding {
 
     fn data_type(&self) -> &DataType {
         static DATA_TYPE: LazyLock<DataType> =
-            LazyLock::new(|| PlainTermEncoding::data_type());
+            LazyLock::new(PlainTermEncoding::data_type);
         &DATA_TYPE
     }
 

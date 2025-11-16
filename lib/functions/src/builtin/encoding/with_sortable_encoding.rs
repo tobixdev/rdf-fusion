@@ -70,8 +70,7 @@ impl WithSortableEncoding {
             EncodingName::TypedValue => {
                 let scalar = self.encodings.typed_value().try_new_scalar(scalar)?;
                 let input = DefaultTypedValueDecoder::decode_term(&scalar);
-                let result =
-                    TypedValueRefSortableTermEncoder::default().encode_term(input)?;
+                let result = TypedValueRefSortableTermEncoder.encode_term(input)?;
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::Sortable => Ok(ColumnarValue::Scalar(scalar)),
@@ -94,8 +93,7 @@ impl WithSortableEncoding {
             EncodingName::TypedValue => {
                 let array = self.encodings.typed_value().try_new_array(array)?;
                 let input = DefaultTypedValueDecoder::decode_terms(&array);
-                let result =
-                    TypedValueRefSortableTermEncoder::default().encode_terms(input)?;
+                let result = TypedValueRefSortableTermEncoder.encode_terms(input)?;
                 Ok(ColumnarValue::Array(result.into_array_ref()))
             }
             EncodingName::Sortable => Ok(ColumnarValue::Array(array)),

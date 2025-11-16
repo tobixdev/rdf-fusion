@@ -6,16 +6,15 @@ use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedOb
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
 use rdf_fusion_encoding::object_id::{
-    ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncoding, ObjectIdEncodingRef,
-    ObjectIdMapping, ObjectIdMappingError, ObjectIdScalar, ObjectIdSize,
+    ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncodingRef, ObjectIdMapping,
+    ObjectIdMappingError, ObjectIdScalar, ObjectIdSize,
 };
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{
     PlainTermArray, PlainTermArrayElementBuilder, PlainTermScalar,
 };
 use rdf_fusion_encoding::typed_value::{
-    TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncoding,
-    TypedValueEncodingRef,
+    TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncodingRef,
 };
 use rdf_fusion_encoding::{EncodingArray, TermDecoder};
 use rdf_fusion_model::DFResult;
@@ -306,7 +305,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
             .and_then(|term| self.try_get_encoded_term(term))
             .and_then(|term| self.try_get_encoded_object_id(&term))
             .map(|oid| {
-                ObjectIdScalar::from_object_id(encoding.clone(), oid.as_object_id())
+                ObjectIdScalar::from_object_id(Arc::clone(encoding), oid.as_object_id())
             });
         Ok(result)
     }
@@ -319,7 +318,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
         let terms = DefaultPlainTermDecoder::decode_terms(array);
 
         // TODO: without alloc/Arc copy
-        let mut result = ObjectIdArrayBuilder::new(encoding.clone());
+        let mut result = ObjectIdArrayBuilder::new(Arc::clone(encoding));
         for term in terms {
             match term {
                 Ok(term) => {
@@ -394,7 +393,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
         });
 
         // TODO: can we remove the clone?
-        let mut builder = TypedValueArrayElementBuilder::new(encoding.clone());
+        let mut builder = TypedValueArrayElementBuilder::new(Arc::clone(encoding));
         for typed_value in typed_values {
             let typed_value =
                 typed_value.as_ref().and_then(Option::<TypedValueRef>::from);

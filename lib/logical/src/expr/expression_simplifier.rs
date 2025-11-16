@@ -220,8 +220,7 @@ fn replace_equality_with_same_term(
                 return plan_err!("No Object ID mapping registerd.");
             };
 
-            let scalar =
-                DefaultPlainTermEncoder::default().encode_term(Ok(term.as_ref()))?;
+            let scalar = DefaultPlainTermEncoder.encode_term(Ok(term.as_ref()))?;
             match encoding.mapping().encode_scalar(encoding, &scalar) {
                 Ok(scalar) => scalar.into_scalar_value(),
                 Err(ObjectIdMappingError::UnknownObjectId) => {

@@ -92,7 +92,7 @@ impl Accumulator for SparqlTypedValueMax {
         let value = match self.max.as_ref().map(|v| v.as_ref()) {
             Ok(value) => DefaultTypedValueEncoder::new(Arc::clone(&self.encoding))
                 .encode_term(Ok(value))?,
-            Err(_) => DefaultTypedValueEncoder::new(self.encoding.clone())
+            Err(_) => DefaultTypedValueEncoder::new(Arc::clone(&self.encoding))
                 .encode_term(ThinError::expected())?,
         };
         Ok(vec![

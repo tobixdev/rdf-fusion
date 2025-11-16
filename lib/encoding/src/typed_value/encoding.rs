@@ -179,6 +179,12 @@ impl TypedValueEncoding {
     }
 }
 
+impl Default for TypedValueEncoding {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypedValueEncoding {
     pub fn fields() -> UnionFields {
         FIELDS_TYPE.clone()

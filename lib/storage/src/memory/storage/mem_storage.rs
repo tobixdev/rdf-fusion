@@ -44,7 +44,7 @@ impl MemQuadStorage {
             .iter()
             .map(|components| {
                 MemQuadIndex::new(MemIndexConfiguration {
-                    object_id_encoding: object_id_encoding.clone(),
+                    object_id_encoding: Arc::clone(&object_id_encoding),
                     batch_size,
                     components: *components,
                 })

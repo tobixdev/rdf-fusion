@@ -41,7 +41,7 @@ impl PlainTermScalar {
             GraphNameRef::NamedNode(nn) => Ok(Self::from(nn)),
             GraphNameRef::BlankNode(bnode) => Ok(Self::from(bnode)),
             GraphNameRef::DefaultGraph => {
-                DefaultPlainTermEncoder::default().encode_term(ThinError::expected())
+                DefaultPlainTermEncoder.encode_term(ThinError::expected())
             }
         }
     }
@@ -83,7 +83,7 @@ impl TryFrom<ScalarValue> for PlainTermScalar {
 
 impl From<TermRef<'_>> for PlainTermScalar {
     fn from(term: TermRef<'_>) -> Self {
-        DefaultPlainTermEncoder::default()
+        DefaultPlainTermEncoder
             .encode_term(Ok(term))
             .expect("Always Ok given")
     }

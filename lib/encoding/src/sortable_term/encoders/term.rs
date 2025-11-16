@@ -46,7 +46,7 @@ impl TermEncoder<SortableTermEncoding> for TermRefSortableTermEncoder {
         let typed_values = typed_values_array.finish();
 
         let typed_values = DefaultTypedValueDecoder::decode_terms(&typed_values);
-        TypedValueRefSortableTermEncoder::default().encode_terms(typed_values)
+        TypedValueRefSortableTermEncoder.encode_terms(typed_values)
     }
 
     fn encode_term(

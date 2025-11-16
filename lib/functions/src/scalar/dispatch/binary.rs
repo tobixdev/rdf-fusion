@@ -326,7 +326,7 @@ fn dispatch_binary_plain_term_array_array<'data>(
     let results = lhs.zip(rhs).map(|(lhs_value, rhs_value)| {
         apply_binary_op_plain_term(lhs_value, rhs_value, &op, &error_op)
     });
-    let result = DefaultPlainTermEncoder::default().encode_terms(results)?;
+    let result = DefaultPlainTermEncoder.encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
@@ -343,7 +343,7 @@ fn dispatch_binary_plain_term_scalar_array<'data>(
         let lhs_value = DefaultPlainTermDecoder::decode_term(lhs);
         apply_binary_op_plain_term(lhs_value, rhs_value, &op, &error_op)
     });
-    let result = DefaultPlainTermEncoder::default().encode_terms(results)?;
+    let result = DefaultPlainTermEncoder.encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
@@ -360,7 +360,7 @@ fn dispatch_binary_plain_term_array_scalar<'data>(
         let rhs_value = DefaultPlainTermDecoder::decode_term(rhs);
         apply_binary_op_plain_term(lhs_value, rhs_value, &op, &error_op)
     });
-    let result = DefaultPlainTermEncoder::default().encode_terms(results)?;
+    let result = DefaultPlainTermEncoder.encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
@@ -378,7 +378,7 @@ fn dispatch_binary_plain_term_scalar_scalar<'data>(
 
     let result = apply_binary_op_plain_term(lhs, rhs, &op, &error_op);
     Ok(ColumnarValue::Scalar(
-        DefaultPlainTermEncoder::default()
+        DefaultPlainTermEncoder
             .encode_term(result)?
             .into_scalar_value(),
     ))

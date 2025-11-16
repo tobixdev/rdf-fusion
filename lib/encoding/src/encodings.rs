@@ -1,6 +1,6 @@
-use crate::object_id::{ObjectIdEncoding, ObjectIdEncodingRef};
+use crate::object_id::ObjectIdEncodingRef;
 use crate::plain_term::{PlainTermEncoding, PlainTermEncodingRef};
-use crate::sortable_term::{SortableTermEncoding, SortableTermEncodingRef};
+use crate::sortable_term::SortableTermEncodingRef;
 use crate::typed_value::TypedValueEncodingRef;
 use crate::{EncodingName, TermEncoding};
 use datafusion::arrow::datatypes::DataType;

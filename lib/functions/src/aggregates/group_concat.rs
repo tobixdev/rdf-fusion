@@ -73,7 +73,7 @@ impl AggregateUDFImpl for SparqlGroupConcat {
     }
 
     fn simplify(&self) -> Option<AggregateFunctionSimplification> {
-        let encoding = self.encoding.clone();
+        let encoding = Arc::clone(&self.encoding);
         Some(Box::new(move |function, _info| {
             debug_assert!(
                 function.params.args.len() == 2,

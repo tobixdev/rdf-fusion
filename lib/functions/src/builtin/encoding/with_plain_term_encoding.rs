@@ -62,8 +62,7 @@ impl WithPlainTermEncoding {
             EncodingName::TypedValue => {
                 let array = self.encodings.typed_value().try_new_array(array)?;
                 let input = DefaultTypedValueDecoder::decode_terms(&array);
-                let result =
-                    TypedValueRefPlainTermEncoder::default().encode_terms(input)?;
+                let result = TypedValueRefPlainTermEncoder.encode_terms(input)?;
                 Ok(ColumnarValue::Array(result.into_array_ref()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
@@ -88,8 +87,7 @@ impl WithPlainTermEncoding {
             EncodingName::TypedValue => {
                 let scalar = self.encodings.typed_value().try_new_scalar(scalar)?;
                 let input = DefaultTypedValueDecoder::decode_term(&scalar);
-                let result =
-                    TypedValueRefPlainTermEncoder::default().encode_term(input)?;
+                let result = TypedValueRefPlainTermEncoder.encode_term(input)?;
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
