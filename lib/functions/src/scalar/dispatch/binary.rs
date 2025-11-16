@@ -6,15 +6,15 @@ use rdf_fusion_encoding::plain_term::{
     PlainTermArray, PlainTermEncoding, PlainTermScalar,
 };
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::typed_value::{
-    TypedValueArray, TypedValueEncoding, TypedValueScalar,
+    TypedValueArray, TypedValueEncoding, TypedValueEncodingRef, TypedValueScalar,
 };
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar, TermDecoder};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult, TypedValue, TypedValueRef};
 
 pub fn dispatch_binary_typed_value<'data>(
+    encoding: &TypedValueEncodingRef,
     lhs: &'data EncodingDatum<TypedValueEncoding>,
     rhs: &'data EncodingDatum<TypedValueEncoding>,
     op: impl for<'a> Fn(TypedValueRef<'a>, TypedValueRef<'a>) -> ThinResult<TypedValueRef<'a>>,
@@ -25,21 +25,22 @@ pub fn dispatch_binary_typed_value<'data>(
 ) -> DFResult<ColumnarValue> {
     match (lhs, rhs) {
         (EncodingDatum::Array(lhs), EncodingDatum::Array(rhs)) => {
-            dispatch_binary_typed_value_array_array(lhs, rhs, op, error_op)
+            dispatch_binary_typed_value_array_array(encoding, lhs, rhs, op, error_op)
         }
         (EncodingDatum::Scalar(lhs, _), EncodingDatum::Array(rhs)) => {
-            dispatch_binary_typed_value_scalar_array(lhs, rhs, op, error_op)
+            dispatch_binary_typed_value_scalar_array(encoding, lhs, rhs, op, error_op)
         }
         (EncodingDatum::Array(lhs), EncodingDatum::Scalar(rhs, _)) => {
-            dispatch_binary_typed_value_array_scalar(lhs, rhs, op, error_op)
+            dispatch_binary_typed_value_array_scalar(encoding, lhs, rhs, op, error_op)
         }
         (EncodingDatum::Scalar(lhs, _), EncodingDatum::Scalar(rhs, _)) => {
-            dispatch_binary_typed_value_scalar_scalar(lhs, rhs, op, error_op)
+            dispatch_binary_typed_value_scalar_scalar(encoding, lhs, rhs, op, error_op)
         }
     }
 }
 
 fn dispatch_binary_typed_value_array_array<'data>(
+    encoding: &TypedValueEncodingRef,
     lhs: &'data TypedValueArray,
     rhs: &'data TypedValueArray,
     op: impl for<'a> Fn(TypedValueRef<'a>, TypedValueRef<'a>) -> ThinResult<TypedValueRef<'a>>,
@@ -54,11 +55,12 @@ fn dispatch_binary_typed_value_array_array<'data>(
     let results = lhs.zip(rhs).map(|(lhs_value, rhs_value)| {
         apply_binary_op(lhs_value, rhs_value, &op, &error_op)
     });
-    let result = DefaultTypedValueEncoder::encode_terms(results)?;
+    let result = encoding.default_encoder().encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_typed_value_scalar_array<'data>(
+    encoding: &TypedValueEncodingRef,
     lhs: &'data TypedValueScalar,
     rhs: &'data TypedValueArray,
     op: impl for<'a> Fn(TypedValueRef<'a>, TypedValueRef<'a>) -> ThinResult<TypedValueRef<'a>>,
@@ -71,11 +73,12 @@ fn dispatch_binary_typed_value_scalar_array<'data>(
         let lhs_value = DefaultTypedValueDecoder::decode_term(lhs);
         apply_binary_op(lhs_value, rhs_value, &op, &error_op)
     });
-    let result = DefaultTypedValueEncoder::encode_terms(results)?;
+    let result = encoding.default_encoder().encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_typed_value_array_scalar<'data>(
+    encoding: &TypedValueEncodingRef,
     lhs: &'data TypedValueArray,
     rhs: &'data TypedValueScalar,
     op: impl for<'a> Fn(TypedValueRef<'a>, TypedValueRef<'a>) -> ThinResult<TypedValueRef<'a>>,
@@ -88,11 +91,12 @@ fn dispatch_binary_typed_value_array_scalar<'data>(
         let rhs_value = DefaultTypedValueDecoder::decode_term(rhs);
         apply_binary_op(lhs_value, rhs_value, &op, &error_op)
     });
-    let result = DefaultTypedValueEncoder::encode_terms(results)?;
+    let result = encoding.default_encoder().encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_typed_value_scalar_scalar<'data>(
+    encoding: &TypedValueEncodingRef,
     lhs: &'data TypedValueScalar,
     rhs: &'data TypedValueScalar,
     op: impl for<'a> Fn(TypedValueRef<'a>, TypedValueRef<'a>) -> ThinResult<TypedValueRef<'a>>,
@@ -106,7 +110,10 @@ fn dispatch_binary_typed_value_scalar_scalar<'data>(
 
     let result = apply_binary_op(lhs, rhs, &op, &error_op);
     Ok(ColumnarValue::Scalar(
-        DefaultTypedValueEncoder::encode_term(result)?.into_scalar_value(),
+        encoding
+            .default_encoder()
+            .encode_term(result)?
+            .into_scalar_value(),
     ))
 }
 
@@ -126,6 +133,7 @@ fn apply_binary_op<'data>(
 }
 
 pub fn dispatch_binary_owned_typed_value(
+    encoding: &TypedValueEncodingRef,
     lhs: &EncodingDatum<TypedValueEncoding>,
     rhs: &EncodingDatum<TypedValueEncoding>,
     op: impl Fn(TypedValueRef<'_>, TypedValueRef<'_>) -> ThinResult<TypedValue>,
@@ -136,21 +144,22 @@ pub fn dispatch_binary_owned_typed_value(
 ) -> DFResult<ColumnarValue> {
     match (lhs, rhs) {
         (EncodingDatum::Array(lhs), EncodingDatum::Array(rhs)) => {
-            dispatch_binary_owned_array_array(lhs, rhs, op, error_op)
+            dispatch_binary_owned_array_array(encoding, lhs, rhs, op, error_op)
         }
         (EncodingDatum::Scalar(lhs, _), EncodingDatum::Array(rhs)) => {
-            dispatch_binary_owned_scalar_array(lhs, rhs, op, error_op)
+            dispatch_binary_owned_scalar_array(encoding, lhs, rhs, op, error_op)
         }
         (EncodingDatum::Array(lhs), EncodingDatum::Scalar(rhs, _)) => {
-            dispatch_binary_owned_array_scalar(lhs, rhs, op, error_op)
+            dispatch_binary_owned_array_scalar(encoding, lhs, rhs, op, error_op)
         }
         (EncodingDatum::Scalar(lhs, _), EncodingDatum::Scalar(rhs, _)) => {
-            dispatch_binary_owned_scalar_scalar(lhs, rhs, op, error_op)
+            dispatch_binary_owned_scalar_scalar(encoding, lhs, rhs, op, error_op)
         }
     }
 }
 
 fn dispatch_binary_owned_array_array(
+    encoding: &TypedValueEncodingRef,
     lhs: &TypedValueArray,
     rhs: &TypedValueArray,
     op: impl Fn(TypedValueRef<'_>, TypedValueRef<'_>) -> ThinResult<TypedValue>,
@@ -176,11 +185,12 @@ fn dispatch_binary_owned_array_array(
             Err(err) => Err(*err),
         })
         .collect::<Vec<_>>();
-    let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
+    let result = encoding.default_encoder().encode_terms(result_refs)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_owned_scalar_array(
+    encoding: &TypedValueEncodingRef,
     lhs: &TypedValueScalar,
     rhs: &TypedValueArray,
     op: impl Fn(TypedValueRef<'_>, TypedValueRef<'_>) -> ThinResult<TypedValue>,
@@ -203,11 +213,12 @@ fn dispatch_binary_owned_scalar_array(
             Err(err) => Err(*err),
         })
         .collect::<Vec<_>>();
-    let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
+    let result = encoding.default_encoder().encode_terms(result_refs)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_owned_array_scalar(
+    encoding: &TypedValueEncodingRef,
     lhs: &TypedValueArray,
     rhs: &TypedValueScalar,
     op: impl Fn(TypedValueRef<'_>, TypedValueRef<'_>) -> ThinResult<TypedValue>,
@@ -230,11 +241,12 @@ fn dispatch_binary_owned_array_scalar(
             Err(err) => Err(*err),
         })
         .collect::<Vec<_>>();
-    let result = DefaultTypedValueEncoder::encode_terms(result_refs)?;
+    let result = encoding.default_encoder().encode_terms(result_refs)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
 fn dispatch_binary_owned_scalar_scalar(
+    encoding: &TypedValueEncodingRef,
     lhs: &TypedValueScalar,
     rhs: &TypedValueScalar,
     op: impl Fn(TypedValueRef<'_>, TypedValueRef<'_>) -> ThinResult<TypedValue>,
@@ -252,7 +264,10 @@ fn dispatch_binary_owned_scalar_scalar(
         Err(err) => Err(*err),
     };
     Ok(ColumnarValue::Scalar(
-        DefaultTypedValueEncoder::encode_term(result_ref)?.into_scalar_value(),
+        encoding
+            .default_encoder()
+            .encode_term(result_ref)?
+            .into_scalar_value(),
     ))
 }
 
@@ -311,7 +326,7 @@ fn dispatch_binary_plain_term_array_array<'data>(
     let results = lhs.zip(rhs).map(|(lhs_value, rhs_value)| {
         apply_binary_op_plain_term(lhs_value, rhs_value, &op, &error_op)
     });
-    let result = DefaultPlainTermEncoder::encode_terms(results)?;
+    let result = DefaultPlainTermEncoder::default().encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
@@ -328,7 +343,7 @@ fn dispatch_binary_plain_term_scalar_array<'data>(
         let lhs_value = DefaultPlainTermDecoder::decode_term(lhs);
         apply_binary_op_plain_term(lhs_value, rhs_value, &op, &error_op)
     });
-    let result = DefaultPlainTermEncoder::encode_terms(results)?;
+    let result = DefaultPlainTermEncoder::default().encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
@@ -345,7 +360,7 @@ fn dispatch_binary_plain_term_array_scalar<'data>(
         let rhs_value = DefaultPlainTermDecoder::decode_term(rhs);
         apply_binary_op_plain_term(lhs_value, rhs_value, &op, &error_op)
     });
-    let result = DefaultPlainTermEncoder::encode_terms(results)?;
+    let result = DefaultPlainTermEncoder::default().encode_terms(results)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }
 
@@ -363,7 +378,9 @@ fn dispatch_binary_plain_term_scalar_scalar<'data>(
 
     let result = apply_binary_op_plain_term(lhs, rhs, &op, &error_op);
     Ok(ColumnarValue::Scalar(
-        DefaultPlainTermEncoder::encode_term(result)?.into_scalar_value(),
+        DefaultPlainTermEncoder::default()
+            .encode_term(result)?
+            .into_scalar_value(),
     ))
 }
 

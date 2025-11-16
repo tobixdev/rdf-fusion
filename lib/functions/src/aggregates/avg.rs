@@ -1,15 +1,15 @@
 use datafusion::arrow::array::{Array, ArrayRef, AsArray};
 use datafusion::arrow::datatypes::{DataType, UInt64Type};
 use datafusion::common::exec_datafusion_err;
-use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
+use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
+use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::{
     DecimalTermValueEncoder, DoubleTermValueEncoder, FloatTermValueEncoder,
     IntegerTermValueEncoder, NumericTypedValueEncoder,
 };
-use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingScalar, TermDecoder, TermEncoder, TermEncoding,
 };
@@ -26,7 +26,7 @@ pub fn avg_typed_value(encoding: TypedValueEncodingRef) -> AggregateUDF {
         vec![data_type.clone()],
         Arc::new(data_type.clone()),
         Volatility::Immutable,
-        Arc::new(|_| Ok(Box::new(SparqlAvg::new(encoding)))),
+        Arc::new(move |_| Ok(Box::new(SparqlAvg::new(Arc::clone(&encoding))))),
         Arc::new(vec![data_type, DataType::UInt64]),
     )
 }

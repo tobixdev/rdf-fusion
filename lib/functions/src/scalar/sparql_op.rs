@@ -1,5 +1,5 @@
-use crate::scalar::sparql_op_impl::ScalarSparqlOpImpl;
 use crate::scalar::ScalarSparqlOpArgs;
+use crate::scalar::sparql_op_impl::ScalarSparqlOpImpl;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{exec_datafusion_err, exec_err, plan_err};
 use datafusion::logical_expr::{
@@ -16,6 +16,7 @@ use std::any::Any;
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 /// Defines the arity of a SPARQL operation. In other words, the number of arguments that the
 /// [ScalarSparqlOp] has.
@@ -149,14 +150,14 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
         let details = op.signature();
 
         let mut type_signatures = Vec::new();
-        if op.plain_term_encoding_op().is_some() {
+        if op.plain_term_encoding_op(&encodings).is_some() {
             let type_signature = details
                 .arity
                 .type_signature(encodings.plain_term().as_ref());
             type_signatures.push(type_signature);
         }
 
-        if op.typed_value_encoding_op().is_some() {
+        if op.typed_value_encoding_op(&encodings).is_some() {
             let type_signature = details
                 .arity
                 .type_signature(encodings.typed_value().as_ref());
@@ -164,7 +165,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp> ScalarSparqlOpAdapter<TScalarSparqlOp> {
         }
 
         if let Some(oid_encoding) = encodings.object_id() {
-            if op.object_id_encoding_op(oid_encoding).is_some() {
+            if op.object_id_encoding_op(&encodings).is_some() {
                 let type_signature = details.arity.type_signature(oid_encoding.as_ref());
                 type_signatures.push(type_signature);
             }
@@ -232,12 +233,14 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
         let encoding_name = self.detect_input_encoding(arg_types)?;
         match encoding_name {
             None => {
-                if let Some(op_impl) = self.op.plain_term_encoding_op() {
+                if let Some(op_impl) = self.op.plain_term_encoding_op(&self.encodings) {
                     Ok(op_impl.return_type())
-                } else if let Some(op_impl) = self.op.typed_value_encoding_op() {
+                } else if let Some(op_impl) =
+                    self.op.typed_value_encoding_op(&self.encodings)
+                {
                     Ok(op_impl.return_type())
-                } else if let Some(oid_encoding) = self.encodings.object_id()
-                    && let Some(op_impl) = self.op.object_id_encoding_op(oid_encoding)
+                } else if let Some(_) = self.encodings.object_id()
+                    && let Some(op_impl) = self.op.object_id_encoding_op(&self.encodings)
                 {
                     Ok(op_impl.return_type())
                 } else {
@@ -249,7 +252,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
             }
             Some(EncodingName::PlainTerm) => self
                 .op
-                .plain_term_encoding_op()
+                .plain_term_encoding_op(&self.encodings)
                 .ok_or(exec_datafusion_err!(
                     "The SPARQL operation '{}' does not support the PlainTerm encoding.",
                     &self.name
@@ -257,7 +260,7 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                 .map(|op_impl| op_impl.return_type()),
             Some(EncodingName::TypedValue) => self
                 .op
-                .typed_value_encoding_op()
+                .typed_value_encoding_op(&self.encodings)
                 .ok_or(exec_datafusion_err!(
                     "The SPARQL operation '{}' does not support the TypedValue encoding.",
                     &self.name
@@ -269,13 +272,13 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                 )
             }
             Some(EncodingName::ObjectId) => {
-                let encoding = self.encodings.object_id().ok_or(exec_datafusion_err!(
+                self.encodings.object_id().ok_or(exec_datafusion_err!(
                     "Could not find the object id encoding."
                 ))?;
 
                 self
                     .op
-                    .object_id_encoding_op(encoding)
+                    .object_id_encoding_op(&self.encodings)
                     .ok_or(exec_datafusion_err!(
                     "The SPARQL operation '{}' does not support the ObjectID encoding.",
                     &self.name
@@ -295,12 +298,12 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
 
         let encoding = match encoding {
             None => {
-                if self.op.typed_value_encoding_op().is_some() {
+                if self.op.typed_value_encoding_op(&self.encodings).is_some() {
                     EncodingName::TypedValue
-                } else if self.op.plain_term_encoding_op().is_some() {
+                } else if self.op.plain_term_encoding_op(&self.encodings).is_some() {
                     EncodingName::PlainTerm
-                } else if let Some(oid_encoding) = self.encodings.object_id()
-                    && self.op.object_id_encoding_op(oid_encoding).is_some()
+                } else if let Some(_) = self.encodings.object_id()
+                    && self.op.object_id_encoding_op(&self.encodings).is_some()
                 {
                     EncodingName::ObjectId
                 } else {
@@ -312,15 +315,23 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
 
         match encoding {
             EncodingName::PlainTerm => {
-                if let Some(op) = self.op.plain_term_encoding_op() {
-                    op.invoke(prepare_args(self.encodings.plain_term().as_ref(), args)?)
+                if let Some(op) = self.op.plain_term_encoding_op(&self.encodings) {
+                    op.invoke(prepare_args(
+                        self.encodings.plain_term(),
+                        self.encodings.clone(),
+                        args,
+                    )?)
                 } else {
                     exec_err!("PlainTerm encoding not supported for this operation")
                 }
             }
             EncodingName::TypedValue => {
-                if let Some(op) = self.op.typed_value_encoding_op() {
-                    op.invoke(prepare_args(self.encodings.typed_value().as_ref(), args)?)
+                if let Some(op) = self.op.typed_value_encoding_op(&self.encodings) {
+                    op.invoke(prepare_args(
+                        self.encodings.typed_value(),
+                        self.encodings.clone(),
+                        args,
+                    )?)
                 } else {
                     exec_err!("TypedValue encoding not supported for this operation")
                 }
@@ -330,8 +341,12 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
                     return exec_err!("Object ID is not registered.");
                 };
 
-                if let Some(op) = self.op.object_id_encoding_op(object_id_encoding) {
-                    op.invoke(self.prepare_args(object_id_encoding, args)?)
+                if let Some(op) = self.op.object_id_encoding_op(&self.encodings) {
+                    op.invoke(prepare_args(
+                        object_id_encoding,
+                        self.encodings.clone(),
+                        args,
+                    )?)
                 } else {
                     exec_err!("TypedValue encoding not supported for this operation")
                 }
@@ -342,7 +357,8 @@ impl<TScalarSparqlOp: ScalarSparqlOp + 'static> ScalarUDFImpl
 }
 
 fn prepare_args<TEncoding: TermEncoding>(
-    encoding: &TEncoding,
+    encoding: &Arc<TEncoding>,
+    encodings: RdfFusionEncodings,
     args: ScalarFunctionArgs,
 ) -> DFResult<ScalarSparqlOpArgs<TEncoding>> {
     let sparql_args = args
@@ -352,6 +368,8 @@ fn prepare_args<TEncoding: TermEncoding>(
         .collect::<DFResult<Vec<_>>>()?;
 
     Ok(ScalarSparqlOpArgs {
+        encoding: Arc::clone(&encoding),
+        encodings,
         number_rows: args.number_rows,
         args: sparql_args,
     })

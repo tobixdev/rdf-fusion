@@ -29,7 +29,7 @@ impl GraphNameStream {
             return exec_err!("Unexpected number of columns in the result");
         }
 
-        if stream.schema().field(0).data_type() != &PLAIN_TERM_ENCODING.data_type() {
+        if stream.schema().field(0).data_type() != PLAIN_TERM_ENCODING.data_type() {
             return exec_err!("Unexpected data type in the result");
         }
 

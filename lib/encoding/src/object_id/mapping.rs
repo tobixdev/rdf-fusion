@@ -1,6 +1,8 @@
-use crate::object_id::{ObjectIdArray, ObjectIdScalar};
+use crate::object_id::{
+    ObjectIdArray, ObjectIdEncodingRef, ObjectIdScalar, ObjectIdSize,
+};
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
-use crate::typed_value::{TypedValueArray, TypedValueScalar};
+use crate::typed_value::{TypedValueArray, TypedValueEncodingRef, TypedValueScalar};
 use crate::{EncodingArray, EncodingScalar};
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
@@ -68,12 +70,16 @@ pub type ObjectIdMappingRef = Arc<dyn ObjectIdMapping>;
 /// object ids is not bijective. A single typed value can map to multiple object ids. For example,
 /// this is the case for the two RDF terms `"01"^^xsd:integer` and `"1"^^xsd:integer`.
 pub trait ObjectIdMapping: Debug + Send + Sync {
+    /// Returns the [`ObjectIdSize`] of the mapped ids.
+    fn object_id_size(&self) -> ObjectIdSize;
+
     /// Try to retrieve the object id of the given `scalar`.
     ///
     /// This method *does not* automatically create a mapping. See [Self::encode_scalar] for this
     /// functionality.
     fn try_get_object_id(
         &self,
+        encoding: &ObjectIdEncodingRef,
         scalar: &PlainTermScalar,
     ) -> Result<Option<ObjectIdScalar>, ObjectIdMappingError>;
 
@@ -81,6 +87,7 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     /// fresh object id if a term is not yet mapped.
     fn encode_array(
         &self,
+        encoding: &ObjectIdEncodingRef,
         array: &PlainTermArray,
     ) -> Result<ObjectIdArray, ObjectIdMappingError>;
 
@@ -88,12 +95,13 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     /// fresh object id if the term is not yet mapped.
     fn encode_scalar(
         &self,
+        encoding: &ObjectIdEncodingRef,
         scalar: &PlainTermScalar,
     ) -> Result<ObjectIdScalar, ObjectIdMappingError> {
         let array = scalar
             .to_array(1)
             .expect("Data type is supported for to_array");
-        let encoded = self.encode_array(&array)?;
+        let encoded = self.encode_array(encoding, &array)?;
         Ok(encoded.try_as_scalar(0).expect("Row 0 always exists"))
     }
 
@@ -106,6 +114,7 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     /// Decodes the entire `array` as a [TypedValueArray].
     fn decode_array_to_typed_value(
         &self,
+        encoding: &TypedValueEncodingRef,
         array: &ObjectIdArray,
     ) -> Result<TypedValueArray, ObjectIdMappingError>;
 
@@ -124,12 +133,13 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     /// Decodes a single `scalar` as a [TypedValueScalar].
     fn decode_scalar_to_typed_value(
         &self,
+        encoding: &TypedValueEncodingRef,
         scalar: &ObjectIdScalar,
     ) -> Result<TypedValueScalar, ObjectIdMappingError> {
         let array = scalar
             .to_array(1)
             .expect("Data type is supported for to_array");
-        let decoded = self.decode_array_to_typed_value(&array)?;
+        let decoded = self.decode_array_to_typed_value(encoding, &array)?;
         Ok(decoded.try_as_scalar(0).expect("Row 0 always exists"))
     }
 }

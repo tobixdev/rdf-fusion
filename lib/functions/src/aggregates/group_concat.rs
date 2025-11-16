@@ -10,11 +10,11 @@ use datafusion::logical_expr::{
 };
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
+use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
 use rdf_fusion_encoding::typed_value::decoders::{
     DefaultTypedValueDecoder, StringLiteralRefTermValueDecoder,
 };
 use rdf_fusion_encoding::typed_value::encoders::StringLiteralRefTermValueEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
 use rdf_fusion_encoding::{TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_model::DFResult;
@@ -73,7 +73,8 @@ impl AggregateUDFImpl for SparqlGroupConcat {
     }
 
     fn simplify(&self) -> Option<AggregateFunctionSimplification> {
-        Some(Box::new(|function, _info| {
+        let encoding = self.encoding.clone();
+        Some(Box::new(move |function, _info| {
             debug_assert!(
                 function.params.args.len() == 2,
                 "Separator should be the second argument"
@@ -82,7 +83,7 @@ impl AggregateUDFImpl for SparqlGroupConcat {
             let separator_expr = &function.params.args[1];
             let separator = match separator_expr {
                 Expr::Literal(value, _) => {
-                    let scalar = self.encoding.try_new_scalar(value.clone())?;
+                    let scalar = encoding.try_new_scalar(value.clone())?;
                     let term = DefaultTypedValueDecoder::decode_term(&scalar);
                     match term {
                         Ok(TypedValueRef::SimpleLiteral(literal)) => {
@@ -97,7 +98,7 @@ impl AggregateUDFImpl for SparqlGroupConcat {
 
             Ok(Expr::AggregateFunction(AggregateFunction::new_udf(
                 AggregateUDF::new_from_impl(SparqlGroupConcatWithSeparator::new(
-                    Arc::clone(&self.encoding),
+                    Arc::clone(&encoding),
                     separator,
                 ))
                 .into(),

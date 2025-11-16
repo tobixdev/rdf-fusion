@@ -1,10 +1,10 @@
 use datafusion::arrow::array::ArrayRef;
-use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
+use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
 use datafusion::scalar::ScalarValue;
 use datafusion::{error::Result, physical_plan::Accumulator};
+use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
 use rdf_fusion_encoding::typed_value::decoders::NumericTermValueDecoder;
 use rdf_fusion_encoding::typed_value::encoders::NumericTypedValueEncoder;
-use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_model::DFResult;
@@ -18,7 +18,7 @@ pub fn sum_typed_value(encoding: TypedValueEncodingRef) -> AggregateUDF {
         vec![data_type.clone()],
         Arc::new(data_type.clone()),
         Volatility::Immutable,
-        Arc::new(|_| Ok(Box::new(SparqlTypedValueSum::new(encoding)))),
+        Arc::new(move |_| Ok(Box::new(SparqlTypedValueSum::new(Arc::clone(&encoding))))),
         Arc::new(vec![data_type.clone()]),
     )
 }

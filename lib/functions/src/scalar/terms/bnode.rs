@@ -4,13 +4,14 @@ use crate::scalar::sparql_op_impl::{
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use datafusion::logical_expr::{ColumnarValue, Volatility};
-use rdf_fusion_encoding::EncodingArray;
 use rdf_fusion_encoding::typed_value::{
     TypedValueArrayElementBuilder, TypedValueEncoding,
 };
+use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{BlankNode, BlankNodeRef, ThinError, TypedValueRef};
+use std::sync::Arc;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct BNodeSparqlOp;
@@ -46,17 +47,22 @@ impl ScalarSparqlOp for BNodeSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            match args.args.len() {
+        let tv_encoding = Arc::clone(encodings.typed_value());
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            move |args| match args.args.len() {
                 0 => {
-                    let mut builder = TypedValueArrayElementBuilder::default();
+                    let mut builder =
+                        TypedValueArrayElementBuilder::new(Arc::clone(&tv_encoding));
                     for _ in 0..args.number_rows {
                         builder.append_blank_node(BlankNode::default().as_ref())?;
                     }
                     Ok(ColumnarValue::Array(builder.finish().into_array_ref()))
                 }
                 1 => dispatch_unary_typed_value(
+                    &args.encoding,
                     &args.args[0],
                     |value| match value {
                         TypedValueRef::SimpleLiteral(value) => {
@@ -68,7 +74,7 @@ impl ScalarSparqlOp for BNodeSparqlOp {
                     ThinError::expected,
                 ),
                 _ => unreachable!("Invalid number of arguments"),
-            }
-        }))
+            },
+        ))
     }
 }

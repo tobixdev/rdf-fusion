@@ -4,8 +4,6 @@ use datafusion::functions_aggregate::count::{count, count_distinct};
 use datafusion::functions_aggregate::first_last::first_value;
 use datafusion::logical_expr::{Expr, ExprSchemable, lit};
 use rdf_fusion_encoding::plain_term::{PLAIN_TERM_ENCODING, PlainTermScalar};
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
-use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
 use rdf_fusion_encoding::{EncodingName, EncodingScalar, TermEncoder};
 use rdf_fusion_extensions::functions::{BuiltinName, FunctionName};
 use rdf_fusion_model::DFResult;
@@ -781,11 +779,18 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - GroupConcat](https://www.w3.org/TR/sparql11-query/#defn_aggGroupConcat)
     pub fn group_concat(self, distinct: bool, separator: Option<&str>) -> DFResult<Self> {
-        let arg = DefaultTypedValueEncoder::encode_term(
-            separator
-                .map(|sep| TypedValueRef::SimpleLiteral(SimpleLiteralRef { value: sep }))
-                .ok_or(ThinError::ExpectedError),
-        )?;
+        let arg = self
+            .context
+            .encodings()
+            .typed_value()
+            .default_encoder()
+            .encode_term(
+                separator
+                    .map(|sep| {
+                        TypedValueRef::SimpleLiteral(SimpleLiteralRef { value: sep })
+                    })
+                    .ok_or(ThinError::ExpectedError),
+            )?;
         self.context.apply_builtin_udaf(
             BuiltinName::GroupConcat,
             vec![self.expr, lit(arg.into_scalar_value())],
@@ -990,27 +995,27 @@ impl<'root> RdfFusionExprBuilder<'root> {
             EncodingName::PlainTerm => PLAIN_TERM_ENCODING
                 .encode_term(Ok(scalar))?
                 .into_scalar_value(),
-            EncodingName::TypedValue => TYPED_VALUE_ENCODING
+            EncodingName::TypedValue => self
+                .context
+                .encodings()
+                .typed_value()
                 .encode_term(Ok(scalar))?
                 .into_scalar_value(),
             EncodingName::Sortable => {
                 return plan_err!("Filtering not supported for Sortable encoding.");
             }
-            EncodingName::ObjectId => {
-                match self.context.encodings().object_id_mapping() {
-                    None => {
-                        return plan_err!(
-                            "The context has not ObjectID encoding registered"
-                        );
-                    }
-                    Some(object_id_mapping) => {
-                        let scalar = PlainTermScalar::from(scalar);
-                        object_id_mapping
-                            .encode_scalar(&scalar)?
-                            .into_scalar_value()
-                    }
+            EncodingName::ObjectId => match self.context.encodings().object_id() {
+                None => {
+                    return plan_err!("The context has not ObjectID encoding registered");
                 }
-            }
+                Some(encoding) => {
+                    let scalar = PlainTermScalar::from(scalar);
+                    encoding
+                        .mapping()
+                        .encode_scalar(encoding, &scalar)?
+                        .into_scalar_value()
+                }
+            },
         };
         self.build_same_term(lit(literal))
     }

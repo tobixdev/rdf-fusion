@@ -189,7 +189,7 @@ pub fn query_result_for_iterator(
 
     let fields = variables
         .iter()
-        .map(|v| Field::new(v.as_str(), PLAIN_TERM_ENCODING.data_type(), true))
+        .map(|v| Field::new(v.as_str(), PLAIN_TERM_ENCODING.data_type().clone(), true))
         .collect::<Vec<_>>();
     let columns = builders
         .into_iter()

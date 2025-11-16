@@ -1,6 +1,6 @@
-use crate::object_id::ObjectIdEncoding;
-use crate::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
 use crate::TermEncoding;
+use crate::object_id::{ObjectIdEncoding, ObjectIdEncodingRef};
+use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use datafusion::arrow::datatypes::{DataType, Field, Fields, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
 use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
@@ -20,7 +20,7 @@ pub enum QuadStorageEncoding {
     /// further information.
     PlainTerm,
     /// Uses the provided object id encoding.
-    ObjectId(ObjectIdEncoding),
+    ObjectId(ObjectIdEncodingRef),
 }
 
 static PLAIN_TERM_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {

@@ -168,7 +168,8 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         let expr = if self.schema.has_column(&column) {
             Expr::from(column)
         } else {
-            let null = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
+            let null =
+                DefaultPlainTermEncoder::default().encode_term(ThinError::expected())?;
             lit(null.into_scalar_value())
         };
 
@@ -182,7 +183,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         term: impl Into<TermRef<'lit>>,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let scalar = DefaultPlainTermEncoder::encode_term(Ok(term.into()))?;
+        let scalar = DefaultPlainTermEncoder::default().encode_term(Ok(term.into()))?;
         self.try_create_builder(lit(scalar.into_scalar_value()))
     }
 
@@ -190,7 +191,8 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     ///
     /// This is used to represent unbound variables or errors.
     pub fn null_literal(&'context self) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let scalar = DefaultPlainTermEncoder::encode_term(ThinError::expected())?;
+        let scalar =
+            DefaultPlainTermEncoder::default().encode_term(ThinError::expected())?;
         self.try_create_builder(lit(scalar.into_scalar_value()))
     }
 

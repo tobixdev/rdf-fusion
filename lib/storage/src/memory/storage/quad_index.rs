@@ -7,7 +7,7 @@ use crate::memory::storage::scan::{DirectIndexRef, MemQuadIndexScanIterator};
 use crate::memory::storage::scan_instructions::{
     MemIndexPruningPredicate, MemIndexPruningPredicates, MemIndexScanInstructions,
 };
-use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdEncodingRef};
 use std::collections::{BTreeSet, HashSet};
 use std::fmt::{Display, Formatter};
 
@@ -15,7 +15,7 @@ use std::fmt::{Display, Formatter};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemIndexConfiguration {
     /// The object id encoding.
-    pub object_id_encoding: ObjectIdEncoding,
+    pub object_id_encoding: ObjectIdEncodingRef,
     /// The desired batch size. This iterator only provides a best-effort service for adhering to
     /// the batch size.
     pub batch_size: usize,

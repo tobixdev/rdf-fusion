@@ -6,7 +6,7 @@ use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
 use async_trait::async_trait;
 use datafusion::physical_planner::ExtensionPlanner;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_encoding::object_id::ObjectIdMapping;
+use rdf_fusion_encoding::object_id::{ObjectIdEncodingRef, ObjectIdMapping};
 use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_model::DFResult;
@@ -20,6 +20,8 @@ use tokio::sync::RwLock;
 
 /// A memory-based quad storage.
 pub struct MemQuadStorage {
+    /// The object id encoding.
+    object_id_encoding: ObjectIdEncodingRef,
     /// Holds the mapping between terms and object ids.
     object_id_mapping: Arc<MemObjectIdMapping>,
     /// The index set
@@ -27,8 +29,12 @@ pub struct MemQuadStorage {
 }
 
 impl MemQuadStorage {
-    /// Creates a new [MemQuadStorage] with the given `object_id_mapping`.
-    pub fn new(object_id_mapping: Arc<MemObjectIdMapping>, batch_size: usize) -> Self {
+    /// Creates a new [MemQuadStorage] with the given `object_id_encoding`.
+    pub fn new(
+        object_id_mapping: Arc<MemObjectIdMapping>,
+        object_id_encoding: ObjectIdEncodingRef,
+        batch_size: usize,
+    ) -> Self {
         let components = [
             IndexComponents::GSPO,
             IndexComponents::GPOS,
@@ -38,7 +44,7 @@ impl MemQuadStorage {
             .iter()
             .map(|components| {
                 MemQuadIndex::new(MemIndexConfiguration {
-                    object_id_encoding: object_id_mapping.encoding(),
+                    object_id_encoding: object_id_encoding.clone(),
                     batch_size,
                     components: *components,
                 })
@@ -50,6 +56,7 @@ impl MemQuadStorage {
                 indexes,
             ))),
             object_id_mapping,
+            object_id_encoding,
         }
     }
 
@@ -67,7 +74,7 @@ impl MemQuadStorage {
 impl QuadStorage for MemQuadStorage {
     fn encoding(&self) -> QuadStorageEncoding {
         // Only object id encoding is supported.
-        QuadStorageEncoding::ObjectId(self.object_id_mapping.encoding())
+        QuadStorageEncoding::ObjectId(Arc::clone(&self.object_id_encoding))
     }
 
     fn object_id_mapping(&self) -> Option<Arc<dyn ObjectIdMapping>> {

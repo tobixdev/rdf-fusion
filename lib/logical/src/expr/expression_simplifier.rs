@@ -216,12 +216,13 @@ fn replace_equality_with_same_term(
             .encode_term(Ok(term.as_ref()))?
             .into_scalar_value(),
         EncodingName::ObjectId => {
-            let Some(mapping) = encodings.object_id_mapping() else {
+            let Some(encoding) = encodings.object_id() else {
                 return plan_err!("No Object ID mapping registerd.");
             };
 
-            let scalar = DefaultPlainTermEncoder::encode_term(Ok(term.as_ref()))?;
-            match mapping.encode_scalar(&scalar) {
+            let scalar =
+                DefaultPlainTermEncoder::default().encode_term(Ok(term.as_ref()))?;
+            match encoding.mapping().encode_scalar(encoding, &scalar) {
                 Ok(scalar) => scalar.into_scalar_value(),
                 Err(ObjectIdMappingError::UnknownObjectId) => {
                     return Ok(Transformed::yes(lit(false)));
@@ -294,10 +295,10 @@ mod tests {
     use insta::assert_snapshot;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
+    use rdf_fusion_encoding::typed_value::TypedValueEncoding;
     use rdf_fusion_encoding::{
         EncodingName, QuadStorageEncoding, RdfFusionEncodings, TermEncoding,
     };
-    use rdf_fusion_encoding::typed_value::TypedValueEncoding;
     use rdf_fusion_extensions::RdfFusionContextView;
     use rdf_fusion_extensions::functions::FunctionName;
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;

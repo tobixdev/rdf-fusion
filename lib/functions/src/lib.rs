@@ -40,12 +40,12 @@ pub mod scalar;
 mod test_utils {
     use crate::registry::DefaultRdfFusionFunctionRegistry;
     use datafusion::logical_expr::ScalarUDF;
+    use rdf_fusion_encoding::RdfFusionEncodings;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
     use rdf_fusion_encoding::typed_value::{
         TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncodingRef,
     };
-    use rdf_fusion_encoding::RdfFusionEncodings;
     use rdf_fusion_extensions::functions::{
         BuiltinName, FunctionName, RdfFusionFunctionRegistry,
     };

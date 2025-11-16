@@ -1,4 +1,4 @@
-use datafusion::arrow::array::{as_boolean_array, Array, BooleanArray};
+use datafusion::arrow::array::{Array, BooleanArray, as_boolean_array};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
 use datafusion::logical_expr::{

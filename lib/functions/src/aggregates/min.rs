@@ -1,11 +1,11 @@
 use datafusion::arrow::array::{ArrayRef, AsArray};
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::exec_err;
-use datafusion::logical_expr::{create_udaf, AggregateUDF, Volatility};
+use datafusion::logical_expr::{AggregateUDF, Volatility, create_udaf};
 use datafusion::physical_plan::Accumulator;
 use datafusion::scalar::ScalarValue;
-use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::TypedValueEncodingRef;
+use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::{EncodingScalar, TermDecoder, TermEncoder, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{ThinError, ThinResult, TypedValue, TypedValueRef};
@@ -18,7 +18,7 @@ pub fn min_typed_value(encoding: TypedValueEncodingRef) -> AggregateUDF {
         vec![data_type.clone()],
         Arc::new(data_type.clone()),
         Volatility::Immutable,
-        Arc::new(|_| Ok(Box::new(SparqlTypedValueMin::new(encoding)))),
+        Arc::new(move |_| Ok(Box::new(SparqlTypedValueMin::new(Arc::clone(&encoding))))),
         Arc::new(vec![DataType::Boolean, data_type.clone()]),
     )
 }

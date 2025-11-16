@@ -1,12 +1,12 @@
 use crate::scalar::dispatch::dispatch_binary_typed_value;
 use crate::scalar::sparql_op_impl::{
-    create_typed_value_sparql_op_impl, ScalarSparqlOpImpl,
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{
     ScalarSparqlOp, ScalarSparqlOpArgs, ScalarSparqlOpSignature, SparqlOpArity,
 };
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::RdfFusionEncodings;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{ThinError, TypedValueRef};
@@ -48,6 +48,7 @@ impl ScalarSparqlOp for EqualSparqlOp {
             encodings.typed_value(),
             |args: ScalarSparqlOpArgs<TypedValueEncoding>| {
                 dispatch_binary_typed_value(
+                    &args.encoding,
                     &args.args[0],
                     &args.args[1],
                     |lhs_value, rhs_value| {

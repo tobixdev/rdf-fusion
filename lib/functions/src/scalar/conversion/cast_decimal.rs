@@ -1,10 +1,10 @@
 use crate::scalar::dispatch::dispatch_unary_typed_value;
 use crate::scalar::sparql_op_impl::{
-    create_typed_value_sparql_op_impl, ScalarSparqlOpImpl,
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::RdfFusionEncodings;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{Decimal, Numeric, ThinError, TypedValueRef};
@@ -41,9 +41,10 @@ impl ScalarSparqlOp for CastDecimalSparqlOp {
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
         Some(create_typed_value_sparql_op_impl(
             encodings.typed_value(),
-            |arg| {
+            |args| {
                 dispatch_unary_typed_value(
-                    &arg.args[0],
+                    &args.encoding,
+                    &args.args[0],
                     |value| {
                         let converted = match value {
                             TypedValueRef::BooleanLiteral(v) => Decimal::from(v),

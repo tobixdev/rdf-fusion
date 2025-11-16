@@ -265,10 +265,10 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         with_sortable_term_encoding(registry.encodings.clone()),
         with_plain_term_encoding(registry.encodings.clone()),
         with_typed_value_encoding(registry.encodings.clone()),
-        effective_boolean_value(),
-        native_boolean_as_term(),
+        effective_boolean_value(registry.encodings.typed_value().clone()),
+        native_boolean_as_term(registry.encodings.typed_value().clone()),
         is_compatible(&registry.encodings.clone()),
-        native_int64_as_term(),
+        native_int64_as_term(registry.encodings.typed_value().clone()),
     ];
 
     for udf in scalar_fns {
@@ -277,11 +277,11 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
 
     // Aggregate functions
     let aggregate_fns: Vec<AggregateUDF> = vec![
-        sum_typed_value(),
-        min_typed_value(),
-        max_typed_value(),
-        avg_typed_value(),
-        group_concat_typed_value(),
+        sum_typed_value(registry.encodings.typed_value().clone()),
+        min_typed_value(registry.encodings.typed_value().clone()),
+        max_typed_value(registry.encodings.typed_value().clone()),
+        avg_typed_value(registry.encodings.typed_value().clone()),
+        group_concat_typed_value(registry.encodings.typed_value().clone()),
     ];
 
     for udaf_information in aggregate_fns {

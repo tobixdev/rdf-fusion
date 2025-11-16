@@ -3,6 +3,7 @@ use crate::scalar::sparql_op_impl::{
     ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -36,21 +37,26 @@ impl ScalarSparqlOp for IfSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_ternary_typed_value(
-                &args.args[0],
-                &args.args[1],
-                &args.args[2],
-                |arg0, arg1, arg2| {
-                    let test = Boolean::try_from(arg0)?;
-                    if test.as_bool() { Ok(arg1) } else { Ok(arg2) }
-                },
-                |arg0, arg1, arg2| {
-                    let test = Boolean::try_from(arg0?)?;
-                    if test.as_bool() { arg1 } else { arg2 }
-                },
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_ternary_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    &args.args[1],
+                    &args.args[2],
+                    |arg0, arg1, arg2| {
+                        let test = Boolean::try_from(arg0)?;
+                        if test.as_bool() { Ok(arg1) } else { Ok(arg2) }
+                    },
+                    |arg0, arg1, arg2| {
+                        let test = Boolean::try_from(arg0?)?;
+                        if test.as_bool() { arg1 } else { arg2 }
+                    },
+                )
+            },
+        ))
     }
 }

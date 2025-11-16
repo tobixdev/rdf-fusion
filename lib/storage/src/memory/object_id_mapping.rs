@@ -5,12 +5,18 @@ use crate::memory::encoding::{EncodedTerm, EncodedTypedValue};
 use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::Array;
-use rdf_fusion_encoding::object_id::{ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncoding, ObjectIdMapping, ObjectIdMappingError, ObjectIdScalar, ObjectIdSize};
+use rdf_fusion_encoding::object_id::{
+    ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncoding, ObjectIdEncodingRef,
+    ObjectIdMapping, ObjectIdMappingError, ObjectIdScalar, ObjectIdSize,
+};
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{
     PlainTermArray, PlainTermArrayElementBuilder, PlainTermScalar,
 };
-use rdf_fusion_encoding::typed_value::{TypedValueArray, TypedValueArrayElementBuilder};
+use rdf_fusion_encoding::typed_value::{
+    TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncoding,
+    TypedValueEncodingRef,
+};
 use rdf_fusion_encoding::{EncodingArray, TermDecoder};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
@@ -285,8 +291,13 @@ impl MemObjectIdMapping {
 }
 
 impl ObjectIdMapping for MemObjectIdMapping {
+    fn object_id_size(&self) -> ObjectIdSize {
+        ObjectIdSize(4)
+    }
+
     fn try_get_object_id(
         &self,
+        encoding: &ObjectIdEncodingRef,
         scalar: &PlainTermScalar,
     ) -> Result<Option<ObjectIdScalar>, ObjectIdMappingError> {
         let term = DefaultPlainTermDecoder::decode_term(scalar);
@@ -295,19 +306,20 @@ impl ObjectIdMapping for MemObjectIdMapping {
             .and_then(|term| self.try_get_encoded_term(term))
             .and_then(|term| self.try_get_encoded_object_id(&term))
             .map(|oid| {
-                ObjectIdScalar::from_object_id(self.encoding(), oid.as_object_id())
+                ObjectIdScalar::from_object_id(encoding.clone(), oid.as_object_id())
             });
         Ok(result)
     }
 
     fn encode_array(
         &self,
+        encoding: &ObjectIdEncodingRef,
         array: &PlainTermArray,
     ) -> Result<ObjectIdArray, ObjectIdMappingError> {
         let terms = DefaultPlainTermDecoder::decode_terms(array);
 
         // TODO: without alloc/Arc copy
-        let mut result = ObjectIdArrayBuilder::new(self.encoding());
+        let mut result = ObjectIdArrayBuilder::new(encoding.clone());
         for term in terms {
             match term {
                 Ok(term) => {
@@ -369,6 +381,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
 
     fn decode_array_to_typed_value(
         &self,
+        encoding: &TypedValueEncodingRef,
         array: &ObjectIdArray,
     ) -> Result<TypedValueArray, ObjectIdMappingError> {
         let typed_values = array.object_ids().iter().map(|oid| {
@@ -381,7 +394,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
         });
 
         // TODO: can we remove the clone?
-        let mut builder = TypedValueArrayElementBuilder::default();
+        let mut builder = TypedValueArrayElementBuilder::new(encoding.clone());
         for typed_value in typed_values {
             let typed_value =
                 typed_value.as_ref().and_then(Option::<TypedValueRef>::from);

@@ -1,10 +1,10 @@
 use crate::scalar::dispatch::dispatch_unary_typed_value;
 use crate::scalar::sparql_op_impl::{
-    create_typed_value_sparql_op_impl, ScalarSparqlOpImpl,
+    ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::RdfFusionEncodings;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{Boolean, Numeric, ThinError, TypedValueRef};
@@ -43,6 +43,7 @@ impl ScalarSparqlOp for CastBooleanSparqlOp {
             encodings.typed_value(),
             |args| {
                 dispatch_unary_typed_value(
+                    &args.encoding,
                     &args.args[0],
                     |value| {
                         let converted = match value {
