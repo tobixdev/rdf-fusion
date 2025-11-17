@@ -49,8 +49,9 @@ use crate::scalar::terms::{
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
 use datafusion::common::plan_datafusion_err;
-use datafusion::execution::registry::MemoryFunctionRegistry;
 use datafusion::execution::FunctionRegistry;
+use datafusion::execution::registry::MemoryFunctionRegistry;
+use datafusion::functions::core::coalesce::CoalesceFunc;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF, TypeSignature};
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
 use rdf_fusion_extensions::functions::{FunctionName, RdfFusionFunctionRegistry};
@@ -58,7 +59,6 @@ use rdf_fusion_model::DFResult;
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
-use datafusion::functions::core::coalesce::CoalesceFunc;
 
 /// The default implementation of the `RdfFusionFunctionRegistry` trait.
 ///

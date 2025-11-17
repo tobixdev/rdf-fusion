@@ -67,13 +67,17 @@ pub struct ObjectIdEncoding {
     object_id_size: ObjectIdSize,
     /// The mapping that is used to encode and decode object ids.
     mapping: Arc<dyn ObjectIdMapping>,
+    /// The data type of the object ids.
+    data_type: DataType,
 }
 
 impl ObjectIdEncoding {
     /// Creates a new [ObjectIdEncoding].
     pub fn new(mapping: Arc<dyn ObjectIdMapping>) -> Self {
+        let size = mapping.object_id_size();
         Self {
-            object_id_size: mapping.object_id_size(),
+            object_id_size: size,
+            data_type: DataType::FixedSizeBinary(size.0),
             mapping,
         }
     }
@@ -96,13 +100,10 @@ impl ObjectIdEncoding {
         scalar: &PlainTermScalar,
     ) -> Result<ObjectIdScalar, ObjectIdMappingError> {
         let object_id = self.mapping.encode_scalar(scalar)?;
-        let bytes = object_id
-            .as_bytes()
-            .try_into()
-            .expect("Currently only 4-byte object ids are supported.");
+        let bytes = object_id.as_bytes().to_vec();
         Ok(ObjectIdScalar::try_new(
             Arc::clone(self),
-            ScalarValue::UInt32(Some(u32::from_be_bytes(bytes))),
+            ScalarValue::FixedSizeBinary(self.object_id_size().0, Some(bytes)),
         )
         .unwrap())
     }
@@ -125,11 +126,11 @@ impl TermEncoding for ObjectIdEncoding {
     type Scalar = ObjectIdScalar;
 
     fn name(&self) -> EncodingName {
-        EncodingName::PlainTerm
+        EncodingName::ObjectId
     }
 
     fn data_type(&self) -> &DataType {
-        &DataType::UInt32
+        &self.data_type
     }
 
     fn try_new_array(self: &Arc<Self>, array: ArrayRef) -> DFResult<Self::Array> {

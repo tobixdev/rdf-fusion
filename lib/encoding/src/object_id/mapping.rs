@@ -1,16 +1,14 @@
-use crate::object_id::{
-    ObjectId, ObjectIdArray, ObjectIdScalar, ObjectIdSize,
-};
+use crate::object_id::{ObjectId, ObjectIdArray, ObjectIdScalar, ObjectIdSize};
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
 use crate::typed_value::{TypedValueArray, TypedValueEncodingRef, TypedValueScalar};
 use crate::{EncodingArray, EncodingScalar};
+use datafusion::arrow::array::FixedSizeBinaryArray;
 use datafusion::arrow::error::ArrowError;
 use datafusion::error::DataFusionError;
 use rdf_fusion_model::{CorruptionError, StorageError};
 use std::error::Error;
 use std::fmt::Debug;
 use std::sync::Arc;
-use datafusion::arrow::array::UInt32Array;
 use thiserror::Error;
 
 /// Indicates an error that occurred while working with the [ObjectIdMapping].
@@ -22,6 +20,8 @@ pub enum ObjectIdMappingError {
     LiteralAsGraphName,
     #[error("An unknown object ID was encountered in an unexpected place.")]
     UnknownObjectId,
+    #[error("Input has an unknown object id encoding.")]
+    UnknownObjectIdEncoding,
     #[error("An error occurred while accessing the object id storage.")]
     Storage(Box<dyn Error + Sync + Send>),
 }
@@ -88,7 +88,7 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     fn encode_array(
         &self,
         array: &PlainTermArray,
-    ) -> Result<UInt32Array, ObjectIdMappingError>;
+    ) -> Result<FixedSizeBinaryArray, ObjectIdMappingError>;
 
     /// Encodes a single `scalar` as an [ObjectIdScalar]. Automatically creates a mapping for a
     /// fresh object id if the term is not yet mapped.

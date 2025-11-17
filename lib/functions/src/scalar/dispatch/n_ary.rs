@@ -1,7 +1,7 @@
 use datafusion::logical_expr::ColumnarValue;
+use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
-use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};

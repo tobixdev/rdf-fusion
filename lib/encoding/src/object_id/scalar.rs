@@ -1,7 +1,7 @@
-use crate::encoding::EncodingScalar;
-use crate::object_id::{ObjectId, ObjectIdCreationError, ObjectIdEncoding};
 use crate::TermEncoding;
-use datafusion::common::{exec_err, ScalarValue};
+use crate::encoding::EncodingScalar;
+use crate::object_id::{ObjectId, ObjectIdEncoding, ObjectIdTooLargeError};
+use datafusion::common::{ScalarValue, exec_err};
 use rdf_fusion_model::DFResult;
 use std::sync::Arc;
 
@@ -38,7 +38,7 @@ impl ObjectIdScalar {
 
     /// Creates a new [ObjectIdScalar] from the given `object_id`.
     pub fn null(encoding: Arc<ObjectIdEncoding>) -> Self {
-        let scalar = ScalarValue::UInt32(None);
+        let scalar = ScalarValue::FixedSizeBinary(encoding.object_id_size().0, None);
         Self::new_unchecked(encoding, scalar)
     }
 
@@ -46,13 +46,11 @@ impl ObjectIdScalar {
     pub fn from_object_id(
         encoding: Arc<ObjectIdEncoding>,
         object_id: ObjectId,
-    ) -> Result<Self, ObjectIdCreationError> {
-        let bytes = object_id
-            .as_bytes()
-            .try_into()
-            .map_err(|_| ObjectIdCreationError)?;
-        let value = u32::from_be_bytes(bytes);
-        let scalar = ScalarValue::UInt32(Some(value));
+    ) -> Result<Self, ObjectIdTooLargeError> {
+        let scalar = ScalarValue::FixedSizeBinary(
+            encoding.object_id_size().0,
+            Some(object_id.slice.to_vec()),
+        );
         Ok(Self::new_unchecked(encoding, scalar))
     }
 }

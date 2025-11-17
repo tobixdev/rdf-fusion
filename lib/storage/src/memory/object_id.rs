@@ -34,6 +34,10 @@ impl EncodedObjectId {
         self.0
     }
 
+    pub fn as_bytes(&self) -> [u8; 4] {
+        self.0.to_be_bytes()
+    }
+
     pub fn next(&self) -> Option<EncodedObjectId> {
         self.0.checked_add(1).map(EncodedObjectId)
     }

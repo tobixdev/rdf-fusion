@@ -150,8 +150,14 @@ pub fn try_rewrite_datafusion_expr(
 
     if let Some(lit) = expr.as_any().downcast_ref::<Literal>() {
         return match lit.value() {
-            ScalarValue::UInt32(Some(value)) => {
-                Some(MemStoragePredicateExpr::ObjectId((*value).into()))
+            ScalarValue::FixedSizeBinary(_, Some(value)) => {
+                let Ok(bytes) = value.as_slice().try_into() else {
+                    // TODO: In the future we can return false, as this is unsatisfiable if the
+                    // lengths do not match.
+                    return None;
+                };
+                let value = u32::from_be_bytes(bytes);
+                Some(MemStoragePredicateExpr::ObjectId(value.into()))
             }
             ScalarValue::Boolean(Some(true)) => Some(MemStoragePredicateExpr::True),
             _ => None,
@@ -466,7 +472,10 @@ mod tests {
     }
 
     fn literal_uint(value: u32) -> Arc<dyn PhysicalExpr> {
-        Arc::new(Literal::new(ScalarValue::UInt32(Some(value))))
+        Arc::new(Literal::new(ScalarValue::FixedSizeBinary(
+            4,
+            Some(value.to_be_bytes().to_vec()),
+        )))
     }
 
     fn literal_bool(value: bool) -> Arc<dyn PhysicalExpr> {

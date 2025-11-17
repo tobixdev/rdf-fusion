@@ -4,7 +4,7 @@ mod mapping;
 mod scalar;
 
 pub use array::*;
-use datafusion::arrow::array::{Array, UInt32Array};
+use datafusion::arrow::array::{Array, FixedSizeBinaryArray};
 pub use encoding::*;
 pub use mapping::*;
 pub use scalar::*;
@@ -20,33 +20,33 @@ pub struct ObjectIdSize(i32);
 
 #[derive(Error, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[error("Invalid object id size.")]
-pub struct ObjectIdCreationError;
+pub struct ObjectIdTooLargeError;
 
 impl TryFrom<i32> for ObjectIdSize {
-    type Error = ObjectIdCreationError;
+    type Error = ObjectIdTooLargeError;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         if value > 0 {
             Ok(Self(value))
         } else {
-            Err(ObjectIdCreationError)
+            Err(ObjectIdTooLargeError)
         }
     }
 }
 
-impl Into<i32> for ObjectIdSize {
-    fn into(self) -> i32 {
-        self.0
+impl From<ObjectIdSize> for i32 {
+    fn from(value: ObjectIdSize) -> Self {
+        value.0
     }
 }
 
 impl TryFrom<usize> for ObjectIdSize {
-    type Error = ObjectIdCreationError;
+    type Error = ObjectIdTooLargeError;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         i32::try_from(value)
             .map(Self)
-            .map_err(|_| ObjectIdCreationError)
+            .map_err(|_| ObjectIdTooLargeError)
     }
 }
 
@@ -68,22 +68,29 @@ pub struct ObjectId {
 
 impl ObjectId {
     /// Creates a new [`ObjectId`].
-    pub fn try_new(bytes: impl Into<Box<[u8]>>) -> Result<Self, ObjectIdCreationError> {
+    pub fn try_new(bytes: impl Into<Box<[u8]>>) -> Result<Self, ObjectIdTooLargeError> {
         let bytes = bytes.into();
-        let len = i32::try_from(bytes.len()).map_err(|_| ObjectIdCreationError)?;
+        let len = i32::try_from(bytes.len()).map_err(|_| ObjectIdTooLargeError)?;
         Ok(Self { len, slice: bytes })
     }
 
     /// Creates a new [`ObjectId`].
-    pub fn try_new_from_array(array: &UInt32Array, index: usize) -> Option<Self> {
-        array.is_valid(index).then(|| ObjectId {
-            len: 4,
-            slice: Box::new(array.value(index).to_be_bytes()),
+    pub fn try_new_from_array(
+        array: &FixedSizeBinaryArray,
+        index: usize,
+    ) -> Option<Self> {
+        if !array.is_valid(index) {
+            return None;
+        }
+        let value = Vec::from(array.value(index));
+        Some(ObjectId {
+            len: array.value_length(),
+            slice: value.into_boxed_slice(),
         })
     }
 
     /// Returns the length of the object id in bytes.
-    pub fn len(&self) -> i32 {
+    pub fn size(&self) -> i32 {
         self.len
     }
 
