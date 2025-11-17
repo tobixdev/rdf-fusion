@@ -1,5 +1,5 @@
 use crate::object_id::{
-    ObjectIdArray, ObjectIdEncodingRef, ObjectIdScalar, ObjectIdSize,
+    ObjectId, ObjectIdArray, ObjectIdScalar, ObjectIdSize,
 };
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
 use crate::typed_value::{TypedValueArray, TypedValueEncodingRef, TypedValueScalar};
@@ -10,6 +10,7 @@ use rdf_fusion_model::{CorruptionError, StorageError};
 use std::error::Error;
 use std::fmt::Debug;
 use std::sync::Arc;
+use datafusion::arrow::array::UInt32Array;
 use thiserror::Error;
 
 /// Indicates an error that occurred while working with the [ObjectIdMapping].
@@ -79,30 +80,29 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     /// functionality.
     fn try_get_object_id(
         &self,
-        encoding: &ObjectIdEncodingRef,
         scalar: &PlainTermScalar,
-    ) -> Result<Option<ObjectIdScalar>, ObjectIdMappingError>;
+    ) -> Result<Option<ObjectId>, ObjectIdMappingError>;
 
-    /// Encodings the entire `array` as an [ObjectIdArray]. Automatically creates a mapping for a
+    /// Encodes the entire `array` as an [ObjectIdArray]. Automatically creates a mapping for a
     /// fresh object id if a term is not yet mapped.
     fn encode_array(
         &self,
-        encoding: &ObjectIdEncodingRef,
         array: &PlainTermArray,
-    ) -> Result<ObjectIdArray, ObjectIdMappingError>;
+    ) -> Result<UInt32Array, ObjectIdMappingError>;
 
     /// Encodes a single `scalar` as an [ObjectIdScalar]. Automatically creates a mapping for a
     /// fresh object id if the term is not yet mapped.
     fn encode_scalar(
         &self,
-        encoding: &ObjectIdEncodingRef,
         scalar: &PlainTermScalar,
-    ) -> Result<ObjectIdScalar, ObjectIdMappingError> {
+    ) -> Result<ObjectId, ObjectIdMappingError> {
         let array = scalar
             .to_array(1)
             .expect("Data type is supported for to_array");
-        let encoded = self.encode_array(encoding, &array)?;
-        Ok(encoded.try_as_scalar(0).expect("Row 0 always exists"))
+        let encoded = self.encode_array(&array)?;
+        let object_id = ObjectId::try_new_from_array(&encoded, 0)
+            .expect("Encoding does not return null values");
+        Ok(object_id)
     }
 
     /// Decodes the entire `array` as a [PlainTermArray].

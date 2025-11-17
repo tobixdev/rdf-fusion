@@ -2,7 +2,7 @@
 
 use crate::index::EncodedTerm;
 use datafusion::parquet::data_type::AsBytes;
-use rdf_fusion_model::ObjectId;
+use rdf_fusion_encoding::object_id::ObjectId;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use thiserror::Error;
@@ -27,7 +27,7 @@ impl EncodedObjectId {
     pub const MAX: EncodedObjectId = EncodedObjectId(u32::MAX);
 
     pub fn as_object_id(&self) -> ObjectId {
-        ObjectId::from(self.0)
+        ObjectId::try_new(self.0.to_be_bytes()).expect("Object ID valid")
     }
 
     pub fn as_u32(&self) -> u32 {

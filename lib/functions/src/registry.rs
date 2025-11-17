@@ -28,7 +28,7 @@ use crate::scalar::dates_and_times::SecondsSparqlOp;
 use crate::scalar::dates_and_times::TimezoneSparqlOp;
 use crate::scalar::dates_and_times::YearSparqlOp;
 use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
-use crate::scalar::functional_form::{BoundSparqlOp, CoalesceSparqlOp, IfSparqlOp};
+use crate::scalar::functional_form::{BoundSparqlOp, IfSparqlOp};
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
 use crate::scalar::numeric::{
@@ -49,8 +49,8 @@ use crate::scalar::terms::{
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
 use datafusion::common::plan_datafusion_err;
-use datafusion::execution::FunctionRegistry;
 use datafusion::execution::registry::MemoryFunctionRegistry;
+use datafusion::execution::FunctionRegistry;
 use datafusion::logical_expr::{AggregateUDF, ScalarUDF, TypeSignature};
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
 use rdf_fusion_extensions::functions::{FunctionName, RdfFusionFunctionRegistry};
@@ -58,6 +58,7 @@ use rdf_fusion_model::DFResult;
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
+use datafusion::functions::core::coalesce::CoalesceFunc;
 
 /// The default implementation of the `RdfFusionFunctionRegistry` trait.
 ///
@@ -240,7 +241,7 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         create_scalar_udf::<IsNumericSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<RegexSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<BoundSparqlOp>(registry.encodings.clone()),
-        create_scalar_udf::<CoalesceSparqlOp>(registry.encodings.clone()),
+        ScalarUDF::new_from_impl(CoalesceFunc::new()),
         create_scalar_udf::<IfSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<EqualSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<GreaterThanSparqlOp>(registry.encodings.clone()),

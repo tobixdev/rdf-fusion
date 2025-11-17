@@ -13,7 +13,6 @@
 
 mod blank_node_mode;
 mod error;
-mod object_id;
 pub mod quads;
 mod rdf;
 mod typed_value;
@@ -22,7 +21,6 @@ mod xsd;
 
 pub use blank_node_mode::BlankNodeMatchingMode;
 pub use error::*;
-pub use object_id::ObjectId;
 pub use rdf::*;
 pub use typed_value::*;
 pub use xsd::*;
@@ -30,10 +28,10 @@ pub use xsd::*;
 // Re-export some oxrdf types.
 pub use oxiri::Iri;
 pub use oxrdf::{
-    BlankNode, BlankNodeRef, Dataset, Graph, GraphName, GraphNameRef, IriParseError,
-    Literal, LiteralRef, NamedNode, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef,
-    Quad, QuadRef, Term, TermParseError, TermRef, Triple, TripleRef, Variable,
-    VariableNameParseError, VariableRef, dataset,
+    dataset, BlankNode, BlankNodeRef, Dataset, Graph, GraphName, GraphNameRef,
+    IriParseError, Literal, LiteralRef, NamedNode, NamedNodeRef, NamedOrBlankNode,
+    NamedOrBlankNodeRef, Quad, QuadRef, Term, TermParseError, TermRef, Triple, TripleRef,
+    Variable, VariableNameParseError, VariableRef,
 };
 pub use spargebra::algebra::PropertyPathExpression;
 pub use spargebra::term::{GroundTerm, NamedNodePattern, TermPattern, TriplePattern};

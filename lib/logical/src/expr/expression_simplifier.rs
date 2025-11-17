@@ -1,10 +1,10 @@
 use crate::expr::scalars::try_extract_scalar_term;
 use crate::expr::unwrap_encoding_changes;
 use datafusion::common::tree_node::{Transformed, TreeNode};
-use datafusion::common::{DFSchema, DFSchemaRef, plan_datafusion_err, plan_err};
+use datafusion::common::{plan_datafusion_err, plan_err, DFSchema, DFSchemaRef};
 use datafusion::logical_expr::expr::ScalarFunction;
 use datafusion::logical_expr::utils::merge_schema;
-use datafusion::logical_expr::{Expr, ExprSchemable, LogicalPlan, lit};
+use datafusion::logical_expr::{lit, Expr, ExprSchemable, LogicalPlan};
 use datafusion::optimizer::utils::NamePreserver;
 use datafusion::optimizer::{ApplyOrder, OptimizerConfig, OptimizerRule};
 use rdf_fusion_encoding::object_id::ObjectIdMappingError;
@@ -221,7 +221,7 @@ fn replace_equality_with_same_term(
             };
 
             let scalar = DefaultPlainTermEncoder.encode_term(Ok(term.as_ref()))?;
-            match encoding.mapping().encode_scalar(encoding, &scalar) {
+            match encoding.encode_scalar(&scalar) {
                 Ok(scalar) => scalar.into_scalar_value(),
                 Err(ObjectIdMappingError::UnknownObjectId) => {
                     return Ok(Transformed::yes(lit(false)));
@@ -289,7 +289,7 @@ mod tests {
     use crate::RdfFusionExprBuilderContext;
     use datafusion::arrow::datatypes::{Field, Schema};
     use datafusion::common::{DFSchema, DFSchemaRef};
-    use datafusion::logical_expr::{EmptyRelation, LogicalPlan, LogicalPlanBuilder, col};
+    use datafusion::logical_expr::{col, EmptyRelation, LogicalPlan, LogicalPlanBuilder};
     use datafusion::optimizer::OptimizerContext;
     use insta::assert_snapshot;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
@@ -298,8 +298,8 @@ mod tests {
     use rdf_fusion_encoding::{
         EncodingName, QuadStorageEncoding, RdfFusionEncodings, TermEncoding,
     };
-    use rdf_fusion_extensions::RdfFusionContextView;
     use rdf_fusion_extensions::functions::FunctionName;
+    use rdf_fusion_extensions::RdfFusionContextView;
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
     use rdf_fusion_model::{BlankNodeRef, Literal, NamedNodeRef, TermRef, VariableRef};
 
