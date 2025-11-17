@@ -109,7 +109,13 @@ impl QuadIndex for MemQuadIndex {
             let potent = (instructions.inner().len() - i) * 2;
             let reward = match predicate {
                 MemIndexPruningPredicate::EqualTo(_) => 2,
-                MemIndexPruningPredicate::Between(_, _) => 1,
+                MemIndexPruningPredicate::Between(left, right) => {
+                    if left == right {
+                        2
+                    } else {
+                        1
+                    }
+                }
             };
 
             score += reward << potent;

@@ -3715,6 +3715,7 @@ dependencies = [
  "itertools 0.14.0",
  "rdf-fusion-encoding",
  "rdf-fusion-extensions",
+ "rdf-fusion-functions",
  "rdf-fusion-logical",
  "rdf-fusion-model",
  "rustc-hash",
