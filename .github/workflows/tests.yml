@@ -25,9 +25,9 @@ jobs:
         uses: ./.github/actions/cleanup-disk-space
 
       - name: Setup rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: moonrepo/setup-rust@v1
         with:
-          toolchain: 1.91
+          channel: 1.91
 
       - name: Install just
         uses: extractions/setup-just@v3
