@@ -5,7 +5,7 @@ use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArrayElementBuilder,
+    TypedValueArrayElementBuilder, TypedValueEncoding,
 };
 use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoding};
 use rdf_fusion_extensions::functions::{
@@ -22,11 +22,15 @@ enum BinaryScenario {
 }
 
 impl BinaryScenario {
-    fn create_args(&self) -> Vec<ColumnarValue> {
+    fn create_args(&self, encodings: &RdfFusionEncodings) -> Vec<ColumnarValue> {
         match self {
             BinaryScenario::AllInt => {
-                let mut left_builder = TypedValueArrayElementBuilder::default();
-                let mut right_builder = TypedValueArrayElementBuilder::default();
+                let mut left_builder = TypedValueArrayElementBuilder::new(Arc::clone(
+                    encodings.typed_value(),
+                ));
+                let mut right_builder = TypedValueArrayElementBuilder::new(Arc::clone(
+                    encodings.typed_value(),
+                ));
                 for i in 0..8192 {
                     match i % 3 {
                         1 => {
@@ -55,12 +59,12 @@ impl BinaryScenario {
 //TODO: write run for BuiltinName::SameTerm; add other scenarios
 fn bench_all_binary(c: &mut Criterion) {
     let encodings = RdfFusionEncodings::new(
-        PLAIN_TERM_ENCODING,
-        TYPED_VALUE_ENCODING,
+        Arc::clone(&PLAIN_TERM_ENCODING),
+        Arc::new(TypedValueEncoding::default()),
         None,
-        SORTABLE_TERM_ENCODING,
+        Arc::clone(&SORTABLE_TERM_ENCODING),
     );
-    let registry = DefaultRdfFusionFunctionRegistry::new(encodings);
+    let registry = DefaultRdfFusionFunctionRegistry::new(encodings.clone());
 
     let runs = HashMap::from([
         (BuiltinName::Equal, vec![BinaryScenario::AllInt]),
@@ -74,7 +78,7 @@ fn bench_all_binary(c: &mut Criterion) {
         let implementation = registry.udf(&FunctionName::Builtin(my_built_in)).unwrap();
 
         for scenario in scenarios {
-            bench_binary_function(c, &implementation, scenario);
+            bench_binary_function(c, &encodings, &implementation, scenario);
         }
     }
 }
@@ -82,18 +86,28 @@ fn bench_all_binary(c: &mut Criterion) {
 /// Runs a single `scenario` against the `function` to bench.
 fn bench_binary_function(
     c: &mut Criterion,
+    encodings: &RdfFusionEncodings,
     function: &ScalarUDF,
     scenario: BinaryScenario,
 ) {
-    let args = scenario.create_args();
+    let args = scenario.create_args(encodings);
     let options = Arc::new(ConfigOptions::default());
 
-    let input_field_left =
-        Arc::new(Field::new("left", TYPED_VALUE_ENCODING.data_type(), true));
-    let input_field_right =
-        Arc::new(Field::new("right", TYPED_VALUE_ENCODING.data_type(), true));
-    let return_field =
-        Arc::new(Field::new("result", TYPED_VALUE_ENCODING.data_type(), true));
+    let input_field_left = Arc::new(Field::new(
+        "left",
+        encodings.typed_value().data_type().clone(),
+        true,
+    ));
+    let input_field_right = Arc::new(Field::new(
+        "right",
+        encodings.typed_value().data_type().clone(),
+        true,
+    ));
+    let return_field = Arc::new(Field::new(
+        "result",
+        encodings.typed_value().data_type().clone(),
+        true,
+    ));
 
     /* code used only for testing purposes (remove before official launch)
     // determine correct return type of UDF
