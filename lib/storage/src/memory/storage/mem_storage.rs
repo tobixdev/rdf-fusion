@@ -30,6 +30,9 @@ pub struct MemQuadStorage {
 
 impl MemQuadStorage {
     /// Creates a new [MemQuadStorage] with the given `object_id_encoding`.
+    ///
+    /// This method expects that the given `object_id_mapping` is the same as the mapping in
+    /// `object_id_encoding`. We are planning on removing this restriction in the future.
     pub fn new(
         object_id_mapping: Arc<MemObjectIdMapping>,
         object_id_encoding: ObjectIdEncodingRef,

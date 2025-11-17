@@ -177,6 +177,7 @@ mod test {
     use datafusion::physical_plan::{PhysicalExpr, displayable};
     use datafusion::scalar::ScalarValue;
     use insta::assert_snapshot;
+    use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
     use rdf_fusion_logical::ActiveGraph;
     use rdf_fusion_model::{
         BlankNodeMatchingMode, NamedNode, NamedNodePattern, NamedNodeRef, TermPattern,
@@ -243,12 +244,15 @@ mod test {
             object: TermPattern::Variable(Variable::new_unchecked("object")),
         };
 
-        let object_id_mapping = MemObjectIdMapping::default();
+        let object_id_mapping = Arc::new(MemObjectIdMapping::default());
         object_id_mapping.encode_term_intern(TermRef::NamedNode(
             NamedNodeRef::new_unchecked("http://example.com/test"),
         ));
 
-        let index = MemQuadStorage::new(Arc::new(object_id_mapping), 10);
+        let encoding = Arc::new(ObjectIdEncoding::new(
+            Arc::clone(&object_id_mapping) as Arc<dyn ObjectIdMapping>
+        ));
+        let index = MemQuadStorage::new(object_id_mapping, encoding, 10);
         let planned_scan = index
             .snapshot()
             .await

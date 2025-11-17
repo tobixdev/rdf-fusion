@@ -151,12 +151,15 @@ mod tests {
     use datafusion::logical_expr::col;
     use insta::assert_snapshot;
     use rdf_fusion_encoding::EncodingArray;
+    use rdf_fusion_encoding::typed_value::TypedValueEncoding;
     use rdf_fusion_extensions::functions::BuiltinName;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_str_typed_value() {
-        let test_vector = create_mixed_test_vector();
-        let udf = create_default_builtin_udf(BuiltinName::Str);
+        let encoding = Arc::new(TypedValueEncoding::default());
+        let test_vector = create_mixed_test_vector(&encoding);
+        let udf = create_default_builtin_udf(encoding, BuiltinName::Str);
 
         let input = dataframe!(
             "input" => test_vector,

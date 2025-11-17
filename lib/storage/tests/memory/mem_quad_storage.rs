@@ -2,6 +2,7 @@ use crate::{example_quad, example_quad_in_graph};
 use datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet};
 use futures::StreamExt;
 use insta::assert_debug_snapshot;
+use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
 use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_logical::ActiveGraph;
 use rdf_fusion_model::BlankNodeMatchingMode;
@@ -266,6 +267,9 @@ async fn validate_storage() {
 }
 
 fn create_storage() -> MemQuadStorage {
-    let object_id_encoding = MemObjectIdMapping::new();
-    MemQuadStorage::new(Arc::new(object_id_encoding), 10)
+    let mapping = Arc::new(MemObjectIdMapping::new());
+    let encoding = Arc::new(ObjectIdEncoding::new(
+        Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
+    ));
+    MemQuadStorage::new(mapping, encoding, 10)
 }

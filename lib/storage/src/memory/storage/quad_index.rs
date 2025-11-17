@@ -188,11 +188,12 @@ impl NamedGraphStorage for HashSet<EncodedObjectId> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::memory::MemObjectIdMapping;
     use crate::memory::object_id::EncodedObjectId;
     use crate::memory::storage::scan_instructions::{
         MemIndexScanInstruction, MemIndexScanInstructions, MemIndexScanPredicate,
     };
-    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+    use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
     use std::sync::Arc;
 
     #[test]
@@ -308,8 +309,12 @@ mod tests {
     }
 
     fn make_index() -> MemQuadIndex {
+        let mapping = Arc::new(MemObjectIdMapping::new());
+        let object_id_encoding = Arc::new(ObjectIdEncoding::new(
+            Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
+        ));
         let config = MemIndexConfiguration {
-            object_id_encoding: ObjectIdEncoding::new(4),
+            object_id_encoding,
             batch_size: 128,
             components: IndexComponents::GSPO,
         };

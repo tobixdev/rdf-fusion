@@ -391,7 +391,7 @@ mod tests {
     use insta::assert_snapshot;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+    use rdf_fusion_encoding::typed_value::TypedValueEncoding;
     use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings, TermEncoding};
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
     use std::sync::Arc;
@@ -444,10 +444,10 @@ mod tests {
 
     fn make_test_context() -> RdfFusionContextView {
         let encodings = RdfFusionEncodings::new(
-            PLAIN_TERM_ENCODING,
-            TYPED_VALUE_ENCODING,
+            Arc::clone(&PLAIN_TERM_ENCODING),
+            Arc::new(TypedValueEncoding::default()),
             None,
-            SORTABLE_TERM_ENCODING,
+            Arc::clone(&SORTABLE_TERM_ENCODING),
         );
         let registry = Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
         RdfFusionContextView::new(registry, encodings, QuadStorageEncoding::PlainTerm)
@@ -457,7 +457,11 @@ mod tests {
         let schema = DFSchema::new_with_metadata(
             vec![(
                 None,
-                Arc::new(Field::new(name, PLAIN_TERM_ENCODING.data_type(), false)),
+                Arc::new(Field::new(
+                    name,
+                    PLAIN_TERM_ENCODING.data_type().clone(),
+                    false,
+                )),
             )],
             Default::default(),
         )

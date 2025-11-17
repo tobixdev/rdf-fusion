@@ -80,9 +80,9 @@ pub struct ObjectIdEncoding {
 
 impl ObjectIdEncoding {
     /// Creates a new [ObjectIdEncoding].
-    pub fn new(object_id_size: ObjectIdSize, mapping: Arc<dyn ObjectIdMapping>) -> Self {
+    pub fn new(mapping: Arc<dyn ObjectIdMapping>) -> Self {
         Self {
-            object_id_size,
+            object_id_size: mapping.object_id_size(),
             mapping,
         }
     }

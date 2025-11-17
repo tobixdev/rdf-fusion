@@ -104,8 +104,7 @@ impl Default for Store {
 
         let object_id_mapping = Arc::new(MemObjectIdMapping::new());
         let encoding = Arc::new(ObjectIdEncoding::new(
-            object_id_mapping.object_id_size(),
-            Arc::clone(&object_id_mapping) as Arc<dyn ObjectIdMapping>,
+            Arc::clone(&object_id_mapping) as Arc<dyn ObjectIdMapping>
         ));
         let storage = MemQuadStorage::new(object_id_mapping, encoding, 8192);
         let engine = RdfFusionContext::new(
@@ -131,8 +130,7 @@ impl Store {
     ) -> Store {
         let mapping = Arc::new(MemObjectIdMapping::new());
         let encoding = Arc::new(ObjectIdEncoding::new(
-            mapping.object_id_size(),
-            Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>,
+            Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
         ));
         let storage = MemQuadStorage::new(mapping, encoding, config.batch_size());
         let context = RdfFusionContext::new(config, runtime_env, Arc::new(storage));
