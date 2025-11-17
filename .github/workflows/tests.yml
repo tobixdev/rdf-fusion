@@ -27,7 +27,7 @@ jobs:
       - name: Setup rust toolchain
         uses: moonrepo/setup-rust@v1
         with:
-          channel: 1.91.0
+          channel: 1.91
 
       - name: Install just
         uses: extractions/setup-just@v3
