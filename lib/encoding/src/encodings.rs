@@ -44,22 +44,22 @@ impl RdfFusionEncodings {
         }
     }
 
-    /// Provides a reference to the used [PlainTermEncoding].
+    /// Provides a reference to the used [`PlainTermEncodingRef`].
     pub fn plain_term(&self) -> &PlainTermEncodingRef {
         &self.plain_term
     }
 
-    /// Provides a reference to the used [TypedValueEncoding].
+    /// Provides a reference to the used [`TypedValueEncodingRef`].
     pub fn typed_value(&self) -> &TypedValueEncodingRef {
         &self.typed_value
     }
 
-    /// Provides a reference to the used [ObjectIdEncoding].
+    /// Provides a reference to the used [`ObjectIdEncodingRef`].
     pub fn object_id(&self) -> Option<&ObjectIdEncodingRef> {
         self.object_id.as_ref()
     }
 
-    /// Provides a reference to the used [SortableTermEncoding].
+    /// Provides a reference to the used [`SortableTermEncodingRef`].
     pub fn sortable_term(&self) -> &SortableTermEncodingRef {
         &self.sortable_term
     }

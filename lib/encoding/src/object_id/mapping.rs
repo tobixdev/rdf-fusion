@@ -51,7 +51,7 @@ impl From<ObjectIdMappingError> for StorageError {
 pub type ObjectIdMappingRef = Arc<dyn ObjectIdMapping>;
 
 /// The object id mapping is responsible for mapping between object ids and RDF terms in the
-/// [ObjectIdEncoding].
+/// [`ObjectIdEncoding`](crate::object_id::ObjectIdEncoding).
 ///
 /// The mapping between the object id and the RDF term is bijective. In other words, each distinct
 /// RDF term maps to exactly one object id, while each object id maps to exactly one RDF term. As
