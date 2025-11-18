@@ -671,14 +671,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_collect_relevant_batches_dynamic_filters_choose_better_index() {
+        let mapping = Arc::new(MemObjectIdMapping::new());
+        let object_id_encoding = Arc::new(ObjectIdEncoding::new(
+            Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
+        ));
+
         // Create an index and insert test data
         let gspo_index = MemQuadIndex::new(MemIndexConfiguration {
-            object_id_encoding: ObjectIdEncoding::new(4),
+            object_id_encoding: Arc::clone(&object_id_encoding),
             batch_size: 100,
             components: IndexComponents::GSPO,
         });
         let gosp_index = MemQuadIndex::new(MemIndexConfiguration {
-            object_id_encoding: ObjectIdEncoding::new(4),
+            object_id_encoding,
             batch_size: 100,
             components: IndexComponents::GOSP,
         });
