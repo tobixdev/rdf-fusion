@@ -81,7 +81,7 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
         scalar: &PlainTermScalar,
     ) -> Result<Option<ObjectId>, ObjectIdMappingError>;
 
-    /// Encodes the entire `array` as an [ObjectIdArray]. Automatically creates a mapping for a
+    /// Encodes the entire `array` as an [`UInt32Array`]. Automatically creates a mapping for a
     /// fresh object id if a term is not yet mapped.
     fn encode_array(
         &self,
