@@ -1,26 +1,17 @@
 use crate::EncodingName;
 use crate::encoding::TermEncoding;
 use crate::object_id::{
-    ObjectIdArray, ObjectIdMapping, ObjectIdMappingRef, ObjectIdScalar,
+    ObjectIdArray, ObjectIdMapping, ObjectIdMappingError, ObjectIdMappingRef,
+    ObjectIdScalar, ObjectIdSize,
 };
+use crate::plain_term::{PlainTermArray, PlainTermScalar};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::ScalarValue;
 use rdf_fusion_model::DFResult;
 use std::clone::Clone;
-use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-
-/// The size of an object id in bytes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ObjectIdSize(pub usize);
-
-impl Display for ObjectIdSize {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} Bytes", self.0)
-    }
-}
 
 /// A cheaply cloneable reference to a [`ObjectIdEncoding`].
 pub type ObjectIdEncodingRef = Arc<ObjectIdEncoding>;
@@ -95,6 +86,37 @@ impl ObjectIdEncoding {
     /// Returns the mapping that is used to encode and decode object ids.
     pub fn mapping(&self) -> &ObjectIdMappingRef {
         &self.mapping
+    }
+
+    /// Encodes a [`PlainTermScalar`] into an [`ObjectIdScalar`].
+    ///
+    /// See also [`ObjectIdMapping::encode_scalar`].
+    pub fn encode_scalar(
+        self: &Arc<Self>,
+        scalar: &PlainTermScalar,
+    ) -> Result<ObjectIdScalar, ObjectIdMappingError> {
+        let object_id = self.mapping.encode_scalar(scalar)?;
+        let bytes = object_id
+            .as_bytes()
+            .try_into()
+            .expect("Currently only 4-byte object ids are supported.");
+        Ok(ObjectIdScalar::try_new(
+            Arc::clone(self),
+            ScalarValue::UInt32(Some(u32::from_be_bytes(bytes))),
+        )
+        .unwrap())
+    }
+
+    /// Encodes a [`PlainTermArray`] into an [`ObjectIdArray`].
+    ///
+    /// See also [`ObjectIdMapping::encode_array`].
+    pub fn encode_array(
+        self: &Arc<Self>,
+        array: &PlainTermArray,
+    ) -> Result<ObjectIdArray, ObjectIdMappingError> {
+        self.mapping.encode_array(array).map(|oids| {
+            ObjectIdArray::try_new(Arc::clone(self), Arc::new(oids) as ArrayRef).unwrap()
+        })
     }
 }
 

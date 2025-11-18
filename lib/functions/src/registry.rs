@@ -28,7 +28,7 @@ use crate::scalar::dates_and_times::SecondsSparqlOp;
 use crate::scalar::dates_and_times::TimezoneSparqlOp;
 use crate::scalar::dates_and_times::YearSparqlOp;
 use crate::scalar::dates_and_times::{DaySparqlOp, TzSparqlOp};
-use crate::scalar::functional_form::{BoundSparqlOp, CoalesceSparqlOp, IfSparqlOp};
+use crate::scalar::functional_form::{BoundSparqlOp, IfSparqlOp};
 use crate::scalar::numeric::RoundSparqlOp;
 use crate::scalar::numeric::{AbsSparqlOp, UnaryMinusSparqlOp, UnaryPlusSparqlOp};
 use crate::scalar::numeric::{
@@ -47,13 +47,18 @@ use crate::scalar::terms::{
     IsLiteralSparqlOp, IsNumericSparqlOp, LangSparqlOp, StrDtSparqlOp, StrLangSparqlOp,
     StrSparqlOp, UuidSparqlOp,
 };
-use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpAdapter};
+use crate::scalar::{RenamedScalarUdfImpl, ScalarSparqlOp, ScalarSparqlOpAdapter};
 use datafusion::common::plan_datafusion_err;
 use datafusion::execution::FunctionRegistry;
 use datafusion::execution::registry::MemoryFunctionRegistry;
-use datafusion::logical_expr::{AggregateUDF, ScalarUDF, TypeSignature};
+use datafusion::functions::core::coalesce::CoalesceFunc;
+use datafusion::logical_expr::{
+    AggregateUDF, ScalarUDF, ScalarUDFImpl, Signature, TypeSignature, Volatility,
+};
 use rdf_fusion_encoding::{EncodingName, RdfFusionEncodings};
-use rdf_fusion_extensions::functions::{FunctionName, RdfFusionFunctionRegistry};
+use rdf_fusion_extensions::functions::{
+    BuiltinName, FunctionName, RdfFusionFunctionRegistry,
+};
 use rdf_fusion_model::DFResult;
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Debug;
@@ -119,7 +124,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
             .udf_encodings
             .get(&function_name.to_string())
             .cloned()
-            .ok_or_else(|| plan_datafusion_err!("Function {function_name} not found"))
+            .ok_or_else(|| plan_datafusion_err!("Function '{function_name}' not found"))
     }
 
     fn udf(&self, function_name: &FunctionName) -> DFResult<Arc<ScalarUDF>> {
@@ -185,6 +190,22 @@ fn supported_encodings(
     }
 }
 
+fn renamed<TSparqlOp>(
+    name: &FunctionName,
+    udf_impl: TSparqlOp,
+    signature_override: Option<Signature>,
+) -> ScalarUDF
+where
+    TSparqlOp: ScalarUDFImpl + 'static,
+{
+    let renamed = RenamedScalarUdfImpl::new(name.to_string(), udf_impl);
+    let renamed = match signature_override {
+        None => renamed,
+        Some(signature_override) => renamed.with_signature(signature_override),
+    };
+    ScalarUDF::new_from_impl(renamed)
+}
+
 fn create_scalar_udf<TSparqlOp>(encodings: RdfFusionEncodings) -> ScalarUDF
 where
     TSparqlOp: ScalarSparqlOp + 'static + Default,
@@ -240,7 +261,19 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) {
         create_scalar_udf::<IsNumericSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<RegexSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<BoundSparqlOp>(registry.encodings.clone()),
-        create_scalar_udf::<CoalesceSparqlOp>(registry.encodings.clone()),
+        renamed(
+            &FunctionName::Builtin(BuiltinName::Coalesce),
+            CoalesceFunc::new(),
+            Some(Signature::variadic(
+                registry.encodings.get_data_types(&[
+                    EncodingName::PlainTerm,
+                    EncodingName::ObjectId,
+                    EncodingName::TypedValue,
+                    EncodingName::Sortable,
+                ]),
+                Volatility::Immutable,
+            )),
+        ),
         create_scalar_udf::<IfSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<EqualSparqlOp>(registry.encodings.clone()),
         create_scalar_udf::<GreaterThanSparqlOp>(registry.encodings.clone()),

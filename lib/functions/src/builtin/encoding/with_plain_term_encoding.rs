@@ -70,7 +70,7 @@ impl WithPlainTermEncoding {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
                 Some(encoding) => {
                     let array = encoding.try_new_array(array)?;
-                    let decoded = encoding.mapping().decode_array(&array)?;
+                    let decoded = encoding.mapping().decode_array(array.object_ids())?;
                     Ok(ColumnarValue::Array(decoded.into_array_ref()))
                 }
             },
