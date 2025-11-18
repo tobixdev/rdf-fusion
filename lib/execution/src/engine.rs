@@ -14,7 +14,7 @@ use datafusion::logical_expr::AggregateUDF;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
 use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_extensions::functions::{
@@ -52,19 +52,15 @@ impl RdfFusionContext {
         runtime_env: Arc<RuntimeEnv>,
         storage: Arc<dyn QuadStorage>,
     ) -> Self {
-        // TODO make a builder
         let object_id_encoding = match storage.encoding() {
             QuadStorageEncoding::PlainTerm => None,
-            QuadStorageEncoding::ObjectId(_) => {
-                assert!(storage.object_id_mapping().is_some());
-                storage.object_id_mapping()
-            }
+            QuadStorageEncoding::ObjectId(encoding) => Some(Arc::clone(&encoding)),
         };
         let encodings = RdfFusionEncodings::new(
-            PLAIN_TERM_ENCODING,
-            TYPED_VALUE_ENCODING,
+            Arc::clone(&PLAIN_TERM_ENCODING),
+            Arc::new(TypedValueEncoding::new()),
             object_id_encoding,
-            SORTABLE_TERM_ENCODING,
+            Arc::clone(&SORTABLE_TERM_ENCODING),
         );
 
         let registry: Arc<dyn RdfFusionFunctionRegistry> =

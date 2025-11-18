@@ -6,7 +6,7 @@ use datafusion::logical_expr::{
     TypeSignature, Volatility,
 };
 use rdf_fusion_encoding::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArrayBuilder, TypedValueEncodingField,
+    TypedValueArrayBuilder, TypedValueEncodingField, TypedValueEncodingRef,
 };
 use rdf_fusion_encoding::{EncodingArray, TermEncoding};
 use rdf_fusion_extensions::functions::BuiltinName;
@@ -15,20 +15,22 @@ use std::any::Any;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-pub fn native_boolean_as_term() -> ScalarUDF {
-    let udf_impl = NativeBooleanAsTerm::new();
+pub fn native_boolean_as_term(encoding: TypedValueEncodingRef) -> ScalarUDF {
+    let udf_impl = NativeBooleanAsTerm::new(encoding);
     ScalarUDF::new_from_impl(udf_impl)
 }
 
 #[derive(Debug, Eq)]
 struct NativeBooleanAsTerm {
+    encoding: TypedValueEncodingRef,
     name: String,
     signature: Signature,
 }
 
 impl NativeBooleanAsTerm {
-    pub fn new() -> Self {
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
         Self {
+            encoding,
             name: BuiltinName::NativeBooleanAsTerm.to_string(),
             signature: Signature::new(
                 TypeSignature::Exact(vec![DataType::Boolean]),
@@ -52,7 +54,7 @@ impl ScalarUDFImpl for NativeBooleanAsTerm {
     }
 
     fn return_type(&self, _arg_types: &[DataType]) -> DFResult<DataType> {
-        Ok(TYPED_VALUE_ENCODING.data_type())
+        Ok(self.encoding.data_type().clone())
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> DFResult<ColumnarValue> {
@@ -71,6 +73,7 @@ impl ScalarUDFImpl for NativeBooleanAsTerm {
         let result = match bool_arg.nulls() {
             None => {
                 let builder = TypedValueArrayBuilder::new_with_single_type(
+                    Arc::clone(&self.encoding),
                     TypedValueEncodingField::Boolean.into(),
                     bool_arg.len(),
                 )?;
@@ -82,6 +85,7 @@ impl ScalarUDFImpl for NativeBooleanAsTerm {
                 let values = BooleanArray::from(values);
 
                 let builder = TypedValueArrayBuilder::new_with_nullable_single_type(
+                    Arc::clone(&self.encoding),
                     TypedValueEncodingField::Boolean.into(),
                     nulls,
                 )?;
@@ -113,14 +117,19 @@ mod tests {
     use datafusion::arrow::datatypes::{Field, FieldRef};
     use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs};
     use insta::assert_debug_snapshot;
+    use rdf_fusion_encoding::typed_value::TypedValueEncoding;
     use std::sync::Arc;
 
     #[test]
     fn test_native_boolean_as_term_no_nulls() {
-        let values = Arc::new(BooleanArray::from(vec![false, true, false])) as ArrayRef;
-        let result = test_native_boolean_as_term(values).to_array(3).unwrap();
+        let encoding = Arc::new(TypedValueEncoding::new());
 
-        let typed_value_array = TYPED_VALUE_ENCODING.try_new_array(result).unwrap();
+        let values = Arc::new(BooleanArray::from(vec![false, true, false])) as ArrayRef;
+        let result = test_native_boolean_as_term(&encoding, values)
+            .to_array(3)
+            .unwrap();
+
+        let typed_value_array = encoding.try_new_array(result).unwrap();
         let parts = typed_value_array.parts_as_ref();
 
         assert_eq!(parts.array.len(), 3);
@@ -138,15 +147,19 @@ mod tests {
 
     #[test]
     fn test_native_boolean_as_term_with_nulls() {
+        let encoding = Arc::new(TypedValueEncoding::new());
+
         let values = Arc::new(BooleanArray::from(vec![
             Some(true),
             None,
             Some(true),
             Some(false),
         ])) as ArrayRef;
-        let result = test_native_boolean_as_term(values).to_array(4).unwrap();
+        let result = test_native_boolean_as_term(&encoding, values)
+            .to_array(4)
+            .unwrap();
 
-        let typed_value_array = TYPED_VALUE_ENCODING.try_new_array(result).unwrap();
+        let typed_value_array = encoding.try_new_array(result).unwrap();
         let parts = typed_value_array.parts_as_ref();
 
         assert_eq!(parts.array.len(), 4);
@@ -162,8 +175,11 @@ mod tests {
         ")
     }
 
-    fn test_native_boolean_as_term(input: ArrayRef) -> ColumnarValue {
-        let udf = NativeBooleanAsTerm::new();
+    fn test_native_boolean_as_term(
+        encoding: &TypedValueEncodingRef,
+        input: ArrayRef,
+    ) -> ColumnarValue {
+        let udf = NativeBooleanAsTerm::new(Arc::clone(&encoding));
         let args = ScalarFunctionArgs {
             args: vec![ColumnarValue::Array(Arc::clone(&input))],
             arg_fields: vec![FieldRef::new(Field::new(
@@ -174,7 +190,7 @@ mod tests {
             number_rows: input.len(),
             return_field: FieldRef::new(Field::new(
                 "output",
-                TYPED_VALUE_ENCODING.data_type().clone(),
+                encoding.data_type().clone(),
                 true,
             )),
             config_options: Arc::new(Default::default()),

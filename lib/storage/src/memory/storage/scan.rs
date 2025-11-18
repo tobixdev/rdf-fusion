@@ -603,10 +603,11 @@ impl IndexRef for DirectIndexRef<'_> {
 mod tests {
     use super::*;
     use crate::index::{EncodedQuad, IndexComponents};
+    use crate::memory::MemObjectIdMapping;
     use crate::memory::object_id::EncodedObjectId;
     use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
     use crate::memory::storage::quad_index::MemIndexConfiguration;
-    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
+    use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
     use std::collections::{BTreeSet, HashSet};
     use std::sync::Mutex;
     use tokio::sync::RwLock;
@@ -614,8 +615,12 @@ mod tests {
     #[tokio::test]
     async fn test_dynamic_filters() {
         // Create an index and insert test data
+        let mapping = Arc::new(MemObjectIdMapping::new());
+        let object_id_encoding = Arc::new(ObjectIdEncoding::new(
+            Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
+        ));
         let index = MemQuadIndex::new(MemIndexConfiguration {
-            object_id_encoding: ObjectIdEncoding::new(4),
+            object_id_encoding,
             batch_size: 100,
             components: IndexComponents::GSPO,
         });
@@ -666,14 +671,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_collect_relevant_batches_dynamic_filters_choose_better_index() {
+        let mapping = Arc::new(MemObjectIdMapping::new());
+        let object_id_encoding = Arc::new(ObjectIdEncoding::new(
+            Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
+        ));
+
         // Create an index and insert test data
         let gspo_index = MemQuadIndex::new(MemIndexConfiguration {
-            object_id_encoding: ObjectIdEncoding::new(4),
+            object_id_encoding: Arc::clone(&object_id_encoding),
             batch_size: 100,
             components: IndexComponents::GSPO,
         });
         let gosp_index = MemQuadIndex::new(MemIndexConfiguration {
-            object_id_encoding: ObjectIdEncoding::new(4),
+            object_id_encoding,
             batch_size: 100,
             components: IndexComponents::GOSP,
         });

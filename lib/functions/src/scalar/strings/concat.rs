@@ -3,6 +3,7 @@ use crate::scalar::sparql_op_impl::{
     ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -38,45 +39,50 @@ impl ScalarSparqlOp for ConcatSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_n_ary_owned_typed_value(
-                args.args.as_slice(),
-                args.number_rows,
-                |args| {
-                    let args = args
-                        .iter()
-                        .map(|arg| StringLiteralRef::try_from(*arg))
-                        .collect::<ThinResult<Vec<_>>>()?;
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_n_ary_owned_typed_value(
+                    &args.encoding,
+                    args.args.as_slice(),
+                    args.number_rows,
+                    |args| {
+                        let args = args
+                            .iter()
+                            .map(|arg| StringLiteralRef::try_from(*arg))
+                            .collect::<ThinResult<Vec<_>>>()?;
 
-                    let mut result = String::default();
-                    let mut language = None;
+                        let mut result = String::default();
+                        let mut language = None;
 
-                    for arg in args {
-                        if let Some(lang) = &language {
-                            if *lang != arg.1 {
-                                language = Some(None)
+                        for arg in args {
+                            if let Some(lang) = &language {
+                                if *lang != arg.1 {
+                                    language = Some(None)
+                                }
+                            } else {
+                                language = Some(arg.1)
                             }
-                        } else {
-                            language = Some(arg.1)
+                            result += arg.0;
                         }
-                        result += arg.0;
-                    }
 
-                    Ok(match language.flatten().map(ToOwned::to_owned) {
-                        Some(language) => {
-                            TypedValue::LanguageStringLiteral(LanguageString {
-                                value: result,
-                                language,
-                            })
-                        }
-                        None => {
-                            TypedValue::SimpleLiteral(SimpleLiteral { value: result })
-                        }
-                    })
-                },
-                |_| ThinError::expected(),
-            )
-        }))
+                        Ok(match language.flatten().map(ToOwned::to_owned) {
+                            Some(language) => {
+                                TypedValue::LanguageStringLiteral(LanguageString {
+                                    value: result,
+                                    language,
+                                })
+                            }
+                            None => {
+                                TypedValue::SimpleLiteral(SimpleLiteral { value: result })
+                            }
+                        })
+                    },
+                    |_| ThinError::expected(),
+                )
+            },
+        ))
     }
 }

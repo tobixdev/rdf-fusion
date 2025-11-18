@@ -17,6 +17,7 @@ mod tests {
     use crate::index::{
         EncodedQuad, IndexComponents, IndexPermutations, IndexQuad, QuadIndex,
     };
+    use crate::memory::MemObjectIdMapping;
     use crate::memory::object_id::EncodedObjectId;
     use crate::memory::storage::quad_index::{MemIndexConfiguration, MemQuadIndex};
     use crate::memory::storage::scan::MemQuadIndexScanRecordBatchIterator;
@@ -558,6 +559,8 @@ mod tests {
     }
 
     fn create_storage() -> IndexPermutations<MemQuadIndex> {
+        let mapping = Arc::new(MemObjectIdMapping::new());
+        let encoding = Arc::new(ObjectIdEncoding::new(mapping));
         let components = [
             IndexComponents::GSPO,
             IndexComponents::GPOS,
@@ -567,7 +570,7 @@ mod tests {
             .iter()
             .map(|components| {
                 MemQuadIndex::new(MemIndexConfiguration {
-                    object_id_encoding: ObjectIdEncoding::new(4),
+                    object_id_encoding: Arc::clone(&encoding),
                     batch_size: 100,
                     components: *components,
                 })
@@ -587,9 +590,11 @@ mod tests {
     }
 
     fn create_index_with_batch_size(batch_size: usize) -> MemQuadIndex {
+        let mapping = Arc::new(MemObjectIdMapping::new());
+        let encoding = Arc::new(ObjectIdEncoding::new(mapping));
         let configuration = MemIndexConfiguration {
             batch_size,
-            object_id_encoding: ObjectIdEncoding::new(4),
+            object_id_encoding: encoding,
             components: IndexComponents::GSPO,
         };
         MemQuadIndex::new(configuration)

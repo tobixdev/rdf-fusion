@@ -4,7 +4,7 @@ use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_encoding::TermEncoding;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
-use rdf_fusion_encoding::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
+use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
 use rdf_fusion_model::DFResult;
 
 pub trait ScalarSparqlOpImpl<TEncoding: TermEncoding> {
@@ -56,11 +56,12 @@ pub fn create_plain_term_sparql_op_impl(
 }
 
 pub fn create_typed_value_sparql_op_impl(
+    encoding: &TypedValueEncodingRef,
     closure: impl Fn(ScalarSparqlOpArgs<TypedValueEncoding>) -> DFResult<ColumnarValue>
     + 'static,
 ) -> Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>> {
     Box::new(ClosureSparqlOpImpl {
-        return_type: TYPED_VALUE_ENCODING.data_type(),
+        return_type: encoding.data_type().clone(),
         closure: Box::new(closure),
     })
 }
@@ -71,7 +72,7 @@ pub fn create_object_id_sparql_op_impl(
     + 'static,
 ) -> Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>> {
     Box::new(ClosureSparqlOpImpl {
-        return_type: object_id_encoding.data_type(),
+        return_type: object_id_encoding.data_type().clone(),
         closure: Box::new(closure),
     })
 }

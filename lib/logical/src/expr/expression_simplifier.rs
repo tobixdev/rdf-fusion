@@ -216,12 +216,12 @@ fn replace_equality_with_same_term(
             .encode_term(Ok(term.as_ref()))?
             .into_scalar_value(),
         EncodingName::ObjectId => {
-            let Some(mapping) = encodings.object_id_mapping() else {
+            let Some(encoding) = encodings.object_id() else {
                 return plan_err!("No Object ID mapping registerd.");
             };
 
-            let scalar = DefaultPlainTermEncoder::encode_term(Ok(term.as_ref()))?;
-            match mapping.encode_scalar(&scalar) {
+            let scalar = DefaultPlainTermEncoder.encode_term(Ok(term.as_ref()))?;
+            match encoding.mapping().encode_scalar(encoding, &scalar) {
                 Ok(scalar) => scalar.into_scalar_value(),
                 Err(ObjectIdMappingError::UnknownObjectId) => {
                     return Ok(Transformed::yes(lit(false)));
@@ -294,7 +294,7 @@ mod tests {
     use insta::assert_snapshot;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+    use rdf_fusion_encoding::typed_value::TypedValueEncoding;
     use rdf_fusion_encoding::{
         EncodingName, QuadStorageEncoding, RdfFusionEncodings, TermEncoding,
     };
@@ -454,10 +454,10 @@ mod tests {
 
     fn create_context() -> RdfFusionContextView {
         let encodings = RdfFusionEncodings::new(
-            PLAIN_TERM_ENCODING,
-            TYPED_VALUE_ENCODING,
+            Arc::clone(&PLAIN_TERM_ENCODING),
+            Arc::new(TypedValueEncoding::new()),
             None,
-            SORTABLE_TERM_ENCODING,
+            Arc::clone(&SORTABLE_TERM_ENCODING),
         );
         let registry = Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
         RdfFusionContextView::new(registry, encodings, QuadStorageEncoding::PlainTerm)
@@ -468,15 +468,16 @@ mod tests {
         column1_nullable: bool,
         column2_nullable: bool,
     ) -> DFSchemaRef {
+        let context = create_context();
         let data_type = match encoding {
-            EncodingName::PlainTerm => PLAIN_TERM_ENCODING.data_type(),
-            EncodingName::TypedValue => TYPED_VALUE_ENCODING.data_type(),
+            EncodingName::PlainTerm => context.encodings().plain_term().data_type(),
+            EncodingName::TypedValue => context.encodings().typed_value().data_type(),
             _ => panic!("Unsupported encoding"),
         };
         DFSchemaRef::new(
             DFSchema::try_from(Schema::new(vec![
                 Field::new("column1", data_type.clone(), column1_nullable),
-                Field::new("column2", data_type, column2_nullable),
+                Field::new("column2", data_type.clone(), column2_nullable),
             ]))
             .unwrap(),
         )

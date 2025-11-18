@@ -3,6 +3,7 @@ use crate::scalar::sparql_op_impl::{
     ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -39,21 +40,26 @@ impl ScalarSparqlOp for LessThanSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_binary_typed_value(
-                &args.args[0],
-                &args.args[1],
-                |lhs_value, rhs_value| {
-                    lhs_value
-                        .partial_cmp(&rhs_value)
-                        .map(|o| o == Ordering::Less)
-                        .map(Into::into)
-                        .map(TypedValueRef::BooleanLiteral)
-                        .ok_or(ThinError::ExpectedError)
-                },
-                |_, _| ThinError::expected(),
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_binary_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    &args.args[1],
+                    |lhs_value, rhs_value| {
+                        lhs_value
+                            .partial_cmp(&rhs_value)
+                            .map(|o| o == Ordering::Less)
+                            .map(Into::into)
+                            .map(TypedValueRef::BooleanLiteral)
+                            .ok_or(ThinError::ExpectedError)
+                    },
+                    |_, _| ThinError::expected(),
+                )
+            },
+        ))
     }
 }

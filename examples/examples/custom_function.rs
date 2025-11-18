@@ -1,6 +1,7 @@
 use anyhow::Context;
 use datafusion::logical_expr::ScalarUDF;
 use rdf_fusion::api::functions::FunctionName;
+use rdf_fusion::encoding::RdfFusionEncodings;
 use rdf_fusion::encoding::typed_value::TypedValueEncoding;
 use rdf_fusion::execution::results::QueryResultsFormat;
 use rdf_fusion::functions::scalar::dispatch::dispatch_unary_typed_value;
@@ -92,28 +93,35 @@ impl ScalarSparqlOp for ContainsSpidermanSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            // We provide some helper functions that allow you to "iterate" over the content of the
-            // arrays. Note that directly operating on the array data usually can be more
-            // performant. Furthermore, we may remove this API in the future.
-            dispatch_unary_typed_value(
-                &args.args[0],
-                |value| {
-                    let result = match value {
-                        TypedValueRef::NamedNode(nn) => nn.as_str().contains("spiderman"),
-                        TypedValueRef::SimpleLiteral(lit) => {
-                            lit.value.contains("spiderman")
-                        }
-                        TypedValueRef::LanguageStringLiteral(lit) => {
-                            lit.value.contains("spiderman")
-                        }
-                        _ => false,
-                    };
-                    Ok(TypedValueRef::BooleanLiteral(result.into()))
-                },
-                || ThinError::expected(),
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                // We provide some helper functions that allow you to "iterate" over the content of the
+                // arrays. Note that directly operating on the array data usually can be more
+                // performant. Furthermore, we may remove this API in the future.
+                dispatch_unary_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    |value| {
+                        let result = match value {
+                            TypedValueRef::NamedNode(nn) => {
+                                nn.as_str().contains("spiderman")
+                            }
+                            TypedValueRef::SimpleLiteral(lit) => {
+                                lit.value.contains("spiderman")
+                            }
+                            TypedValueRef::LanguageStringLiteral(lit) => {
+                                lit.value.contains("spiderman")
+                            }
+                            _ => false,
+                        };
+                        Ok(TypedValueRef::BooleanLiteral(result.into()))
+                    },
+                    || ThinError::expected(),
+                )
+            },
+        ))
     }
 }

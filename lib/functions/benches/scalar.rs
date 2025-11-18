@@ -5,7 +5,7 @@ use datafusion::logical_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDF};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArrayElementBuilder,
+    TypedValueArrayElementBuilder, TypedValueEncoding,
 };
 use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoding};
 use rdf_fusion_extensions::functions::{
@@ -27,10 +27,12 @@ enum UnaryScenario {
 }
 
 impl UnaryScenario {
-    fn create_args(&self) -> Vec<ColumnarValue> {
+    fn create_args(&self, encodings: &RdfFusionEncodings) -> Vec<ColumnarValue> {
         match self {
             UnaryScenario::AllNamedNodes => {
-                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::new(Arc::clone(
+                    encodings.typed_value(),
+                ));
                 for i in 0..8192 {
                     payload_builder
                         .append_named_node(NamedNodeRef::new_unchecked(
@@ -43,7 +45,9 @@ impl UnaryScenario {
                 )]
             }
             UnaryScenario::Mixed => {
-                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::new(Arc::clone(
+                    encodings.typed_value(),
+                ));
                 for i in 0..8192 {
                     match i % 4 {
                         0 => {
@@ -71,7 +75,9 @@ impl UnaryScenario {
                 )]
             }
             UnaryScenario::AllBlank => {
-                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::new(Arc::clone(
+                    encodings.typed_value(),
+                ));
                 for _ in 0..8192 {
                     payload_builder
                         .append_blank_node(BlankNode::default().as_ref())
@@ -82,7 +88,9 @@ impl UnaryScenario {
                 )]
             }
             UnaryScenario::AllInt => {
-                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::new(Arc::clone(
+                    encodings.typed_value(),
+                ));
                 for i in 0..8192 {
                     payload_builder.append_integer(Integer::from(i)).unwrap();
                 }
@@ -91,7 +99,9 @@ impl UnaryScenario {
                 )]
             }
             UnaryScenario::AllFloat => {
-                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::new(Arc::clone(
+                    encodings.typed_value(),
+                ));
                 for i in 0..8192 {
                     payload_builder.append_float(Float::from(i as i16)).unwrap();
                 }
@@ -100,7 +110,9 @@ impl UnaryScenario {
                 )]
             }
             UnaryScenario::AllString => {
-                let mut payload_builder = TypedValueArrayElementBuilder::default();
+                let mut payload_builder = TypedValueArrayElementBuilder::new(Arc::clone(
+                    encodings.typed_value(),
+                ));
                 for i in 0..8192 {
                     payload_builder
                         .append_string(format!("String number {i}").as_str(), None)
@@ -116,12 +128,12 @@ impl UnaryScenario {
 
 fn bench_all(c: &mut Criterion) {
     let encodings = RdfFusionEncodings::new(
-        PLAIN_TERM_ENCODING,
-        TYPED_VALUE_ENCODING,
+        Arc::clone(&PLAIN_TERM_ENCODING),
+        Arc::new(TypedValueEncoding::default()),
         None,
-        SORTABLE_TERM_ENCODING,
+        Arc::clone(&SORTABLE_TERM_ENCODING),
     );
-    let registry = DefaultRdfFusionFunctionRegistry::new(encodings);
+    let registry = DefaultRdfFusionFunctionRegistry::new(encodings.clone());
 
     let runs = HashMap::from([
         (
@@ -160,7 +172,7 @@ fn bench_all(c: &mut Criterion) {
         let implementation = registry.udf(&FunctionName::Builtin(my_built_in)).unwrap();
 
         for scenario in scenarios {
-            bench_unary_function(c, &implementation, scenario);
+            bench_unary_function(c, &encodings, &implementation, scenario);
         }
     }
 }
@@ -168,16 +180,23 @@ fn bench_all(c: &mut Criterion) {
 /// Runs a single `scenario` against the `function` to bench.
 fn bench_unary_function(
     c: &mut Criterion,
+    encodings: &RdfFusionEncodings,
     function: &ScalarUDF,
     scenario: UnaryScenario,
 ) {
-    let args = scenario.create_args();
+    let args = scenario.create_args(&encodings);
     let options = Arc::new(ConfigOptions::default());
 
-    let input_field =
-        Arc::new(Field::new("input", TYPED_VALUE_ENCODING.data_type(), true));
-    let return_field =
-        Arc::new(Field::new("result", TYPED_VALUE_ENCODING.data_type(), true));
+    let input_field = Arc::new(Field::new(
+        "input",
+        encodings.typed_value().data_type().clone(),
+        true,
+    ));
+    let return_field = Arc::new(Field::new(
+        "result",
+        encodings.typed_value().data_type().clone(),
+        true,
+    ));
 
     let name = format!("{}_{scenario:?}", function.name());
     c.bench_function(&name, |b| {

@@ -9,7 +9,7 @@ use rdf_fusion_encoding::plain_term::{
     PLAIN_TERM_ENCODING, PlainTermArray, PlainTermArrayElementBuilder,
 };
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermDecoder, TermEncoding};
 use rdf_fusion_extensions::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionRegistry,
@@ -22,10 +22,10 @@ use std::sync::Arc;
 #[test]
 fn test_unary_functions_plain_term() {
     let encodings = RdfFusionEncodings::new(
-        PLAIN_TERM_ENCODING,
-        TYPED_VALUE_ENCODING,
+        Arc::clone(&PLAIN_TERM_ENCODING),
+        Arc::new(TypedValueEncoding::default()),
         None,
-        SORTABLE_TERM_ENCODING,
+        Arc::clone(&SORTABLE_TERM_ENCODING),
     );
     let registry = DefaultRdfFusionFunctionRegistry::new(encodings);
     let test_vector = create_plain_term_test_vector();
@@ -50,7 +50,7 @@ fn invoke_udf(
             number_rows: arg.len(),
             return_field: Arc::new(Field::new(
                 "result",
-                PLAIN_TERM_ENCODING.data_type(),
+                PLAIN_TERM_ENCODING.data_type().clone(),
                 true,
             )),
             args: vec![ColumnarValue::Array(arg)],

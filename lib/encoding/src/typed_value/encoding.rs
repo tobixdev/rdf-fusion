@@ -1,6 +1,6 @@
 use crate::encoding::TermEncoding;
 use crate::typed_value::array::TypedValueArray;
-use crate::typed_value::encoders::TermRefTypedValueEncoder;
+use crate::typed_value::encoders::{DefaultTypedValueEncoder, TermRefTypedValueEncoder};
 use crate::typed_value::scalar::TypedValueScalar;
 use crate::{EncodingArray, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
@@ -10,7 +10,7 @@ use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Decimal, TermRef, ThinResult};
 use std::clone::Clone;
 use std::fmt::{Display, Formatter};
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use thiserror::Error;
 
 static FIELDS_STRING: LazyLock<Fields> = LazyLock::new(|| {
@@ -135,19 +135,17 @@ static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
     UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
 });
 
-/// The instance of the [TypedValueEncoding].
-///
-/// This constant will be removed once user-defined typed values are supported.
-pub const TYPED_VALUE_ENCODING: TypedValueEncoding = TypedValueEncoding;
+/// A cheaply clonable reference to a [`TypedValueEncoding`].
+pub type TypedValueEncodingRef = Arc<TypedValueEncoding>;
 
-/// The [TypedValueEncoding] stores the *value* of an RDF term as a union of possible types.
+/// The [`TypedValueEncoding`] stores the *value* of an RDF term as a union of possible types.
 ///
 /// # Value Spaces
 ///
 /// Each RDF literal type has an associated value space (e.g., `xsd:int` has the value space of
 /// 32-bit integers). Transforming the transformation from the lexical space to the value space
 /// might be a lossy transformation. For example, the two distinct RDF terms `"1"^^xsd::int` and
-/// `"01"^^xsd::int` map to the same value. The [TypedValueEncoding] cannot distinguish between
+/// `"01"^^xsd::int` map to the same value. The [`TypedValueEncoding`] cannot distinguish between
 /// these two terms and therefore should only be used for query parts that do not rely on this
 /// distinction.
 ///
@@ -156,8 +154,36 @@ pub const TYPED_VALUE_ENCODING: TypedValueEncoding = TypedValueEncoding;
 /// Currently, the TypedValue encoding has a fixed Arrow DataType. We plan to change that in the
 /// future such that users can provide custom encodings for domain-specific literals (e.g.,
 /// geospatial coordinates).
-#[derive(Debug)]
-pub struct TypedValueEncoding;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypedValueEncoding {
+    /// The data type of this encoding instance.
+    data_type: DataType,
+}
+
+impl TypedValueEncoding {
+    /// Creates a new [`TypedValueEncoding`].
+    pub fn new() -> Self {
+        Self {
+            data_type: DataType::Union(Self::fields().clone(), UnionMode::Dense),
+        }
+    }
+
+    /// Creates a new [`DefaultTypedValueEncoder`].
+    pub fn default_encoder(self: &Arc<Self>) -> DefaultTypedValueEncoder {
+        DefaultTypedValueEncoder::new(Arc::clone(self))
+    }
+
+    /// Creates a new [`TermRefTypedValueEncoder`].
+    pub fn term_encoder(self: &Arc<Self>) -> TermRefTypedValueEncoder {
+        TermRefTypedValueEncoder::new(Arc::clone(self))
+    }
+}
+
+impl Default for TypedValueEncoding {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TypedValueEncoding {
     pub fn fields() -> UnionFields {
@@ -189,7 +215,10 @@ impl TypedValueEncoding {
         &self,
         term: ThinResult<TermRef<'_>>,
     ) -> DFResult<TypedValueScalar> {
-        TermRefTypedValueEncoder::encode_terms([term])?.try_as_scalar(0)
+        let arc = Arc::new(self.clone());
+        TermRefTypedValueEncoder::new(arc)
+            .encode_terms([term])?
+            .try_as_scalar(0)
     }
 }
 
@@ -201,16 +230,16 @@ impl TermEncoding for TypedValueEncoding {
         EncodingName::TypedValue
     }
 
-    fn data_type(&self) -> DataType {
-        DataType::Union(Self::fields().clone(), UnionMode::Dense)
+    fn data_type(&self) -> &DataType {
+        &self.data_type
     }
 
-    fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
-        array.try_into()
+    fn try_new_array(self: &Arc<Self>, array: ArrayRef) -> DFResult<Self::Array> {
+        TypedValueArray::try_new(Arc::clone(self), array)
     }
 
-    fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
-        scalar.try_into()
+    fn try_new_scalar(self: &Arc<Self>, scalar: ScalarValue) -> DFResult<Self::Scalar> {
+        TypedValueScalar::try_new(Arc::clone(self), scalar)
     }
 }
 

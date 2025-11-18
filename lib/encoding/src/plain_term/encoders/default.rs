@@ -4,13 +4,14 @@ use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinResult};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DefaultPlainTermEncoder;
 
 impl TermEncoder<PlainTermEncoding> for DefaultPlainTermEncoder {
     type Term<'data> = TermRef<'data>;
 
     fn encode_terms<'data>(
+        &self,
         terms: impl IntoIterator<Item = ThinResult<Self::Term<'data>>>,
     ) -> DFResult<<PlainTermEncoding as TermEncoding>::Array> {
         let mut value_builder = PlainTermArrayElementBuilder::default();
@@ -26,8 +27,9 @@ impl TermEncoder<PlainTermEncoding> for DefaultPlainTermEncoder {
     }
 
     fn encode_term(
+        &self,
         term: ThinResult<Self::Term<'_>>,
     ) -> DFResult<<PlainTermEncoding as TermEncoding>::Scalar> {
-        Self::encode_terms([term])?.try_as_scalar(0)
+        self.encode_terms([term])?.try_as_scalar(0)
     }
 }

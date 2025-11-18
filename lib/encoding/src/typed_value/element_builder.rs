@@ -1,4 +1,6 @@
-use crate::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueEncodingField};
+use crate::typed_value::{
+    TypedValueArray, TypedValueEncoding, TypedValueEncodingField, TypedValueEncodingRef,
+};
 use datafusion::arrow::array::{
     ArrayBuilder, BooleanBuilder, Decimal128Builder, Float32Builder, Float64Builder,
     Int16Builder, Int32Builder, Int64Builder, NullBuilder, StringBuilder, StructBuilder,
@@ -18,6 +20,7 @@ use std::sync::Arc;
 /// /// If you aim to build an array based on its individual parts, see
 /// [TypedValueArrayBuilder](super::TypedValueArrayBuilder).
 pub struct TypedValueArrayElementBuilder {
+    encoding: TypedValueEncodingRef,
     type_ids: Vec<i8>,
     offsets: Vec<i32>,
     named_node_builder: StringBuilder,
@@ -37,9 +40,11 @@ pub struct TypedValueArrayElementBuilder {
     null_builder: NullBuilder,
 }
 
-impl Default for TypedValueArrayElementBuilder {
-    fn default() -> Self {
+impl TypedValueArrayElementBuilder {
+    /// Creates a new [`TypedValueArrayElementBuilder`].
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
         Self {
+            encoding,
             type_ids: Vec::new(),
             offsets: Vec::new(),
             named_node_builder: StringBuilder::with_capacity(0, 0),
@@ -80,9 +85,7 @@ impl Default for TypedValueArrayElementBuilder {
             null_builder: NullBuilder::new(),
         }
     }
-}
 
-impl TypedValueArrayElementBuilder {
     pub fn append_typed_value(&mut self, value: TypedValueRef<'_>) -> AResult<()> {
         match value {
             TypedValueRef::NamedNode(v) => self.append_named_node(v),
@@ -335,31 +338,34 @@ impl TypedValueArrayElementBuilder {
 
     #[allow(clippy::expect_used, reason = "Fields must match type.")]
     pub fn finish(mut self) -> TypedValueArray {
-        TypedValueArray::new_unchecked(Arc::new(
-            UnionArray::try_new(
-                TypedValueEncoding::fields(),
-                ScalarBuffer::from(self.type_ids),
-                Some(ScalarBuffer::from(self.offsets)),
-                vec![
-                    Arc::new(self.null_builder.finish()),
-                    Arc::new(self.named_node_builder.finish()),
-                    Arc::new(self.blank_node_builder.finish()),
-                    Arc::new(self.string_builder.finish()),
-                    Arc::new(self.boolean_builder.finish()),
-                    Arc::new(self.float_builder.finish()),
-                    Arc::new(self.double_builder.finish()),
-                    Arc::new(self.decimal_builder.finish()),
-                    Arc::new(self.int32_builder.finish()),
-                    Arc::new(self.integer_builder.finish()),
-                    Arc::new(self.date_time_builder.finish()),
-                    Arc::new(self.time_builder.finish()),
-                    Arc::new(self.date_builder.finish()),
-                    Arc::new(self.duration_builder.finish()),
-                    Arc::new(self.typed_literal_builder.finish()),
-                ],
-            )
-            .expect("Fields and type match"),
-        ))
+        TypedValueArray::new_unchecked(
+            self.encoding,
+            Arc::new(
+                UnionArray::try_new(
+                    TypedValueEncoding::fields(),
+                    ScalarBuffer::from(self.type_ids),
+                    Some(ScalarBuffer::from(self.offsets)),
+                    vec![
+                        Arc::new(self.null_builder.finish()),
+                        Arc::new(self.named_node_builder.finish()),
+                        Arc::new(self.blank_node_builder.finish()),
+                        Arc::new(self.string_builder.finish()),
+                        Arc::new(self.boolean_builder.finish()),
+                        Arc::new(self.float_builder.finish()),
+                        Arc::new(self.double_builder.finish()),
+                        Arc::new(self.decimal_builder.finish()),
+                        Arc::new(self.int32_builder.finish()),
+                        Arc::new(self.integer_builder.finish()),
+                        Arc::new(self.date_time_builder.finish()),
+                        Arc::new(self.time_builder.finish()),
+                        Arc::new(self.date_builder.finish()),
+                        Arc::new(self.duration_builder.finish()),
+                        Arc::new(self.typed_literal_builder.finish()),
+                    ],
+                )
+                .expect("Fields and type match"),
+            ),
+        )
     }
 
     fn append_type_id_and_offset(

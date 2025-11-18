@@ -9,7 +9,7 @@ use datafusion::common::{exec_datafusion_err, exec_err};
 use datafusion::logical_expr::Volatility;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use rdf_fusion_encoding::{EncodingDatum, TermDecoder};
+use rdf_fusion_encoding::{EncodingDatum, RdfFusionEncodings, TermDecoder};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::DFResult;
@@ -55,27 +55,32 @@ impl ScalarSparqlOp for IriSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(move |args| {
-            let base_iri = Self::get_base_iri(&args)?;
-            dispatch_unary_owned_typed_value(
-                &args.args[0],
-                |value| match value {
-                    TypedValueRef::NamedNode(named_node) => {
-                        Ok(TypedValue::NamedNode(named_node.into_owned()))
-                    }
-                    TypedValueRef::SimpleLiteral(simple_literal) => {
-                        let resolving_result = if let Some(base_iri) = &base_iri {
-                            base_iri.resolve(simple_literal.value)?
-                        } else {
-                            Iri::parse(simple_literal.value.to_owned())?
-                        };
-                        Ok(TypedValue::NamedNode(NamedNode::from(resolving_result)))
-                    }
-                    _ => ThinError::expected(),
-                },
-                ThinError::expected,
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                let base_iri = Self::get_base_iri(&args)?;
+                dispatch_unary_owned_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    |value| match value {
+                        TypedValueRef::NamedNode(named_node) => {
+                            Ok(TypedValue::NamedNode(named_node.into_owned()))
+                        }
+                        TypedValueRef::SimpleLiteral(simple_literal) => {
+                            let resolving_result = if let Some(base_iri) = &base_iri {
+                                base_iri.resolve(simple_literal.value)?
+                            } else {
+                                Iri::parse(simple_literal.value.to_owned())?
+                            };
+                            Ok(TypedValue::NamedNode(NamedNode::from(resolving_result)))
+                        }
+                        _ => ThinError::expected(),
+                    },
+                    ThinError::expected,
+                )
+            },
+        ))
     }
 }

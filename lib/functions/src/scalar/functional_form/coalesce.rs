@@ -6,12 +6,14 @@ use crate::scalar::sparql_op_impl::{
     create_plain_term_sparql_op_impl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::object_id::ObjectIdEncoding;
 use rdf_fusion_encoding::plain_term::PlainTermEncoding;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::ThinError;
+use std::sync::Arc;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct CoalesceSparqlOp;
@@ -41,23 +43,29 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_n_ary_typed_value(
-                args.args.as_slice(),
-                args.number_rows,
-                |args| args.first().copied().ok_or(ThinError::ExpectedError),
-                |args| {
-                    args.iter()
-                        .find_map(|arg| arg.ok())
-                        .ok_or(ThinError::ExpectedError)
-                },
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_n_ary_typed_value(
+                    &args.encoding,
+                    args.args.as_slice(),
+                    args.number_rows,
+                    |args| args.first().copied().ok_or(ThinError::ExpectedError),
+                    |args| {
+                        args.iter()
+                            .find_map(|arg| arg.ok())
+                            .ok_or(ThinError::ExpectedError)
+                    },
+                )
+            },
+        ))
     }
 
     fn plain_term_encoding_op(
         &self,
+        _encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         Some(create_plain_term_sparql_op_impl(|args| {
             dispatch_n_ary_plain_term(
@@ -75,11 +83,11 @@ impl ScalarSparqlOp for CoalesceSparqlOp {
 
     fn object_id_encoding_op(
         &self,
-        object_id_encoding: &ObjectIdEncoding,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<ObjectIdEncoding>>> {
-        let object_id_encoding = object_id_encoding.clone();
+        let object_id_encoding = Arc::clone(encodings.object_id()?);
         Some(create_object_id_sparql_op_impl(
-            &object_id_encoding.clone(),
+            encodings.object_id()?,
             move |args| {
                 dispatch_n_ary_object_id(
                     &object_id_encoding,

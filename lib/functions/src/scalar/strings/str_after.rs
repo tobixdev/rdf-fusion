@@ -3,6 +3,7 @@ use crate::scalar::sparql_op_impl::{
     ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -41,38 +42,45 @@ impl ScalarSparqlOp for StrAfterSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_binary_typed_value(
-                &args.args[0],
-                &args.args[1],
-                |lhs_value, rhs_value| {
-                    let lhs_value = StringLiteralRef::try_from(lhs_value)?;
-                    let rhs_value = StringLiteralRef::try_from(rhs_value)?;
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_binary_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    &args.args[1],
+                    |lhs_value, rhs_value| {
+                        let lhs_value = StringLiteralRef::try_from(lhs_value)?;
+                        let rhs_value = StringLiteralRef::try_from(rhs_value)?;
 
-                    let args = CompatibleStringArgs::try_from(lhs_value, rhs_value)?;
+                        let args = CompatibleStringArgs::try_from(lhs_value, rhs_value)?;
 
-                    let value = if let Some(position) = args.lhs.find(args.rhs) {
-                        let start = position + args.rhs.len();
-                        &args.lhs[start..]
-                    } else {
-                        return Ok(TypedValueRef::SimpleLiteral(SimpleLiteralRef {
-                            value: "",
-                        }));
-                    };
+                        let value = if let Some(position) = args.lhs.find(args.rhs) {
+                            let start = position + args.rhs.len();
+                            &args.lhs[start..]
+                        } else {
+                            return Ok(TypedValueRef::SimpleLiteral(SimpleLiteralRef {
+                                value: "",
+                            }));
+                        };
 
-                    Ok(match args.language {
-                        None => TypedValueRef::SimpleLiteral(SimpleLiteralRef { value }),
-                        Some(language) => {
-                            TypedValueRef::LanguageStringLiteral(LanguageStringRef {
-                                value,
-                                language,
-                            })
-                        }
-                    })
-                },
-                |_, _| ThinError::expected(),
-            )
-        }))
+                        Ok(match args.language {
+                            None => {
+                                TypedValueRef::SimpleLiteral(SimpleLiteralRef { value })
+                            }
+                            Some(language) => {
+                                TypedValueRef::LanguageStringLiteral(LanguageStringRef {
+                                    value,
+                                    language,
+                                })
+                            }
+                        })
+                    },
+                    |_, _| ThinError::expected(),
+                )
+            },
+        ))
     }
 }

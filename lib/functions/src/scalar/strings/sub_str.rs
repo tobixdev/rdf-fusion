@@ -5,6 +5,7 @@ use crate::scalar::sparql_op_impl::{
     ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -46,10 +47,13 @@ impl ScalarSparqlOp for SubStrSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            match args.args.len() {
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| match args.args.len() {
                 2 => dispatch_binary_typed_value(
+                    &args.encoding,
                     &args.args[0],
                     &args.args[1],
                     |lhs_value, rhs_value| {
@@ -60,6 +64,7 @@ impl ScalarSparqlOp for SubStrSparqlOp {
                     |_, _| ThinError::expected(),
                 ),
                 3 => dispatch_ternary_typed_value(
+                    &args.encoding,
                     &args.args[0],
                     &args.args[1],
                     &args.args[2],
@@ -72,8 +77,8 @@ impl ScalarSparqlOp for SubStrSparqlOp {
                     |_, _, _| ThinError::expected(),
                 ),
                 _ => unreachable!("Invalid number of arguments"),
-            }
-        }))
+            },
+        ))
     }
 }
 

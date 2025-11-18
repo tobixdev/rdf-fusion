@@ -1,13 +1,13 @@
 use datafusion::logical_expr::ColumnarValue;
 use itertools::izip;
-use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
-use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
+use rdf_fusion_encoding::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
 use rdf_fusion_encoding::{EncodingArray, EncodingDatum, TermEncoder};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{ThinResult, TypedValue, TypedValueRef};
 
 pub fn dispatch_quaternary_owned_typed_value<'data>(
+    encoding: &TypedValueEncodingRef,
     arg0: &'data EncodingDatum<TypedValueEncoding>,
     arg1: &'data EncodingDatum<TypedValueEncoding>,
     arg2: &'data EncodingDatum<TypedValueEncoding>,
@@ -40,6 +40,6 @@ pub fn dispatch_quaternary_owned_typed_value<'data>(
         Ok(res) => Ok(res.as_ref()),
         Err(err) => Err(*err),
     });
-    let result = DefaultTypedValueEncoder::encode_terms(results_iter)?;
+    let result = encoding.default_encoder().encode_terms(results_iter)?;
     Ok(ColumnarValue::Array(result.into_array_ref()))
 }

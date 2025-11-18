@@ -1,15 +1,32 @@
 use crate::EncodingName;
 use crate::encoding::TermEncoding;
-use crate::object_id::{ObjectIdArray, ObjectIdScalar};
+use crate::object_id::{
+    ObjectIdArray, ObjectIdMapping, ObjectIdMappingRef, ObjectIdScalar,
+};
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::ScalarValue;
 use rdf_fusion_model::DFResult;
 use std::clone::Clone;
-use std::hash::Hash;
+use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
-/// The [ObjectIdEncoding] represents each distinct term in the database with a single unique id.
-/// We call such an id *object id*. Here is an example of the encoding:
+/// The size of an object id in bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ObjectIdSize(pub usize);
+
+impl Display for ObjectIdSize {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} Bytes", self.0)
+    }
+}
+
+/// A cheaply cloneable reference to a [`ObjectIdEncoding`].
+pub type ObjectIdEncodingRef = Arc<ObjectIdEncoding>;
+
+/// The [`ObjectIdEncoding`] represents each distinct term in the database with a single fixed-size
+/// id. We call such an id *object id*. Here is an example of the encoding:
 ///
 /// ```text
 /// ?variable
@@ -27,7 +44,7 @@ use std::hash::Hash;
 ///
 /// The mapping implementation depends on the storage layer that is being used. For example, an
 /// in-memory RDF store will use a different implementation as an on-disk RDF store. The
-/// [ObjectIdMapping](crate::object_id::ObjectIdMapping) trait defines the contract.
+/// [`ObjectIdMapping`](crate::object_id::ObjectIdMapping) trait defines the contract.
 ///
 /// # Strengths and Weaknesses
 ///
@@ -37,33 +54,47 @@ use std::hash::Hash;
 /// quadrupled the performance of some queries (with relatively small datasets!).
 ///
 /// However, this also introduces the necessity of decoding the object ids back to RDF terms. For
-/// example, by converting it to the [PlainTermEncoding](crate::plain_term::PlainTermEncoding).
+/// example, by converting it to the [`PlainTermEncoding`](crate::plain_term::PlainTermEncoding).
 /// For queries that spend little time on join operations, the cost of decoding the object ids can
 /// outweigh the benefits of using the object id encoding.
 ///
 /// Furthermore, the encoding introduces the necessity of maintaining the
-/// [ObjectIdMapping](crate::object_id::ObjectIdMapping), which can be non-trivial.
+/// [`ObjectIdMapping`](crate::object_id::ObjectIdMapping), which can be non-trivial.
+///
+/// # Equality
+///
+/// The equality and hashing functions check for pointer equality of the underlying mapping.
 ///
 /// # Current Limitation
 ///
 /// Currently, this id is fixed to being a 32-bit integer. However, we have an
 /// [issue](https://github.com/tobixdev/rdf-fusion/issues/50) that tracks the progress on limiting
 /// this limitation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct ObjectIdEncoding {
     /// The number of bytes in a single object id.
-    object_id_size: u8,
+    object_id_size: ObjectIdSize,
+    /// The mapping that is used to encode and decode object ids.
+    mapping: Arc<dyn ObjectIdMapping>,
 }
 
 impl ObjectIdEncoding {
     /// Creates a new [ObjectIdEncoding].
-    pub fn new(object_id_size: u8) -> Self {
-        Self { object_id_size }
+    pub fn new(mapping: Arc<dyn ObjectIdMapping>) -> Self {
+        Self {
+            object_id_size: mapping.object_id_size(),
+            mapping,
+        }
     }
 
     /// Returns the size of the object id.
-    pub fn object_id_size(&self) -> u8 {
+    pub fn object_id_size(&self) -> ObjectIdSize {
         self.object_id_size
+    }
+
+    /// Returns the mapping that is used to encode and decode object ids.
+    pub fn mapping(&self) -> &ObjectIdMappingRef {
+        &self.mapping
     }
 }
 
@@ -75,15 +106,30 @@ impl TermEncoding for ObjectIdEncoding {
         EncodingName::PlainTerm
     }
 
-    fn data_type(&self) -> DataType {
-        DataType::UInt32
+    fn data_type(&self) -> &DataType {
+        &DataType::UInt32
     }
 
-    fn try_new_array(&self, array: ArrayRef) -> DFResult<Self::Array> {
-        ObjectIdArray::try_new(self.clone(), array)
+    fn try_new_array(self: &Arc<Self>, array: ArrayRef) -> DFResult<Self::Array> {
+        ObjectIdArray::try_new(Arc::clone(self), array)
     }
 
-    fn try_new_scalar(&self, scalar: ScalarValue) -> DFResult<Self::Scalar> {
-        ObjectIdScalar::try_new(self.clone(), scalar)
+    fn try_new_scalar(self: &Arc<Self>, scalar: ScalarValue) -> DFResult<Self::Scalar> {
+        ObjectIdScalar::try_new(Arc::clone(self), scalar)
+    }
+}
+
+impl PartialEq for ObjectIdEncoding {
+    fn eq(&self, other: &Self) -> bool {
+        self.object_id_size == other.object_id_size
+            && Arc::ptr_eq(&self.mapping, &other.mapping)
+    }
+}
+
+impl Eq for ObjectIdEncoding {}
+
+impl Hash for ObjectIdEncoding {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.object_id_size.hash(state);
     }
 }
