@@ -1,8 +1,8 @@
 use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
-use crate::object_id::ObjectIdEncoding;
+use crate::object_id::{ObjectId, ObjectIdCreationError, ObjectIdEncoding};
 use datafusion::common::{ScalarValue, exec_err};
-use rdf_fusion_model::{DFResult, ObjectId};
+use rdf_fusion_model::DFResult;
 use std::sync::Arc;
 
 /// Represents an Arrow scalar with a [ObjectIdEncoding].
@@ -43,17 +43,17 @@ impl ObjectIdScalar {
     }
 
     /// Creates a new [ObjectIdScalar] from the given `object_id`.
-    pub fn from_object_id(encoding: Arc<ObjectIdEncoding>, object_id: ObjectId) -> Self {
-        let scalar = ScalarValue::UInt32(Some(object_id.0));
-        Self::new_unchecked(encoding, scalar)
-    }
-
-    /// Returns an [ObjectId] from this scalar.
-    pub fn as_object(&self) -> Option<ObjectId> {
-        match &self.inner {
-            ScalarValue::UInt32(scalar) => scalar.map(ObjectId::from),
-            _ => unreachable!("Checked in constructor."),
-        }
+    pub fn from_object_id(
+        encoding: Arc<ObjectIdEncoding>,
+        object_id: ObjectId,
+    ) -> Result<Self, ObjectIdCreationError> {
+        let bytes = object_id
+            .as_bytes()
+            .try_into()
+            .map_err(|_| ObjectIdCreationError)?;
+        let value = u32::from_be_bytes(bytes);
+        let scalar = ScalarValue::UInt32(Some(value));
+        Ok(Self::new_unchecked(encoding, scalar))
     }
 }
 

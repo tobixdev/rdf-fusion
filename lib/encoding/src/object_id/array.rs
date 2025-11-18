@@ -32,7 +32,6 @@ impl ObjectIdArray {
     }
 
     /// Returns a reference to the inner [UInt32Array].
-    #[allow(clippy::expect_used)]
     pub fn object_ids(&self) -> &UInt32Array {
         self.inner
             .as_any()

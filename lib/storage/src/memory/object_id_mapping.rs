@@ -4,10 +4,10 @@ use crate::index::EncodedQuad;
 use crate::memory::encoding::{EncodedTerm, EncodedTypedValue};
 use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
 use dashmap::{DashMap, DashSet};
-use datafusion::arrow::array::Array;
+use datafusion::arrow::array::{UInt32Array, UInt32Builder};
+use rdf_fusion_encoding::TermDecoder;
 use rdf_fusion_encoding::object_id::{
-    ObjectIdArray, ObjectIdArrayBuilder, ObjectIdEncodingRef, ObjectIdMapping,
-    ObjectIdMappingError, ObjectIdScalar, ObjectIdSize,
+    ObjectId, ObjectIdMapping, ObjectIdMappingError, ObjectIdSize,
 };
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::{
@@ -16,7 +16,6 @@ use rdf_fusion_encoding::plain_term::{
 use rdf_fusion_encoding::typed_value::{
     TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncodingRef,
 };
-use rdf_fusion_encoding::{EncodingArray, TermDecoder};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
     BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNode, QuadRef,
@@ -291,40 +290,36 @@ impl MemObjectIdMapping {
 
 impl ObjectIdMapping for MemObjectIdMapping {
     fn object_id_size(&self) -> ObjectIdSize {
-        ObjectIdSize(4)
+        ObjectIdSize::try_from(4).expect("4 is valid")
     }
 
     fn try_get_object_id(
         &self,
-        encoding: &ObjectIdEncodingRef,
         scalar: &PlainTermScalar,
-    ) -> Result<Option<ObjectIdScalar>, ObjectIdMappingError> {
+    ) -> Result<Option<ObjectId>, ObjectIdMappingError> {
         let term = DefaultPlainTermDecoder::decode_term(scalar);
         let result = term
             .ok()
             .and_then(|term| self.try_get_encoded_term(term))
             .and_then(|term| self.try_get_encoded_object_id(&term))
-            .map(|oid| {
-                ObjectIdScalar::from_object_id(Arc::clone(encoding), oid.as_object_id())
-            });
+            .map(|oid| oid.as_object_id());
         Ok(result)
     }
 
     fn encode_array(
         &self,
-        encoding: &ObjectIdEncodingRef,
         array: &PlainTermArray,
-    ) -> Result<ObjectIdArray, ObjectIdMappingError> {
+    ) -> Result<UInt32Array, ObjectIdMappingError> {
         let terms = DefaultPlainTermDecoder::decode_terms(array);
 
         // TODO: without alloc/Arc copy
-        let mut result = ObjectIdArrayBuilder::new(Arc::clone(encoding));
+        let mut result = UInt32Builder::new();
         for term in terms {
             match term {
                 Ok(term) => {
                     let encoded_term = self.obtain_encoded_term(term);
                     let object_id = self.obtain_object_id(&encoded_term);
-                    result.append_object_id(object_id.as_object_id())
+                    result.append_value(object_id.as_u32())
                 }
                 Err(_) => result.append_null(),
             }
@@ -335,9 +330,9 @@ impl ObjectIdMapping for MemObjectIdMapping {
 
     fn decode_array(
         &self,
-        array: &ObjectIdArray,
+        array: &UInt32Array,
     ) -> Result<PlainTermArray, ObjectIdMappingError> {
-        let terms = array.object_ids().iter().map(|oid| {
+        let terms = array.iter().map(|oid| {
             let oid = oid.map(EncodedObjectId::from);
             oid.map(|oid| {
                 self.try_get_encoded_term_from_object_id(oid)
@@ -347,7 +342,7 @@ impl ObjectIdMapping for MemObjectIdMapping {
         });
 
         // TODO: can we remove the clone?
-        let mut builder = PlainTermArrayElementBuilder::new(array.array().len());
+        let mut builder = PlainTermArrayElementBuilder::new(array.len());
         for term in terms {
             match term {
                 Some(EncodedTerm::NamedNode(value)) => {
@@ -381,9 +376,9 @@ impl ObjectIdMapping for MemObjectIdMapping {
     fn decode_array_to_typed_value(
         &self,
         encoding: &TypedValueEncodingRef,
-        array: &ObjectIdArray,
+        array: &UInt32Array,
     ) -> Result<TypedValueArray, ObjectIdMappingError> {
-        let typed_values = array.object_ids().iter().map(|oid| {
+        let typed_values = array.iter().map(|oid| {
             let oid = oid.map(EncodedObjectId::from);
             oid.map(|oid| {
                 self.try_get_encoded_typed_value_from_object_id(oid)
@@ -412,18 +407,13 @@ mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
     use rdf_fusion_encoding::EncodingArray;
-    use rdf_fusion_encoding::object_id::ObjectIdEncoding;
     use rdf_fusion_encoding::plain_term::PlainTermArrayElementBuilder;
-    use rdf_fusion_model::ObjectId;
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 
     #[test]
     fn test_encode_decode_roundtrip() -> DFResult<()> {
-        let mapping = Arc::new(MemObjectIdMapping::new());
-        let encoding = Arc::new(ObjectIdEncoding::new(
-            Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
-        ));
+        let mapping = MemObjectIdMapping::new();
 
         let mut builder = PlainTermArrayElementBuilder::new(5);
         builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
@@ -435,7 +425,7 @@ mod tests {
         builder.append_null();
         let plain_term_array = builder.finish();
 
-        let object_id_array = mapping.encode_array(&encoding, &plain_term_array)?;
+        let object_id_array = mapping.encode_array(&plain_term_array)?;
         let decoded_plain_term_array = mapping.decode_array(&object_id_array)?;
 
         assert_eq!(
@@ -452,10 +442,7 @@ mod tests {
 
     #[test]
     fn test_id_uniqueness_and_consistency() -> DFResult<()> {
-        let mapping = Arc::new(MemObjectIdMapping::new());
-        let encoding = Arc::new(ObjectIdEncoding::new(
-            Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
-        ));
+        let mapping = MemObjectIdMapping::new();
 
         let mut builder = PlainTermArrayElementBuilder::new(5);
         let nn1 = NamedNodeRef::new_unchecked("http://example.com/a");
@@ -467,11 +454,11 @@ mod tests {
         builder.append_named_node(nn1);
         let plain_term_array = builder.finish();
 
-        let object_id_array = mapping.encode_array(&encoding, &plain_term_array)?;
+        let object_id_array = mapping.encode_array(&plain_term_array)?;
 
-        let id1 = object_id_array.object_ids().value(0);
-        let id2 = object_id_array.object_ids().value(1);
-        let id3 = object_id_array.object_ids().value(2);
+        let id1 = object_id_array.value(0);
+        let id2 = object_id_array.value(1);
+        let id3 = object_id_array.value(2);
 
         assert_eq!(id1, id3);
         assert_ne!(id1, id2);
@@ -481,10 +468,10 @@ mod tests {
         builder2.append_named_node(nn2);
         builder2.append_named_node(nn1);
         let plain_term_array2 = builder2.finish();
-        let object_id_array2 = mapping.encode_array(&encoding, &plain_term_array2)?;
+        let object_id_array2 = mapping.encode_array(&plain_term_array2)?;
 
-        let id4 = object_id_array2.object_ids().value(0);
-        let id5 = object_id_array2.object_ids().value(1);
+        let id4 = object_id_array2.value(0);
+        let id5 = object_id_array2.value(1);
 
         assert_eq!(id2, id4);
         assert_eq!(id1, id5);
@@ -494,10 +481,7 @@ mod tests {
 
     #[test]
     fn test_try_get_object_id() -> DFResult<()> {
-        let mapping = Arc::new(MemObjectIdMapping::new());
-        let encoding = Arc::new(ObjectIdEncoding::new(
-            Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
-        ));
+        let mapping = MemObjectIdMapping::new();
 
         let term1 = PlainTermScalar::from(TermRef::NamedNode(
             NamedNodeRef::new_unchecked("http://example.com/a"),
@@ -506,37 +490,37 @@ mod tests {
             PlainTermScalar::from(TermRef::BlankNode(BlankNodeRef::new_unchecked("b1")));
 
         // Before encoding, should be None
-        assert!(mapping.try_get_object_id(&encoding, &term1)?.is_none());
-        assert!(mapping.try_get_object_id(&encoding, &term2)?.is_none());
+        assert!(mapping.try_get_object_id(&term1)?.is_none());
+        assert!(mapping.try_get_object_id(&term2)?.is_none());
 
         // Encode an array to populate the mapping
         let mut builder = PlainTermArrayElementBuilder::new(2);
         builder.append_named_node(NamedNodeRef::new_unchecked("http://example.com/a"));
         builder.append_blank_node(BlankNodeRef::new_unchecked("b1"));
         let plain_term_array = builder.finish();
-        let object_id_array = mapping.encode_array(&encoding, &plain_term_array)?;
+        let object_id_array = mapping.encode_array(&plain_term_array)?;
 
         // After encoding, should be Some
-        let object_id1 = mapping.try_get_object_id(&encoding, &term1)?;
+        let object_id1 = mapping.try_get_object_id(&term1)?;
         assert!(object_id1.is_some());
-        let object_id2 = mapping.try_get_object_id(&encoding, &term2)?;
+        let object_id2 = mapping.try_get_object_id(&term2)?;
         assert!(object_id2.is_some());
 
         // Check if IDs match what's in the array
         assert_eq!(
-            object_id1.unwrap().as_object().unwrap().0,
-            object_id_array.object_ids().value(0)
+            object_id1.unwrap().as_bytes(),
+            object_id_array.value(0).to_be_bytes()
         );
         assert_eq!(
-            object_id2.unwrap().as_object().unwrap(),
-            ObjectId(object_id_array.object_ids().value(1))
+            object_id2.unwrap().as_bytes(),
+            object_id_array.value(1).to_be_bytes()
         );
 
         // A term not in the mapping
         let term3 = PlainTermScalar::from(TermRef::NamedNode(
             NamedNodeRef::new_unchecked("http://example.com/c"),
         ));
-        assert!(mapping.try_get_object_id(&encoding, &term3)?.is_none());
+        assert!(mapping.try_get_object_id(&term3)?.is_none());
 
         Ok(())
     }

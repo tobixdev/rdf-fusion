@@ -1010,10 +1010,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
                 }
                 Some(encoding) => {
                     let scalar = PlainTermScalar::from(scalar);
-                    encoding
-                        .mapping()
-                        .encode_scalar(encoding, &scalar)?
-                        .into_scalar_value()
+                    encoding.encode_scalar(&scalar)?.into_scalar_value()
                 }
             },
         };

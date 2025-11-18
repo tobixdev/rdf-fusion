@@ -74,7 +74,7 @@ impl WithTypedValueEncoding {
                     let array = encoding.try_new_array(array)?;
                     let decoded = encoding.mapping().decode_array_to_typed_value(
                         self.encodings.typed_value(),
-                        &array,
+                        array.object_ids(),
                     )?;
                     Ok(ColumnarValue::Array(decoded.into_array_ref()))
                 }
