@@ -1,7 +1,7 @@
-use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
 use crate::object_id::{ObjectId, ObjectIdCreationError, ObjectIdEncoding};
-use datafusion::common::{ScalarValue, exec_err};
+use crate::TermEncoding;
+use datafusion::common::{exec_err, ScalarValue};
 use rdf_fusion_model::DFResult;
 use std::sync::Arc;
 
@@ -70,5 +70,17 @@ impl EncodingScalar for ObjectIdScalar {
 
     fn into_scalar_value(self) -> ScalarValue {
         self.inner
+    }
+}
+
+impl From<ObjectIdScalar> for Option<ObjectId> {
+    fn from(value: ObjectIdScalar) -> Self {
+        match value.inner {
+            ScalarValue::UInt32(value) => match value {
+                None => None,
+                Some(oid) => Some(ObjectId::try_new(oid.to_be_bytes()).unwrap()),
+            },
+            _ => unreachable!("ObjectID scalar is UInt32."),
+        }
     }
 }

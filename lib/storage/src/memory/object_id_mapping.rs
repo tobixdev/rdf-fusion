@@ -2,10 +2,9 @@
 
 use crate::index::EncodedQuad;
 use crate::memory::encoding::{EncodedTerm, EncodedTypedValue};
-use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedGraphObjectId, EncodedObjectId};
+use crate::memory::object_id::{EncodedGraphObjectId, EncodedObjectId, DEFAULT_GRAPH_ID};
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::{UInt32Array, UInt32Builder};
-use rdf_fusion_encoding::TermDecoder;
 use rdf_fusion_encoding::object_id::{
     ObjectId, ObjectIdMapping, ObjectIdMappingError, ObjectIdSize,
 };
@@ -16,6 +15,7 @@ use rdf_fusion_encoding::plain_term::{
 use rdf_fusion_encoding::typed_value::{
     TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncodingRef,
 };
+use rdf_fusion_encoding::TermDecoder;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
     BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNode, QuadRef,
@@ -23,8 +23,8 @@ use rdf_fusion_model::{
 };
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 /// Maintains a mapping between RDF terms and object IDs in memory.
 ///
@@ -406,8 +406,8 @@ impl ObjectIdMapping for MemObjectIdMapping {
 mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
-    use rdf_fusion_encoding::EncodingArray;
     use rdf_fusion_encoding::plain_term::PlainTermArrayElementBuilder;
+    use rdf_fusion_encoding::EncodingArray;
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
 

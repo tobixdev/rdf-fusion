@@ -1,12 +1,13 @@
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
+use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::object_id::ObjectId;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
     TermEncoder, TermEncoding,
@@ -103,12 +104,18 @@ impl WithTypedValueEncoding {
             EncodingName::ObjectId => match self.encodings.object_id() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
                 Some(encoding) => {
-                    let array = encoding.try_new_scalar(scalar)?;
-                    let decoded = encoding.mapping().decode_scalar_to_typed_value(
-                        self.encodings.typed_value(),
-                        &array,
-                    )?;
-                    Ok(ColumnarValue::Scalar(decoded.into_scalar_value()))
+                    let decoded =
+                        Option::<ObjectId>::from(encoding.try_new_scalar(scalar)?)
+                            .map(|oid| {
+                                encoding.mapping().decode_scalar_to_typed_value(
+                                    self.encodings.typed_value(),
+                                    &oid,
+                                )
+                            })
+                            .transpose()?
+                            .map(|oid| oid.into_scalar_value())
+                            .unwrap_or(ScalarValue::UInt32(None));
+                    Ok(ColumnarValue::Scalar(decoded))
                 }
             },
         }

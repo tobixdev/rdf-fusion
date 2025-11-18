@@ -1,12 +1,13 @@
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, FieldRef};
-use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err, plan_err};
+use datafusion::common::{exec_datafusion_err, exec_err, plan_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ReturnFieldArgs, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl,
     Signature, TypeSignature, Volatility,
 };
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
+use rdf_fusion_encoding::object_id::ObjectId;
 use rdf_fusion_encoding::plain_term::encoders::TypedValueRefPlainTermEncoder;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
@@ -94,9 +95,13 @@ impl WithPlainTermEncoding {
             EncodingName::ObjectId => match self.encodings.object_id() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
                 Some(encoding) => {
-                    let scalar = encoding.try_new_scalar(scalar)?;
-                    let decoded = encoding.mapping().decode_scalar(&scalar)?;
-                    Ok(ColumnarValue::Scalar(decoded.into_scalar_value()))
+                    let decoded =
+                        Option::<ObjectId>::from(encoding.try_new_scalar(scalar)?)
+                            .map(|oid| encoding.mapping().decode_scalar(&oid))
+                            .transpose()?
+                            .map(|oid| oid.into_scalar_value())
+                            .unwrap_or(ScalarValue::UInt32(None));
+                    Ok(ColumnarValue::Scalar(decoded))
                 }
             },
         }

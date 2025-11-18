@@ -62,7 +62,6 @@ impl Display for ObjectIdSize {
 /// This struct guarantees that the slice length fits into a non-negative `i32`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ObjectId {
-    size: i32,
     slice: Box<[u8]>,
 }
 
@@ -70,24 +69,20 @@ impl ObjectId {
     /// Creates a new [`ObjectId`].
     pub fn try_new(bytes: impl Into<Box<[u8]>>) -> Result<Self, ObjectIdCreationError> {
         let bytes = bytes.into();
-        let len = i32::try_from(bytes.len()).map_err(|_| ObjectIdCreationError)?;
-        Ok(Self {
-            size: len,
-            slice: bytes,
-        })
+        i32::try_from(bytes.len()).map_err(|_| ObjectIdCreationError)?;
+        Ok(Self { slice: bytes })
     }
 
     /// Creates a new [`ObjectId`].
     pub fn try_new_from_array(array: &UInt32Array, index: usize) -> Option<Self> {
         array.is_valid(index).then(|| ObjectId {
-            size: 4,
             slice: Box::new(array.value(index).to_be_bytes()),
         })
     }
 
     /// Returns the length of the object id in bytes.
     pub fn size(&self) -> i32 {
-        self.size
+        self.slice.len() as i32 // Conversion checked in Self::try_new
     }
 
     /// Returns a reference to the underlying bytes.

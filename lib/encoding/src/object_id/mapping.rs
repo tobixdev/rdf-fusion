@@ -2,8 +2,9 @@ use crate::object_id::{ObjectId, ObjectIdScalar, ObjectIdSize};
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
 use crate::typed_value::{TypedValueArray, TypedValueEncodingRef, TypedValueScalar};
 use crate::{EncodingArray, EncodingScalar};
-use datafusion::arrow::array::UInt32Array;
+use datafusion::arrow::array::{AsArray, UInt32Array};
 use datafusion::arrow::error::ArrowError;
+use datafusion::common::ScalarValue;
 use datafusion::error::DataFusionError;
 use rdf_fusion_model::{CorruptionError, StorageError};
 use std::error::Error;
@@ -119,12 +120,20 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     /// Decodes a single `scalar` as a [PlainTermScalar].
     fn decode_scalar(
         &self,
-        scalar: &ObjectIdScalar,
+        scalar: &ObjectId,
     ) -> Result<PlainTermScalar, ObjectIdMappingError> {
-        let array = scalar
-            .to_array(1)
-            .expect("Data type is supported for to_array");
-        let encoded = self.decode_array(array.object_ids())?;
+        if scalar.size() != 4 {
+            // TODO: Lift this restriction once binary object ids are supported.
+            panic!("Invalid object id size: {}", scalar.size());
+        }
+
+        let array = ScalarValue::UInt32(Some(u32::from_be_bytes(
+            scalar.as_bytes().try_into().unwrap(),
+        )))
+        .to_array()
+        .expect("Data type is supported for to_array");
+
+        let encoded = self.decode_array(array.as_primitive())?;
         Ok(encoded.try_as_scalar(0).expect("Row 0 always exists"))
     }
 
@@ -132,12 +141,20 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     fn decode_scalar_to_typed_value(
         &self,
         encoding: &TypedValueEncodingRef,
-        scalar: &ObjectIdScalar,
+        scalar: &ObjectId,
     ) -> Result<TypedValueScalar, ObjectIdMappingError> {
-        let array = scalar
-            .to_array(1)
-            .expect("Data type is supported for to_array");
-        let decoded = self.decode_array_to_typed_value(encoding, array.object_ids())?;
+        if scalar.size() != 4 {
+            // TODO: Lift this restriction once binary object ids are supported.
+            panic!("Invalid object id size: {}", scalar.size());
+        }
+
+        let array = ScalarValue::UInt32(Some(u32::from_be_bytes(
+            scalar.as_bytes().try_into().unwrap(),
+        )))
+        .to_array()
+        .expect("Data type is supported for to_array");
+
+        let decoded = self.decode_array_to_typed_value(encoding, array.as_primitive())?;
         Ok(decoded.try_as_scalar(0).expect("Row 0 always exists"))
     }
 }

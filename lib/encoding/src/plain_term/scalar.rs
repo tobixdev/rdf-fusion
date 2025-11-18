@@ -3,9 +3,9 @@ use crate::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
 use crate::plain_term::encoders::DefaultPlainTermEncoder;
-use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
+use crate::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
 use crate::{TermDecoder, TermEncoder};
-use datafusion::common::{DataFusionError, ScalarValue, exec_err};
+use datafusion::common::{exec_err, DataFusionError, ScalarValue};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
     BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef, Term,
@@ -36,13 +36,13 @@ impl PlainTermScalar {
     }
 
     /// Creates a new [PlainTermScalar] from the given `graph_name`.
-    pub fn from_graph_name(graph_name: GraphNameRef<'_>) -> DFResult<Self> {
+    pub fn from_graph_name(graph_name: GraphNameRef<'_>) -> Self {
         match graph_name {
-            GraphNameRef::NamedNode(nn) => Ok(Self::from(nn)),
-            GraphNameRef::BlankNode(bnode) => Ok(Self::from(bnode)),
-            GraphNameRef::DefaultGraph => {
-                DefaultPlainTermEncoder.encode_term(ThinError::expected())
-            }
+            GraphNameRef::NamedNode(nn) => Self::from(nn),
+            GraphNameRef::BlankNode(bnode) => Self::from(bnode),
+            GraphNameRef::DefaultGraph => DefaultPlainTermEncoder
+                .encode_term(ThinError::expected())
+                .expect("Encoding default graph should always work."),
         }
     }
 

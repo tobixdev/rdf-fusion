@@ -1,14 +1,18 @@
 use crate::index::{IndexComponents, IndexPermutations};
-use crate::memory::MemObjectIdMapping;
+use crate::memory::object_id::EncodedObjectId;
 use crate::memory::planner::MemQuadStorePlanner;
 use crate::memory::storage::quad_index::{MemIndexConfiguration, MemQuadIndex};
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
 use async_trait::async_trait;
+use datafusion::common::internal_err;
 use datafusion::physical_planner::ExtensionPlanner;
+use rdf_fusion_encoding::object_id::{
+    ObjectIdEncodingRef, ObjectIdMapping, ObjectIdSize,
+};
+use rdf_fusion_encoding::plain_term::PlainTermScalar;
 use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_encoding::object_id::{ObjectIdEncodingRef, ObjectIdMapping};
-use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_extensions::storage::QuadStorage;
+use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::StorageError;
 use rdf_fusion_model::{
@@ -21,9 +25,7 @@ use tokio::sync::RwLock;
 /// A memory-based quad storage.
 pub struct MemQuadStorage {
     /// The object id encoding.
-    object_id_encoding: ObjectIdEncodingRef,
-    /// Holds the mapping between terms and object ids.
-    object_id_mapping: Arc<MemObjectIdMapping>,
+    encoding: ObjectIdEncodingRef,
     /// The index set
     indexes: Arc<RwLock<IndexPermutations<MemQuadIndex>>>,
 }
@@ -31,13 +33,14 @@ pub struct MemQuadStorage {
 impl MemQuadStorage {
     /// Creates a new [MemQuadStorage] with the given `object_id_encoding`.
     ///
-    /// This method expects that the given `object_id_mapping` is the same as the mapping in
-    /// `object_id_encoding`. We are planning on removing this restriction in the future.
-    pub fn new(
-        object_id_mapping: Arc<MemObjectIdMapping>,
+    pub fn try_new(
         object_id_encoding: ObjectIdEncodingRef,
         batch_size: usize,
-    ) -> Self {
+    ) -> DFResult<Self> {
+        if object_id_encoding.object_id_size() != ObjectIdSize::try_from(4).unwrap() {
+            return internal_err!("Only object id size 4 is supported for now.");
+        }
+
         let components = [
             IndexComponents::GSPO,
             IndexComponents::GPOS,
@@ -53,21 +56,19 @@ impl MemQuadStorage {
                 })
             })
             .collect();
-        Self {
+        Ok(Self {
             indexes: Arc::new(RwLock::new(IndexPermutations::new(
                 HashSet::new(),
                 indexes,
             ))),
-            object_id_mapping,
-            object_id_encoding,
-        }
+            encoding: object_id_encoding,
+        })
     }
 
     /// Creates a snapshot of this storage.
     pub async fn snapshot(&self) -> MemQuadStorageSnapshot {
         MemQuadStorageSnapshot::new(
-            self.encoding(),
-            Arc::clone(&self.object_id_mapping),
+            Arc::clone(&self.encoding),
             Arc::new(Arc::clone(&self.indexes).read_owned().await),
         )
     }
@@ -77,11 +78,11 @@ impl MemQuadStorage {
 impl QuadStorage for MemQuadStorage {
     fn encoding(&self) -> QuadStorageEncoding {
         // Only object id encoding is supported.
-        QuadStorageEncoding::ObjectId(Arc::clone(&self.object_id_encoding))
+        QuadStorageEncoding::ObjectId(Arc::clone(&self.encoding))
     }
 
     fn object_id_mapping(&self) -> Option<Arc<dyn ObjectIdMapping>> {
-        Some(Arc::clone(&self.object_id_mapping) as Arc<dyn ObjectIdMapping>)
+        Some(Arc::clone(&self.encoding.mapping()))
     }
 
     async fn planners(
@@ -111,19 +112,22 @@ impl QuadStorage for MemQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        let encoded = self.object_id_mapping.encode_term_intern(graph_name);
+        let graph_name = PlainTermScalar::from(graph_name);
+        let object_id = self.encoding.mapping().encode_scalar(&graph_name)?;
+        let encoded = EncodedObjectId::try_from(object_id.as_bytes())
+            .expect("Object id size checked in try_new.");
         Ok(self.indexes.write().await.insert_named_graph(encoded))
     }
 
     async fn named_graphs(&self) -> Result<Vec<NamedOrBlankNode>, StorageError> {
-        Ok(self.snapshot().await.named_graphs())
+        Ok(self.snapshot().await.named_graphs()?)
     }
 
     async fn contains_named_graph<'a>(
         &self,
         graph_name: NamedOrBlankNodeRef<'a>,
     ) -> Result<bool, StorageError> {
-        Ok(self.snapshot().await.contains_named_graph(graph_name))
+        Ok(self.snapshot().await.contains_named_graph(graph_name)?)
     }
 
     async fn clear(&self) -> Result<(), StorageError> {
@@ -135,10 +139,8 @@ impl QuadStorage for MemQuadStorage {
         &self,
         graph_name: GraphNameRef<'a>,
     ) -> Result<(), StorageError> {
-        let Some(encoded) = self
-            .object_id_mapping
-            .try_get_encoded_object_id_from_graph_name(graph_name)
-        else {
+        let graph_name = PlainTermScalar::from_graph_name(graph_name);
+        let Some(encoded) = self.encoding.mapping().try_get_object_id(&graph_name) else {
             return Ok(());
         };
         self.indexes.write().await.clear_graph(&encoded.0);
@@ -149,13 +151,14 @@ impl QuadStorage for MemQuadStorage {
         &self,
         graph_name: NamedOrBlankNodeRef<'_>,
     ) -> Result<bool, StorageError> {
-        let Some(encoded) = self
-            .object_id_mapping
-            .try_get_encoded_object_id_from_term(graph_name)
+        let graph_name = PlainTermScalar::from(graph_name);
+        let Some(encoded) = self.encoding.mapping().try_get_object_id(&graph_name)?
         else {
             return Ok(false);
         };
 
+        let encoded = EncodedObjectId::try_from(encoded.as_bytes())
+            .expect("Object id size checked in try_new.");
         Ok(self.indexes.write().await.drop_named_graph(&encoded))
     }
 
