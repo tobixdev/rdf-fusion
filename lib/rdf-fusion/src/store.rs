@@ -36,12 +36,12 @@ use datafusion::prelude::SessionConfig;
 use futures::StreamExt;
 use oxrdfio::{RdfParser, RdfSerializer};
 use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
-use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_execution::results::{QuadStream, QueryResults, QuerySolutionStream};
 use rdf_fusion_execution::sparql::error::QueryEvaluationError;
 use rdf_fusion_execution::sparql::{
     Query, QueryExplanation, QueryOptions, Update, UpdateOptions,
 };
+use rdf_fusion_execution::RdfFusionContext;
 use rdf_fusion_model::StorageError;
 use rdf_fusion_model::{
     GraphNameRef, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, QuadRef,
@@ -106,7 +106,8 @@ impl Default for Store {
         let encoding = Arc::new(ObjectIdEncoding::new(
             Arc::clone(&object_id_mapping) as Arc<dyn ObjectIdMapping>
         ));
-        let storage = MemQuadStorage::new(object_id_mapping, encoding, 8192);
+        let storage = MemQuadStorage::try_new(encoding, 8192)
+            .expect("MemObjectIdMapping has 4-byte wide object ids");
         let engine = RdfFusionContext::new(
             config,
             RuntimeEnvBuilder::default().build_arc().unwrap(),
@@ -132,7 +133,8 @@ impl Store {
         let encoding = Arc::new(ObjectIdEncoding::new(
             Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
         ));
-        let storage = MemQuadStorage::new(mapping, encoding, config.batch_size());
+        let storage = MemQuadStorage::try_new(encoding, config.batch_size())
+            .expect("MemObjectIdMapping has 4-byte wide object ids");
         let context = RdfFusionContext::new(config, runtime_env, Arc::new(storage));
         Self { context }
     }

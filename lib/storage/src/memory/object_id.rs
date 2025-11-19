@@ -70,7 +70,7 @@ impl TryFrom<&[u8]> for EncodedObjectId {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         TryInto::<[u8; 4]>::try_into(value.as_bytes())
-            .map(u32::from_ne_bytes)
+            .map(u32::from_be_bytes)
             .map(Self)
             .map_err(|_| InvalidObjectIdError)
     }
@@ -132,7 +132,7 @@ mod tests {
     fn test_from_byte_slice_success() {
         let array: [u8; 4] = [0x56, 0x78, 0x9A, 0xBC];
         let id = EncodedObjectId::try_from(array.as_slice()).unwrap();
-        assert_eq!(id.0.to_ne_bytes(), [0x56, 0x78, 0x9A, 0xBC]);
+        assert_eq!(id.0.to_be_bytes(), [0x56, 0x78, 0x9A, 0xBC]);
     }
 
     #[test]

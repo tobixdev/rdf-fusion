@@ -1,11 +1,11 @@
 mod mem_quad_storage;
 mod parquet;
 
-use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_extensions::functions::RdfFusionFunctionRegistryRef;
 use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 use rdf_fusion_storage::memory::{MemObjectIdMapping, MemQuadStorage};
@@ -16,7 +16,7 @@ fn create_storage() -> MemQuadStorage {
     let encoding = Arc::new(ObjectIdEncoding::new(
         Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
     ));
-    MemQuadStorage::new(mapping, encoding, 10)
+    MemQuadStorage::try_new(encoding, 10).unwrap()
 }
 
 fn create_function_registry(

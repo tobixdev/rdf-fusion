@@ -184,6 +184,7 @@ mod test {
         TermRef, TriplePattern, Variable,
     };
     use std::sync::Arc;
+    use rdf_fusion_encoding::plain_term::PlainTermScalar;
 
     #[tokio::test]
     async fn test_filter_pushdown_binds_variable_eq() {
@@ -245,9 +246,9 @@ mod test {
         };
 
         let object_id_mapping = Arc::new(MemObjectIdMapping::default());
-        object_id_mapping.encode_term_intern(TermRef::NamedNode(
+        object_id_mapping.encode_scalar(&PlainTermScalar::from(TermRef::NamedNode(
             NamedNodeRef::new_unchecked("http://example.com/test"),
-        ));
+        ))).unwrap();
         let encoding = Arc::new(ObjectIdEncoding::new(object_id_mapping));
 
         let index = MemQuadStorage::try_new(encoding, 10).unwrap();

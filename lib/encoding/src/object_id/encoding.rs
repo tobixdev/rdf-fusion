@@ -95,7 +95,10 @@ impl ObjectIdEncoding {
         self: &Arc<Self>,
         scalar: &PlainTermScalar,
     ) -> Result<ObjectIdScalar, ObjectIdMappingError> {
-        let object_id = self.mapping.encode_scalar(scalar)?;
+        let Some(object_id) = self.mapping.encode_scalar(scalar)? else {
+            return Ok(ObjectIdScalar::null(Arc::clone(self)));
+        };
+
         let bytes = object_id
             .as_bytes()
             .try_into()

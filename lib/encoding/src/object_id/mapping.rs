@@ -1,4 +1,4 @@
-use crate::object_id::{ObjectId, ObjectIdScalar, ObjectIdSize};
+use crate::object_id::{ObjectId, ObjectIdSize};
 use crate::plain_term::{PlainTermArray, PlainTermScalar};
 use crate::typed_value::{TypedValueArray, TypedValueEncodingRef, TypedValueScalar};
 use crate::{EncodingArray, EncodingScalar};
@@ -94,13 +94,12 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     fn encode_scalar(
         &self,
         scalar: &PlainTermScalar,
-    ) -> Result<ObjectId, ObjectIdMappingError> {
+    ) -> Result<Option<ObjectId>, ObjectIdMappingError> {
         let array = scalar
             .to_array(1)
             .expect("Data type is supported for to_array");
         let encoded = self.encode_array(&array)?;
-        let object_id = ObjectId::try_new_from_array(&encoded, 0)
-            .expect("Encoding does not return null values");
+        let object_id = ObjectId::try_new_from_array(&encoded, 0);
         Ok(object_id)
     }
 
