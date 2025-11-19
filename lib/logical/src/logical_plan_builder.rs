@@ -27,16 +27,16 @@ use std::sync::Arc;
 /// # use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 /// # use rdf_fusion_encoding::{QuadStorageEncoding, RdfFusionEncodings};
 /// # use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-/// # use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+/// # use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 /// # use rdf_fusion_logical::RdfFusionLogicalPlanBuilderContext;
 /// # use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
 /// # use rdf_fusion_model::{NamedNodePattern, TermPattern, TriplePattern, Variable};
 /// # use rdf_fusion_logical::ActiveGraph;
 /// # let encodings = RdfFusionEncodings::new(
-/// #     PLAIN_TERM_ENCODING,
-/// #     TYPED_VALUE_ENCODING,
+/// #     Arc::clone(&PLAIN_TERM_ENCODING),
+/// #     Arc::new(TypedValueEncoding::default()),
 /// #     None,
-/// #     SORTABLE_TERM_ENCODING
+/// #     Arc::clone(&SORTABLE_TERM_ENCODING)
 /// # );
 /// # let rdf_fusion_context = RdfFusionContextView::new(
 /// #     Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone())),

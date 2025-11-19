@@ -176,12 +176,15 @@ impl RdfFusionLogicalPlanBuilderContext {
     ) -> DFResult<RdfFusionLogicalPlanBuilder> {
         let fields = variables
             .iter()
-            .map(|v| Field::new(v.as_str(), PLAIN_TERM_ENCODING.data_type(), true))
+            .map(|v| {
+                Field::new(v.as_str(), PLAIN_TERM_ENCODING.data_type().clone(), true)
+            })
             .collect::<Fields>();
         let schema = DFSchema::from_unqualified_fields(fields, HashMap::new())?;
 
         if bindings.is_empty() {
-            let empty = DefaultPlainTermEncoder::encode_term(ThinError::expected())?
+            let empty = DefaultPlainTermEncoder
+                .encode_term(ThinError::expected())?
                 .into_scalar_value();
             let plan = LogicalPlanBuilder::values_with_schema(
                 vec![vec![lit(empty); variables.len()]],
@@ -198,14 +201,15 @@ impl RdfFusionLogicalPlanBuilderContext {
         for solution in bindings {
             let mut row = Vec::new();
             for term in solution {
-                let literal = DefaultPlainTermEncoder::encode_term(match term {
-                    None => ThinError::expected(),
-                    Some(term) => Ok(match term {
-                        GroundTerm::NamedNode(nn) => TermRef::NamedNode(nn.as_ref()),
-                        GroundTerm::Literal(lit) => TermRef::Literal(lit.as_ref()),
-                    }),
-                })?
-                .into_scalar_value();
+                let literal = DefaultPlainTermEncoder
+                    .encode_term(match term {
+                        None => ThinError::expected(),
+                        Some(term) => Ok(match term {
+                            GroundTerm::NamedNode(nn) => TermRef::NamedNode(nn.as_ref()),
+                            GroundTerm::Literal(lit) => TermRef::Literal(lit.as_ref()),
+                        }),
+                    })?
+                    .into_scalar_value();
                 row.push(lit(literal));
             }
             rows.push(row);

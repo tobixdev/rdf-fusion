@@ -1,57 +1,55 @@
 use crate::encoding::EncodingScalar;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
-use crate::typed_value::{TYPED_VALUE_ENCODING, TypedValueEncoding};
+use crate::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
 use crate::{TermDecoder, TermEncoding};
-use datafusion::common::{DataFusionError, ScalarValue, exec_err};
+use datafusion::common::{ScalarValue, exec_err};
 use rdf_fusion_model::{DFResult, ThinResult, TypedValueRef};
+use std::sync::Arc;
 
-/// Represents an Arrow scalar with a [TypedValueEncoding].
+/// Represents an Arrow scalar with a [`TypedValueEncoding`].
 #[derive(Clone)]
 pub struct TypedValueScalar {
-    /// The actual [ScalarValue].
+    /// The [`TypedValueEncoding`] of this scalar.
+    encoding: TypedValueEncodingRef,
+    /// The actual [`ScalarValue`].
     inner: ScalarValue,
 }
 
 impl TypedValueScalar {
-    /// Tries to create a new [TypedValueScalar] from a regular [ScalarValue].
+    /// Tries to create a new [`TypedValueScalar`] from a regular [`ScalarValue`].
     ///
     /// # Errors
     ///
     /// Returns an error if the data type of `value` is unexpected.
-    pub fn try_new(value: ScalarValue) -> DFResult<Self> {
-        if value.data_type() != TYPED_VALUE_ENCODING.data_type() {
+    pub fn try_new(
+        encoding: TypedValueEncodingRef,
+        value: ScalarValue,
+    ) -> DFResult<Self> {
+        if &value.data_type() != encoding.data_type() {
             return exec_err!(
                 "Expected scalar value with TypedValueEncoding, got {:?}",
                 value
             );
         }
-        Ok(Self::new_unchecked(value))
+        Ok(Self::new_unchecked(encoding, value))
     }
 
-    /// Creates a new [TypedValueScalar] without checking invariants.
-    pub fn new_unchecked(inner: ScalarValue) -> Self {
-        Self { inner }
+    /// Creates a new [`TypedValueScalar`] without checking invariants.
+    pub fn new_unchecked(encoding: TypedValueEncodingRef, inner: ScalarValue) -> Self {
+        Self { encoding, inner }
     }
 
-    /// Returns a [TypedValueRef] to the underlying scalar.
+    /// Returns a [`TypedValueRef`] to the underlying scalar.
     pub fn as_typed_value(&self) -> ThinResult<TypedValueRef<'_>> {
         DefaultTypedValueDecoder::decode_term(self)
-    }
-}
-
-impl TryFrom<ScalarValue> for TypedValueScalar {
-    type Error = DataFusionError;
-
-    fn try_from(value: ScalarValue) -> Result<Self, Self::Error> {
-        Self::try_new(value)
     }
 }
 
 impl EncodingScalar for TypedValueScalar {
     type Encoding = TypedValueEncoding;
 
-    fn encoding(&self) -> &Self::Encoding {
-        &TYPED_VALUE_ENCODING
+    fn encoding(&self) -> &Arc<Self::Encoding> {
+        &self.encoding
     }
 
     fn scalar_value(&self) -> &ScalarValue {

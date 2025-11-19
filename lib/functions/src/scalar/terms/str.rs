@@ -12,7 +12,9 @@ use rdf_fusion_encoding::plain_term::{
     PlainTermType,
 };
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::{EncodingArray, EncodingDatum, EncodingScalar};
+use rdf_fusion_encoding::{
+    EncodingArray, EncodingDatum, EncodingScalar, RdfFusionEncodings,
+};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::ThinError;
@@ -48,41 +50,51 @@ impl ScalarSparqlOp for StrSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_unary_owned_typed_value(
-                &args.args[0],
-                |value| {
-                    let converted = match value {
-                        TypedValueRef::NamedNode(value) => value.as_str().to_owned(),
-                        TypedValueRef::BlankNode(value) => value.as_str().to_owned(),
-                        TypedValueRef::BooleanLiteral(value) => value.to_string(),
-                        TypedValueRef::NumericLiteral(value) => value.format_value(),
-                        TypedValueRef::SimpleLiteral(value) => value.value.to_owned(),
-                        TypedValueRef::LanguageStringLiteral(value) => {
-                            value.value.to_owned()
-                        }
-                        TypedValueRef::DateTimeLiteral(value) => value.to_string(),
-                        TypedValueRef::TimeLiteral(value) => value.to_string(),
-                        TypedValueRef::DateLiteral(value) => value.to_string(),
-                        TypedValueRef::DurationLiteral(value) => value.to_string(),
-                        TypedValueRef::YearMonthDurationLiteral(value) => {
-                            value.to_string()
-                        }
-                        TypedValueRef::DayTimeDurationLiteral(value) => value.to_string(),
-                        TypedValueRef::OtherLiteral(value) => value.value().to_owned(),
-                    };
-                    Ok(TypedValue::SimpleLiteral(SimpleLiteral {
-                        value: converted,
-                    }))
-                },
-                ThinError::expected,
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_unary_owned_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    |value| {
+                        let converted = match value {
+                            TypedValueRef::NamedNode(value) => value.as_str().to_owned(),
+                            TypedValueRef::BlankNode(value) => value.as_str().to_owned(),
+                            TypedValueRef::BooleanLiteral(value) => value.to_string(),
+                            TypedValueRef::NumericLiteral(value) => value.format_value(),
+                            TypedValueRef::SimpleLiteral(value) => value.value.to_owned(),
+                            TypedValueRef::LanguageStringLiteral(value) => {
+                                value.value.to_owned()
+                            }
+                            TypedValueRef::DateTimeLiteral(value) => value.to_string(),
+                            TypedValueRef::TimeLiteral(value) => value.to_string(),
+                            TypedValueRef::DateLiteral(value) => value.to_string(),
+                            TypedValueRef::DurationLiteral(value) => value.to_string(),
+                            TypedValueRef::YearMonthDurationLiteral(value) => {
+                                value.to_string()
+                            }
+                            TypedValueRef::DayTimeDurationLiteral(value) => {
+                                value.to_string()
+                            }
+                            TypedValueRef::OtherLiteral(value) => {
+                                value.value().to_owned()
+                            }
+                        };
+                        Ok(TypedValue::SimpleLiteral(SimpleLiteral {
+                            value: converted,
+                        }))
+                    },
+                    ThinError::expected,
+                )
+            },
+        ))
     }
 
     fn plain_term_encoding_op(
         &self,
+        _encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<PlainTermEncoding>>> {
         Some(create_plain_term_sparql_op_impl(|args| {
             match &args.args[0] {
@@ -139,12 +151,15 @@ mod tests {
     use datafusion::logical_expr::col;
     use insta::assert_snapshot;
     use rdf_fusion_encoding::EncodingArray;
+    use rdf_fusion_encoding::typed_value::TypedValueEncoding;
     use rdf_fusion_extensions::functions::BuiltinName;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_str_typed_value() {
-        let test_vector = create_mixed_test_vector();
-        let udf = create_default_builtin_udf(BuiltinName::Str);
+        let encoding = Arc::new(TypedValueEncoding::default());
+        let test_vector = create_mixed_test_vector(&encoding);
+        let udf = create_default_builtin_udf(encoding, BuiltinName::Str);
 
         let input = dataframe!(
             "input" => test_vector,

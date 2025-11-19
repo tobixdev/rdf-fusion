@@ -3,6 +3,7 @@ use crate::encoding::EncodingScalar;
 use crate::sortable_term::{SORTABLE_TERM_ENCODING, SortableTermEncoding};
 use datafusion::common::{DataFusionError, ScalarValue, exec_err};
 use rdf_fusion_model::DFResult;
+use std::sync::Arc;
 
 /// Represents an Arrow scalar with a [SortableTermEncoding].
 #[derive(Clone)]
@@ -17,7 +18,7 @@ impl SortableTermScalar {
     ///
     /// Returns an error if the data type of `value` is unexpected.
     pub fn try_new(value: ScalarValue) -> DFResult<Self> {
-        if value.data_type() != SORTABLE_TERM_ENCODING.data_type() {
+        if &value.data_type() != SORTABLE_TERM_ENCODING.data_type() {
             return exec_err!(
                 "Expected scalar value with SortableTermEncoding, got {:?}",
                 value
@@ -43,7 +44,7 @@ impl TryFrom<ScalarValue> for SortableTermScalar {
 impl EncodingScalar for SortableTermScalar {
     type Encoding = SortableTermEncoding;
 
-    fn encoding(&self) -> &Self::Encoding {
+    fn encoding(&self) -> &Arc<Self::Encoding> {
         &SORTABLE_TERM_ENCODING
     }
 

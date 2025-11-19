@@ -1,6 +1,7 @@
 use anyhow::Context;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use datafusion::prelude::SessionConfig;
+use rdf_fusion::encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
 use rdf_fusion::execution::RdfFusionContext;
 use rdf_fusion::io::{RdfFormat, RdfParser};
 use rdf_fusion::logical::{ActiveGraph, RdfFusionLogicalPlanBuilderContext};
@@ -68,5 +69,8 @@ pub async fn main() -> anyhow::Result<()> {
 /// Creates a new in-memory storage.
 fn create_storage(config: &SessionConfig) -> Arc<MemQuadStorage> {
     let mapping = Arc::new(MemObjectIdMapping::default());
-    Arc::new(MemQuadStorage::new(mapping, config.batch_size()))
+    let encoding = Arc::new(ObjectIdEncoding::new(
+        Arc::clone(&mapping) as Arc<dyn ObjectIdMapping>
+    ));
+    Arc::new(MemQuadStorage::new(mapping, encoding, config.batch_size()))
 }

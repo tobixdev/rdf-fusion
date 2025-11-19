@@ -3,6 +3,7 @@ use crate::scalar::sparql_op_impl::{
     ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -36,41 +37,46 @@ impl ScalarSparqlOp for DatatypeSparqlOp {
     }
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_unary_typed_value(
-                &args.args[0],
-                |value| {
-                    let iri = match value {
-                        TypedValueRef::BlankNode(_) | TypedValueRef::NamedNode(_) => {
-                            return ThinError::expected();
-                        }
-                        TypedValueRef::SimpleLiteral(_) => xsd::STRING,
-                        TypedValueRef::NumericLiteral(value) => match value {
-                            Numeric::Int(_) => xsd::INT,
-                            Numeric::Integer(_) => xsd::INTEGER,
-                            Numeric::Float(_) => xsd::FLOAT,
-                            Numeric::Double(_) => xsd::DOUBLE,
-                            Numeric::Decimal(_) => xsd::DECIMAL,
-                        },
-                        TypedValueRef::BooleanLiteral(_) => xsd::BOOLEAN,
-                        TypedValueRef::LanguageStringLiteral(_) => rdf::LANG_STRING,
-                        TypedValueRef::DateTimeLiteral(_) => xsd::DATE_TIME,
-                        TypedValueRef::TimeLiteral(_) => xsd::TIME,
-                        TypedValueRef::DateLiteral(_) => xsd::DATE,
-                        TypedValueRef::DurationLiteral(_) => xsd::DURATION,
-                        TypedValueRef::YearMonthDurationLiteral(_) => {
-                            xsd::YEAR_MONTH_DURATION
-                        }
-                        TypedValueRef::DayTimeDurationLiteral(_) => {
-                            xsd::DAY_TIME_DURATION
-                        }
-                        TypedValueRef::OtherLiteral(value) => value.datatype(),
-                    };
-                    Ok(TypedValueRef::NamedNode(iri))
-                },
-                ThinError::expected,
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_unary_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    |value| {
+                        let iri = match value {
+                            TypedValueRef::BlankNode(_) | TypedValueRef::NamedNode(_) => {
+                                return ThinError::expected();
+                            }
+                            TypedValueRef::SimpleLiteral(_) => xsd::STRING,
+                            TypedValueRef::NumericLiteral(value) => match value {
+                                Numeric::Int(_) => xsd::INT,
+                                Numeric::Integer(_) => xsd::INTEGER,
+                                Numeric::Float(_) => xsd::FLOAT,
+                                Numeric::Double(_) => xsd::DOUBLE,
+                                Numeric::Decimal(_) => xsd::DECIMAL,
+                            },
+                            TypedValueRef::BooleanLiteral(_) => xsd::BOOLEAN,
+                            TypedValueRef::LanguageStringLiteral(_) => rdf::LANG_STRING,
+                            TypedValueRef::DateTimeLiteral(_) => xsd::DATE_TIME,
+                            TypedValueRef::TimeLiteral(_) => xsd::TIME,
+                            TypedValueRef::DateLiteral(_) => xsd::DATE,
+                            TypedValueRef::DurationLiteral(_) => xsd::DURATION,
+                            TypedValueRef::YearMonthDurationLiteral(_) => {
+                                xsd::YEAR_MONTH_DURATION
+                            }
+                            TypedValueRef::DayTimeDurationLiteral(_) => {
+                                xsd::DAY_TIME_DURATION
+                            }
+                            TypedValueRef::OtherLiteral(value) => value.datatype(),
+                        };
+                        Ok(TypedValueRef::NamedNode(iri))
+                    },
+                    ThinError::expected,
+                )
+            },
+        ))
     }
 }

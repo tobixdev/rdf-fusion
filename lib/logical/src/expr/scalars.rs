@@ -54,12 +54,13 @@ mod tests {
     use rdf_fusion_encoding::EncodingScalar;
     use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
     use rdf_fusion_encoding::sortable_term::SORTABLE_TERM_ENCODING;
-    use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
+    use rdf_fusion_encoding::typed_value::TypedValueEncoding;
     use rdf_fusion_extensions::functions::{
         BuiltinName, FunctionName, RdfFusionFunctionRegistry,
     };
     use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
     use rdf_fusion_model::NamedNode;
+    use std::sync::Arc;
 
     #[test]
     fn test_plain_term_literal() {
@@ -146,10 +147,10 @@ mod tests {
 
     fn encodings() -> RdfFusionEncodings {
         RdfFusionEncodings::new(
-            PLAIN_TERM_ENCODING,
-            TYPED_VALUE_ENCODING,
+            Arc::clone(&PLAIN_TERM_ENCODING),
+            Arc::new(TypedValueEncoding::default()),
             None,
-            SORTABLE_TERM_ENCODING,
+            Arc::clone(&SORTABLE_TERM_ENCODING),
         )
     }
 }

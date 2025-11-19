@@ -3,6 +3,7 @@ use crate::scalar::sparql_op_impl::{
     ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -36,27 +37,32 @@ impl ScalarSparqlOp for CastBooleanSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_unary_typed_value(
-                &args.args[0],
-                |value| {
-                    let converted = match value {
-                        TypedValueRef::BooleanLiteral(v) => v,
-                        TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
-                        TypedValueRef::NumericLiteral(numeric) => match numeric {
-                            Numeric::Int(v) => Boolean::from(v),
-                            Numeric::Integer(v) => Boolean::from(v),
-                            Numeric::Float(v) => Boolean::from(v),
-                            Numeric::Double(v) => Boolean::from(v),
-                            Numeric::Decimal(v) => Boolean::from(v),
-                        },
-                        _ => return ThinError::expected(),
-                    };
-                    Ok(TypedValueRef::from(converted))
-                },
-                ThinError::expected,
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_unary_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    |value| {
+                        let converted = match value {
+                            TypedValueRef::BooleanLiteral(v) => v,
+                            TypedValueRef::SimpleLiteral(v) => v.value.parse()?,
+                            TypedValueRef::NumericLiteral(numeric) => match numeric {
+                                Numeric::Int(v) => Boolean::from(v),
+                                Numeric::Integer(v) => Boolean::from(v),
+                                Numeric::Float(v) => Boolean::from(v),
+                                Numeric::Double(v) => Boolean::from(v),
+                                Numeric::Decimal(v) => Boolean::from(v),
+                            },
+                            _ => return ThinError::expected(),
+                        };
+                        Ok(TypedValueRef::from(converted))
+                    },
+                    ThinError::expected,
+                )
+            },
+        ))
     }
 }

@@ -7,7 +7,6 @@ use datafusion::logical_expr::{
 };
 use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::plain_term::encoders::TypedValueRefPlainTermEncoder;
-use rdf_fusion_encoding::typed_value::TYPED_VALUE_ENCODING;
 use rdf_fusion_encoding::typed_value::decoders::DefaultTypedValueDecoder;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
@@ -61,17 +60,17 @@ impl WithPlainTermEncoding {
         match encoding_name {
             EncodingName::PlainTerm => Ok(ColumnarValue::Array(array)),
             EncodingName::TypedValue => {
-                let array = TYPED_VALUE_ENCODING.try_new_array(array)?;
+                let array = self.encodings.typed_value().try_new_array(array)?;
                 let input = DefaultTypedValueDecoder::decode_terms(&array);
-                let result = TypedValueRefPlainTermEncoder::encode_terms(input)?;
+                let result = TypedValueRefPlainTermEncoder.encode_terms(input)?;
                 Ok(ColumnarValue::Array(result.into_array_ref()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => match self.encodings.object_id_mapping() {
+            EncodingName::ObjectId => match self.encodings.object_id() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
-                Some(object_id_encoding) => {
-                    let array = object_id_encoding.encoding().try_new_array(array)?;
-                    let decoded = object_id_encoding.decode_array(&array)?;
+                Some(encoding) => {
+                    let array = encoding.try_new_array(array)?;
+                    let decoded = encoding.mapping().decode_array(array.object_ids())?;
                     Ok(ColumnarValue::Array(decoded.into_array_ref()))
                 }
             },
@@ -86,17 +85,17 @@ impl WithPlainTermEncoding {
         match encoding_name {
             EncodingName::PlainTerm => Ok(ColumnarValue::Scalar(scalar)),
             EncodingName::TypedValue => {
-                let scalar = TYPED_VALUE_ENCODING.try_new_scalar(scalar)?;
+                let scalar = self.encodings.typed_value().try_new_scalar(scalar)?;
                 let input = DefaultTypedValueDecoder::decode_term(&scalar);
-                let result = TypedValueRefPlainTermEncoder::encode_term(input)?;
+                let result = TypedValueRefPlainTermEncoder.encode_term(input)?;
                 Ok(ColumnarValue::Scalar(result.into_scalar_value()))
             }
             EncodingName::Sortable => exec_err!("Cannot from sortable term."),
-            EncodingName::ObjectId => match self.encodings.object_id_mapping() {
+            EncodingName::ObjectId => match self.encodings.object_id() {
                 None => exec_err!("Cannot from object id as no encoding is provided."),
-                Some(object_id_encoding) => {
-                    let scalar = object_id_encoding.encoding().try_new_scalar(scalar)?;
-                    let decoded = object_id_encoding.decode_scalar(&scalar)?;
+                Some(encoding) => {
+                    let scalar = encoding.try_new_scalar(scalar)?;
+                    let decoded = encoding.mapping().decode_scalar(&scalar)?;
                     Ok(ColumnarValue::Scalar(decoded.into_scalar_value()))
                 }
             },
@@ -131,7 +130,7 @@ impl ScalarUDFImpl for WithPlainTermEncoding {
             );
         }
 
-        let data_type = PLAIN_TERM_ENCODING.data_type();
+        let data_type = PLAIN_TERM_ENCODING.data_type().clone();
         let incoming_null = args.arg_fields[0].is_nullable();
         Ok(FieldRef::new(Field::new(
             "output",

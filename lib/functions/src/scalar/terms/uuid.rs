@@ -4,8 +4,7 @@ use crate::scalar::sparql_op_impl::{
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use datafusion::logical_expr::{ColumnarValue, Volatility};
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::{EncodingArray, TermEncoder};
+use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoder};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{NamedNode, TypedValue};
@@ -42,18 +41,23 @@ impl ScalarSparqlOp for UuidSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            let values = (0..args.number_rows)
-                .map(|_| {
-                    let formatted = format!("urn:uuid:{}", Uuid::new_v4());
-                    TypedValue::NamedNode(NamedNode::new_unchecked(formatted))
-                })
-                .collect::<Vec<_>>();
-            let array = DefaultTypedValueEncoder::encode_terms(
-                values.iter().map(|result| Ok(result.as_ref())),
-            )?;
-            Ok(ColumnarValue::Array(array.into_array_ref()))
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                let values = (0..args.number_rows)
+                    .map(|_| {
+                        let formatted = format!("urn:uuid:{}", Uuid::new_v4());
+                        TypedValue::NamedNode(NamedNode::new_unchecked(formatted))
+                    })
+                    .collect::<Vec<_>>();
+                let array = args
+                    .encoding
+                    .default_encoder()
+                    .encode_terms(values.iter().map(|result| Ok(result.as_ref())))?;
+                Ok(ColumnarValue::Array(array.into_array_ref()))
+            },
+        ))
     }
 }

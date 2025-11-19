@@ -3,6 +3,7 @@ use crate::scalar::sparql_op_impl::{
     ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -36,23 +37,28 @@ impl ScalarSparqlOp for StrLenSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_unary_typed_value(
-                &args.args[0],
-                |value| {
-                    let string = match value {
-                        TypedValueRef::SimpleLiteral(value) => value.value,
-                        TypedValueRef::LanguageStringLiteral(value) => value.value,
-                        _ => return ThinError::expected(),
-                    };
-                    let value: i64 = string.chars().count().try_into()?;
-                    Ok(TypedValueRef::NumericLiteral(Numeric::Integer(
-                        value.into(),
-                    )))
-                },
-                ThinError::expected,
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_unary_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    |value| {
+                        let string = match value {
+                            TypedValueRef::SimpleLiteral(value) => value.value,
+                            TypedValueRef::LanguageStringLiteral(value) => value.value,
+                            _ => return ThinError::expected(),
+                        };
+                        let value: i64 = string.chars().count().try_into()?;
+                        Ok(TypedValueRef::NumericLiteral(Numeric::Integer(
+                            value.into(),
+                        )))
+                    },
+                    ThinError::expected,
+                )
+            },
+        ))
     }
 }

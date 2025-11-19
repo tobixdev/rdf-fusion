@@ -1,5 +1,5 @@
 use crate::TermEncoding;
-use crate::object_id::ObjectIdEncoding;
+use crate::object_id::{ObjectIdEncoding, ObjectIdEncodingRef};
 use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use datafusion::arrow::datatypes::{DataType, Field, Fields, Schema, SchemaRef};
 use datafusion::common::{DFSchema, DFSchemaRef};
@@ -20,7 +20,7 @@ pub enum QuadStorageEncoding {
     /// further information.
     PlainTerm,
     /// Uses the provided object id encoding.
-    ObjectId(ObjectIdEncoding),
+    ObjectId(ObjectIdEncodingRef),
 }
 
 static PLAIN_TERM_QUAD_SCHEMA: LazyLock<SchemaRef> = LazyLock::new(|| {
@@ -38,7 +38,7 @@ static PLAIN_TERM_QUAD_DFSCHEMA: LazyLock<DFSchemaRef> = LazyLock::new(|| {
 
 impl QuadStorageEncoding {
     /// Returns the data type of a single term column, given the current encoding.
-    pub fn term_type(&self) -> DataType {
+    pub fn term_type(&self) -> &DataType {
         match self {
             QuadStorageEncoding::PlainTerm => PLAIN_TERM_ENCODING.data_type(),
             QuadStorageEncoding::ObjectId(enc) => enc.data_type(),
@@ -69,7 +69,7 @@ impl Display for QuadStorageEncoding {
         match self {
             QuadStorageEncoding::PlainTerm => write!(f, "PlainTerm"),
             QuadStorageEncoding::ObjectId(encoding) => {
-                write!(f, "ObjectId({} Bytes)", encoding.object_id_size())
+                write!(f, "ObjectId({})", encoding.object_id_size())
             }
         }
     }
@@ -84,7 +84,7 @@ fn object_id_quad_schema(encoding: &ObjectIdEncoding) -> DFSchemaRef {
                 Field::new(COL_GRAPH, data_type.clone(), true),
                 Field::new(COL_SUBJECT, data_type.clone(), false),
                 Field::new(COL_PREDICATE, data_type.clone(), false),
-                Field::new(COL_OBJECT, data_type, false),
+                Field::new(COL_OBJECT, data_type.clone(), false),
             ]),
             HashMap::new(),
         )

@@ -1,12 +1,13 @@
 use crate::TermEncoding;
 use crate::encoding::EncodingScalar;
-use crate::object_id::ObjectIdEncoding;
+use crate::object_id::{ObjectId, ObjectIdCreationError, ObjectIdEncoding};
 use datafusion::common::{ScalarValue, exec_err};
-use rdf_fusion_model::{DFResult, ObjectId};
+use rdf_fusion_model::DFResult;
+use std::sync::Arc;
 
 /// Represents an Arrow scalar with a [ObjectIdEncoding].
 pub struct ObjectIdScalar {
-    encoding: ObjectIdEncoding,
+    encoding: Arc<ObjectIdEncoding>,
     inner: ScalarValue,
 }
 
@@ -16,8 +17,11 @@ impl ObjectIdScalar {
     /// # Errors
     ///
     /// Returns an error if the data type of `value` is unexpected.
-    pub fn try_new(encoding: ObjectIdEncoding, value: ScalarValue) -> DFResult<Self> {
-        if value.data_type() != encoding.data_type() {
+    pub fn try_new(
+        encoding: Arc<ObjectIdEncoding>,
+        value: ScalarValue,
+    ) -> DFResult<Self> {
+        if &value.data_type() != encoding.data_type() {
             return exec_err!(
                 "Expected scalar value with ObjectID encoding. Expected: {:?}, got {:?}",
                 encoding.data_type(),
@@ -28,35 +32,35 @@ impl ObjectIdScalar {
     }
 
     /// Creates a new [ObjectIdScalar] without checking invariants.
-    pub fn new_unchecked(encoding: ObjectIdEncoding, inner: ScalarValue) -> Self {
+    pub fn new_unchecked(encoding: Arc<ObjectIdEncoding>, inner: ScalarValue) -> Self {
         Self { encoding, inner }
     }
 
     /// Creates a new [ObjectIdScalar] from the given `object_id`.
-    pub fn null(encoding: ObjectIdEncoding) -> Self {
+    pub fn null(encoding: Arc<ObjectIdEncoding>) -> Self {
         let scalar = ScalarValue::UInt32(None);
         Self::new_unchecked(encoding, scalar)
     }
 
     /// Creates a new [ObjectIdScalar] from the given `object_id`.
-    pub fn from_object_id(encoding: ObjectIdEncoding, object_id: ObjectId) -> Self {
-        let scalar = ScalarValue::UInt32(Some(object_id.0));
-        Self::new_unchecked(encoding, scalar)
-    }
-
-    /// Returns an [ObjectId] from this scalar.
-    pub fn as_object(&self) -> Option<ObjectId> {
-        match &self.inner {
-            ScalarValue::UInt32(scalar) => scalar.map(ObjectId::from),
-            _ => unreachable!("Checked in constructor."),
-        }
+    pub fn from_object_id(
+        encoding: Arc<ObjectIdEncoding>,
+        object_id: ObjectId,
+    ) -> Result<Self, ObjectIdCreationError> {
+        let bytes = object_id
+            .as_bytes()
+            .try_into()
+            .map_err(|_| ObjectIdCreationError)?;
+        let value = u32::from_be_bytes(bytes);
+        let scalar = ScalarValue::UInt32(Some(value));
+        Ok(Self::new_unchecked(encoding, scalar))
     }
 }
 
 impl EncodingScalar for ObjectIdScalar {
     type Encoding = ObjectIdEncoding;
 
-    fn encoding(&self) -> &Self::Encoding {
+    fn encoding(&self) -> &Arc<Self::Encoding> {
         &self.encoding
     }
 

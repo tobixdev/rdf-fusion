@@ -4,11 +4,11 @@ use crate::scalar::sparql_op_impl::{
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
 use datafusion::logical_expr::ColumnarValue;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
-use rdf_fusion_encoding::typed_value::encoders::DefaultTypedValueEncoder;
-use rdf_fusion_encoding::{EncodingArray, TermEncoder};
+use rdf_fusion_encoding::{EncodingArray, RdfFusionEncodings, TermEncoder};
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
 use rdf_fusion_model::{SimpleLiteral, TypedValue};
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -39,18 +39,23 @@ impl ScalarSparqlOp for StrUuidSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            let values = (0..args.number_rows)
-                .map(|_| {
-                    let result = Uuid::new_v4().to_string();
-                    TypedValue::SimpleLiteral(SimpleLiteral { value: result })
-                })
-                .collect::<Vec<_>>();
-            let array = DefaultTypedValueEncoder::encode_terms(
-                values.iter().map(|result| Ok(result.as_ref())),
-            )?;
-            Ok(ColumnarValue::Array(array.into_array_ref()))
-        }))
+        let tv_encoding = Arc::clone(encodings.typed_value());
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            move |args| {
+                let values = (0..args.number_rows)
+                    .map(|_| {
+                        let result = Uuid::new_v4().to_string();
+                        TypedValue::SimpleLiteral(SimpleLiteral { value: result })
+                    })
+                    .collect::<Vec<_>>();
+                let array = tv_encoding
+                    .default_encoder()
+                    .encode_terms(values.iter().map(|result| Ok(result.as_ref())))?;
+                Ok(ColumnarValue::Array(array.into_array_ref()))
+            },
+        ))
     }
 }

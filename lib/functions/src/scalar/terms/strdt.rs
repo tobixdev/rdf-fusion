@@ -3,6 +3,7 @@ use crate::scalar::sparql_op_impl::{
     ScalarSparqlOpImpl, create_typed_value_sparql_op_impl,
 };
 use crate::scalar::{ScalarSparqlOp, ScalarSparqlOpSignature, SparqlOpArity};
+use rdf_fusion_encoding::RdfFusionEncodings;
 use rdf_fusion_encoding::typed_value::TypedValueEncoding;
 use rdf_fusion_extensions::functions::BuiltinName;
 use rdf_fusion_extensions::functions::FunctionName;
@@ -41,29 +42,34 @@ impl ScalarSparqlOp for StrDtSparqlOp {
 
     fn typed_value_encoding_op(
         &self,
+        encodings: &RdfFusionEncodings,
     ) -> Option<Box<dyn ScalarSparqlOpImpl<TypedValueEncoding>>> {
-        Some(create_typed_value_sparql_op_impl(|args| {
-            dispatch_binary_typed_value(
-                &args.args[0],
-                &args.args[1],
-                |lhs_value, rhs_value| {
-                    if let (
-                        TypedValueRef::SimpleLiteral(lhs_literal),
-                        TypedValueRef::NamedNode(rhs_named_node),
-                    ) = (lhs_value, rhs_value)
-                    {
-                        let plain_literal = LiteralRef::new_typed_literal(
-                            lhs_literal.value,
-                            rhs_named_node,
-                        );
-                        TypedValueRef::try_from(plain_literal)
-                            .map_err(|_| ThinError::ExpectedError)
-                    } else {
-                        ThinError::expected()
-                    }
-                },
-                |_, _| ThinError::expected(),
-            )
-        }))
+        Some(create_typed_value_sparql_op_impl(
+            encodings.typed_value(),
+            |args| {
+                dispatch_binary_typed_value(
+                    &args.encoding,
+                    &args.args[0],
+                    &args.args[1],
+                    |lhs_value, rhs_value| {
+                        if let (
+                            TypedValueRef::SimpleLiteral(lhs_literal),
+                            TypedValueRef::NamedNode(rhs_named_node),
+                        ) = (lhs_value, rhs_value)
+                        {
+                            let plain_literal = LiteralRef::new_typed_literal(
+                                lhs_literal.value,
+                                rhs_named_node,
+                            );
+                            TypedValueRef::try_from(plain_literal)
+                                .map_err(|_| ThinError::ExpectedError)
+                        } else {
+                            ThinError::expected()
+                        }
+                    },
+                    |_, _| ThinError::expected(),
+                )
+            },
+        ))
     }
 }

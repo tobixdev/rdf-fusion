@@ -1,6 +1,6 @@
 use crate::TermEncoding;
 use crate::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueArray, TypedValueEncoding, TypedValueEncodingField,
+    TypedValueArray, TypedValueEncoding, TypedValueEncodingField, TypedValueEncodingRef,
 };
 use datafusion::arrow::array::{
     Array, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int32Array,
@@ -15,6 +15,7 @@ use std::sync::Arc;
 ///
 /// If you aim to build an array element-by-element, see [TypedValueArrayElementBuilder](super::TypedValueArrayElementBuilder).
 pub struct TypedValueArrayBuilder {
+    encoding: TypedValueEncodingRef,
     type_ids: Vec<i8>,
     offsets: Vec<i32>,
     named_nodes: Option<Arc<dyn Array>>,
@@ -42,7 +43,11 @@ impl TypedValueArrayBuilder {
     /// # Errors
     ///
     /// Returns an error if the length of the given arrays does not match.
-    pub fn new(type_ids: Vec<i8>, offsets: Vec<i32>) -> DFResult<Self> {
+    pub fn new(
+        encoding: TypedValueEncodingRef,
+        type_ids: Vec<i8>,
+        offsets: Vec<i32>,
+    ) -> DFResult<Self> {
         if type_ids.len() != offsets.len() {
             return exec_err!(
                 "Length of type_ids and offsets do not match: {} != {}",
@@ -52,6 +57,7 @@ impl TypedValueArrayBuilder {
         }
 
         Ok(Self {
+            encoding,
             type_ids,
             offsets,
             named_nodes: None,
@@ -73,24 +79,29 @@ impl TypedValueArrayBuilder {
     }
 
     /// Creates a new [TypedValueArrayBuilder] that will only have a single sub array with values.
-    pub fn new_with_single_type(type_id: i8, len: usize) -> DFResult<Self> {
+    pub fn new_with_single_type(
+        encoding: TypedValueEncodingRef,
+        type_id: i8,
+        len: usize,
+    ) -> DFResult<Self> {
         let type_ids = vec![type_id; len];
 
         let len = i32::try_from(len)
             .map_err(|_| exec_datafusion_err!("Length out of bounds"))?;
         let offsets = (0..len).collect();
 
-        Self::new(type_ids, offsets)
+        Self::new(encoding, type_ids, offsets)
     }
 
     /// Creates a new [TypedValueArrayBuilder] that will only have a single sub array with values
     /// or null.
     pub fn new_with_nullable_single_type(
+        encoding: TypedValueEncodingRef,
         type_id: i8,
         null_buffer: &NullBuffer,
     ) -> DFResult<Self> {
         if null_buffer.null_count() == 0 {
-            return Self::new_with_single_type(type_id, null_buffer.len());
+            return Self::new_with_single_type(encoding, type_id, null_buffer.len());
         }
 
         let type_ids = null_buffer
@@ -117,7 +128,7 @@ impl TypedValueArrayBuilder {
             }
         }
 
-        let result = Self::new(type_ids, offsets)?
+        let result = Self::new(encoding, type_ids, offsets)?
             .with_nulls(Arc::new(NullArray::new(null_buffer.null_count())));
         Ok(result)
     }
@@ -216,7 +227,7 @@ impl TypedValueArrayBuilder {
     ///
     /// For a list of invariants that must be upheld, see [UnionArray::try_new].
     pub fn finish(self) -> DFResult<TypedValueArray> {
-        TYPED_VALUE_ENCODING.try_new_array(Arc::new(UnionArray::try_new(
+        self.encoding.try_new_array(Arc::new(UnionArray::try_new(
             TypedValueEncoding::fields(),
             ScalarBuffer::from(self.type_ids),
             Some(ScalarBuffer::from(self.offsets)),

@@ -1,7 +1,7 @@
 use crate::TermEncoding;
 use crate::encoding::EncodingArray;
 use crate::typed_value::{
-    TYPED_VALUE_ENCODING, TypedValueEncoding, TypedValueEncodingField,
+    TypedValueEncoding, TypedValueEncodingField, TypedValueEncodingRef,
 };
 use datafusion::arrow::array::{
     Array, ArrayRef, AsArray, BooleanArray, Decimal128Array, Float32Array, Float64Array,
@@ -10,18 +10,37 @@ use datafusion::arrow::array::{
 use datafusion::arrow::datatypes::{
     Decimal128Type, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
 };
-use datafusion::common::{DataFusionError, exec_err};
+use datafusion::common::exec_err;
+use rdf_fusion_model::DFResult;
+use std::sync::Arc;
 
-/// Represents an Arrow array with a [TypedValueEncoding].
+/// Represents an Arrow array with a [`TypedValueEncoding`].
 #[derive(Clone)]
 pub struct TypedValueArray {
+    /// The typed value encoding of this array.
+    encoding: TypedValueEncodingRef,
+    /// The Arrow array.
     inner: ArrayRef,
 }
 
 impl TypedValueArray {
-    /// Creates a new [TypedValueArray] without verifying the schema.
-    pub(super) fn new_unchecked(array: ArrayRef) -> Self {
-        Self { inner: array }
+    pub fn try_new(encoding: TypedValueEncodingRef, array: ArrayRef) -> DFResult<Self> {
+        if array.data_type() != encoding.data_type() {
+            return exec_err!(
+                "Expected scalar value with TypedValueEncoding, got {:?}",
+                array.data_type()
+            );
+        }
+
+        Ok(Self::new_unchecked(encoding, array))
+    }
+
+    /// Creates a new [`TypedValueArray`] without verifying the schema.
+    pub fn new_unchecked(encoding: TypedValueEncodingRef, array: ArrayRef) -> Self {
+        Self {
+            encoding,
+            inner: array,
+        }
     }
 }
 
@@ -108,22 +127,11 @@ impl TypedValueArray {
     }
 }
 
-impl TryFrom<ArrayRef> for TypedValueArray {
-    type Error = DataFusionError;
-
-    fn try_from(value: ArrayRef) -> Result<Self, Self::Error> {
-        if value.data_type() != &TYPED_VALUE_ENCODING.data_type() {
-            return exec_err!("Unexpected type when creating a value-encoded array");
-        }
-        Ok(Self { inner: value })
-    }
-}
-
 impl EncodingArray for TypedValueArray {
     type Encoding = TypedValueEncoding;
 
-    fn encoding(&self) -> &Self::Encoding {
-        &TYPED_VALUE_ENCODING
+    fn encoding(&self) -> &Arc<Self::Encoding> {
+        &self.encoding
     }
 
     fn array(&self) -> &ArrayRef {
