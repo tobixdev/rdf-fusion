@@ -343,7 +343,11 @@ impl MemIndexScanInstruction {
             EncodedActiveGraph::AllGraphs => instruction_with_predicate(None),
             EncodedActiveGraph::Union(graphs) => {
                 let object_ids = BTreeSet::from_iter(graphs.iter().map(|g| g.0));
-                instruction_with_predicate(Some(MemIndexScanPredicate::In(object_ids)))
+                if object_ids.is_empty() {
+                    instruction_with_predicate(Some(MemIndexScanPredicate::False))
+                } else {
+                    instruction_with_predicate(Some(MemIndexScanPredicate::In(object_ids)))
+                }
             }
             EncodedActiveGraph::AnyNamedGraph => {
                 instruction_with_predicate(Some(MemIndexScanPredicate::Between(
