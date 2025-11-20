@@ -60,33 +60,42 @@ impl Display for ObjectIdSize {
 /// related to a specific encoding see [`ObjectIdScalar`].
 ///
 /// This struct guarantees that the slice length fits into a non-negative `i32`.
+///
+/// # Default Graph
+///
+/// The default graph is always encoded as the object id with all bytes set to zero. The number of
+/// zero bytes depends on the [`ObjectIdSize`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ObjectId {
-    slice: Box<[u8]>,
-}
+pub struct ObjectId(Box<[u8]>);
 
 impl ObjectId {
     /// Creates a new [`ObjectId`].
     pub fn try_new(bytes: impl Into<Box<[u8]>>) -> Result<Self, ObjectIdCreationError> {
         let bytes = bytes.into();
         i32::try_from(bytes.len()).map_err(|_| ObjectIdCreationError)?;
-        Ok(Self { slice: bytes })
+        Ok(Self(bytes))
+    }
+
+    /// Creates a new [`ObjectId`] for the default graph with the given `size`.
+    pub fn new_default_graph(size: ObjectIdSize) -> Self {
+        Self(vec![0; size.0 as usize].into_boxed_slice())
     }
 
     /// Creates a new [`ObjectId`].
-    pub fn try_new_from_array(array: &UInt32Array, index: usize) -> Option<Self> {
-        array.is_valid(index).then(|| ObjectId {
-            slice: Box::new(array.value(index).to_be_bytes()),
-        })
+    pub fn try_new_from_array(array: &UInt32Array, index: usize) -> Self {
+        match array.is_valid(index) {
+            true => Self(array.value(index).to_be_bytes().into()),
+            false => Self([0; 4].into()),
+        }
     }
 
     /// Returns the length of the object id in bytes.
     pub fn size(&self) -> i32 {
-        self.slice.len() as i32 // Conversion checked in Self::try_new
+        self.0.len() as i32 // Conversion checked in Self::try_new
     }
 
     /// Returns a reference to the underlying bytes.
     pub fn as_bytes(&self) -> &[u8] {
-        &self.slice
+        &self.0
     }
 }

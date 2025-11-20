@@ -9,9 +9,7 @@ use rdf_fusion_encoding::object_id::{
     ObjectId, ObjectIdMapping, ObjectIdMappingError, ObjectIdSize,
 };
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
-use rdf_fusion_encoding::plain_term::{
-    PlainTermArray, PlainTermArrayElementBuilder, PlainTermScalar,
-};
+use rdf_fusion_encoding::plain_term::{PlainTermArray, PlainTermArrayElementBuilder};
 use rdf_fusion_encoding::typed_value::{
     TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncodingRef,
 };
@@ -197,12 +195,10 @@ impl ObjectIdMapping for MemObjectIdMapping {
 
     fn try_get_object_id(
         &self,
-        scalar: &PlainTermScalar,
+        term: TermRef<'_>,
     ) -> Result<Option<ObjectId>, ObjectIdMappingError> {
-        let term = DefaultPlainTermDecoder::decode_term(scalar);
-        let result = term
-            .ok()
-            .and_then(|term| self.try_get_encoded_term(term))
+        let result = self
+            .try_get_encoded_term(term)
             .and_then(|term| self.try_get_encoded_object_id(&term))
             .map(|oid| oid.as_object_id());
         Ok(result)
@@ -235,9 +231,8 @@ impl ObjectIdMapping for MemObjectIdMapping {
         array: &UInt32Array,
     ) -> Result<PlainTermArray, ObjectIdMappingError> {
         let terms = array.iter().map(|oid| {
-            let oid = oid.map(EncodedObjectId::from);
             oid.map(|oid| {
-                self.try_get_encoded_term_from_object_id(oid)
+                self.try_get_encoded_term_from_object_id(EncodedObjectId::from(oid))
                     .expect("Missing EncodedObjectId")
                     .clone()
             })
@@ -385,15 +380,13 @@ mod tests {
     fn test_try_get_object_id() -> DFResult<()> {
         let mapping = MemObjectIdMapping::new();
 
-        let term1 = PlainTermScalar::from(TermRef::NamedNode(
-            NamedNodeRef::new_unchecked("http://example.com/a"),
-        ));
-        let term2 =
-            PlainTermScalar::from(TermRef::BlankNode(BlankNodeRef::new_unchecked("b1")));
+        let term1 =
+            TermRef::NamedNode(NamedNodeRef::new_unchecked("http://example.com/a"));
+        let term2 = TermRef::BlankNode(BlankNodeRef::new_unchecked("b1"));
 
         // Before encoding, should be None
-        assert!(mapping.try_get_object_id(&term1)?.is_none());
-        assert!(mapping.try_get_object_id(&term2)?.is_none());
+        assert!(mapping.try_get_object_id(term1)?.is_none());
+        assert!(mapping.try_get_object_id(term2)?.is_none());
 
         // Encode an array to populate the mapping
         let mut builder = PlainTermArrayElementBuilder::new(2);
@@ -403,9 +396,9 @@ mod tests {
         let object_id_array = mapping.encode_array(&plain_term_array)?;
 
         // After encoding, should be Some
-        let object_id1 = mapping.try_get_object_id(&term1)?;
+        let object_id1 = mapping.try_get_object_id(term1)?;
         assert!(object_id1.is_some());
-        let object_id2 = mapping.try_get_object_id(&term2)?;
+        let object_id2 = mapping.try_get_object_id(term2)?;
         assert!(object_id2.is_some());
 
         // Check if IDs match what's in the array
@@ -419,10 +412,8 @@ mod tests {
         );
 
         // A term not in the mapping
-        let term3 = PlainTermScalar::from(TermRef::NamedNode(
-            NamedNodeRef::new_unchecked("http://example.com/c"),
-        ));
-        assert!(mapping.try_get_object_id(&term3)?.is_none());
+        let term3 = NamedNodeRef::new_unchecked("http://example.com/c").into();
+        assert!(mapping.try_get_object_id(term3)?.is_none());
 
         Ok(())
     }

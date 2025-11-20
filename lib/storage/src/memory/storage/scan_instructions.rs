@@ -1,6 +1,6 @@
 use crate::index::{IndexComponents, ScanInstructions};
 use crate::memory::encoding::{EncodedActiveGraph, EncodedTermPattern};
-use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId, FIRST_OBJECT_ID};
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use datafusion::common::{exec_datafusion_err, plan_datafusion_err};
 use rdf_fusion_model::{DFResult, Variable};
@@ -337,12 +337,12 @@ impl MemIndexScanInstruction {
 
         match active_graph {
             EncodedActiveGraph::DefaultGraph => {
-                let object_ids = BTreeSet::from([DEFAULT_GRAPH_ID.0]);
+                let object_ids = BTreeSet::from([DEFAULT_GRAPH_ID]);
                 instruction_with_predicate(Some(MemIndexScanPredicate::In(object_ids)))
             }
             EncodedActiveGraph::AllGraphs => instruction_with_predicate(None),
             EncodedActiveGraph::Union(graphs) => {
-                let object_ids = BTreeSet::from_iter(graphs.iter().map(|g| g.0));
+                let object_ids = BTreeSet::from_iter(graphs.iter().copied());
                 if object_ids.is_empty() {
                     instruction_with_predicate(Some(MemIndexScanPredicate::False))
                 } else {
@@ -351,12 +351,9 @@ impl MemIndexScanInstruction {
                     )))
                 }
             }
-            EncodedActiveGraph::AnyNamedGraph => {
-                instruction_with_predicate(Some(MemIndexScanPredicate::Between(
-                    DEFAULT_GRAPH_ID.0.next().unwrap(),
-                    EncodedObjectId::MAX,
-                )))
-            }
+            EncodedActiveGraph::AnyNamedGraph => instruction_with_predicate(Some(
+                MemIndexScanPredicate::Between(FIRST_OBJECT_ID, EncodedObjectId::MAX),
+            )),
         }
     }
 }

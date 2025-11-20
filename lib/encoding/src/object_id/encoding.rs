@@ -4,11 +4,11 @@ use crate::object_id::{
     ObjectIdArray, ObjectIdMapping, ObjectIdMappingError, ObjectIdMappingRef,
     ObjectIdScalar, ObjectIdSize,
 };
-use crate::plain_term::{PlainTermArray, PlainTermScalar};
+use crate::plain_term::PlainTermArray;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::ScalarValue;
-use rdf_fusion_model::DFResult;
+use rdf_fusion_model::{DFResult, TermRef};
 use std::clone::Clone;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -36,6 +36,12 @@ pub type ObjectIdEncodingRef = Arc<ObjectIdEncoding>;
 /// The mapping implementation depends on the storage layer that is being used. For example, an
 /// in-memory RDF store will use a different implementation as an on-disk RDF store. The
 /// [`ObjectIdMapping`](crate::object_id::ObjectIdMapping) trait defines the contract.
+///
+/// # Default Graph
+///
+/// The default graph always needs to be modeled as the object id with all bytes set to zero. In
+/// addition, functions that return Arrow arrays with object ids need to highlight the default graph
+/// by setting the valid bit to `false`.
 ///
 /// # Strengths and Weaknesses
 ///
@@ -93,11 +99,9 @@ impl ObjectIdEncoding {
     /// See also [`ObjectIdMapping::encode_scalar`].
     pub fn encode_scalar(
         self: &Arc<Self>,
-        scalar: &PlainTermScalar,
+        scalar: TermRef<'_>,
     ) -> Result<ObjectIdScalar, ObjectIdMappingError> {
-        let Some(object_id) = self.mapping.encode_scalar(scalar)? else {
-            return Ok(ObjectIdScalar::null(Arc::clone(self)));
-        };
+        let object_id = self.mapping.encode_scalar(scalar)?;
 
         let bytes = object_id
             .as_bytes()

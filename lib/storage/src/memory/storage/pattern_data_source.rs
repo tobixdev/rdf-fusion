@@ -182,11 +182,10 @@ mod test {
     use datafusion::scalar::ScalarValue;
     use insta::assert_snapshot;
     use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
-    use rdf_fusion_encoding::plain_term::PlainTermScalar;
     use rdf_fusion_logical::ActiveGraph;
     use rdf_fusion_model::{
         BlankNodeMatchingMode, NamedNode, NamedNodePattern, NamedNodeRef, TermPattern,
-        TermRef, TriplePattern, Variable,
+        TriplePattern, Variable,
     };
     use std::sync::Arc;
 
@@ -251,9 +250,7 @@ mod test {
 
         let object_id_mapping = Arc::new(MemObjectIdMapping::default());
         object_id_mapping
-            .encode_scalar(&PlainTermScalar::from(TermRef::NamedNode(
-                NamedNodeRef::new_unchecked("http://example.com/test"),
-            )))
+            .encode_scalar(NamedNodeRef::new_unchecked("http://example.com/test").into())
             .unwrap();
         let encoding = Arc::new(ObjectIdEncoding::new(object_id_mapping));
 
