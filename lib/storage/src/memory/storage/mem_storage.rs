@@ -79,11 +79,8 @@ impl MemQuadStorage {
         &self,
         quad: QuadRef<'_>,
     ) -> Result<EncodedQuad<EncodedObjectId>, ObjectIdMappingError> {
-        let terms: [TermRef<'_>; 3] = [
-            quad.subject.into(),
-            quad.predicate.into(),
-            quad.object.into(),
-        ];
+        let terms: [TermRef<'_>; 3] =
+            [quad.subject.into(), quad.predicate.into(), quad.object];
 
         let graph_scalar = PlainTermScalar::from_graph_name(quad.graph_name);
         let graph_oid =
@@ -115,9 +112,9 @@ impl MemQuadStorage {
 
         Ok(EncodedQuad {
             graph_name: graph_oid.unwrap_or(DEFAULT_GRAPH_ID.0),
-            subject: terms[0].clone(),
-            predicate: terms[1].clone(),
-            object: terms[2].clone(),
+            subject: terms[0],
+            predicate: terms[1],
+            object: terms[2],
         })
     }
 }
@@ -130,7 +127,7 @@ impl QuadStorage for MemQuadStorage {
     }
 
     fn object_id_mapping(&self) -> Option<Arc<dyn ObjectIdMapping>> {
-        Some(Arc::clone(&self.encoding.mapping()))
+        Some(Arc::clone(self.encoding.mapping()))
     }
 
     async fn planners(

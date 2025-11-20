@@ -4,6 +4,7 @@ use crate::memory::encoding::{EncodedTerm, EncodedTypedValue};
 use crate::memory::object_id::EncodedObjectId;
 use dashmap::{DashMap, DashSet};
 use datafusion::arrow::array::{UInt32Array, UInt32Builder};
+use rdf_fusion_encoding::TermDecoder;
 use rdf_fusion_encoding::object_id::{
     ObjectId, ObjectIdMapping, ObjectIdMappingError, ObjectIdSize,
 };
@@ -14,12 +15,11 @@ use rdf_fusion_encoding::plain_term::{
 use rdf_fusion_encoding::typed_value::{
     TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncodingRef,
 };
-use rdf_fusion_encoding::TermDecoder;
 use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, TypedValueRef};
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Maintains a mapping between RDF terms and object IDs in memory.
 ///
@@ -308,8 +308,8 @@ impl ObjectIdMapping for MemObjectIdMapping {
 mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
-    use rdf_fusion_encoding::plain_term::PlainTermArrayElementBuilder;
     use rdf_fusion_encoding::EncodingArray;
+    use rdf_fusion_encoding::plain_term::PlainTermArrayElementBuilder;
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{BlankNodeRef, DFResult, LiteralRef, NamedNodeRef, TermRef};
 

@@ -157,6 +157,24 @@ impl MemIndexData {
         instructions: &MemIndexScanInstructions,
     ) -> RowGroupPruningResult {
         let pruning_predicates = MemIndexPruningPredicates::from(instructions);
+
+        if pruning_predicates
+            .0
+            .contains(&Some(MemIndexPruningPredicate::False))
+        {
+            return RowGroupPruningResult {
+                row_groups: Vec::new(),
+                new_instructions: {
+                    let new_instructions =
+                        instructions.inner().clone().map(|i| i.without_predicate());
+                    Some(MemIndexScanInstructions::new(
+                        instructions.index_components(),
+                        new_instructions,
+                    ))
+                },
+            };
+        }
+
         let mut relevant_row_groups = self.row_groups.clone();
 
         for (column_idx, predicate) in pruning_predicates.0.iter().enumerate() {
@@ -168,6 +186,7 @@ impl MemIndexData {
             let (from_oid, to_oid) = match predicate {
                 MemIndexPruningPredicate::EqualTo(oid) => (*oid, *oid),
                 MemIndexPruningPredicate::Between(from, to) => (*from, *to),
+                MemIndexPruningPredicate::False => unreachable!("Handled above"),
             };
 
             // Find the first row group for which the given id is not before the first value of the
@@ -1196,6 +1215,44 @@ mod tests {
         let result = index.prune_relevant_row_groups(&instructions);
 
         assert_eq!(result.row_groups.len(), index.row_groups.len());
+    }
+
+    #[test]
+    fn test_prune_relevant_row_groups_in_empty_set_returns_empty_result() {
+        let mut index = MemIndexData::new(2, 0);
+        let items = quad_set([1, 2, 3, 4]);
+        index.insert(&items);
+
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(MemIndexScanPredicate::In(
+                BTreeSet::new(),
+            ))),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+        ]);
+
+        let result = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(result.row_groups.len(), 0);
+    }
+
+    #[test]
+    fn test_prune_relevant_row_groups_false_predicate_returns_empty_result() {
+        let mut index = MemIndexData::new(2, 0);
+        let items = quad_set([1, 2, 3, 4]);
+        index.insert(&items);
+
+        let instructions = MemIndexScanInstructions::new_gspo([
+            MemIndexScanInstruction::Traverse(Some(MemIndexScanPredicate::False)),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+            MemIndexScanInstruction::Traverse(None),
+        ]);
+
+        let result = index.prune_relevant_row_groups(&instructions);
+
+        assert_eq!(result.row_groups.len(), 0);
     }
 
     #[test]

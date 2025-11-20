@@ -346,7 +346,9 @@ impl MemIndexScanInstruction {
                 if object_ids.is_empty() {
                     instruction_with_predicate(Some(MemIndexScanPredicate::False))
                 } else {
-                    instruction_with_predicate(Some(MemIndexScanPredicate::In(object_ids)))
+                    instruction_with_predicate(Some(MemIndexScanPredicate::In(
+                        object_ids,
+                    )))
                 }
             }
             EncodedActiveGraph::AnyNamedGraph => {
@@ -394,6 +396,8 @@ impl From<&MemIndexScanInstructions> for MemIndexPruningPredicates {
 /// row groups.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum MemIndexPruningPredicate {
+    /// Always returns false.
+    False,
     /// Checks whether the object id is in the given set.
     EqualTo(EncodedObjectId),
     /// Checks whether the object id is between the given object ids (end is inclusive).
@@ -403,14 +407,15 @@ pub enum MemIndexPruningPredicate {
 impl From<&MemIndexScanPredicate> for Option<MemIndexPruningPredicate> {
     fn from(value: &MemIndexScanPredicate) -> Self {
         match value {
+            MemIndexScanPredicate::False => Some(MemIndexPruningPredicate::False),
             MemIndexScanPredicate::In(ids) => {
-                let predicate = if ids.len() == 1 {
-                    MemIndexPruningPredicate::EqualTo(*ids.first().unwrap())
-                } else {
-                    MemIndexPruningPredicate::Between(
+                let predicate = match ids.len() {
+                    0 => MemIndexPruningPredicate::False,
+                    1 => MemIndexPruningPredicate::EqualTo(*ids.first().unwrap()),
+                    _ => MemIndexPruningPredicate::Between(
                         *ids.first().unwrap(),
                         *ids.last().unwrap(),
-                    )
+                    ),
                 };
                 Some(predicate)
             }

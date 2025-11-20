@@ -116,6 +116,7 @@ impl QuadIndex for MemQuadIndex {
                         1
                     }
                 }
+                MemIndexPruningPredicate::False => return usize::MAX,
             };
 
             score += reward << potent;
