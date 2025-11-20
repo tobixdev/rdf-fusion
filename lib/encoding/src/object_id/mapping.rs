@@ -89,7 +89,7 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
         array: &PlainTermArray,
     ) -> Result<UInt32Array, ObjectIdMappingError>;
 
-    /// Encodes a single `scalar` as an [ObjectIdScalar]. Automatically creates a mapping for a
+    /// Encodes a single `scalar` as an [`ObjectId`]. Automatically creates a mapping for a
     /// fresh object id if the term is not yet mapped.
     fn encode_scalar(
         &self,
