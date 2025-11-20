@@ -3,9 +3,9 @@ use crate::plain_term::decoders::{
     DefaultPlainTermDecoder, GraphNameRefPlainTermDecoder,
 };
 use crate::plain_term::encoders::DefaultPlainTermEncoder;
-use crate::plain_term::{PlainTermEncoding, PLAIN_TERM_ENCODING};
+use crate::plain_term::{PLAIN_TERM_ENCODING, PlainTermEncoding};
 use crate::{TermDecoder, TermEncoder};
-use datafusion::common::{exec_err, DataFusionError, ScalarValue};
+use datafusion::common::{DataFusionError, ScalarValue, exec_err};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{
     BlankNodeRef, GraphNameRef, LiteralRef, NamedNodeRef, NamedOrBlankNodeRef, Term,

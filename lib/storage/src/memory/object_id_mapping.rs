@@ -311,7 +311,7 @@ mod tests {
     use rdf_fusion_encoding::plain_term::PlainTermArrayElementBuilder;
     use rdf_fusion_encoding::EncodingArray;
     use rdf_fusion_model::vocab::xsd;
-    use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef};
+    use rdf_fusion_model::{BlankNodeRef, DFResult, LiteralRef, NamedNodeRef, TermRef};
 
     #[test]
     fn test_encode_decode_roundtrip() -> DFResult<()> {

@@ -10,16 +10,16 @@ use crate::memory::storage::scan_instructions::{
 };
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::execution::SendableRecordBatchStream;
-use datafusion::physical_plan::metrics::BaselineMetrics;
 use datafusion::physical_plan::EmptyRecordBatchStream;
+use datafusion::physical_plan::metrics::BaselineMetrics;
 use rdf_fusion_encoding::object_id::{
     ObjectIdEncodingRef, ObjectIdMapping, ObjectIdMappingError, ObjectIdSize,
 };
-use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::plain_term::PlainTermScalar;
+use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
 use rdf_fusion_encoding::{QuadStorageEncoding, TermDecoder};
-use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_logical::ActiveGraph;
+use rdf_fusion_logical::patterns::compute_schema_for_triple_pattern;
 use rdf_fusion_model::quads::{COL_GRAPH, COL_OBJECT, COL_PREDICATE, COL_SUBJECT};
 use rdf_fusion_model::{BlankNodeMatchingMode, DFResult, NamedNodePattern, TermRef};
 use rdf_fusion_model::{

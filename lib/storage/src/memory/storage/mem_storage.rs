@@ -1,5 +1,5 @@
 use crate::index::{EncodedQuad, IndexComponents, IndexPermutations};
-use crate::memory::object_id::{EncodedObjectId, DEFAULT_GRAPH_ID};
+use crate::memory::object_id::{DEFAULT_GRAPH_ID, EncodedObjectId};
 use crate::memory::planner::MemQuadStorePlanner;
 use crate::memory::storage::quad_index::{MemIndexConfiguration, MemQuadIndex};
 use crate::memory::storage::snapshot::MemQuadStorageSnapshot;
@@ -7,13 +7,13 @@ use async_trait::async_trait;
 use datafusion::common::internal_err;
 use datafusion::physical_planner::ExtensionPlanner;
 use itertools::Itertools;
+use rdf_fusion_encoding::QuadStorageEncoding;
 use rdf_fusion_encoding::object_id::{
     ObjectIdEncodingRef, ObjectIdMapping, ObjectIdMappingError, ObjectIdSize,
 };
 use rdf_fusion_encoding::plain_term::PlainTermScalar;
-use rdf_fusion_encoding::QuadStorageEncoding;
-use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_extensions::RdfFusionContextView;
+use rdf_fusion_extensions::storage::QuadStorage;
 use rdf_fusion_model::{CorruptionError, StorageError};
 use rdf_fusion_model::{DFResult, TermRef};
 use rdf_fusion_model::{

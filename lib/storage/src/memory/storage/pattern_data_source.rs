@@ -1,16 +1,16 @@
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use crate::memory::storage::scan::PlannedPatternScan;
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::common::{exec_err, Statistics};
+use datafusion::common::{Statistics, exec_err};
 use datafusion::config::ConfigOptions;
 use datafusion::datasource::source::DataSource;
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning, PhysicalExpr};
+use datafusion::physical_plan::DisplayFormatType;
 use datafusion::physical_plan::execution_plan::SchedulingType;
 use datafusion::physical_plan::filter_pushdown::{FilterPushdownPropagation, PushedDown};
 use datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet};
 use datafusion::physical_plan::projection::ProjectionExpr;
-use datafusion::physical_plan::DisplayFormatType;
 use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::fmt::Formatter;
@@ -162,8 +162,8 @@ fn apply_pushdown_filters(
 
 #[cfg(test)]
 mod test {
-    use crate::memory::storage::snapshot::PlanPatternScanResult;
     use crate::memory::storage::MemQuadPatternDataSource;
+    use crate::memory::storage::snapshot::PlanPatternScanResult;
     use crate::memory::{MemObjectIdMapping, MemQuadStorage};
     use datafusion::arrow::datatypes::{DataType, Field, Schema};
     use datafusion::catalog::memory::DataSourceExec;
@@ -174,17 +174,17 @@ mod test {
     use datafusion::physical_plan::filter_pushdown::{
         FilterPushdownPropagation, PushedDown,
     };
-    use datafusion::physical_plan::{displayable, PhysicalExpr};
+    use datafusion::physical_plan::{PhysicalExpr, displayable};
     use datafusion::scalar::ScalarValue;
     use insta::assert_snapshot;
     use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
+    use rdf_fusion_encoding::plain_term::PlainTermScalar;
     use rdf_fusion_logical::ActiveGraph;
     use rdf_fusion_model::{
         BlankNodeMatchingMode, NamedNode, NamedNodePattern, NamedNodeRef, TermPattern,
         TermRef, TriplePattern, Variable,
     };
     use std::sync::Arc;
-    use rdf_fusion_encoding::plain_term::PlainTermScalar;
 
     #[tokio::test]
     async fn test_filter_pushdown_binds_variable_eq() {
@@ -246,9 +246,11 @@ mod test {
         };
 
         let object_id_mapping = Arc::new(MemObjectIdMapping::default());
-        object_id_mapping.encode_scalar(&PlainTermScalar::from(TermRef::NamedNode(
-            NamedNodeRef::new_unchecked("http://example.com/test"),
-        ))).unwrap();
+        object_id_mapping
+            .encode_scalar(&PlainTermScalar::from(TermRef::NamedNode(
+                NamedNodeRef::new_unchecked("http://example.com/test"),
+            )))
+            .unwrap();
         let encoding = Arc::new(ObjectIdEncoding::new(object_id_mapping));
 
         let index = MemQuadStorage::try_new(encoding, 10).unwrap();
