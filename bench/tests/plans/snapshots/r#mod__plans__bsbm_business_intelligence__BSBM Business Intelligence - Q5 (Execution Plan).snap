@@ -19,9 +19,9 @@ ProjectionExec: expr=[country@0 as country, ENC_PT(product@1) as product, ENC_PT
                             CoalesceBatchesExec: target_batch_size=8192
                               HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, review@1]
                                 DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>
-                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product, additional_filters=[DynamicFilterPhysicalExpr [ product@1 >= <object id> AND product@1 <= <object id> ]]
-                            DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer, additional_filters=[DynamicFilterPhysicalExpr [ review@0 >= <object id> AND review@0 <= <object id> ]]
-                        DataSourceExec: [GPOS] subject=?reviewer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=?country, additional_filters=[DynamicFilterPhysicalExpr [ reviewer@0 >= <object id> AND reviewer@0 <= <object id> ]]
+                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product, additional_filters=[DynamicFilter [ product@1 >= <object id> AND product@1 <= <object id> ]]
+                            DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                        DataSourceExec: [GPOS] subject=?reviewer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=?country, additional_filters=[DynamicFilter [ reviewer@0 >= <object id> AND reviewer@0 <= <object id> ]]
             ProjectionExec: expr=[NULL as country, product@0 as product, <uuid>@1 as avgPrice]
               AggregateExec: mode=Single, gby=[product@0 as product], aggr=[<uuid>]
                 CoalesceBatchesExec: target_batch_size=8192
@@ -29,8 +29,8 @@ ProjectionExec: expr=[country@0 as country, ENC_PT(product@1) as product, ENC_PT
                     CoalesceBatchesExec: target_batch_size=8192
                       HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, offer@1]
                         DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>
-                        DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product, additional_filters=[DynamicFilterPhysicalExpr [ product@1 >= <object id> AND product@1 <= <object id> ]]
-                    DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price, additional_filters=[DynamicFilterPhysicalExpr [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
+                        DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product, additional_filters=[DynamicFilter [ product@1 >= <object id> AND product@1 <= <object id> ]]
+                    DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price, additional_filters=[DynamicFilter [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
         ProjectionExec: expr=[ENC_PT(country@0) as country, product@1 as product, INT64_AS_TERM(<uuid>@2) as nrOfReviews]
           AggregateExec: mode=Single, gby=[country@2 as country, product@0 as product], aggr=[<uuid>]
             CoalesceBatchesExec: target_batch_size=8192
@@ -40,6 +40,6 @@ ProjectionExec: expr=[country@0 as country, ENC_PT(product@1) as product, ENC_PT
                     CoalesceBatchesExec: target_batch_size=8192
                       HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, review@1]
                         DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType111>
-                        DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product, additional_filters=[DynamicFilterPhysicalExpr [ product@1 >= <object id> AND product@1 <= <object id> ]]
-                    DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer, additional_filters=[DynamicFilterPhysicalExpr [ review@0 >= <object id> AND review@0 <= <object id> ]]
-                DataSourceExec: [GPOS] subject=?reviewer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=?country, additional_filters=[DynamicFilterPhysicalExpr [ reviewer@0 >= <object id> AND reviewer@0 <= <object id> ]]
+                        DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product, additional_filters=[DynamicFilter [ product@1 >= <object id> AND product@1 <= <object id> ]]
+                    DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                DataSourceExec: [GPOS] subject=?reviewer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/country>, object=?country, additional_filters=[DynamicFilter [ reviewer@0 >= <object id> AND reviewer@0 <= <object id> ]]

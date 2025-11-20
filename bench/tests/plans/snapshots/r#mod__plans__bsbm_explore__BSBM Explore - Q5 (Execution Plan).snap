@@ -22,12 +22,12 @@ ProjectionExec: expr=[ENC_PT(first_value(product) ORDER BY [ENC_SORT(ENC_PT(prod
                             DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature
                           CoalesceBatchesExec: target_batch_size=8192
                             FilterExec: product@0 != <object id>
-                              DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature, additional_filters=[DynamicFilterPhysicalExpr [ prodFeature@1 >= <object id> AND prodFeature@1 <= <object id> AND product@0 >= <object id> AND product@0 <= <object id> ]]
+                              DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature, additional_filters=[DynamicFilter [ prodFeature@1 >= <object id> AND prodFeature@1 <= <object id> AND product@0 >= <object id> AND product@0 <= <object id> ]]
                       DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?origProperty1
                     CoalesceBatchesExec: target_batch_size=8192
                       FilterExec: product@0 != <object id>
-                        DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?simProperty1, additional_filters=[DynamicFilterPhysicalExpr [ product@0 >= <object id> AND product@0 <= <object id> ]]
+                        DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?simProperty1, additional_filters=[DynamicFilter [ product@0 >= <object id> AND product@0 <= <object id> ]]
                 DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?origProperty2
               CoalesceBatchesExec: target_batch_size=8192
                 FilterExec: product@0 != <object id>
-                  DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?simProperty2, additional_filters=[DynamicFilterPhysicalExpr [ product@0 >= <object id> AND product@0 <= <object id> ]]
+                  DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?simProperty2, additional_filters=[DynamicFilter [ product@0 >= <object id> AND product@0 <= <object id> ]]

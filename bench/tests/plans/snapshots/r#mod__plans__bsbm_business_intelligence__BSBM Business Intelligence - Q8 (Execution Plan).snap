@@ -18,9 +18,9 @@ ProjectionExec: expr=[ENC_PT(vendor@0) as vendor, ENC_PT(cheapExpensiveRatio@3) 
                           CoalesceBatchesExec: target_batch_size=8192
                             HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, offer@1]
                               DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>
-                              DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product, additional_filters=[DynamicFilterPhysicalExpr [ product@1 >= <object id> AND product@1 <= <object id> ]]
-                          DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor, additional_filters=[DynamicFilterPhysicalExpr [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
-                      DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price, additional_filters=[DynamicFilterPhysicalExpr [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
+                              DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product, additional_filters=[DynamicFilter [ product@1 >= <object id> AND product@1 <= <object id> ]]
+                          DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor, additional_filters=[DynamicFilter [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
+                      DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price, additional_filters=[DynamicFilter [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
                   ProjectionExec: expr=[product@0 as product, <uuid>@1 as avgPrice]
                     AggregateExec: mode=Single, gby=[product@0 as product], aggr=[<uuid>]
                       CoalesceBatchesExec: target_batch_size=8192
@@ -29,11 +29,11 @@ ProjectionExec: expr=[ENC_PT(vendor@0) as vendor, ENC_PT(cheapExpensiveRatio@3) 
                             HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(offer@1, offer@0)], projection=[product@0, offer@1]
                               CoalesceBatchesExec: target_batch_size=8192
                                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[product@0, offer@1]
-                                  DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>
-                                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product, additional_filters=[DynamicFilterPhysicalExpr [ product@1 >= <object id> AND product@1 <= <object id> ]]
+                                  DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>, additional_filters=[DynamicFilter [ product@0 >= <object id> AND product@0 <= <object id> ]]
+                                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product, additional_filters=[DynamicFilter [ product@1 >= <object id> AND product@1 <= <object id> ], DynamicFilter [ product@1 >= <object id> AND product@1 <= <object id> ]]
                               ProjectionExec: expr=[offer@0 as offer]
-                                DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor, additional_filters=[DynamicFilterPhysicalExpr [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
-                          DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price, additional_filters=[DynamicFilterPhysicalExpr [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
+                                DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor, additional_filters=[DynamicFilter [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
+                          DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/price>, object=?price, additional_filters=[DynamicFilter [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
           ProjectionExec: expr=[vendor@0 as vendor, INT64_AS_TERM(<uuid>@1) as offerCount]
             AggregateExec: mode=Single, gby=[vendor@1 as vendor], aggr=[<uuid>]
               CoalesceBatchesExec: target_batch_size=8192
@@ -41,5 +41,5 @@ ProjectionExec: expr=[ENC_PT(vendor@0) as vendor, ENC_PT(cheapExpensiveRatio@3) 
                   CoalesceBatchesExec: target_batch_size=8192
                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[offer@1]
                       DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType4>
-                      DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product, additional_filters=[DynamicFilterPhysicalExpr [ product@1 >= <object id> AND product@1 <= <object id> ]]
-                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor, additional_filters=[DynamicFilterPhysicalExpr [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
+                      DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/product>, object=?product, additional_filters=[DynamicFilter [ product@1 >= <object id> AND product@1 <= <object id> ]]
+                  DataSourceExec: [GPOS] subject=?offer, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/vendor>, object=?vendor, additional_filters=[DynamicFilter [ offer@0 >= <object id> AND offer@0 <= <object id> ]]
