@@ -17,15 +17,15 @@ ProjectionExec: expr=[ENC_PT(product@0) as product, ENC_PT(label@1) as label]
                         CoalesceBatchesExec: target_batch_size=8192
                           HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, label@1]
                             DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?label
-                            DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType87>, additional_filters=[DynamicFilterPhysicalExpr [ product@0 >= <object id> AND product@0 <= <object id> ]]
-                        DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature541>, additional_filters=[DynamicFilterPhysicalExpr [ product@0 >= <object id> AND product@0 <= <object id> ]]
+                            DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductType87>, additional_filters=[DynamicFilter [ product@0 >= <object id> AND product@0 <= <object id> ]]
+                        DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature541>, additional_filters=[DynamicFilter [ product@0 >= <object id> AND product@0 <= <object id> ]]
                     CoalesceBatchesExec: target_batch_size=8192
                       FilterExec: EBV(GT(ENC_TV(p1@1), 9:156)), projection=[product@0]
-                        DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?p1, additional_filters=[DynamicFilterPhysicalExpr [ product@0 >= <object id> AND product@0 <= <object id> ]]
+                        DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?p1, additional_filters=[DynamicFilter [ product@0 >= <object id> AND product@0 <= <object id> ]]
                 CoalesceBatchesExec: target_batch_size=8192
                   FilterExec: EBV(LT(ENC_TV(p3@1), 9:152)), projection=[product@0]
-                    DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric3>, object=?p3, additional_filters=[DynamicFilterPhysicalExpr [ product@0 >= <object id> AND product@0 <= <object id> ]]
+                    DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric3>, object=?p3, additional_filters=[DynamicFilter [ product@0 >= <object id> AND product@0 <= <object id> ]]
             CoalesceBatchesExec: target_batch_size=8192
               HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@0)], projection=[product@0, testVar@2]
                 DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/ProductFeature553>
-                DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?testVar, additional_filters=[DynamicFilterPhysicalExpr [ product@0 >= <object id> AND product@0 <= <object id> ]]
+                DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?testVar, additional_filters=[DynamicFilter [ product@0 >= <object id> AND product@0 <= <object id> ]]

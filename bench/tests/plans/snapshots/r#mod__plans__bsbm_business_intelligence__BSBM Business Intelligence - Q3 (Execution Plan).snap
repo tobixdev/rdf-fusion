@@ -15,7 +15,7 @@ ProjectionExec: expr=[ENC_PT(product@0) as product, ENC_PT(ratio@3) as ratio]
                   CoalesceBatchesExec: target_batch_size=8192
                     FilterExec: EBV(GEQ(__common_expr_5@0, 12:{value:6332757120000.0000000000000000,offset:})) AND EBV(LT(__common_expr_5@0, 12:{value:6332999040000.0000000000000000,offset:})), projection=[review@1]
                       ProjectionExec: expr=[ENC_TV(date@1) as __common_expr_5, review@0 as review]
-                        DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/dc/elements/1.1/date>, object=?date, additional_filters=[DynamicFilterPhysicalExpr [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                        DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/dc/elements/1.1/date>, object=?date, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
           ProjectionExec: expr=[product@0 as product, INT64_AS_TERM(<uuid>@1) as monthBeforeCount]
             CoalesceBatchesExec: target_batch_size=8192
               FilterExec: EBV(GT(INT64_AS_TERM(<uuid>@1), 9:0))
@@ -26,4 +26,4 @@ ProjectionExec: expr=[ENC_PT(product@0) as product, ENC_PT(ratio@3) as ratio]
                       CoalesceBatchesExec: target_batch_size=8192
                         FilterExec: EBV(GEQ(__common_expr_6@0, 12:{value:6332515200000.0000000000000000,offset:})) AND EBV(LT(__common_expr_6@0, 12:{value:6332757120000.0000000000000000,offset:})), projection=[review@1]
                           ProjectionExec: expr=[ENC_TV(date@1) as __common_expr_6, review@0 as review]
-                            DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/dc/elements/1.1/date>, object=?date, additional_filters=[DynamicFilterPhysicalExpr [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                            DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/dc/elements/1.1/date>, object=?date, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]

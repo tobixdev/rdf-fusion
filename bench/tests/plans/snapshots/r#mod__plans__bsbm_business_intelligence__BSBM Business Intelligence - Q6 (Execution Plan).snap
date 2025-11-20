@@ -20,21 +20,21 @@ ProjectionExec: expr=[ENC_PT(reviewer@0) as reviewer, ENC_PT(<uuid>@1) as review
                               CoalesceBatchesExec: target_batch_size=8192
                                 HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[review@1]
                                   DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>
-                                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product, additional_filters=[DynamicFilterPhysicalExpr [ product@1 >= <object id> AND product@1 <= <object id> ]]
+                                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product, additional_filters=[DynamicFilter [ product@1 >= <object id> AND product@1 <= <object id> ]]
                               UnionExec
-                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score
-                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score
-                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score
-                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score
+                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                                DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
                   CoalesceBatchesExec: target_batch_size=8192
                     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(review@0, review@0)], projection=[review@0, reviewer@2]
                       CoalesceBatchesExec: target_batch_size=8192
                         HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(product@0, product@1)], projection=[review@1]
                           DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Producer6>
-                          DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product, additional_filters=[DynamicFilterPhysicalExpr [ product@1 >= <object id> AND product@1 <= <object id> ]]
-                      DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer, additional_filters=[DynamicFilterPhysicalExpr [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                          DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/reviewFor>, object=?product, additional_filters=[DynamicFilter [ product@1 >= <object id> AND product@1 <= <object id> ]]
+                      DataSourceExec: [GPOS] subject=?review, predicate=<http://purl.org/stuff/rev#reviewer>, object=?reviewer, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
                 UnionExec
-                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score
-                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score
-                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score
-                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score
+                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating1>, object=?score, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating2>, object=?score, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating3>, object=?score, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]
+                  DataSourceExec: [GPOS] subject=?review, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/rating4>, object=?score, additional_filters=[DynamicFilter [ review@0 >= <object id> AND review@0 <= <object id> ]]

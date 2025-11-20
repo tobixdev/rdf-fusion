@@ -77,6 +77,10 @@ impl DataSource for MemQuadPatternDataSource {
         SchedulingType::Cooperative
     }
 
+    fn partition_statistics(&self, _partition: Option<usize>) -> DFResult<Statistics> {
+        Ok(Statistics::new_unknown(&self.schema))
+    }
+
     fn statistics(&self) -> DFResult<Statistics> {
         Ok(Statistics::new_unknown(&self.schema))
     }

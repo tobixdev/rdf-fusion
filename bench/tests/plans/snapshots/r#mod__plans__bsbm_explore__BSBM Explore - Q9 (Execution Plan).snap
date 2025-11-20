@@ -6,4 +6,4 @@ ProjectionExec: expr=[ENC_PT(x@0) as x, ENC_PT(x__type@1) as x__type]
   CoalesceBatchesExec: target_batch_size=8192
     HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(x@0, x@0)], projection=[x@0, x__type@2]
       DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromRatingSite1/Review4194>, predicate=<http://purl.org/stuff/rev#reviewer>, object=?x
-      DataSourceExec: [GPOS] subject=?x, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=?x__type, additional_filters=[DynamicFilterPhysicalExpr [ x@0 >= <object id> AND x@0 <= <object id> ]]
+      DataSourceExec: [GPOS] subject=?x, predicate=<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>, object=?x__type, additional_filters=[DynamicFilter [ x@0 >= <object id> AND x@0 <= <object id> ]]
