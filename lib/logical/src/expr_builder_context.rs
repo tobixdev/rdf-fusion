@@ -309,9 +309,11 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             .field_with_name(None, inner_column.name())?
             .is_nullable();
 
-        let outer_ref_column = expr_builder_ctx.try_create_builder(
-            Expr::OuterReferenceColumn(Arc::new(outer_field.clone()), Column::new_unqualified(k)),
-        )?;
+        let outer_ref_column =
+            expr_builder_ctx.try_create_builder(Expr::OuterReferenceColumn(
+                Arc::new(outer_field.clone()),
+                Column::new_unqualified(k),
+            ))?;
         let encoding = expr_builder_ctx
             .rdf_fusion_context
             .encodings()
