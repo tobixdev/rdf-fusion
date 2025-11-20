@@ -527,18 +527,10 @@ mod tests {
                     Field {
                         name: "subject",
                         data_type: UInt32,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
                     },
                     Field {
                         name: "object",
                         data_type: UInt32,
-                        nullable: false,
-                        dict_id: 0,
-                        dict_is_ordered: false,
-                        metadata: {},
                     },
                 ],
                 metadata: {},

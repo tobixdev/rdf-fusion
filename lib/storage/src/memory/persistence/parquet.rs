@@ -9,7 +9,7 @@ use datafusion::config::ConfigOptions;
 use datafusion::execution::{RecordBatchStream, SendableRecordBatchStream};
 use datafusion::logical_expr::ReturnFieldArgs;
 use datafusion::parquet::arrow::ArrowWriter;
-use datafusion::parquet::format::FileMetaData;
+use datafusion::parquet::file::metadata::ParquetMetaData;
 use datafusion::physical_expr::expressions::Column;
 use datafusion::physical_expr::{PhysicalExprRef, ScalarFunctionExpr};
 use datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet};
@@ -55,7 +55,7 @@ impl ParquetMemQuadStoragePersistence {
 
 #[async_trait]
 impl MemQuadStoragePersistence for ParquetMemQuadStoragePersistence {
-    type Metadata = FileMetaData;
+    type Metadata = ParquetMetaData;
 
     async fn export<TWriter: Write + Send>(
         &self,
@@ -161,7 +161,7 @@ impl ParquetMemQuadStoragePersistence {
         &self,
         writer: TWriter,
         mut plain_term_stream: SendableRecordBatchStream,
-    ) -> Result<FileMetaData, MemStoragePersistenceError> {
+    ) -> Result<ParquetMetaData, MemStoragePersistenceError> {
         let mut writer = ArrowWriter::try_new(writer, plain_term_stream.schema(), None)?;
         while let Some(batch) = plain_term_stream.next().await {
             writer.write(&batch?)?;

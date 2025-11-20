@@ -13,7 +13,6 @@ use rdf_fusion_logical::join::SparqlJoinLoweringRule;
 use rdf_fusion_logical::minus::MinusLoweringRule;
 use rdf_fusion_logical::paths::PropertyPathLoweringRule;
 use rdf_fusion_logical::patterns::PatternLoweringRule;
-use rdf_fusion_physical::join::NestedLoopJoinProjectionPushDown;
 use std::sync::Arc;
 
 /// Creates a list of optimizer rules based on the given `optimization_level`.
@@ -89,7 +88,5 @@ pub fn create_pyhsical_optimizer_rules(
     _optimization_level: OptimizationLevel,
 ) -> Vec<Arc<dyn PhysicalOptimizerRule + Send + Sync>> {
     // TODO: build based on optimization level
-    let mut rules = PhysicalOptimizer::default().rules;
-    rules.push(Arc::new(NestedLoopJoinProjectionPushDown::new()));
-    rules
+    PhysicalOptimizer::default().rules
 }

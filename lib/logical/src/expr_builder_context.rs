@@ -301,7 +301,6 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             plan_datafusion_err!("Could not find column {} in schema.", k)
         })?;
         let inner_column = Column::new_unqualified(format!("__inner__{k}"));
-        let data_type = outer_field.data_type();
 
         // If both fields are not nullable, we can use an equality.
         let outer_nullability = outer_field.is_nullable();
@@ -310,9 +309,11 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
             .field_with_name(None, inner_column.name())?
             .is_nullable();
 
-        let outer_ref_column = expr_builder_ctx.try_create_builder(
-            Expr::OuterReferenceColumn(data_type.clone(), Column::new_unqualified(k)),
-        )?;
+        let outer_ref_column =
+            expr_builder_ctx.try_create_builder(Expr::OuterReferenceColumn(
+                Arc::new(outer_field.clone()),
+                Column::new_unqualified(k),
+            ))?;
         let encoding = expr_builder_ctx
             .rdf_fusion_context
             .encodings()
