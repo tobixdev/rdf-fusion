@@ -4,7 +4,7 @@ mod mapping;
 mod scalar;
 
 pub use array::*;
-use datafusion::arrow::array::{Array, UInt32Array};
+use datafusion::arrow::array::{Array, FixedSizeBinaryArray};
 pub use encoding::*;
 pub use mapping::*;
 pub use scalar::*;
@@ -50,6 +50,12 @@ impl TryFrom<usize> for ObjectIdSize {
     }
 }
 
+impl From<ObjectIdSize> for usize {
+    fn from(value: ObjectIdSize) -> Self {
+        value.0 as usize // This works because non-negativity is checked in the constructor
+    }
+}
+
 impl Display for ObjectIdSize {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} Bytes", self.0)
@@ -81,11 +87,17 @@ impl ObjectId {
         Self(vec![0; size.0 as usize].into_boxed_slice())
     }
 
+    /// Returns true if the object id is the default graph.
+    pub fn is_default_graph(&self) -> bool {
+        self.0.iter().all(|b| *b == 0)
+    }
+
     /// Creates a new [`ObjectId`].
-    pub fn try_new_from_array(array: &UInt32Array, index: usize) -> Self {
+    pub fn try_new_from_array(array: &FixedSizeBinaryArray, index: usize) -> Self {
+        let len = array.value_length() as usize;
         match array.is_valid(index) {
-            true => Self(array.value(index).to_be_bytes().into()),
-            false => Self([0; 4].into()),
+            true => Self(array.value(index).into()),
+            false => Self(vec![0; len].into_boxed_slice()),
         }
     }
 

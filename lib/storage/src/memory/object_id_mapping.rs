@@ -3,8 +3,7 @@
 use crate::memory::encoding::{EncodedTerm, EncodedTypedValue};
 use crate::memory::object_id::EncodedObjectId;
 use dashmap::{DashMap, DashSet};
-use datafusion::arrow::array::{UInt32Array, UInt32Builder};
-use rdf_fusion_encoding::TermDecoder;
+use datafusion::arrow::array::{Array, FixedSizeBinaryArray, FixedSizeBinaryBuilder};
 use rdf_fusion_encoding::object_id::{
     ObjectId, ObjectIdMapping, ObjectIdMappingError, ObjectIdSize,
 };
@@ -13,11 +12,12 @@ use rdf_fusion_encoding::plain_term::{PlainTermArray, PlainTermArrayElementBuild
 use rdf_fusion_encoding::typed_value::{
     TypedValueArray, TypedValueArrayElementBuilder, TypedValueEncodingRef,
 };
+use rdf_fusion_encoding::TermDecoder;
 use rdf_fusion_model::{BlankNodeRef, LiteralRef, NamedNodeRef, TermRef, TypedValueRef};
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 /// Maintains a mapping between RDF terms and object IDs in memory.
 ///
@@ -207,17 +207,17 @@ impl ObjectIdMapping for MemObjectIdMapping {
     fn encode_array(
         &self,
         array: &PlainTermArray,
-    ) -> Result<UInt32Array, ObjectIdMappingError> {
+    ) -> Result<FixedSizeBinaryArray, ObjectIdMappingError> {
         let terms = DefaultPlainTermDecoder::decode_terms(array);
 
         // TODO: without alloc/Arc copy
-        let mut result = UInt32Builder::new();
+        let mut result = FixedSizeBinaryBuilder::new(self.object_id_size().into());
         for term in terms {
             match term {
                 Ok(term) => {
                     let encoded_term = self.obtain_encoded_term(term);
                     let object_id = self.obtain_object_id(&encoded_term);
-                    result.append_value(object_id.as_u32())
+                    result.append_value(object_id.as_bytes())?;
                 }
                 Err(_) => result.append_null(),
             }
@@ -228,13 +228,21 @@ impl ObjectIdMapping for MemObjectIdMapping {
 
     fn decode_array(
         &self,
-        array: &UInt32Array,
+        array: &FixedSizeBinaryArray,
     ) -> Result<PlainTermArray, ObjectIdMappingError> {
+        if array.value_length() != 4 {
+            return Err(ObjectIdMappingError::IllegalArgument(
+                "Object id array with invalid size provided".to_owned(),
+            ));
+        }
+
         let terms = array.iter().map(|oid| {
             oid.map(|oid| {
-                self.try_get_encoded_term_from_object_id(EncodedObjectId::from(oid))
-                    .expect("Missing EncodedObjectId")
-                    .clone()
+                self.try_get_encoded_term_from_object_id(
+                    EncodedObjectId::from_4_byte_slice(oid),
+                )
+                .expect("Missing EncodedObjectId. TODO handle Err")
+                .clone()
             })
         });
 
@@ -273,10 +281,16 @@ impl ObjectIdMapping for MemObjectIdMapping {
     fn decode_array_to_typed_value(
         &self,
         encoding: &TypedValueEncodingRef,
-        array: &UInt32Array,
+        array: &FixedSizeBinaryArray,
     ) -> Result<TypedValueArray, ObjectIdMappingError> {
+        if array.value_length() != 4 {
+            return Err(ObjectIdMappingError::IllegalArgument(
+                "Object id array with invalid size provided".to_owned(),
+            ));
+        }
+
         let typed_values = array.iter().map(|oid| {
-            let oid = oid.map(EncodedObjectId::from);
+            let oid = oid.map(EncodedObjectId::from_4_byte_slice);
             oid.map(|oid| {
                 self.try_get_encoded_typed_value_from_object_id(oid)
                     .expect("Missing EncodedObjectId")
@@ -303,8 +317,8 @@ impl ObjectIdMapping for MemObjectIdMapping {
 mod tests {
     use super::*;
     use datafusion::arrow::array::AsArray;
-    use rdf_fusion_encoding::EncodingArray;
     use rdf_fusion_encoding::plain_term::PlainTermArrayElementBuilder;
+    use rdf_fusion_encoding::EncodingArray;
     use rdf_fusion_model::vocab::xsd;
     use rdf_fusion_model::{BlankNodeRef, DFResult, LiteralRef, NamedNodeRef, TermRef};
 
@@ -402,14 +416,8 @@ mod tests {
         assert!(object_id2.is_some());
 
         // Check if IDs match what's in the array
-        assert_eq!(
-            object_id1.unwrap().as_bytes(),
-            object_id_array.value(0).to_be_bytes()
-        );
-        assert_eq!(
-            object_id2.unwrap().as_bytes(),
-            object_id_array.value(1).to_be_bytes()
-        );
+        assert_eq!(object_id1.unwrap().as_bytes(), object_id_array.value(0));
+        assert_eq!(object_id2.unwrap().as_bytes(), object_id_array.value(1));
 
         // A term not in the mapping
         let term3 = NamedNodeRef::new_unchecked("http://example.com/c").into();

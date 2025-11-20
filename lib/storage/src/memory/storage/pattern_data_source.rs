@@ -237,8 +237,8 @@ mod test {
     /// variable.
     async fn create_test_pattern() -> MemQuadPatternDataSource {
         let schema = Arc::new(Schema::new(vec![
-            Field::new("subject", DataType::UInt32, false),
-            Field::new("object", DataType::UInt32, false),
+            Field::new("subject", DataType::FixedSizeBinary(4), false),
+            Field::new("object", DataType::FixedSizeBinary(4), false),
         ]));
         let pattern = TriplePattern {
             subject: TermPattern::Variable(Variable::new_unchecked("subject")),

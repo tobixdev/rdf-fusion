@@ -1,7 +1,7 @@
-use crate::TermEncoding;
 use crate::encoding::EncodingArray;
 use crate::object_id::ObjectIdEncoding;
-use datafusion::arrow::array::{Array, ArrayRef, UInt32Array};
+use crate::TermEncoding;
+use datafusion::arrow::array::{Array, ArrayRef, FixedSizeBinaryArray};
 use datafusion::common::exec_err;
 use rdf_fusion_model::DFResult;
 use std::sync::Arc;
@@ -32,10 +32,10 @@ impl ObjectIdArray {
     }
 
     /// Returns a reference to the inner [UInt32Array].
-    pub fn object_ids(&self) -> &UInt32Array {
+    pub fn object_ids(&self) -> &FixedSizeBinaryArray {
         self.inner
             .as_any()
-            .downcast_ref::<UInt32Array>()
+            .downcast_ref::<FixedSizeBinaryArray>()
             .expect("Checked in constructor")
     }
 }

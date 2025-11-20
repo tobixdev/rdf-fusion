@@ -45,8 +45,14 @@ impl EncodedObjectId {
         ObjectId::try_new(self.0.to_be_bytes()).expect("Object ID valid")
     }
 
+    /// Returns the underlying u32 value.
     pub fn as_u32(&self) -> u32 {
         self.0
+    }
+
+    /// Returns the bytes within the encoded object id.
+    pub fn as_bytes(&self) -> [u8; 4] {
+        self.0.to_be_bytes()
     }
 
     pub fn next(&self) -> Option<EncodedObjectId> {

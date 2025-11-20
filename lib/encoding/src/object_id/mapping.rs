@@ -1,12 +1,12 @@
 use crate::object_id::{ObjectId, ObjectIdSize};
-use crate::plain_term::{PlainTermArray, PlainTermScalar};
+use crate::plain_term::{PlainTermArray, PlainTermScalar, PLAIN_TERM_ENCODING};
 use crate::typed_value::{TypedValueArray, TypedValueEncodingRef, TypedValueScalar};
 use crate::{EncodingArray, EncodingScalar};
-use datafusion::arrow::array::{AsArray, UInt32Array};
+use datafusion::arrow::array::{AsArray, FixedSizeBinaryArray};
 use datafusion::arrow::error::ArrowError;
 use datafusion::common::ScalarValue;
 use datafusion::error::DataFusionError;
-use rdf_fusion_model::{CorruptionError, GraphNameRef, StorageError, TermRef};
+use rdf_fusion_model::{CorruptionError, GraphNameRef, StorageError, TermRef, ThinError};
 use std::error::Error;
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -18,6 +18,8 @@ use thiserror::Error;
 pub enum ObjectIdMappingError {
     #[error("An error occurred while encoding the result. {0}")]
     ArrowError(ArrowError),
+    #[error("Corruption. {0}")]
+    IllegalArgument(String),
     #[error("A literal was encountered at a position where a graph name is expected.")]
     LiteralAsGraphName,
     #[error("An error occurred while accessing the object id storage.")]
@@ -87,12 +89,12 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
         term: TermRef<'_>,
     ) -> Result<Option<ObjectId>, ObjectIdMappingError>;
 
-    /// Encodes the entire `array` as an [`UInt32Array`]. Automatically creates a mapping for a
+    /// Encodes the entire `array` as an [`FixedSizeBinaryArray`]. Automatically creates a mapping for a
     /// fresh object id if a term is not yet mapped.
     fn encode_array(
         &self,
         array: &PlainTermArray,
-    ) -> Result<UInt32Array, ObjectIdMappingError>;
+    ) -> Result<FixedSizeBinaryArray, ObjectIdMappingError>;
 
     /// Encodes a single `scalar` as an [`ObjectId`]. Automatically creates a mapping for a
     /// fresh object id if the term is not yet mapped.
@@ -111,14 +113,14 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
     /// Decodes the entire `array` as a [PlainTermArray].
     fn decode_array(
         &self,
-        array: &UInt32Array,
+        array: &FixedSizeBinaryArray,
     ) -> Result<PlainTermArray, ObjectIdMappingError>;
 
     /// Decodes the entire `array` as a [TypedValueArray].
     fn decode_array_to_typed_value(
         &self,
         encoding: &TypedValueEncodingRef,
-        array: &UInt32Array,
+        array: &FixedSizeBinaryArray,
     ) -> Result<TypedValueArray, ObjectIdMappingError>;
 
     /// Decodes a single `scalar` as a [PlainTermScalar].
@@ -126,18 +128,20 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
         &self,
         scalar: &ObjectId,
     ) -> Result<PlainTermScalar, ObjectIdMappingError> {
-        if scalar.size() != 4 {
-            // TODO: Lift this restriction once binary object ids are supported.
-            panic!("Invalid object id size: {}", scalar.size());
+        if scalar.is_default_graph() {
+            return Ok(PLAIN_TERM_ENCODING
+                .encode_term(ThinError::expected())
+                .expect("TODO"));
         }
 
-        let array = ScalarValue::UInt32(Some(u32::from_be_bytes(
-            scalar.as_bytes().try_into().unwrap(),
-        )))
+        let array = ScalarValue::FixedSizeBinary(
+            self.object_id_size().into(),
+            Some(scalar.as_bytes().to_vec()),
+        )
         .to_array()
         .expect("Data type is supported for to_array");
 
-        let encoded = self.decode_array(array.as_primitive())?;
+        let encoded = self.decode_array(array.as_fixed_size_binary())?;
         Ok(encoded.try_as_scalar(0).expect("Row 0 always exists"))
     }
 
@@ -147,18 +151,19 @@ pub trait ObjectIdMapping: Debug + Send + Sync {
         encoding: &TypedValueEncodingRef,
         scalar: &ObjectId,
     ) -> Result<TypedValueScalar, ObjectIdMappingError> {
-        if scalar.size() != 4 {
-            // TODO: Lift this restriction once binary object ids are supported.
-            panic!("Invalid object id size: {}", scalar.size());
+        if scalar.is_default_graph() {
+            return Ok(encoding.encode_term(ThinError::expected()).expect("TODO"));
         }
 
-        let array = ScalarValue::UInt32(Some(u32::from_be_bytes(
-            scalar.as_bytes().try_into().unwrap(),
-        )))
+        let array = ScalarValue::FixedSizeBinary(
+            self.object_id_size().into(),
+            Some(scalar.as_bytes().to_vec()),
+        )
         .to_array()
         .expect("Data type is supported for to_array");
 
-        let decoded = self.decode_array_to_typed_value(encoding, array.as_primitive())?;
+        let decoded =
+            self.decode_array_to_typed_value(encoding, array.as_fixed_size_binary())?;
         Ok(decoded.try_as_scalar(0).expect("Row 0 always exists"))
     }
 }
