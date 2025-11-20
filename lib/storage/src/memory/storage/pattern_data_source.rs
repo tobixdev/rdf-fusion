@@ -185,7 +185,7 @@ mod test {
     use rdf_fusion_logical::ActiveGraph;
     use rdf_fusion_model::{
         BlankNodeMatchingMode, NamedNode, NamedNodePattern, NamedNodeRef, TermPattern,
-        TermRef, TriplePattern, Variable,
+        TriplePattern, Variable,
     };
     use std::sync::Arc;
 
@@ -237,8 +237,8 @@ mod test {
     /// variable.
     async fn create_test_pattern() -> MemQuadPatternDataSource {
         let schema = Arc::new(Schema::new(vec![
-            Field::new("subject", DataType::UInt32, false),
-            Field::new("object", DataType::UInt32, false),
+            Field::new("subject", DataType::FixedSizeBinary(4), false),
+            Field::new("object", DataType::FixedSizeBinary(4), false),
         ]));
         let pattern = TriplePattern {
             subject: TermPattern::Variable(Variable::new_unchecked("subject")),
@@ -249,14 +249,12 @@ mod test {
         };
 
         let object_id_mapping = Arc::new(MemObjectIdMapping::default());
-        object_id_mapping.encode_term_intern(TermRef::NamedNode(
-            NamedNodeRef::new_unchecked("http://example.com/test"),
-        ));
+        object_id_mapping
+            .encode_scalar(NamedNodeRef::new_unchecked("http://example.com/test").into())
+            .unwrap();
+        let encoding = Arc::new(ObjectIdEncoding::new(object_id_mapping));
 
-        let encoding = Arc::new(ObjectIdEncoding::new(
-            Arc::clone(&object_id_mapping) as Arc<dyn ObjectIdMapping>
-        ));
-        let index = MemQuadStorage::new(object_id_mapping, encoding, 10);
+        let index = MemQuadStorage::try_new(encoding, 10).unwrap();
         let planned_scan = index
             .snapshot()
             .await

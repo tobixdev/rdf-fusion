@@ -72,3 +72,14 @@ impl EncodingScalar for ObjectIdScalar {
         self.inner
     }
 }
+
+impl From<ObjectIdScalar> for Option<ObjectId> {
+    fn from(value: ObjectIdScalar) -> Self {
+        match value.inner {
+            ScalarValue::UInt32(value) => {
+                value.map(|oid| ObjectId::try_new(oid.to_be_bytes()).unwrap())
+            }
+            _ => unreachable!("ObjectID scalar is UInt32."),
+        }
+    }
+}

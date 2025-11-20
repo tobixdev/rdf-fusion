@@ -503,8 +503,8 @@ mod tests {
         ]));
 
         let schema = Arc::new(Schema::new(Fields::from(vec![
-            Field::new("subject", DataType::UInt32, false),
-            Field::new("object", DataType::UInt32, false),
+            Field::new("subject", DataType::FixedSizeBinary(4), false),
+            Field::new("object", DataType::FixedSizeBinary(4), false),
         ])));
 
         let set_lock = Arc::new(Arc::new(set).read_owned().await);

@@ -1,6 +1,4 @@
-use crate::index::{
-    EncodedTerm, IndexComponents, IndexQuad, NamedGraphStorage, QuadIndex,
-};
+use crate::index::{IndexComponents, IndexQuad, NamedGraphStorage, QuadIndex};
 use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::quad_index_data::MemIndexData;
 use crate::memory::storage::scan::{DirectIndexRef, MemQuadIndexScanIterator};
@@ -116,6 +114,7 @@ impl QuadIndex for MemQuadIndex {
                         1
                     }
                 }
+                MemIndexPruningPredicate::False => return usize::MAX,
             };
 
             score += reward << potent;

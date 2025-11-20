@@ -26,12 +26,33 @@ impl EncodedObjectId {
     pub const MIN: EncodedObjectId = EncodedObjectId(0);
     pub const MAX: EncodedObjectId = EncodedObjectId(u32::MAX);
 
+    /// Creates a new [`EncodedObjectId`] from a byte slice that is guaranteed to be 4 bytes long.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the slice is not 4 bytes long.
+    pub fn from_4_byte_slice(slice: &[u8]) -> Self {
+        EncodedObjectId::try_from(slice).expect("Object id size checked in try_new.")
+    }
+
+    /// Returns whether this object id represents the default graph.
+    pub fn is_default_graph(&self) -> bool {
+        *self == DEFAULT_GRAPH_ID
+    }
+
+    /// Returns a [`ObjectId`] from this encoded id.
     pub fn as_object_id(&self) -> ObjectId {
         ObjectId::try_new(self.0.to_be_bytes()).expect("Object ID valid")
     }
 
+    /// Returns the underlying u32 value.
     pub fn as_u32(&self) -> u32 {
         self.0
+    }
+
+    /// Returns the bytes within the encoded object id.
+    pub fn as_bytes(&self) -> [u8; 4] {
+        self.0.to_be_bytes()
     }
 
     pub fn next(&self) -> Option<EncodedObjectId> {
@@ -45,7 +66,7 @@ impl EncodedObjectId {
 
 impl EncodedTerm for EncodedObjectId {
     fn is_default_graph(&self) -> bool {
-        *self == DEFAULT_GRAPH_ID.0
+        *self == DEFAULT_GRAPH_ID
     }
 }
 
@@ -70,59 +91,17 @@ impl TryFrom<&[u8]> for EncodedObjectId {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         TryInto::<[u8; 4]>::try_into(value.as_bytes())
-            .map(u32::from_ne_bytes)
+            .map(u32::from_be_bytes)
             .map(Self)
             .map_err(|_| InvalidObjectIdError)
     }
 }
 
 /// The id of the default graph.
-pub const DEFAULT_GRAPH_ID: EncodedGraphObjectId =
-    EncodedGraphObjectId(EncodedObjectId(0));
+pub const DEFAULT_GRAPH_ID: EncodedObjectId = EncodedObjectId(0);
 
-/// Wraps an [EncodedObjectId] to indicate that the id may represent the default graph.
-///
-/// The [DEFAULT_GRAPH_ID] is used for identifying the default graph.
-#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
-pub struct EncodedGraphObjectId(pub EncodedObjectId);
-
-impl EncodedGraphObjectId {
-    /// Returns true if this id represents the default graph.
-    pub fn is_default_graph(self) -> bool {
-        self == DEFAULT_GRAPH_ID
-    }
-
-    /// Returns true if this id represents a named graph.
-    pub fn is_named_graph(self) -> bool {
-        !self.is_default_graph()
-    }
-
-    /// Returns the graph id as an [EncodedObjectId] if it is a named graph. Otherwise, returns
-    /// [None].
-    pub fn try_as_encoded_object_id(self) -> Option<EncodedObjectId> {
-        if self.is_default_graph() {
-            return None;
-        }
-        Some(self.0)
-    }
-
-    /// Returns the graph id as an [EncodedObjectId].
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if this id represents the default graph. Due to performance
-    /// reasons this validation will only be done in a Debug build.
-    pub fn as_encoded_object_id(self) -> EncodedObjectId {
-        self.try_as_encoded_object_id()
-            .expect("Cannot convert default graph id to object id.")
-    }
-}
-
-impl From<EncodedObjectId> for EncodedGraphObjectId {
-    fn from(value: EncodedObjectId) -> Self {
-        EncodedGraphObjectId(value)
-    }
-}
+/// The first regular object id.
+pub const FIRST_OBJECT_ID: EncodedObjectId = EncodedObjectId(1);
 
 #[cfg(test)]
 mod tests {
@@ -132,7 +111,7 @@ mod tests {
     fn test_from_byte_slice_success() {
         let array: [u8; 4] = [0x56, 0x78, 0x9A, 0xBC];
         let id = EncodedObjectId::try_from(array.as_slice()).unwrap();
-        assert_eq!(id.0.to_ne_bytes(), [0x56, 0x78, 0x9A, 0xBC]);
+        assert_eq!(id.0.to_be_bytes(), [0x56, 0x78, 0x9A, 0xBC]);
     }
 
     #[test]
