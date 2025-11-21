@@ -76,6 +76,10 @@ pub struct ObjectId(Box<[u8]>);
 
 impl ObjectId {
     /// Creates a new [`ObjectId`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the slice length does not fit in an `i32`.
     pub fn try_new(bytes: impl Into<Box<[u8]>>) -> Result<Self, ObjectIdCreationError> {
         let bytes = bytes.into();
         i32::try_from(bytes.len()).map_err(|_| ObjectIdCreationError)?;

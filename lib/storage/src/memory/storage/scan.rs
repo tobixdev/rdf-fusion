@@ -17,7 +17,7 @@ use datafusion::common::ScalarValue;
 use datafusion::execution::SendableRecordBatchStream;
 use datafusion::physical_plan::coop::cooperative;
 use datafusion::physical_plan::metrics::BaselineMetrics;
-use itertools::{Itertools, repeat_n};
+use itertools::{repeat_n, Itertools};
 use rdf_fusion_model::{DFResult, TriplePattern, Variable};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -603,10 +603,10 @@ impl IndexRef for DirectIndexRef<'_> {
 mod tests {
     use super::*;
     use crate::index::{EncodedQuad, IndexComponents};
-    use crate::memory::MemObjectIdMapping;
     use crate::memory::object_id::EncodedObjectId;
     use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
     use crate::memory::storage::quad_index::MemIndexConfiguration;
+    use crate::memory::MemObjectIdMapping;
     use rdf_fusion_encoding::object_id::{ObjectIdEncoding, ObjectIdMapping};
     use std::collections::{BTreeSet, HashSet};
     use std::sync::Mutex;

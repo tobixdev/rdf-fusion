@@ -18,13 +18,13 @@ const SIZE: u8 = 4;
 /// the system assumes that the id cannot represent the default graph and errors may be thrown
 /// during decoding.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub struct EncodedObjectId(u32);
+pub struct EncodedObjectId([u8; SIZE as usize]);
 
 impl EncodedObjectId {
     pub const SIZE: u8 = 4;
     pub const SIZE_I32: i32 = SIZE as i32;
-    pub const MIN: EncodedObjectId = EncodedObjectId(0);
-    pub const MAX: EncodedObjectId = EncodedObjectId(u32::MAX);
+    pub const MIN: EncodedObjectId = EncodedObjectId([0; 4]);
+    pub const MAX: EncodedObjectId = EncodedObjectId([255; 4]);
 
     /// Creates a new [`EncodedObjectId`] from a byte slice that is guaranteed to be 4 bytes long.
     ///
@@ -42,25 +42,31 @@ impl EncodedObjectId {
 
     /// Returns a [`ObjectId`] from this encoded id.
     pub fn as_object_id(&self) -> ObjectId {
-        ObjectId::try_new(self.0.to_be_bytes()).expect("Object ID valid")
+        ObjectId::try_new(self.0).expect("Object ID valid")
     }
 
     /// Returns the underlying u32 value.
     pub fn as_u32(&self) -> u32 {
-        self.0
+        u32::from_be_bytes(self.0)
     }
 
     /// Returns the bytes within the encoded object id.
     pub fn as_bytes(&self) -> [u8; 4] {
-        self.0.to_be_bytes()
+        self.0
     }
 
     pub fn next(&self) -> Option<EncodedObjectId> {
-        self.0.checked_add(1).map(EncodedObjectId)
+        self.as_u32()
+            .checked_add(1)
+            .map(u32::to_be_bytes)
+            .map(EncodedObjectId)
     }
 
     pub fn previous(&self) -> Option<EncodedObjectId> {
-        self.0.checked_sub(1).map(EncodedObjectId)
+        self.as_u32()
+            .checked_sub(1)
+            .map(u32::to_be_bytes)
+            .map(EncodedObjectId)
     }
 }
 
@@ -72,13 +78,13 @@ impl EncodedTerm for EncodedObjectId {
 
 impl From<u32> for EncodedObjectId {
     fn from(value: u32) -> Self {
-        Self(value)
+        Self(value.to_be_bytes())
     }
 }
 
 impl Display for EncodedObjectId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{:X?}", self.0.as_slice())
     }
 }
 
@@ -91,17 +97,16 @@ impl TryFrom<&[u8]> for EncodedObjectId {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         TryInto::<[u8; 4]>::try_into(value.as_bytes())
-            .map(u32::from_be_bytes)
             .map(Self)
             .map_err(|_| InvalidObjectIdError)
     }
 }
 
 /// The id of the default graph.
-pub const DEFAULT_GRAPH_ID: EncodedObjectId = EncodedObjectId(0);
+pub const DEFAULT_GRAPH_ID: EncodedObjectId = EncodedObjectId([0; 4]);
 
 /// The first regular object id.
-pub const FIRST_OBJECT_ID: EncodedObjectId = EncodedObjectId(1);
+pub const FIRST_OBJECT_ID: EncodedObjectId = EncodedObjectId([0, 0, 0, 1]);
 
 #[cfg(test)]
 mod tests {
