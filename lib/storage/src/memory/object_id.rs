@@ -45,16 +45,14 @@ impl EncodedObjectId {
         ObjectId::try_new(self.0).expect("Object ID valid")
     }
 
-    /// Returns the underlying u32 value.
-    pub fn as_u32(&self) -> u32 {
-        u32::from_be_bytes(self.0)
-    }
-
     /// Returns the bytes within the encoded object id.
     pub fn as_bytes(&self) -> [u8; 4] {
         self.0
     }
 
+    /// Returns the next object id after this one.
+    ///
+    /// Returns [`None`] if `self` is the last object id.
     pub fn next(&self) -> Option<EncodedObjectId> {
         self.as_u32()
             .checked_add(1)
@@ -62,11 +60,19 @@ impl EncodedObjectId {
             .map(EncodedObjectId)
     }
 
+    /// Returns the previous object id before this one.
+    ///
+    /// Returns [`None`] if `self` is the first object id.
     pub fn previous(&self) -> Option<EncodedObjectId> {
         self.as_u32()
             .checked_sub(1)
             .map(u32::to_be_bytes)
             .map(EncodedObjectId)
+    }
+
+    /// Returns the a u32 value.
+    fn as_u32(&self) -> u32 {
+        u32::from_be_bytes(self.0)
     }
 }
 

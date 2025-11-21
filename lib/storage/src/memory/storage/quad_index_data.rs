@@ -647,7 +647,7 @@ impl MemColumnChunk {
 
         // Fast path for null handling
         let null_count = self.data.null_count();
-        if from.as_u32() == 0 && to.as_u32() == 0 {
+        if from.is_default_graph() && to.is_default_graph() {
             if null_count == 0 {
                 return FindRangeResult::Before;
             }

@@ -1,13 +1,13 @@
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::DataType;
-use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
+use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
 use datafusion::logical_expr::{
     ColumnarValue, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl, Signature,
     TypeSignature, Volatility,
 };
 use rdf_fusion_encoding::object_id::ObjectId;
-use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::plain_term::decoders::DefaultPlainTermDecoder;
+use rdf_fusion_encoding::plain_term::PLAIN_TERM_ENCODING;
 use rdf_fusion_encoding::{
     EncodingArray, EncodingName, EncodingScalar, RdfFusionEncodings, TermDecoder,
     TermEncoder, TermEncoding,
@@ -114,7 +114,10 @@ impl WithTypedValueEncoding {
                             })
                             .transpose()?
                             .map(|oid| oid.into_scalar_value())
-                            .unwrap_or(ScalarValue::UInt32(None));
+                            .unwrap_or(ScalarValue::FixedSizeBinary(
+                                encoding.object_id_size().into(),
+                                None,
+                            ));
                     Ok(ColumnarValue::Scalar(decoded))
                 }
             },

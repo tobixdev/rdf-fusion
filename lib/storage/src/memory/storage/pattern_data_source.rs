@@ -199,7 +199,7 @@ mod test {
         assert!(result.updated_node.is_some());
         assert_snapshot!(
             format_quad_pattern(result.updated_node.unwrap()),
-            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object == 1]"
+            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object == [0, 0, 0, 1]]"
         )
     }
 
@@ -213,7 +213,7 @@ mod test {
         assert!(result.updated_node.is_some());
         assert_snapshot!(
             format_quad_pattern(result.updated_node.unwrap()),
-            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in (2..4294967295)]"
+            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in ([0, 0, 0, 2]..[FF, FF, FF, FF])]"
         )
     }
 
@@ -229,7 +229,7 @@ mod test {
         assert!(result.updated_node.is_some());
         assert_snapshot!(
             format_quad_pattern(result.updated_node.unwrap()),
-            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in (2..9)]"
+            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in ([0, 0, 0, 2]..[0, 0, 0, 9])]"
         )
     }
 
@@ -286,7 +286,7 @@ mod test {
         Arc::new(BinaryExpr::new(
             Arc::new(Column::new("object", 1)),
             operator,
-            Arc::new(Literal::new(ScalarValue::UInt32(Some(value)))),
+            Arc::new(Literal::new(ScalarValue::FixedSizeBinary(4, Some(value.to_be_bytes().to_vec())))),
         ))
     }
 

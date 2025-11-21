@@ -1,4 +1,5 @@
 use crate::index::{IndexComponents, IndexPermutations, QuadIndex, ScanInstructions};
+use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
 use crate::memory::storage::quad_index::MemQuadIndex;
 use crate::memory::storage::quad_index_data::{MemRowGroup, RowGroupPruningResult};
@@ -299,7 +300,12 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
                 .map(|id| {
                     eq(
                         data,
-                        &ScalarValue::UInt32(Some(id.as_u32())).to_scalar().unwrap(),
+                        &ScalarValue::FixedSizeBinary(
+                            EncodedObjectId::SIZE_I32,
+                            Some(id.as_bytes().to_vec()),
+                        )
+                        .to_scalar()
+                        .unwrap(),
                     )
                     .expect("Array length must match, Data Types match")
                 })
@@ -317,16 +323,22 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
             MemIndexScanPredicate::Between(from, to) => {
                 let ge = gt_eq(
                     data,
-                    &ScalarValue::UInt32(Some(from.as_u32()))
-                        .to_scalar()
-                        .expect("UInt32 can be converted to a Scalar"),
+                    &ScalarValue::FixedSizeBinary(
+                        EncodedObjectId::SIZE_I32,
+                        Some(from.as_bytes().to_vec()),
+                    )
+                    .to_scalar()
+                    .expect("UInt32 can be converted to a Scalar"),
                 )
                 .expect("gt_eq supports UInt32");
                 let le = lt_eq(
                     data,
-                    &ScalarValue::UInt32(Some(to.as_u32()))
-                        .to_scalar()
-                        .expect("UInt32 can be converted to a Scalar"),
+                    &ScalarValue::FixedSizeBinary(
+                        EncodedObjectId::SIZE_I32,
+                        Some(to.as_bytes().to_vec()),
+                    )
+                    .to_scalar()
+                    .expect("UInt32 can be converted to a Scalar"),
                 )
                 .expect("lt_eq supports UInt32");
                 Some(and(&ge, &le).expect("Inputs are bools and of same length"))

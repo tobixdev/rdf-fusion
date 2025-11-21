@@ -2,12 +2,12 @@ use crate::memory::object_id::EncodedObjectId;
 use crate::memory::storage::scan_instructions::{
     MemIndexScanPredicate, MemIndexScanPredicateSource,
 };
-use datafusion::common::{ScalarValue, exec_datafusion_err, exec_err};
+use datafusion::common::{exec_datafusion_err, exec_err, ScalarValue};
 use datafusion::logical_expr::Operator;
-use datafusion::physical_expr::PhysicalExpr;
 use datafusion::physical_expr::expressions::{
     BinaryExpr, Column, DynamicFilterPhysicalExpr, Literal,
 };
+use datafusion::physical_expr::PhysicalExpr;
 use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::collections::BTreeSet;
@@ -150,8 +150,10 @@ pub fn try_rewrite_datafusion_expr(
 
     if let Some(lit) = expr.as_any().downcast_ref::<Literal>() {
         return match lit.value() {
-            ScalarValue::UInt32(Some(value)) => {
-                Some(MemStoragePredicateExpr::ObjectId((*value).into()))
+            ScalarValue::FixedSizeBinary(_, Some(value)) => {
+                Some(MemStoragePredicateExpr::ObjectId(
+                    EncodedObjectId::from_4_byte_slice(value.as_ref()),
+                ))
             }
             ScalarValue::Boolean(Some(true)) => Some(MemStoragePredicateExpr::True),
             _ => None,
@@ -239,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_literal_object_id() {
-        let expr = literal_uint(42);
+        let expr = literal_binary(42);
         let result = try_rewrite_datafusion_expr(&expr);
 
         assert!(matches!(result, Some(MemStoragePredicateExpr::ObjectId(_))));
@@ -256,7 +258,7 @@ mod tests {
     #[test]
     fn test_equal_predicate() {
         let left = column_expr("subject");
-        let right = literal_uint(123);
+        let right = literal_binary(123);
         let expr =
             Arc::new(BinaryExpr::new(left, Operator::Eq, right)) as Arc<dyn PhysicalExpr>;
 
@@ -277,12 +279,12 @@ mod tests {
         let gt_expr = Arc::new(BinaryExpr::new(
             column_expr("subject"),
             Operator::Gt,
-            literal_uint(123),
+            literal_binary(123),
         )) as Arc<dyn PhysicalExpr>;
         let lt_expr = Arc::new(BinaryExpr::new(
             column_expr("subject"),
             Operator::LtEq,
-            literal_uint(456),
+            literal_binary(456),
         )) as Arc<dyn PhysicalExpr>;
         let expr = Arc::new(BinaryExpr::new(gt_expr, Operator::And, lt_expr))
             as Arc<dyn PhysicalExpr>;
@@ -293,8 +295,8 @@ mod tests {
         };
 
         assert_eq!(column.as_ref(), "subject");
-        assert_eq!(from.as_u32(), 124);
-        assert_eq!(to.as_u32(), 456);
+        assert_eq!(from.as_bytes(), 124u32.to_be_bytes());
+        assert_eq!(to.as_bytes(), 456u32.to_be_bytes());
     }
 
     #[test]
@@ -302,12 +304,12 @@ mod tests {
         let gt_expr = Arc::new(BinaryExpr::new(
             column_expr("subject"),
             Operator::Gt,
-            literal_uint(123),
+            literal_binary(123),
         )) as Arc<dyn PhysicalExpr>;
         let lt_expr = Arc::new(BinaryExpr::new(
             column_expr("predicate"),
             Operator::Lt,
-            literal_uint(456),
+            literal_binary(456),
         )) as Arc<dyn PhysicalExpr>;
         let expr = Arc::new(BinaryExpr::new(gt_expr, Operator::And, lt_expr))
             as Arc<dyn PhysicalExpr>;
@@ -320,7 +322,7 @@ mod tests {
     #[test]
     fn test_unsupported_operator() {
         let left = column_expr("subject");
-        let right = literal_uint(123);
+        let right = literal_binary(123);
         let expr = Arc::new(BinaryExpr::new(left, Operator::Plus, right))
             as Arc<dyn PhysicalExpr>;
 
@@ -465,8 +467,11 @@ mod tests {
         Arc::new(Column::new(name, 0))
     }
 
-    fn literal_uint(value: u32) -> Arc<dyn PhysicalExpr> {
-        Arc::new(Literal::new(ScalarValue::UInt32(Some(value))))
+    fn literal_binary(value: u32) -> Arc<dyn PhysicalExpr> {
+        Arc::new(Literal::new(ScalarValue::FixedSizeBinary(
+            4,
+            Some(value.to_be_bytes().to_vec()),
+        )))
     }
 
     fn literal_bool(value: bool) -> Arc<dyn PhysicalExpr> {
