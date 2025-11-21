@@ -116,7 +116,7 @@ mod tests {
     fn test_from_byte_slice_success() {
         let array: [u8; 4] = [0x56, 0x78, 0x9A, 0xBC];
         let id = EncodedObjectId::try_from(array.as_slice()).unwrap();
-        assert_eq!(id.0.to_be_bytes(), [0x56, 0x78, 0x9A, 0xBC]);
+        assert_eq!(id.0, [0x56, 0x78, 0x9A, 0xBC]);
     }
 
     #[test]

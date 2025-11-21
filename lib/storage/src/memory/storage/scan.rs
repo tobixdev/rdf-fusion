@@ -8,7 +8,7 @@ use crate::memory::storage::scan_instructions::{
 };
 use crate::memory::storage::stream::MemIndexScanStream;
 use datafusion::arrow::array::{
-    Array, BooleanArray, RecordBatch, RecordBatchOptions, UInt32Array,
+    Array, BooleanArray, FixedSizeBinaryArray, RecordBatch, RecordBatchOptions,
 };
 use datafusion::arrow::compute::kernels::cmp::{eq, gt_eq, lt_eq};
 use datafusion::arrow::compute::{and, filter, or};
@@ -260,7 +260,7 @@ fn combine_instructions_with_dynamic_filters(
 
 impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     fn compute_selection_vector(
-        data: &[Arc<UInt32Array>; 4],
+        data: &[Arc<FixedSizeBinaryArray>; 4],
         instructions: &[Option<MemIndexScanInstruction>; 4],
     ) -> Option<BooleanArray> {
         data.iter()
@@ -288,9 +288,9 @@ impl<TIndexRef: IndexRef> MemQuadIndexScanIterator<TIndexRef> {
     /// over the array and consulting the set. In the future, one could check the size of the
     /// set and switch to the different strategy for large predicates.
     fn apply_predicate(
-        all_data: &[Arc<UInt32Array>; 4],
+        all_data: &[Arc<FixedSizeBinaryArray>; 4],
         instructions: &[Option<MemIndexScanInstruction>; 4],
-        data: &UInt32Array,
+        data: &FixedSizeBinaryArray,
         predicate: &MemIndexScanPredicate,
     ) -> Option<BooleanArray> {
         match predicate {

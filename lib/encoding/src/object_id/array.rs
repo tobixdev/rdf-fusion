@@ -31,7 +31,7 @@ impl ObjectIdArray {
         Self { encoding, inner }
     }
 
-    /// Returns a reference to the inner [UInt32Array].
+    /// Returns a reference to the inner [FixedSizeBinaryArray].
     pub fn object_ids(&self) -> &FixedSizeBinaryArray {
         self.inner
             .as_any()
