@@ -4,6 +4,7 @@ pub mod decoders;
 mod element_builder;
 pub mod encoders;
 mod encoding;
+pub mod family;
 mod scalar;
 
 pub use array::{TypedValueArray, TypedValueArrayParts};
