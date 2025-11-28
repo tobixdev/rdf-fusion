@@ -1,4 +1,4 @@
-use crate::typed_value::family::TypedValueFamily;
+use crate::typed_value::family::TypedFamily;
 
 /// Family for `xsd:duration`, `xsd:yearMonthDuration` and `xsd:dayTimeDuration`.
 ///
@@ -28,6 +28,8 @@ use crate::typed_value::family::TypedValueFamily;
 /// └─────────────────────────────┘
 pub struct DurationFamily {}
 
-impl TypedValueFamily for DurationFamily {
-    const NAME: &'static str = "rdf-fusion.duration";
+impl TypedFamily for DurationFamily {
+    fn name(&self) -> &str {
+        "rdf-fusion.duration"
+    }
 }

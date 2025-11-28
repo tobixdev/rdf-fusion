@@ -12,6 +12,7 @@ pub mod strings;
 pub mod terms;
 
 pub use args::*;
+pub use crate::typed_family::scalar_op::*;
 pub use renamed::*;
 pub use sparql_op::*;
 pub use sparql_op_impl::*;

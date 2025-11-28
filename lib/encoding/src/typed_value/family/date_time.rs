@@ -1,4 +1,7 @@
-use crate::typed_value::family::TypedValueFamily;
+use crate::typed_value::family::TypedFamily;
+use datafusion::arrow::datatypes::{DataType, Field, Fields};
+use rdf_fusion_model::Decimal;
+use std::sync::LazyLock;
 
 /// Family of `xsd:dateTime`, `xsd:date` and `xsd:time`.
 ///
@@ -21,8 +24,39 @@ use crate::typed_value::family::TypedValueFamily;
 /// │  │ 2     │   │ 30.0     │   │ +20      │ │
 /// │  └───────┘   └──────────┘   └──────────┘ │
 /// └──────────────────────────────────────────┘
-pub struct DateTimeFamily {}
+pub struct DateTimeFamily {
+    /// The data type of the family.
+    data_type: DataType,
+}
 
-impl TypedValueFamily for DateTimeFamily {
-    const NAME: &'static str = "rdf-fusion.date-time";
+/// The layout of the timestamp family.
+static FIELDS_TIMESTAMP: LazyLock<Fields> = LazyLock::new(|| {
+    Fields::from(vec![
+        Field::new("type_id", DataType::UInt8, false),
+        Field::new(
+            "value",
+            DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
+            false,
+        ),
+        Field::new("offset", DataType::Int16, true),
+    ])
+});
+
+impl DateTimeFamily {
+    /// Creates a new [`DateTimeFamily`].
+    pub fn new() -> Self {
+        Self {
+            data_type: DataType::Struct(FIELDS_TIMESTAMP.clone()),
+        }
+    }
+}
+
+impl TypedFamily for DateTimeFamily {
+    fn name(&self) -> &str {
+        "rdf-fusion.date-time"
+    }
+
+    fn data_type(&self) -> &DataType {
+        &self.data_type
+    }
 }

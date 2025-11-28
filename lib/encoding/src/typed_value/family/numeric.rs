@@ -1,4 +1,5 @@
-use crate::typed_value::family::TypedValueFamily;
+use datafusion::arrow::datatypes::DataType;
+use crate::typed_value::family::TypedFamily;
 
 /// Family of numeric values, including `xsd:float`, `xsd:double`, `xsd:decimal`, `xsd:int` and
 /// `xsd:integer`. Numeric types that are not part of this family are promoted to one of the
@@ -28,6 +29,12 @@ use crate::typed_value::family::TypedValueFamily;
 /// └────────────────────────────────────────────────────────────────┘
 pub struct NumericFamily {}
 
-impl TypedValueFamily for NumericFamily {
-    const NAME: &'static str = "rdf-fusion.numeric";
+impl TypedFamily for NumericFamily {
+    fn name(&self) -> &str {
+        "rdf-fusion.numeric"
+    }
+
+    fn data_type(&self) -> &DataType {
+        todo!()
+    }
 }

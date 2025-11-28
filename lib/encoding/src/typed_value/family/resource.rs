@@ -1,4 +1,4 @@
-use crate::typed_value::family::TypedValueFamily;
+use crate::typed_value::family::TypedFamily;
 
 /// Family of IRIs and blank node identifiers.
 ///
@@ -21,6 +21,8 @@ use crate::typed_value::family::TypedValueFamily;
 /// └───────────────────────────────────┘
 pub struct ResourceFamily {}
 
-impl TypedValueFamily for ResourceFamily {
-    const NAME: &'static str = "rdf-fusion.resources";
+impl TypedFamily for ResourceFamily {
+    fn name(&self) -> &str {
+        "rdf-fusion.resources"
+    }
 }

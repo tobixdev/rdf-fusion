@@ -1,18 +1,37 @@
+use datafusion::arrow::datatypes::DataType;
+use rdf_fusion_model::Iri;
+use std::sync::Arc;
+
 mod date_time;
 mod duration;
 mod numeric;
 mod resource;
 mod string;
+mod unknown;
 
-/// A typed value family groups together values of related types. Each family defines the encoding
+/// A cheaply clonable reference to a [`TypedFamily`].
+pub type TypedFamilyRef = Arc<dyn TypedFamily>;
+
+pub enum ClaimedType {
+    Iri,
+    BlankNode,
+    Literal(Iri<String>),
+}
+
+/// A typed family groups together values of related types. Each family defines the encoding
 /// of its types within the [`TypedValueEncoding`](crate::encoding::TypedValueEncoding).
 ///
 /// For example, the `xsd:integer`, `xsd:float`, `xsd:int` types belong to the [`NumericFamily`]
 /// family. Another example is the `xsd:string` and the `xsd:langString` string types, which belong
-/// to the [`StringFamily`]. In addition to the typed values of literals, there is a special
-/// [`ResourceFamily`] that stores IRIs and blank node identifiers.
+/// to the [`StringFamily`]. In addition to the typed values of literals, there is a
+/// [`ResourceFamily`] that stores IRIs and blank node identifiers. Lastly, there is a catch-all
+/// [`UnknownLiteralFamily`] that stores all unknown literal values.
 ///
-/// Typed Value Families serve two main purposes:
+/// Each typed family "claims" the types that it is responsible for. See [`ClaimedType`]. This
+/// ensures that the typed families partition the set of all possible values correctly. In other
+/// words, there is no ambiguity for which family is responsible for a given type.
+///
+/// Typed Families serve two main purposes:
 /// - They allow an *extensible architecture* of the [`TypedValueEncoding`](crate::encoding::TypedValueEncoding),
 ///   as extensions can add new families. For example, a GeoSPARQL would add a family or
 ///   multiple families for geospatial types.
@@ -30,10 +49,14 @@ mod string;
 /// operations will return incorrect results. Note that parts of the typed value are allowed to be
 /// null, just not the whole typed value. For example, a language-tagged string can have a null
 /// language tag, but the entire string value can never be null.
-pub trait TypedValueFamily {
+pub trait TypedFamily {
     /// The name of the typed value family. The name will be used as an extension type name in the
-    /// respective union field.
+    /// respective union field. As a result, this name must be unique across all typed value
+    /// families and must not change between invocations.
     ///
     /// Use a name-space-like identifier to avoid collisions. For example, `rdf-fusion.resources`.
-    const NAME: &'static str;
+    fn name(&self) -> &str;
+
+    /// Returns the data type that is used to encode the values of this typed family.
+    fn data_type(&self) -> &DataType;
 }
