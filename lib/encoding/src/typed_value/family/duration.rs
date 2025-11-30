@@ -1,4 +1,8 @@
-use crate::typed_value::family::TypedFamily;
+use crate::typed_value::family::TypeFamily;
+use datafusion::arrow::datatypes::{DataType, Field, Fields};
+use rdf_fusion_model::Decimal;
+use std::fmt::{Debug, Formatter};
+use std::sync::LazyLock;
 
 /// Family for `xsd:duration`, `xsd:yearMonthDuration` and `xsd:dayTimeDuration`.
 ///
@@ -26,10 +30,44 @@ use crate::typed_value::family::TypedFamily;
 /// │  │ 24       │  │ 120      │ │
 /// │  └──────────┘  └──────────┘ │
 /// └─────────────────────────────┘
-pub struct DurationFamily {}
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct DurationFamily {
+    /// The data type of this family.
+    data_type: DataType,
+}
 
-impl TypedFamily for DurationFamily {
-    fn name(&self) -> &str {
+static FIELDS_DURATION: LazyLock<Fields> = LazyLock::new(|| {
+    Fields::from(vec![
+        Field::new("months", DataType::Int64, true),
+        Field::new(
+            "seconds",
+            DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
+            true,
+        ),
+    ])
+});
+
+impl DurationFamily {
+    /// Creates a new [`DurationFamily`].
+    pub fn new() -> Self {
+        Self {
+            data_type: DataType::Struct(FIELDS_DURATION.clone()),
+        }
+    }
+}
+
+impl TypeFamily for DurationFamily {
+    fn id(&self) -> &str {
         "rdf-fusion.duration"
+    }
+
+    fn data_type(&self) -> &DataType {
+        todo!()
+    }
+}
+
+impl Debug for DurationFamily {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id())
     }
 }

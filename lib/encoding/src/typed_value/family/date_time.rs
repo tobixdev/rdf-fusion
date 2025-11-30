@@ -1,6 +1,7 @@
-use crate::typed_value::family::TypedFamily;
+use crate::typed_value::family::TypeFamily;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use rdf_fusion_model::Decimal;
+use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
 
 /// Family of `xsd:dateTime`, `xsd:date` and `xsd:time`.
@@ -24,6 +25,7 @@ use std::sync::LazyLock;
 /// │  │ 2     │   │ 30.0     │   │ +20      │ │
 /// │  └───────┘   └──────────┘   └──────────┘ │
 /// └──────────────────────────────────────────┘
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct DateTimeFamily {
     /// The data type of the family.
     data_type: DataType,
@@ -51,12 +53,18 @@ impl DateTimeFamily {
     }
 }
 
-impl TypedFamily for DateTimeFamily {
-    fn name(&self) -> &str {
+impl TypeFamily for DateTimeFamily {
+    fn id(&self) -> &str {
         "rdf-fusion.date-time"
     }
 
     fn data_type(&self) -> &DataType {
         &self.data_type
+    }
+}
+
+impl Debug for DateTimeFamily {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id())
     }
 }

@@ -1,6 +1,8 @@
-use std::sync::LazyLock;
+use crate::typed_value::family::date_time::DateTimeFamily;
+use crate::typed_value::family::TypeFamily;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
-use crate::typed_value::family::TypedFamily;
+use std::fmt::{Debug, Formatter};
+use std::sync::LazyLock;
 
 /// Family for strings and language-tagged strings. The values of the strings are stored in the
 /// same array, while those with a language tag have an additional entry in the language array.
@@ -23,6 +25,7 @@ use crate::typed_value::family::TypedFamily;
 /// │  │ "servus" │  │"de-at"│  │
 /// │  └──────────┘  └───────┘  │
 /// └───────────────────────────┘
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct StringFamily {
     /// The data type of the string family.
     data_type: DataType,
@@ -45,12 +48,18 @@ impl StringFamily {
     }
 }
 
-impl TypedFamily for StringFamily {
-    fn name(&self) -> &str {
+impl TypeFamily for StringFamily {
+    fn id(&self) -> &str {
         "rdf-fusion.strings"
     }
 
     fn data_type(&self) -> &DataType {
         &self.data_type
+    }
+}
+
+impl Debug for StringFamily {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id())
     }
 }

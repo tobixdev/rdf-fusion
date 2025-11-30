@@ -35,7 +35,7 @@ pub mod aggregates;
 pub mod builtin;
 pub mod registry;
 pub mod scalar;
-mod typed_family;
+mod type_family;
 
 #[cfg(test)]
 mod test_utils {

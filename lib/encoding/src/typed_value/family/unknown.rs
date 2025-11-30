@@ -1,5 +1,7 @@
-use crate::typed_value::family::TypedFamily;
+use crate::typed_value::family::date_time::DateTimeFamily;
+use crate::typed_value::family::TypeFamily;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
+use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
 
 /// A catch-all family for literals that are not claimed by any other registered family. This
@@ -22,6 +24,7 @@ use std::sync::LazyLock;
 /// │  │ "1.23e4" │  │"my:float"│ │
 /// │  └──────────┘  └──────────┘ │
 /// └─────────────────────────────┘
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct UnknownFamily {
     /// The data type of the unknown family.
     data_type: DataType,
@@ -44,12 +47,18 @@ impl UnknownFamily {
     }
 }
 
-impl TypedFamily for UnknownFamily {
-    fn name(&self) -> &str {
+impl TypeFamily for UnknownFamily {
+    fn id(&self) -> &str {
         "rdf-fusion.unknown"
     }
 
     fn data_type(&self) -> &DataType {
         todo!()
+    }
+}
+
+impl Debug for UnknownFamily {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id())
     }
 }

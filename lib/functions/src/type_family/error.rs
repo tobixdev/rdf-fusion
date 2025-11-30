@@ -20,6 +20,10 @@ impl From<TypedFamilyPureResultError> for DataFusionError {
 #[derive(Debug, Error)]
 #[error("Could not create extensible typed value operation: {0}")]
 pub enum ExtensibleTypedValueSparqlOpCreationError {
-    #[error("The typed family '{0}' is not registered.")]
+    #[error("The type family '{0}' is not registered.")]
     UnregisteredFamily(String),
+    #[error("Could not extract family mapping from the given UDF '{0}'.")]
+    CannotExtractFamilyMappingFromUDF(String),
+    #[error("The type family '{0}', which is part of the signature, is not part of the encoding.")]
+    UnknownTypeFamily(String),
 }

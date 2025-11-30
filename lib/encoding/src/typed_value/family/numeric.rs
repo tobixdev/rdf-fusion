@@ -1,5 +1,7 @@
+use crate::typed_value::family::date_time::DateTimeFamily;
+use crate::typed_value::family::TypeFamily;
 use datafusion::arrow::datatypes::DataType;
-use crate::typed_value::family::TypedFamily;
+use std::fmt::{Debug, Formatter};
 
 /// Family of numeric values, including `xsd:float`, `xsd:double`, `xsd:decimal`, `xsd:int` and
 /// `xsd:integer`. Numeric types that are not part of this family are promoted to one of the
@@ -27,14 +29,21 @@ use crate::typed_value::family::TypedFamily;
 /// │  └───────┘                                                     │
 /// │                                                                │
 /// └────────────────────────────────────────────────────────────────┘
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct NumericFamily {}
 
-impl TypedFamily for NumericFamily {
-    fn name(&self) -> &str {
+impl TypeFamily for NumericFamily {
+    fn id(&self) -> &str {
         "rdf-fusion.numeric"
     }
 
     fn data_type(&self) -> &DataType {
         todo!()
+    }
+}
+
+impl Debug for NumericFamily {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id())
     }
 }

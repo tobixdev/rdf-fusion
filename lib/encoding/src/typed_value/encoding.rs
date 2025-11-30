@@ -1,6 +1,7 @@
 use crate::encoding::TermEncoding;
 use crate::typed_value::array::TypedValueArray;
 use crate::typed_value::encoders::{DefaultTypedValueEncoder, TermRefTypedValueEncoder};
+use crate::typed_value::family::TypeFamilyRef;
 use crate::typed_value::scalar::TypedValueScalar;
 use crate::{EncodingArray, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
@@ -9,7 +10,9 @@ use datafusion::common::ScalarValue;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Decimal, TermRef, ThinResult};
 use std::clone::Clone;
+use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
+use std::hash::Hash;
 use std::sync::{Arc, LazyLock};
 use thiserror::Error;
 
@@ -149,15 +152,17 @@ pub type TypedValueEncodingRef = Arc<TypedValueEncoding>;
 /// these two terms and therefore should only be used for query parts that do not rely on this
 /// distinction.
 ///
-/// # Future Plans
+/// # Equality
 ///
-/// Currently, the TypedValue encoding has a fixed Arrow DataType. We plan to change that in the
-/// future such that users can provide custom encodings for domain-specific literals (e.g.,
-/// geospatial coordinates).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// Two typed value encodings are considered to be equal if they use the same data type for
+/// encoding the values. As the type family name is encoded in the union fields of the encoding,
+/// the equality of the type families (which is based on their name) is also considered.
+#[derive(Debug, Clone)]
 pub struct TypedValueEncoding {
     /// The data type of this encoding instance.
     data_type: DataType,
+    /// The registered type families.
+    type_families: BTreeMap<String, TypeFamilyRef>,
 }
 
 impl TypedValueEncoding {
@@ -165,7 +170,13 @@ impl TypedValueEncoding {
     pub fn new() -> Self {
         Self {
             data_type: DataType::Union(Self::fields().clone(), UnionMode::Dense),
+            type_families: Default::default(),
         }
+    }
+
+    /// Tries to find a registered [`TypeFamilyRef`] with the given name.
+    pub fn find_type_family(&self, name: &str) -> Option<&TypeFamilyRef> {
+        self.type_families.get(name)
     }
 
     /// Creates a new [`DefaultTypedValueEncoder`].
@@ -240,6 +251,20 @@ impl TermEncoding for TypedValueEncoding {
 
     fn try_new_scalar(self: &Arc<Self>, scalar: ScalarValue) -> DFResult<Self::Scalar> {
         TypedValueScalar::try_new(Arc::clone(self), scalar)
+    }
+}
+
+impl PartialEq for TypedValueEncoding {
+    fn eq(&self, other: &Self) -> bool {
+        self.data_type.eq(&other.data_type)
+    }
+}
+
+impl Eq for TypedValueEncoding {}
+
+impl Hash for TypedValueEncoding {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.data_type.hash(state);
     }
 }
 
