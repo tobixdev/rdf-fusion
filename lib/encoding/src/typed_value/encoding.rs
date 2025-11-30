@@ -1,7 +1,10 @@
 use crate::encoding::TermEncoding;
 use crate::typed_value::array::TypedValueArray;
 use crate::typed_value::encoders::{DefaultTypedValueEncoder, TermRefTypedValueEncoder};
-use crate::typed_value::family::TypeFamilyRef;
+use crate::typed_value::error::TypedValueEncodingCreationError;
+use crate::typed_value::family::{
+    NumericFamily, ResourceFamily, StringFamily, TypeFamilyRef,
+};
 use crate::typed_value::scalar::TypedValueScalar;
 use crate::{EncodingArray, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
@@ -10,7 +13,7 @@ use datafusion::common::ScalarValue;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{Decimal, TermRef, ThinResult};
 use std::clone::Clone;
-use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::sync::{Arc, LazyLock};
@@ -162,21 +165,43 @@ pub struct TypedValueEncoding {
     /// The data type of this encoding instance.
     data_type: DataType,
     /// The registered type families.
-    type_families: BTreeMap<String, TypeFamilyRef>,
+    type_families: Vec<TypeFamilyRef>,
 }
 
 impl TypedValueEncoding {
     /// Creates a new [`TypedValueEncoding`].
-    pub fn new() -> Self {
-        Self {
-            data_type: DataType::Union(Self::fields().clone(), UnionMode::Dense),
-            type_families: Default::default(),
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if ...
+    /// - more than one type families with the same id are provided.
+    /// - the set of claimed types overlaps between two families.
+    pub fn try_new(
+        type_families: Vec<TypeFamilyRef>,
+    ) -> Result<Self, TypedValueEncodingCreationError> {
+        let mut seen = HashSet::new();
+        for type_family in &type_families {
+            let already_there = seen.insert(type_family.id());
+            assert!(
+                already_there,
+                "Duplicate type family ID: {}",
+                type_family.id()
+            );
+
+            // TODO validate name != null
         }
+
+        // TODO check claims
+
+        Ok(Self {
+            data_type: build_data_type(&type_families),
+            type_families,
+        })
     }
 
     /// Tries to find a registered [`TypeFamilyRef`] with the given name.
-    pub fn find_type_family(&self, name: &str) -> Option<&TypeFamilyRef> {
-        self.type_families.get(name)
+    pub fn find_type_family(&self, id: &str) -> Option<&TypeFamilyRef> {
+        self.type_families.iter().find(|f| f.id() == id)
     }
 
     /// Creates a new [`DefaultTypedValueEncoder`].
@@ -190,9 +215,29 @@ impl TypedValueEncoding {
     }
 }
 
+/// Creates a [`DataType::Union`] for the specifies type families.
+fn build_data_type(families: &[TypeFamilyRef]) -> DataType {
+    let mut fields = Vec::new();
+    fields.push(Field::new("null", DataType::Null, false));
+
+    for family in families {
+        fields.push(Field::new(family.id(), family.data_type().clone(), false));
+    }
+
+    DataType::Union(
+        UnionFields::new((0..fields.len()).collect::<Vec<_>>(), fields),
+        UnionMode::Dense,
+    )
+}
+
 impl Default for TypedValueEncoding {
     fn default() -> Self {
-        Self::new()
+        let families = vec![
+            Arc::new(ResourceFamily::new()),
+            Arc::new(StringFamily::new()),
+            Arc::new(NumericFamily::new()),
+        ];
+        Self::try_new(families).expect("No overlap, No duplicate")
     }
 }
 

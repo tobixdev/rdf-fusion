@@ -6,6 +6,7 @@ pub mod encoders;
 mod encoding;
 pub mod family;
 mod scalar;
+mod error;
 
 pub use array::{TypedValueArray, TypedValueArrayParts};
 pub use builder::TypedValueArrayBuilder;

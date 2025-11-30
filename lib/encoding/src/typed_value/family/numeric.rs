@@ -1,4 +1,3 @@
-use crate::typed_value::family::date_time::DateTimeFamily;
 use crate::typed_value::family::TypeFamily;
 use datafusion::arrow::datatypes::DataType;
 use std::fmt::{Debug, Formatter};
@@ -30,7 +29,16 @@ use std::fmt::{Debug, Formatter};
 /// │                                                                │
 /// └────────────────────────────────────────────────────────────────┘
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct NumericFamily {}
+pub struct NumericFamily {
+    data_type: DataType,
+}
+
+impl NumericFamily {
+    /// Creates a new [`NumericFamily`].
+    pub fn new() -> Self {
+        todo!()
+    }
+}
 
 impl TypeFamily for NumericFamily {
     fn id(&self) -> &str {

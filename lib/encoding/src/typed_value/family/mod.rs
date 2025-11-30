@@ -11,6 +11,13 @@ mod resource;
 mod string;
 mod unknown;
 
+pub use date_time::*;
+pub use duration::*;
+pub use numeric::*;
+pub use resource::*;
+pub use string::*;
+pub use unknown::*;
+
 /// A cheaply clonable reference to a [`TypeFamily`].
 pub type TypeFamilyRef = Arc<dyn TypeFamily>;
 
