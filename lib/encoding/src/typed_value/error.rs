@@ -5,4 +5,10 @@ use thiserror::Error;
 pub enum TypedValueEncodingCreationError {
     #[error("The type family with id '{0}' was provided more than once.")]
     DuplicateTypeFamily(String),
+    #[error("The type family '{0}' does not claim resources.")]
+    ResourceFamilyDoesNotClaimResources(String),
+    #[error("The type family '{0}' does not claim any literal.")]
+    UnknownFamilyDoesNotClaimAnyLiteral(String),
+    #[error("The type family '{0}' does not support any literal.")]
+    LastFamilyDoesNotSupportAnyLiteral(String),
 }

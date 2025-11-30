@@ -1,8 +1,5 @@
 use crate::encoding::{EncodingArray, TermDecoder};
-use crate::typed_value::array::{
-    DurationParts, StringParts, TimestampParts, TypedValueArrayParts,
-};
-use crate::typed_value::{TypedValueEncoding, TypedValueEncodingField};
+use crate::typed_value::TypedValueEncoding;
 use crate::{EncodingScalar, TermEncoding};
 use datafusion::arrow::array::{Array, AsArray};
 use datafusion::common::ScalarValue;

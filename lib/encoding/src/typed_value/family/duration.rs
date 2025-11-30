@@ -1,4 +1,7 @@
-use crate::typed_value::family::TypeFamily;
+use crate::typed_value::family::{TypeClaim, TypeFamily};
+use datafusion::arrow::array::{
+    Array, AsArray, Decimal128Array, Int64Array, StructArray,
+};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use rdf_fusion_model::Decimal;
 use std::fmt::{Debug, Formatter};
@@ -62,6 +65,10 @@ impl TypeFamily for DurationFamily {
     }
 
     fn data_type(&self) -> &DataType {
+        &self.data_type
+    }
+
+    fn claim(&self) -> &TypeClaim {
         todo!()
     }
 }
@@ -69,5 +76,30 @@ impl TypeFamily for DurationFamily {
 impl Debug for DurationFamily {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.id())
+    }
+}
+
+/// A reference to the child arrays of a [`ResourceFamily`] array.
+#[derive(Debug, Clone, Copy)]
+pub struct DurationArrayParts<'data> {
+    /// The struct array containing the children.
+    pub struct_array: &'data StructArray,
+    /// The array of months.
+    pub months: &'data Int64Array,
+    /// The array of seconds.
+    pub seconds: &'data Decimal128Array,
+}
+
+impl<'data> DurationArrayParts<'data> {
+    /// Creates a [`DurationArrayParts`] from the given array.
+    ///
+    /// Panics if the array does not match the expected schema.
+    pub fn from_array(array: &'data dyn Array) -> Self {
+        let struct_array = array.as_struct();
+        Self {
+            struct_array,
+            months: struct_array.column(0).as_primitive(),
+            seconds: struct_array.column(1).as_primitive(),
+        }
     }
 }

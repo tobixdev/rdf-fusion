@@ -1,5 +1,5 @@
-use crate::typed_value::family::date_time::DateTimeFamily;
-use crate::typed_value::family::TypeFamily;
+use crate::typed_value::family::{TypeClaim, TypeFamily};
+use datafusion::arrow::array::{Array, AsArray, GenericStringArray};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
@@ -56,10 +56,36 @@ impl TypeFamily for StringFamily {
     fn data_type(&self) -> &DataType {
         &self.data_type
     }
+
+    fn claim(&self) -> &TypeClaim {
+        todo!()
+    }
 }
 
 impl Debug for StringFamily {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.id())
+    }
+}
+
+/// A reference to the child arrays of a [`StringFamily`] array.
+#[derive(Debug, Clone, Copy)]
+pub struct StringArrayParts<'data> {
+    /// The array of string values.
+    pub value: &'data GenericStringArray<i32>,
+    /// The array of optional language tags.
+    pub language: &'data GenericStringArray<i32>,
+}
+
+impl<'data> StringArrayParts<'data> {
+    /// Creates a [`StringArrayParts`] from the given array.
+    ///
+    /// Panics if the array does not match the expected schema.
+    pub fn from_array(array: &'data dyn Array) -> Self {
+        let array = array.as_struct();
+        Self {
+            value: array.column(0).as_string(),
+            language: array.column(1).as_string(),
+        }
     }
 }

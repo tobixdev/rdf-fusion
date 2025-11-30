@@ -1,4 +1,7 @@
-use crate::typed_value::family::TypeFamily;
+use crate::typed_value::family::{TypeClaim, TypeFamily};
+use datafusion::arrow::array::{
+    Array, AsArray, Decimal128Array, Int16Array, StructArray, UInt8Array,
+};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use rdf_fusion_model::Decimal;
 use std::fmt::{Debug, Formatter};
@@ -16,7 +19,7 @@ use std::sync::LazyLock;
 /// ┌──────────────────────────────────────────┐
 /// │ Struct Array                             │
 /// │                                          │
-/// │  Type Ids     Value          Offset      │
+/// │  DT Type      Value          Offset      │
 /// │  ┌───────┐   ┌──────────┐   ┌──────────┐ │
 /// │  │ 0     │   │ 10.0     │   │ NULL     │ │
 /// │  │───────│   │──────────│   │──────────│ │
@@ -34,7 +37,7 @@ pub struct DateTimeFamily {
 /// The layout of the timestamp family.
 static FIELDS_TIMESTAMP: LazyLock<Fields> = LazyLock::new(|| {
     Fields::from(vec![
-        Field::new("type_id", DataType::UInt8, false),
+        Field::new("date_time_type", DataType::UInt8, false),
         Field::new(
             "value",
             DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
@@ -61,10 +64,42 @@ impl TypeFamily for DateTimeFamily {
     fn data_type(&self) -> &DataType {
         &self.data_type
     }
+
+    fn claim(&self) -> &TypeClaim {
+        todo!()
+    }
 }
 
 impl Debug for DateTimeFamily {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.id())
+    }
+}
+
+/// A reference to the child arrays of a [`DateTimeFamily`] array.
+#[derive(Debug, Clone, Copy)]
+pub struct DateTimeArrayParts<'data> {
+    /// The struct array containing the children.
+    pub struct_array: &'data StructArray,
+    /// The array of months.
+    pub date_time_type: &'data UInt8Array,
+    /// The timestamp values array.
+    pub timestamp_values: &'data Decimal128Array,
+    /// The timestamp offsets array.
+    pub timestamp_offsets: &'data Int16Array,
+}
+
+impl<'data> DateTimeArrayParts<'data> {
+    /// Creates a [`DateTimeArrayParts`] from the given array.
+    ///
+    /// Panics if the array does not match the expected schema.
+    pub fn from_array(array: &'data dyn Array) -> Self {
+        let struct_array = array.as_struct();
+        Self {
+            struct_array,
+            date_time_type: struct_array.column(0).as_primitive(),
+            timestamp_values: struct_array.column(1).as_primitive(),
+            timestamp_offsets: struct_array.column(2).as_primitive(),
+        }
     }
 }

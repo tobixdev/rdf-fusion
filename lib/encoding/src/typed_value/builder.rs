@@ -1,7 +1,7 @@
+use std::any::Any;
+use crate::typed_value::family::TypeFamily;
+use crate::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueEncodingRef};
 use crate::TermEncoding;
-use crate::typed_value::{
-    TypedValueArray, TypedValueEncoding, TypedValueEncodingField, TypedValueEncodingRef,
-};
 use datafusion::arrow::array::{
     Array, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int32Array,
     Int64Array, NullArray, StringArray, StructArray, UnionArray,
@@ -18,21 +18,7 @@ pub struct TypedValueArrayBuilder {
     encoding: TypedValueEncodingRef,
     type_ids: Vec<i8>,
     offsets: Vec<i32>,
-    named_nodes: Option<Arc<dyn Array>>,
-    blank_nodes: Option<Arc<dyn Array>>,
-    strings: Option<Arc<dyn Array>>,
-    booleans: Option<Arc<dyn Array>>,
-    floats: Option<Arc<dyn Array>>,
-    doubles: Option<Arc<dyn Array>>,
-    decimals: Option<Arc<dyn Array>>,
-    ints: Option<Arc<dyn Array>>,
-    integers: Option<Arc<dyn Array>>,
-    date_times: Option<Arc<dyn Array>>,
-    times: Option<Arc<dyn Array>>,
-    dates: Option<Arc<dyn Array>>,
-    durations: Option<Arc<dyn Array>>,
-    typed_literals: Option<Arc<dyn Array>>,
-    nulls: Option<Arc<dyn Array>>,
+    arrays: Vec<Option<Arc<dyn Array>>>,
 }
 
 impl TypedValueArrayBuilder {
@@ -60,21 +46,7 @@ impl TypedValueArrayBuilder {
             encoding,
             type_ids,
             offsets,
-            named_nodes: None,
-            blank_nodes: None,
-            strings: None,
-            booleans: None,
-            floats: None,
-            doubles: None,
-            decimals: None,
-            ints: None,
-            integers: None,
-            date_times: None,
-            times: None,
-            dates: None,
-            durations: None,
-            typed_literals: None,
-            nulls: None,
+            arrays: vec![None; encoding.num_type_families() + 1],
         })
     }
 
@@ -110,7 +82,7 @@ impl TypedValueArrayBuilder {
                 if is_null {
                     type_id
                 } else {
-                    TypedValueEncodingField::Null.type_id()
+                    TypedValueEncoding::NULL_TYPE_ID
                 }
             })
             .collect();
@@ -135,12 +107,17 @@ impl TypedValueArrayBuilder {
 
     /// Sets the null array.
     pub fn with_nulls(mut self, array: Arc<dyn Array>) -> Self {
-        self.nulls = Some(array);
+        self.arrays[TypedValueEncoding::NULL_TYPE_ID] = Some(array);
         self
     }
 
     /// Sets the named nodes array.
-    pub fn with_named_nodes(mut self, array: Arc<dyn Array>) -> Self {
+    pub fn with_array(
+        mut self,
+        type_family: &dyn TypeFamily,
+        array: Arc<dyn Array>,
+    ) -> Self {
+        let type_id = self.encoding.find_type_family(type_family.id());
         self.named_nodes = Some(array);
         self
     }

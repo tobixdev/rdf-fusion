@@ -1,7 +1,8 @@
-use crate::typed_value::family::TypeFamily;
+use crate::typed_value::family::{TypeClaim, TypeFamily};
 use datafusion::arrow::datatypes::{DataType, Field, UnionFields};
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
+use datafusion::arrow::array::{Array, AsArray, GenericStringArray, UnionArray};
 
 /// Family of IRIs and blank node identifiers.
 ///
@@ -56,10 +57,39 @@ impl TypeFamily for ResourceFamily {
     fn data_type(&self) -> &DataType {
         &self.data_type
     }
+
+    fn claim(&self) -> &TypeClaim {
+        todo!()
+    }
 }
 
 impl Debug for ResourceFamily {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.id())
+    }
+}
+
+/// A reference to the child arrays of a [`ResourceFamily`] array.
+#[derive(Debug, Clone, Copy)]
+pub struct ResourceArrayParts<'data> {
+    /// The union array containing the type IDs and the resource values.
+    pub union_array: &'data UnionArray,
+    /// The array of IRIs.
+    pub iris: &'data GenericStringArray<i32>,
+    /// The array of blank nodes.
+    pub blank_nodes: &'data GenericStringArray<i32>,
+}
+
+impl<'data> ResourceArrayParts<'data> {
+    /// Creates a [`ResourceArrayParts`] from the given array.
+    ///
+    /// Panics if the array does not match the expected schema.
+    pub fn from_array(array: &'data dyn Array) -> Self {
+        let union_array = array.as_union();
+        Self {
+            union_array,
+            iris: union_array.child(0).as_string(),
+            blank_nodes: union_array.child(1).as_string(),
+        }
     }
 }

@@ -1,9 +1,9 @@
 use crate::encoding::TermEncoder;
-use crate::sortable_term::SortableTermEncoding;
 use crate::sortable_term::encoders::TypedValueRefSortableTermEncoder;
+use crate::sortable_term::SortableTermEncoding;
 use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::typed_value::{
-    TypedValueArrayElementBuilder, TypedValueEncoding, TypedValueEncodingRef,
+    TypedValueArrayElementBuilder, TypedValueEncodingRef,
 };
 use crate::{EncodingArray, TermDecoder, TermEncoding};
 use rdf_fusion_model::DFResult;
@@ -13,6 +13,13 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct TermRefSortableTermEncoder {
     encoding: TypedValueEncodingRef,
+}
+
+impl TermRefSortableTermEncoder {
+    /// Creates a new [`TermRefSortableTermEncoder`].
+    pub fn new(encoding: TypedValueEncodingRef) -> Self {
+        Self { encoding }
+    }
 }
 
 impl TermEncoder<SortableTermEncoding> for TermRefSortableTermEncoder {

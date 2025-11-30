@@ -1,9 +1,11 @@
 use datafusion::arrow::datatypes::DataType;
 use datafusion::logical_expr_common::dyn_eq::{DynEq, DynHash};
 use rdf_fusion_model::Iri;
+use std::collections::{BTreeSet, HashSet};
 use std::fmt::Debug;
 use std::sync::Arc;
 
+mod boolean;
 mod date_time;
 mod duration;
 mod numeric;
@@ -11,6 +13,7 @@ mod resource;
 mod string;
 mod unknown;
 
+pub use boolean::*;
 pub use date_time::*;
 pub use duration::*;
 pub use numeric::*;
@@ -21,10 +24,18 @@ pub use unknown::*;
 /// A cheaply clonable reference to a [`TypeFamily`].
 pub type TypeFamilyRef = Arc<dyn TypeFamily>;
 
-pub enum ClaimedType {
-    Iri,
-    BlankNode,
-    Literal(Iri<String>),
+/// A [`TypeFamily`] claims types for which to be responsible for.
+///
+/// For example, the [`BooleanFamily`] claims to be responsible for `xsd:boolean` values, while the
+/// [`NumericFamily`] claims `xsd:integer`, `xsd:float`, etc.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum TypeClaim {
+    /// Claims the responsibility for IRIs and blank node identifiers.
+    Resources,
+    /// A claim for a set of literal types.
+    Literal(BTreeSet<Iri<String>>),
+    /// A claim for all literal types that are not covered by other claims.
+    UnknownLiterals,
 }
 
 /// A type family groups together values of related types. Each family defines the encoding
@@ -36,7 +47,7 @@ pub enum ClaimedType {
 /// [`ResourceFamily`] that stores IRIs and blank node identifiers. Lastly, there is a catch-all
 /// [`UnknownLiteralFamily`] that stores all unknown literal values.
 ///
-/// Each type family "claims" the types that it is responsible for. See [`ClaimedType`]. This
+/// Each type family "claims" the types that it is responsible for. See [`TypeClaim`]. This
 /// ensures that the typed families partition the set of all possible values correctly. In other
 /// words, there is no ambiguity for which family is responsible for a given type.
 ///
@@ -69,4 +80,8 @@ pub trait TypeFamily: Debug + Send + Sync {
 
     /// Returns the data type that is used to encode the values of this type family.
     fn data_type(&self) -> &DataType;
+
+    /// Returns the set of claims of this type family. This indicates for which types this family
+    /// is responsible. See [`TypeClaim`] for further information.
+    fn claim(&self) -> &TypeClaim;
 }

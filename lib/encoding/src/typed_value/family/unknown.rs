@@ -1,5 +1,5 @@
-use crate::typed_value::family::date_time::DateTimeFamily;
-use crate::typed_value::family::TypeFamily;
+use crate::typed_value::family::{TypeClaim, TypeFamily};
+use datafusion::arrow::array::{Array, AsArray, GenericStringArray};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
@@ -53,6 +53,10 @@ impl TypeFamily for UnknownFamily {
     }
 
     fn data_type(&self) -> &DataType {
+        &self.data_type
+    }
+
+    fn claim(&self) -> &TypeClaim {
         todo!()
     }
 }
@@ -60,5 +64,27 @@ impl TypeFamily for UnknownFamily {
 impl Debug for UnknownFamily {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.id())
+    }
+}
+
+/// A reference to the child arrays of a [`UnknownFamily`] array.
+#[derive(Debug, Clone, Copy)]
+pub struct UnknownArrayParts<'data> {
+    /// The array of string values.
+    pub values: &'data GenericStringArray<i32>,
+    /// The array of optional language tags.
+    pub data_types: &'data GenericStringArray<i32>,
+}
+
+impl<'data> UnknownArrayParts<'data> {
+    /// Creates a [`UnknownArrayParts`] from the given array.
+    ///
+    /// Panics if the array does not match the expected schema.
+    pub fn from_array(array: &'data dyn Array) -> Self {
+        let array = array.as_struct();
+        Self {
+            values: array.column(0).as_string(),
+            data_types: array.column(1).as_string(),
+        }
     }
 }

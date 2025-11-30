@@ -3,143 +3,20 @@ use crate::typed_value::array::TypedValueArray;
 use crate::typed_value::encoders::{DefaultTypedValueEncoder, TermRefTypedValueEncoder};
 use crate::typed_value::error::TypedValueEncodingCreationError;
 use crate::typed_value::family::{
-    NumericFamily, ResourceFamily, StringFamily, TypeFamilyRef,
+    BooleanFamily, DateTimeFamily, DurationFamily, NumericFamily, ResourceFamily,
+    StringFamily, TypeFamily, TypeFamilyRef, UnknownFamily,
 };
 use crate::typed_value::scalar::TypedValueScalar;
 use crate::{EncodingArray, EncodingName, TermEncoder};
 use datafusion::arrow::array::ArrayRef;
-use datafusion::arrow::datatypes::{DataType, Field, Fields, UnionFields, UnionMode};
+use datafusion::arrow::datatypes::{DataType, Field, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
 use rdf_fusion_model::DFResult;
-use rdf_fusion_model::{Decimal, TermRef, ThinResult};
+use rdf_fusion_model::{TermRef, ThinResult};
 use std::clone::Clone;
 use std::collections::HashSet;
-use std::fmt::{Display, Formatter};
 use std::hash::Hash;
-use std::sync::{Arc, LazyLock};
-use thiserror::Error;
-
-static FIELDS_STRING: LazyLock<Fields> = LazyLock::new(|| {
-    Fields::from(vec![
-        Field::new("value", DataType::Utf8, false),
-        Field::new("language", DataType::Utf8, true),
-    ])
-});
-
-static FIELDS_TIMESTAMP: LazyLock<Fields> = LazyLock::new(|| {
-    Fields::from(vec![
-        Field::new(
-            "value",
-            DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
-            false,
-        ),
-        Field::new("offset", DataType::Int16, true),
-    ])
-});
-
-static FIELDS_TYPED_LITERAL: LazyLock<Fields> = LazyLock::new(|| {
-    Fields::from(vec![
-        Field::new("value", DataType::Utf8, false),
-        Field::new("datatype", DataType::Utf8, false),
-    ])
-});
-
-static FIELDS_DURATION: LazyLock<Fields> = LazyLock::new(|| {
-    Fields::from(vec![
-        Field::new("months", DataType::Int64, true),
-        Field::new(
-            "seconds",
-            DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE),
-            true,
-        ),
-    ])
-});
-
-static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
-    let fields = vec![
-        Field::new(
-            TypedValueEncodingField::Null.name(),
-            TypedValueEncodingField::Null.data_type(),
-            true,
-        ),
-        Field::new(
-            TypedValueEncodingField::NamedNode.name(),
-            TypedValueEncodingField::NamedNode.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::BlankNode.name(),
-            TypedValueEncodingField::BlankNode.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::String.name(),
-            TypedValueEncodingField::String.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::Boolean.name(),
-            TypedValueEncodingField::Boolean.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::Float.name(),
-            TypedValueEncodingField::Float.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::Double.name(),
-            TypedValueEncodingField::Double.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::Decimal.name(),
-            TypedValueEncodingField::Decimal.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::Int.name(),
-            TypedValueEncodingField::Int.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::Integer.name(),
-            TypedValueEncodingField::Integer.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::DateTime.name(),
-            TypedValueEncodingField::DateTime.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::Time.name(),
-            TypedValueEncodingField::Time.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::Date.name(),
-            TypedValueEncodingField::Date.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::Duration.name(),
-            TypedValueEncodingField::Duration.data_type(),
-            false,
-        ),
-        Field::new(
-            TypedValueEncodingField::OtherLiteral.name(),
-            TypedValueEncodingField::OtherLiteral.data_type(),
-            false,
-        ),
-    ];
-
-    #[allow(
-        clippy::cast_possible_truncation,
-        reason = "We know the length of the fields"
-    )]
-    UnionFields::new((0..fields.len() as i8).collect::<Vec<_>>(), fields)
-});
+use std::sync::Arc;
 
 /// A cheaply clonable reference to a [`TypedValueEncoding`].
 pub type TypedValueEncodingRef = Arc<TypedValueEncoding>;
@@ -169,6 +46,9 @@ pub struct TypedValueEncoding {
 }
 
 impl TypedValueEncoding {
+    /// The type id of the null column
+    pub const NULL_TYPE_ID: i8 = 0;
+
     /// Creates a new [`TypedValueEncoding`].
     ///
     /// # Errors
@@ -177,7 +57,9 @@ impl TypedValueEncoding {
     /// - more than one type families with the same id are provided.
     /// - the set of claimed types overlaps between two families.
     pub fn try_new(
+        resource_family: TypeFamilyRef,
         type_families: Vec<TypeFamilyRef>,
+        unknown_family: TypeFamilyRef,
     ) -> Result<Self, TypedValueEncodingCreationError> {
         let mut seen = HashSet::new();
         for type_family in &type_families {
@@ -194,14 +76,29 @@ impl TypedValueEncoding {
         // TODO check claims
 
         Ok(Self {
-            data_type: build_data_type(&type_families),
+            data_type: build_data_type(
+                resource_family.as_ref(),
+                &type_families,
+                unknown_family.as_ref(),
+            ),
             type_families,
         })
     }
 
+    /// Returns the number of registered type families.
+    ///
+    /// Note that this does not include the null array.
+    pub fn num_type_families(&self) -> usize {
+        self.type_families.len()
+    }
+
     /// Tries to find a registered [`TypeFamilyRef`] with the given name.
-    pub fn find_type_family(&self, id: &str) -> Option<&TypeFamilyRef> {
-        self.type_families.iter().find(|f| f.id() == id)
+    pub fn find_type_family(&self, id: &str) -> Option<(i8, &TypeFamilyRef)> {
+        self.type_families
+            .iter()
+            .enumerate()
+            .find(|(_, f)| f.id() == id)
+            .map(|(i, f)| (i as i8, f))
     }
 
     /// Creates a new [`DefaultTypedValueEncoder`].
@@ -216,56 +113,53 @@ impl TypedValueEncoding {
 }
 
 /// Creates a [`DataType::Union`] for the specifies type families.
-fn build_data_type(families: &[TypeFamilyRef]) -> DataType {
+fn build_data_type(
+    resources_family: &dyn TypeFamily,
+    families: &[TypeFamilyRef],
+    unknown_family: &dyn TypeFamily,
+) -> DataType {
     let mut fields = Vec::new();
-    fields.push(Field::new("null", DataType::Null, false));
 
+    fields.push(Field::new("null", DataType::Null, false));
+    fields.push(Field::new(
+        resources_family.id(),
+        resources_family.data_type().clone(),
+        false,
+    ));
     for family in families {
         fields.push(Field::new(family.id(), family.data_type().clone(), false));
     }
+    fields.push(Field::new(
+        unknown_family.id(),
+        unknown_family.data_type().clone(),
+        false,
+    ));
 
     DataType::Union(
-        UnionFields::new((0..fields.len()).collect::<Vec<_>>(), fields),
+        UnionFields::new(0..fields.len() as i8, fields),
         UnionMode::Dense,
     )
 }
 
 impl Default for TypedValueEncoding {
     fn default() -> Self {
-        let families = vec![
-            Arc::new(ResourceFamily::new()),
+        let families: Vec<TypeFamilyRef> = vec![
             Arc::new(StringFamily::new()),
+            Arc::new(BooleanFamily::new()),
             Arc::new(NumericFamily::new()),
+            Arc::new(DateTimeFamily::new()),
+            Arc::new(DurationFamily::new()),
         ];
-        Self::try_new(families).expect("No overlap, No duplicate")
+        Self::try_new(
+            Arc::new(ResourceFamily::new()),
+            families,
+            Arc::new(UnknownFamily::new()),
+        )
+        .unwrap()
     }
 }
 
 impl TypedValueEncoding {
-    pub fn fields() -> UnionFields {
-        FIELDS_TYPE.clone()
-    }
-
-    pub fn string_fields() -> Fields {
-        FIELDS_STRING.clone()
-    }
-
-    pub fn string_type() -> DataType {
-        DataType::Struct(Self::string_fields())
-    }
-
-    pub fn timestamp_fields() -> Fields {
-        FIELDS_TIMESTAMP.clone()
-    }
-
-    pub fn duration_fields() -> Fields {
-        FIELDS_DURATION.clone()
-    }
-
-    pub fn typed_literal_fields() -> Fields {
-        FIELDS_TYPED_LITERAL.clone()
-    }
-
     /// Encodes the `term` as a [TypedValueScalar].
     pub fn encode_term(
         &self,
@@ -310,191 +204,5 @@ impl Eq for TypedValueEncoding {}
 impl Hash for TypedValueEncoding {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.data_type.hash(state);
-    }
-}
-
-#[repr(i8)]
-#[derive(Ord, PartialOrd, PartialEq, Eq, Debug, Clone, Copy)]
-pub enum TypedValueEncodingField {
-    /// Represents an unbound value or an error.
-    ///
-    /// This has to be the first encoded field as OUTER joins will use it to initialize default
-    /// values for non-matching rows.
-    Null,
-    NamedNode,
-    BlankNode,
-    String,
-    Boolean,
-    Float,
-    Double,
-    Decimal,
-    Int,
-    Integer,
-    DateTime,
-    Time,
-    Date,
-    Duration,
-    OtherLiteral,
-}
-
-impl TypedValueEncodingField {
-    pub fn type_id(self) -> i8 {
-        self.into()
-    }
-
-    pub fn name(self) -> &'static str {
-        match self {
-            TypedValueEncodingField::Null => "null",
-            TypedValueEncodingField::NamedNode => "named_node",
-            TypedValueEncodingField::BlankNode => "blank_node",
-            TypedValueEncodingField::String => "string",
-            TypedValueEncodingField::Boolean => "boolean",
-            TypedValueEncodingField::Float => "float",
-            TypedValueEncodingField::Double => "double",
-            TypedValueEncodingField::Decimal => "decimal",
-            TypedValueEncodingField::Int => "int",
-            TypedValueEncodingField::Integer => "integer",
-            TypedValueEncodingField::DateTime => "date_time",
-            TypedValueEncodingField::Time => "time",
-            TypedValueEncodingField::Date => "date",
-            TypedValueEncodingField::Duration => "duration",
-            TypedValueEncodingField::OtherLiteral => "other_literal",
-        }
-    }
-
-    pub fn data_type(self) -> DataType {
-        match self {
-            TypedValueEncodingField::Null => DataType::Null,
-            TypedValueEncodingField::NamedNode | TypedValueEncodingField::BlankNode => {
-                DataType::Utf8
-            }
-            TypedValueEncodingField::String => DataType::Struct(FIELDS_STRING.clone()),
-            TypedValueEncodingField::Boolean => DataType::Boolean,
-            TypedValueEncodingField::Float => DataType::Float32,
-            TypedValueEncodingField::Double => DataType::Float64,
-            TypedValueEncodingField::Decimal => {
-                DataType::Decimal128(Decimal::PRECISION, Decimal::SCALE)
-            }
-            TypedValueEncodingField::Int => DataType::Int32,
-            TypedValueEncodingField::Integer => DataType::Int64,
-            TypedValueEncodingField::DateTime
-            | TypedValueEncodingField::Time
-            | TypedValueEncodingField::Date => DataType::Struct(FIELDS_TIMESTAMP.clone()),
-            TypedValueEncodingField::Duration => {
-                DataType::Struct(FIELDS_DURATION.clone())
-            }
-            TypedValueEncodingField::OtherLiteral => {
-                DataType::Struct(FIELDS_TYPED_LITERAL.clone())
-            }
-        }
-    }
-
-    pub fn is_literal(self) -> bool {
-        matches!(
-            self,
-            TypedValueEncodingField::NamedNode | TypedValueEncodingField::BlankNode
-        )
-    }
-}
-
-impl Display for TypedValueEncodingField {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.name())
-    }
-}
-
-#[derive(Debug, Clone, Copy, Default, Error, PartialEq, Eq, Hash)]
-pub struct UnknownTypedValueEncodingFieldError;
-
-impl Display for UnknownTypedValueEncodingFieldError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unexpected type_id for encoded RDF Term")
-    }
-}
-
-impl TryFrom<i8> for TypedValueEncodingField {
-    type Error = UnknownTypedValueEncodingFieldError;
-
-    fn try_from(value: i8) -> Result<Self, Self::Error> {
-        Ok(match value {
-            0 => TypedValueEncodingField::Null,
-            1 => TypedValueEncodingField::NamedNode,
-            2 => TypedValueEncodingField::BlankNode,
-            3 => TypedValueEncodingField::String,
-            4 => TypedValueEncodingField::Boolean,
-            5 => TypedValueEncodingField::Float,
-            6 => TypedValueEncodingField::Double,
-            7 => TypedValueEncodingField::Decimal,
-            8 => TypedValueEncodingField::Int,
-            9 => TypedValueEncodingField::Integer,
-            10 => TypedValueEncodingField::DateTime,
-            11 => TypedValueEncodingField::Time,
-            12 => TypedValueEncodingField::Date,
-            13 => TypedValueEncodingField::Duration,
-            14 => TypedValueEncodingField::OtherLiteral,
-            _ => return Err(UnknownTypedValueEncodingFieldError),
-        })
-    }
-}
-
-impl TryFrom<u8> for TypedValueEncodingField {
-    type Error = UnknownTypedValueEncodingFieldError;
-
-    #[allow(
-        clippy::cast_possible_wrap,
-        reason = "Self::try_from will catch any overflow as EncTermField does not have that many variants"
-    )]
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        Self::try_from(value as i8)
-    }
-}
-
-impl From<TypedValueEncodingField> for i8 {
-    fn from(value: TypedValueEncodingField) -> Self {
-        match value {
-            TypedValueEncodingField::Null => 0,
-            TypedValueEncodingField::NamedNode => 1,
-            TypedValueEncodingField::BlankNode => 2,
-            TypedValueEncodingField::String => 3,
-            TypedValueEncodingField::Boolean => 4,
-            TypedValueEncodingField::Float => 5,
-            TypedValueEncodingField::Double => 6,
-            TypedValueEncodingField::Decimal => 7,
-            TypedValueEncodingField::Int => 8,
-            TypedValueEncodingField::Integer => 9,
-            TypedValueEncodingField::DateTime => 10,
-            TypedValueEncodingField::Time => 11,
-            TypedValueEncodingField::Date => 12,
-            TypedValueEncodingField::Duration => 13,
-            TypedValueEncodingField::OtherLiteral => 14,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_type_ids() {
-        test_type_id(TypedValueEncodingField::NamedNode);
-        test_type_id(TypedValueEncodingField::BlankNode);
-        test_type_id(TypedValueEncodingField::String);
-        test_type_id(TypedValueEncodingField::Boolean);
-        test_type_id(TypedValueEncodingField::Float);
-        test_type_id(TypedValueEncodingField::Double);
-        test_type_id(TypedValueEncodingField::Decimal);
-        test_type_id(TypedValueEncodingField::Int);
-        test_type_id(TypedValueEncodingField::Integer);
-        test_type_id(TypedValueEncodingField::DateTime);
-        test_type_id(TypedValueEncodingField::Time);
-        test_type_id(TypedValueEncodingField::Date);
-        test_type_id(TypedValueEncodingField::Duration);
-        test_type_id(TypedValueEncodingField::OtherLiteral);
-        test_type_id(TypedValueEncodingField::Null);
-    }
-
-    fn test_type_id(term_field: TypedValueEncodingField) {
-        assert_eq!(term_field, term_field.type_id().try_into().unwrap());
     }
 }
