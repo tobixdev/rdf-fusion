@@ -1,7 +1,6 @@
 use crate::encoding::TermEncoding;
-use crate::sortable_term::encoders::TermRefSortableTermEncoder;
 use crate::sortable_term::{SortableTermArray, SortableTermScalar};
-use crate::{EncodingArray, EncodingName, TermEncoder};
+use crate::EncodingName;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
 use datafusion::common::ScalarValue;

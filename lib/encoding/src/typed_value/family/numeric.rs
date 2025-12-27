@@ -4,7 +4,9 @@ use datafusion::arrow::array::{
     UnionArray,
 };
 use datafusion::arrow::datatypes::{DataType, Field, UnionFields, UnionMode};
-use rdf_fusion_model::Decimal;
+use datafusion::common::{exec_err, ScalarValue};
+use rdf_fusion_model::{vocab::xsd, DFResult, Decimal, Numeric, TermRef, TypedValueRef};
+use std::collections::BTreeSet;
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
 
@@ -38,6 +40,8 @@ use std::sync::LazyLock;
 pub struct NumericFamily {
     /// The data type of this family.
     data_type: DataType,
+    /// The claim of this family.
+    claim: TypeClaim,
 }
 
 static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
@@ -59,8 +63,15 @@ static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
 impl NumericFamily {
     /// Creates a new [`NumericFamily`].
     pub fn new() -> Self {
+        let mut types = BTreeSet::new();
+        types.insert(xsd::FLOAT.into());
+        types.insert(xsd::DOUBLE.into());
+        types.insert(xsd::DECIMAL.into());
+        types.insert(xsd::INT.into());
+        types.insert(xsd::INTEGER.into());
         Self {
             data_type: DataType::Union(FIELDS_TYPE.clone(), UnionMode::Dense),
+            claim: TypeClaim::Literal(types),
         }
     }
 }
@@ -75,7 +86,62 @@ impl TypeFamily for NumericFamily {
     }
 
     fn claim(&self) -> &TypeClaim {
-        todo!()
+        &self.claim
+    }
+
+    fn encode_value(&self, value: TermRef<'_>) -> DFResult<ScalarValue> {
+        let tv = TypedValueRef::try_from(value)
+            .map_err(|e| datafusion::error::DataFusionError::External(Box::new(e)))?;
+        match tv {
+            TypedValueRef::NumericLiteral(num) => match num {
+                Numeric::Float(f) => {
+                    let inner = ScalarValue::Float32(Some(f.into()));
+                    Ok(ScalarValue::Union(
+                        Some((0, Box::new(inner))),
+                        FIELDS_TYPE.clone(),
+                        UnionMode::Dense,
+                    ))
+                }
+                Numeric::Double(d) => {
+                    let inner = ScalarValue::Float64(Some(d.into()));
+                    Ok(ScalarValue::Union(
+                        Some((1, Box::new(inner))),
+                        FIELDS_TYPE.clone(),
+                        UnionMode::Dense,
+                    ))
+                }
+                Numeric::Decimal(d) => {
+                    let v = i128::from_be_bytes(d.to_be_bytes());
+                    let inner = ScalarValue::Decimal128(
+                        Some(v),
+                        Decimal::PRECISION,
+                        Decimal::SCALE,
+                    );
+                    Ok(ScalarValue::Union(
+                        Some((2, Box::new(inner))),
+                        FIELDS_TYPE.clone(),
+                        UnionMode::Dense,
+                    ))
+                }
+                Numeric::Int(i) => {
+                    let inner = ScalarValue::Int32(Some(i.into()));
+                    Ok(ScalarValue::Union(
+                        Some((3, Box::new(inner))),
+                        FIELDS_TYPE.clone(),
+                        UnionMode::Dense,
+                    ))
+                }
+                Numeric::Integer(i) => {
+                    let inner = ScalarValue::Int64(Some(i.into()));
+                    Ok(ScalarValue::Union(
+                        Some((4, Box::new(inner))),
+                        FIELDS_TYPE.clone(),
+                        UnionMode::Dense,
+                    ))
+                }
+            },
+            _ => exec_err!("NumericFamily can only encode numeric literals"),
+        }
     }
 }
 

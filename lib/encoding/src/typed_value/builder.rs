@@ -1,11 +1,7 @@
 use crate::typed_value::family::TypeFamily;
 use crate::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueEncodingRef};
 use crate::TermEncoding;
-use datafusion::arrow::array::{
-    new_empty_array, Array
-    , ArrayRef, NullArray,
-    UnionArray,
-};
+use datafusion::arrow::array::{new_empty_array, Array, ArrayRef, NullArray, UnionArray};
 use datafusion::arrow::buffer::{NullBuffer, ScalarBuffer};
 use datafusion::common::{exec_datafusion_err, exec_err};
 use rdf_fusion_model::DFResult;
@@ -116,7 +112,7 @@ impl TypedValueArrayBuilder {
         type_family: &dyn TypeFamily,
         array: Option<ArrayRef>,
     ) -> DFResult<Self> {
-        let (type_id, family) = self.encoding.find_type_family(type_family.id()).ok_or(
+        let (type_id, _) = self.encoding.find_type_family(type_family.id()).ok_or(
             exec_datafusion_err!(
                 "Type family {} not found in encoding {}",
                 type_family.id(),
@@ -143,14 +139,21 @@ impl TypedValueArrayBuilder {
     ///
     /// For a list of invariants that must be upheld, see [UnionArray::try_new].
     pub fn finish(self) -> DFResult<TypedValueArray> {
-        let arrays = self
-            .arrays
-            .into_iter()
-            .zip(self.encoding.type_families())
-            .map(|(arr, family)| {
-                arr.unwrap_or_else(|| new_empty_array(family.data_type()))
-            })
-            .collect();
+        let mut arrays = Vec::with_capacity(self.arrays.len());
+        // Handle null array (index 0)
+        arrays.push(
+            self.arrays[0]
+                .clone()
+                .unwrap_or_else(|| Arc::new(NullArray::new(0))),
+        );
+
+        // Handle family arrays (index 1..)
+        for (i, family) in self.encoding.type_families().iter().enumerate() {
+            let arr = self.arrays[i + 1]
+                .clone()
+                .unwrap_or_else(|| new_empty_array(family.data_type()));
+            arrays.push(arr);
+        }
 
         self.encoding.try_new_array(Arc::new(UnionArray::try_new(
             self.encoding.data_type_fields(),
@@ -158,5 +161,53 @@ impl TypedValueArrayBuilder {
             Some(ScalarBuffer::from(self.offsets)),
             arrays,
         )?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::typed_value::encoding::TypedValueEncoding;
+    use crate::typed_value::family::BooleanFamily;
+    use crate::EncodingArray;
+    use datafusion::arrow::array::BooleanArray;
+    use datafusion::arrow::util::pretty::pretty_format_columns;
+
+    #[test]
+    fn test_build_mixed_array() {
+        let encoding = Arc::new(TypedValueEncoding::default());
+        let boolean_family = BooleanFamily::new();
+
+        // We want to build: [Null, true, false]
+        // Row 0: Null (Type 0, Offset 0)
+        // Row 1: True (Type 3, Offset 0)
+        // Row 2: False (Type 3, Offset 1)
+
+        let type_ids = vec![0, 3, 3];
+        let offsets = vec![0, 0, 1];
+
+        let builder = TypedValueArrayBuilder::new(encoding, type_ids, offsets)
+            .unwrap()
+            .with_nulls(Arc::new(NullArray::new(1)))
+            .with_array(
+                &boolean_family,
+                Some(Arc::new(BooleanArray::from(vec![true, false]))),
+            )
+            .unwrap();
+
+        let array = builder.finish().unwrap();
+
+        insta::assert_snapshot!(
+            pretty_format_columns("col", &[array.into_array_ref()]).unwrap(),
+            @r"
+        +----------------------------+
+        | col                        |
+        +----------------------------+
+        | {null=}                    |
+        | {rdf-fusion.boolean=true}  |
+        | {rdf-fusion.boolean=false} |
+        +----------------------------+
+        "
+        );
     }
 }

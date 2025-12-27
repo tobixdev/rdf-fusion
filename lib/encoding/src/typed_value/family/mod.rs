@@ -1,7 +1,7 @@
-use datafusion::arrow::datatypes::DataType;
-use datafusion::logical_expr_common::dyn_eq::{DynEq, DynHash};
-use rdf_fusion_model::Iri;
-use std::collections::{BTreeSet, HashSet};
+use datafusion::arrow::datatypes::{DataType, Fields};
+use datafusion::common::ScalarValue;
+use rdf_fusion_model::{DFResult, NamedNode, TermRef};
+use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -21,6 +21,20 @@ pub use resource::*;
 pub use string::*;
 pub use unknown::*;
 
+/// Creates a struct scalar from the given values and fields.
+pub fn create_struct_scalar(
+    values: Vec<ScalarValue>,
+    fields: Fields,
+) -> DFResult<ScalarValue> {
+    let arrays = values
+        .iter()
+        .map(|v| v.to_array())
+        .collect::<DFResult<Vec<_>>>()?;
+    let struct_array =
+        datafusion::arrow::array::StructArray::try_new(fields, arrays, None)?;
+    Ok(ScalarValue::Struct(Arc::new(struct_array)))
+}
+
 /// A cheaply clonable reference to a [`TypeFamily`].
 pub type TypeFamilyRef = Arc<dyn TypeFamily>;
 
@@ -33,7 +47,7 @@ pub enum TypeClaim {
     /// Claims the responsibility for IRIs and blank node identifiers.
     Resources,
     /// A claim for a set of literal types.
-    Literal(BTreeSet<Iri<String>>),
+    Literal(BTreeSet<NamedNode>),
     /// A claim for all literal types that are not covered by other claims.
     UnknownLiterals,
 }
@@ -84,4 +98,7 @@ pub trait TypeFamily: Debug + Send + Sync {
     /// Returns the set of claims of this type family. This indicates for which types this family
     /// is responsible. See [`TypeClaim`] for further information.
     fn claim(&self) -> &TypeClaim;
+
+    /// Encodes the given `value` into a [`ScalarValue`].
+    fn encode_value(&self, value: TermRef<'_>) -> DFResult<ScalarValue>;
 }

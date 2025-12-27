@@ -1,9 +1,12 @@
-use crate::typed_value::family::{TypeClaim, TypeFamily};
+use crate::typed_value::family::{create_struct_scalar, TypeClaim, TypeFamily};
 use datafusion::arrow::array::{
     Array, AsArray, Decimal128Array, Int64Array, StructArray,
 };
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
-use rdf_fusion_model::Decimal;
+use datafusion::common::{exec_err, ScalarValue};
+use rdf_fusion_model::vocab::xsd;
+use rdf_fusion_model::{DFResult, Decimal, TermRef, TypedValueRef};
+use std::collections::BTreeSet;
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
 
@@ -37,6 +40,8 @@ use std::sync::LazyLock;
 pub struct DurationFamily {
     /// The data type of this family.
     data_type: DataType,
+    /// The claim of this family.
+    claim: TypeClaim,
 }
 
 static FIELDS_DURATION: LazyLock<Fields> = LazyLock::new(|| {
@@ -53,8 +58,13 @@ static FIELDS_DURATION: LazyLock<Fields> = LazyLock::new(|| {
 impl DurationFamily {
     /// Creates a new [`DurationFamily`].
     pub fn new() -> Self {
+        let mut types = BTreeSet::new();
+        types.insert(xsd::DURATION.into());
+        types.insert(xsd::YEAR_MONTH_DURATION.into());
+        types.insert(xsd::DAY_TIME_DURATION.into());
         Self {
             data_type: DataType::Struct(FIELDS_DURATION.clone()),
+            claim: TypeClaim::Literal(types),
         }
     }
 }
@@ -69,7 +79,36 @@ impl TypeFamily for DurationFamily {
     }
 
     fn claim(&self) -> &TypeClaim {
-        todo!()
+        &self.claim
+    }
+
+    fn encode_value(&self, value: TermRef<'_>) -> DFResult<ScalarValue> {
+        let tv = TypedValueRef::try_from(value)
+            .map_err(|e| datafusion::error::DataFusionError::External(Box::new(e)))?;
+
+        let (months, seconds) = match tv {
+            TypedValueRef::DurationLiteral(d) => {
+                (Some(d.year_month()), Some(d.day_time()))
+            }
+            TypedValueRef::YearMonthDurationLiteral(ym) => (Some(ym), None),
+            TypedValueRef::DayTimeDurationLiteral(dt) => (None, Some(dt)),
+            _ => return exec_err!("DurationFamily can only encode duration literals"),
+        };
+
+        let months_scalar = if let Some(m) = months {
+            ScalarValue::Int64(Some(m.as_i64()))
+        } else {
+            ScalarValue::Int64(None)
+        };
+
+        let seconds_scalar = if let Some(s) = seconds {
+            let v = i128::from_be_bytes(s.as_seconds().to_be_bytes());
+            ScalarValue::Decimal128(Some(v), Decimal::PRECISION, Decimal::SCALE)
+        } else {
+            ScalarValue::Decimal128(None, Decimal::PRECISION, Decimal::SCALE)
+        };
+
+        create_struct_scalar(vec![months_scalar, seconds_scalar], FIELDS_DURATION.clone())
     }
 }
 

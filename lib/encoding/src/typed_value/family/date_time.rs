@@ -1,9 +1,11 @@
-use crate::typed_value::family::{TypeClaim, TypeFamily};
+use crate::typed_value::family::{create_struct_scalar, TypeClaim, TypeFamily};
 use datafusion::arrow::array::{
     Array, AsArray, Decimal128Array, Int16Array, StructArray, UInt8Array,
 };
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
-use rdf_fusion_model::Decimal;
+use datafusion::common::{exec_err, ScalarValue};
+use rdf_fusion_model::{vocab::xsd, DFResult, Decimal, TermRef, TypedValueRef};
+use std::collections::BTreeSet;
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
 
@@ -32,6 +34,8 @@ use std::sync::LazyLock;
 pub struct DateTimeFamily {
     /// The data type of the family.
     data_type: DataType,
+    /// The claim of this family.
+    claim: TypeClaim,
 }
 
 /// The layout of the timestamp family.
@@ -50,8 +54,13 @@ static FIELDS_TIMESTAMP: LazyLock<Fields> = LazyLock::new(|| {
 impl DateTimeFamily {
     /// Creates a new [`DateTimeFamily`].
     pub fn new() -> Self {
+        let mut types = BTreeSet::new();
+        types.insert(xsd::DATE_TIME.into());
+        types.insert(xsd::DATE.into());
+        types.insert(xsd::TIME.into());
         Self {
             data_type: DataType::Struct(FIELDS_TIMESTAMP.clone()),
+            claim: TypeClaim::Literal(types),
         }
     }
 }
@@ -66,7 +75,29 @@ impl TypeFamily for DateTimeFamily {
     }
 
     fn claim(&self) -> &TypeClaim {
-        todo!()
+        &self.claim
+    }
+
+    fn encode_value(&self, value: TermRef<'_>) -> DFResult<ScalarValue> {
+        let tv = TypedValueRef::try_from(value)
+            .map_err(|e| datafusion::error::DataFusionError::External(Box::new(e)))?;
+
+        let (type_id, timestamp) = match tv {
+            TypedValueRef::DateTimeLiteral(dt) => (0u8, dt.timestamp()),
+            TypedValueRef::DateLiteral(d) => (1u8, d.timestamp()),
+            TypedValueRef::TimeLiteral(t) => (2u8, t.timestamp()),
+            _ => return exec_err!("DateTimeFamily can only encode date/time literals"),
+        };
+
+        let val = ScalarValue::Decimal128(
+            Some(i128::from_be_bytes(timestamp.value().to_be_bytes())),
+            Decimal::PRECISION,
+            Decimal::SCALE,
+        );
+        let offset = ScalarValue::Int16(timestamp.offset().map(|o| o.in_minutes()));
+        let type_id_scalar = ScalarValue::UInt8(Some(type_id));
+
+        create_struct_scalar(vec![type_id_scalar, val, offset], FIELDS_TIMESTAMP.clone())
     }
 }
 

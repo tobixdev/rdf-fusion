@@ -3619,6 +3619,7 @@ name = "rdf-fusion-encoding"
 version = "0.1.0"
 dependencies = [
  "datafusion",
+ "insta",
  "rdf-fusion-model",
  "thiserror 2.0.17",
 ]

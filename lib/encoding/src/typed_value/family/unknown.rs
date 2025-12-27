@@ -1,6 +1,8 @@
-use crate::typed_value::family::{TypeClaim, TypeFamily};
+use crate::typed_value::family::{create_struct_scalar, TypeClaim, TypeFamily};
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
+use datafusion::common::{exec_err, ScalarValue};
+use rdf_fusion_model::{DFResult, TermRef};
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
 
@@ -28,6 +30,8 @@ use std::sync::LazyLock;
 pub struct UnknownFamily {
     /// The data type of the unknown family.
     data_type: DataType,
+    /// The claim of this family.
+    claim: TypeClaim,
 }
 
 /// The fields of the unknown family.
@@ -43,6 +47,7 @@ impl UnknownFamily {
     pub fn new() -> Self {
         Self {
             data_type: DataType::Struct(FIELDS_UNKNOWN.clone()),
+            claim: TypeClaim::UnknownLiterals,
         }
     }
 }
@@ -57,7 +62,18 @@ impl TypeFamily for UnknownFamily {
     }
 
     fn claim(&self) -> &TypeClaim {
-        todo!()
+        &self.claim
+    }
+
+    fn encode_value(&self, value: TermRef<'_>) -> DFResult<ScalarValue> {
+        match value {
+            TermRef::Literal(lit) => {
+                let val = ScalarValue::Utf8(Some(lit.value().to_string()));
+                let datatype = ScalarValue::Utf8(Some(lit.datatype().as_str().to_string()));
+                create_struct_scalar(vec![val, datatype], FIELDS_UNKNOWN.clone())
+            }
+            _ => exec_err!("UnknownFamily can only encode literals"),
+        }
     }
 }
 

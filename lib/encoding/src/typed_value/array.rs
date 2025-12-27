@@ -10,7 +10,7 @@ use rdf_fusion_model::DFResult;
 use std::sync::Arc;
 
 /// Represents an Arrow array with a [`TypedValueEncoding`].
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TypedValueArray {
     /// The typed value encoding of this array.
     encoding: TypedValueEncodingRef,

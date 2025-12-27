@@ -1,7 +1,7 @@
 use crate::encoding::EncodingScalar;
 use crate::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
-use crate::{TermDecoder, TermEncoding};
-use datafusion::common::{ScalarValue, exec_err};
+use crate::TermEncoding;
+use datafusion::common::{exec_err, ScalarValue};
 use rdf_fusion_model::{DFResult, ThinResult, TypedValueRef};
 use std::sync::Arc;
 

@@ -1,7 +1,7 @@
 use crate::encoding::TermEncoder;
 use crate::sortable_term::SortableTermEncoding;
 use crate::typed_value::{TypedValueArrayElementBuilder, TypedValueEncodingRef};
-use crate::{EncodingArray, TermDecoder, TermEncoding};
+use crate::{EncodingArray, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
 use std::sync::Arc;

@@ -3,10 +3,10 @@ use crate::typed_value::array::TypedValueArray;
 use crate::typed_value::error::TypedValueEncodingCreationError;
 use crate::typed_value::family::{
     BooleanFamily, DateTimeFamily, DurationFamily, NumericFamily, ResourceFamily,
-    StringFamily, TypeFamily, TypeFamilyRef, UnknownFamily,
+    StringFamily, TypeFamilyRef, UnknownFamily,
 };
 use crate::typed_value::scalar::TypedValueScalar;
-use crate::{EncodingArray, EncodingName, TermEncoder};
+use crate::EncodingName;
 use datafusion::arrow::array::ArrayRef;
 use datafusion::arrow::datatypes::{DataType, Field, UnionFields, UnionMode};
 use datafusion::common::ScalarValue;
@@ -40,8 +40,12 @@ pub type TypedValueEncodingRef = Arc<TypedValueEncoding>;
 pub struct TypedValueEncoding {
     /// The data type of this encoding instance.
     data_type: DataType,
-    /// The registered type families.
-    type_families: Vec<TypeFamilyRef>,
+    /// The registered families (Resource + others + Unknown).
+    families: Vec<TypeFamilyRef>,
+    /// The registered resource family.
+    resource_family: TypeFamilyRef,
+    /// The registered unknown family.
+    unknown_family: TypeFamilyRef,
 }
 
 impl TypedValueEncoding {
@@ -60,8 +64,13 @@ impl TypedValueEncoding {
         type_families: Vec<TypeFamilyRef>,
         unknown_family: TypeFamilyRef,
     ) -> Result<Self, TypedValueEncodingCreationError> {
+        let mut families = Vec::with_capacity(type_families.len() + 2);
+        families.push(resource_family.clone());
+        families.extend(type_families);
+        families.push(unknown_family.clone());
+
         let mut seen = HashSet::new();
-        for type_family in &type_families {
+        for type_family in &families {
             let already_there = seen.insert(type_family.id());
             assert!(
                 already_there,
@@ -75,12 +84,10 @@ impl TypedValueEncoding {
         // TODO check claims
 
         Ok(Self {
-            data_type: build_data_type(
-                resource_family.as_ref(),
-                &type_families,
-                unknown_family.as_ref(),
-            ),
-            type_families,
+            data_type: build_data_type(&families),
+            families,
+            resource_family,
+            unknown_family,
         })
     }
 
@@ -96,48 +103,44 @@ impl TypedValueEncoding {
     ///
     /// The slice will be in the same order as the type families are encoded in the union array.
     pub fn type_families(&self) -> &[TypeFamilyRef] {
-        &self.type_families
+        &self.families
+    }
+
+    /// Returns the resource family.
+    pub fn resource_family(&self) -> &TypeFamilyRef {
+        &self.resource_family
+    }
+
+    /// Returns the unknown family.
+    pub fn unknown_family(&self) -> &TypeFamilyRef {
+        &self.unknown_family
     }
 
     /// Returns the number of registered type families.
     ///
     /// Note that this does not include the null array.
     pub fn num_type_families(&self) -> usize {
-        self.type_families.len()
+        self.families.len()
     }
 
     /// Tries to find a registered [`TypeFamilyRef`] with the given name.
     pub fn find_type_family(&self, id: &str) -> Option<(i8, &TypeFamilyRef)> {
-        self.type_families
+        self.families
             .iter()
             .enumerate()
             .find(|(_, f)| f.id() == id)
-            .map(|(i, f)| (i as i8, f))
+            .map(|(i, f)| ((i + 1) as i8, f))
     }
 }
 
 /// Creates a [`DataType::Union`] for the specifies type families.
-fn build_data_type(
-    resources_family: &dyn TypeFamily,
-    families: &[TypeFamilyRef],
-    unknown_family: &dyn TypeFamily,
-) -> DataType {
+fn build_data_type(families: &[TypeFamilyRef]) -> DataType {
     let mut fields = Vec::new();
 
     fields.push(Field::new("null", DataType::Null, false));
-    fields.push(Field::new(
-        resources_family.id(),
-        resources_family.data_type().clone(),
-        false,
-    ));
     for family in families {
         fields.push(Field::new(family.id(), family.data_type().clone(), false));
     }
-    fields.push(Field::new(
-        unknown_family.id(),
-        unknown_family.data_type().clone(),
-        false,
-    ));
 
     DataType::Union(
         UnionFields::new(0..fields.len() as i8, fields),

@@ -1,6 +1,10 @@
-use crate::typed_value::family::{TypeClaim, TypeFamily};
+use crate::typed_value::family::{create_struct_scalar, TypeClaim, TypeFamily};
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray};
 use datafusion::arrow::datatypes::{DataType, Field, Fields};
+use datafusion::common::{exec_err, ScalarValue};
+use rdf_fusion_model::vocab::{rdf, xsd};
+use rdf_fusion_model::{DFResult, TermRef};
+use std::collections::BTreeSet;
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
 
@@ -29,6 +33,8 @@ use std::sync::LazyLock;
 pub struct StringFamily {
     /// The data type of the string family.
     data_type: DataType,
+    /// The claim of this family.
+    claim: TypeClaim,
 }
 
 /// The fields of the string family.
@@ -42,8 +48,12 @@ static FIELDS_STRING: LazyLock<Fields> = LazyLock::new(|| {
 impl StringFamily {
     /// Creates a new [`StringFamily`].
     pub fn new() -> Self {
+        let mut types = BTreeSet::new();
+        types.insert(xsd::STRING.into());
+        types.insert(rdf::LANG_STRING.into());
         Self {
             data_type: DataType::Struct(FIELDS_STRING.clone()),
+            claim: TypeClaim::Literal(types),
         }
     }
 }
@@ -58,7 +68,22 @@ impl TypeFamily for StringFamily {
     }
 
     fn claim(&self) -> &TypeClaim {
-        todo!()
+        &self.claim
+    }
+
+    fn encode_value(&self, value: TermRef<'_>) -> DFResult<ScalarValue> {
+        match value {
+            TermRef::Literal(lit) => {
+                let val = ScalarValue::Utf8(Some(lit.value().to_string()));
+                let lang = if let Some(l) = lit.language() {
+                    ScalarValue::Utf8(Some(l.to_string()))
+                } else {
+                    ScalarValue::Utf8(None)
+                };
+                create_struct_scalar(vec![val, lang], FIELDS_STRING.clone())
+            }
+            _ => exec_err!("StringFamily can only encode literals"),
+        }
     }
 }
 

@@ -1,5 +1,7 @@
 use crate::typed_value::family::{TypeClaim, TypeFamily};
-use datafusion::arrow::datatypes::{DataType, Field, UnionFields};
+use datafusion::arrow::datatypes::{DataType, Field, UnionFields, UnionMode};
+use datafusion::common::{exec_err, ScalarValue};
+use rdf_fusion_model::{DFResult, TermRef};
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
 use datafusion::arrow::array::{Array, AsArray, GenericStringArray, UnionArray};
@@ -27,6 +29,8 @@ use datafusion::arrow::array::{Array, AsArray, GenericStringArray, UnionArray};
 pub struct ResourceFamily {
     /// The data type of the resource family.
     data_type: DataType,
+    /// The claim of this family.
+    claim: TypeClaim,
 }
 
 static FIELDS_TYPE: LazyLock<UnionFields> = LazyLock::new(|| {
@@ -43,8 +47,9 @@ impl ResourceFamily {
         Self {
             data_type: DataType::Union(
                 FIELDS_TYPE.clone(),
-                datafusion::arrow::datatypes::UnionMode::Dense,
+                UnionMode::Dense,
             ),
+            claim: TypeClaim::Resources,
         }
     }
 }
@@ -59,7 +64,29 @@ impl TypeFamily for ResourceFamily {
     }
 
     fn claim(&self) -> &TypeClaim {
-        todo!()
+        &self.claim
+    }
+    
+    fn encode_value(&self, value: TermRef<'_>) -> DFResult<ScalarValue> {
+        match value {
+            TermRef::NamedNode(nn) => {
+                let inner = ScalarValue::Utf8(Some(nn.as_str().to_string()));
+                Ok(ScalarValue::Union(
+                    Some((0, Box::new(inner))),
+                    FIELDS_TYPE.clone(),
+                    UnionMode::Dense,
+                ))
+            }
+            TermRef::BlankNode(bn) => {
+                let inner = ScalarValue::Utf8(Some(bn.as_str().to_string()));
+                Ok(ScalarValue::Union(
+                    Some((1, Box::new(inner))),
+                    FIELDS_TYPE.clone(),
+                    UnionMode::Dense,
+                ))
+            }
+            _ => exec_err!("ResourceFamily can only encode named nodes and blank nodes"),
+        }
     }
 }
 
