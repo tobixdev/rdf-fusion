@@ -1,5 +1,4 @@
 use crate::encoding::EncodingScalar;
-use crate::typed_value::decoders::DefaultTypedValueDecoder;
 use crate::typed_value::{TypedValueEncoding, TypedValueEncodingRef};
 use crate::{TermDecoder, TermEncoding};
 use datafusion::common::{ScalarValue, exec_err};
@@ -41,7 +40,7 @@ impl TypedValueScalar {
 
     /// Returns a [`TypedValueRef`] to the underlying scalar.
     pub fn as_typed_value(&self) -> ThinResult<TypedValueRef<'_>> {
-        DefaultTypedValueDecoder::decode_term(self)
+        todo!()
     }
 }
 

@@ -1,6 +1,5 @@
 use crate::encoding::TermEncoding;
 use crate::typed_value::array::TypedValueArray;
-use crate::typed_value::encoders::{DefaultTypedValueEncoder, TermRefTypedValueEncoder};
 use crate::typed_value::error::TypedValueEncodingCreationError;
 use crate::typed_value::family::{
     BooleanFamily, DateTimeFamily, DurationFamily, NumericFamily, ResourceFamily,
@@ -85,6 +84,21 @@ impl TypedValueEncoding {
         })
     }
 
+    /// Returns the fields of the data type of this encoding.
+    pub fn data_type_fields(&self) -> UnionFields {
+        match &self.data_type {
+            DataType::Union(fields, _) => fields.clone(),
+            _ => unreachable!("Always a union array"),
+        }
+    }
+
+    /// Returns a reference to the registered type families.
+    ///
+    /// The slice will be in the same order as the type families are encoded in the union array.
+    pub fn type_families(&self) -> &[TypeFamilyRef] {
+        &self.type_families
+    }
+
     /// Returns the number of registered type families.
     ///
     /// Note that this does not include the null array.
@@ -99,16 +113,6 @@ impl TypedValueEncoding {
             .enumerate()
             .find(|(_, f)| f.id() == id)
             .map(|(i, f)| (i as i8, f))
-    }
-
-    /// Creates a new [`DefaultTypedValueEncoder`].
-    pub fn default_encoder(self: &Arc<Self>) -> DefaultTypedValueEncoder {
-        DefaultTypedValueEncoder::new(Arc::clone(self))
-    }
-
-    /// Creates a new [`TermRefTypedValueEncoder`].
-    pub fn term_encoder(self: &Arc<Self>) -> TermRefTypedValueEncoder {
-        TermRefTypedValueEncoder::new(Arc::clone(self))
     }
 }
 
@@ -165,10 +169,11 @@ impl TypedValueEncoding {
         &self,
         term: ThinResult<TermRef<'_>>,
     ) -> DFResult<TypedValueScalar> {
-        let arc = Arc::new(self.clone());
-        TermRefTypedValueEncoder::new(arc)
-            .encode_terms([term])?
-            .try_as_scalar(0)
+        // let arc = Arc::new(self.clone());
+        // TermRefTypedValueEncoder::new(arc)
+        //     .encode_terms([term])?
+        //     .try_as_scalar(0)
+        todo!("Use builder and try_as_scalar")
     }
 }
 

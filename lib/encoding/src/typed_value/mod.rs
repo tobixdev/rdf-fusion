@@ -1,8 +1,6 @@
 mod array;
 mod builder;
-pub mod decoders;
 mod element_builder;
-pub mod encoders;
 mod encoding;
 mod error;
 pub mod family;

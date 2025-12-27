@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 /// Represents the name of a single [TermEncoding](crate::TermEncoding).
 ///
 /// RDF Fusion allows users to define multiple encodings for RDF terms. This allows specializing the
@@ -24,4 +26,15 @@ pub enum EncodingName {
     /// for sorting. We plan to remove this encoding in the future, once we can introduce custom
     /// orderings into the query engine.
     Sortable,
+}
+
+impl Display for EncodingName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EncodingName::ObjectId => write!(f, "Object ID"),
+            EncodingName::PlainTerm => write!(f, "Plain Term"),
+            EncodingName::TypedValue => write!(f, "Typed Value"),
+            EncodingName::Sortable => write!(f, "Sortable"),
+        }
+    }
 }

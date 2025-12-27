@@ -1,10 +1,10 @@
-use std::any::Any;
 use crate::typed_value::family::TypeFamily;
 use crate::typed_value::{TypedValueArray, TypedValueEncoding, TypedValueEncodingRef};
 use crate::TermEncoding;
 use datafusion::arrow::array::{
-    Array, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int32Array,
-    Int64Array, NullArray, StringArray, StructArray, UnionArray,
+    new_empty_array, Array
+    , ArrayRef, NullArray,
+    UnionArray,
 };
 use datafusion::arrow::buffer::{NullBuffer, ScalarBuffer};
 use datafusion::common::{exec_datafusion_err, exec_err};
@@ -12,13 +12,11 @@ use rdf_fusion_model::DFResult;
 use std::sync::Arc;
 
 /// Allows creating a [TypedValueArray] from its array parts.
-///
-/// If you aim to build an array element-by-element, see [TypedValueArrayElementBuilder](super::TypedValueArrayElementBuilder).
 pub struct TypedValueArrayBuilder {
     encoding: TypedValueEncodingRef,
     type_ids: Vec<i8>,
     offsets: Vec<i32>,
-    arrays: Vec<Option<Arc<dyn Array>>>,
+    arrays: Vec<Option<ArrayRef>>,
 }
 
 impl TypedValueArrayBuilder {
@@ -42,11 +40,12 @@ impl TypedValueArrayBuilder {
             );
         }
 
+        let arrays_size = encoding.num_type_families() + 1;
         Ok(Self {
             encoding,
             type_ids,
             offsets,
-            arrays: vec![None; encoding.num_type_families() + 1],
+            arrays: vec![None; arrays_size],
         })
     }
 
@@ -106,8 +105,8 @@ impl TypedValueArrayBuilder {
     }
 
     /// Sets the null array.
-    pub fn with_nulls(mut self, array: Arc<dyn Array>) -> Self {
-        self.arrays[TypedValueEncoding::NULL_TYPE_ID] = Some(array);
+    pub fn with_nulls(mut self, array: ArrayRef) -> Self {
+        self.arrays[TypedValueEncoding::NULL_TYPE_ID as usize] = Some(array);
         self
     }
 
@@ -115,154 +114,49 @@ impl TypedValueArrayBuilder {
     pub fn with_array(
         mut self,
         type_family: &dyn TypeFamily,
-        array: Arc<dyn Array>,
-    ) -> Self {
-        let type_id = self.encoding.find_type_family(type_family.id());
-        self.named_nodes = Some(array);
-        self
-    }
+        array: Option<ArrayRef>,
+    ) -> DFResult<Self> {
+        let (type_id, family) = self.encoding.find_type_family(type_family.id()).ok_or(
+            exec_datafusion_err!(
+                "Type family {} not found in encoding {}",
+                type_family.id(),
+                self.encoding.name()
+            ),
+        )?;
 
-    /// Sets the blank nodes array.
-    pub fn with_blank_nodes(mut self, array: Arc<dyn Array>) -> Self {
-        self.blank_nodes = Some(array);
-        self
-    }
+        if let Some(array) = &array {
+            if type_family.data_type() != array.data_type() {
+                return exec_err!(
+                    "Type family {} has data type {} but array has data type {}",
+                    type_family.id(),
+                    type_family.data_type(),
+                    array.data_type()
+                );
+            }
+        }
 
-    /// Sets the string array
-    pub fn with_strings(mut self, array: Arc<dyn Array>) -> Self {
-        self.strings = Some(array);
-        self
-    }
-
-    /// Sets the boolean array.
-    pub fn with_booleans(mut self, array: Arc<dyn Array>) -> Self {
-        self.booleans = Some(array);
-        self
-    }
-
-    /// Sets the float array.
-    pub fn with_floats(mut self, array: Arc<dyn Array>) -> Self {
-        self.floats = Some(array);
-        self
-    }
-
-    /// Sets the double array.
-    pub fn with_doubles(mut self, array: Arc<dyn Array>) -> Self {
-        self.doubles = Some(array);
-        self
-    }
-
-    /// Sets the decimal array.
-    pub fn with_decimals(mut self, array: Arc<dyn Array>) -> Self {
-        self.decimals = Some(array);
-        self
-    }
-
-    /// Sets the int32 array.
-    pub fn with_ints(mut self, array: Arc<dyn Array>) -> Self {
-        self.ints = Some(array);
-        self
-    }
-
-    /// Sets the integer array.
-    pub fn with_integers(mut self, array: Arc<dyn Array>) -> Self {
-        self.integers = Some(array);
-        self
-    }
-
-    /// Sets the date times array.
-    pub fn with_date_times(mut self, array: Arc<dyn Array>) -> Self {
-        self.date_times = Some(array);
-        self
-    }
-
-    /// Sets the times array.
-    pub fn with_times(mut self, array: Arc<dyn Array>) -> Self {
-        self.times = Some(array);
-        self
-    }
-
-    /// Sets the dates array.
-    pub fn with_dates(mut self, array: Arc<dyn Array>) -> Self {
-        self.dates = Some(array);
-        self
-    }
-
-    /// Sets the durations array.
-    pub fn with_durations(mut self, array: Arc<dyn Array>) -> Self {
-        self.durations = Some(array);
-        self
-    }
-
-    /// Sets the typed literals array.
-    pub fn with_typed_literals(mut self, array: Arc<dyn Array>) -> Self {
-        self.typed_literals = Some(array);
-        self
+        self.arrays[type_id as usize] = array;
+        Ok(self)
     }
 
     /// Tries to create a new [TypedValueArray] and validates the given arrays.
     ///
     /// For a list of invariants that must be upheld, see [UnionArray::try_new].
     pub fn finish(self) -> DFResult<TypedValueArray> {
+        let arrays = self
+            .arrays
+            .into_iter()
+            .zip(self.encoding.type_families())
+            .map(|(arr, family)| {
+                arr.unwrap_or_else(|| new_empty_array(family.data_type()))
+            })
+            .collect();
+
         self.encoding.try_new_array(Arc::new(UnionArray::try_new(
-            TypedValueEncoding::fields(),
+            self.encoding.data_type_fields(),
             ScalarBuffer::from(self.type_ids),
             Some(ScalarBuffer::from(self.offsets)),
-            vec![
-                self.nulls.unwrap_or_else(|| Arc::new(NullArray::new(0))),
-                self.named_nodes
-                    .unwrap_or_else(|| Arc::new(StringArray::new_null(0))),
-                self.blank_nodes
-                    .unwrap_or_else(|| Arc::new(StringArray::new_null(0))),
-                self.strings.unwrap_or_else(|| {
-                    Arc::new(StructArray::new_null(
-                        TypedValueEncoding::string_fields(),
-                        0,
-                    ))
-                }),
-                self.booleans
-                    .unwrap_or_else(|| Arc::new(BooleanArray::new_null(0))),
-                self.floats
-                    .unwrap_or_else(|| Arc::new(Float32Array::new_null(0))),
-                self.doubles
-                    .unwrap_or_else(|| Arc::new(Float64Array::new_null(0))),
-                self.decimals
-                    .unwrap_or_else(|| Arc::new(Decimal128Array::new_null(0))),
-                self.ints
-                    .unwrap_or_else(|| Arc::new(Int32Array::new_null(0))),
-                self.integers
-                    .unwrap_or_else(|| Arc::new(Int64Array::new_null(0))),
-                self.date_times.unwrap_or_else(|| {
-                    Arc::new(StructArray::new_null(
-                        TypedValueEncoding::timestamp_fields(),
-                        0,
-                    ))
-                }),
-                self.times.unwrap_or_else(|| {
-                    Arc::new(StructArray::new_null(
-                        TypedValueEncoding::timestamp_fields(),
-                        0,
-                    ))
-                }),
-                self.dates.unwrap_or_else(|| {
-                    Arc::new(StructArray::new_null(
-                        TypedValueEncoding::timestamp_fields(),
-                        0,
-                    ))
-                }),
-                self.durations.unwrap_or_else(|| {
-                    Arc::new(StructArray::new_null(
-                        TypedValueEncoding::duration_fields(),
-                        0,
-                    ))
-                }),
-                self.typed_literals.unwrap_or_else(|| {
-                    Arc::new(StructArray::new_null(
-                        TypedValueEncoding::typed_literal_fields(),
-                        0,
-                    ))
-                }),
-            ],
+            arrays,
         )?))
     }
 }

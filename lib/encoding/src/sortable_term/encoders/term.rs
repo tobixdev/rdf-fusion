@@ -1,10 +1,6 @@
 use crate::encoding::TermEncoder;
-use crate::sortable_term::encoders::TypedValueRefSortableTermEncoder;
 use crate::sortable_term::SortableTermEncoding;
-use crate::typed_value::decoders::DefaultTypedValueDecoder;
-use crate::typed_value::{
-    TypedValueArrayElementBuilder, TypedValueEncodingRef,
-};
+use crate::typed_value::{TypedValueArrayElementBuilder, TypedValueEncodingRef};
 use crate::{EncodingArray, TermDecoder, TermEncoding};
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, ThinResult, TypedValueRef};
@@ -43,8 +39,9 @@ impl TermEncoder<SortableTermEncoding> for TermRefSortableTermEncoder {
         }
         let typed_values = typed_values_array.finish();
 
-        let typed_values = DefaultTypedValueDecoder::decode_terms(&typed_values);
-        TypedValueRefSortableTermEncoder.encode_terms(typed_values)
+        // let typed_values = DefaultTypedValueDecoder::decode_terms(&typed_values);
+        // TypedValueRefSortableTermEncoder.encode_terms(typed_values)
+        todo!()
     }
 
     fn encode_term(

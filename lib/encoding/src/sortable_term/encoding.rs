@@ -106,9 +106,10 @@ impl SortableTermEncoding {
         &self,
         term: ThinResult<TermRef<'_>>,
     ) -> DFResult<SortableTermScalar> {
-        TermRefSortableTermEncoder::default()
-            .encode_terms([term])?
-            .try_as_scalar(0)
+        // TermRefSortableTermEncoder::default()
+        //     .encode_terms([term])?
+        //     .try_as_scalar(0)
+        todo!()
     }
 }
 
