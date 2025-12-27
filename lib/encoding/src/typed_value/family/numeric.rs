@@ -90,6 +90,8 @@ impl TypeFamily for NumericFamily {
     }
 
     fn encode_value(&self, value: TermRef<'_>) -> DFResult<ScalarValue> {
+        todo!("i) Each family should have an iter method with a given type (e.g., Numeric here)");
+        todo!("ii) use this type for parsing. Not typed value.");
         let tv = TypedValueRef::try_from(value)
             .map_err(|e| datafusion::error::DataFusionError::External(Box::new(e)))?;
         match tv {
