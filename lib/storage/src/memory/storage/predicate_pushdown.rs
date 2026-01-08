@@ -254,7 +254,7 @@ impl Display for DynamicFilterScanPredicateSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let expr = self.0.current().map_err(|_| std::fmt::Error)?;
         let snapshot = snapshot_generation(&expr);
-        write!(f, "DynamicFilter [ Generation {} ]", snapshot)
+        write!(f, "DynamicFilter [ Generation {snapshot} ]")
     }
 }
 
