@@ -311,7 +311,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
 
         let outer_ref_column =
             expr_builder_ctx.try_create_builder(Expr::OuterReferenceColumn(
-                Arc::new(outer_field.clone()),
+                Arc::clone(outer_field),
                 Column::new_unqualified(k),
             ))?;
         let encoding = expr_builder_ctx
