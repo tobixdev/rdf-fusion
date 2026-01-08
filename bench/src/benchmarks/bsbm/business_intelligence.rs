@@ -39,10 +39,10 @@ pub enum BsbmBusinessIntelligenceQueryName {
 impl BsbmBusinessIntelligenceQueryName {
     pub fn list_queries() -> Vec<Self> {
         vec![
-            BsbmBusinessIntelligenceQueryName::Q1,
-            BsbmBusinessIntelligenceQueryName::Q2,
-            BsbmBusinessIntelligenceQueryName::Q3,
-            BsbmBusinessIntelligenceQueryName::Q4,
+            // BsbmBusinessIntelligenceQueryName::Q1,
+            // BsbmBusinessIntelligenceQueryName::Q2,
+            // BsbmBusinessIntelligenceQueryName::Q3,
+            // BsbmBusinessIntelligenceQueryName::Q4,
             BsbmBusinessIntelligenceQueryName::Q5,
             BsbmBusinessIntelligenceQueryName::Q6,
             BsbmBusinessIntelligenceQueryName::Q7,
