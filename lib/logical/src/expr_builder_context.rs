@@ -1,23 +1,23 @@
 use crate::RdfFusionExprBuilder;
 use datafusion::arrow::datatypes::DataType;
 use datafusion::common::{
-    Column, DFSchema, Spans, exec_datafusion_err, plan_datafusion_err, plan_err,
+    exec_datafusion_err, plan_datafusion_err, plan_err, Column, DFSchema, Spans,
 };
 use datafusion::functions_aggregate::count::count;
 use datafusion::logical_expr::expr::AggregateFunction;
 use datafusion::logical_expr::utils::COUNT_STAR_EXPANSION;
 use datafusion::logical_expr::{
-    Expr, ExprSchemable, LogicalPlan, LogicalPlanBuilder, ScalarUDF, Subquery, and,
-    exists, lit, not_exists,
+    and, exists, lit, not_exists, Expr, ExprSchemable, LogicalPlan,
+    LogicalPlanBuilder, ScalarUDF, Subquery,
 };
 use rdf_fusion_encoding::plain_term::encoders::DefaultPlainTermEncoder;
 use rdf_fusion_encoding::{
     EncodingName, EncodingScalar, RdfFusionEncodings, TermEncoder,
 };
-use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_extensions::functions::{
     BuiltinName, FunctionName, RdfFusionFunctionRegistry,
 };
+use rdf_fusion_extensions::RdfFusionContextView;
 use rdf_fusion_model::DFResult;
 use rdf_fusion_model::{TermRef, ThinError, VariableRef};
 use std::collections::HashSet;
@@ -346,12 +346,12 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         expr: Expr,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
-        if data_type != DataType::Int64 {
+        let field = expr.to_field(self.schema)?.1;
+        if field.data_type() != &DataType::Int64 {
             return plan_err!(
                 "Expected Int64 argument for {}, got {}",
                 BuiltinName::NativeInt64AsTerm,
-                data_type
+                field.data_type()
             );
         }
 
@@ -366,12 +366,12 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         expr: Expr,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
-        if data_type != DataType::Boolean {
+        let field = expr.to_field(self.schema)?.1;
+        if field.data_type() != &DataType::Boolean {
             return plan_err!(
                 "Expected boolean arguments for {}, got {}",
                 BuiltinName::NativeBooleanAsTerm,
-                data_type
+                field.data_type()
             );
         }
 
@@ -391,13 +391,15 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// - [SPARQL 1.1 - Logical-and](https://www.w3.org/TR/sparql11-query/#func-logical-and)
     /// - [SPARQL 1.1 - Filter Evaluation](https://www.w3.org/TR/sparql11-query/#evaluation)
     pub fn and(&self, lhs: Expr, rhs: Expr) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
-        let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
-        if lhs_data_type != DataType::Boolean || rhs_data_type != DataType::Boolean {
+        let lhs_field = lhs.to_field(self.schema)?.1;
+        let rhs_field = rhs.to_field(self.schema)?.1;
+        if lhs_field.data_type() != &DataType::Boolean
+            || rhs_field.data_type() != &DataType::Boolean
+        {
             return plan_err!(
                 "Expected boolean arguments for and, got {} and {}",
-                lhs_data_type,
-                rhs_data_type
+                lhs_field.data_type(),
+                rhs_field.data_type()
             );
         }
 
@@ -416,13 +418,15 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         lhs: Expr,
         rhs: Expr,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
-        let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
-        if lhs_data_type != DataType::Boolean || rhs_data_type != DataType::Boolean {
+        let lhs_field = lhs.to_field(self.schema)?.1;
+        let rhs_field = rhs.to_field(self.schema)?.1;
+        if lhs_field.data_type() != &DataType::Boolean
+            || rhs_field.data_type() != &DataType::Boolean
+        {
             return plan_err!(
                 "Expected boolean arguments for and, got {} and {}",
-                lhs_data_type,
-                rhs_data_type
+                lhs_field.data_type(),
+                rhs_field.data_type()
             );
         }
 
