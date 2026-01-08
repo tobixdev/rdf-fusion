@@ -80,8 +80,8 @@ impl SparqlJoinNode {
         let schema = compute_schema(join_type, &lhs, &rhs)?;
 
         if let Some(filter) = &filter {
-            let (data_type, _) = filter.data_type_and_nullable(&schema)?;
-            if data_type != DataType::Boolean {
+            let field = filter.to_field(&schema)?.1;
+            if field.data_type() != &DataType::Boolean {
                 return plan_err!("Filter must be a boolean expression.");
             }
         }

@@ -11,22 +11,19 @@ ProjectionExec: expr=[ENC_PT(label@0) as label, ENC_PT(comment@1) as comment, EN
             CrossJoinExec
               CrossJoinExec
                 CrossJoinExec
-                  CoalesceBatchesExec: target_batch_size=8192
-                    HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(f@3, f@0)], projection=[label@0, comment@1, producer@2, productFeature@5]
-                      CrossJoinExec
-                        CoalesceBatchesExec: target_batch_size=8192
-                          HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@2, p@0)], projection=[label@0, comment@1, producer@3]
-                            CoalesceBatchesExec: target_batch_size=8192
-                              HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@2, p@0)], projection=[label@0, comment@1, p@2, producer@4]
-                                CrossJoinExec
-                                  CrossJoinExec
-                                    DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?label
-                                    DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www.w3.org/2000/01/rdf-schema#comment>, object=?comment
-                                  DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=?p
-                                DataSourceExec: [GPOS] subject=?p, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?producer, additional_filters=[DynamicFilter [ p@0 >= <object id> AND p@0 <= <object id> ]]
-                            DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?p, additional_filters=[DynamicFilter [ p@0 >= <object id> AND p@0 <= <object id> ]]
-                        DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?f
-                      DataSourceExec: [GPOS] subject=?f, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?productFeature, additional_filters=[DynamicFilter [ f@0 >= <object id> AND f@0 <= <object id> ]]
+                  HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(f@3, f@0)], projection=[label@0, comment@1, producer@2, productFeature@5]
+                    CrossJoinExec
+                      HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@2, p@0)], projection=[label@0, comment@1, producer@3]
+                        HashJoinExec: mode=CollectLeft, join_type=Inner, on=[(p@2, p@0)], projection=[label@0, comment@1, p@2, producer@4]
+                          CrossJoinExec
+                            CrossJoinExec
+                              DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?label
+                              DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www.w3.org/2000/01/rdf-schema#comment>, object=?comment
+                            DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/producer>, object=?p
+                          DataSourceExec: [GPOS] subject=?p, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?producer, additional_filters=[DynamicFilter [ empty ]]
+                        DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://purl.org/dc/elements/1.1/publisher>, object=?p, additional_filters=[DynamicFilter [ empty ]]
+                      DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?f
+                    DataSourceExec: [GPOS] subject=?f, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?productFeature, additional_filters=[DynamicFilter [ empty ]]
                   DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual1>, object=?propertyTextual1
                 DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual2>, object=?propertyTextual2
               DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer6/Product272>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyTextual3>, object=?propertyTextual3

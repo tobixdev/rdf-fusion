@@ -538,15 +538,15 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// Returns an error if any [Expr] does not evaluate to an RDF term.
     pub(crate) fn get_encodings(&self, args: &[Expr]) -> DFResult<Vec<EncodingName>> {
         args.iter()
-            .map(|e| {
-                let (data_type, _) = e.data_type_and_nullable(self.schema)?;
-                Ok(data_type)
-            })
-            .map(|r| {
-                r.and_then(|dt| {
-                    self.encodings().try_get_encoding_name(&dt).ok_or(
-                        exec_datafusion_err!("Data type is not an RDF term '{}'", dt),
-                    )
+            .map(|expr| Ok(expr.to_field(self.schema)?.1))
+            .map(|field| {
+                field.and_then(|field| {
+                    self.encodings()
+                        .try_get_encoding_name(field.data_type())
+                        .ok_or(exec_datafusion_err!(
+                            "Data type is not an RDF term '{}'",
+                            field
+                        ))
                 })
             })
             .collect::<DFResult<Vec<_>>>()

@@ -1,6 +1,8 @@
 use crate::BenchmarkingOptions;
 use crate::benchmarks::BenchmarkName;
-use crate::prepare::{PrepRequirement, prepare_run_closure, prepare_run_command};
+use crate::prepare::{
+    PrepRequirement, prepare_copy_file, prepare_run_closure, prepare_run_command,
+};
 use crate::prepare::{ensure_file_download, prepare_file_download};
 use anyhow::bail;
 use datafusion::execution::runtime_env::{RuntimeEnv, RuntimeEnvBuilder};
@@ -13,6 +15,9 @@ use std::sync::{Arc, Mutex};
 pub struct RdfFusionBenchContext {
     /// General options for the benchmarks.
     options: BenchmarkingOptions,
+    /// The path to existing benchmark files. This will always point to the root of the bench_files
+    /// directory.
+    bench_files_dir: PathBuf,
     /// The path to the data dir.
     data_dir: Mutex<PathBuf>,
     /// The path to the results dir.
@@ -23,11 +28,13 @@ impl RdfFusionBenchContext {
     /// Creates a new [RdfFusionBenchContext].
     pub fn new(
         options: BenchmarkingOptions,
+        bench_files_dir: PathBuf,
         data_dir: PathBuf,
         results_dir: PathBuf,
     ) -> Self {
         Self {
             options,
+            bench_files_dir,
             data_dir: Mutex::new(data_dir),
             results_dir: Mutex::new(results_dir),
         }
@@ -42,6 +49,7 @@ impl RdfFusionBenchContext {
                 memory_size: None,
             },
             data_dir: Mutex::new(data_dir),
+            bench_files_dir: PathBuf::from("./bench_files"),
             results_dir: Mutex::new(PathBuf::from("/temp")),
         }
     }
@@ -57,7 +65,7 @@ impl RdfFusionBenchContext {
             bail!("Only relative paths can be resolved.")
         }
 
-        Ok(self.data_dir.lock().unwrap().join(file))
+        Ok(self.data_dir.lock().expect("Poisoned").join(file))
     }
 
     pub fn create_store(&self) -> Store {
@@ -145,6 +153,12 @@ impl<'ctx> BenchmarkContext<'ctx> {
         self.benchmark_name
     }
 
+    /// Provides access to the benchmark files. This will always point to the root of the
+    /// bench_files directory.
+    pub fn bench_files_dir(&self) -> PathBuf {
+        self.context.bench_files_dir.clone()
+    }
+
     /// Returns the path to the results directory of this benchmark.
     pub fn data_dir(&self) -> PathBuf {
         self.context.data_dir.lock().unwrap().clone()
@@ -161,6 +175,11 @@ impl<'ctx> BenchmarkContext<'ctx> {
         requirement: PrepRequirement,
     ) -> anyhow::Result<()> {
         match requirement {
+            PrepRequirement::CopyFile {
+                source_path,
+                target_path,
+                action,
+            } => prepare_copy_file(self, &source_path, &target_path, action.as_ref()),
             PrepRequirement::FileDownload {
                 url,
                 file_name,
@@ -184,6 +203,9 @@ impl<'ctx> BenchmarkContext<'ctx> {
     /// Ensures that the `requirement` is fulfilled in this context.
     pub fn ensure_requirement(&self, requirement: PrepRequirement) -> anyhow::Result<()> {
         match requirement {
+            PrepRequirement::CopyFile { target_path, .. } => {
+                ensure_file_download(self, target_path.as_path())
+            }
             PrepRequirement::FileDownload { file_name, .. } => {
                 ensure_file_download(self, file_name.as_path())
             }

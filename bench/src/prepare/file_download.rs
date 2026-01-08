@@ -1,14 +1,9 @@
 use crate::environment::BenchmarkContext;
-use crate::prepare::FileDownloadAction;
-use crate::prepare::requirement::ArchiveType;
+use crate::prepare::actions::{FileAction, execute_file_action};
 use anyhow::{Context, bail};
-use bzip2::read::MultiBzDecoder;
 use reqwest::Url;
-use std::fs::File;
-use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::{fs, path};
-use zip::ZipArchive;
 
 pub fn ensure_file_download(
     env: &BenchmarkContext,
@@ -31,7 +26,7 @@ pub async fn prepare_file_download(
     env: &BenchmarkContext<'_>,
     url: Url,
     file_name: PathBuf,
-    action: Option<FileDownloadAction>,
+    action: Option<FileAction>,
 ) -> anyhow::Result<()> {
     println!("Downloading file '{url}' ...");
     let file_path = env
@@ -66,29 +61,7 @@ pub async fn prepare_file_download(
         .context("Can't write response to file")?;
     println!("File downloaded.");
 
-    match action {
-        None => {}
-        Some(FileDownloadAction::Unpack(archive_type)) => {
-            println!("Unpacking file ...");
-            match archive_type {
-                ArchiveType::Bz2 => {
-                    let mut buf = Vec::new();
-                    MultiBzDecoder::new(File::open(&file_path)?).read_to_end(&mut buf)?;
-                    fs::write(&file_path, &buf)?;
-                }
-                ArchiveType::Zip => {
-                    let archive = fs::read(&file_path).context("Cannot read zip file")?;
-                    fs::remove_file(&file_path)
-                        .context("Cannot remove existing .zip file")?;
-                    ZipArchive::new(Cursor::new(archive))
-                        .context("Invalid .zip file")?
-                        .extract_unwrapped_root_dir(&file_path, |_| true)
-                        .context("Cannot extract zip file")?;
-                }
-            }
-            println!("File unpacked.");
-        }
-    }
+    execute_file_action(&file_path, action.as_ref())?;
 
     Ok(())
 }
