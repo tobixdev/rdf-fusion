@@ -1,5 +1,7 @@
 use crate::index::{IndexComponents, IndexPermutations, QuadIndex, ScanInstructions};
-use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
+use crate::memory::storage::predicate_pushdown::{
+    DynamicFilterScanPredicateSource, MemStoragePredicateExpr,
+};
 use crate::memory::storage::quad_index::MemQuadIndex;
 use crate::memory::storage::quad_index_data::{MemRowGroup, RowGroupPruningResult};
 use crate::memory::storage::scan_instructions::{
@@ -466,9 +468,8 @@ impl PlannedPatternScan {
     /// Applies the given `filter` to the scan.
     pub fn apply_filter(self, filter: &MemStoragePredicateExpr) -> DFResult<Self> {
         if let MemStoragePredicateExpr::Dynamic(filter) = filter {
-            return Ok(self.with_dynamic_filter(
-                Arc::clone(filter) as Arc<dyn MemIndexScanPredicateSource>
-            ));
+            let dyn_filter = DynamicFilterScanPredicateSource::new(Arc::clone(filter));
+            return Ok(self.with_dynamic_filter(Arc::new(dyn_filter)));
         }
 
         let new_instructions = self.instructions.apply_filter(filter)?;
