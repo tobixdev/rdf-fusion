@@ -17,10 +17,10 @@ ProjectionExec: expr=[ENC_PT(first_value(product) ORDER BY [ENC_SORT(ENC_PT(prod
                         DataSourceExec: [GPOS] subject=?product, predicate=<http://www.w3.org/2000/01/rdf-schema#label>, object=?productLabel
                       DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature
                     FilterExec: product@0 != <object id>
-                      DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature, additional_filters=[DynamicFilter [ Generation 0 ]]
+                      DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productFeature>, object=?prodFeature, additional_filters=[DynamicFilter [ Generation 2; Cannot obtain current predicate expr. ]]
                   DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?origProperty1
                 FilterExec: product@0 != <object id>
-                  DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?simProperty1, additional_filters=[DynamicFilter [ Generation 0 ]]
+                  DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric1>, object=?simProperty1, additional_filters=[DynamicFilter [ Generation 2; product in (<object id range>) ]]
               DataSourceExec: [GSPO] subject=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/dataFromProducer19/Product890>, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?origProperty2
             FilterExec: product@0 != <object id>
-              DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?simProperty2, additional_filters=[DynamicFilter [ Generation 0 ]]
+              DataSourceExec: [GPOS] subject=?product, predicate=<http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/productPropertyNumeric2>, object=?simProperty2, additional_filters=[DynamicFilter [ Generation 2; product in (<object id range>) ]]

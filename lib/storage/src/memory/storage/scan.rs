@@ -245,7 +245,7 @@ fn combine_instructions_with_dynamic_filters(
     // Filter out any dynamic filters that are not supported by the index.
     let supported_filters = dynamic_filters
         .iter()
-        .flat_map(|s| s.current_predicate().ok())
+        .flat_map(|s| s.current_predicate_expr().ok())
         .collect_vec();
 
     if supported_filters.is_empty() {
@@ -747,7 +747,7 @@ mod tests {
     }
 
     impl MemIndexScanPredicateSource for MockDynamicFilter {
-        fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr> {
+        fn current_predicate_expr(&self) -> DFResult<MemStoragePredicateExpr> {
             Ok(self.predicate.lock().unwrap().clone())
         }
     }
