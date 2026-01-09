@@ -30,24 +30,24 @@ pub fn prepare_copy_file(
         target_path.display()
     );
 
-    let file_path = env
+    let target_path = env
         .parent()
         .join_data_dir(target_path)
         .context("Cant join data dir with target path")?;
-    if file_path.exists() {
-        if file_path.is_dir() {
-            fs::remove_dir_all(&file_path)
+    if target_path.exists() {
+        if target_path.is_dir() {
+            fs::remove_dir_all(&target_path)
                 .context("Cannot remove existing directory in prepare_copy_file")?;
         } else {
-            fs::remove_file(&file_path)
+            fs::remove_file(&target_path)
                 .context("Cannot remove existing file in prepare_copy_file")?;
         }
     }
 
-    fs::copy(source_path, &file_path).context("Cannot copy file")?;
-    println!("File downloaded.");
+    fs::copy(source_path, &target_path).context("Cannot copy file")?;
+    println!("File Copied.");
 
-    execute_file_action(&file_path, action)?;
+    execute_file_action(&target_path, action)?;
 
     Ok(())
 }
