@@ -1,6 +1,8 @@
 use crate::index::{IndexComponents, IndexPermutations, QuadIndex, ScanInstructions};
 use crate::memory::object_id::EncodedObjectId;
-use crate::memory::storage::predicate_pushdown::MemStoragePredicateExpr;
+use crate::memory::storage::predicate_pushdown::{
+    DynamicFilterScanPredicateSource, MemStoragePredicateExpr,
+};
 use crate::memory::storage::quad_index::MemQuadIndex;
 use crate::memory::storage::quad_index_data::{MemRowGroup, RowGroupPruningResult};
 use crate::memory::storage::scan_instructions::{
@@ -244,7 +246,7 @@ fn combine_instructions_with_dynamic_filters(
     // Filter out any dynamic filters that are not supported by the index.
     let supported_filters = dynamic_filters
         .iter()
-        .flat_map(|s| s.current_predicate().ok())
+        .flat_map(|s| s.current_predicate_expr().ok())
         .collect_vec();
 
     if supported_filters.is_empty() {
@@ -478,9 +480,8 @@ impl PlannedPatternScan {
     /// Applies the given `filter` to the scan.
     pub fn apply_filter(self, filter: &MemStoragePredicateExpr) -> DFResult<Self> {
         if let MemStoragePredicateExpr::Dynamic(filter) = filter {
-            return Ok(self.with_dynamic_filter(
-                Arc::clone(filter) as Arc<dyn MemIndexScanPredicateSource>
-            ));
+            let dyn_filter = DynamicFilterScanPredicateSource::new(Arc::clone(filter));
+            return Ok(self.with_dynamic_filter(Arc::new(dyn_filter)));
         }
 
         let new_instructions = self.instructions.apply_filter(filter)?;
@@ -758,7 +759,7 @@ mod tests {
     }
 
     impl MemIndexScanPredicateSource for MockDynamicFilter {
-        fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr> {
+        fn current_predicate_expr(&self) -> DFResult<MemStoragePredicateExpr> {
             Ok(self.predicate.lock().unwrap().clone())
         }
     }

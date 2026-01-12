@@ -11,6 +11,7 @@ use datafusion::physical_expr::PhysicalExpr;
 use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::collections::BTreeSet;
+use std::fmt::Display;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -78,9 +79,22 @@ impl MemStoragePredicateExpr {
     ///
     /// If [None] is returned, the expression was not supported.
     pub fn try_from(expr: &Arc<dyn PhysicalExpr>) -> Option<Self> {
-        let any_expr = Arc::clone(expr) as Arc<dyn Any + Send + Sync>;
-        if let Ok(expr) = any_expr.downcast::<DynamicFilterPhysicalExpr>() {
-            return Some(MemStoragePredicateExpr::Dynamic(expr));
+        // We explicitly do not copy the `Arc` as the filter might be considered as unused.
+        if expr
+            .as_any()
+            .downcast_ref::<DynamicFilterPhysicalExpr>()
+            .is_some()
+        {
+            let cloned = Arc::clone(expr)
+                .with_new_children(
+                    expr.children().iter().map(|c| Arc::clone(*c)).collect(),
+                )
+                .expect("Old children are valid");
+            let cast = (cloned as Arc<dyn Any + Send + Sync>)
+                .downcast::<DynamicFilterPhysicalExpr>()
+                .expect("Type checked above");
+
+            return Some(MemStoragePredicateExpr::Dynamic(cast));
         }
 
         try_rewrite_datafusion_expr(expr)
@@ -98,7 +112,8 @@ impl MemStoragePredicateExpr {
         }
     }
 
-    /// Returns the [MemIndexScanPredicate] that implements this expression.
+    /// Returns the [MemIndexScanPredicate] that implements this expression. For dynamic
+    /// expressions, the current snapshot will be used.
     ///
     /// Returns [None] if the expression always evaluates to true.
     /// Returns [Err] if the expression is not a predicate.
@@ -127,8 +142,12 @@ impl MemStoragePredicateExpr {
             }),
             MemStoragePredicateExpr::Between(_, from, to) => Some(Between(*from, *to)),
 
-            // Handled differently
-            MemStoragePredicateExpr::Dynamic(_) => None,
+            // For dynamic expressions, we use the current snapshot.
+            MemStoragePredicateExpr::Dynamic(dynamic_expr) => dynamic_expr
+                .snapshot()?
+                .and_then(|expr| MemStoragePredicateExpr::try_from(&expr))
+                .and_then(|expr| expr.to_scan_predicate().transpose())
+                .transpose()?,
 
             MemStoragePredicateExpr::Column(_) | MemStoragePredicateExpr::ObjectId(_) => {
                 return exec_err!("Expression is not a predicate.");
@@ -161,15 +180,15 @@ pub fn try_rewrite_datafusion_expr(
     }
 
     if let Some(binary) = expr.as_any().downcast_ref::<BinaryExpr>() {
-        let left = try_rewrite_datafusion_expr(binary.left())?;
-        let right = try_rewrite_datafusion_expr(binary.right())?;
-
         return match binary.op() {
             Operator::Eq
             | Operator::Gt
             | Operator::GtEq
             | Operator::Lt
             | Operator::LtEq => {
+                let left = try_rewrite_datafusion_expr(binary.left())?;
+                let right = try_rewrite_datafusion_expr(binary.right())?;
+
                 let op = PredicateExprOperator::try_from(*binary.op()).ok()?;
 
                 let (column, literal, op) = match (left, right) {
@@ -186,31 +205,7 @@ pub fn try_rewrite_datafusion_expr(
 
                 Some(MemStoragePredicateExpr::Binary(column, op, literal))
             }
-            Operator::And => {
-                let MemStoragePredicateExpr::Binary(lhs_column, _, _) = &left else {
-                    return None;
-                };
-                let MemStoragePredicateExpr::Binary(rhs_column, _, _) = &right else {
-                    return None;
-                };
-
-                if lhs_column != rhs_column {
-                    return None;
-                }
-
-                let left = left.to_scan_predicate().ok().flatten()?;
-                let right = right.to_scan_predicate().ok().flatten()?;
-                return match left.try_and_with(&right)? {
-                    MemIndexScanPredicate::Between(from, to) => {
-                        Some(MemStoragePredicateExpr::Between(
-                            Arc::clone(lhs_column),
-                            from,
-                            to,
-                        ))
-                    }
-                    _ => None,
-                };
-            }
+            Operator::And => try_rewrite_and_expr(binary),
             _ => return None,
         };
     }
@@ -218,11 +213,84 @@ pub fn try_rewrite_datafusion_expr(
     None
 }
 
-impl MemIndexScanPredicateSource for DynamicFilterPhysicalExpr {
-    fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr> {
-        let expr = self.current()?;
+/// Rewrites a logical and expression into a [MemStoragePredicateExpr].
+///
+/// If only one side of the and can be rewritten, the other side will be ignored. This approximates
+/// the actual filter condition as an additional AND clause can only become stricter. This helps
+/// also with handling dynamic filter pushdowns that include ranges and `IN` expressions.
+fn try_rewrite_and_expr(binary: &BinaryExpr) -> Option<MemStoragePredicateExpr> {
+    let left = try_rewrite_datafusion_expr(binary.left());
+    let right = try_rewrite_datafusion_expr(binary.right());
+
+    match (left, right) {
+        (None, None) => None,
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (Some(left), Some(right)) => {
+            let MemStoragePredicateExpr::Binary(lhs_column, _, _) = &left else {
+                return None;
+            };
+            let MemStoragePredicateExpr::Binary(rhs_column, _, _) = &right else {
+                return None;
+            };
+
+            if lhs_column != rhs_column {
+                return None;
+            }
+
+            let left = left.to_scan_predicate().ok().flatten()?;
+            let right = right.to_scan_predicate().ok().flatten()?;
+            match left.try_and_with(&right)? {
+                MemIndexScanPredicate::Between(from, to) => Some(
+                    MemStoragePredicateExpr::Between(Arc::clone(lhs_column), from, to),
+                ),
+                _ => None,
+            }
+        }
+    }
+}
+
+/// A Wrapper around a [DynamicFilterPhysicalExpr] that implements [MemIndexScanPredicateSource].
+#[derive(Debug)]
+pub struct DynamicFilterScanPredicateSource(Arc<DynamicFilterPhysicalExpr>);
+
+impl DynamicFilterScanPredicateSource {
+    /// Creates a new [DynamicFilterScanPredicateSource].
+    pub fn new(expr: Arc<DynamicFilterPhysicalExpr>) -> Self {
+        Self(expr)
+    }
+}
+
+impl MemIndexScanPredicateSource for DynamicFilterScanPredicateSource {
+    fn current_predicate_expr(&self) -> DFResult<MemStoragePredicateExpr> {
+        let expr = self.0.current()?;
         try_rewrite_datafusion_expr(&expr)
             .ok_or_else(|| exec_datafusion_err!("Unsupported predicate."))
+    }
+}
+
+impl Display for DynamicFilterScanPredicateSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let generation = self.0.snapshot_generation();
+        let Ok(predicate) = self.current_predicate_expr() else {
+            return write!(
+                f,
+                "DynamicFilter [ Generation {generation}; Cannot obtain current predicate expr. ]"
+            );
+        };
+
+        let column = predicate.column().unwrap_or("Unknown");
+        let predicate = predicate
+            .to_scan_predicate()
+            .map(|expr| {
+                expr.map(|expr| expr.to_string())
+                    .unwrap_or_else(|| "true".to_string())
+            })
+            .unwrap_or_else(|_| "Cannot create scan predicate".to_string());
+        write!(
+            f,
+            "DynamicFilter [ Generation {generation}; {column} {predicate} ]"
+        )
     }
 }
 

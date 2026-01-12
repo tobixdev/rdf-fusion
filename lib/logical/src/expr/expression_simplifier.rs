@@ -202,9 +202,9 @@ fn replace_equality_with_same_term(
     other_expression: &Expr,
 ) -> DFResult<Transformed<Expr>> {
     let other_expression = unwrap_encoding_changes(other_expression);
-    let (data_type, _) = other_expression.data_type_and_nullable(schema)?;
+    let field = other_expression.to_field(schema)?.1;
     let encoding = encodings
-        .try_get_encoding_name(&data_type)
+        .try_get_encoding_name(field.data_type())
         .ok_or_else(|| plan_datafusion_err!("Expected comparison with RDF terms"))?;
     let scalar = match encoding {
         EncodingName::PlainTerm => encodings

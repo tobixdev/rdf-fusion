@@ -112,8 +112,8 @@ impl RdfFusionLogicalPlanBuilder {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Effective Boolean Value (EBV)](https://www.w3.org/TR/sparql11-query/#ebv)
     pub fn filter(self, expression: Expr) -> DFResult<RdfFusionLogicalPlanBuilder> {
-        let (datatype, _) = expression.data_type_and_nullable(self.schema())?;
-        let expression = match datatype {
+        let field = expression.to_field(self.schema())?.1;
+        let expression = match field.data_type() {
             // If the expression already evaluates to a Boolean, we can use it directly.
             DataType::Boolean => expression,
             // Otherwise, obtain the EBV. This will trigger an error on an unknown encoding.

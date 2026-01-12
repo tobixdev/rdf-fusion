@@ -7,7 +7,7 @@ Projection: country AS country, ENC_PT(product) AS product, ENC_PT(nrOfReviews) 
     Projection: lhs.country AS country, lhs.product AS product, lhs.avgPrice AS avgPrice, rhs.nrOfReviews AS nrOfReviews
       Inner Join: lhs.country = rhs.country, lhs.product = rhs.product Filter: EBV(EQ(rhs.nrOfReviews, lhs.maxReviews))
         SubqueryAlias: lhs
-          Projection: COALESCE(lhs.country, rhs.country) AS country, lhs.maxReviews AS maxReviews, rhs.product AS product, rhs.avgPrice AS avgPrice
+          Projection: lhs.country AS country, lhs.maxReviews AS maxReviews, rhs.product AS product, rhs.avgPrice AS avgPrice
             Inner Join:  Filter: IS_COMPATIBLE(lhs.country, rhs.country)
               SubqueryAlias: lhs
                 Projection: ENC_PT(country) AS country, <uuid> AS maxReviews

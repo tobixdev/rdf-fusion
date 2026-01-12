@@ -239,7 +239,7 @@ impl Display for MemIndexScanPredicate {
 /// A trait for obtaining a [MemStoragePredicateExpr] which is still unknown at planning time (dynamic filter).
 pub trait MemIndexScanPredicateSource: Debug + Send + Sync + Display {
     /// Returns the current predicate.
-    fn current_predicate(&self) -> DFResult<MemStoragePredicateExpr>;
+    fn current_predicate_expr(&self) -> DFResult<MemStoragePredicateExpr>;
 }
 
 /// An encoded version of a triple pattern.
