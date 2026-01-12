@@ -21,9 +21,16 @@ fn run_plan_assertions(assertions: impl FnOnce()) {
     settings.add_filter(r"\b[0-9a-fA-F]{20,32}\b", "<uuid>");
 
     // This is also a bit hacky. This searches for usages of object ids in the query plans.
-    settings.add_filter(r"([0-9a-fA-F]+\.\.[0-9a-fA-F]+)", "<object id range>");
+    settings.add_filter(
+        r"\[([0-9a-fA-F]+,?\s?)+\]\.\.\[([0-9a-fA-F]+,?\s?)+\]",
+        "<object id range>",
+    );
     settings.add_filter(r"!= [0-9a-fA-F]{2,}", "!= <object id>");
     settings.add_filter(r"= [0-9a-fA-F]{2,}", "= <object id>");
+    settings.add_filter(
+        r#"FixedSizeBinary\(4,\s"\d+,\d+,\d+,\d+"\)"#,
+        "FixedSizeBinary(<object id>)",
+    );
 
     settings.bind(|| assertions());
 }
