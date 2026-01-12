@@ -185,7 +185,7 @@ mod test {
     use rdf_fusion_logical::ActiveGraph;
     use rdf_fusion_model::{
         BlankNodeMatchingMode, NamedNode, NamedNodePattern, NamedNodeRef, TermPattern,
-        TermRef, TriplePattern, Variable,
+        TriplePattern, Variable,
     };
     use std::sync::Arc;
 
@@ -199,7 +199,7 @@ mod test {
         assert!(result.updated_node.is_some());
         assert_snapshot!(
             format_quad_pattern(result.updated_node.unwrap()),
-            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object == 1]"
+            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object == [0, 0, 0, 1]]"
         )
     }
 
@@ -213,7 +213,7 @@ mod test {
         assert!(result.updated_node.is_some());
         assert_snapshot!(
             format_quad_pattern(result.updated_node.unwrap()),
-            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in (2..4294967295)]"
+            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in ([0, 0, 0, 2]..[FF, FF, FF, FF])]"
         )
     }
 
@@ -229,7 +229,7 @@ mod test {
         assert!(result.updated_node.is_some());
         assert_snapshot!(
             format_quad_pattern(result.updated_node.unwrap()),
-            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in (2..9)]"
+            @"DataSourceExec: [GPOS] subject=?subject, predicate=<http://example.com/test>, object=?object, additional_filters=[object in ([0, 0, 0, 2]..[0, 0, 0, 9])]"
         )
     }
 
@@ -237,8 +237,8 @@ mod test {
     /// variable.
     async fn create_test_pattern() -> MemQuadPatternDataSource {
         let schema = Arc::new(Schema::new(vec![
-            Field::new("subject", DataType::UInt32, false),
-            Field::new("object", DataType::UInt32, false),
+            Field::new("subject", DataType::FixedSizeBinary(4), false),
+            Field::new("object", DataType::FixedSizeBinary(4), false),
         ]));
         let pattern = TriplePattern {
             subject: TermPattern::Variable(Variable::new_unchecked("subject")),
@@ -249,14 +249,12 @@ mod test {
         };
 
         let object_id_mapping = Arc::new(MemObjectIdMapping::default());
-        object_id_mapping.encode_term_intern(TermRef::NamedNode(
-            NamedNodeRef::new_unchecked("http://example.com/test"),
-        ));
+        object_id_mapping
+            .encode_scalar(NamedNodeRef::new_unchecked("http://example.com/test").into())
+            .unwrap();
+        let encoding = Arc::new(ObjectIdEncoding::new(object_id_mapping));
 
-        let encoding = Arc::new(ObjectIdEncoding::new(
-            Arc::clone(&object_id_mapping) as Arc<dyn ObjectIdMapping>
-        ));
-        let index = MemQuadStorage::new(object_id_mapping, encoding, 10);
+        let index = MemQuadStorage::try_new(encoding, 10).unwrap();
         let planned_scan = index
             .snapshot()
             .await
@@ -288,7 +286,7 @@ mod test {
         Arc::new(BinaryExpr::new(
             Arc::new(Column::new("object", 1)),
             operator,
-            Arc::new(Literal::new(ScalarValue::UInt32(Some(value)))),
+            Arc::new(Literal::new(ScalarValue::FixedSizeBinary(4, Some(value.to_be_bytes().to_vec())))),
         ))
     }
 
