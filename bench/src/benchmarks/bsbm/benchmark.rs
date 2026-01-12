@@ -1,7 +1,7 @@
 use crate::benchmarks::bsbm::operation::list_raw_operations;
 use crate::benchmarks::bsbm::report::{BsbmReport, ExploreReportBuilder, QueryDetails};
 use crate::benchmarks::bsbm::requirements::{
-    download_bsbm_tools, download_pre_generated_queries, generate_dataset_requirement,
+    copy_pre_generated_queries, download_bsbm_tools, generate_dataset_requirement,
 };
 use crate::benchmarks::bsbm::use_case::BsbmUseCase;
 use crate::benchmarks::bsbm::{BusinessIntelligenceUseCase, ExploreUseCase, NumProducts};
@@ -16,7 +16,7 @@ use rdf_fusion::io::RdfFormat;
 use rdf_fusion::store::Store;
 use std::fs;
 use std::marker::PhantomData;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Holds file paths for the files required for executing a BSBM run.
 #[derive(Clone)]
@@ -141,16 +141,18 @@ impl<TUseCase: BsbmUseCase + 'static> Benchmark for BsbmBenchmark<TUseCase> {
     }
 
     #[allow(clippy::expect_used)]
-    fn requirements(&self) -> Vec<PrepRequirement> {
+    fn requirements(&self, bench_files_path: &Path) -> Vec<PrepRequirement> {
         vec![
             download_bsbm_tools(),
             generate_dataset_requirement(self.paths.dataset.clone(), self.num_products),
-            download_pre_generated_queries(
+            copy_pre_generated_queries(
+                bench_files_path,
                 "explore",
                 ExploreUseCase::queries_file_path(),
                 self.num_products,
             ),
-            download_pre_generated_queries(
+            copy_pre_generated_queries(
+                bench_files_path,
                 "businessIntelligence",
                 BusinessIntelligenceUseCase::queries_file_path(),
                 self.num_products,

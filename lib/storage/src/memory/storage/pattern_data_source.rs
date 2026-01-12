@@ -5,12 +5,12 @@ use datafusion::common::{Statistics, exec_err};
 use datafusion::config::ConfigOptions;
 use datafusion::datasource::source::DataSource;
 use datafusion::execution::{SendableRecordBatchStream, TaskContext};
+use datafusion::physical_expr::projection::ProjectionExprs;
 use datafusion::physical_expr::{EquivalenceProperties, Partitioning, PhysicalExpr};
 use datafusion::physical_plan::DisplayFormatType;
 use datafusion::physical_plan::execution_plan::SchedulingType;
 use datafusion::physical_plan::filter_pushdown::{FilterPushdownPropagation, PushedDown};
 use datafusion::physical_plan::metrics::{BaselineMetrics, ExecutionPlanMetricsSet};
-use datafusion::physical_plan::projection::ProjectionExpr;
 use rdf_fusion_model::DFResult;
 use std::any::Any;
 use std::fmt::Formatter;
@@ -99,7 +99,7 @@ impl DataSource for MemQuadPatternDataSource {
 
     fn try_swapping_with_projection(
         &self,
-        _projection: &[ProjectionExpr],
+        _projection: &ProjectionExprs,
     ) -> DFResult<Option<Arc<dyn DataSource>>> {
         Ok(None)
     }

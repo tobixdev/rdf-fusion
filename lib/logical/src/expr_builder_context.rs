@@ -311,7 +311,7 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
 
         let outer_ref_column =
             expr_builder_ctx.try_create_builder(Expr::OuterReferenceColumn(
-                Arc::new(outer_field.clone()),
+                Arc::clone(outer_field),
                 Column::new_unqualified(k),
             ))?;
         let encoding = expr_builder_ctx
@@ -346,12 +346,12 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         expr: Expr,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
-        if data_type != DataType::Int64 {
+        let field = expr.to_field(self.schema)?.1;
+        if field.data_type() != &DataType::Int64 {
             return plan_err!(
                 "Expected Int64 argument for {}, got {}",
                 BuiltinName::NativeInt64AsTerm,
-                data_type
+                field.data_type()
             );
         }
 
@@ -366,12 +366,12 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         &self,
         expr: Expr,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let (data_type, _) = expr.data_type_and_nullable(self.schema)?;
-        if data_type != DataType::Boolean {
+        let field = expr.to_field(self.schema)?.1;
+        if field.data_type() != &DataType::Boolean {
             return plan_err!(
                 "Expected boolean arguments for {}, got {}",
                 BuiltinName::NativeBooleanAsTerm,
-                data_type
+                field.data_type()
             );
         }
 
@@ -391,13 +391,15 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// - [SPARQL 1.1 - Logical-and](https://www.w3.org/TR/sparql11-query/#func-logical-and)
     /// - [SPARQL 1.1 - Filter Evaluation](https://www.w3.org/TR/sparql11-query/#evaluation)
     pub fn and(&self, lhs: Expr, rhs: Expr) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
-        let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
-        if lhs_data_type != DataType::Boolean || rhs_data_type != DataType::Boolean {
+        let lhs_field = lhs.to_field(self.schema)?.1;
+        let rhs_field = rhs.to_field(self.schema)?.1;
+        if lhs_field.data_type() != &DataType::Boolean
+            || rhs_field.data_type() != &DataType::Boolean
+        {
             return plan_err!(
                 "Expected boolean arguments for and, got {} and {}",
-                lhs_data_type,
-                rhs_data_type
+                lhs_field.data_type(),
+                rhs_field.data_type()
             );
         }
 
@@ -416,13 +418,15 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
         lhs: Expr,
         rhs: Expr,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let (lhs_data_type, _) = lhs.data_type_and_nullable(self.schema)?;
-        let (rhs_data_type, _) = rhs.data_type_and_nullable(self.schema)?;
-        if lhs_data_type != DataType::Boolean || rhs_data_type != DataType::Boolean {
+        let lhs_field = lhs.to_field(self.schema)?.1;
+        let rhs_field = rhs.to_field(self.schema)?.1;
+        if lhs_field.data_type() != &DataType::Boolean
+            || rhs_field.data_type() != &DataType::Boolean
+        {
             return plan_err!(
                 "Expected boolean arguments for and, got {} and {}",
-                lhs_data_type,
-                rhs_data_type
+                lhs_field.data_type(),
+                rhs_field.data_type()
             );
         }
 
@@ -534,15 +538,15 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     /// Returns an error if any [Expr] does not evaluate to an RDF term.
     pub(crate) fn get_encodings(&self, args: &[Expr]) -> DFResult<Vec<EncodingName>> {
         args.iter()
-            .map(|e| {
-                let (data_type, _) = e.data_type_and_nullable(self.schema)?;
-                Ok(data_type)
-            })
-            .map(|r| {
-                r.and_then(|dt| {
-                    self.encodings().try_get_encoding_name(&dt).ok_or(
-                        exec_datafusion_err!("Data type is not an RDF term '{}'", dt),
-                    )
+            .map(|expr| Ok(expr.to_field(self.schema)?.1))
+            .map(|field| {
+                field.and_then(|field| {
+                    self.encodings()
+                        .try_get_encoding_name(field.data_type())
+                        .ok_or(exec_datafusion_err!(
+                            "Data type is not an RDF term '{}'",
+                            field
+                        ))
                 })
             })
             .collect::<DFResult<Vec<_>>>()

@@ -49,13 +49,14 @@ pub async fn execute_benchmark_operation(
     operation: Operation,
     benchmark: BenchmarkName,
 ) -> anyhow::Result<()> {
+    let bench_files = PathBuf::from("./bench_files");
     let data = PathBuf::from("./data");
     let results = PathBuf::from("./results");
 
     fs::create_dir_all(&data)?;
     fs::create_dir_all(&results)?;
 
-    let context = RdfFusionBenchContext::new(options, data, results);
+    let context = RdfFusionBenchContext::new(options, bench_files, data, results);
 
     let benchmark = create_benchmark_instance(benchmark)?;
     match operation {
@@ -72,7 +73,9 @@ pub async fn execute_benchmark_operation(
             }
             fs::create_dir_all(bench_ctx.data_dir())?;
 
-            for requirement in benchmark.requirements() {
+            for requirement in
+                benchmark.requirements(bench_ctx.bench_files_dir().as_path())
+            {
                 bench_ctx.prepare_requirement(requirement).await?;
             }
 
@@ -92,7 +95,9 @@ pub async fn execute_benchmark_operation(
             fs::create_dir_all(bench_ctx.results_dir())?;
 
             println!("Verifying requirements ...");
-            for requirement in benchmark.requirements() {
+            for requirement in
+                benchmark.requirements(bench_ctx.bench_files_dir().as_path())
+            {
                 bench_ctx.ensure_requirement(requirement)?;
             }
             println!("Requirements verified\n");

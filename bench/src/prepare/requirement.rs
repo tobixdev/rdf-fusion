@@ -1,4 +1,5 @@
 use crate::environment::BenchmarkContext;
+use crate::prepare::FileAction;
 use reqwest::Url;
 use std::path::PathBuf;
 
@@ -6,6 +7,15 @@ type PrepClosure = Box<dyn Fn(&BenchmarkContext) -> anyhow::Result<()>>;
 
 /// Defines a requirement of preparing for a benchmark.
 pub enum PrepRequirement {
+    /// Requires that a file is copied from a given (relative) path to a given (relative) path.
+    CopyFile {
+        /// The file path of the source file.
+        source_path: PathBuf,
+        /// The target path of the copied file.
+        target_path: PathBuf,
+        /// An optional action that is applied to the copied file.
+        action: Option<FileAction>,
+    },
     /// Requires that a file is downloaded at a given (relative) path.
     FileDownload {
         /// The URL that can be used to download the file.
@@ -13,7 +23,7 @@ pub enum PrepRequirement {
         /// The file name of the resulting file.
         file_name: PathBuf,
         /// An optional action that is applied to the downloaded file.
-        action: Option<FileDownloadAction>,
+        action: Option<FileAction>,
     },
     /// Runs a closure.
     RunClosure {
@@ -33,18 +43,4 @@ pub enum PrepRequirement {
         /// A checking function that can be used to check if the requirement is fulfilled.
         check_requirement: PrepClosure,
     },
-}
-
-/// Represents an action that is applied to a downloaded file.
-pub enum FileDownloadAction {
-    /// Unpacks a file after it has been downloaded.
-    Unpack(ArchiveType),
-}
-
-/// Represents the type of archive.
-pub enum ArchiveType {
-    /// A .bz2 archive.
-    Bz2,
-    /// A .zip archive.
-    Zip,
 }

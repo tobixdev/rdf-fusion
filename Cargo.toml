@@ -34,7 +34,7 @@ clap = "4.5"
 clap_complete = "4.5"
 clap_mangen = "0.2"
 csv = "1.4"
-datafusion = "51.0"
+datafusion = "52.0.0"
 dashmap = "6.1"
 futures = "0.3"
 itertools = "0.14"
@@ -52,7 +52,7 @@ snmalloc-rs = "0.3"
 thiserror = "2.0"
 time = "0.3"
 tokio = { version = "1.48", features = ["rt", "rt-multi-thread"] }
-uuid = "1.18"
+uuid = "1.19"
 zip = "6.0"
 
 # Logging / Tracing

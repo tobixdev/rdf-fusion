@@ -327,11 +327,9 @@ fn value_from_joined(
     let expr = match (lhs_keys.contains(variable), rhs_keys.contains(variable)) {
         (true, true) => {
             if requires_coalesce {
-                let (lhs_datatype, _) =
-                    lhs_expr.data_type_and_nullable(expr_builder_root.schema())?;
-                let (rhs_datatype, _) =
-                    rhs_expr.data_type_and_nullable(expr_builder_root.schema())?;
-                if lhs_datatype != rhs_datatype {
+                let lhs_field = lhs_expr.to_field(expr_builder_root.schema())?.1;
+                let rhs_field = rhs_expr.to_field(expr_builder_root.schema())?.1;
+                if lhs_field.data_type() != rhs_field.data_type() {
                     return plan_err!(
                         "The two columns for creating a COALESCE are different."
                     );

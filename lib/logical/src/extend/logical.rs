@@ -122,7 +122,7 @@ fn compute_schema(
     expression: &Expr,
 ) -> DFResult<DFSchemaRef> {
     let column = Column::new_unqualified(variable.as_str());
-    let (data_type, nullability) = expression.data_type_and_nullable(inner.schema())?;
+    let field = expression.to_field(inner.schema())?.1;
 
     let mut fields = inner
         .schema()
@@ -130,7 +130,11 @@ fn compute_schema(
         .iter()
         .map(|f| f.as_ref().clone())
         .collect::<Vec<_>>();
-    fields.push(Field::new(column.name, data_type, nullability));
+    fields.push(Field::new(
+        column.name,
+        field.data_type().clone(),
+        field.is_nullable(),
+    ));
 
     let fields = fields.into_iter().collect::<Fields>();
     let schema = DFSchema::from_unqualified_fields(fields, HashMap::new())?;

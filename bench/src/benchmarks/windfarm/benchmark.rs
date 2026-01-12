@@ -7,7 +7,7 @@ use crate::benchmarks::windfarm::report::{
 use crate::benchmarks::{Benchmark, BenchmarkName};
 use crate::environment::BenchmarkContext;
 use crate::operation::SparqlRawOperation;
-use crate::prepare::{ArchiveType, FileDownloadAction, PrepRequirement};
+use crate::prepare::{ArchiveType, FileAction, PrepRequirement};
 use crate::report::BenchmarkReport;
 use crate::utils::print_store_stats;
 use anyhow::Context;
@@ -88,7 +88,7 @@ impl WindFarmBenchmark {
         PrepRequirement::FileDownload {
             url: Url::parse("https://github.com/magbak/chrontext_benchmarks/archive/7947750d4f929b3483b5f4250aaf275676ec1139.zip").unwrap(),
             file_name: PathBuf::from("./source"),
-            action: Some(FileDownloadAction::Unpack(ArchiveType::Zip)),
+            action: Some(FileAction::Unpack(ArchiveType::Zip)),
         }
     }
 
@@ -133,7 +133,7 @@ impl Benchmark for WindFarmBenchmark {
     }
 
     #[allow(clippy::expect_used)]
-    fn requirements(&self) -> Vec<PrepRequirement> {
+    fn requirements(&self, _bench_files_path: &Path) -> Vec<PrepRequirement> {
         let num_turbines = self.num_turbines.into_usize();
         let generate_dataset = self.generate_data_set(num_turbines);
         let download_source = Self::download_source();

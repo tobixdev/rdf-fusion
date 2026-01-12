@@ -1,9 +1,9 @@
 use crate::benchmarks::bsbm::NumProducts;
-use crate::prepare::{ArchiveType, FileDownloadAction, PrepRequirement};
+use crate::prepare::{ArchiveType, FileAction, PrepRequirement};
 use anyhow::bail;
 use reqwest::Url;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Downloads the BSBM tools from a GitHub fork.
 pub fn download_bsbm_tools() -> PrepRequirement {
@@ -11,7 +11,7 @@ pub fn download_bsbm_tools() -> PrepRequirement {
         url: Url::parse("https://github.com/Tpt/bsbm-tools/archive/59d0a8a605b26f21506789fa1a713beb5abf1cab.zip")
             .expect("parse dataset-name"),
         file_name: PathBuf::from("bsbmtools"),
-        action: Some(FileDownloadAction::Unpack(ArchiveType::Zip)),
+        action: Some(FileAction::Unpack(ArchiveType::Zip)),
     }
 }
 
@@ -43,18 +43,19 @@ pub fn generate_dataset_requirement(
     }
 }
 
-/// Downloads the pre-generated queries from Oxigraph.
-pub fn download_pre_generated_queries(
+/// Copies the pre-generated queries from Oxigraph.
+pub fn copy_pre_generated_queries(
+    data_files_path: &Path,
     use_case: &str,
-    file_name: PathBuf,
+    target_path: PathBuf,
     num_products: NumProducts,
 ) -> PrepRequirement {
-    PrepRequirement::FileDownload {
-        url: Url::parse(&format!(
-            "https://zenodo.org/records/12663333/files/{use_case}-{num_products}.csv.bz2"
-        ))
-        .expect("parse dataset-name"),
-        file_name,
-        action: Some(FileDownloadAction::Unpack(ArchiveType::Bz2)),
+    let source_path = data_files_path
+        .join("bsbm_queries")
+        .join(format!("{use_case}-{num_products}.csv.bz2"));
+    PrepRequirement::CopyFile {
+        source_path,
+        target_path,
+        action: Some(FileAction::Unpack(ArchiveType::Bz2)),
     }
 }

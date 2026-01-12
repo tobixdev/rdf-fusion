@@ -1,5 +1,6 @@
 use crate::prepare::PrepRequirement;
 use async_trait::async_trait;
+use std::path::Path;
 
 pub mod bsbm;
 mod name;
@@ -19,7 +20,7 @@ pub trait Benchmark {
     fn name(&self) -> BenchmarkName;
 
     /// Returns a list of preparation requirements.
-    fn requirements(&self) -> Vec<PrepRequirement>;
+    fn requirements(&self, bench_files_path: &Path) -> Vec<PrepRequirement>;
 
     /// Executes the benchmark using the given `bencher`.
     async fn execute(
