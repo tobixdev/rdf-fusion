@@ -23,6 +23,7 @@ use crate::scalar::dates_and_times::{
     day_udf, hours_udf, minutes_udf, month_udf, seconds_udf, timezone_udf, tz_udf,
     year_udf,
 };
+use crate::scalar::error::SparqlUDFCreationError;
 use crate::scalar::functional_form::{bound_udf, sparql_if_udf};
 use crate::scalar::numeric::{
     abs_udf, add_udf, ceil_udf, div_udf, floor_udf, mul_udf, rand_udf, round_udf,
@@ -50,7 +51,7 @@ use rdf_fusion_extensions::functions::{
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Debug;
 use std::iter::once;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 /// The default implementation of the `RdfFusionFunctionRegistry` trait.
 ///
@@ -105,6 +106,26 @@ impl DefaultRdfFusionFunctionRegistry {
             .expect("Default functions should be registered without errors");
         registry
     }
+
+    /// Produce an error if the given function's name or aliases have been registered already.
+    fn validate_function_names(
+        &self,
+        lock: &RwLockWriteGuard<'_, RegistryContent>,
+        names: &[String],
+    ) -> DFResult<()> {
+        for name in names {
+            if lock.udfs.contains_key(name) {
+                Err(SparqlUDFCreationError::new(format!(
+                    "Attempted to override an existing user-defined function with name or alias: {name}"
+                )))?
+            } else if lock.udafs.contains_key(name) {
+                Err(SparqlUDFCreationError::new(format!(
+                    "Attempted to override an existing user-defined aggregate function with name or alias: {name}"
+                )))?
+            }
+        }
+        Ok(())
+    }
 }
 
 impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
@@ -114,7 +135,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     ) -> DFResult<Vec<EncodingName>> {
         self.inner
             .read()
-            .unwrap()
+            .expect("Poisoned lock.")
             .udf_encodings
             .get(&function_name.to_string())
             .cloned()
@@ -124,7 +145,7 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     fn udf(&self, function_name: &FunctionName) -> DFResult<Arc<ScalarUDF>> {
         self.inner
             .read()
-            .unwrap()
+            .expect("Poisoned lock.")
             .udfs
             .get(&function_name.to_string())
             .cloned()
@@ -134,40 +155,91 @@ impl RdfFusionFunctionRegistry for DefaultRdfFusionFunctionRegistry {
     fn udaf(&self, function_name: &FunctionName) -> DFResult<Arc<AggregateUDF>> {
         self.inner
             .read()
-            .unwrap()
+            .expect("Poisoned lock.")
             .udafs
             .get(&function_name.to_string())
             .cloned()
             .ok_or_else(|| plan_datafusion_err!("Function '{function_name}' not found"))
     }
 
-    fn register_udf(&self, udf: Arc<ScalarUDF>) {
+    fn register_udf(&self, udf: Arc<ScalarUDF>) -> DFResult<()> {
         let supported_encodings =
             supported_encodings(&self.encodings, &udf.signature().type_signature);
-
-        let mut lock = self.inner.write().unwrap();
-
-        for name in once(udf.name().to_owned()).chain(udf.aliases().iter().cloned()) {
+        let names = once(udf.name().to_owned())
+            .chain(udf.aliases().iter().cloned())
+            .collect::<Vec<_>>();
+        let mut lock = self.inner.write().expect("Poisoned lock.");
+        self.validate_function_names(&lock, &names)?;
+        for name in names {
             lock.udf_encodings.entry(name.clone()).or_default();
             lock.udf_encodings
                 .get_mut(&name)
                 .unwrap()
                 .extend(supported_encodings.iter().copied());
-            lock.udfs.insert(name, Arc::clone(&udf));
+
+            lock.udfs.insert(name.clone(), Arc::clone(&udf));
+        }
+        Ok(())
+    }
+
+    fn register_udaf(&self, udaf: Arc<AggregateUDF>) -> DFResult<()> {
+        let mut lock = self.inner.write().expect("Poisoned lock.");
+        let names = once(udaf.name().to_owned())
+            .chain(udaf.aliases().iter().cloned())
+            .collect::<Vec<_>>();
+        self.validate_function_names(&lock, &names)?;
+        for name in names {
+            lock.udafs.insert(name.to_owned(), Arc::clone(&udaf));
+        }
+        Ok(())
+    }
+
+    fn unregister_udf(&self, name_or_alias: &str) -> Option<Arc<ScalarUDF>> {
+        let mut lock = self.inner.write().expect("Poisoned lock.");
+        if let Some(udf) = lock.udfs.remove(name_or_alias) {
+            once(udf.name().to_owned())
+                .chain(udf.aliases().iter().cloned())
+                .for_each(|n| {
+                    lock.udfs.remove(&n);
+                });
+            Some(udf)
+        } else {
+            None
         }
     }
 
-    fn register_udaf(&self, udaf: Arc<AggregateUDF>) {
+    fn unregister_udaf(&self, name_or_alias: &str) -> Option<Arc<AggregateUDF>> {
         let mut lock = self.inner.write().expect("Poisoned lock.");
-
-        lock.udafs.insert(udaf.name().to_owned(), Arc::clone(&udaf));
-        for alias in udaf.aliases() {
-            lock.udafs.insert(alias.to_owned(), Arc::clone(&udaf));
+        if let Some(udaf) = lock.udafs.remove(name_or_alias) {
+            once(udaf.name().to_owned())
+                .chain(udaf.aliases().iter().cloned())
+                .for_each(|n| {
+                    lock.udafs.remove(&n);
+                });
+            Some(udaf)
+        } else {
+            None
         }
     }
 
     fn udfs(&self) -> Vec<Arc<ScalarUDF>> {
-        self.inner.read().unwrap().udfs.values().cloned().collect()
+        self.inner
+            .read()
+            .expect("Poisoned lock.")
+            .udfs
+            .values()
+            .cloned()
+            .collect()
+    }
+
+    fn udafs(&self) -> Vec<Arc<AggregateUDF>> {
+        self.inner
+            .read()
+            .expect("Poisoned lock.")
+            .udafs
+            .values()
+            .cloned()
+            .collect()
     }
 }
 
@@ -299,11 +371,11 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) -> DFResu
     ];
 
     for udf in scalar_fns {
-        registry.register_udf(Arc::new(udf));
+        registry.register_udf(Arc::new(udf))?;
     }
 
     if let Some(decode) = decode_term(registry.encodings.clone()) {
-        registry.register_udf(Arc::new(decode));
+        registry.register_udf(Arc::new(decode))?;
     }
 
     // Native conversion functions
@@ -313,7 +385,7 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) -> DFResu
     ];
 
     for udf in native_fns {
-        registry.register_udf(Arc::new(udf));
+        registry.register_udf(Arc::new(udf))?;
     }
 
     // Aggregate functions
@@ -327,7 +399,7 @@ fn register_functions(registry: &mut DefaultRdfFusionFunctionRegistry) -> DFResu
     ];
 
     for udaf_information in aggregate_fns {
-        registry.register_udaf(Arc::new(udaf_information));
+        registry.register_udaf(Arc::new(udaf_information))?;
     }
 
     Ok(())

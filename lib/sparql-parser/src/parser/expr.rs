@@ -665,6 +665,8 @@ impl<'a> SparqlParser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rdf_fusion_functions::scalar::terms::str_udf;
+
     use crate::parser::SparqlParser;
     use crate::parser::test_helpers::*;
 
@@ -818,12 +820,11 @@ mod tests {
         use rdf_fusion_encoding::typed_family::TypedFamilyEncoding;
         use rdf_fusion_extensions::functions::RdfFusionFunctionRegistry;
         use rdf_fusion_functions::registry::DefaultRdfFusionFunctionRegistry;
-        use rdf_fusion_functions::scalar::terms::str_udf;
         use std::sync::Arc;
 
-        // A function registered under the full IRI that `ex:f` resolves to, so
-        // the (now registry-driven) parser recognizes it as a scalar function.
-        fn render_with_prefix(input: &str) -> String {
+        /// Returns a new instance of the function registry, modified
+        /// with an alias for the built-in UDF [`StrSparqlUDF`].
+        fn get_registry() -> Arc<dyn RdfFusionFunctionRegistry> {
             let encodings = RdfFusionEncodings::new(
                 Arc::clone(&PLAIN_TERM_ENCODING),
                 Arc::new(TypedFamilyEncoding::default()),
@@ -833,10 +834,19 @@ mod tests {
             let registry: Arc<dyn RdfFusionFunctionRegistry> =
                 Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
             let udf = str_udf(encodings)
-                .expect("failed to create STR UDF")
+                .expect("creating a STR UDF should succeed")
                 .with_aliases(["http://example.org/f"]);
-            registry.register_udf(Arc::new(udf));
+            registry.unregister_udf(udf.name());
+            registry
+                .register_udf(Arc::new(udf))
+                .expect("registering the new STR UDF should succeed");
+            registry
+        }
 
+        // A function registered under the full IRI that `ex:f` resolves to, so
+        // the (now registry-driven) parser recognizes it as a scalar function.
+        fn render_with_prefix(input: &str) -> String {
+            let registry = get_registry();
             let mut p = SparqlParser::new(input, registry);
             p.prefixes
                 .insert("ex".to_string(), "http://example.org/".to_string());
@@ -853,21 +863,7 @@ mod tests {
         assert_eq!(render_with_prefix("ex:f()"), "ex:f()");
 
         // Named (`;`) parameters are aggregate-only; a scalar UDF rejects them.
-        let mut p = SparqlParser::new("ex:f(?a; OPTION = 42)", {
-            let encodings = RdfFusionEncodings::new(
-                Arc::clone(&PLAIN_TERM_ENCODING),
-                Arc::new(TypedFamilyEncoding::default()),
-                None,
-                Arc::clone(&STRING_ENCODING),
-            );
-            let registry: Arc<dyn RdfFusionFunctionRegistry> =
-                Arc::new(DefaultRdfFusionFunctionRegistry::new(encodings.clone()));
-            let udf = str_udf(encodings)
-                .expect("failed to create STR UDF")
-                .with_aliases(["http://example.org/f"]);
-            registry.register_udf(Arc::new(udf));
-            registry
-        });
+        let mut p = SparqlParser::new("ex:f(?a; OPTION = 42)", get_registry());
         p.prefixes
             .insert("ex".to_string(), "http://example.org/".to_string());
         assert!(

@@ -99,6 +99,9 @@ pub fn register_custom_functions(context_view: &RdfFusionContextView) {
     for (iri, arity) in definitions {
         let udf =
             ScalarUDF::new_from_impl(TestCustomFunction::new(iri, encodings, arity));
-        context_view.functions().register_udf(Arc::new(udf));
+        context_view
+            .functions()
+            .register_udf(Arc::new(udf))
+            .expect("failed to register UDF");
     }
 }

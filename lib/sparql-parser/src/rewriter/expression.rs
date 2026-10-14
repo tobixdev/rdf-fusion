@@ -4,7 +4,6 @@ use crate::rewriter::GraphPatternRewriter;
 use crate::span::Spanned;
 use datafusion_common::tree_node::{Transformed, TreeNode};
 use datafusion_common::{Column, plan_datafusion_err};
-use datafusion_expr::expr::AggregateFunction;
 use datafusion_expr::{Expr, Operator, lit, or};
 use rdf_fusion_common::TermRef;
 use rdf_fusion_common::vocab::xsd;
@@ -253,27 +252,12 @@ impl<'rewriter> ExpressionRewriter<'rewriter> {
                 let fn_name = rdf_fusion_extensions::functions::FunctionName::Custom(
                     named_node.clone(),
                 );
-                let udaf = self
-                    .graph_rewriter
-                    .builder_context()
-                    .registry()
-                    .udaf(&fn_name)
-                    .map_err(|_| {
-                        SparqlParseError::new(
-                            iri.span(),
-                            format!("Unknown aggregate function: {named_node}"),
-                        )
-                    })?;
                 let rewritten_args = self.rewrite_args(&agg.args)?;
-                let expr = Expr::AggregateFunction(AggregateFunction::new_udf(
-                    udaf,
+                Ok(self.rewrite_expr_from_agg(agg)?.apply_udaf(
+                    fn_name,
                     rewritten_args,
                     agg.distinct,
-                    None,
-                    Vec::new(),
-                    None,
-                ));
-                Ok(self.expr_builder_root.try_create_builder(expr)?)
+                )?)
             }
         }
     }

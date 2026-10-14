@@ -3,7 +3,7 @@ pub mod as_sortable_bytes;
 pub mod comparison;
 pub mod conversion;
 pub mod dates_and_times;
-mod error;
+pub mod error;
 pub mod functional_form;
 pub mod numeric;
 mod renamed;

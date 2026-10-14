@@ -494,27 +494,29 @@ impl<'context> RdfFusionExprBuilderContext<'context> {
     // Built-Ins
     //
 
-    /// Applies a built-in SPARQL aggregate function to a list of arguments.
-    pub(crate) fn apply_builtin_udaf(
+    /// Applies a built-in or user-defined SPARQL aggregate function to a list of arguments.
+    pub(crate) fn apply_udaf(
         &self,
-        name: BuiltinName,
+        name: FunctionName,
         args: Vec<Expr>,
         distinct: bool,
     ) -> DFResult<RdfFusionExprBuilder<'context>> {
-        let udaf = self.registry().udaf(&FunctionName::Builtin(name))?;
+        let udaf = self.registry().udaf(&name)?;
 
         // Currently, UDAFs are only supported for typed values (we have an exception for count).
         // In the future we should solve this similar to the scalar functions
-        let args = match name {
-            BuiltinName::Count => args,
-            _ => args
-                .into_iter()
+        let args = if let FunctionName::Builtin(bname) = name
+            && matches!(bname, BuiltinName::Count)
+        {
+            args
+        } else {
+            args.into_iter()
                 .map(|e| {
                     self.try_create_builder(e)?
                         .with_encoding(EncodingName::TypedFamily)?
                         .build()
                 })
-                .collect::<DFResult<Vec<_>>>()?,
+                .collect::<DFResult<Vec<_>>>()?
         };
 
         let expr = Expr::AggregateFunction(AggregateFunction::new_udf(

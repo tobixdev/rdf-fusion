@@ -29,15 +29,28 @@ pub trait RdfFusionFunctionRegistry: Debug + Send + Sync {
     /// Creates a [ScalarUDF].
     fn udf(&self, function_name: &FunctionName) -> DFResult<Arc<ScalarUDF>>;
 
-    /// Creates a [AggregateUDF].
+    /// Creates an [AggregateUDF].
     fn udaf(&self, function_name: &FunctionName) -> DFResult<Arc<AggregateUDF>>;
 
-    /// Register a [ScalarUDF].
-    fn register_udf(&self, udf: Arc<ScalarUDF>);
+    /// Register a new [ScalarUDF].
+    fn register_udf(&self, udf: Arc<ScalarUDF>) -> DFResult<()>;
 
-    /// Register a [AggregateUDF].
-    fn register_udaf(&self, udaf: Arc<AggregateUDF>);
+    /// Register a new [AggregateUDF].
+    fn register_udaf(&self, udaf: Arc<AggregateUDF>) -> DFResult<()>;
 
-    /// Returns all registered ScalarUDFs.
+    /// Unregister a [ScalarUDF] with its name or an alias.
+    ///
+    /// Returns the removed [ScalarUDF] from the registry.
+    fn unregister_udf(&self, name_or_alias: &str) -> Option<Arc<ScalarUDF>>;
+
+    /// Unregister an [AggregateUDF] with its name or an alias.
+    ///
+    /// Returns the removed [AggregateUDF] from the registry.
+    fn unregister_udaf(&self, name_or_alias: &str) -> Option<Arc<AggregateUDF>>;
+
+    /// Returns all registered [ScalarUDF]s.
     fn udfs(&self) -> Vec<Arc<ScalarUDF>>;
+
+    /// Returns all registered [AggregateUDF]s.
+    fn udafs(&self) -> Vec<Arc<AggregateUDF>>;
 }

@@ -32,15 +32,15 @@ pub async fn main() -> anyhow::Result<()> {
         .load_from_reader(file, RdfFileScanOptions::with_format(RdfFormat::Turtle))
         .await?;
 
-    // Register custom function.
+    // Register our custom function.
     let context = store.context();
     context
         .functions()
         .register_udf(Arc::new(ScalarUDF::new_from_impl(ContainsSpiderUDF::new(
             context.encodings().clone(),
-        ))));
+        ))))?;
 
-    // Run SPARQL query.
+    // Run the SPARQL query.
     let query = "
     BASE <http://example.org/>
     PREFIX rel: <http://www.perceive.net/schemas/relationship/>
@@ -53,14 +53,14 @@ pub async fn main() -> anyhow::Result<()> {
     ";
     let result = store.query(query).await?;
 
-    // Serialize result
+    // Serialize the result
     let mut result_buffer = Vec::new();
     result
         .write(&mut result_buffer, QueryResultsFormat::Csv)
         .await?;
     let result = String::from_utf8(result_buffer)?;
 
-    // Print results.
+    // Print the results.
     println!("Enemies of Spiderman:");
     print!("{result}");
 
@@ -186,7 +186,7 @@ mod tests {
         let udf = ContainsSpiderUDF::new(context.encodings().clone());
         context
             .functions()
-            .register_udf(Arc::new(ScalarUDF::new_from_impl(udf)));
+            .register_udf(Arc::new(ScalarUDF::new_from_impl(udf)))?;
 
         let file_path = "./data/spiderman.ttl";
         let file = File::open(file_path)

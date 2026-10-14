@@ -37,9 +37,7 @@ impl<'root> RdfFusionExprBuilder<'root> {
             context: root,
             expr,
         };
-
         result.encoding()?;
-
         Ok(result)
     }
 
@@ -719,7 +717,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Avg](https://www.w3.org/TR/sparql11-query/#defn_aggAvg)
     pub fn avg(self, distinct: bool) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Avg, distinct)
+        self.context.apply_udaf(
+            FunctionName::Builtin(BuiltinName::Avg),
+            vec![self.expr],
+            distinct,
+        )
     }
 
     /// Creates a new aggregate expression that computes the average of the inner expression.
@@ -729,7 +731,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Count](https://www.w3.org/TR/sparql11-query/#defn_aggCount)
     pub fn count(self, distinct: bool) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Count, distinct)
+        self.context.apply_udaf(
+            FunctionName::Builtin(BuiltinName::Count),
+            vec![self.expr],
+            distinct,
+        )
     }
 
     /// Creates a new aggregate expression that computes the maximum of the inner expression.
@@ -737,7 +743,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Max](https://www.w3.org/TR/sparql11-query/#defn_aggMax)
     pub fn max(self) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Max, false)
+        self.context.apply_udaf(
+            FunctionName::Builtin(BuiltinName::Max),
+            vec![self.expr],
+            false,
+        )
     }
 
     /// Creates a new aggregate expression that computes the minimum of the inner expression.
@@ -745,7 +755,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Min](https://www.w3.org/TR/sparql11-query/#defn_aggMin)
     pub fn min(self) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Min, false)
+        self.context.apply_udaf(
+            FunctionName::Builtin(BuiltinName::Min),
+            vec![self.expr],
+            false,
+        )
     }
 
     /// Creates a new aggregate expression that returns any value of the inner expression.
@@ -768,7 +782,11 @@ impl<'root> RdfFusionExprBuilder<'root> {
     /// # Relevant Resources
     /// - [SPARQL 1.1 - Sum](https://www.w3.org/TR/sparql11-query/#defn_aggSum)
     pub fn sum(self, distinct: bool) -> DFResult<Self> {
-        self.apply_builtin_udaf(BuiltinName::Sum, distinct)
+        self.context.apply_udaf(
+            FunctionName::Builtin(BuiltinName::Sum),
+            vec![self.expr],
+            distinct,
+        )
     }
 
     /// Creates a new aggregate expression that computes the concatenation of the inner expression.
@@ -790,8 +808,8 @@ impl<'root> RdfFusionExprBuilder<'root> {
         let tf_array = typed_family_encoding.cast_from_plain_term_array(&pt_array)?;
         let arg = tf_array.try_as_scalar(0)?;
 
-        self.context.apply_builtin_udaf(
-            BuiltinName::GroupConcat,
+        self.context.apply_udaf(
+            FunctionName::Builtin(BuiltinName::GroupConcat),
             vec![self.expr, lit(arg.into_scalar_value())],
             distinct,
         )
@@ -884,14 +902,20 @@ impl<'root> RdfFusionExprBuilder<'root> {
             "Transformation from '{source_encoding:?}' to '{target_encodings:?}' is not supported."
         )
     }
+
+    /// Applies a built-in or user-defined SPARQL aggregate function to a list of arguments.
+    pub fn apply_udaf(
+        &self,
+        name: FunctionName,
+        args: Vec<Expr>,
+        distinct: bool,
+    ) -> DFResult<Self> {
+        self.context.apply_udaf(name, args, distinct)
+    }
+
     //
     // Built-Ins
     //
-
-    fn apply_builtin_udaf(self, name: BuiltinName, distinct: bool) -> DFResult<Self> {
-        self.context
-            .apply_builtin_udaf(name, vec![self.expr], distinct)
-    }
 
     /// Applies a built-in function to the current expression.
     fn apply_builtin(self, name: BuiltinName, further_args: Vec<Expr>) -> DFResult<Self> {
